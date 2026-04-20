@@ -1,0 +1,78 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --ink: #0A0A0F;
+  --ink-2: #13131A;
+  --ink-3: #1C1C27;
+  --gold: #C9A84C;
+  --gold-light: #E8C96A;
+  --gold-dim: #8A6E2F;
+  --cream: #F5F0E8;
+  --cream-dim: #B8B0A0;
+  --teal: #2DD4BF;
+  --red-cost: #7B0000;
+  --blue-income: #0D1F4C;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  background: var(--ink);
+  color: var(--cream);
+  font-family: 'DM Sans', sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Typography */
+.serif { font-family: 'DM Serif Display', serif; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: var(--ink-2); }
+::-webkit-scrollbar-thumb { background: var(--gold-dim); border-radius: 2px; }
+
+/* Gold rule */
+.gold-rule {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+}
+
+/* Slide transitions */
+.slide-enter { animation: slideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
+@keyframes slideIn {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Number display */
+.stat-number {
+  font-family: 'DM Serif Display', serif;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  color: var(--gold);
+  line-height: 1;
+}
+
+/* Cards */
+.card {
+  background: var(--ink-2);
+  border: 1px solid rgba(201, 168, 76, 0.15);
+  border-radius: 12px;
+}
+
+.card-highlight {
+  background: var(--ink-2);
+  border: 1px solid rgba(201, 168, 76, 0.4);
+  border-radius: 12px;
+}
+
+/* Recharts overrides */
+.recharts-tooltip-wrapper { outline: none; }
+.recharts-default-tooltip {
+  background: var(--ink-3) !important;
+  border: 1px solid var(--gold-dim) !important;
+  border-radius: 8px !important;
+  color: var(--cream) !important;
+}
