@@ -1,125 +1,148 @@
 import React, { useState } from 'react'
+import PasswordGate from './PasswordGate.jsx'
+import VenueInfo from './tabs/VenueInfo.jsx'
+import BusinessExplorer from './tabs/BusinessExplorer.jsx'
+
+// Slides
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
-import UseOfFunds from './slides/UseOfFunds.jsx'
-import Financials from './slides/Financials.jsx'
-import WaterfallReturns from './slides/WaterfallReturns.jsx'
+import InvestmentSnapshot from './slides/InvestmentSnapshot.jsx'
+import MarketContext from './slides/MarketContext.jsx'
 import MarketingEngine from './slides/MarketingEngine.jsx'
-import WageCalculator from './slides/WageCalculator.jsx'
-import Governance from './slides/Governance.jsx'
+import FinancialPerformance from './slides/FinancialPerformance.jsx'
+import WaterfallReturns from './slides/WaterfallReturns.jsx'
+import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 
 const SLIDES = [
-  { id: 'cover',      label: '01  Cover',              Component: Cover },
-  { id: 'summary',    label: '02  Investment Summary',  Component: InvestmentSummary },
-  { id: 'funds',      label: '03  Use of Funds',        Component: UseOfFunds },
-  { id: 'financials', label: '04  Financials',          Component: Financials },
-  { id: 'waterfall',  label: '05  Investor Returns',    Component: WaterfallReturns },
-  { id: 'marketing',  label: '06  Marketing',           Component: MarketingEngine },
-  { id: 'wages',      label: '07  Wage Calculator',     Component: WageCalculator },
-  { id: 'governance', label: '08  Governance',          Component: Governance },
-  { id: 'case',       label: '09  Investment Case',     Component: InvestmentCase },
+  { id:'cover',      label:'01  Cover',                Component: Cover },
+  { id:'summary',    label:'02  Investment Summary',   Component: InvestmentSummary },
+  { id:'snapshot',   label:'03  Investment Snapshot',  Component: InvestmentSnapshot },
+  { id:'market',     label:'04  Market Context',       Component: MarketContext },
+  { id:'marketing',  label:'05  Marketing Engine',     Component: MarketingEngine },
+  { id:'financials', label:'06  Financial Performance',Component: FinancialPerformance },
+  { id:'waterfall',  label:'07  Waterfall Returns',    Component: WaterfallReturns },
+  { id:'growth',     label:'08  Growth & Risks',       Component: GrowthRisks },
+  { id:'case',       label:'09  Investment Case',      Component: InvestmentCase },
 ]
 
+const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
+
 export default function App() {
-  const [current, setCurrent] = useState(0)
-  const [menuOpen, setMenuOpen] = useState(false)
+  const [authed, setAuthed] = useState(false)
+  const [topTab, setTopTab] = useState('Investor Deck')
+  const [slideIdx, setSlideIdx] = useState(0)
 
-  const { Component } = SLIDES[current]
+  if (!authed) return <PasswordGate onAuth={() => setAuthed(true)} />
 
-  const go = (i) => { setCurrent(i); setMenuOpen(false) }
-  const prev = () => current > 0 && setCurrent(c => c - 1)
-  const next = () => current < SLIDES.length - 1 && setCurrent(c => c + 1)
+  const { Component } = SLIDES[slideIdx]
+
+  const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length-1, i)))
 
   return (
-    <div style={{ display:'flex', height:'100vh', overflow:'hidden', background:'var(--ink)' }}>
-
-      {/* SIDEBAR — desktop */}
-      <nav style={{
-        width: 220, flexShrink: 0, background: 'var(--ink-2)',
-        borderRight: '1px solid rgba(201,168,76,0.12)',
-        display: 'flex', flexDirection: 'column', padding: '24px 0',
+    <div style={{
+      display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden',
+      background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif",
+    }}>
+      <div style={{
+        display:'flex', alignItems:'center', justifyContent:'space-between',
+        padding:'0 24px', height:48, background:'var(--ink-2)',
+        borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0,
       }}>
-        {/* Logo */}
-        <div style={{ padding: '0 20px 24px', borderBottom: '1px solid rgba(201,168,76,0.12)' }}>
-          <div className="serif" style={{ fontSize: 18, color: 'var(--gold)', lineHeight: 1.2 }}>
-            No Dice<br/>Borough
-          </div>
-          <div style={{ fontSize: 10, color: 'var(--cream-dim)', marginTop: 6, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-            Investor Presentation
-          </div>
-          <div style={{ fontSize: 9, color: 'var(--gold-dim)', marginTop: 4 }}>
-            Confidential · Apr 2026
-          </div>
-        </div>
-
-        {/* Nav items */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 0' }}>
-          {SLIDES.map((s, i) => (
-            <button
-              key={s.id}
-              onClick={() => go(i)}
-              style={{
-                display: 'block', width: '100%', textAlign: 'left',
-                padding: '10px 20px', fontSize: 11, letterSpacing: '0.03em',
-                background: current === i ? 'rgba(201,168,76,0.08)' : 'transparent',
-                borderLeft: current === i ? '2px solid var(--gold)' : '2px solid transparent',
-                color: current === i ? 'var(--gold)' : 'var(--cream-dim)',
-                cursor: 'pointer', border: 'none', borderLeft: current === i ? '2px solid var(--gold)' : '2px solid transparent',
-                transition: 'all 0.15s',
-              }}
-            >
-              {s.label}
-            </button>
+        <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Borough Ltd</div>
+        <div style={{ display:'flex', gap:4 }}>
+          {TOP_TABS.map(t => (
+            <button key={t} onClick={() => setTopTab(t)} style={{
+              padding:'5px 14px', fontSize:10, borderRadius:6, cursor:'pointer',
+              background: topTab===t ? 'rgba(201,168,76,0.12)' : 'transparent',
+              border: `1px solid ${topTab===t ? 'rgba(201,168,76,0.35)' : 'transparent'}`,
+              color: topTab===t ? 'var(--gold)' : 'var(--cream-dim)',
+              transition:'all 0.15s', letterSpacing:'0.02em',
+            }}>{t}</button>
           ))}
         </div>
-
-        {/* Progress */}
-        <div style={{ padding: '16px 20px', borderTop: '1px solid rgba(201,168,76,0.12)' }}>
-          <div style={{ fontSize: 10, color: 'var(--cream-dim)', marginBottom: 6 }}>
-            {current + 1} of {SLIDES.length}
-          </div>
-          <div style={{ height: 2, background: 'var(--ink-3)', borderRadius: 1 }}>
-            <div style={{
-              height: '100%', borderRadius: 1, background: 'var(--gold)',
-              width: `${((current + 1) / SLIDES.length) * 100}%`,
-              transition: 'width 0.3s ease',
-            }} />
-          </div>
+        <div style={{ fontSize:9, color:'var(--gold-dim)', letterSpacing:'0.1em' }}>
+          CONFIDENTIAL · BOROUGH MARKET SE1
         </div>
-      </nav>
+      </div>
 
-      {/* MAIN CONTENT */}
-      <main style={{ flex: 1, overflowY: 'auto', position: 'relative' }}>
-        {/* Top bar */}
-        <div style={{
-          position: 'sticky', top: 0, zIndex: 10,
-          background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(8px)',
-          borderBottom: '1px solid rgba(201,168,76,0.1)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '0 32px', height: 52,
-        }}>
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            {SLIDES[current].label}
+      <div style={{ flex:1, overflow:'hidden', display:'flex' }}>
+        {topTab === 'Investor Deck' && (
+          <>
+            <nav style={{
+              width:200, flexShrink:0, background:'var(--ink-2)',
+              borderRight:'1px solid rgba(201,168,76,0.1)',
+              display:'flex', flexDirection:'column',
+            }}>
+              <div style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
+                {SLIDES.map((s, i) => (
+                  <button key={s.id} onClick={() => setSlideIdx(i)} style={{
+                    display:'block', width:'100%', textAlign:'left',
+                    padding:'9px 16px', fontSize:10,
+                    border:'none', borderLeft:`2px solid ${i===slideIdx?'var(--gold)':'transparent'}`,
+                    color: i===slideIdx ? 'var(--gold)' : 'var(--cream-dim)',
+                    background: i===slideIdx ? 'rgba(201,168,76,0.07)' : 'transparent',
+                    cursor:'pointer', transition:'all 0.15s', letterSpacing:'0.02em',
+                  }}>{s.label}</button>
+                ))}
+              </div>
+              <div style={{ padding:'12px 16px', borderTop:'1px solid rgba(201,168,76,0.1)' }}>
+                <div style={{ fontSize:9, color:'var(--cream-dim)', marginBottom:5 }}>{slideIdx+1} / {SLIDES.length}</div>
+                <div style={{ height:2, background:'var(--ink-3)', borderRadius:1 }}>
+                  <div style={{ height:'100%', background:'var(--gold)', borderRadius:1, width:`${((slideIdx+1)/SLIDES.length)*100}%`, transition:'width 0.3s' }} />
+                </div>
+              </div>
+            </nav>
+            <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+              <div style={{
+                display:'flex', alignItems:'center', justifyContent:'space-between',
+                padding:'0 20px', height:38,
+                borderBottom:'1px solid rgba(201,168,76,0.08)', flexShrink:0,
+              }}>
+                <span style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+                  {SLIDES[slideIdx].label}
+                </span>
+                <div style={{ display:'flex', gap:5, alignItems:'center' }}>
+                  <button onClick={() => go(slideIdx-1)} disabled={slideIdx===0} style={{
+                    width:24, height:24, borderRadius:4,
+                    border:'1px solid rgba(201,168,76,0.25)', background:'transparent',
+                    color: slideIdx===0 ? 'var(--ink-3)' : 'var(--gold)',
+                    cursor: slideIdx===0 ? 'default' : 'pointer', fontSize:11,
+                  }}>←</button>
+                  <span style={{ fontSize:9, color:'var(--cream-dim)' }}>{slideIdx+1}/{SLIDES.length}</span>
+                  <button onClick={() => go(slideIdx+1)} disabled={slideIdx===SLIDES.length-1} style={{
+                    width:24, height:24, borderRadius:4,
+                    border:'1px solid rgba(201,168,76,0.25)', background:'transparent',
+                    color: slideIdx===SLIDES.length-1 ? 'var(--ink-3)' : 'var(--gold)',
+                    cursor: slideIdx===SLIDES.length-1 ? 'default' : 'pointer', fontSize:11,
+                  }}>→</button>
+                </div>
+              </div>
+              <div style={{ flex:1, overflowY:'auto' }}>
+                <Component />
+              </div>
+              <div style={{
+                padding:'5px 20px', borderTop:'1px solid rgba(201,168,76,0.08)',
+                display:'flex', justifyContent:'space-between',
+                fontSize:9, color:'var(--gold-dim)', flexShrink:0,
+              }}>
+                <span>Generated April 2026 · Confidential · No Dice Borough Ltd</span>
+                <span>{slideIdx+1} / {SLIDES.length}</span>
+              </div>
+            </div>
+          </>
+        )}
+        {topTab === 'Venue Info' && (
+          <div style={{ flex:1, overflowY:'auto' }}>
+            <VenueInfo />
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
-            <button onClick={prev} disabled={current === 0} style={navBtnStyle(current === 0)}>←</button>
-            <button onClick={next} disabled={current === SLIDES.length-1} style={navBtnStyle(current === SLIDES.length-1)}>→</button>
+        )}
+        {topTab === 'Business Explorer' && (
+          <div style={{ flex:1, overflowY:'auto' }}>
+            <BusinessExplorer />
           </div>
-        </div>
-
-        {/* Slide */}
-        <div key={current} className="slide-enter" style={{ minHeight: 'calc(100vh - 52px)', padding: '40px 40px 80px' }}>
-          <Component />
-        </div>
-      </main>
+        )}
+      </div>
     </div>
   )
 }
-
-const navBtnStyle = (disabled) => ({
-  width: 32, height: 32, borderRadius: 6, border: '1px solid rgba(201,168,76,0.3)',
-  background: 'transparent', color: disabled ? 'var(--ink-3)' : 'var(--gold)',
-  cursor: disabled ? 'default' : 'pointer', fontSize: 14, display: 'flex',
-  alignItems: 'center', justifyContent: 'center',
-})
