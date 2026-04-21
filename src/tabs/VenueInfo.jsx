@@ -20,19 +20,19 @@ const VENUE_IMGS = [
 ]
 
 const COURSE_IMGS = [
-  { src:'/Borough_Course_1.jpg', caption:'Hole 5 — Belfast cityscape mural' },
-  { src:'/Borough_Course_2.jpg', caption:'The bar arch — playing through' },
+  { src:'/Borough_Course_1.jpg', caption:'Hole 5 â Belfast cityscape mural' },
+  { src:'/Borough_Course_2.jpg', caption:'The bar arch â playing through' },
   { src:'/Borough_Course_3.jpg', caption:'London landmarks course' },
-  { src:'/Borough_Course_4.jpg', caption:'London Eye hole — arch 4' },
+  { src:'/Borough_Course_4.jpg', caption:'London Eye hole â arch 4' },
   { src:'/Borough_Course_5.jpg', caption:'Red telephone box feature hole' },
-  { src:'/Borough_Course_6.jpg', caption:"It's a London Thing — arch 3" },
+  { src:'/Borough_Course_6.jpg', caption:"It's a London Thing â arch 3" },
 ]
 
 const DRINKS_IMGS = [
-  { src:'/drinks_1.jpg', caption:'Camden Town Brewery — bar draught' },
+  { src:'/drinks_1.jpg', caption:'Camden Town Brewery â bar draught' },
   { src:'/drinks_2.jpg', caption:'Cloudwater craft beer selection' },
-  { src:'/drinks_3.jpg', caption:"Mondo Brewing — Dennis Hopp'r IPA on tap" },
-  { src:'/drinks_4.jpg', caption:'Tropical cocktail — citrus spritz' },
+  { src:'/drinks_3.jpg', caption:"Mondo Brewing â Dennis Hopp'r IPA on tap" },
+  { src:'/drinks_4.jpg', caption:'Tropical cocktail â citrus spritz' },
   { src:'/drinks_5.jpg', caption:'Negroni on the rocks' },
   { src:'/drinks_6.jpg', caption:'Rose petal martini' },
   { src:'/drinks_7.jpg', caption:'Espresso martini' },
@@ -112,15 +112,15 @@ function TabCatchment() {
         <STitle>Catchment Area</STitle>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           <div>
-            <div style={{ fontSize:13, color:'var(--cream)', marginBottom:8, fontWeight:500 }}>Primary Catchment (0–5 min walk)</div>
-            {['Borough Market — 30,000+ daily visitors','London Bridge Station — 56m passengers/yr','Southwark — 16m annual visitors','The Shard — 1m+ annual visitors'].map(item => (
-              <div key={item} style={{ fontSize:12, color:'var(--cream-dim)', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>· {item}</div>
+            <div style={{ fontSize:13, color:'var(--cream)', marginBottom:8, fontWeight:500 }}>Primary Catchment (0â5 min walk)</div>
+            {['Borough Market â 30,000+ daily visitors','London Bridge Station â 56m passengers/yr','Southwark â 16m annual visitors','The Shard â 1m+ annual visitors'].map(item => (
+              <div key={item} style={{ fontSize:12, color:'var(--cream-dim)', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>Â· {item}</div>
             ))}
           </div>
           <div>
-            <div style={{ fontSize:13, color:'var(--cream)', marginBottom:8, fontWeight:500 }}>Secondary Catchment (5–15 min)</div>
-            {['Tate Modern — 4.7m annual visitors','Bankside & Bermondsey','City of London workers','South Bank cultural quarter'].map(item => (
-              <div key={item} style={{ fontSize:12, color:'var(--cream-dim)', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>· {item}</div>
+            <div style={{ fontSize:13, color:'var(--cream)', marginBottom:8, fontWeight:500 }}>Secondary Catchment (5â15 min)</div>
+            {['Tate Modern â 4.7m annual visitors','Bankside & Bermondsey','City of London workers','South Bank cultural quarter'].map(item => (
+              <div key={item} style={{ fontSize:12, color:'var(--cream-dim)', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>Â· {item}</div>
             ))}
           </div>
         </div>
@@ -139,7 +139,7 @@ function TabLocation() {
             {[['Address','Arches B C D And E, Montague Close, London SE1 9DA'],['Area','Borough Market'],['Borough','Southwark'],['Nearest Station','London Bridge (2 min walk)'],['Bus Routes','RV1, 21, 35, 40, 133, 343']].map(([l,v]) => <Row key={l} label={l} value={v} />)}
           </div>
           <div>
-            {[['Mon–Fri','07:00 – 23:30'],['Saturday','07:00 – 23:30'],['Sunday','07:00 – 23:30'],['DPS','Klaudia Ciepluch'],['OS Map Ref','532733180272']].map(([l,v]) => <Row key={l} label={l} value={v} />)}
+            {[['MonâFri','07:00 â 23:30'],['Saturday','07:00 â 23:30'],['Sunday','07:00 â 23:30'],['DPS','Klaudia Ciepluch'],['OS Map Ref','532733180272']].map(([l,v]) => <Row key={l} label={l} value={v} />)}
           </div>
         </div>
       </Card>
@@ -153,137 +153,121 @@ function TabLocation() {
 function TabFloorPlan() {
   return (
     <Card>
-      <STitle>Floor Plan — Arches B C D And E, Montague Close SE1</STitle>
+      <STitle>Floor Plan â Arches B C D And E, Montague Close SE1</STitle>
       <img src="/floorplan_1.png" alt="Venue floor plan" style={{ width:'100%', borderRadius:8, objectFit:'contain' }} />
     </Card>
   )
 }
 
 function TabLicence() {
-  const annex1 = [
-    { ref:'100', text:'No supply of alcohol may be made under the Premises Licence: (a) at a time when there is no Designated Premises Supervisor; or (b) at a time when the Designated Premises Supervisor does not hold a Personal Licence or their Personal Licence is suspended.' },
-    { ref:'101', text:'Every supply of alcohol under the Premises Licence must be made, or authorised by, a person who holds a Personal Licence.' },
-    { ref:'102', text:'The admission of children to films given under this licence must be restricted in accordance with the recommendations of the British Board of Film Classification or of the licensing authority itself.' },
-    { ref:'485', text:'No irresponsible promotions. The responsible person must ensure that staff do not carry out, arrange or participate in any irresponsible promotions — including activities encouraging individuals to drink within time limits, provision of unlimited quantities of alcohol at a fixed/discounted fee, or dispensing alcohol directly into another person's mouth.' },
-    { ref:'487', text:'Free potable water must be provided on request to customers where reasonably available.' },
-    { ref:'488', text:'Age Verification Policy. An age verification policy must be adopted and upheld. Individuals appearing under 18 must present photo ID with a holographic mark or ultraviolet feature.' },
-    { ref:'489', text:'Mandatory measures. Beer/cider: ½ pint; Gin/rum/vodka/whisky: 25 ml or 35 ml; Still wine: 125 ml. Measures must be displayed and offered where no quantity is specified by the customer.' },
-    { ref:'491', text:'Minimum pricing. No alcohol may be sold below the permitted price as calculated by the formula P = D + (D × V), where D is duty and V is the rate of VAT applicable on the date of sale.' },
+  const a1 = [
+    {r:'100',t:'No supply of alcohol may be made under the Premises Licence: (a) at a time when there is no Designated Premises Supervisor; or (b) at a time when the Designated Premises Supervisor does not hold a Personal Licence or their Personal Licence is suspended.'},
+    {r:'101',t:'Every supply of alcohol under the Premises Licence must be made, or authorised by, a person who holds a Personal Licence.'},
+    {r:'102',t:'The admission of children to films given under this licence must be restricted in accordance with the recommendations of the British Board of Film Classification or of the licensing authority itself.'},
+    {r:'485',t:'No irresponsible promotions. The responsible person must ensure that staff do not carry out, arrange or participate in any irresponsible promotions — including activities encouraging individuals to drink within time limits, provision of unlimited quantities of alcohol at a fixed/discounted fee, or dispensing alcohol directly into another person’s mouth.'},
+    {r:'487',t:'Free potable water must be provided on request to customers where reasonably available.'},
+    {r:'488',t:'Age Verification Policy. An age verification policy must be adopted and upheld. Individuals appearing under 18 must present photo ID with a holographic mark or ultraviolet feature.'},
+    {r:'489',t:'Mandatory measures. Beer/cider: ½ pint; Gin/rum/vodka/whisky: 25 ml or 35 ml; Still wine: 125 ml. Measures must be displayed and offered where no quantity is specified by the customer.'},
+    {r:'491',t:'Minimum pricing. No alcohol may be sold below the permitted price as calculated by the formula P = D + (D × V), where D is duty and V is the rate of VAT applicable on the date of sale.'},
   ]
-
-  const annex2 = [
-    { ref:'289', text:'Comprehensive CCTV must be installed and maintained. All recordings stored for a minimum of 31 days with date and time stamping. Available immediately upon request by Police or authorised officer.' },
-    { ref:'288', text:'A CCTV-trained staff member must be on premises at all times when open to the public and able to show Police recent footage with minimum delay.' },
-    { ref:'307', text:'Accommodation limit: maximum 100 persons (excluding staff).' },
-    { ref:'340', text:'Alcohol consumption restriction. Intoxicating liquor shall only be sold to: (a) persons taking part in the combined Plonk Golf offering; (b) persons purchasing tokens for on-site amusement arcade machines; or (c) persons playing board games on the premises.' },
-    { ref:'341', text:'The Bar area shall close at 11pm, save for customer access/egress and access to the check-in desk.' },
-    { ref:'342', text:'Alcohol shall not be consumed on the Premises between 11:30pm and 8am daily.' },
-    { ref:'343', text:'All customers shall be off all areas of the Premises by 11:30pm daily.' },
-    { ref:'344', text:'A written dispersal policy shall be kept at the premises and made available for inspection. All relevant staff shall be trained in its implementation.' },
-    { ref:'345', text:'The Arcade Room shall only be available to customers who have also purchased a golf ticket.' },
-    { ref:'346', text:'No alcohol promotions. This includes Bottomless Brunches, free or discounted alcohol with ticket purchase, 2-for-1 offers, or advertising of discounted alcohol.' },
-    { ref:'347', text:'Persons are not permitted to bring their own music amplification equipment to the Premises.' },
-    { ref:'348', text:'No customer of the Premises shall be permitted to smoke outside the Premises.' },
-    { ref:'316', text:'No deliveries or waste collections outside the hours of 8am–8pm Monday to Saturday or 10am–4pm on Sunday.' },
-    { ref:'349', text:'Bottles shall not be moved from inside the Premises to any outdoor bin or store between 8pm and 8am.' },
-    { ref:'239', text:'No noise shall emanate from the Premises that gives rise to a nuisance.' },
-    { ref:'350', text:'The main entrance/exit door shall have a mechanism to prevent it slamming shut.' },
-    { ref:'351', text:'No customers are permitted to queue outside the Premises.' },
-    { ref:'352', text:'Any SIA staff shall be deployed on a risk-assessed basis.' },
-    { ref:'353', text:'There shall be no live screenings of sporting events at the Premises.' },
-    { ref:'354', text:'Customers are not permitted to remove alcohol bought within the Premises outside the Premises.' },
-    { ref:'355', text:'No neon or dynamic lighting inside the premises that is visible from outside. All lights shall be turned off when the Premises is closed.' },
-    { ref:'356', text:'Sufficient measures must be in place to remove and prevent litter or waste accumulating outside the premises.' },
-    { ref:'138', text:'Substantial food and non-intoxicating beverages, including drinking water, shall be available in all parts of the premises where alcohol is sold.' },
-    { ref:'158', text:'Notices shall be prominently displayed at all exits requesting patrons to respect local residents and leave the area quietly.' },
-    { ref:'357', text:'All waste shall be properly presented for collection no earlier than 30 minutes before collection times.' },
-    { ref:'304', text:'A direct telephone number for the manager shall be publicly available at all times the premises is open, made available to residents and businesses in the vicinity.' },
-    { ref:'358', text:'No noise or vibration generated on the premises shall emanate from or be transmitted through the structure of the premises in a manner that gives rise to a nuisance.' },
-    { ref:'359', text:'Incident log to be kept and available on request, recording: (a) all crimes reported; (b) all ejections; (c) complaints concerning crime and disorder; (d) incidents of disorder; (e) seizures of drugs or offensive weapons; (f) any refusal of alcohol sales.' },
-    { ref:'4AA', text:'Challenge 25 policy: customers appearing under 25 must produce an approved form of photo ID. Accepted forms include driving licence, passport, or PASS-approved card such as the Southwark Proof of Age (SPA) card.' },
-    { ref:'4AB', text:'All staff involved in alcohol sales must be trained in the Challenge 25 policy. Training records including dates shall be available for inspection on request.' },
-    { ref:'4AC', text:'Challenge 25 signage shall be displayed at entrances, areas where alcohol is displayed for sale, and at all points of sale.' },
-    { ref:'4AI', text:'A register of refused alcohol sales shall be maintained and available for inspection by Council authorised officers or the Police.' },
+  const a2 = [
+    {r:'289',t:'Comprehensive CCTV must be installed and maintained. All recordings stored for a minimum of 31 days with date and time stamping. Available immediately upon request by Police or authorised officer.'},
+    {r:'288',t:'A CCTV-trained staff member must be on premises at all times when open to the public and able to show Police recent footage with minimum delay.'},
+    {r:'307',t:'Accommodation limit: maximum 100 persons (excluding staff).'},
+    {r:'340',t:'Alcohol consumption restriction. Intoxicating liquor shall only be sold to: (a) persons taking part in the combined Plonk Golf offering; (b) persons purchasing tokens for on-site amusement arcade machines; or (c) persons playing board games on the premises.'},
+    {r:'341',t:'The Bar area shall close at 11pm, save for customer access/egress and access to the check-in desk.'},
+    {r:'342',t:'Alcohol shall not be consumed on the Premises between 11:30pm and 8am daily.'},
+    {r:'343',t:'All customers shall be off all areas of the Premises by 11:30pm daily.'},
+    {r:'344',t:'A written dispersal policy shall be kept at the premises and made available for inspection. All relevant staff shall be trained in its implementation.'},
+    {r:'345',t:'The Arcade Room shall only be available to customers who have also purchased a golf ticket.'},
+    {r:'346',t:'No alcohol promotions. This includes Bottomless Brunches, free or discounted alcohol with ticket purchase, 2-for-1 offers, or advertising of discounted alcohol.'},
+    {r:'347',t:'Persons are not permitted to bring their own music amplification equipment to the Premises.'},
+    {r:'348',t:'No customer of the Premises shall be permitted to smoke outside the Premises.'},
+    {r:'316',t:'No deliveries or waste collections outside the hours of 8am–8pm Monday to Saturday or 10am–4pm on Sunday.'},
+    {r:'349',t:'Bottles shall not be moved from inside the Premises to any outdoor bin or store between 8pm and 8am.'},
+    {r:'239',t:'No noise shall emanate from the Premises that gives rise to a nuisance.'},
+    {r:'350',t:'The main entrance/exit door shall have a mechanism to prevent it slamming shut.'},
+    {r:'351',t:'No customers are permitted to queue outside the Premises.'},
+    {r:'352',t:'Any SIA staff shall be deployed on a risk-assessed basis.'},
+    {r:'353',t:'There shall be no live screenings of sporting events at the Premises.'},
+    {r:'354',t:'Customers are not permitted to remove alcohol bought within the Premises outside the Premises.'},
+    {r:'355',t:'No neon or dynamic lighting inside the premises that is visible from outside. All lights shall be turned off when the Premises is closed.'},
+    {r:'356',t:'Sufficient measures must be in place to remove and prevent litter or waste accumulating outside the premises. The area shall be swept and litter stored in approved arrangements by close of business.'},
+    {r:'138',t:'Substantial food and non-intoxicating beverages, including drinking water, shall be available in all parts of the premises where alcohol is sold.'},
+    {r:'158',t:'Notices shall be prominently displayed at all exits requesting patrons to respect local residents and leave the area quietly.'},
+    {r:'357',t:'All waste shall be properly presented for collection no earlier than 30 minutes before collection times.'},
+    {r:'304',t:'A direct telephone number for the manager shall be publicly available at all times the premises is open, made available to residents and businesses in the vicinity.'},
+    {r:'358',t:'No noise or vibration generated on the premises shall emanate from or be transmitted through the structure of the premises in a manner that gives rise to a nuisance.'},
+    {r:'359',t:'Incident log to be kept and available on request, recording: (a) all crimes reported; (b) all ejections; (c) complaints concerning crime and disorder; (d) incidents of disorder; (e) seizures of drugs or offensive weapons; (f) any refusal of alcohol sales.'},
+    {r:'4AA',t:'Challenge 25 policy: customers appearing under 25 must produce an approved form of photo ID. Accepted forms include driving licence, passport, or PASS-approved card such as the Southwark Proof of Age (SPA) card.'},
+    {r:'4AB',t:'All staff involved in alcohol sales must be trained in the Challenge 25 policy. Training records including dates shall be available for inspection on request.'},
+    {r:'4AC',t:'Challenge 25 signage shall be displayed at entrances, areas where alcohol is displayed for sale, and at all points of sale.'},
+    {r:'4AI',t:'A register of refused alcohol sales shall be maintained and available for inspection by Council authorised officers or the Police.'},
   ]
-
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+  const cs = {background:'var(--ink-2)',border:'1px solid rgba(201,168,76,0.12)',borderRadius:10,padding:20}
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        <Card>
-          <STitle>Part 1 — Premises Details</STitle>
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+        <div style={cs}><STitle>Part 1 — Premises Details</STitle>
+          <Row label="Premises Licence" value="Licensing Act 2003 · Issued by Southwark Council" />
           <Row label="Licence Number" value="888057" gold />
-          <Row label="Issuing Authority" value="Southwark Council" />
-          <Row label="Licensing Act" value="2003" />
           <Row label="Premises" value="Arches B C D And E, Montague Close, London SE1 9DA" />
+          <Row label="Post Town" value="London" />
+          <Row label="Post Code" value="SE1 9DA" />
           <Row label="OS Map Reference" value="532733180272" />
-          <Row label="Issue Date" value="19/01/2026" />
-        </Card>
-        <Card>
-          <STitle>Part 2 — Licence Holder</STitle>
+        </div>
+        <div style={cs}><STitle>Part 2 — Licence Holder</STitle>
           <Row label="Licence Holder" value="Plonk Golf Ltd" gold />
           <Row label="Registered Address" value="15 Mentmore Terrace, Hackney, London E8 3PN" />
           <Row label="Company Number" value="10328982" />
-          <Row label="DPS" value="Klaudia Ciepluch" gold />
+          <Row label="Issue Date" value="19/01/2026" />
+          <Row label="Designated Premises Supervisor" value="Klaudia Ciepluch" gold />
           <Row label="DPS Address" value="Flat 11 Clichy House, Stepney Way, London E1 3HH" />
           <Row label="Personal Licence No." value="157679" />
-          <Row label="Issuing Authority (DPS)" value="L.B Tower Hamlets" />
-        </Card>
+          <Row label="Issuing Authority (Personal Licence)" value="L.B Tower Hamlets" />
+        </div>
       </div>
-      <Card>
-        <STitle>Licensable Activities</STitle>
+      <div style={cs}><STitle>Licensable Activities</STitle>
         <Row label="Films — Indoors" value="Permitted" gold />
         <Row label="Indoor Sporting Event" value="Permitted" gold />
-        <Row label="Sale by retail of alcohol" value="On-premises consumption only" gold />
+        <Row label="Sale by retail of alcohol" value="To be consumed on premises" gold />
         <Row label="Alcohol Supply Type" value="On-premises consumption only" />
-        <div style={{ marginTop:12, padding:10, background:'rgba(201,168,76,0.05)', borderRadius:7, border:'1px solid rgba(201,168,76,0.12)', fontSize:11, color:'var(--cream-dim)' }}>
-          For non-standard timings see Annex 2
+      </div>
+      <div style={cs}><STitle>Opening Hours — For non-standard timings see Annex 2</STitle>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4,marginBottom:16}}>
+          {days.map(d=><div key={d} style={{textAlign:'center'}}><div style={{fontSize:11,color:'var(--cream-dim)',marginBottom:4}}>{d}</div><div style={{fontSize:11,color:'var(--cream)',background:'var(--ink-3)',borderRadius:4,padding:'4px 2px'}}>07:00</div><div style={{fontSize:10,color:'var(--gold-dim)',margin:'2px 0'}}>—</div><div style={{fontSize:11,color:'var(--cream)',background:'var(--ink-3)',borderRadius:4,padding:'4px 2px'}}>23:30</div></div>)}
         </div>
-      </Card>
-      <Card>
-        <STitle>Opening Hours (General)</STitle>
-        <HoursGrid activity="Premises Open" hours="07:00–23:30" />
-        <STitle style={{ marginTop:16 }}>Licensed Activity Hours</STitle>
-        <HoursGrid activity="Films — Indoors" hours="11:00–23:00" />
-        <HoursGrid activity="Indoor Sporting Event" hours="11:00–23:00" />
-        <HoursGrid activity="Alcohol — On Premises" hours="11:00–23:00" />
-      </Card>
-      <Card>
-        <STitle>Annex 1 — Mandatory Conditions</STitle>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {annex1.map(c => (
-            <div key={c.ref} style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize:11, color:'var(--gold)', fontFamily:"'DM Serif Display',serif", minWidth:32, flexShrink:0 }}>{c.ref}</div>
-              <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>{c.text}</div>
+        <STitle>Licensed Activity Hours</STitle>
+        {[['Films — Indoors','11:00–23:00'],['Indoor Sporting Event','11:00–23:00'],['Alcohol — On Premises','11:00–23:00']].map(([act,hrs])=>(
+          <div key={act} style={{marginBottom:14}}>
+            <div style={{fontSize:12,color:'var(--gold)',marginBottom:6}}>{act}</div>
+            <div style={{display:'grid',gridTemplateColumns:'repeat(7,1fr)',gap:4}}>
+              {days.map(d=><div key={d} style={{textAlign:'center'}}><div style={{fontSize:10,color:'var(--cream-dim)',marginBottom:2}}>{d}</div><div style={{fontSize:11,color:'var(--cream)',background:'var(--ink-3)',borderRadius:4,padding:'3px 2px'}}>{hrs}</div></div>)}
             </div>
-          ))}
-        </div>
-      </Card>
-      <Card>
-        <STitle>Annex 2 — Operating Schedule Conditions</STitle>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {annex2.map(c => (
-            <div key={c.ref} style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ fontSize:11, color:'var(--gold)', fontFamily:"'DM Serif Display',serif", minWidth:32, flexShrink:0 }}>{c.ref}</div>
-              <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>{c.text}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
+          </div>
+        ))}
+      </div>
+      <div style={cs}><STitle>Annex 1 — Mandatory Conditions</STitle>
+        {a1.map(c=><div key={c.r} style={{display:'flex',gap:12,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}><div style={{fontSize:12,color:'var(--gold)',minWidth:36,flexShrink:0,fontWeight:600}}>{c.r}</div><div style={{fontSize:12,color:'var(--cream-dim)',lineHeight:1.6}}>{c.t}</div></div>)}
+      </div>
+      <div style={cs}><STitle>Annex 2 — Operating Schedule Conditions</STitle>
+        {a2.map(c=><div key={c.r} style={{display:'flex',gap:12,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}><div style={{fontSize:12,color:'var(--gold)',minWidth:36,flexShrink:0,fontWeight:600}}>{c.r}</div><div style={{fontSize:12,color:'var(--cream-dim)',lineHeight:1.6}}>{c.t}</div></div>)}
+      </div>
     </div>
   )
 }
-
 function TabDevelopment() {
   return (
     <Card>
       <STitle>Growth Opportunities</STitle>
       {[
-        ['Private Hire Expansion','Corporate bookings and private events currently underserved — dedicated sales resource would drive significant uplift'],
+        ['Private Hire Expansion','Corporate bookings and private events currently underserved â dedicated sales resource would drive significant uplift'],
         ['Extended Hours','Friday and Saturday late licence extension to 01:00 would capture post-theatre and post-gig trade from The Globe and Tate'],
-        ['Digital Marketing Scale','GA4-verified £0.32 CPC — increasing Google Ads budget from £7,200 to £15,000 p.a. projects 2× booking volume'],
-        ['Menu Development','Hot food licence not currently utilised — small sharing plates would increase dwell time and spend per head'],
-        ['Membership Scheme','Monthly membership model (£25/mo) for regular players — recurring revenue and loyalty'],
-        ['Corporate Packages','Bespoke team event packages — currently booked ad hoc, no structured offering'],
+        ['Digital Marketing Scale','GA4-verified Â£0.32 CPC â increasing Google Ads budget from Â£7,200 to Â£15,000 p.a. projects 2Ã booking volume'],
+        ['Menu Development','Hot food licence not currently utilised â small sharing plates would increase dwell time and spend per head'],
+        ['Membership Scheme','Monthly membership model (Â£25/mo) for regular players â recurring revenue and loyalty'],
+        ['Corporate Packages','Bespoke team event packages â currently booked ad hoc, no structured offering'],
       ].map(([title, desc]) => (
         <div key={title} style={{ padding:'12px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
           <div style={{ fontSize:13, color:'var(--gold)', marginBottom:5 }}>{title}</div>
@@ -312,7 +296,7 @@ export default function VenueInfo() {
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:12 }}>
           <div>
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>No Dice Borough Ltd</div>
-            <div style={{ fontSize:14, color:'var(--cream-dim)' }}>Venue Information · Arches B C D And E, Montague Close SE1</div>
+            <div style={{ fontSize:14, color:'var(--cream-dim)' }}>Venue Information Â· Arches B C D And E, Montague Close SE1</div>
           </div>
         </div>
         <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
