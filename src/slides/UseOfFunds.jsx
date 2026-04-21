@@ -13,7 +13,7 @@ export default function UseOfFunds() {
     <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>Use of Investment Funds</div>
-        <h1 style={{ fontSize:'clamp(1.8rem,3.5vw,2.8rem)', fontWeight:900, color:'var(--cream)', marginBottom:8, textTransform:'uppercase' }}>Where Your £150,000 Goes</h1>
+        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>Where Your £150,000 Goes</h2>
         <p style={{ fontSize:14, color:'#9CA3AF' }}>Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
