@@ -105,7 +105,7 @@ function TabOverview(){
           <Card key={l}><STitle>{l}</STitle><div style={{fontSize:22,color:'var(--gold)',marginBottom:3}}>{v}</div><div style={{fontSize:22,color:'var(--cream-dim)'}}>{s}</div></Card>
         ))}
       </div>
-      <Card><STitle>Monthly Revenue & EBITDA Forecast Â· May 2026 â Apr 2027</STitle><MiniBar data={FORECAST_MON} keyR="r" keyE="e" maxV={maxR} />
+      <Card><STitle>Monthly Revenue & EBITDA Forecast · May 2026 - Apr 2027</STitle><MiniBar data={FORECAST_MON} keyR="r" keyE="e" maxV={maxR} />
         <div style={{display:'flex',gap:16,marginTop:8,fontSize:17}}>
           <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:8,background:'rgba(201,168,76,0.25)',borderRadius:2,display:'inline-block'}} />Revenue</span>
           <span style={{display:'flex',alignItems:'center',gap:5}}><span style={{width:10,height:8,background:'#C9A84C',borderRadius:2,display:'inline-block'}} />EBITDA</span>
@@ -123,7 +123,7 @@ function TabOverview(){
           <Row label="Investor Equity" value="49.00%" gold />
           <Row label="Implied Valuation" value={fmt(FIG.postMoney)} />
           <Row label="Preferred Return" value="8% p.a." gold />
-          <Row label="Entry Multiple" value="1.70Ã EBITDA" gold />
+          <Row label="Entry Multiple" value="1.70 EBITDA" gold />
           <Row label="Year 1 Forecast EBITDA" value={fmt(FIG.forecastRev*FIG.forecastMargin)} />
           <div style={{marginTop:10,padding:10,background:'rgba(201,168,76,0.06)',borderRadius:7,border:'1px solid rgba(201,168,76,0.15)'}}>
             <div style={{fontSize:17,color:'var(--gold-dim)',marginBottom:4}}>BASE CASE RETURNS</div>
@@ -141,7 +141,7 @@ function TabPerformance(){
   return(
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-        {[['2025 Revenue',fmt(FIG.rev2025),'Verified actuals'],['2025 EBITDA',fmt(FIG.ebitda2025),'12.4% margin'],['2025 Net Profit',fmt(FIG.profit2025),'15.0% margin'],['Wages % Revenue','32.7%','Â£242,370 Ã· Â£741,644']].map(([l,v,s])=>(
+        {[['2025 Revenue',fmt(FIG.rev2025),'Verified actuals'],['2025 EBITDA',fmt(FIG.ebitda2025),'12.4% margin'],['2025 Net Profit',fmt(FIG.profit2025),'15.0% margin'],['Wages % Revenue','32.7%','£242,370 ÷ £741,644']].map(([l,v,s])=>(
           <Card key={l}><STitle>{l}</STitle><div style={{fontSize:22,color:'var(--gold)',marginBottom:3}}>{v}</div><div style={{fontSize:22,color:'var(--cream-dim)'}}>{s}</div></Card>
         ))}
       </div>
@@ -151,7 +151,7 @@ function TabPerformance(){
         ))}
       </div>
       {view==='revenue'&&<div style={{display:'flex',flexDirection:'column',gap:12}}>
-        <Card><STitle>Monthly Revenue Â· JanâDec 2025</STitle><MiniBar data={MON} keyR="r" keyE={null} maxV={maxR} /></Card>
+        <Card><STitle>Monthly Revenue · Jan-Dec 2025</STitle><MiniBar data={MON} keyR="r" keyE={null} maxV={maxR} /></Card>
         <div style={{display:'grid',gridTemplateColumns:'repeat(6,1fr)',gap:8}}>{MON.map(m=>(<Card key={m.m}><div style={{fontSize:17,color:'var(--cream-dim)',marginBottom:3}}>{m.m}</div><div style={{fontSize:22,color:'var(--gold)'}}>{fmtK(m.r)}</div><div style={{fontSize:17,color:'var(--teal)'}}>E: {fmtK(m.e)}</div></Card>))}</div>
       </div>}
       {view==='costs'&&<div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -161,8 +161,8 @@ function TabPerformance(){
           </div>
         </Card>
         <div style={{display:'flex',flexDirection:'column',gap:10}}>
-          <Card><STitle>Total Cost Base</STitle><div style={{fontSize:26,color:'var(--cream)'}}>Â£630,467</div><div style={{fontSize:22,color:'var(--cream-dim)'}}>85.0% of revenue</div></Card>
-          <Card><STitle>Largest Cost Lines</STitle><Row label="Staff Wages" value="Â£242,370 (38.5%)" /><Row label="Fixed Costs/Rent" value="Â£165,059 (26.2%)" /><Row label="Drinks & Gas" value="Â£81,732 (13.0%)" /><Row label="VAT (Net)" value="Â£78,851 (12.5%)" /></Card>
+          <Card><STitle>Total Cost Base</STitle><div style={{fontSize:26,color:'var(--cream)'}}>£630,467</div><div style={{fontSize:22,color:'var(--cream-dim)'}}>85.0% of revenue</div></Card>
+          <Card><STitle>Largest Cost Lines</STitle><Row label="Staff Wages" value="£242,370 (38.5%)" /><Row label="Fixed Costs/Rent" value="£165,059 (26.2%)" /><Row label="Drinks & Gas" value="£81,732 (13.0%)" /><Row label="VAT (Net)" value="£78,851 (12.5%)" /></Card>
         </div>
       </div>}
       {view==='income'&&<Card><STitle>Income by Source 2025</STitle>
@@ -187,7 +187,7 @@ function TabInvestorReturns(){
           <span style={{color:'var(--gold)',fontSize:22}}>{fmt(inv)}</span>
         </div>
         <input type="range" min={10000} max={200000} step={5000} value={inv} onChange={e=>setInv(+e.target.value)} style={{width:'100%',accentColor:'var(--gold)',margin:'4px 0'}} />
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:14}}><span>Â£10k</span><span>Â£100k</span><span>Â£200k</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:14}}><span>£10k</span><span>£100k</span><span>£200k</span></div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10,marginBottom:12}}>
           {[['Ownership',pct(eq),'var(--cream)'],['Preferred',fmt(pref),'var(--gold)'],['Dividend',fmt(div2),'var(--cream)'],['Total Year 1',fmt(total),'var(--gold)']].map(([l,v,c])=>(
             <div key={l} style={{textAlign:'center',padding:10,background:'var(--ink-3)',borderRadius:8}}>
@@ -201,7 +201,7 @@ function TabInvestorReturns(){
           <div style={{padding:10,background:'var(--ink-3)',borderRadius:8}}><div style={{fontSize:17,color:'var(--cream-dim)',marginBottom:3}}>Payback Period</div><div style={{fontSize:22,color:'var(--gold)'}}>{pb.toFixed(2)} years</div></div>
         </div>
         <div style={{marginTop:10,padding:10,background:isA?'rgba(45,212,191,0.06)':'rgba(255,255,255,0.03)',border:`1px solid ${isA?'rgba(45,212,191,0.2)':'rgba(255,255,255,0.06)'}`,borderRadius:7,fontSize:22,color:'var(--cream-dim)'}}>
-          {isA?<><span style={{color:'var(--teal)'}}>&#x2713; A Shares</span> â Full voting rights. {pct(eq)} equity.</>:<><span style={{color:'var(--cream-dim)'}}>&#x25CB; B Shares</span> â Economic rights only. Invest &ge;Â£15,306 for A Shares.</>}
+          {isA?<><span style={{color:'var(--teal)'}}>&#x2713; A Shares</span> - Full voting rights. {pct(eq)} equity.</>:<><span style={{color:'var(--cream-dim)'}}>&#x25CB; B Shares</span> - Economic rights only. Invest &ge;£15,306 for A Shares.</>}
         </div>
       </Card>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
@@ -211,13 +211,13 @@ function TabInvestorReturns(){
           <Row label="Founder Retains" value="51.00%" />
           <Row label="Pre-Money" value={fmt(FIG.preMoney)} />
           <Row label="Post-Money" value={fmt(FIG.postMoney)} />
-          <Row label="Entry Multiple" value="1.70Ã EBITDA" gold />
-          <Row label="Share Class" value="A Shares (â¥5% / â¥Â£15,306)" />
+          <Row label="Entry Multiple" value="1.70 EBITDA" gold />
+          <Row label="Share Class" value="A Shares (-¥5% / -¥£15,306)" />
         </Card>
-        <Card><STitle>Year 1 Returns â Base Case</STitle>
+        <Card><STitle>Year 1 Returns - Base Case</STitle>
           <Row label="Preferred Return (8%)" value={fmt(FIG.investment*FIG.prefRate)} gold />
-          <Row label="Equity Dividend (49%)" value="Â£66,123" gold />
-          <Row label="Total Year 1 Return" value="Â£78,123" gold />
+          <Row label="Equity Dividend (49%)" value="£66,123" gold />
+          <Row label="Total Year 1 Return" value="£78,123" gold />
           <Row label="Cash-on-Cash" value="52.1%" gold />
           <Row label="Payback Period" value="1.92 years" />
           <Row label="No exit required" value="Cash-flow driven" />
@@ -238,17 +238,17 @@ function TabDistribution(){
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:14}}>
         <Card><STitle>Distribution Waterfall</STitle>
-          {[['Operating Profit',r.profit,'#1565C0',''],['Less: Preferred Return',-FIG.investment*FIG.prefRate,'#B71C1C','8% Ã Â£150k â investor first'],['Less: A-Share Priority',-FIG.aShare,'#E67E22','Founder entity priority'],['Remaining Pool',r.rem,'#0D9488','Available for equity split'],['Investor Dividend (49%)',r.iDiv,'#C9A84C','49% Ã remaining pool'],['Founder Dividend (51%)',r.fDiv,'#4A5568','51% Ã remaining pool']].map(([l,v,c,n])=>(
+          {[['Operating Profit',r.profit,'#1565C0',''],['Less: Preferred Return',-FIG.investment*FIG.prefRate,'#B71C1C','8%  £150k - investor first'],['Less: A-Share Priority',-FIG.aShare,'#E67E22','Founder entity priority'],['Remaining Pool',r.rem,'#0D9488','Available for equity split'],['Investor Dividend (49%)',r.iDiv,'#C9A84C','49%  remaining pool'],['Founder Dividend (51%)',r.fDiv,'#4A5568','51%  remaining pool']].map(([l,v,c,n])=>(
             <div key={l} style={{display:'flex',alignItems:'center',gap:9,padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.06)'}}>
               <div style={{width:3,height:30,background:c,borderRadius:2,flexShrink:0}} />
               <div style={{flex:1}}><div style={{fontSize:22,color:'var(--cream)'}}>{l}</div>{n&&<div style={{fontSize:19,color:'var(--cream-dim)'}}>{n}</div>}</div>
-              <div style={{fontSize:22,color:v<0?'#E53935':c}}>{v<0?'â':''}{fmt(Math.abs(v))}</div>
+              <div style={{fontSize:22,color:v<0?'#E53935':c}}>{v<0?'-':''}{fmt(Math.abs(v))}</div>
             </div>
           ))}
         </Card>
         <div style={{display:'flex',flexDirection:'column',gap:12}}>
           <Card highlight>
-            <div style={{fontSize:19,color:'var(--gold-dim)',marginBottom:5,textTransform:'uppercase',letterSpacing:'0.1em'}}>Total Investor Return Â· {s.l}</div>
+            <div style={{fontSize:19,color:'var(--gold-dim)',marginBottom:5,textTransform:'uppercase',letterSpacing:'0.1em'}}>Total Investor Return · {s.l}</div>
             <div style={{fontSize:34,color:'var(--gold)',marginBottom:3}}>{fmt(r.total)}</div>
             <div style={{fontSize:22,color:'var(--cream-dim)'}}>Preferred {fmt(FIG.investment*FIG.prefRate)} + Dividend {fmt(r.iDiv)}</div>
           </Card>
@@ -263,7 +263,7 @@ function TabDistribution(){
             <Row label="Equity Dividend (51%)" value={fmt(r.fDiv)} />
             <Row label="Total Founder" value={fmt(FIG.aShare+r.fDiv)} />
           </Card>
-          <div style={{fontSize:22,color:'var(--cream-dim)',lineHeight:1.6}}>Cash-flow driven â no exit required. Investor receives full return from Year 1 trading distributions only.</div>
+          <div style={{fontSize:22,color:'var(--cream-dim)',lineHeight:1.6}}>Cash-flow driven - no exit required. Investor receives full return from Year 1 trading distributions only.</div>
         </div>
       </div>
     </div>
@@ -281,7 +281,7 @@ function TabScenarios(){
           <span style={{color:'var(--gold)',fontSize:22}}>{growth>0?'+':''}{growth}%</span>
         </div>
         <input type="range" min={-10} max={40} step={1} value={growth} onChange={e=>setGrowth(+e.target.value)} style={{width:'100%',accentColor:'var(--gold)',margin:'4px 0'}} />
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:14}}><span>â10%</span><span>+15% base</span><span>+40%</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:14}}><span>-10%</span><span>+15% base</span><span>+40%</span></div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:10}}>
           {[['Forecast Revenue',fmt(rev)],['Forecast Profit',fmt(r.profit)],['Investor Return',fmt(r.total)],['Cash-on-Cash',pct(r.coc)]].map(([l,v])=>(
             <div key={l} style={{textAlign:'center',padding:10,background:'var(--ink-3)',borderRadius:8}}>
@@ -313,9 +313,9 @@ function TabMarketContext(){
   return(
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       <Card>
-        <STitle>Market Benchmarks â EBITDA Multiples Â· CLFI, Houlihan Lokey, Moore Kingston Smith, UKHospitality 2024/25</STitle>
+        <STitle>Market Benchmarks - EBITDA Multiples · CLFI, Houlihan Lokey, Moore Kingston Smith, UKHospitality 2024/25</STitle>
         <div style={{display:'grid',gridTemplateColumns:'repeat(5,1fr)',gap:10,marginBottom:16}}>
-          {[['~5.3Ã','UK Mid-Market Average','Above this deal','var(--cream-dim)'],['~4.1Ã','Hospitality & Leisure Sector Avg','Broadly in line','var(--cream-dim)'],['~2â4Ã','Small Single-Site Venues','In range','var(--cream-dim)'],['~2â3Ã','Distressed Asset Range','Above â priced for risk','var(--cream-dim)'],['1.70Ã','No Dice Borough â This Deal','â Entry point','var(--gold)']].map(([v,l,n,c])=>(
+          {[['~5.3','UK Mid-Market Average','Above this deal','var(--cream-dim)'],['~4.1','Hospitality & Leisure Sector Avg','Broadly in line','var(--cream-dim)'],['~2-4','Small Single-Site Venues','In range','var(--cream-dim)'],['~2-3','Distressed Asset Range','Above - priced for risk','var(--cream-dim)'],['1.70','No Dice Borough - This Deal','- Entry point','var(--gold)']].map(([v,l,n,c])=>(
             <div key={l} style={{padding:'12px 10px',borderRadius:8,textAlign:'center',background:c==='var(--gold)'?'rgba(201,168,76,0.1)':'var(--ink-3)',border:`1px solid ${c==='var(--gold)'?'rgba(201,168,76,0.4)':'rgba(255,255,255,0.06)'}`}}>
               <div style={{fontSize:22,color:c,marginBottom:5}}>{v}</div>
               <div style={{fontSize:19,color:'var(--cream-dim)',marginBottom:4,lineHeight:1.4}}>{l}</div>
@@ -325,10 +325,10 @@ function TabMarketContext(){
         </div>
         <div style={{padding:'12px 14px',background:'rgba(201,168,76,0.06)',border:'1px solid rgba(201,168,76,0.2)',borderRadius:8,fontSize:22,color:'var(--cream-dim)',lineHeight:1.6,marginBottom:14}}>
           <strong style={{color:'var(--gold)'}}>&#x2605; The Deal in One Line</strong><br/>
-          A proven Borough Market experience venue, acquired at distressed pricing (1.70Ã EBITDA), delivering 8% guaranteed preferred return + equity participation, with payback driven by cash flow â not exit dependency.
+          A proven Borough Market experience venue, acquired at distressed pricing (1.70 EBITDA), delivering 8% guaranteed preferred return + equity participation, with payback driven by cash flow - not exit dependency.
         </div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-          {[['â Not a multiple expansion bet','Returns driven by operating cash flow'],['â Cash-yielding from Day 1','Distributions begin at end of Year 1'],['â All 3 scenarios positive','Conservative through Optimistic']].map(([t,s])=>(
+          {[['- Not a multiple expansion bet','Returns driven by operating cash flow'],['- Cash-yielding from Day 1','Distributions begin at end of Year 1'],['- All 3 scenarios positive','Conservative through Optimistic']].map(([t,s])=>(
             <div key={t} style={{padding:10,background:'rgba(45,212,191,0.06)',border:'1px solid rgba(45,212,191,0.15)',borderRadius:7}}>
               <div style={{fontSize:22,color:'var(--teal)',marginBottom:3}}>{t}</div>
               <div style={{fontSize:17,color:'var(--cream-dim)'}}>{s}</div>
@@ -337,18 +337,18 @@ function TabMarketContext(){
         </div>
       </Card>
       <Card>
-        <STitle>&#x26A0; Sector Reality â Honest Context</STitle>
-        {[['Employer NICs rose 13.8% â 15% (April 2025)','Labour cost increases are built into the forecast model â not hidden'],['National Minimum Wage up 6.7% to Â£12.21/hr (April 2025)','Wage inflation modelled at 2025 actual base â no optimistic assumption'],['Business rates relief cut from 75% â 40% (2025/26)','Cost environment is baked in â not a pre-cost-shock baseline'],['UK hospitality recording ~2 site closures per day (2025)','Sector pressure creates acquisition opportunity at realistic pricing'],["Consumer behaviour shifting toward experience-led, low-alcohol spend","No Dice Borough's experience model directly aligns with this shift"],['PE firms cautious on single-country consumer exposure','Smaller investor opportunity â less institutional competition']].map(([issue,response])=>(
+        <STitle>&#x26A0; Sector Reality - Honest Context</STitle>
+        {[['Employer NICs rose 13.8% - 15% (April 2025)','Labour cost increases are built into the forecast model - not hidden'],['National Minimum Wage up 6.7% to £12.21/hr (April 2025)','Wage inflation modelled at 2025 actual base - no optimistic assumption'],['Business rates relief cut from 75% - 40% (2025/26)','Cost environment is baked in - not a pre-cost-shock baseline'],['UK hospitality recording ~2 site closures per day (2025)','Sector pressure creates acquisition opportunity at realistic pricing'],["Consumer behaviour shifting toward experience-led, low-alcohol spend","No Dice Borough's experience model directly aligns with this shift"],['PE firms cautious on single-country consumer exposure','Smaller investor opportunity - less institutional competition']].map(([issue,response])=>(
           <div key={issue} style={{padding:'8px 0',borderBottom:'1px solid rgba(255,255,255,0.05)'}}>
-            <div style={{fontSize:22,color:'var(--cream)',marginBottom:2}}>âª {issue}</div>
-            <div style={{fontSize:22,color:'var(--teal)',paddingLeft:12}}>â {response}</div>
+            <div style={{fontSize:22,color:'var(--cream)',marginBottom:2}}>-ª {issue}</div>
+            <div style={{fontSize:22,color:'var(--teal)',paddingLeft:12}}>- {response}</div>
           </div>
         ))}
       </Card>
       <Card>
         <STitle>&#x1F3C6; Why This Business is Different</STitle>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
-          {[['&#x1F4C8;','Proven Revenue Base',fmt(FIG.rev2025)+' verified 2025 actuals. Not a projection.'],['&#x1F4CD;','Prime London Location','Borough Market SE1: top footfall destination. Highest avg revenue growth in East/Central London.'],['&#x1F3B1;','Experience-Led Format','Pool, board games, mini golf, DJ nights. Fastest-growing hospitality sub-sector.'],['&#x1F4B0;','Multiple Revenue Streams','Bar + activity pricing + events + corporate hire. Less dependent on drink-only margins.'],['&#x2122;&#xFE0F;','Brand IP Acquired','Plonk trading name, customer data and goodwill purchased. Not starting from zero.'],['&#x1F4E3;','Google Ads Engine','Â£0.32 CPC and verified ROAS from 2025 GA4 data. Scalable with proven unit economics.']].map(([icon,title,body])=>(
+          {[['&#x1F4C8;','Proven Revenue Base',fmt(FIG.rev2025)+' verified 2025 actuals. Not a projection.'],['&#x1F4CD;','Prime London Location','Borough Market SE1: top footfall destination. Highest avg revenue growth in East/Central London.'],['&#x1F3B1;','Experience-Led Format','Pool, board games, mini golf, DJ nights. Fastest-growing hospitality sub-sector.'],['&#x1F4B0;','Multiple Revenue Streams','Bar + activity pricing + events + corporate hire. Less dependent on drink-only margins.'],['&#x2122;&#xFE0F;','Brand IP Acquired','Plonk trading name, customer data and goodwill purchased. Not starting from zero.'],['&#x1F4E3;','Google Ads Engine','£0.32 CPC and verified ROAS from 2025 GA4 data. Scalable with proven unit economics.']].map(([icon,title,body])=>(
             <div key={title} style={{background:'var(--ink-3)',borderRadius:8,padding:14}}>
               <div style={{fontSize:19,marginBottom:6}} dangerouslySetInnerHTML={{__html:icon}} />
               <div style={{fontSize:22,color:'var(--cream)',fontWeight:500,marginBottom:4}}>{title}</div>
@@ -369,19 +369,19 @@ function TabWages(){
   return(
     <div style={{display:'flex',flexDirection:'column',gap:14}}>
       <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:12}}>
-        {[['Total Wage Bill 2025','Â£242,370','Monthly P&L'],['Total Hours','10,043 hrs','23 employees'],['Total Shifts','1,283 shifts','Avg 7.8 hrs/shift'],['Wages % Revenue','32.7%','Â£242,370 Ã· Â£741,644']].map(([l,v,s])=>(
+        {[['Total Wage Bill 2025','£242,370','Monthly P&L'],['Total Hours','10,043 hrs','23 employees'],['Total Shifts','1,283 shifts','Avg 7.8 hrs/shift'],['Wages % Revenue','32.7%','£242,370 ÷ £741,644']].map(([l,v,s])=>(
           <Card key={l}><STitle>{l}</STitle><div style={{fontSize:22,color:'var(--gold)',marginBottom:3}}>{v}</div><div style={{fontSize:17,color:'var(--cream-dim)'}}>{s}</div></Card>
         ))}
       </div>
       <Card>
-        <STitle>2025 Monthly Pattern Â· Wages % of Revenue</STitle>
+        <STitle>2025 Monthly Pattern · Wages % of Revenue</STitle>
         <div style={{display:'flex',alignItems:'flex-end',gap:3,height:80,marginBottom:6}}>
           {MON_W.map(m=>{const wp=m.w/m.r*100,h=Math.round(wp/35*75),col=wp>28?'#E53935':wp>22?'#E67E22':'#2DD4BF';return(<div key={m.m} style={{flex:1,display:'flex',flexDirection:'column',alignItems:'center'}}><div style={{width:'100%',height:h,background:col,borderRadius:'2px 2px 0 0',opacity:0.8,minHeight:4}} title={m.m+': '+wp.toFixed(1)+'%'} /></div>)})}
         </div>
         <div style={{display:'flex',gap:3,marginBottom:6}}>{MON_W.map(m=><div key={m.m} style={{flex:1,fontSize:22,color:'var(--cream-dim)',textAlign:'center'}}>{m.m}</div>)}</div>
         <div style={{display:'flex',gap:12,fontSize:17}}>
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:8,background:'#E53935',borderRadius:2,display:'inline-block',opacity:0.8}} />Above 28%</span>
-          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:8,background:'#E67E22',borderRadius:2,display:'inline-block',opacity:0.8}} />22â28%</span>
+          <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:8,background:'#E67E22',borderRadius:2,display:'inline-block',opacity:0.8}} />22-28%</span>
           <span style={{display:'flex',alignItems:'center',gap:4}}><span style={{width:10,height:8,background:'#2DD4BF',borderRadius:2,display:'inline-block',opacity:0.8}} />Below 22%</span>
         </div>
       </Card>
@@ -392,7 +392,7 @@ function TabWages(){
           <span style={{color:'var(--gold)'}}>{masterAdj>0?'+':''}{masterAdj.toFixed(1)}%</span>
         </div>
         <input type="range" min={-20} max={20} step={0.5} value={masterAdj} onChange={e=>setMasterAdj(+e.target.value)} style={{width:'100%',accentColor:'var(--gold)',margin:'4px 0'}} />
-        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:12}}><span>â20%</span><span>0%</span><span>+20%</span></div>
+        <div style={{display:'flex',justifyContent:'space-between',fontSize:17,color:'var(--gold-dim)',marginBottom:12}}><span>-20%</span><span>0%</span><span>+20%</span></div>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10}}>
           {[['Projected 2026 Wages',fmt(242370+delta)],['Delta vs 2025',`${delta>=0?'+':''}${fmt(delta)}`],['Wages % Forecast',((totalWages/FIG.forecastRev)*100).toFixed(1)+'%']].map(([l,v])=>(
             <div key={l} style={{textAlign:'center',padding:10,background:'var(--ink-3)',borderRadius:8}}>
@@ -421,7 +421,7 @@ function TabWages(){
       <Card>
         <STitle>Three Improvement Strategies for 2026</STitle>
         <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:12}}>
-          {[['Reduce Jan/Feb shifts by 20%','Saves ~Â£2,700/yr','Jan: 30.6% â ~24% of revenue','Fewer doubles, shorter shifts in quiet months.'],['Shift Supervisor hours to Bar Staff rate','Saves ~Â£1,200/yr','AprâJul Supervisor cost Â£19,921','Review whether full Supervisor coverage needed on quiet weekdays.'],['Staff December to capacity','+Â£3,000 wages Â· more revenue captured','Dec 2025: 88 shifts Â· Â£121k rev','Adding 27 shifts captures significantly more peak revenue.']].map(([t,s,d,b])=>(
+          {[['Reduce Jan/Feb shifts by 20%','Saves ~£2,700/yr','Jan: 30.6% - ~24% of revenue','Fewer doubles, shorter shifts in quiet months.'],['Shift Supervisor hours to Bar Staff rate','Saves ~£1,200/yr','Apr-Jul Supervisor cost £19,921','Review whether full Supervisor coverage needed on quiet weekdays.'],['Staff December to capacity','+£3,000 wages · more revenue captured','Dec 2025: 88 shifts · £121k rev','Adding 27 shifts captures significantly more peak revenue.']].map(([t,s,d,b])=>(
             <div key={t} style={{background:'var(--ink-3)',borderRadius:8,padding:14}}>
               <div style={{fontSize:22,color:'var(--cream)',fontWeight:500,marginBottom:4}}>{t}</div>
               <div style={{fontSize:22,color:'var(--gold)',marginBottom:6}}>{s}</div>
@@ -431,7 +431,7 @@ function TabWages(){
           ))}
         </div>
       </Card>
-      <div style={{fontSize:17,color:'var(--cream-dim)',lineHeight:1.5}}>NMW April 2025: Â£12.21/hr Â· All 2026 base rates above NMW Â· Rate hierarchy: Bar Staff Â£13.85 &lt; Supervisor Â£14.35 &lt; Asst Manager Â£15.38 &lt; Manager Â£18.00</div>
+      <div style={{fontSize:17,color:'var(--cream-dim)',lineHeight:1.5}}>NMW April 2025: £12.21/hr · All 2026 base rates above NMW · Rate hierarchy: Bar Staff £13.85 &lt; Supervisor £14.35 &lt; Asst Manager £15.38 &lt; Manager £18.00</div>
     </div>
   )
 }
@@ -444,7 +444,7 @@ export default function BusinessExplorer(){
         <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:12}}>
           <div>
             <div style={{fontSize:22,color:'var(--gold)',letterSpacing:'0.15em',textTransform:'uppercase',marginBottom:4}}>No Dice Borough Ltd</div>
-            <div style={{fontSize:17,color:'var(--cream-dim)'}}>Business Explorer Â· Borough Market SE1</div>
+            <div style={{fontSize:17,color:'var(--cream-dim)'}}>Business Explorer · Borough Market SE1</div>
           </div>
           <div style={{textAlign:'right'}}>
             <div style={{fontSize:17,color:'var(--gold-dim)',textTransform:'uppercase',letterSpacing:'0.1em',marginBottom:2}}>Investment Ask</div>
@@ -459,7 +459,7 @@ export default function BusinessExplorer(){
         </div>
       </div>
       <div style={{padding:'24px 32px 48px'}}>{components[tab]}</div>
-      <div style={{padding:'8px 32px',borderTop:'1px solid rgba(201,168,76,0.08)',fontSize:17,color:'var(--gold-dim)',textAlign:'center'}}>Business Explorer Â· No Dice Borough LTD Â· All figures from verified financial model</div>
+      <div style={{padding:'8px 32px',borderTop:'1px solid rgba(201,168,76,0.08)',fontSize:17,color:'var(--gold-dim)',textAlign:'center'}}>Business Explorer · No Dice Borough LTD · All figures from verified financial model</div>
     </div>
   )
             }
