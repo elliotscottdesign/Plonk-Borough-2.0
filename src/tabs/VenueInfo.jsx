@@ -20,6 +20,44 @@ const VENUE_IMGS = [
   { src:'/venue_gallery_7.jpg', caption:'Air hockey & gaming' },
 ]
 const COURSE_IMGS = [
+  { src:'/Borough_Course_1.JPG', caption:'Hole 5 — Belfast cityscape mural' },
+  { src:'/Borough_Course_2.JPG', caption:'The bar arch — playing through' },
+  { src:'/Borough_Course_3.jpg', caption:'London landmarks course' },
+  { src:'/Borough_Course_4.jpg', caption:'London Eye hole — arch 4' },
+  { src:'/Borough_Course_5.jpg', caption:'Red telephone box feature hole' },
+  { src:'/Borough_Course_6.jpg', caption:"It's a London Thing — arch 3" },
+]
+const DRINKS_IMGS = [
+  { src:'/drinks_1.jpg', caption:'Camden Town Brewery — bar draught' },
+  { src:'/drinks_2.jpg', caption:'Cloudwater craft beer selection' },
+  { src:'/drinks_3.jpg', caption:"Mondo Brewing — Dennis Hopp'r IPA on tap" },
+  { src:'/drinks_4.jpg', caption:'Tropical cocktail — citrus spritz' },
+  { src:'/drinks_5.jpg', caption:'Negroni on the rocks' },
+  { src:'/drinks_6.jpg', caption:'Rose petal martini' },import React, { useState } from 'react'
+
+const TABS = ['Catchment','Location','Floor Plan','Venue Gallery','Course Gallery','Drinks Gallery','Licence','Development']
+import React, { useState } from 'react'
+
+const TABS = ['Catchment','Location','Floor Plan','Venue Gallery','Course Gallery','Drinks Gallery','Licence','Development']
+
+const STATS = [
+  { value:'130K+', label:'LONDON BRIDGE FOOTFALL', sub:'daily station passengers', src:'TfL 2024' },
+  { value:'15–20M', label:'BOROUGH MARKET VISITORS', sub:'annual visitors to the area', src:'Borough Market Trust' },
+  { value:'£57K', label:'SE1 MEDIAN INCOME', sub:'household income', src:'ONS 2024' },
+  { value:'48%', label:'AGE 25–44', sub:'of SE1 residents', src:'Census 2021' },
+  { value:'90,475', label:'VENUE PAGE VIEWS 2025', sub:'verified GA4', src:'Google Analytics' },
+  { value:'58%', label:'ORGANIC SEARCH SHARE', sub:'of all traffic', src:'GA4 2025' },
+]
+const VENUE_IMGS = [
+  { src:'/venue_gallery_1.jpg', caption:'Pool tables & arcades arch' },
+  { src:'/venue_gallery_2.jpg', caption:'Bar & board games area' },
+  { src:'/venue_gallery_3.jpg', caption:'Pool room' },
+  { src:'/venue_gallery_4.jpg', caption:'Arcades & pinball machines' },
+  { src:'/venue_gallery_5.jpg', caption:'Arcade detail' },
+  { src:'/venue_gallery_6.jpg', caption:'Foosball table' },
+  { src:'/venue_gallery_7.jpg', caption:'Air hockey & gaming' },
+]
+const COURSE_IMGS = [
   { src:'/Borough_Course_3.jpg', caption:'London landmarks course' },
   { src:'/Borough_Course_4.jpg', caption:'London Eye hole — arch 4' },
   { src:'/Borough_Course_5.jpg', caption:'Red telephone box feature hole' },
