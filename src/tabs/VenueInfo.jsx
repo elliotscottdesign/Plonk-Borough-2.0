@@ -47,8 +47,8 @@ function Gallery({ images }) {
       <div style={{ position:'relative', background:'var(--ink-3)', borderRadius:10, overflow:'hidden', aspectRatio:'16/9' }}>
         <img src={images[active].src} alt={images[active].caption} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
         <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'12px 16px', background:'linear-gradient(transparent,rgba(0,0,0,0.7))', color:'#fff', fontSize:13 }}>{images[active].caption}</div>
-        {active > 0 && <button onClick={()=>setActive(active-1)} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>‹</button>}
-        {active < images.length-1 && <button onClick={()=>setActive(active+1)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>›</button>}
+        {active > 0 && <button onClick={()=>setActive(active-1)} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>&#8249;</button>}
+        {active < images.length-1 && <button onClick={()=>setActive(active+1)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>&#8250;</button>}
       </div>
       <div style={{ display:'flex', gap:6, overflowX:'auto', paddingBottom:4 }}>
         {images.map((img,i) => (
@@ -62,20 +62,37 @@ function Gallery({ images }) {
   )
 }
 
+function Row({ label, value, gold }) {
+  return (
+    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+      <span style={{ fontSize:12, color:'var(--cream-dim)', flexShrink:0, paddingRight:16 }}>{label}</span>
+      <span style={{ fontSize:12, color:gold?'var(--gold)':'var(--cream)', textAlign:'right' }}>{value}</span>
+    </div>
+  )
+}
+
+function STitle({ children }) {
+  return <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{children}</div>
+}
+
+function Card({ children }) {
+  return <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>{children}</div>
+}
+
 function TabCatchment() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
         {STATS.map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:16 }}>
+          <Card key={s.label}>
             <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{s.label}</div>
             <div style={{ fontSize:26, color:'var(--gold)', fontFamily:"'DM Serif Display',serif", marginBottom:3 }}>{s.value}</div>
             <div style={{ fontSize:12, color:'var(--cream-dim)' }}>{s.sub}</div>
-          </div>
+          </Card>
         ))}
       </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Catchment Area</div>
+      <Card>
+        <STitle>Catchment Area</STitle>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           <div>
             <div style={{ fontSize:13, color:'var(--cream)', marginBottom:8, fontWeight:500 }}>Primary Catchment (0–5 min walk)</div>
@@ -90,7 +107,7 @@ function TabCatchment() {
             ))}
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   )
 }
@@ -98,27 +115,17 @@ function TabCatchment() {
 function TabLocation() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Location Details</div>
+      <Card>
+        <STitle>Location Details</STitle>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           <div>
-            {[['Address','6 Park Street, London SE1 9AB'],['Area','Borough Market'],['Borough','Southwark'],['Nearest Station','London Bridge (2 min walk)'],['Bus Routes','RV1, 21, 35, 40, 133, 343']].map(([l,v]) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{l}</span>
-                <span style={{ fontSize:12, color:'var(--cream)' }}>{v}</span>
-              </div>
-            ))}
+            {[['Address','6 Park Street, London SE1 9AB'],['Area','Borough Market'],['Borough','Southwark'],['Nearest Station','London Bridge (2 min walk)'],['Bus Routes','RV1, 21, 35, 40, 133, 343']].map(([l,v]) => <Row key={l} label={l} value={v} />)}
           </div>
           <div>
-            {[['Mon–Thu','11:00 – 23:00'],['Friday','11:00 – 23:30'],['Saturday','10:00 – 23:30'],['Sunday','12:00 – 22:30'],['DPS','Klaudia Ciepluch']].map(([l,v]) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{l}</span>
-                <span style={{ fontSize:12, color:'var(--cream)' }}>{v}</span>
-              </div>
-            ))}
+            {[['Mon–Thu','11:00 – 23:00'],['Friday','11:00 – 23:30'],['Saturday','10:00 – 23:30'],['Sunday','12:00 – 22:30'],['DPS','Klaudia Ciepluch']].map(([l,v]) => <Row key={l} label={l} value={v} />)}
           </div>
         </div>
-      </div>
+      </Card>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, overflow:'hidden', height:300 }}>
         <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2483.6!2d-0.0908!3d51.5055!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x487604a93b49f6db%3A0x5c6cd91fc3ec62fd!2sBorough%20Market!5e0!3m2!1sen!2suk!4v1" width="100%" height="300" style={{ border:0 }} allowFullScreen loading="lazy" />
       </div>
@@ -128,42 +135,69 @@ function TabLocation() {
 
 function TabFloorPlan() {
   return (
-    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:16 }}>
-      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Floor Plan</div>
+    <Card>
+      <STitle>Floor Plan — 6 Park Street SE1</STitle>
       <img src="/floorplan_1.png" alt="Venue floor plan" style={{ width:'100%', borderRadius:8, objectFit:'contain' }} />
-    </div>
+    </Card>
   )
 }
 
 function TabLicence() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Premises Licence</div>
-        {[['Licence Number','888057'],['Issuing Authority','Southwark Council'],['Designated Premises Supervisor','Klaudia Ciepluch'],['Licence Type','Full Premises Licence'],['Activities','Supply of alcohol, regulated entertainment, late night refreshment']].map(([l,v]) => (
-          <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{l}</span>
-            <span style={{ fontSize:12, color:'var(--cream)', textAlign:'right', maxWidth:'60%' }}>{v}</span>
+      <Card>
+        <STitle>Premises Licence Details</STitle>
+        <Row label="Licence Number" value="888057" gold />
+        <Row label="Issuing Authority" value="London Borough of Southwark" />
+        <Row label="Designated Premises Supervisor" value="Klaudia Ciepluch" />
+        <Row label="Licence Holder" value="No Dice Borough Ltd" />
+        <Row label="Premises Address" value="6 Park Street, London SE1 9AB" />
+        <Row label="Licence Type" value="Full Premises Licence" />
+      </Card>
+      <Card>
+        <STitle>Licensable Activities</STitle>
+        <Row label="Supply of alcohol" value="On-premises consumption only" gold />
+        <Row label="Regulated entertainment" value="Live &amp; recorded music, dance" />
+        <Row label="Late night refreshment" value="Supply of hot food/drink after 23:00" />
+        <Row label="Films — Indoors" value="Permitted under licence" />
+        <Row label="Indoor sporting events" value="Pool, mini golf — permitted" />
+      </Card>
+      <Card>
+        <STitle>Licensed Hours</STitle>
+        {[
+          ['Monday – Thursday','11:00 – 23:00'],
+          ['Friday','11:00 – 23:30'],
+          ['Saturday','10:00 – 23:30'],
+          ['Sunday','12:00 – 22:30'],
+        ].map(([l,v]) => <Row key={l} label={l} value={v} gold />)}
+        <div style={{ marginTop:12, padding:10, background:'rgba(201,168,76,0.05)', borderRadius:7, border:'1px solid rgba(201,168,76,0.12)' }}>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.6 }}>
+            Non-standard timings and additional conditions are set out in Annex 2 of the premises licence issued by the London Borough of Southwark.
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <STitle>Annex 1 — Mandatory Conditions</STitle>
+        {[
+          'No supply of alcohol may be made under the Premises Licence: (a) at a time when there is no Designated Premises Supervisor in respect of the licence; or (b) at a time when the Designated Premises Supervisor does not hold a personal licence or their personal licence is suspended.',
+          'Every supply of alcohol under the Premises Licence must be made or authorised by a person who holds a personal licence.',
+          'The responsible person must ensure that staff on relevant premises do not carry out, arrange or participate in any irresponsible promotions in relation to the premises.',
+          'The responsible person must ensure that no alcohol is dispensed directly by one person into the mouth of another (other than where that person is unable to drink without assistance by reason of a disability).',
+          'The responsible person must ensure that free potable water is provided on request to customers where it is reasonably available.',
+        ].map((condition, i) => (
+          <div key={i} style={{ padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.6 }}>{i+1}. {condition}</div>
           </div>
         ))}
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Licensed Hours</div>
-        {[['Monday – Thursday','11:00 – 23:00'],['Friday','11:00 – 23:30'],['Saturday','10:00 – 23:30'],['Sunday','12:00 – 22:30']].map(([l,v]) => (
-          <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-            <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{l}</span>
-            <span style={{ fontSize:13, color:'var(--gold)' }}>{v}</span>
-          </div>
-        ))}
-      </div>
+      </Card>
     </div>
   )
 }
 
 function TabDevelopment() {
   return (
-    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Growth Opportunities</div>
+    <Card>
+      <STitle>Growth Opportunities</STitle>
       {[
         ['Private Hire Expansion','Corporate bookings and private events currently underserved — dedicated sales resource would drive significant uplift'],
         ['Extended Hours','Friday and Saturday late licence extension to 01:00 would capture post-theatre and post-gig trade from The Globe and Tate'],
@@ -177,7 +211,7 @@ function TabDevelopment() {
           <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>{desc}</div>
         </div>
       ))}
-    </div>
+    </Card>
   )
 }
 
