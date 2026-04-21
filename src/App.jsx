@@ -1,5 +1,4 @@
 import React, { useState } from 'react'
-import PasswordGate from './PasswordGate.jsx'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Cover from './slides/Cover.jsx'
@@ -27,11 +26,8 @@ const SLIDES = [
 const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
 
 export default function App() {
-  const [authed, setAuthed] = useState(false)
   const [topTab, setTopTab] = useState('Investor Deck')
   const [slideIdx, setSlideIdx] = useState(0)
-
-  if (!authed) return <PasswordGate onUnlock={() => setAuthed(true)} />
 
   const { Component } = SLIDES[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length - 1, i)))
