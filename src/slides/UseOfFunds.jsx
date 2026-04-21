@@ -1,82 +1,82 @@
 import React from 'react'
-import { USE_OF_FUNDS, DEAL } from '../data.js'
-import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
-
-const COLORS = ['#C9A84C','#8A6E2F','#E8C96A','#4A3A1A','#6B5A30']
-const fmt = (n) => '£' + n.toLocaleString()
 
 export default function UseOfFunds() {
+  const funds = [
+    { label:'Hardware from Liquidators', color:'#4FC3F7', pct:16, amount:24000, vat:'+VAT', icon:'🔧', desc:'Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1.' },
+    { label:'Plonk IP & Goodwill', color:'#C9A84C', pct:48, amount:72000, vat:'+VAT', icon:'⭐', desc:'Brand, gaming IP, customer data and trading goodwill — the proven revenue-generating asset.' },
+    { label:'Stock & Supplier Restart', color:'#2DD4BF', pct:8, amount:12000, vat:'+VAT', icon:'📦', desc:'Opening stock, supplier agreements and software subscriptions to trade from Day 1.' },
+    { label:'Rent Deposit (3 months)', color:'#8B5CF6', pct:18, amount:27078, vat:'inc VAT', icon:'🏠', desc:'Security deposit held by landlord covering May, Jun, Jul 2026.' },
+    { label:'Working Capital Buffer', color:'#6B7280', pct:10, amount:14922, vat:null, icon:'💼', desc:'Staged into business per cash flow model. Covers early trading before revenue covers costs.' },
+  ]
+  const fmt = n => '£' + n.toLocaleString()
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
-        Use of Funds
-      </h2>
-      <p style={{ color: 'var(--cream-dim)', marginBottom: 40, fontSize: 15 }}>
-        How the £150,000 investment is deployed on Day 1.
-      </p>
-
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: 40, alignItems: 'center' }}>
-
-        {/* Donut */}
-        <div style={{ height: 280 }}>
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={USE_OF_FUNDS} cx="50%" cy="50%" innerRadius={70} outerRadius={110}
-                dataKey="amount" paddingAngle={2}>
-                {USE_OF_FUNDS.map((_, i) => <Cell key={i} fill={COLORS[i]} />)}
-              </Pie>
-              <Tooltip formatter={(v) => fmt(v)} contentStyle={{
-                background: 'var(--ink-3)', border: '1px solid var(--gold-dim)',
-                borderRadius: 8, color: 'var(--cream)', fontSize: 12,
-              }} />
-            </PieChart>
-          </ResponsiveContainer>
-        </div>
-
-        {/* Line items */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-          {USE_OF_FUNDS.map((item, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '16px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
-            }}>
-              <div style={{ width: 10, height: 10, borderRadius: 2, background: COLORS[i], flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: 'var(--cream)', marginBottom: 3 }}>{item.item}</div>
-                <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{item.note}</div>
+    <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
+      <div style={{ marginBottom:24 }}>
+        <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>Use of Investment Funds</div>
+        <h1 style={{ fontSize:'clamp(1.8rem,3.5vw,2.8rem)', fontWeight:900, color:'var(--cream)', marginBottom:8, textTransform:'uppercase' }}>Where Your £150,000 Goes</h1>
+        <p style={{ fontSize:14, color:'#9CA3AF' }}>Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business</p>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
+        <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24 }}>
+          <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:20 }}>Fund Allocation — Visual Breakdown</div>
+          <div style={{ display:'flex', height:32, borderRadius:6, overflow:'hidden', marginBottom:24 }}>
+            {funds.map(f => <div key={f.label} style={{ width:f.pct+'%', background:f.color }} />)}
+          </div>
+          {funds.map(f => (
+            <div key={f.label} style={{ marginBottom:16 }}>
+              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
+                <div style={{ width:12, height:12, borderRadius:2, background:f.color, flexShrink:0 }} />
+                <span style={{ fontSize:13, fontWeight:600, color:'var(--cream)', flex:1 }}>{f.label}</span>
+                {f.vat && <span style={{ fontSize:10, color:f.color, border:`1px solid ${f.color}`, borderRadius:3, padding:'1px 6px' }}>{f.vat}</span>}
+                <span style={{ fontSize:13, color:f.color, fontWeight:600, minWidth:36, textAlign:'right' }}>{f.pct}%</span>
+                <span style={{ fontSize:13, fontWeight:700, color:f.color, minWidth:64, textAlign:'right' }}>{fmt(f.amount)}</span>
               </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 15, color: 'var(--gold)', fontFamily: "'DM Serif Display', serif" }}>
-                  {fmt(item.amount)}
-                </div>
-                <div style={{ fontSize: 10, color: 'var(--cream-dim)' }}>{item.pct.toFixed(1)}%</div>
+              <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2, marginLeft:20 }}>
+                <div style={{ height:'100%', width:f.pct+'%', background:f.color, borderRadius:2 }} />
               </div>
             </div>
           ))}
-          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '16px 0 0', marginTop: 4 }}>
-            <span style={{ fontSize: 13, color: 'var(--cream-dim)' }}>Total Investment</span>
-            <span className="serif" style={{ fontSize: 20, color: 'var(--gold)' }}>{fmt(DEAL.investment)}</span>
+          <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:12, display:'flex', justifyContent:'space-between' }}>
+            <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>TOTAL INVESTMENT</span>
+            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>£150,000</span>
           </div>
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+          {funds.map(f => (
+            <div key={f.label} style={{ background:'#0D1117', border:'1px solid #21262D', borderLeft:`3px solid ${f.color}`, borderRadius:8, padding:'14px 18px', display:'flex', gap:14, alignItems:'flex-start' }}>
+              <div style={{ fontSize:22, flexShrink:0 }}>{f.icon}</div>
+              <div style={{ flex:1 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                  <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)' }}>{f.label}</span>
+                  <span style={{ fontSize:12, color:f.color, fontWeight:600, marginLeft:'auto' }}>{f.pct}%</span>
+                  <span style={{ fontSize:14, fontWeight:700, color:f.color }}>{fmt(f.amount)}</span>
+                </div>
+                <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{f.desc}</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
-
-      {/* Day 1 note */}
-      <div className="card" style={{ padding: 20, marginTop: 36 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
-          Day 1 Deployment
+      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'16px 20px' }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>£150,000 TOTAL · 100% DEPLOYED DAY 1</div>
+          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs (£18,000) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)</div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, fontSize: 12, color: 'var(--cream-dim)' }}>
-          <div>
-            <span style={{ color: 'var(--cream)' }}>£108,000</span> covers all hard costs — hardware,
-            IP, stock and rent deposit. Deployed immediately on reopening.
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
+            <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Day 1 Deployed</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£135,078</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Startup costs paid immediately</div>
           </div>
-          <div>
-            <span style={{ color: 'var(--cream)' }}>£14,922</span> working capital staged into
-            the business per cash flow forecast. Not drawn upfront.
+          <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
+            <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Working Capital</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£14,922</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Staged per cash flow model</div>
           </div>
-          <div>
-            The <span style={{ color: 'var(--cream)' }}>£27,078</span> landlord deposit covers
-            3 months rent (May–Jul 2026) — no rent cash payments until August.
+          <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
+            <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>VAT Reclaim</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£18,000</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Recovered Q1 — August 2026</div>
           </div>
         </div>
       </div>
