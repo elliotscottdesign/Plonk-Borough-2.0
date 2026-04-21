@@ -4,6 +4,7 @@ import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
 import InvestmentSnapshot from './slides/InvestmentSnapshot.jsx'
+import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import MarketingEngine from './slides/MarketingEngine.jsx'
 import FinancialPerformance from './slides/FinancialPerformance.jsx'
@@ -15,12 +16,13 @@ const SLIDES = [
   { id:'cover',      label:'01  Cover',                Component: Cover },
   { id:'summary',    label:'02  Investment Summary',   Component: InvestmentSummary },
   { id:'snapshot',   label:'03  Investment Snapshot',  Component: InvestmentSnapshot },
-  { id:'market',     label:'04  Market Context',       Component: MarketContext },
-  { id:'marketing',  label:'05  Marketing Engine',     Component: MarketingEngine },
-  { id:'financials', label:'06  Financial Performance',Component: FinancialPerformance },
-  { id:'waterfall',  label:'07  Waterfall Returns',    Component: WaterfallReturns },
-  { id:'growth',     label:'08  Growth & Risks',       Component: GrowthRisks },
-  { id:'case',       label:'09  Investment Case',      Component: InvestmentCase },
+  { id:'funds',      label:'04  Use of Funds',         Component: UseOfFunds },
+  { id:'market',     label:'05  Market Context',       Component: MarketContext },
+  { id:'marketing',  label:'06  Marketing Engine',     Component: MarketingEngine },
+  { id:'financials', label:'07  Financial Performance',Component: FinancialPerformance },
+  { id:'waterfall',  label:'08  Waterfall Returns',    Component: WaterfallReturns },
+  { id:'growth',     label:'09  Growth & Risks',       Component: GrowthRisks },
+  { id:'case',       label:'10  Investment Case',      Component: InvestmentCase },
 ]
 
 const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
@@ -28,13 +30,11 @@ const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
 export default function App() {
   const [topTab, setTopTab] = useState('Investor Deck')
   const [slideIdx, setSlideIdx] = useState(0)
-
   const { Component } = SLIDES[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length - 1, i)))
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
-      {/* Top bar */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Borough Ltd</div>
         <div style={{ display:'flex', gap:4 }}>
@@ -44,11 +44,9 @@ export default function App() {
         </div>
         <div style={{ fontSize:9, color:'var(--gold-dim)', letterSpacing:'0.1em' }}>CONFIDENTIAL · BOROUGH MARKET SE1</div>
       </div>
-
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {topTab === 'Investor Deck' && (
           <>
-            {/* Horizontal slide nav */}
             <div style={{ borderBottom:'1px solid rgba(201,168,76,0.1)', background:'var(--ink-2)', flexShrink:0 }}>
               <div style={{ display:'flex', overflowX:'auto', padding:'0 16px' }}>
                 {SLIDES.map((s, i) => (
@@ -56,7 +54,6 @@ export default function App() {
                 ))}
               </div>
             </div>
-            {/* Slide content */}
             <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 20px', height:36, borderBottom:'1px solid rgba(201,168,76,0.08)', flexShrink:0 }}>
                 <div style={{ display:'flex', gap:5, alignItems:'center' }}>
