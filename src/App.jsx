@@ -34,34 +34,31 @@ export default function App() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Top bar */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Borough Ltd</div>
         <div style={{ display:'flex', gap:4 }}>
           {TOP_TABS.map(t => (
-            <button key={t} onClick={() => setTopTab(t)} style={{ padding:'5px 14px', fontSize:10, borderRadius:6, cursor:'pointer', background:topTab===t?'rgba(201,168,76,0.12)':'transparent', border:`1px solid ${topTab===t?'rgba(201,168,76,0.35)':'transparent'}`, color:topTab===t?'var(--gold)':'var(--cream-dim)', transition:'all 0.15s', letterSpacing:'0.02em' }}>{t}</button>
+            <button key={t} onClick={() => setTopTab(t)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===t?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===t?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===t?600:400 }}>{t}</button>
           ))}
         </div>
         <div style={{ fontSize:9, color:'var(--gold-dim)', letterSpacing:'0.1em' }}>CONFIDENTIAL · BOROUGH MARKET SE1</div>
       </div>
-      <div style={{ flex:1, overflow:'hidden', display:'flex' }}>
+
+      <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {topTab === 'Investor Deck' && (
           <>
-            <nav style={{ width:200, flexShrink:0, background:'var(--ink-2)', borderRight:'1px solid rgba(201,168,76,0.1)', display:'flex', flexDirection:'column' }}>
-              <div style={{ flex:1, overflowY:'auto', padding:'8px 0' }}>
+            {/* Horizontal slide nav */}
+            <div style={{ borderBottom:'1px solid rgba(201,168,76,0.1)', background:'var(--ink-2)', flexShrink:0 }}>
+              <div style={{ display:'flex', overflowX:'auto', padding:'0 16px' }}>
                 {SLIDES.map((s, i) => (
-                  <button key={s.id} onClick={() => setSlideIdx(i)} style={{ display:'block', width:'100%', textAlign:'left', padding:'9px 16px', fontSize:10, border:'none', borderLeft:`2px solid ${i===slideIdx?'var(--gold)':'transparent'}`, color:i===slideIdx?'var(--gold)':'var(--cream-dim)', background:i===slideIdx?'rgba(201,168,76,0.07)':'transparent', cursor:'pointer', transition:'all 0.15s', letterSpacing:'0.02em' }}>{s.label}</button>
+                  <button key={s.id} onClick={() => setSlideIdx(i)} style={{ padding:'8px 16px', fontSize:10, border:'none', borderBottom:`2px solid ${i===slideIdx?'var(--gold)':'transparent'}`, color:i===slideIdx?'var(--gold)':'var(--cream-dim)', background:'transparent', cursor:'pointer', transition:'all 0.15s', letterSpacing:'0.04em', whiteSpace:'nowrap', flexShrink:0 }}>{s.label}</button>
                 ))}
               </div>
-              <div style={{ padding:'12px 16px', borderTop:'1px solid rgba(201,168,76,0.1)' }}>
-                <div style={{ fontSize:9, color:'var(--cream-dim)', marginBottom:5 }}>{slideIdx+1} / {SLIDES.length}</div>
-                <div style={{ height:2, background:'var(--ink-3)', borderRadius:1 }}>
-                  <div style={{ height:'100%', background:'var(--gold)', borderRadius:1, width:`${((slideIdx+1)/SLIDES.length)*100}%`, transition:'width 0.3s' }} />
-                </div>
-              </div>
-            </nav>
+            </div>
+            {/* Slide content */}
             <div style={{ flex:1, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 20px', height:38, borderBottom:'1px solid rgba(201,168,76,0.08)', flexShrink:0 }}>
-                <span style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>{SLIDES[slideIdx].label}</span>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'flex-end', padding:'0 20px', height:36, borderBottom:'1px solid rgba(201,168,76,0.08)', flexShrink:0 }}>
                 <div style={{ display:'flex', gap:5, alignItems:'center' }}>
                   <button onClick={() => go(slideIdx-1)} disabled={slideIdx===0} style={{ width:24, height:24, borderRadius:4, border:'1px solid rgba(201,168,76,0.25)', background:'transparent', color:slideIdx===0?'var(--ink-3)':'var(--gold)', cursor:slideIdx===0?'default':'pointer', fontSize:11 }}>←</button>
                   <span style={{ fontSize:9, color:'var(--cream-dim)' }}>{slideIdx+1}/{SLIDES.length}</span>
