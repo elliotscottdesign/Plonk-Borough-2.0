@@ -7,22 +7,20 @@ import InvestmentSnapshot from './slides/InvestmentSnapshot.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import MarketingEngine from './slides/MarketingEngine.jsx'
-import FinancialPerformance from './slides/FinancialPerformance.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 
 const SLIDES = [
-  { id:'cover',      label:'01  Cover',                Component: Cover },
-  { id:'summary',    label:'02  Investment Summary',   Component: InvestmentSummary },
-  { id:'snapshot',   label:'03  Investment Snapshot',  Component: InvestmentSnapshot },
-  { id:'funds',      label:'04  Use of Funds',         Component: UseOfFunds },
-  { id:'market',     label:'05  Market Context',       Component: MarketContext },
-  { id:'marketing',  label:'06  Marketing Engine',     Component: MarketingEngine },
-  { id:'financials', label:'07  Financial Performance',Component: FinancialPerformance },
-  { id:'waterfall',  label:'08  Waterfall Returns',    Component: WaterfallReturns },
-  { id:'growth',     label:'09  Growth & Risks',       Component: GrowthRisks },
-  { id:'case',       label:'10  Investment Case',      Component: InvestmentCase },
+  { id:'cover',      label:'01  Cover',               Component: Cover },
+  { id:'summary',    label:'02  Investment Summary',  Component: InvestmentSummary },
+  { id:'snapshot',   label:'03  Investment Snapshot', Component: InvestmentSnapshot },
+  { id:'funds',      label:'04  Use of Funds',        Component: UseOfFunds },
+  { id:'market',     label:'05  Market Context',      Component: MarketContext },
+  { id:'marketing',  label:'06  Marketing Engine',    Component: MarketingEngine },
+  { id:'waterfall',  label:'07  Waterfall Returns',   Component: WaterfallReturns },
+  { id:'growth',     label:'08  Growth & Risks',      Component: GrowthRisks },
+  { id:'case',       label:'09  Investment Case',     Component: InvestmentCase },
 ]
 
 const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
@@ -32,7 +30,6 @@ export default function App() {
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDES[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length - 1, i)))
-
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
