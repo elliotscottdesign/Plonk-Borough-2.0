@@ -39,10 +39,12 @@ export default function MarketingEngine() {
             2025 Google Ads — GA4 Verified
           </div>
           <div style={{
-            background: '#FFEBEE', border: '1px solid rgba(183,28,28,0.3)',
-            borderRadius: 8, padding: '10px 14px', marginBottom: 14, fontSize: 11, color: '#B71C1C',
+            background: 'rgba(183,28,28,0.08)', border: '1px solid rgba(183,28,28,0.25)',
+            borderRadius: 8, padding: '12px 14px', marginBottom: 14, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6,
           }}>
-            2024: Ads ran Jan–Nov with no conversion tracking. £9,353 spent — zero measurable ROI.
+            <span style={{ color: '#E53935', fontWeight: 500 }}>2024: </span>
+            Ads ran Jan–Nov with no conversion tracking.
+            <strong style={{ color: 'var(--cream)' }}> £9,353 spent</strong> — zero measurable ROI.
           </div>
           {[
             ['Active period', '5 Nov – 11 Dec 2025 (37 days)'],
