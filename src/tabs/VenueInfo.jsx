@@ -101,15 +101,15 @@ function TabCatchment() {
     { value:'130K+', label:'LONDON BRIDGE FOOTFALL', sub:'daily station passengers', source:'TfL 2024', color:'#4FC3F7' },
     { value:'15-20M', label:'BOROUGH MARKET VISITORS', sub:'annual visitors to the area', source:'Borough Market Trust', color:'#4FC3F7' },
     { value:'£57K', label:'SE1 MEDIAN INCOME', sub:'household income', source:'ONS 2024', color:'#2DD4BF' },
-    { value:'48%', label:'AGE 25–44', sub:'of SE1 residents', source:'Census 2021', color:'#4FC3F7' },
+    { value:'48%', label:'AGE 25→44', sub:'of SE1 residents', source:'Census 2021', color:'#4FC3F7' },
     { value:'90,475', label:'VENUE PAGE VIEWS 2025', sub:'verified GA4', source:'Google Analytics', color:'#4FC3F7' },
     { value:'58%', label:'ORGANIC SEARCH SHARE', sub:'of all traffic', source:'GA4 2025', color:'#2DD4BF' },
   ]
   const strengths = [
-    { icon:'🏢', title:'City Worker Proximity', text:'The Square Mile is within 10-minute walking distance. Corporate lunch, after-work and team-building bookings are a core revenue opportunity.' },
-    { icon:'🎓', title:'Young Professional Base', text:'48% of SE1 residents are aged 25–44 — the primary spending demographic for experience-led hospitality.' },
-    { icon:'✈️', title:'International Tourism', text:'Borough Market and The Shard draw millions of international visitors annually. No Dice Borough is a natural tourist magnet — an experience venue with no paid acquisition cost.' },
-    { icon:'🌙', title:'Evening Economy', text:'London Bridge is a major night economy hub. Friday and Saturday footfall is exceptional with no enforced curfew on experience venues.' },
+    { icon:'ð¢', title:'City Worker Proximity', text:'The Square Mile is within 10-minute walking distance. Corporate lunch, after-work and team-building bookings are a core revenue opportunity.' },
+    { icon:'ð', title:'Young Professional Base', text:'48% of SE1 residents are aged 25→44 → the primary spending demographic for experience-led hospitality.' },
+    { icon:'→ï¸', title:'International Tourism', text:'Borough Market and The Shard draw millions of international visitors annually. No Dice Borough is a natural tourist magnet → an experience venue with no paid acquisition cost.' },
+    { icon:'ð', title:'Evening Economy', text:'London Bridge is a major night economy hub. Friday and Saturday footfall is exceptional with no enforced curfew on experience venues.' },
   ]
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
@@ -172,7 +172,7 @@ function TabFloorPlan() {
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, alignItems:'start' }}>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:16 }}>
-        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Floor Plan — Arches B C D And E, Montague Close SE1</div>
+        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Floor Plan → Arches B C D And E, Montague Close SE1</div>
         <img src="/floorplan_1.png" alt="Venue floor plan" style={{ width:'100%', borderRadius:6, objectFit:'contain', maxHeight:380 }} />
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -300,24 +300,24 @@ function TabDevelopment() {
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #C9A84C' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#C9A84C', border:'1px solid #C9A84C', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Short Term Opportunity</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Basement Below Bar & Arcade Arch</h3>
-            {['200m² of basement space directly below the bar and arcade arch','Available for development now — no structural barriers','Proposed uses: karaoke rooms · listening bar · private hire games spaces','High-margin private hire and events revenue potential','Extends the venue offer without expanding the footprint above ground'].map(item => (
+            {['200m² of basement space directly below the bar and arcade arch','Available for development now → no structural barriers','Proposed uses: karaoke rooms · listening bar · private hire games spaces','High-margin private hire and events revenue potential','Extends the venue offer without expanding the footprint above ground'].map(item => (
               <div key={item} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}>
-                <span style={{ color:'#C9A84C', flexShrink:0 }}>→</span><span>{item}</span>
+                <span style={{ color:'#C9A84C', flexShrink:0 }}>→</span><span>{item}</span>
               </div>
             ))}
           </div>
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #4FC3F7' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#4FC3F7', border:'1px solid #4FC3F7', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Long Term Opportunity</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Full Basement & TfL Tunnel Access</h3>
-            {['300m² of developable basement beneath the full Borough venue','Rights to sublet and carry out works are held within the lease','Structural costs covered by the landlord and building insurance policy','Fit-out to be carried out by No Dice Borough Ltd','A further 100m² tunnel opens under the final golf arch once TfL installs a new staircase — at that point the entire basement connects for public use','Full basement development unlocks a significant additional revenue floor'].map(item => (
+            {['300m² of developable basement beneath the full Borough venue','Rights to sublet and carry out works are held within the lease','Structural costs covered by the landlord and building insurance policy','Fit-out to be carried out by No Dice Borough Ltd','A further 100m² tunnel opens under the final golf arch once TfL installs a new staircase → at that point the entire basement connects for public use','Full basement development unlocks a significant additional revenue floor'].map(item => (
               <div key={item} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}>
-                <span style={{ color:'#4FC3F7', flexShrink:0 }}>→</span><span>{item}</span>
+                <span style={{ color:'#4FC3F7', flexShrink:0 }}>→</span><span>{item}</span>
               </div>
             ))}
           </div>
         </div>
         <div style={{ background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:8, padding:'16px 20px', marginBottom:12 }}>
-          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>★ The basement represents significant embedded upside — it is not speculative. The rights exist, the space exists, and the structural costs are not borne by No Dice Borough Ltd.</p>
+          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>→ The basement represents significant embedded upside → it is not speculative. The rights exist, the space exists, and the structural costs are not borne by No Dice Borough Ltd.</p>
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
             {['Lease-Backed Rights','Structural Costs: Landlord','400m² Total Potential'].map((tag,i) => (
               <span key={tag} style={{ fontSize:11, border:`1px solid ${i===0?'#4FC3F7':i===1?'#2DD4BF':'#C9A84C'}`, color:i===0?'#4FC3F7':i===1?'#2DD4BF':'#C9A84C', borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase' }}>{tag}</span>
@@ -334,33 +334,33 @@ function TabDevelopment() {
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #F87171' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#F87171', border:'1px solid #F87171', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Current Status</div>
-            <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Boro Bistro — Final Warning</h3>
+            <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Boro Bistro → Final Warning</h3>
             {['The yard at the front of the venue is private land owned by Southwark Cathedral','Boro Bistro currently hold usage rights to this space','They have misused the space and are on their final warning with the landlord','One further breach gives No Dice Borough the right to reclaim the yard'].map(item => (
               <div key={item} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}>
-                <span style={{ color:'#F87171', flexShrink:0 }}>→</span><span>{item}</span>
+                <span style={{ color:'#F87171', flexShrink:0 }}>→</span><span>{item}</span>
               </div>
             ))}
-            <div style={{ marginTop:16, fontSize:13, color:'#F59E0B', fontStyle:'italic' }}>● Situation is live — outcome subject to Boro Bistro's next infraction</div>
+            <div style={{ marginTop:16, fontSize:13, color:'#F59E0B', fontStyle:'italic' }}>→ Situation is live → outcome subject to Boro Bistro’s next infraction</div>
           </div>
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #2DD4BF' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#2DD4BF', border:'1px solid #2DD4BF', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>If Reclaimed</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Large Capacity & Bar Revenue Upside</h3>
-            {['Very large additional outdoor capacity for bar service and social use','Significantly increases peak revenue potential, particularly for events and summer trading','No takeaway licence required — all private land, no public highway involvement','Bar sales extend naturally into the yard without additional licensing complexity','Transforms the venue's kerb presence on one of London's most visited streets'].map(item => (
+            {['Very large additional outdoor capacity for bar service and social use','Significantly increases peak revenue potential, particularly for events and summer trading','No takeaway licence required → all private land, no public highway involvement','Bar sales extend naturally into the yard without additional licensing complexity','Transforms the venue’s kerb presence on one of London's most visited streets'].map(item => (
               <div key={item} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}>
-                <span style={{ color:'#2DD4BF', flexShrink:0 }}>→</span><span>{item}</span>
+                <span style={{ color:'#2DD4BF', flexShrink:0 }}>→</span><span>{item}</span>
               </div>
             ))}
             <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:6 }}>
-              {['Private land — no licensing barrier to operation','No additional licence required to trade in the yard','High revenue impact — significant uplift in capacity and bar sales'].map(item => (
-                <div key={item} style={{ fontSize:13, color:'#2DD4BF', fontStyle:'italic' }}>● {item}</div>
+              {['Private land → no licensing barrier to operation','No additional licence required to trade in the yard','High revenue impact → significant uplift in capacity and bar sales'].map(item => (
+                <div key={item} style={{ fontSize:13, color:'#2DD4BF', fontStyle:'italic' }}>→ {item}</div>
               ))}
             </div>
           </div>
         </div>
         <div style={{ background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.2)', borderRadius:8, padding:'16px 20px' }}>
-          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>★ The yard is not speculative pipeline — it is an active situation. If Boro Bistro commit one further breach of their agreement, the opportunity to take back this space becomes available immediately.</p>
+          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>→ The yard is not speculative pipeline → it is an active situation. If Boro Bistro commit one further breach of their agreement, the opportunity to take back this space becomes available immediately.</p>
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-            {[['Private Land — No Licensing Barrier','#2DD4BF'],['Landlord: Southwark Cathedral','#9CA3AF'],['Conditional on Boro Bistro Breach','#C9A84C']].map(([tag,col]) => (
+            {[['Private Land → No Licensing Barrier','#2DD4BF'],['Landlord: Southwark Cathedral','#9CA3AF'],['Conditional on Boro Bistro Breach','#C9A84C']].map(([tag,col]) => (
               <span key={tag} style={{ fontSize:11, border:`1px solid ${col}`, color:col, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase' }}>{tag}</span>
             ))}
           </div>
@@ -373,18 +373,18 @@ function TabDevelopment() {
         <h2 style={{ fontSize:'clamp(1.5rem,3vw,2.2rem)', fontWeight:900, color:'#fff', textTransform:'uppercase', marginBottom:12 }}>Licence Development</h2>
         <p style={{ fontSize:14, color:'#9CA3AF', lineHeight:1.6, marginBottom:20 }}>The current premises licence was granted for a golf-led activity venue. Four targeted variations would materially increase revenue potential. Zero enforcement history and an activity-led format are strong grounds for all four applications.</p>
         <div style={{ background:'rgba(245,158,11,0.08)', border:'1px solid rgba(245,158,11,0.3)', borderRadius:8, padding:'14px 18px', marginBottom:24, fontSize:13, color:'#D1D5DB', lineHeight:1.6 }}>
-          <span style={{ color:'#F59E0B' }}>⚠️</span> Note: The licence is currently held by Plonk Golf Ltd (Co. 10328982). A transfer to No Dice Borough Ltd must be completed before or alongside any variation application. The Designated Premises Supervisor (DPS) appointment will also need to be reviewed at that stage.
+          <span style={{ color:'#F59E0B' }}>→ ï¸</span> Note: The licence is currently held by Plonk Golf Ltd (Co. 10328982). A transfer to No Dice Borough Ltd must be completed before or alongside any variation application. The Designated Premises Supervisor (DPS) appointment will also need to be reviewed at that stage.
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #4FC3F7' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#4FC3F7', border:'1px solid #4FC3F7', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Target: 1am Initially · 2am Long Term</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:8 }}>Extended Trading Hours</h3>
             <p style={{ fontSize:13, color:'#F87171', marginBottom:16 }}>Currently: Alcohol to 11pm · Premises closes 11:30pm</p>
-            {['Conditions 341, 342 and 343 restrict all activity to 11pm–11:30pm','DJ and late-night events format requires a 1am licence as a minimum','Activity-led venue (not a bar) strengthens the case significantly','Propose a 12-month trial period to reduce authority's perceived risk','Zero complaint history in SE1 is the strongest single asset'].map(item => (
-              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#4FC3F7', flexShrink:0 }}>→</span><span>{item}</span></div>
+            {['Conditions 341, 342 and 343 restrict all activity to 11pm→11:30pm','DJ and late-night events format requires a 1am licence as a minimum','Activity-led venue (not a bar) strengthens the case significantly','Propose a 12-month trial period to reduce authority’s perceived risk','Zero complaint history in SE1 is the strongest single asset'].map(item => (
+              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#4FC3F7', flexShrink:0 }}>→</span><span>{item}</span></div>
             ))}
             <div style={{ marginTop:20 }}>
-              {[['To 1am','35–45%',0.4,'#4FC3F7'],['To 2am','20–30%',0.25,'#6B7280']].map(([label,pct,val,col]) => (
+              {[['To 1am','35→45%',0.4,'#4FC3F7'],['To 2am','20→30%',0.25,'#6B7280']].map(([label,pct,val,col]) => (
                 <div key={label} style={{ marginBottom:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
                     <span style={{ color: col==='#4FC3F7'?'#4FC3F7':'#9CA3AF' }}>{label}</span>
@@ -401,12 +401,12 @@ function TabDevelopment() {
             <div style={{ display:'inline-block', fontSize:11, color:'#2DD4BF', border:'1px solid #2DD4BF', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Highest Likelihood · Apply First</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:8 }}>Activity-Led Alcohol Access</h3>
             <p style={{ fontSize:13, color:'#F87171', marginBottom:16 }}>Currently: Alcohol tied to golf ticket or arcade token purchase</p>
-            {['Condition 340 currently limits alcohol to golf, arcade and board game participants only','Board game players can already drink freely — extending this logic to all activity participants is proportionate and defensible','Proposed wording: any customer using the venue's activity or games facilities may purchase alcohol','Removes a compliance burden without changing the activity-led character','Strongest application — apply for this one first'].map(item => (
-              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#2DD4BF', flexShrink:0 }}>→</span><span>{item}</span></div>
+            {['Condition 340 currently limits alcohol to golf, arcade and board game participants only','Board game players can already drink freely → extending this logic to all activity participants is proportionate and defensible','Proposed wording: any customer using the venue’s activity or games facilities may purchase alcohol','Removes a compliance burden without changing the activity-led character','Strongest application → apply for this one first'].map(item => (
+              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#2DD4BF', flexShrink:0 }}>→</span><span>{item}</span></div>
             ))}
             <div style={{ marginTop:20 }}>
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
-                <span style={{ color:'#2DD4BF' }}>Likelihood</span><span style={{ color:'#9CA3AF' }}>65–75%</span>
+                <span style={{ color:'#2DD4BF' }}>Likelihood</span><span style={{ color:'#9CA3AF' }}>65→75%</span>
               </div>
               <div style={{ height:6, background:'#1A1A1A', borderRadius:3 }}>
                 <div style={{ height:'100%', width:'70%', background:'#2DD4BF', borderRadius:3 }} />
@@ -419,11 +419,11 @@ function TabDevelopment() {
             <div style={{ display:'inline-block', fontSize:11, color:'#C9A84C', border:'1px solid #C9A84C', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>International Matches Only</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:8 }}>Live International Sports</h3>
             <p style={{ fontSize:13, color:'#F87171', marginBottom:16 }}>Currently: No live sports screenings permitted (Condition 353)</p>
-            {['Condition 353 blanket-prohibits all live sports screenings','Licence already includes Indoor Sporting Event as a licensed activity — a useful inconsistency to argue at variation','Not seeking to become a sports bar — international tournaments only (World Cup, Euros, Olympics)','Propose advance notification protocol: inform authority before each screening and maintain a log','Avoids the weekly Premier League concerns that drove the original condition'].map(item => (
-              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#C9A84C', flexShrink:0 }}>→</span><span>{item}</span></div>
+            {['Condition 353 blanket-prohibits all live sports screenings','Licence already includes Indoor Sporting Event as a licensed activity → a useful inconsistency to argue at variation','Not seeking to become a sports bar → international tournaments only (World Cup, Euros, Olympics)','Propose advance notification protocol: inform authority before each screening and maintain a log','Avoids the weekly Premier League concerns that drove the original condition'].map(item => (
+              <div key={item} style={{ display:'flex', gap:10, marginBottom:8, fontSize:13, color:'#D1D5DB' }}><span style={{ color:'#C9A84C', flexShrink:0 }}>→</span><span>{item}</span></div>
             ))}
             <div style={{ marginTop:20 }}>
-              {[['International only','40–55%',0.48,'#C9A84C'],['Full removal','25–35%',0.3,'#6B7280']].map(([label,pct,val,col]) => (
+              {[['International only','40→55%',0.48,'#C9A84C'],['Full removal','25→35%',0.3,'#6B7280']].map(([label,pct,val,col]) => (
                 <div key={label} style={{ marginBottom:12 }}>
                   <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
                     <span style={{ color:col==='#C9A84C'?'#C9A84C':'#9CA3AF' }}>{label}</span><span style={{ color:'#9CA3AF' }}>{pct}</span>
@@ -438,7 +438,7 @@ function TabDevelopment() {
           <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24, borderTop:'3px solid #9CA3AF' }}>
             <div style={{ display:'inline-block', fontSize:11, color:'#9CA3AF', border:'1px solid #9CA3AF', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Recommended Approach</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>How to Maximise Success</h3>
-            {['Apply for the golf-drink link change first — easiest win, builds credibility with the authority','Obtain a formal zero-incident letter from Met Police Southwark and Southwark Council licensing team','Engage a Southwark specialist licensing solicitor before any application is submitted','Pre-consult with the licensing authority and police informally before formal submission','Engage Southwark Cathedral directly — their support on hours would carry exceptional weight as landlord','For hours: propose a 12-month time-limited trial to reduce perceived risk for the authority'].map((item,i) => (
+            {['Apply for the golf-drink link change first → easiest win, builds credibility with the authority','Obtain a formal zero-incident letter from Met Police Southwark and Southwark Council licensing team','Engage a Southwark specialist licensing solicitor before any application is submitted','Pre-consult with the licensing authority and police informally before formal submission','Engage Southwark Cathedral directly → their support on hours would carry exceptional weight as landlord','For hours: propose a 12-month time-limited trial to reduce perceived risk for the authority'].map((item,i) => (
               <div key={item} style={{ display:'flex', gap:12, marginBottom:12, fontSize:13, color:'#D1D5DB' }}>
                 <span style={{ color:'#4FC3F7', fontWeight:700, minWidth:16, flexShrink:0 }}>{i+1}</span><span>{item}</span>
               </div>
@@ -446,9 +446,9 @@ function TabDevelopment() {
           </div>
         </div>
         <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)', borderLeft:'4px solid #6366F1', borderRadius:8, padding:'16px 20px', marginBottom:16 }}>
-          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>★ Do not apply for all four variations simultaneously — this signals a venue seeking to transform its character. Sequence the applications. A clean zero-incident trading record in SE1 is the strongest asset in every application.</p>
+          <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>→ Do not apply for all four variations simultaneously → this signals a venue seeking to transform its character. Sequence the applications. A clean zero-incident trading record in SE1 is the strongest asset in every application.</p>
           <div style={{ display:'flex', gap:10, flexWrap:'wrap' }}>
-            {[['Remove Golf-Drink Link 65–75%','#2DD4BF'],['Hours to 1am 35–45%','#4FC3F7'],['Sports Screening 40–55%','#C9A84C'],['Hours to 2am 20–30%','#9CA3AF']].map(([tag,col]) => (
+            {[['Remove Golf-Drink Link 65→75%','#2DD4BF'],['Hours to 1am 35→45%','#4FC3F7'],['Sports Screening 40→55%','#C9A84C'],['Hours to 2am 20→30%','#9CA3AF']].map(([tag,col]) => (
               <span key={tag} style={{ fontSize:11, border:`1px solid ${col}`, color:col, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase' }}>{tag}</span>
             ))}
           </div>
