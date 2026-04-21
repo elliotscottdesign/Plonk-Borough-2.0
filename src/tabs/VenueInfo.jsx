@@ -29,14 +29,14 @@ const COURSE_IMGS = [
 ]
 const DRINKS_IMGS = [
   { src:'/drinks_1.jpg', caption:'Camden Town Brewery — bar draught' },
-  { src:'/drinks_2.png', caption:'Cloudwater craft beer selection' },
-  { src:'/drinks_3.png', caption:"Mondo Brewing — Dennis Hopp'r IPA on tap" },
+  { src:'/drinks_2.jpg', caption:'Cloudwater craft beer selection' },
+  { src:'/drinks_3.jpg', caption:"Mondo Brewing — Dennis Hopp'r IPA on tap" },
   { src:'/drinks_4.jpg', caption:'Tropical cocktail — citrus spritz' },
   { src:'/drinks_5.jpg', caption:'Negroni on the rocks' },
   { src:'/drinks_6.jpg', caption:'Rose petal martini' },
   { src:'/drinks_7.jpg', caption:'Jungle mojito' },
-  { src:'/drinks_8.jpg', caption:'Berry smash' },
-  { src:'/drinks_9.jpg', caption:'Coconut lime cooler' },
+  { src:'/drinks_8.png', caption:'Berry smash' },
+  { src:'/drinks_9.png', caption:'Coconut lime cooler' },
 ]
 
 export default function VenueInfo() {
