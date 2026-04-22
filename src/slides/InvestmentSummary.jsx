@@ -80,13 +80,13 @@ export default function InvestmentSummary() {
             </span>
           </div>
           <input
-            type="range" min={10000} max={200000} step={5000}
+            type="range" min={10000} max={155000} step={5000}
             value={amount} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
             <span>£10,000</span>
-            <span>£200,000</span>
+            <span>£155,000 · 50% equity cap</span>
           </div>
         </div>
 
