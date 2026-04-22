@@ -1,4 +1,10 @@
 import React, { useState } from 'react'
+import {
+  IP_LICENSING_SKUS_ONLINE_2025,
+  IP_LICENSING_SKUS_OFFICE_2025,
+  IP_LICENSING_MONTHLY_2025,
+  IP_LICENSING_GRAND_2025,
+} from '../data.js'
 
 const INCOME = [
   { label:'Spend at Bar', value:362836, pct:48.9, color:'#1E40AF' },
@@ -121,9 +127,61 @@ function CostStackedBar({ monthly, maxH=120 }) {
   )
 }
 
+// --- Ticket breakdown (online vs office, Borough 2025) — from IP & Licensing dataset ---
+function ChannelBars({ rows, accent, maxRev }) {
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+      {rows.filter(r => r.sold > 0).map(r => {
+        const w = (r.revenue / maxRev) * 100
+        return (
+          <div key={r.sku}>
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#D1D5DB', marginBottom:3 }}>
+              <span style={{ flex:1, paddingRight:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.sku}</span>
+              <span style={{ color:'#9CA3AF', marginRight:8 }}>{r.sold.toLocaleString()}</span>
+              <span style={{ color: accent, fontWeight:600, minWidth:62, textAlign:'right' }}>{fmt(r.revenue)}</span>
+            </div>
+            <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2 }}>
+              <div style={{ height:'100%', width: w + '%', background: accent, borderRadius:2 }} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function TicketMonthlyStacked() {
+  const data = IP_LICENSING_MONTHLY_2025
+  const maxRev = Math.max(...data.map(d => d.onlineRev + d.officeRev))
+  const maxH = 90
+  return (
+    <div>
+      <div style={{ display:'flex', alignItems:'flex-end', gap:4, height:maxH }}>
+        {data.map((d, i) => {
+          const total = d.onlineRev + d.officeRev
+          const h = Math.round((total / maxRev) * maxH)
+          return (
+            <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end' }}>
+              <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }} title={`${d.month}: Online £${d.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})} · Office £${d.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}`}>
+                <div style={{ height: total>0 ? `${(d.officeRev/total)*100}%` : 0, background:'#6B7280' }} />
+                <div style={{ height: total>0 ? `${(d.onlineRev/total)*100}%` : 0, background:'#4FC3F7' }} />
+              </div>
+              <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{d.month}</div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 export default function FinancialPerformance() {
   const totalIncome = INCOME.reduce((s,i)=>s+i.value,0)
   const totalCosts = COSTS.reduce((s,c)=>s+c.value,0)
+  const g = IP_LICENSING_GRAND_2025
+  const onlineMax = Math.max(...IP_LICENSING_SKUS_ONLINE_2025.map(r => r.revenue))
+  const officeMax = Math.max(...IP_LICENSING_SKUS_OFFICE_2025.map(r => r.revenue), 1)
+  const sharedMax = Math.max(onlineMax, officeMax)
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto', padding:'0 4px' }}>
@@ -196,6 +254,67 @@ export default function FinancialPerformance() {
           </div>
         </div>
 
+      </div>
+
+      {/* TICKET BREAKDOWN — Online vs Office (sourced from IP & Licensing dataset) */}
+      <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Ticket Revenue Breakdown</div>
+            <div style={{ fontSize:13, color:'#9CA3AF' }}>Borough 2025 · Online portal (actual) vs Office/till (imputed at list price)</div>
+          </div>
+          <div style={{ fontSize:13, color:'var(--gold)', fontWeight:700 }}>{fmt(g.totalRev)} combined</div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:20 }}>
+          <div style={{ background:'rgba(79,195,247,0.08)', border:'1px solid rgba(79,195,247,0.3)', borderRadius:8, padding:'12px 16px' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Online Portal</div>
+            <div style={{ fontSize:22, fontWeight:800, color:'#4FC3F7' }}>{fmt(g.onlineRev)}</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.onlineQty.toLocaleString()} tickets · {(g.onlineRev/g.totalRev*100).toFixed(1)}% of total · actual</div>
+          </div>
+          <div style={{ background:'rgba(107,114,128,0.1)', border:'1px solid rgba(107,114,128,0.3)', borderRadius:8, padding:'12px 16px' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Office / Till</div>
+            <div style={{ fontSize:22, fontWeight:800, color:'#9CA3AF' }}>{fmt(g.officeRev)}</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.officeQty.toLocaleString()} tickets · {(g.officeRev/g.totalRev*100).toFixed(1)}% of total · imputed</div>
+          </div>
+          <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.35)', borderRadius:8, padding:'12px 16px' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Combined</div>
+            <div style={{ fontSize:22, fontWeight:800, color:'var(--gold)' }}>{fmt(g.totalRev)}</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.totalQty.toLocaleString()} tickets total</div>
+          </div>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+              <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Online · by SKU</div>
+              <div style={{ fontSize:11, color:'#6B7280' }}>Status = complete</div>
+            </div>
+            <ChannelBars rows={IP_LICENSING_SKUS_ONLINE_2025} accent="#4FC3F7" maxRev={sharedMax} />
+          </div>
+          <div>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+              <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office · by SKU</div>
+              <div style={{ fontSize:11, color:'#6B7280' }}>Status = external · imputed at list price</div>
+            </div>
+            <ChannelBars rows={IP_LICENSING_SKUS_OFFICE_2025} accent="#9CA3AF" maxRev={sharedMax} />
+          </div>
+        </div>
+
+        <div style={{ marginTop:20 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly Ticket Revenue — Online + Office Stacked</div>
+            <div style={{ display:'flex', gap:14, fontSize:10, color:'#9CA3AF' }}>
+              <span><span style={{ display:'inline-block', width:9, height:9, background:'#4FC3F7', borderRadius:2, marginRight:5 }} />Online</span>
+              <span><span style={{ display:'inline-block', width:9, height:9, background:'#6B7280', borderRadius:2, marginRight:5 }} />Office (imputed)</span>
+            </div>
+          </div>
+          <TicketMonthlyStacked />
+        </div>
+
+        <div style={{ marginTop:14, fontSize:11, color:'#6B7280', lineHeight:1.6 }}>
+          Sourced from the <strong style={{ color:'var(--cream)' }}>IP &amp; Licensing</strong> tab (2025 DMN transactions, Borough only). Online revenue is the actual portal take; office revenue is imputed as <em>units × SKU list price</em> because till payments don't flow through the online system. Swap in actual till takings when available.
+        </div>
       </div>
     </div>
   )
