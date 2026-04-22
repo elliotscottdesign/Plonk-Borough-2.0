@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { DEAL } from '../data.js'
+import ResetBtn from '../components/ResetBtn.jsx'
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString()
 const pct = (n) => (n * 100).toFixed(1) + '%'
@@ -70,9 +71,12 @@ export default function InvestmentSummary() {
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8, fontSize: 13 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
             <span style={{ color: 'var(--cream-dim)' }}>Investment Amount</span>
-            <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
+              <ResetBtn onClick={() => setAmount(150000)} />
+            </span>
           </div>
           <input
             type="range" min={10000} max={200000} step={5000}

@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import FinancialPerformance from '../slides/FinancialPerformance.jsx'
+import ResetBtn from '../components/ResetBtn.jsx'
 
 const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages']
 
@@ -83,7 +84,10 @@ function TabPerformance() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Revenue Growth Lever</div>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:12 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Revenue Growth Lever</div>
+          <ResetBtn onClick={()=>setGrowth(15)} title="Reset to +15%" />
+        </div>
         <div style={{ display:'flex', alignItems:'center', gap:16, marginBottom:8 }}>
           <span style={{ fontSize:12, color:'#9CA3AF' }}>-20%</span>
           <input type="range" min={-20} max={50} value={growth} onChange={e=>setGrowth(Number(e.target.value))} style={{ flex:1, accentColor:'var(--gold)' }} />
@@ -204,15 +208,18 @@ function TabDistribution() {
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Marketing Model Inputs</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
           {[
-            { label:'Weekly Ad Budget', value:budget, set:setBudget, min:100, max:1500, prefix:'£', suffix:'' },
-            { label:'Cost Per Click', value:cpc, set:setCpc, min:0.1, max:2, step:0.01, prefix:'£', suffix:'' },
-            { label:'Conversion Rate', value:cvr, set:setCvr, min:0.5, max:10, step:0.1, prefix:'', suffix:'%' },
-            { label:'Avg Spend / Customer', value:avgSpend, set:setAvgSpend, min:20, max:150, prefix:'£', suffix:'' },
+            { label:'Weekly Ad Budget', value:budget, set:setBudget, min:100, max:1500, prefix:'£', suffix:'', default:500 },
+            { label:'Cost Per Click', value:cpc, set:setCpc, min:0.1, max:2, step:0.01, prefix:'£', suffix:'', default:0.46 },
+            { label:'Conversion Rate', value:cvr, set:setCvr, min:0.5, max:10, step:0.1, prefix:'', suffix:'%', default:3.6 },
+            { label:'Avg Spend / Customer', value:avgSpend, set:setAvgSpend, min:20, max:150, prefix:'£', suffix:'', default:70.2 },
           ].map(s => (
             <div key={s.label}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
                 <span style={{ color:'var(--cream)' }}>{s.label}</span>
-                <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.prefix}{s.value}{s.suffix}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.prefix}{s.value}{s.suffix}</span>
+                  <ResetBtn onClick={()=>s.set(s.default)} title={`Reset to ${s.prefix}${s.default}${s.suffix}`} />
+                </span>
               </div>
               <input type="range" min={s.min} max={s.max} step={s.step||1} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)' }} />
             </div>
@@ -257,14 +264,17 @@ function TabScenarios() {
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Build Custom Scenario</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
           {[
-            { label:'Revenue Growth', value:revGrowth, set:setRevGrowth, min:-20, max:50, suffix:'%' },
-            { label:'OpEx vs Budget', value:opex, set:setOpex, min:70, max:130, suffix:'%' },
-            { label:'Private Events / Year', value:events, set:setEvents, min:0, max:52, suffix:'' },
+            { label:'Revenue Growth', value:revGrowth, set:setRevGrowth, min:-20, max:50, suffix:'%', default:15 },
+            { label:'OpEx vs Budget', value:opex, set:setOpex, min:70, max:130, suffix:'%', default:100 },
+            { label:'Private Events / Year', value:events, set:setEvents, min:0, max:52, suffix:'', default:12 },
           ].map(s => (
             <div key={s.label}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
                 <span style={{ color:'var(--cream)' }}>{s.label}</span>
-                <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.value>0&&s.suffix==='%'?'+':''}{s.value}{s.suffix}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.value>0&&s.suffix==='%'?'+':''}{s.value}{s.suffix}</span>
+                  <ResetBtn onClick={()=>s.set(s.default)} title={`Reset to ${s.default}${s.suffix}`} />
+                </span>
               </div>
               <input type="range" min={s.min} max={s.max} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)' }} />
             </div>
@@ -375,9 +385,12 @@ function TabWages() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
           {roles.map(r => (
             <div key={r.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
-              <div style={{ display:'flex', justifyContent:'space-between', marginBottom:8 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
                 <span style={{ fontWeight:600, color:'var(--cream)' }}>{r.label}</span>
-                <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
+                  <ResetBtn onClick={()=>r.setRate(r.plan)} title={`Reset to £${r.plan.toFixed(2)}/hr`} />
+                </span>
               </div>
               <input type="range" min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>r.setRate(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6 }} />
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>

@@ -7,6 +7,7 @@ import {
   IP_LICENSING_TOKEN_VALUE,
   IP_LICENSING_BOOKING_FEE_PCT,
 } from '../data.js'
+import ResetBtn from '../components/ResetBtn.jsx'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtK = n => '£' + Math.round(n / 1000).toLocaleString() + 'k'
@@ -143,13 +144,16 @@ function sumRev(rows, predicate = () => true) {
 }
 
 // --- Commission slider card (reused for Section A and B) ---
-function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalChannelRev, golfRev, nonGolfRev, max = 30, helperText }) {
+function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalChannelRev, golfRev, nonGolfRev, max = 30, helperText, defaultValue = 10 }) {
   const commission = golfRev * (value / 100)
   return (
     <div style={{ background: 'var(--ink-2)', border: `1px solid ${accent}60`, borderRadius: 10, padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
         <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>{label}</div>
-        <div style={{ fontSize: 18, color: accent, fontWeight: 700 }}>{value}%</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 18, color: accent, fontWeight: 700 }}>{value}%</div>
+          <ResetBtn onClick={() => onChange(defaultValue)} title={`Reset to ${defaultValue}%`} />
+        </div>
       </div>
       <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>{subtitle}</div>
       <input type="range" min={0} max={max} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: accent }} />
@@ -205,10 +209,10 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
   }, [commissionOnlinePct, commissionOfficePct, volumeUplift, webCost, seoCost, botCost])
 
   const sliders = [
-    { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF' },
-    { label: 'Website + booking system', value: webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7' },
-    { label: 'SEO (non-venue-specific)', value: seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7' },
-    { label: 'Chatbot / AI booking', value: botCost, set: setBotCost, min: 0, max: 10000, step: 100, prefix: '£', suffix: '/yr', color: '#4FC3F7' },
+    { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF', default: 0 },
+    { label: 'Website + booking system', value: webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
+    { label: 'SEO (non-venue-specific)', value: seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
+    { label: 'Chatbot / AI booking', value: botCost, set: setBotCost, min: 0, max: 10000, step: 100, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 1200 },
   ]
 
   return (
@@ -223,9 +227,12 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {sliders.map(s => (
             <div key={s.label}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, marginBottom: 6 }}>
                 <span style={{ color: 'var(--cream)' }}>{s.label}</span>
-                <span style={{ color: s.color, fontWeight: 700 }}>{s.prefix || ''}{Number(s.value).toLocaleString()}{s.suffix || ''}</span>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ color: s.color, fontWeight: 700 }}>{s.prefix || ''}{Number(s.value).toLocaleString()}{s.suffix || ''}</span>
+                  <ResetBtn onClick={() => s.set(s.default)} title={`Reset to ${s.prefix || ''}${s.default.toLocaleString()}${s.suffix || ''}`} />
+                </span>
               </div>
               <input type="range" min={s.min} max={s.max} step={s.step} value={s.value} onChange={e => s.set(Number(e.target.value))} style={{ width: '100%', accentColor: s.color }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 2 }}>
