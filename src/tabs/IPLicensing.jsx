@@ -128,9 +128,55 @@ function MonthlyTrend() {
   )
 }
 
-// --- Holding Co × Venue model ---
-function CommissionModel() {
-  const [commissionPct, setCommissionPct] = useState(10)
+// --- Golf-only filter: Holding Co only takes commission on GOLF tickets.
+//     Pool/tournament/add-ons/specials are venue-managed (+ group bookings 12+ handled directly by venue).
+const NON_GOLF_SKUS = new Set([
+  'Pool Table Reservation — 30 Mins',
+  'Doubles Pool Tournament',
+  'Extra Arcade Tokens (add-on)',
+  "Valentine's Day Deal",
+])
+const isGolfSku = sku => !NON_GOLF_SKUS.has(sku)
+
+function sumRev(rows, predicate = () => true) {
+  return rows.filter(r => predicate(r.sku)).reduce((a, r) => a + r.revenue, 0)
+}
+
+// --- Commission slider card (reused for Section A and B) ---
+function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalChannelRev, golfRev, nonGolfRev, max = 30, helperText }) {
+  const commission = golfRev * (value / 100)
+  return (
+    <div style={{ background: 'var(--ink-2)', border: `1px solid ${accent}60`, borderRadius: 10, padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>{label}</div>
+        <div style={{ fontSize: 18, color: accent, fontWeight: 700 }}>{value}%</div>
+      </div>
+      <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>{subtitle}</div>
+      <input type="range" min={0} max={max} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: accent }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 2, marginBottom: 14 }}>
+        <span>0%</span><span>{max}%</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+        <MiniStat label="Golf revenue (commissionable)" value={fmt0(golfRev)} color={accent} />
+        <MiniStat label="Non-golf (excluded)" value={fmt0(nonGolfRev)} color="#6B7280" />
+        <MiniStat label={`Commission @ ${value}%`} value={fmt0(commission)} color="var(--gold)" emphasised />
+      </div>
+      {helperText && <div style={{ fontSize: 11, color: '#6B7280', marginTop: 10, lineHeight: 1.5 }}>{helperText}</div>}
+    </div>
+  )
+}
+
+function MiniStat({ label, value, color, emphasised }) {
+  return (
+    <div style={{ background: emphasised ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.03)', border: `1px solid ${emphasised ? 'rgba(201,168,76,0.35)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 8, padding: '8px 12px' }}>
+      <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 3 }}>{label}</div>
+      <div style={{ fontSize: 14, color, fontWeight: 700 }}>{value}</div>
+    </div>
+  )
+}
+
+// --- Holding Co × Venue model (reads commission values from parent state) ---
+function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
   const [volumeUplift, setVolumeUplift] = useState(0)
   const [webCost, setWebCost] = useState(6000)
   const [seoCost, setSeoCost] = useState(6000)
@@ -138,19 +184,27 @@ function CommissionModel() {
   const maintenanceCost = 12 * 250
 
   const m = useMemo(() => {
-    const gross = IP_LICENSING_GRAND_2025.onlineRev * (1 + volumeUplift / 100)
-    const bookingFees = gross * IP_LICENSING_BOOKING_FEE_PCT
-    const commissionFromVenue = gross * (commissionPct / 100)
-    const holdingCoRevenue = bookingFees + commissionFromVenue
+    const upliftFactor = 1 + volumeUplift / 100
+    // Online: full (all SKUs) and golf-only
+    const onlineGrossAll = IP_LICENSING_GRAND_2025.onlineRev * upliftFactor
+    const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku) * upliftFactor
+    // Booking fee applies to ALL online sales (customer pays 10% on top at checkout, regardless of SKU)
+    const bookingFees = onlineGrossAll * IP_LICENSING_BOOKING_FEE_PCT
+    // Commission (online) only on golf
+    const commissionOnline = onlineGolfRev * (commissionOnlinePct / 100)
+    // Office: golf only (office is a scenario — commission conditional on HoldingCo providing bookings manager)
+    const officeGolfRev = sumRev(IP_LICENSING_SKUS_OFFICE_2025, isGolfSku) * upliftFactor
+    const commissionOffice = officeGolfRev * (commissionOfficePct / 100)
+
+    const holdingCoRevenue = bookingFees + commissionOnline + commissionOffice
     const holdingCoCosts = maintenanceCost + webCost + seoCost + botCost
     const holdingCoNet = holdingCoRevenue - holdingCoCosts
-    const totalTokenCost = IP_LICENSING_SKUS_ONLINE_2025.reduce((a, s) => a + s.sold * (1 + volumeUplift / 100) * s.tokens * IP_LICENSING_TOKEN_VALUE, 0)
-    const venueNet = gross - commissionFromVenue - totalTokenCost
-    return { gross, bookingFees, commissionFromVenue, holdingCoRevenue, holdingCoCosts, holdingCoNet, totalTokenCost, venueNet }
-  }, [commissionPct, volumeUplift, webCost, seoCost, botCost])
+    const totalTokenCost = IP_LICENSING_SKUS_ONLINE_2025.reduce((a, s) => a + s.sold * upliftFactor * s.tokens * IP_LICENSING_TOKEN_VALUE, 0)
+    const venueNet = onlineGrossAll - commissionOnline - totalTokenCost
+    return { onlineGrossAll, onlineGolfRev, officeGolfRev, bookingFees, commissionOnline, commissionOffice, holdingCoRevenue, holdingCoCosts, holdingCoNet, totalTokenCost, venueNet }
+  }, [commissionOnlinePct, commissionOfficePct, volumeUplift, webCost, seoCost, botCost])
 
   const sliders = [
-    { label: 'Commission % (from venue)', value: commissionPct, set: setCommissionPct, min: 0, max: 30, step: 0.5, suffix: '%', color: '#C9A84C' },
     { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF' },
     { label: 'Website + booking system', value: webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7' },
     { label: 'SEO (non-venue-specific)', value: seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7' },
@@ -161,10 +215,10 @@ function CommissionModel() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 20 }}>
         <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
-          Holding Co × Venue — Interactive Model (online revenue only)
+          Holding Co × Venue — Interactive Model
         </div>
         <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-          Model uses the ONLINE channel only (£{IP_LICENSING_GRAND_2025.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})} baseline). Office/till bookings are out of scope — Holding Co takes no commission on those.
+          Commission rates come from the golf-only sliders under Sections A &amp; B. Booking fee (10%) is locked — applied to ALL online sales at checkout. Uplift and cost sliders below are scenario inputs.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {sliders.map(s => (
@@ -186,11 +240,15 @@ function CommissionModel() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
         <div style={{ background: 'var(--ink-2)', border: '2px solid rgba(201,168,76,0.35)', borderRadius: 10, padding: 20 }}>
           <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 16 }}>
-            Holding Co P&amp;L (Borough online only)
+            Holding Co P&amp;L (Borough)
           </div>
-          <Row label="Gross online sales (venue books)" value={fmt0(m.gross)} muted />
-          <Row label="+ Booking fees collected (10%)" value={fmt0(m.bookingFees)} color="#E67E22" />
-          <Row label={`+ Commission from venue (${commissionPct}%)`} value={fmt0(m.commissionFromVenue)} color="#C9A84C" />
+          <Row label="Gross online sales (all SKUs)" value={fmt0(m.onlineGrossAll)} muted />
+          <Row label="↳ of which online golf (commissionable)" value={fmt0(m.onlineGolfRev)} muted />
+          <Row label="↳ of which office golf — imputed (commissionable)" value={fmt0(m.officeGolfRev)} muted />
+          <div style={{ height: 10 }} />
+          <Row label="+ Booking fees collected (10% on all online)" value={fmt0(m.bookingFees)} color="#E67E22" />
+          <Row label={`+ Commission from Venue — Online sales (${commissionOnlinePct}% × golf)`} value={fmt0(m.commissionOnline)} color="#C9A84C" />
+          <Row label={`+ Commission from Venue — Office sales (${commissionOfficePct}% × golf)`} value={fmt0(m.commissionOffice)} color="#C9A84C" />
           <Row label="= Holding Co revenue" value={fmt0(m.holdingCoRevenue)} color="var(--cream)" bold />
           <div style={{ height: 10 }} />
           <Row label="− Maintenance (12 × £250)" value={fmt0(maintenanceCost)} color="#EF4444" />
@@ -201,7 +259,8 @@ function CommissionModel() {
           <div style={{ height: 10, borderTop: '1px solid rgba(201,168,76,0.3)', marginTop: 6 }} />
           <Row label="NET to Holding Co" value={fmt0(m.holdingCoNet)} color={m.holdingCoNet > 0 ? '#2DD4BF' : '#EF4444'} large />
           <div style={{ fontSize: 11, color: '#6B7280', marginTop: 10, lineHeight: 1.5 }}>
-            Margin on Holding Co rev: <span style={{ color: 'var(--cream)' }}>{m.holdingCoRevenue > 0 ? pct(m.holdingCoNet / m.holdingCoRevenue) : '—'}</span>
+            Margin on Holding Co rev: <span style={{ color: 'var(--cream)' }}>{m.holdingCoRevenue > 0 ? pct(m.holdingCoNet / m.holdingCoRevenue) : '—'}</span><br />
+            Office commission assumes Holding Co provides the bookings manager. Set slider B to 0% to model the "venue self-serves office bookings" scenario.
           </div>
         </div>
 
@@ -209,14 +268,15 @@ function CommissionModel() {
           <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 16 }}>
             Venue view (Borough DMN — online only)
           </div>
-          <Row label="Gross online sales" value={fmt0(m.gross)} color="var(--cream)" />
-          <Row label={`− Commission to Holding Co (${commissionPct}%)`} value={fmt0(m.commissionFromVenue)} color="#EF4444" />
+          <Row label="Gross online sales" value={fmt0(m.onlineGrossAll)} color="var(--cream)" />
+          <Row label={`− Commission to Holding Co (${commissionOnlinePct}% × golf)`} value={fmt0(m.commissionOnline)} color="#EF4444" />
           <Row label="− Token cost (4 × £0.325 per tokened ticket)" value={fmt0(m.totalTokenCost)} color="#EF4444" />
           <div style={{ height: 10, borderTop: '1px solid rgba(201,168,76,0.3)', marginTop: 6 }} />
           <Row label="NET to venue (online)" value={fmt0(m.venueNet)} color={m.venueNet > 0 ? '#2DD4BF' : '#EF4444'} large />
           <div style={{ fontSize: 11, color: '#6B7280', marginTop: 10, lineHeight: 1.5 }}>
             Booking fee (10%) is paid by customer on top — venue never sees it.<br />
-            Office/till bookings ({IP_LICENSING_GRAND_2025.officeQty.toLocaleString()} tickets · imputed {fmt0(IP_LICENSING_GRAND_2025.officeRev)} in 2025) settle directly at venue — no Holding Co involvement.
+            Pool tables, private events and group bookings 12+ are venue-managed — Holding Co takes no commission on those.<br />
+            Office/till-settled revenue ({IP_LICENSING_GRAND_2025.officeQty.toLocaleString()} tickets · imputed {fmt0(IP_LICENSING_GRAND_2025.officeRev)} in 2025) sits with the venue directly; Holding Co only earns on it if it provides a bookings manager (slider B).
           </div>
         </div>
       </div>
@@ -237,6 +297,15 @@ function Row({ label, value, color, muted, bold, large }) {
 export default function IPLicensing() {
   const g = IP_LICENSING_GRAND_2025
   const onlinePct = g.totalQty ? g.onlineQty / g.totalQty : 0
+
+  // Commission state — sliders live under sections A & B, values feed the Holding Co P&L
+  const [commissionOnlinePct, setCommissionOnlinePct] = useState(10)
+  const [commissionOfficePct, setCommissionOfficePct] = useState(10)
+
+  const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku)
+  const onlineNonGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, s => !isGolfSku(s))
+  const officeGolfRev = sumRev(IP_LICENSING_SKUS_OFFICE_2025, isGolfSku)
+  const officeNonGolfRev = sumRev(IP_LICENSING_SKUS_OFFICE_2025, s => !isGolfSku(s))
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontSize: 13 }}>
@@ -261,22 +330,46 @@ export default function IPLicensing() {
 
       <SKUTable
         title="Section A · Online Portal (Status = complete)"
-        subtitle="Customer books + pays through the online system. Booking fee (10%) added on top, retained by Holding Co. Commission charged to venue on the gross revenue."
+        subtitle="Customer books + pays through the online system. Booking fee (10%) added on top, retained by Holding Co. Commission charged to venue on online golf sales only (see slider below)."
         rows={IP_LICENSING_SKUS_ONLINE_2025}
         accentColor="#4FC3F7"
         channel="online"
       />
 
+      <CommissionSliderCard
+        label="Commission % — Online golf sales"
+        subtitle="Applied to online GOLF ticket sales only. Pool tables, events, group bookings 12+ and specials are venue-managed — no Holding Co commission on those."
+        value={commissionOnlinePct}
+        onChange={setCommissionOnlinePct}
+        accent="#4FC3F7"
+        totalChannelRev={g.onlineRev}
+        golfRev={onlineGolfRev}
+        nonGolfRev={onlineNonGolfRev}
+        helperText="Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens, Valentine's Day Deal."
+      />
+
       <SKUTable
         title="Section B · Office / External (Status = external)"
-        subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till, so the online system records £0 — the revenue column below is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
+        subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till. Revenue column is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
         rows={IP_LICENSING_SKUS_OFFICE_2025}
         accentColor="#9CA3AF"
         channel="office"
       />
 
+      <CommissionSliderCard
+        label="Commission % — Office golf sales (if Holding Co provides bookings manager)"
+        subtitle="Conditional scenario: if Holding Co provides a bookings manager for the venue, it earns a commission on office/till-settled golf sales. Set to 0% to model venue-handles-own-bookings."
+        value={commissionOfficePct}
+        onChange={setCommissionOfficePct}
+        accent="#9CA3AF"
+        totalChannelRev={g.officeRev}
+        golfRev={officeGolfRev}
+        nonGolfRev={officeNonGolfRev}
+        helperText="Same golf-only scope as online. Office-channel revenue is imputed at SKU list price — Holding Co commission on it is a modelled scenario, not a current revenue stream."
+      />
+
       <MonthlyTrend />
-      <CommissionModel />
+      <CommissionModel commissionOnlinePct={commissionOnlinePct} commissionOfficePct={commissionOfficePct} />
 
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
         <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
