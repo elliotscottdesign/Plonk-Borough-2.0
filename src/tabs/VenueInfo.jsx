@@ -240,7 +240,7 @@ function TabLicence() {
     {r:'100',t:'No supply of alcohol may be made under the Premises Licence: (a) at a time when there is no Designated Premises Supervisor; or (b) at a time when the Designated Premises Supervisor does not hold a Personal Licence or their Personal Licence is suspended.'},
     {r:'101',t:'Every supply of alcohol under the Premises Licence must be made, or authorised by, a person who holds a Personal Licence.'},
     {r:'102',t:'The admission of children to films given under this licence must be restricted in accordance with the recommendations of the British Board of Film Classification or of the licensing authority itself.'},
-    {r:'485',t:'No irresponsible promotions — including activities encouraging individuals to drink within time limits, provision of unlimited quantities of alcohol at a fixed or discounted fee, or dispensing alcohol directly into another person's mouth.'},
+    {r:'485',t:'No irresponsible promotions — including activities encouraging individuals to drink within time limits, provision of unlimited quantities of alcohol at a fixed or discounted fee, or dispensing alcohol directly into another person’s mouth.'},
     {r:'487',t:'Free potable water must be provided on request to customers where reasonably available.'},
     {r:'488',t:'Age Verification Policy. Individuals appearing under 18 must present photo ID with a holographic mark or ultraviolet feature.'},
     {r:'489',t:'Mandatory measures. Beer/cider: ½ pint; Gin/rum/vodka/whisky: 25ml or 35ml; Still wine: 125ml.'},
@@ -389,12 +389,12 @@ function TabDevelopment() {
             <div style={{ display:'inline-block', fontSize:11, color:'#F87171', border:'1px solid #F87171', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Current Status</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Boro Bistro — Final Warning</h3>
             {['The yard at the front of the venue is private land owned by Southwark Cathedral','Boro Bistro currently hold usage rights to this space','They have misused the space and are on their final warning with the landlord','One further breach gives No Dice Borough the right to reclaim the yard'].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}><Arr c="#F87171" /><span>{item}</span></div>)}
-            <div style={{ marginTop:16, fontSize:13, color:'#F59E0B', fontStyle:'italic' }}>Situation is live — outcome subject to Boro Bistro's next infraction</div>
+            <div style={{ marginTop:16, fontSize:13, color:'#F59E0B', fontStyle:'italic' }}>Situation is live — outcome subject to Boro Bistro’s next infraction</div>
           </div>
           <div style={card('#2DD4BF')}>
             <div style={{ display:'inline-block', fontSize:11, color:'#2DD4BF', border:'1px solid #2DD4BF', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>If Reclaimed</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Large Capacity &amp; Bar Revenue Upside</h3>
-            {['Very large additional outdoor capacity for bar service and social use','Significantly increases peak revenue potential, particularly for events and summer trading','No takeaway licence required — all private land, no public highway involvement','Bar sales extend naturally into the yard without additional licensing complexity','Transforms the kerb presence on one of London's most visited streets'].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}><Arr c="#2DD4BF" /><span>{item}</span></div>)}
+            {['Very large additional outdoor capacity for bar service and social use','Significantly increases peak revenue potential, particularly for events and summer trading','No takeaway licence required — all private land, no public highway involvement','Bar sales extend naturally into the yard without additional licensing complexity','Transforms the kerb presence on one of London’s most visited streets'].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:14, color:'#D1D5DB' }}><Arr c="#2DD4BF" /><span>{item}</span></div>)}
             <div style={{ marginTop:16, display:'flex', flexDirection:'column', gap:6 }}>
               {['Private land — no licensing barrier to operation','No additional licence required to trade in the yard','High revenue impact — significant uplift in capacity and bar sales'].map((item,i) => <div key={i} style={{ fontSize:13, color:'#2DD4BF', fontStyle:'italic' }}>→ {item}</div>)}
             </div>
