@@ -38,8 +38,11 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 - [src/data.js](src/data.js) is the authoritative source of financial/deal figures (DEAL, ACTUALS_2025, FORECAST, INCOME_SOURCES, COST_CATEGORIES, monthly arrays, WATERFALL, GOVERNANCE, USE_OF_FUNDS). Deck slides read from it via named imports.
 - **Divergence gotcha**: [src/tabs/BusinessExplorer.jsx](src/tabs/BusinessExplorer.jsx) and [src/slides/FinancialPerformance.jsx](src/slides/FinancialPerformance.jsx) hard-code their own local copies of revenue/cost/monthly arrays instead of importing from `data.js`. When a number changes, update both the `data.js` constants **and** any hard-coded copies in those files — grep for the figure to be sure.
 
+### Access gate
+[src/PasswordGate.jsx](src/PasswordGate.jsx) wraps the app in [src/App.jsx](src/App.jsx). Password is a plain constant in the component (current: `TEST1`) — client-side only, trivially bypassable by viewing source; treat it as a speed bump, not security. Unlock state is persisted in `sessionStorage` under `ndb_unlocked`, so it clears when the tab closes.
+
 ### Orphaned components
-Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/PasswordGate.jsx](src/PasswordGate.jsx), [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx). The deck does **not** currently gate access despite `PasswordGate` existing — the site is public with `noindex,nofollow` only.
+Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx).
 
 ## Deploy
 

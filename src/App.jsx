@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import PasswordGate from './PasswordGate.jsx'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Cover from './slides/Cover.jsx'
@@ -26,10 +27,16 @@ const SLIDES = [
 const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
 
 export default function App() {
+  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
   const [topTab, setTopTab] = useState('Investor Deck')
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDES[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length - 1, i)))
+
+  if (!unlocked) {
+    return <PasswordGate onUnlock={() => { sessionStorage.setItem('ndb_unlocked', '1'); setUnlocked(true) }} />
+  }
+
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>

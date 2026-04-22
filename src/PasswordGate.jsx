@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 
-const PASSWORD = 'NoDice2026'
+const PASSWORD = 'TEST1'
 
 export default function PasswordGate({ onUnlock }) {
   const [input, setInput] = useState('')
