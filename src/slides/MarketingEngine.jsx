@@ -86,15 +86,6 @@ export default function MarketingEngine() {
               </div>
             ))}
           </div>
-          <div style={{
-            background: 'rgba(183,28,28,0.08)', border: '1px solid rgba(183,28,28,0.25)',
-            borderRadius: 8, padding: '12px 14px', fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6,
-          }}>
-            <span style={{ color: '#E53935', fontWeight: 500 }}>Action required: </span>
-            No Dice Borough has zero SEO history. Lithos SEO must start from
-            <strong style={{ color: 'var(--cream)' }}> Day 1 of reopening</strong>. 301 redirect
-            plonkgolf.co.uk → nodiceborough.co.uk preserves domain authority.
-          </div>
         </div>
       </div>
 
