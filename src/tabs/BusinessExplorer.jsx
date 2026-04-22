@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import FinancialPerformance from '../slides/FinancialPerformance.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 
-const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages']
+const TABS = ['Overview','Financial Performance','Performance','Distribution','Scenarios','Market Context','Wages']
 
 const fmt = n => '£' + Math.round(n).toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
@@ -125,66 +125,6 @@ function TabPerformance() {
             <span style={{ color:c, fontWeight:600 }}>{fmtK(v)}</span>
           </div>
         ))}
-      </div>
-    </div>
-  )
-}
-
-function TabInvestorReturns() {
-  // Pure pro-rata: operating profit splits directly by equity %. No preferred, no A-share priority.
-  const totalProfit = 190945
-  const INVESTOR_EQ = 0.3605
-  const FOUNDER_EQ = 0.6395
-  const investorDiv = Math.round(totalProfit * INVESTOR_EQ)
-  const founderDiv = Math.round(totalProfit * FOUNDER_EQ)
-  const totalInvestor = investorDiv
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { label:'Distribution Model', value:'Pro-rata', sub:'No preferred · no tiers', color:'#C9A84C' },
-          { label:'Investor Dividend', value:fmt(investorDiv), sub:`${(INVESTOR_EQ*100).toFixed(1)}% × operating profit`, color:'#4FC3F7' },
-          { label:'Total Investor Return', value:fmt(totalInvestor), sub:'Year 1 base case', color:'#2DD4BF' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>{s.label}</div>
-            <div style={{ fontSize:24, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Profit Split — Base Case Scenario</div>
-        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-          {[
-            { label:'Total Operating Profit', value:fmt(totalProfit), color:'#4FC3F7', width:100 },
-            { label:`Investor Share (${(INVESTOR_EQ*100).toFixed(1)}%)`, value:fmt(investorDiv), color:'#2DD4BF', width:Math.round(investorDiv/totalProfit*100) },
-            { label:`Founder Share (${(FOUNDER_EQ*100).toFixed(1)}%)`, value:fmt(founderDiv), color:'#8B5CF6', width:Math.round(founderDiv/totalProfit*100) },
-          ].map(item => (
-            <div key={item.label}>
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:4 }}>
-                <span style={{ color:'var(--cream)' }}>{item.label}</span>
-                <span style={{ color:item.color, fontWeight:600 }}>{item.value}</span>
-              </div>
-              <div style={{ height:6, background:'rgba(255,255,255,0.06)', borderRadius:3 }}>
-                <div style={{ height:'100%', width:item.width+'%', background:item.color, borderRadius:3 }} />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Return Distribution</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          <div style={{ textAlign:'center', padding:16, background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:8 }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>Investor</div>
-            <div style={{ fontSize:28, fontWeight:800, color:'#2DD4BF' }}>{fmt(totalInvestor)}</div>
-          </div>
-          <div style={{ textAlign:'center', padding:16, background:'rgba(139,92,246,0.08)', border:'1px solid rgba(139,92,246,0.2)', borderRadius:8 }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>Founder</div>
-            <div style={{ fontSize:28, fontWeight:800, color:'#8B5CF6' }}>{fmt(founderDiv)}</div>
-          </div>
-        </div>
       </div>
     </div>
   )
@@ -425,7 +365,6 @@ export default function BusinessExplorer() {
     'Overview': <TabOverview />,
     'Financial Performance': <FinancialPerformance />,
     'Performance': <TabPerformance />,
-    'Investor Returns': <TabInvestorReturns />,
     'Distribution': <TabDistribution />,
     'Scenarios': <TabScenarios />,
     'Market Context': <TabMarketContext />,
