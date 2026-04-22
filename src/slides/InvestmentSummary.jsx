@@ -1,68 +1,109 @@
 import React, { useState } from 'react'
-import { DEAL } from '../data.js'
+import { DEAL, ACTUALS_2025 } from '../data.js'
 import ResetBtn from '../components/ResetBtn.jsx'
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString()
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
+const SCENARIOS = {
+  conservative: { label: 'Conservative', sub: '+10% on 2025', multiplier: 1.10 },
+  base:         { label: 'Base Case',    sub: '+15% on 2025', multiplier: 1.15 },
+  optimistic:   { label: 'Optimistic',   sub: '+25% on 2025', multiplier: 1.25 },
+}
+
+// Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
+function calcReturns(multiplier) {
+  const revenue = ACTUALS_2025.revenue * multiplier
+  const opProfit = revenue * 0.224
+  const investorDiv = opProfit * DEAL.investorEq
+  const total = investorDiv
+  const coc = total / DEAL.investment
+  const payback = DEAL.investment / total
+  return { revenue, opProfit, investorDiv, total, coc, payback }
+}
+
 export default function InvestmentSummary() {
+  const [scenario, setScenario] = useState('base')
+  const s = SCENARIOS[scenario]
+  const r = calcReturns(s.multiplier)
+
   const [amount, setAmount] = useState(88000)
 
   // Pure pro-rata distribution — no preferred, no A-share priority.
   // Investor's dividend = operating profit × their equity share.
   const OPERATING_PROFIT_BASE = 190945
   const equity = amount / DEAL.postMoney
-  const dividend = OPERATING_PROFIT_BASE * equity
-  const total = dividend
-  const coc = total / amount
   const isAShare = equity >= 0.05
 
-  // Recalculate based on slider
+  // Recalculate based on slider (uses base-case operating profit for the calculator)
   const divCalc = OPERATING_PROFIT_BASE * equity
   const totalCalc = divCalc
   const cocCalc = totalCalc / amount
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
         Investment Summary
       </h2>
-      <p style={{ color: 'var(--cream-dim)', marginBottom: 40, fontSize: 15 }}>
-        What you own, what you earn, and how your money is protected.
+      <p style={{ color: 'var(--cream-dim)', marginBottom: 28, fontSize: 14 }}>
+        At-a-glance deal structure, returns and financials
       </p>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 40 }}>
+      {/* Scenario selector */}
+      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+        {Object.entries(SCENARIOS).map(([key, sc]) => (
+          <button key={key} onClick={() => setScenario(key)} style={{
+            padding: '7px 18px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
+            background: scenario === key ? 'rgba(201,168,76,0.15)' : 'transparent',
+            border: `1px solid ${scenario === key ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
+            color: scenario === key ? 'var(--gold)' : 'var(--cream-dim)',
+            transition: 'all 0.15s',
+          }}>
+            {sc.label}
+          </button>
+        ))}
+      </div>
 
-        {/* Left — deal terms */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
-            Deal Structure
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Term label="Investment" value={fmt(DEAL.investment)} />
-            <Term label="Investor Equity" value={pct(DEAL.investorEq)} />
-            <Term label="Founder Retains" value={pct(DEAL.founderEq)} />
-            <Term label="Pre-Money Valuation" value={fmt(DEAL.preMoney)} />
-            <Term label="Valuation Multiple" value={`${DEAL.multiple.toFixed(2)}× EBITDA`} />
-            <Term label="Share Class" value="A Shares — full voting rights" gold />
-            <Term label="Governance" value="Simple majority · 75% reserved matters" />
-          </div>
-        </div>
+      {/* 3-section snapshot grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
+        <Section title="🏢 Deal Structure" items={[
+          ['Investor Equity', `${(DEAL.investorEq*100).toFixed(2)}%`],
+          ['Founder Equity', `${(DEAL.founderEq*100).toFixed(2)}%`],
+          ['Pre-Money Valuation', fmt(DEAL.preMoney)],
+          ['Post-Money Valuation', fmt(DEAL.postMoney)],
+          ['Valuation Multiple', `${DEAL.multiple.toFixed(2)}× EBITDA`],
+        ]} />
+        <Section title="📊 Financial Performance" items={[
+          ['2025 Actual Revenue', fmt(ACTUALS_2025.revenue)],
+          ['Forecast Revenue', fmt(r.revenue)],
+          ['Revenue Growth', `+${Math.round((s.multiplier-1)*100)}%`],
+          ['Forecast Op Profit', fmt(r.opProfit)],
+          ['2025 EBITDA', fmt(ACTUALS_2025.ebitda)],
+        ]} />
+        <Section title="💰 Investor Returns" items={[
+          ['Distribution Model', 'Pro-rata · no tiers', true],
+          [`Equity Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, fmt(r.investorDiv), true],
+          ['Total Year 1 Return', fmt(r.total), true],
+          ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],
+          ['Payback Period', `${r.payback.toFixed(1)} years`],
+        ]} />
+      </div>
 
-        {/* Right — returns */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
-            Year 1 Returns (Base Case)
+      {/* Top 3 highlights */}
+      <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+        Top 3 Investment Highlights
+      </div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+        {[
+          `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(DEAL.investment)} invested`,
+          `Proven Borough Market venue — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · 77,801 organic search sessions · 58% organic traffic`,
+          `All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)`,
+        ].map((text, i) => (
+          <div key={i} className="card" style={{ display: 'flex', gap: 16, padding: '14px 18px', alignItems: 'flex-start' }}>
+            <span className="serif" style={{ fontSize: 18, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
+            <span style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{text}</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Term label={`Equity Dividend (${pct(DEAL.investorEq)})`} value={fmt(DEAL.investorDividend)} />
-            <Term label="Distribution Model" value="Pro-rata · no tiers" gold />
-            <Term label="Total Year 1 Return" value={fmt(DEAL.totalInvestorReturn)} gold large />
-            <Term label="Cash-on-Cash" value={`${(DEAL.coc*100).toFixed(1)}%`} gold />
-            <Term label="Payback Period" value={`${DEAL.payback} years`} />
-            <Term label="A-Share Threshold" value={`≥5% equity · ${fmt(DEAL.aShareThreshold)} minimum`} />
-          </div>
-        </div>
+        ))}
       </div>
 
       {/* Interactive return calculator */}
@@ -121,13 +162,17 @@ export default function InvestmentSummary() {
   )
 }
 
-function Term({ label, value, gold, large }) {
+function Section({ title, items }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline',
-      padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <span style={{ fontSize: 12, color: 'var(--cream-dim)' }}>{label}</span>
-      <span style={{ fontSize: large ? 16 : 13, fontWeight: large ? 500 : 400,
-        color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
+    <div className="card" style={{ padding: 20 }}>
+      <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 14, fontWeight: 500 }}>{title}</div>
+      {items.map(([label, value, gold]) => (
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0',
+          borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 11 }}>
+          <span style={{ color: 'var(--cream-dim)' }}>{label}</span>
+          <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
+        </div>
+      ))}
     </div>
   )
 }

@@ -48,7 +48,7 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 Both are plain constants in the component — trivially bypassable by viewing source; treat as a speed bump, not security. Unlock state persists in `sessionStorage` under `ndb_unlocked` (any unlock) and `ndb_plonk` (Plonk-tier flag). Both clear when the tab closes.
 
 ### Orphaned components
-Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx).
+Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx), [src/slides/InvestmentSnapshot.jsx](src/slides/InvestmentSnapshot.jsx) (merged into InvestmentSummary).
 
 ## Deploy
 

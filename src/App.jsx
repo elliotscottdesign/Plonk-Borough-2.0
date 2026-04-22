@@ -5,7 +5,6 @@ import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
-import InvestmentSnapshot from './slides/InvestmentSnapshot.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
@@ -15,12 +14,11 @@ import InvestmentCase from './slides/InvestmentCase.jsx'
 const SLIDES = [
   { id:'cover',      label:'01  Cover',               Component: Cover },
   { id:'summary',    label:'02  Investment Summary',  Component: InvestmentSummary },
-  { id:'snapshot',   label:'03  Investment Snapshot', Component: InvestmentSnapshot },
-  { id:'funds',      label:'04  Use of Funds',        Component: UseOfFunds },
-  { id:'market',     label:'05  Market Context',      Component: MarketContext },
-  { id:'waterfall',  label:'06  Waterfall Returns',   Component: WaterfallReturns },
-  { id:'growth',     label:'07  Growth & Risks',      Component: GrowthRisks },
-  { id:'case',       label:'08  Investment Case',     Component: InvestmentCase },
+  { id:'funds',      label:'03  Use of Funds',        Component: UseOfFunds },
+  { id:'market',     label:'04  Market Context',      Component: MarketContext },
+  { id:'waterfall',  label:'05  Waterfall Returns',   Component: WaterfallReturns },
+  { id:'growth',     label:'06  Growth & Risks',      Component: GrowthRisks },
+  { id:'case',       label:'07  Investment Case',     Component: InvestmentCase },
 ]
 
 const BASE_TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
