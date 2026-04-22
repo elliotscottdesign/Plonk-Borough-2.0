@@ -33,34 +33,6 @@ const TIMELINE = [
   },
 ]
 
-const OFFERS = [
-  {
-    label: 'Franchise Commission',
-    body: 'A % on golf ticket sales routed through the Plonk online booking system — and, optionally, on office-handled bookings if Plonk Golf provides a bookings manager. Pool tables, private events and group bookings 12+ remain venue-managed.',
-    accent: '#4FC3F7',
-    pill: 'Recurring',
-  },
-  {
-    label: 'Hardware Purchase Fee',
-    body: 'One-off fee for the Plonk course and equipment — built bespoke for the venue, delivered and installed. Hardware is bought outright by the venue.',
-    accent: '#C9A84C',
-    pill: 'One-off',
-  },
-  {
-    label: 'Maintenance Plan (optional)',
-    body: '£400 / month for London-based venues — includes one on-site day per month. Plan holders also unlock discounts on all new hardware and equipment orders.',
-    accent: '#2DD4BF',
-    pill: '£400 / mo',
-  },
-]
-
-const WARRANTY_TERMS = [
-  { label: 'Warranty', value: 'Valid only while a Maintenance Plan is active. No maintenance plan = no warranty cover.', tone: 'warn' },
-  { label: 'Maintenance visit', value: '1 on-site day per month · London venues · £400 / month', tone: 'ok' },
-  { label: 'Hardware discounts', value: 'Plan holders get discounted rates on all new hardware and equipment.', tone: 'ok' },
-  { label: 'Vandalism', value: 'Not covered under warranty or maintenance plan — venue\'s responsibility.', tone: 'warn' },
-]
-
 export default function PlonkCover() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -112,47 +84,8 @@ export default function PlonkCover() {
         </div>
       </div>
 
-      {/* Commercial offer */}
-      <div>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4 }}>
-          The New Model · 2026 &amp; On
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--cream-dim)', marginBottom: 16, maxWidth: 720, lineHeight: 1.6 }}>
-          Plonk Golf licenses the IP, sells the hardware, and runs the digital funnel. Venues run the day-to-day. Three commercial levers:
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {OFFERS.map(o => (
-            <div key={o.label} style={{ background: 'var(--ink-2)', border: `1px solid ${o.accent}40`, borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 11, color: o.accent, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>{o.label}</div>
-                <div style={{ fontSize: 10, color: o.accent, border: `1px solid ${o.accent}60`, borderRadius: 20, padding: '2px 10px', letterSpacing: '0.05em' }}>{o.pill}</div>
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>{o.body}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Warranty / maintenance fine print */}
-      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 14 }}>
-          Maintenance &amp; Warranty Terms
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-          {WARRANTY_TERMS.map((t, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: t.tone === 'warn' ? 'rgba(239,68,68,0.06)' : 'rgba(45,212,191,0.06)', border: `1px solid ${t.tone === 'warn' ? 'rgba(239,68,68,0.25)' : 'rgba(45,212,191,0.25)'}`, borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: t.tone === 'warn' ? '#EF4444' : '#2DD4BF', flexShrink: 0, width: 22, textAlign: 'center' }}>{t.tone === 'warn' ? '!' : '✓'}</div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--cream)', marginBottom: 3 }}>{t.label}</div>
-                <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{t.value}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
       <div style={{ fontSize: 11, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', paddingTop: 8 }}>
-        Continue to IP &amp; Licensing or Marketing Engine →
+        Continue to How It Works, IP &amp; Licensing or Marketing Engine →
       </div>
     </div>
   )

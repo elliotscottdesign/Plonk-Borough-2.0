@@ -2,13 +2,15 @@ import React, { useState } from 'react'
 import MarketingEngine from '../slides/MarketingEngine.jsx'
 import IPLicensing from './IPLicensing.jsx'
 import PlonkCover from './PlonkCover.jsx'
+import PlonkHowItWorks from './PlonkHowItWorks.jsx'
 
-const TABS = ['Cover', 'IP & Licensing', 'Marketing Engine']
+const TABS = ['Cover', 'How It Works', 'IP & Licensing', 'Marketing Engine']
 
 export default function Plonk() {
   const [tab, setTab] = useState('Cover')
   const tabComponents = {
     'Cover': <PlonkCover />,
+    'How It Works': <PlonkHowItWorks />,
     'IP & Licensing': <IPLicensing />,
     'Marketing Engine': <MarketingEngine />,
   }
