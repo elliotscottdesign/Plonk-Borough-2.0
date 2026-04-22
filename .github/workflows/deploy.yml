@@ -15,15 +15,19 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          token: ${{ secrets.GH_PAT }}
+        # Default GITHUB_TOKEN is sufficient for read-only checkout.
+        # GH_PAT is only needed for the workflow_dispatch file-update path below,
+        # which does its own re-checkout with the PAT when it runs.
 
       - name: Apply file update if dispatched
         if: github.event_name == 'workflow_dispatch' && inputs.file_path != ''
         run: |
+          git remote set-url origin https://x-access-token:${{ secrets.GH_PAT }}@github.com/${{ github.repository }}.git
           mkdir -p $(dirname "${{ inputs.file_path }}")
           echo "${{ inputs.file_content }}" | base64 -d > "${{ inputs.file_path }}"
           git config user.email "action@github.com"
