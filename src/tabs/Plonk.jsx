@@ -3,8 +3,9 @@ import MarketingEngine from '../slides/MarketingEngine.jsx'
 import IPLicensing from './IPLicensing.jsx'
 import PlonkCover from './PlonkCover.jsx'
 import PlonkHowItWorks from './PlonkHowItWorks.jsx'
+import PlonkSeoMarketing from './PlonkSeoMarketing.jsx'
 
-const TABS = ['Cover', 'How It Works', 'IP & Licensing', 'Marketing Engine']
+const TABS = ['Cover', 'How It Works', 'IP & Licensing', 'Marketing Engine', 'SEO Marketing']
 
 export default function Plonk() {
   const [tab, setTab] = useState('Cover')
@@ -13,6 +14,7 @@ export default function Plonk() {
     'How It Works': <PlonkHowItWorks />,
     'IP & Licensing': <IPLicensing />,
     'Marketing Engine': <MarketingEngine />,
+    'SEO Marketing': <PlonkSeoMarketing />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

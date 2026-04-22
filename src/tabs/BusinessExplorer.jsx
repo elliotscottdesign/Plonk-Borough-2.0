@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import FinancialPerformance from '../slides/FinancialPerformance.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 
-const TABS = ['Overview','Financial Performance','Performance','Distribution','Scenarios','Market Context','Wages']
+const TABS = ['Overview','Financial Performance','Performance','Scenarios','Market Context','Wages']
 
 const fmt = n => '£' + Math.round(n).toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
@@ -123,58 +123,6 @@ function TabPerformance() {
           <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
             <span style={{ color:'var(--cream)' }}>{l}</span>
             <span style={{ color:c, fontWeight:600 }}>{fmtK(v)}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-function TabDistribution() {
-  const [budget, setBudget] = useState(500)
-  const [cpc, setCpc] = useState(0.46)
-  const [cvr, setCvr] = useState(3.6)
-  const [avgSpend, setAvgSpend] = useState(70.2)
-  const annualBudget = budget * 52
-  const clicks = Math.round(annualBudget / cpc)
-  const customers = Math.round(clicks * cvr / 100)
-  const revenue = Math.round(customers * avgSpend)
-  const roas = revenue > 0 ? (revenue / annualBudget).toFixed(1) : 0
-  const netProfit = Math.round(revenue * 0.6 - annualBudget)
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Marketing Model Inputs</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-          {[
-            { label:'Weekly Ad Budget', value:budget, set:setBudget, min:100, max:1500, prefix:'£', suffix:'', default:500 },
-            { label:'Cost Per Click', value:cpc, set:setCpc, min:0.1, max:2, step:0.01, prefix:'£', suffix:'', default:0.46 },
-            { label:'Conversion Rate', value:cvr, set:setCvr, min:0.5, max:10, step:0.1, prefix:'', suffix:'%', default:3.6 },
-            { label:'Avg Spend / Customer', value:avgSpend, set:setAvgSpend, min:20, max:150, prefix:'£', suffix:'', default:70.2 },
-          ].map(s => (
-            <div key={s.label}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                <span style={{ color:'var(--cream)' }}>{s.label}</span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.prefix}{s.value}{s.suffix}</span>
-                  <ResetBtn onClick={()=>s.set(s.default)} title={`Reset to ${s.prefix}${s.default}${s.suffix}`} />
-                </span>
-              </div>
-              <input type="range" min={s.min} max={s.max} step={s.step||1} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)' }} />
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-        {[
-          { label:'Annual Budget', value:'£'+Math.round(annualBudget/1000)+'k', color:'#C9A84C' },
-          { label:'Paying Customers', value:customers.toLocaleString(), color:'#4FC3F7' },
-          { label:'ROAS', value:roas+'×', color:'#2DD4BF' },
-          { label:'Net Marketing Profit', value:'£'+Math.round(netProfit/1000)+'k', color:netProfit>0?'#2DD4BF':'#EF4444' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:16, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{s.label}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:s.color }}>{s.value}</div>
           </div>
         ))}
       </div>
@@ -365,7 +313,6 @@ export default function BusinessExplorer() {
     'Overview': <TabOverview />,
     'Financial Performance': <FinancialPerformance />,
     'Performance': <TabPerformance />,
-    'Distribution': <TabDistribution />,
     'Scenarios': <TabScenarios />,
     'Market Context': <TabMarketContext />,
     'Wages': <TabWages />,
