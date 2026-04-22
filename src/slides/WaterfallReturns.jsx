@@ -4,8 +4,8 @@ import { WATERFALL, DEAL } from '../data.js'
 const fmt = (n) => '£' + Math.round(n).toLocaleString()
 
 const SCENARIOS = {
-  base: { label: 'Base Case +15%', profit: 190945, color: '#C9A84C' },
   bear: { label: 'Bear Case −10%', profit: 117000, color: '#E53935' },
+  base: { label: 'Base Case +15%', profit: 190945, color: '#C9A84C' },
   bull: { label: 'Bull Case +25%', profit: 228000, color: '#2DD4BF' },
 }
 
