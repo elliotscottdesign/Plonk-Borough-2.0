@@ -184,3 +184,51 @@ export const USE_OF_FUNDS = [
   { item: 'Stock & Supplier Restart',    amount: 12000, pct:  8.0, note: 'Opening stock, software, supplier agreements' },
   { item: 'Working Capital',             amount: 14922, pct:  9.9, note: 'Staged into business per cash flow forecast' },
 ]
+
+// === IP & LICENSING — ISOLATED DEV SHEET ===
+// Source: 2025 Borough DMN online bookings portal (12 monthly sales-report PDFs).
+// This is the ONLY clean data available for what the website generated (vs. office/bookings-person/Google data which are mixed or broken).
+// This dataset is intentionally isolated from the existing deck constants while we develop the new Holding-Co × Venue commission model.
+// Structural assumptions (locked in for v1, adjustable later):
+//   - Booking fee: 10% ADDED ON TOP of ticket price at checkout (customer-facing). Kept by Holding Co — funds online funnel (site, SEO, bot, payments).
+//   - Commission: SEPARATE %, taken from the VENUE on gross ticket sales via the website. Holding Co's license revenue per venue.
+//   - Token value: £0.325 per arcade token, NO VAT on tokens. Each "Golf + 4 Tokens" SKU bundles 4 tokens (£1.30 per ticket).
+//   - Under the new model, tokens move to in-store TILL only, so online golf tickets will be re-priced to strip the token component out.
+
+export const IP_LICENSING_TOKEN_VALUE = 0.325   // £ per arcade token, no VAT
+export const IP_LICENSING_BOOKING_FEE_PCT = 0.10 // 10% added on top at checkout, kept by Holding Co
+
+// 2025 Borough DMN SKUs — every distinct ticket type sold via the online bookings portal.
+// price = venue-facing gross ticket price (what the customer sees before the booking fee is added on top).
+// tokens = arcade tokens bundled into this SKU (each worth £0.325, no VAT).
+export const IP_LICENSING_SKUS_2025 = [
+  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 19292, revenue: 307990.20 },
+  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold:  5864, revenue:  72970.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  1940, revenue:  19354.00 },
+  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:     0, revenue:      0.00 },
+  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:   786, revenue:   9427.20 },
+  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:  1576, revenue:   7880.00 },
+  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:     2, revenue:    100.00 },
+]
+
+// Per-month online bookings totals for 2025 (all SKUs combined).
+export const IP_LICENSING_MONTHLY_2025 = [
+  { month: 'Jan', sold: 2586, revenue: 38778.60 },
+  { month: 'Feb', sold: 2984, revenue: 43723.40 },
+  { month: 'Mar', sold: 2388, revenue: 34546.40 },
+  { month: 'Apr', sold: 2212, revenue: 30081.60 },
+  { month: 'May', sold: 2106, revenue: 30491.00 },
+  { month: 'Jun', sold: 1774, revenue: 25087.40 },
+  { month: 'Jul', sold: 2064, revenue: 28797.60 },
+  { month: 'Aug', sold: 2680, revenue: 36889.90 },
+  { month: 'Sep', sold: 2124, revenue: 29619.40 },
+  { month: 'Oct', sold: 2944, revenue: 41058.00 },
+  { month: 'Nov', sold: 2530, revenue: 36316.50 },
+  { month: 'Dec', sold: 3068, revenue: 42331.60 },
+]
+
+// Grand totals (derived — kept explicit for quick reference / slide badges)
+export const IP_LICENSING_GRAND_2025 = {
+  sold: 29460,
+  revenue: 417721.40,
+}

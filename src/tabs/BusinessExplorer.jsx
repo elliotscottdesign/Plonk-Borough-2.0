@@ -1,7 +1,8 @@
 import React, { useState } from 'react'
 import FinancialPerformance from '../slides/FinancialPerformance.jsx'
+import IPLicensing from './IPLicensing.jsx'
 
-const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages']
+const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages','IP & Licensing']
 
 const fmt = n => '£' + Math.round(n).toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
@@ -417,6 +418,7 @@ export default function BusinessExplorer() {
     'Scenarios': <TabScenarios />,
     'Market Context': <TabMarketContext />,
     'Wages': <TabWages />,
+    'IP & Licensing': <IPLicensing />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
