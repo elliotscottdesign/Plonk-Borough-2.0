@@ -186,6 +186,7 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
   const [webCost, setWebCost] = useState(6000)
   const [seoCost, setSeoCost] = useState(6000)
   const [botCost, setBotCost] = useState(1200)
+  const [accountancyCost, setAccountancyCost] = useState(3000)
   const maintenanceCost = 12 * 250
 
   const m = useMemo(() => {
@@ -206,18 +207,19 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
     const paymentFees = (onlineGrossAll + officeGrossAll) * IP_LICENSING_PAYMENT_FEE_PCT
 
     const plonkGolfRevenue = bookingFees + commissionOnline + commissionOffice
-    const plonkGolfCosts = maintenanceCost + webCost + seoCost + botCost + paymentFees
+    const plonkGolfCosts = maintenanceCost + webCost + seoCost + botCost + accountancyCost + paymentFees
     const plonkGolfNet = plonkGolfRevenue - plonkGolfCosts
     const totalTokenCost = IP_LICENSING_SKUS_ONLINE_2025.reduce((a, s) => a + s.sold * upliftFactor * s.tokens * IP_LICENSING_TOKEN_VALUE, 0)
     const venueNet = onlineGrossAll - commissionOnline - totalTokenCost
     return { onlineGrossAll, onlineGolfRev, officeGrossAll, officeGolfRev, bookingFees, commissionOnline, commissionOffice, paymentFees, plonkGolfRevenue, plonkGolfCosts, plonkGolfNet, totalTokenCost, venueNet }
-  }, [commissionOnlinePct, commissionOfficePct, volumeUplift, webCost, seoCost, botCost])
+  }, [commissionOnlinePct, commissionOfficePct, volumeUplift, webCost, seoCost, botCost, accountancyCost])
 
   const sliders = [
     { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF', default: 0 },
     { label: 'Website + booking system', value: webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
     { label: 'SEO (non-venue-specific)', value: seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
     { label: 'Chatbot / AI booking', value: botCost, set: setBotCost, min: 0, max: 10000, step: 100, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 1200 },
+    { label: 'Accountancy fees', value: accountancyCost, set: setAccountancyCost, min: 0, max: 15000, step: 250, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 3000 },
   ]
 
   return (
@@ -267,6 +269,7 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
           <Row label="− Website + booking system" value={fmt0(webCost)} color="#EF4444" />
           <Row label="− SEO" value={fmt0(seoCost)} color="#EF4444" />
           <Row label="− Chatbot / AI booking" value={fmt0(botCost)} color="#EF4444" />
+          <Row label="− Accountancy fees" value={fmt0(accountancyCost)} color="#EF4444" />
           <Row label={`− Payment processing (${(IP_LICENSING_PAYMENT_FEE_PCT * 100).toFixed(1)}% × online + office gross)`} value={fmt0(m.paymentFees)} color="#EF4444" />
           <Row label="= Total Plonk Golf costs" value={fmt0(m.plonkGolfCosts)} color="#EF4444" bold />
           <div style={{ height: 10, borderTop: '1px solid rgba(201,168,76,0.3)', marginTop: 6 }} />
