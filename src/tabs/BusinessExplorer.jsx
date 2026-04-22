@@ -1,8 +1,7 @@
 import React, { useState } from 'react'
 import FinancialPerformance from '../slides/FinancialPerformance.jsx'
-import IPLicensing from './IPLicensing.jsx'
 
-const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages','IP & Licensing']
+const TABS = ['Overview','Financial Performance','Performance','Investor Returns','Distribution','Scenarios','Market Context','Wages']
 
 const fmt = n => '£' + Math.round(n).toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
@@ -116,7 +115,7 @@ function TabPerformance() {
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>Operating Cost Breakdown</div>
-        {[['Staff Wages',242370,'#991B1B'],['Rent & Rates',98000,'#B91C1C'],['COGS',81732,'#DC2626'],['Marketing',7200,'#F87171'],['Other OpEx',80000,'#9CA3AF']].map(([l,v,c]) => (
+        {[['Staff Wages',242370,'#991B1B'],['Rent & Rates',98000,'#B91C1C'],['COGS',81732,'#DC2626'],['Hosting (Lithos)',3492,'#F87171'],['Other OpEx',80000,'#9CA3AF']].map(([l,v,c]) => (
           <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
             <span style={{ color:'var(--cream)' }}>{l}</span>
             <span style={{ color:c, fontWeight:600 }}>{fmtK(v)}</span>
@@ -418,7 +417,6 @@ export default function BusinessExplorer() {
     'Scenarios': <TabScenarios />,
     'Market Context': <TabMarketContext />,
     'Wages': <TabWages />,
-    'IP & Licensing': <IPLicensing />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

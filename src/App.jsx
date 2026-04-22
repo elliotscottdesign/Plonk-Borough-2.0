@@ -2,12 +2,12 @@ import React, { useState } from 'react'
 import PasswordGate from './PasswordGate.jsx'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
+import Plonk from './tabs/Plonk.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
 import InvestmentSnapshot from './slides/InvestmentSnapshot.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
-import MarketingEngine from './slides/MarketingEngine.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
@@ -18,13 +18,12 @@ const SLIDES = [
   { id:'snapshot',   label:'03  Investment Snapshot', Component: InvestmentSnapshot },
   { id:'funds',      label:'04  Use of Funds',        Component: UseOfFunds },
   { id:'market',     label:'05  Market Context',      Component: MarketContext },
-  { id:'marketing',  label:'06  Marketing Engine',    Component: MarketingEngine },
-  { id:'waterfall',  label:'07  Waterfall Returns',   Component: WaterfallReturns },
-  { id:'growth',     label:'08  Growth & Risks',      Component: GrowthRisks },
-  { id:'case',       label:'09  Investment Case',     Component: InvestmentCase },
+  { id:'waterfall',  label:'06  Waterfall Returns',   Component: WaterfallReturns },
+  { id:'growth',     label:'07  Growth & Risks',      Component: GrowthRisks },
+  { id:'case',       label:'08  Investment Case',     Component: InvestmentCase },
 ]
 
-const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
+const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer', 'Plonk']
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
@@ -76,6 +75,7 @@ export default function App() {
         )}
         {topTab === 'Venue Info' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'Business Explorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
+        {topTab === 'Plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
   )

@@ -21,12 +21,14 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 
 ### Entry & shell
 - [src/main.jsx](src/main.jsx) mounts `<App />`.
-- [src/App.jsx](src/App.jsx) is the shell: three top-level tabs (`Investor Deck`, `Venue Info`, `Business Explorer`) and, for the deck, a static `SLIDES` array that drives the slide nav. All tab/slide state is local `useState` — there's no router.
+- [src/App.jsx](src/App.jsx) is the shell: four top-level tabs (`Investor Deck`, `Venue Info`, `Business Explorer`, `Plonk`) and, for the deck, a static `SLIDES` array that drives the slide nav. All tab/slide state is local `useState` — there's no router.
+- The **Plonk** top-tab is the holding-co / IP dev area — contains the `IP & Licensing` and `Marketing Engine` views as sub-tabs. Marketing Engine used to live in the deck; it was moved here when the new Plonk × Venue licensing model took shape (Holding Co now owns all ad/SEO spend via the IP & Licensing agreement).
 
 ### Adding content
 - **New deck slide**: create a component in `src/slides/`, import it in [src/App.jsx](src/App.jsx), add an entry to the `SLIDES` array (order = display order, `id` is just a key).
 - **New Business Explorer tab**: add a label to the `TABS` array and a matching entry in `tabComponents` in [src/tabs/BusinessExplorer.jsx](src/tabs/BusinessExplorer.jsx).
 - **New Venue Info tab**: same pattern in [src/tabs/VenueInfo.jsx](src/tabs/VenueInfo.jsx). Images live in `public/` and are referenced by absolute path (e.g. `/venue_gallery_1.jpg`).
+- **New Plonk sub-tab**: same pattern in [src/tabs/Plonk.jsx](src/tabs/Plonk.jsx).
 
 ### Styling
 - **Inline styles with CSS custom properties are the primary styling pattern**, not Tailwind utility classes. Tailwind is wired up via [tailwind.config.js](tailwind.config.js) / [postcss.config.js](postcss.config.js) but components overwhelmingly use `style={{ ... }}`. Match the surrounding code — don't mix in Tailwind classes unless you're converting a component fully.
