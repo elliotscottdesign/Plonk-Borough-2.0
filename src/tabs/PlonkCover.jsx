@@ -53,10 +53,10 @@ export default function PlonkCover() {
       {/* Stats strip */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {[
-          { label: 'Founded', value: '2013', sub: 'By film-industry set designers' },
-          { label: 'First Permanent Course', value: '2014', sub: 'Haggerston · 100% up-cycled' },
-          { label: 'Pop-Up Sites', value: '50+', sub: 'UK & Europe' },
-          { label: 'Model from 2026', value: 'Franchise', sub: 'IP + hardware + maintenance' },
+          { label: 'Customers', value: '1,000,000+', sub: 'Across every site since 2013' },
+          { label: 'Pop-Up Sites', value: 'Over 50', sub: 'UK & Europe' },
+          { label: 'Specialists', value: 'Design + Hospitality', sub: 'Set-design roots · hospitality-run' },
+          { label: 'Opportunity', value: 'Unique Franchise', sub: 'IP + hardware + maintenance' },
         ].map(s => (
           <div key={s.label} style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '14px 16px' }}>
             <div style={{ fontSize: 10, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>{s.label}</div>
