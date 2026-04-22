@@ -1,14 +1,17 @@
 import React, { useState } from 'react'
 
-const PASSWORD = 'TEST1'
+const PASSWORD = 'TEST1'          // standard investor view (no Plonk tab)
+const PLONK_PASSWORD = '888999'   // investor view + Plonk franchise tab visible
 
 export default function PasswordGate({ onUnlock }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
 
   const attempt = () => {
-    if (input === PASSWORD) {
-      onUnlock()
+    if (input === PLONK_PASSWORD) {
+      onUnlock({ plonk: true })
+    } else if (input === PASSWORD) {
+      onUnlock({ plonk: false })
     } else {
       setError(true)
       setInput('')

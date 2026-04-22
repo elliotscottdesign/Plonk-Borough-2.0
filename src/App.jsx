@@ -23,17 +23,25 @@ const SLIDES = [
   { id:'case',       label:'08  Investment Case',     Component: InvestmentCase },
 ]
 
-const TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer', 'Plonk']
+const BASE_TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
 
 export default function App() {
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
+  const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk') === '1')
   const [topTab, setTopTab] = useState('Investor Deck')
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDES[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDES.length - 1, i)))
+  const TOP_TABS = plonkAccess ? [...BASE_TOP_TABS, 'Plonk'] : BASE_TOP_TABS
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={() => { sessionStorage.setItem('ndb_unlocked', '1'); setUnlocked(true) }} />
+    return <PasswordGate onUnlock={({ plonk }) => {
+      sessionStorage.setItem('ndb_unlocked', '1')
+      if (plonk) sessionStorage.setItem('ndb_plonk', '1')
+      else sessionStorage.removeItem('ndb_plonk')
+      setPlonkAccess(!!plonk)
+      setUnlocked(true)
+    }} />
   }
 
   return (
@@ -75,7 +83,7 @@ export default function App() {
         )}
         {topTab === 'Venue Info' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'Business Explorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
-        {topTab === 'Plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
+        {topTab === 'Plonk' && plonkAccess && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
   )

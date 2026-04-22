@@ -86,7 +86,7 @@ export default function PlonkHowItWorks() {
           What the franchise saves the venue
         </h1>
         <p style={{ fontSize: 15, color: 'var(--cream-dim)', lineHeight: 1.6, maxWidth: 780 }}>
-          Under the franchise model, Plonk Golf takes on the digital funnel, payment processing, hosting, SEO and the bookings role — replacing direct venue spend with a commission paid only on ticket sales that actually flow through the system. Below is what No Dice Borough takes off its P&amp;L.
+          Under the franchise model with No Dice Borough, Plonk Golf takes on the digital funnel, payment processing, group bookings, hosting, and SEO for all crazy golf tickets. All money goes directly into the franchisee account, with Plonk taking a direct debit post payment for their commission. A small one-off fee is paid upfront for use of the name.
         </p>
         <div style={{ height: 1, background: 'linear-gradient(90deg, var(--gold), transparent)', marginTop: 22 }} />
       </div>

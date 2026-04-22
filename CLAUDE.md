@@ -41,7 +41,11 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 - **Divergence gotcha**: [src/tabs/BusinessExplorer.jsx](src/tabs/BusinessExplorer.jsx) and [src/slides/FinancialPerformance.jsx](src/slides/FinancialPerformance.jsx) hard-code their own local copies of revenue/cost/monthly arrays instead of importing from `data.js`. When a number changes, update both the `data.js` constants **and** any hard-coded copies in those files — grep for the figure to be sure.
 
 ### Access gate
-[src/PasswordGate.jsx](src/PasswordGate.jsx) wraps the app in [src/App.jsx](src/App.jsx). Password is a plain constant in the component (current: `TEST1`) — client-side only, trivially bypassable by viewing source; treat it as a speed bump, not security. Unlock state is persisted in `sessionStorage` under `ndb_unlocked`, so it clears when the tab closes.
+[src/PasswordGate.jsx](src/PasswordGate.jsx) wraps the app in [src/App.jsx](src/App.jsx). Two client-side passwords:
+- `TEST1` — unlocks the standard investor view (Investor Deck · Venue Info · Business Explorer).
+- `888999` — unlocks the same plus the **Plonk** top-tab (franchise / IP & Licensing dev view).
+
+Both are plain constants in the component — trivially bypassable by viewing source; treat as a speed bump, not security. Unlock state persists in `sessionStorage` under `ndb_unlocked` (any unlock) and `ndb_plonk` (Plonk-tier flag). Both clear when the tab closes.
 
 ### Orphaned components
 Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx).
