@@ -3,10 +3,10 @@ import React from 'react'
 export default function UseOfFunds() {
   const funds = [
     { label:'Rent Deposit (3 months)', color:'#8B5CF6', pct:30.8, amount:27078, vat:'inc VAT', icon:'🏠', desc:'Security deposit held by landlord covering May, Jun, Jul 2026.' },
-    { label:'Hardware from Liquidators', color:'#4FC3F7', pct:27.3, amount:24000, vat:'+VAT', icon:'🔧', desc:'Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1.' },
-    { label:'Working Capital Buffer', color:'#6B7280', pct:17.0, amount:14922, vat:null, icon:'💼', desc:'Staged into business per cash flow model. Covers early trading before revenue covers costs.' },
-    { label:'Stock & Supplier Restart', color:'#2DD4BF', pct:13.6, amount:12000, vat:'+VAT', icon:'📦', desc:'Opening stock, supplier agreements and software subscriptions to trade from Day 1.' },
-    { label:'IP License Fee', color:'#C9A84C', pct:11.4, amount:10000, vat:'+VAT', icon:'⭐', desc:'Brand + gaming IP licence — was a £72k IP & Goodwill purchase under the old deal; now a low-upfront licence.' },
+    { label:'Hardware from Liquidators', color:'#4FC3F7', pct:27.3, amount:24000, vat:'inc VAT', icon:'🔧', desc:'Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1.' },
+    { label:'Working Capital Buffer', color:'#6B7280', pct:14.7, amount:12922, vat:null, icon:'💼', desc:'Staged into business per cash flow model. Covers early trading before revenue covers costs.' },
+    { label:'Stock & Supplier Restart', color:'#2DD4BF', pct:13.6, amount:12000, vat:'inc VAT', icon:'📦', desc:'Opening stock, supplier agreements and software subscriptions to trade from Day 1.' },
+    { label:'IP License Fee', color:'#C9A84C', pct:13.6, amount:12000, vat:'inc VAT', icon:'⭐', desc:'Brand + gaming IP licence — was a £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal.' },
   ]
   const fmt = n => '£' + n.toLocaleString()
   return (
@@ -38,7 +38,7 @@ export default function UseOfFunds() {
           ))}
           <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:12, display:'flex', justifyContent:'space-between' }}>
             <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>TOTAL INVESTMENT</span>
-            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>£88,000 + VAT</span>
+            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>£88,000 inc VAT</span>
           </div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -59,23 +59,23 @@ export default function UseOfFunds() {
       </div>
       <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'16px 20px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>£88,000 + VAT TOTAL · 100% DEPLOYED DAY 1</div>
-          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs (~£9,200) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)</div>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>£88,000 INC VAT TOTAL · 100% DEPLOYED DAY 1</div>
+          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs (~£8,000) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)</div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
           <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Day 1 Deployed</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£73,078</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£75,078</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>Startup costs paid immediately</div>
           </div>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Working Capital</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£14,922</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£12,922</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>Staged per cash flow model</div>
           </div>
           <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>VAT Reclaim</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£9,200</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£8,000</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>Recovered Q1 — August 2026</div>
           </div>
         </div>

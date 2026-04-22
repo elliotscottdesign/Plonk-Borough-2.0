@@ -182,12 +182,14 @@ export const GOVERNANCE = {
 }
 
 // === USE OF FUNDS ===
+// All figures shown inc VAT. Total investment ask £88,000 cash. VAT reclaimable on
+// Hardware, Stock, IP (~£8,000 total) recovered against the first HMRC VAT return.
 export const USE_OF_FUNDS = [
-  { item: 'IP License Fee',              amount: 10000, pct: 11.4, note: 'Brand + gaming IP licence (was £72k purchase under old deal — now a low-upfront licence)' },
-  { item: 'Hardware from Liquidators',   amount: 24000, pct: 27.3, note: 'Bar & kitchen equipment — operational from Day 1' },
-  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 30.8, note: '3 months deposit — covers May, Jun, Jul' },
-  { item: 'Stock & Supplier Restart',    amount: 12000, pct: 13.6, note: 'Opening stock, software, supplier agreements' },
-  { item: 'Working Capital',             amount: 14922, pct: 17.0, note: 'Staged into business per cash flow forecast' },
+  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 30.8, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
+  { item: 'Hardware from Liquidators',   amount: 24000, pct: 27.3, vat: 'inc VAT', note: 'Bar & kitchen equipment — operational from Day 1' },
+  { item: 'Working Capital',             amount: 12922, pct: 14.7, vat: null,      note: 'Staged into business per cash flow forecast' },
+  { item: 'Stock & Supplier Restart',    amount: 12000, pct: 13.6, vat: 'inc VAT', note: 'Opening stock, software, supplier agreements' },
+  { item: 'IP License Fee',              amount: 12000, pct: 13.6, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===

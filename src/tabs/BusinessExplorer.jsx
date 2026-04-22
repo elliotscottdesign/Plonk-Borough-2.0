@@ -16,7 +16,7 @@ function TabOverview() {
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'INVESTMENT ASK', value:'£88,000 + VAT', sub:'for 36% equity', color:'var(--gold)' },
+          { label:'INVESTMENT ASK', value:'£88,000 inc VAT', sub:'for 36% equity', color:'var(--gold)' },
           { label:'FY2025 ACTUAL REVENUE', value:'£742k', sub:'Verified financial model', color:'#4FC3F7' },
           { label:'FORECAST REVENUE Y1', value:'£853k', sub:'+15.0% on prior year', color:'#2DD4BF' },
         ].map(s => (
