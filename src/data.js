@@ -186,49 +186,77 @@ export const USE_OF_FUNDS = [
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===
-// Source: 2025 Borough DMN online bookings portal (12 monthly sales-report PDFs).
-// This is the ONLY clean data available for what the website generated (vs. office/bookings-person/Google data which are mixed or broken).
-// This dataset is intentionally isolated from the existing deck constants while we develop the new Holding-Co × Venue commission model.
-// Structural assumptions (locked in for v1, adjustable later):
-//   - Booking fee: 10% ADDED ON TOP of ticket price at checkout (customer-facing). Kept by Holding Co — funds online funnel (site, SEO, bot, payments).
-//   - Commission: SEPARATE %, taken from the VENUE on gross ticket sales via the website. Holding Co's license revenue per venue.
+// Source: "ALL DMN 2025 transactions ALL SITES.xlsx" — every transaction row for Borough venue in 2025,
+// split by Status column (Online portal = 'complete', Office team = 'external', rejected dropped).
+// This dataset is intentionally isolated from the existing deck constants while we develop the new
+// Holding-Co × Venue commission model.
+//
+// Key finding from the data:
+//   - ONLINE portal (Status = complete): 15,188 tickets / £211,163.70 — revenue flows through the online system
+//     (matches the existing deck's "Online Golf Tickets £210,485" — small delta = categorisation edge cases).
+//   - OFFICE/TILL (Status = external): 4,512 tickets / £0 — these are reservations booked by the office team;
+//     payment happens through the venue's till, NEVER through the online system.
+//   - Under the new model the office/bookings-team channel goes away entirely. These customers will either
+//     self-serve online (moving volume + revenue into the online channel) or contact the venue directly
+//     (which the venue handles itself — Holding Co takes no commission).
+//
+// Structural assumptions (v1, adjustable later):
+//   - Booking fee: 10% ADDED ON TOP of ticket price at checkout (customer-facing). Kept by Holding Co.
+//   - Commission: SEPARATE %, taken from the VENUE on gross online ticket sales. Holding Co's license fee.
 //   - Token value: £0.325 per arcade token, NO VAT on tokens. Each "Golf + 4 Tokens" SKU bundles 4 tokens (£1.30 per ticket).
-//   - Under the new model, tokens move to in-store TILL only, so online golf tickets will be re-priced to strip the token component out.
+//   - Under the new model, tokens move to in-store TILL only — online SKUs will be re-priced to strip the token component.
 
 export const IP_LICENSING_TOKEN_VALUE = 0.325   // £ per arcade token, no VAT
 export const IP_LICENSING_BOOKING_FEE_PCT = 0.10 // 10% added on top at checkout, kept by Holding Co
 
-// 2025 Borough DMN SKUs — every distinct ticket type sold via the online bookings portal.
-// price = venue-facing gross ticket price (what the customer sees before the booking fee is added on top).
-// tokens = arcade tokens bundled into this SKU (each worth £0.325, no VAT).
-export const IP_LICENSING_SKUS_2025 = [
-  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 19292, revenue: 307990.20 },
-  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold:  5864, revenue:  72970.00 },
-  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  1940, revenue:  19354.00 },
-  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:     0, revenue:      0.00 },
-  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:   786, revenue:   9427.20 },
-  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:  1576, revenue:   7880.00 },
-  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:     2, revenue:    100.00 },
+// 2025 Borough online-portal SKUs (Status = complete). Revenue flows through online system.
+export const IP_LICENSING_SKUS_ONLINE_2025 = [
+  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 9646, revenue: 153995.10 },
+  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold: 2932, revenue:  36485.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  970, revenue:   9677.00 },
+  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:    0, revenue:      0.00 },
+  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:  393, revenue:   4713.60 },
+  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:  788, revenue:   3940.00 },
+  { sku: 'Pool Table Reservation — 30 Mins',       tokens: 0, price:  5.00, sold:  422, revenue:   2108.00 },
+  { sku: 'Doubles Pool Tournament',                tokens: 0, price:  5.00, sold:    5, revenue:     40.00 },
+  { sku: 'Extra Arcade Tokens (add-on)',           tokens: 0, price:  5.00, sold:   31, revenue:    155.00 },
+  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:    1, revenue:     50.00 },
 ]
 
-// Per-month online bookings totals for 2025 (all SKUs combined).
+// 2025 Borough office/external SKUs (Status = external). Payment via till — £0 online revenue.
+// Same price column kept for reference (what a customer would pay if bought online at list price).
+export const IP_LICENSING_SKUS_OFFICE_2025 = [
+  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 1977, revenue: 0.00 },
+  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold: 1868, revenue: 0.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  268, revenue: 0.00 },
+  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:    8, revenue: 0.00 },
+  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:  276, revenue: 0.00 },
+  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:   12, revenue: 0.00 },
+  { sku: 'Pool Table Reservation — 30 Mins',       tokens: 0, price:  5.00, sold:  103, revenue: 0.00 },
+  { sku: 'Doubles Pool Tournament',                tokens: 0, price:  5.00, sold:    0, revenue: 0.00 },
+  { sku: 'Extra Arcade Tokens (add-on)',           tokens: 0, price:  5.00, sold:    0, revenue: 0.00 },
+  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:    0, revenue: 0.00 },
+]
+
+// Per-month split: online (revenue-bearing) vs office (till-only, £0 online revenue).
 export const IP_LICENSING_MONTHLY_2025 = [
-  { month: 'Jan', sold: 2586, revenue: 38778.60 },
-  { month: 'Feb', sold: 2984, revenue: 43723.40 },
-  { month: 'Mar', sold: 2388, revenue: 34546.40 },
-  { month: 'Apr', sold: 2212, revenue: 30081.60 },
-  { month: 'May', sold: 2106, revenue: 30491.00 },
-  { month: 'Jun', sold: 1774, revenue: 25087.40 },
-  { month: 'Jul', sold: 2064, revenue: 28797.60 },
-  { month: 'Aug', sold: 2680, revenue: 36889.90 },
-  { month: 'Sep', sold: 2124, revenue: 29619.40 },
-  { month: 'Oct', sold: 2944, revenue: 41058.00 },
-  { month: 'Nov', sold: 2530, revenue: 36316.50 },
-  { month: 'Dec', sold: 3068, revenue: 42331.60 },
+  { month: 'Jan', onlineQty: 1333, onlineRev: 19589.30, officeQty: 298, officeRev: 0.00 },
+  { month: 'Feb', onlineQty: 1525, onlineRev: 22026.70, officeQty: 183, officeRev: 0.00 },
+  { month: 'Mar', onlineQty: 1214, onlineRev: 17373.20, officeQty: 349, officeRev: 0.00 },
+  { month: 'Apr', onlineQty: 1141, onlineRev: 15215.80, officeQty: 353, officeRev: 0.00 },
+  { month: 'May', onlineQty: 1075, onlineRev: 15355.50, officeQty: 295, officeRev: 0.00 },
+  { month: 'Jun', onlineQty:  908, onlineRev: 12648.70, officeQty: 391, officeRev: 0.00 },
+  { month: 'Jul', onlineQty: 1052, onlineRev: 14498.80, officeQty: 423, officeRev: 0.00 },
+  { month: 'Aug', onlineQty: 1380, onlineRev: 18644.95, officeQty: 167, officeRev: 0.00 },
+  { month: 'Sep', onlineQty: 1126, onlineRev: 15127.70, officeQty: 351, officeRev: 0.00 },
+  { month: 'Oct', onlineQty: 1519, onlineRev: 20779.00, officeQty: 274, officeRev: 0.00 },
+  { month: 'Nov', onlineQty: 1319, onlineRev: 18428.25, officeQty: 470, officeRev: 0.00 },
+  { month: 'Dec', onlineQty: 1596, onlineRev: 21475.80, officeQty: 958, officeRev: 0.00 },
 ]
 
-// Grand totals (derived — kept explicit for quick reference / slide badges)
+// Grand totals
 export const IP_LICENSING_GRAND_2025 = {
-  sold: 29460,
-  revenue: 417721.40,
+  onlineQty: 15188, onlineRev: 211163.70,
+  officeQty:  4512, officeRev:      0.00,
+  totalQty:  19700, totalRev:  211163.70,
 }
