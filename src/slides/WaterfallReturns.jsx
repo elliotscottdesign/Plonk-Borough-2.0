@@ -10,13 +10,13 @@ const SCENARIOS = {
 }
 
 function calcWaterfall(profit) {
-  const preferred = 12000
-  const aShare = 44000
+  const preferred = DEAL.preferred              // 8% × £88k = £7,040
+  const aShare = DEAL.aSharePriority            // £44k to founder entity
   const remaining = Math.max(0, profit - preferred - aShare)
-  const investorDiv = remaining * 0.49
-  const founderDiv = remaining * 0.51
+  const investorDiv = remaining * DEAL.investorEq   // 36.05%
+  const founderDiv = remaining * DEAL.founderEq     // 63.95%
   const totalInvestor = preferred + investorDiv
-  const coc = totalInvestor / 150000
+  const coc = totalInvestor / DEAL.investment
   return { preferred, aShare, remaining, investorDiv, founderDiv, totalInvestor, coc }
 }
 
@@ -27,11 +27,11 @@ export default function WaterfallReturns() {
 
   const steps = [
     { label: 'Operating Profit', amount: s.profit, color: '#1565C0', note: `${scenario === 'base' ? '+15%' : scenario === 'bear' ? '−10%' : '+25%'} scenario` },
-    { label: 'Less: Preferred Return', amount: -w.preferred, color: '#B71C1C', note: '8% × £150k · paid to investor first' },
+    { label: 'Less: Preferred Return', amount: -w.preferred, color: '#B71C1C', note: '8% × £88k · paid to investor first' },
     { label: 'Less: A-Share Priority', amount: -w.aShare, color: '#E67E22', note: 'Priority allocation to founder entity' },
     { label: 'Remaining Pool', amount: w.remaining, color: '#0D9488', note: 'Available for equity distribution' },
-    { label: 'Investor Dividend (49%)', amount: w.investorDiv, color: '#C9A84C', note: '49% × remaining pool' },
-    { label: 'Founder Dividend (51%)', amount: w.founderDiv, color: '#4A5568', note: '51% × remaining pool' },
+    { label: `Investor Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, amount: w.investorDiv, color: '#C9A84C', note: `${(DEAL.investorEq*100).toFixed(1)}% × remaining pool` },
+    { label: `Founder Dividend (${(DEAL.founderEq*100).toFixed(1)}%)`, amount: w.founderDiv, color: '#4A5568', note: `${(DEAL.founderEq*100).toFixed(1)}% × remaining pool` },
   ]
 
   return (
@@ -104,8 +104,8 @@ export default function WaterfallReturns() {
 
           <div className="card" style={{ padding: 20 }}>
             <Row label="Cash-on-Cash Return" value={`${(w.coc * 100).toFixed(1)}%`} gold />
-            <Row label="Payback Period" value={`${(150000 / w.totalInvestor).toFixed(2)} years`} />
-            <Row label="On £150,000 invested" value={fmt(150000)} />
+            <Row label="Payback Period" value={`${(DEAL.investment / w.totalInvestor).toFixed(2)} years`} />
+            <Row label={`On ${fmt(DEAL.investment)} invested`} value={fmt(DEAL.investment)} />
             <Row label="Preferred (paid first)" value={fmt(w.preferred)} gold />
             <Row label="Equity dividend" value={fmt(w.investorDiv)} />
           </div>
@@ -115,7 +115,7 @@ export default function WaterfallReturns() {
               Founder Position
             </div>
             <Row label="A-Share Priority" value={fmt(w.aShare)} />
-            <Row label="Equity Dividend (51%)" value={fmt(w.founderDiv)} />
+            <Row label={`Equity Dividend (${(DEAL.founderEq*100).toFixed(1)}%)`} value={fmt(w.founderDiv)} />
             <Row label="Total Founder" value={fmt(w.aShare + w.founderDiv)} />
           </div>
 

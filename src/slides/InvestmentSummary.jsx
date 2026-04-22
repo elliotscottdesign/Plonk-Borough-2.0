@@ -6,18 +6,19 @@ const fmt = (n) => '£' + Math.round(n).toLocaleString()
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
 export default function InvestmentSummary() {
-  const [amount, setAmount] = useState(150000)
+  const [amount, setAmount] = useState(88000)
 
+  // Remaining pool after preferred return (8% × invested amount) and founder A-share priority (£44k)
+  const REMAINING_POOL_BASE = 139905 // 190,945 operating profit − preferred (at £88k baseline) − £44k
   const equity = amount / DEAL.postMoney
   const preferredReturn = amount * 0.08
-  const dividend = (DEAL.DEAL?.remainingPool ?? 134945) * equity
+  const dividend = REMAINING_POOL_BASE * equity
   const total = preferredReturn + dividend
   const coc = total / amount
   const isAShare = equity >= 0.05
 
   // Recalculate based on slider
-  const remaining = 134945
-  const divCalc = remaining * equity
+  const divCalc = REMAINING_POOL_BASE * equity
   const totalCalc = amount * 0.08 + divCalc
   const cocCalc = totalCalc / amount
 
@@ -54,8 +55,8 @@ export default function InvestmentSummary() {
             Year 1 Returns (Base Case)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Term label="Preferred Return (8% × £150k)" value={fmt(DEAL.preferred)} gold />
-            <Term label="Equity Dividend (49%)" value={fmt(DEAL.investorDividend)} />
+            <Term label="Preferred Return (8% × £88k)" value={fmt(DEAL.preferred)} gold />
+            <Term label={`Equity Dividend (${pct(DEAL.investorEq)})`} value={fmt(DEAL.investorDividend)} />
             <Term label="Total Year 1 Return" value={fmt(DEAL.totalInvestorReturn)} gold large />
             <Term label="Cash-on-Cash" value={`${(DEAL.coc*100).toFixed(1)}%`} gold />
             <Term label="Payback Period" value={`${DEAL.payback} years`} />
@@ -75,7 +76,7 @@ export default function InvestmentSummary() {
             <span style={{ color: 'var(--cream-dim)' }}>Investment Amount</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
-              <ResetBtn onClick={() => setAmount(150000)} />
+              <ResetBtn onClick={() => setAmount(88000)} />
             </span>
           </div>
           <input

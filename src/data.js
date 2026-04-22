@@ -8,20 +8,25 @@ export const BUSINESS = {
 }
 
 // === DEAL STRUCTURE ===
+// IP purchase reduced to a £10k + VAT licence fee (was £72k Plonk IP & Goodwill), so
+// total investment ask drops from £150k to £88k + VAT. Pre-money valuation (1.70×
+// 2025 EBITDA = £156,122) is unchanged — the business is worth what it's worth — so
+// investor equity rebalances to 36.05% (founder retains 63.95%). Derived returns all
+// recompute: smaller preferred (8% × £88k), bigger remaining pool, higher CoC.
 export const DEAL = {
-  investment: 150000,
-  founderEq: 0.51,
-  investorEq: 0.49,
+  investment: 88000,
+  founderEq: 0.6395,
+  investorEq: 0.3605,
   multiple: 1.6979,
   preMoney: 156122,
-  postMoney: 306122,
-  preferred: 12000,       // 8% × £150k
+  postMoney: 244122,
+  preferred: 7040,        // 8% × £88k
   aSharePriority: 44000,  // to founder entity
-  investorDividend: 66123,
-  totalInvestorReturn: 78123,
-  coc: 0.5208,
-  payback: 1.92,
-  aShareThreshold: 15306, // 5% of post-money
+  investorDividend: 50432,
+  totalInvestorReturn: 57472,
+  coc: 0.6531,
+  payback: 1.53,
+  aShareThreshold: 12206, // 5% of post-money
 }
 
 // === 2025 ACTUALS ===
@@ -148,13 +153,13 @@ export const MARKETING = {
 // === WATERFALL ===
 export const WATERFALL = {
   operatingProfit: 190945,
-  preferred: 12000,
+  preferred: 7040,           // 8% × £88k
   aSharePriority: 44000,
-  remainingPool: 134945,
-  investorDividend: 66123,
-  founderDividend: 68822,
-  totalInvestor: 78123,
-  totalFounder: 112822,
+  remainingPool: 139905,     // 190,945 − 7,040 − 44,000
+  investorDividend: 50432,   // remainingPool × 36.05%
+  founderDividend: 89473,    // remainingPool × 63.95%
+  totalInvestor: 57472,      // preferred + investorDividend
+  totalFounder: 133473,      // aSharePriority + founderDividend
 }
 
 // === GOVERNANCE ===
@@ -178,11 +183,11 @@ export const GOVERNANCE = {
 
 // === USE OF FUNDS ===
 export const USE_OF_FUNDS = [
-  { item: 'Plonk IP & Goodwill',        amount: 72000, pct: 48.0, note: 'Brand, gaming IP, customer data, trading goodwill' },
-  { item: 'Hardware from Liquidators',   amount: 24000, pct: 16.0, note: 'Bar & kitchen equipment — operational from Day 1' },
-  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 18.1, note: '3 months deposit — covers May, Jun, Jul' },
-  { item: 'Stock & Supplier Restart',    amount: 12000, pct:  8.0, note: 'Opening stock, software, supplier agreements' },
-  { item: 'Working Capital',             amount: 14922, pct:  9.9, note: 'Staged into business per cash flow forecast' },
+  { item: 'IP License Fee',              amount: 10000, pct: 11.4, note: 'Brand + gaming IP licence (was £72k purchase under old deal — now a low-upfront licence)' },
+  { item: 'Hardware from Liquidators',   amount: 24000, pct: 27.3, note: 'Bar & kitchen equipment — operational from Day 1' },
+  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 30.8, note: '3 months deposit — covers May, Jun, Jul' },
+  { item: 'Stock & Supplier Restart',    amount: 12000, pct: 13.6, note: 'Opening stock, software, supplier agreements' },
+  { item: 'Working Capital',             amount: 14922, pct: 17.0, note: 'Staged into business per cash flow forecast' },
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===

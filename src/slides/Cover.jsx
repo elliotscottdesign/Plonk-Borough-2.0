@@ -2,10 +2,10 @@ import React from 'react'
 
 export default function Cover() {
   const stats = [
-    { label: 'Seeking', value: '£150,000', sub: '49% equity · 51% retained by founder' },
+    { label: 'Seeking', value: '£88,000 + VAT', sub: '36% equity · 64% retained by founder' },
     { label: '2025 Verified Revenue', value: '£741,644', sub: 'Real trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: '£78,123', sub: '52.1% cash-on-cash · payback 1.92 yrs' },
-    { label: 'Preferred Return', value: '£12,000/yr', sub: '8% annual · paid first before distributions' },
+    { label: 'Year 1 Investor Return', value: '£57,472', sub: '65.3% cash-on-cash · payback 1.53 yrs' },
+    { label: 'Preferred Return', value: '£7,040/yr', sub: '8% annual · paid first before distributions' },
     { label: 'Forecast Revenue', value: '£852,891', sub: 'Base case +15% · May 2026–Apr 2027' },
     { label: 'Valuation Entry', value: '1.70×', sub: 'EBITDA · distressed acquisition pricing' },
   ]

@@ -118,9 +118,9 @@ export default function InvestmentCase() {
           {/* Final call to action */}
           <div className="card-highlight" style={{ padding: 20, marginTop: 16 }}>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.7 }}>
-              Seeking <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{fmt(DEAL.investment)}</span> for{' '}
-              <span style={{ color: 'var(--gold)', fontWeight: 500 }}>49% equity</span>.
-              Year 1 return <span style={{ color: 'var(--gold)', fontWeight: 500 }}>£78,123</span> ({(DEAL.coc*100).toFixed(1)}% CoC).
+              Seeking <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{fmt(DEAL.investment)} + VAT</span> for{' '}
+              <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{(DEAL.investorEq*100).toFixed(1)}% equity</span>.
+              Year 1 return <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{fmt(DEAL.totalInvestorReturn)}</span> ({(DEAL.coc*100).toFixed(1)}% CoC).
               Payback <span style={{ color: 'var(--gold)', fontWeight: 500 }}>{DEAL.payback} years</span>.
               Cash-flow driven — no exit required.
             </div>

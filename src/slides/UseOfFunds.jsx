@@ -2,18 +2,18 @@ import React from 'react'
 
 export default function UseOfFunds() {
   const funds = [
-    { label:'Hardware from Liquidators', color:'#4FC3F7', pct:16, amount:24000, vat:'+VAT', icon:'🔧', desc:'Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1.' },
-    { label:'Plonk IP & Goodwill', color:'#C9A84C', pct:48, amount:72000, vat:'+VAT', icon:'⭐', desc:'Brand, gaming IP, customer data and trading goodwill — the proven revenue-generating asset.' },
-    { label:'Stock & Supplier Restart', color:'#2DD4BF', pct:8, amount:12000, vat:'+VAT', icon:'📦', desc:'Opening stock, supplier agreements and software subscriptions to trade from Day 1.' },
-    { label:'Rent Deposit (3 months)', color:'#8B5CF6', pct:18, amount:27078, vat:'inc VAT', icon:'🏠', desc:'Security deposit held by landlord covering May, Jun, Jul 2026.' },
-    { label:'Working Capital Buffer', color:'#6B7280', pct:10, amount:14922, vat:null, icon:'💼', desc:'Staged into business per cash flow model. Covers early trading before revenue covers costs.' },
+    { label:'Rent Deposit (3 months)', color:'#8B5CF6', pct:30.8, amount:27078, vat:'inc VAT', icon:'🏠', desc:'Security deposit held by landlord covering May, Jun, Jul 2026.' },
+    { label:'Hardware from Liquidators', color:'#4FC3F7', pct:27.3, amount:24000, vat:'+VAT', icon:'🔧', desc:'Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1.' },
+    { label:'Working Capital Buffer', color:'#6B7280', pct:17.0, amount:14922, vat:null, icon:'💼', desc:'Staged into business per cash flow model. Covers early trading before revenue covers costs.' },
+    { label:'Stock & Supplier Restart', color:'#2DD4BF', pct:13.6, amount:12000, vat:'+VAT', icon:'📦', desc:'Opening stock, supplier agreements and software subscriptions to trade from Day 1.' },
+    { label:'IP License Fee', color:'#C9A84C', pct:11.4, amount:10000, vat:'+VAT', icon:'⭐', desc:'Brand + gaming IP licence — was a £72k IP & Goodwill purchase under the old deal; now a low-upfront licence.' },
   ]
   const fmt = n => '£' + n.toLocaleString()
   return (
     <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>Use of Investment Funds</div>
-        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>Where Your £150,000 Goes</h2>
+        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>Where Your £88,000 Goes</h2>
         <p style={{ fontSize:14, color:'#9CA3AF' }}>Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
@@ -38,7 +38,7 @@ export default function UseOfFunds() {
           ))}
           <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:12, display:'flex', justifyContent:'space-between' }}>
             <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>TOTAL INVESTMENT</span>
-            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>£150,000</span>
+            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>£88,000 + VAT</span>
           </div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -59,13 +59,13 @@ export default function UseOfFunds() {
       </div>
       <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'16px 20px' }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>£150,000 TOTAL · 100% DEPLOYED DAY 1</div>
-          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs (£18,000) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)</div>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>£88,000 + VAT TOTAL · 100% DEPLOYED DAY 1</div>
+          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs (~£9,200) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)</div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
           <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Day 1 Deployed</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£135,078</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£73,078</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>Startup costs paid immediately</div>
           </div>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
@@ -75,7 +75,7 @@ export default function UseOfFunds() {
           </div>
           <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>VAT Reclaim</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£18,000</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£9,200</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>Recovered Q1 — August 2026</div>
           </div>
         </div>
