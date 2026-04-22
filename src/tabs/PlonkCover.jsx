@@ -28,7 +28,7 @@ const TIMELINE = [
   {
     year: '2026 →',
     title: 'Back to the Roots',
-    body: 'Plonk reverts to its original model — Plonk @ other companies\' venues. Holding Co provides the IP, course design, hardware and digital funnel. Venues run the day-to-day and pay a franchise commission plus a hardware purchase fee.',
+    body: 'Plonk reverts to its original model — Plonk @ other companies\' venues. Plonk Golf provides the IP, course design, hardware and digital funnel. Venues run the day-to-day and pay a franchise commission plus a hardware purchase fee.',
     accent: '#C9A84C',
   },
 ]
@@ -36,7 +36,7 @@ const TIMELINE = [
 const OFFERS = [
   {
     label: 'Franchise Commission',
-    body: 'A % on golf ticket sales routed through the Plonk online booking system — and, optionally, on office-handled bookings if Holding Co provides a bookings manager. Pool tables, private events and group bookings 12+ remain venue-managed.',
+    body: 'A % on golf ticket sales routed through the Plonk online booking system — and, optionally, on office-handled bookings if Plonk Golf provides a bookings manager. Pool tables, private events and group bookings 12+ remain venue-managed.',
     accent: '#4FC3F7',
     pill: 'Recurring',
   },
@@ -67,7 +67,7 @@ export default function PlonkCover() {
       {/* Hero */}
       <div style={{ paddingTop: 8 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 14 }}>
-          Plonk Holding Co · Overview
+          Plonk Golf · Overview
         </div>
         <h1 className="serif" style={{ fontSize: 'clamp(2.4rem, 5vw, 4rem)', lineHeight: 1, color: 'var(--cream)', marginBottom: 18 }}>
           Plonk Crazy Golf
@@ -118,7 +118,7 @@ export default function PlonkCover() {
           The New Model · 2026 &amp; On
         </div>
         <div style={{ fontSize: 13, color: 'var(--cream-dim)', marginBottom: 16, maxWidth: 720, lineHeight: 1.6 }}>
-          Plonk Holding Co licenses the IP, sells the hardware, and runs the digital funnel. Venues run the day-to-day. Three commercial levers:
+          Plonk Golf licenses the IP, sells the hardware, and runs the digital funnel. Venues run the day-to-day. Three commercial levers:
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
           {OFFERS.map(o => (

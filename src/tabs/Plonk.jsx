@@ -16,7 +16,7 @@ export default function Plonk() {
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
       <div style={{ padding:'20px 32px 0', borderBottom:'1px solid rgba(201,168,76,0.12)' }}>
         <div style={{ marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>Plonk Holding Co</div>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>Plonk Golf</div>
           <div style={{ fontSize:14, color:'var(--cream-dim)' }}>IP &amp; Licensing · Marketing Engine · dev section</div>
         </div>
         <div style={{ display:'flex', gap:0, overflowX:'auto' }}>

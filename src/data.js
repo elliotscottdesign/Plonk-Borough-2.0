@@ -189,7 +189,7 @@ export const USE_OF_FUNDS = [
 // Source: "ALL DMN 2025 transactions ALL SITES.xlsx" — every transaction row for Borough venue in 2025,
 // split by Status column (Online portal = 'complete', Office team = 'external', rejected dropped).
 // This dataset is intentionally isolated from the existing deck constants while we develop the new
-// Holding-Co × Venue commission model.
+// Plonk Golf × Venue commission model.
 //
 // Key finding from the data:
 //   - ONLINE portal (Status = complete): 15,188 tickets / £211,163.70 — revenue flows through the online system
@@ -198,16 +198,17 @@ export const USE_OF_FUNDS = [
 //     payment happens through the venue's till, NEVER through the online system.
 //   - Under the new model the office/bookings-team channel goes away entirely. These customers will either
 //     self-serve online (moving volume + revenue into the online channel) or contact the venue directly
-//     (which the venue handles itself — Holding Co takes no commission).
+//     (which the venue handles itself — Plonk Golf takes no commission).
 //
 // Structural assumptions (v1, adjustable later):
-//   - Booking fee: 10% ADDED ON TOP of ticket price at checkout (customer-facing). Kept by Holding Co.
-//   - Commission: SEPARATE %, taken from the VENUE on gross online ticket sales. Holding Co's license fee.
+//   - Booking fee: 10% ADDED ON TOP of ticket price at checkout (customer-facing). Kept by Plonk Golf.
+//   - Commission: SEPARATE %, taken from the VENUE on gross online ticket sales. Plonk Golf's license fee.
 //   - Token value: £0.325 per arcade token, NO VAT on tokens. Each "Golf + 4 Tokens" SKU bundles 4 tokens (£1.30 per ticket).
 //   - Under the new model, tokens move to in-store TILL only — online SKUs will be re-priced to strip the token component.
 
-export const IP_LICENSING_TOKEN_VALUE = 0.325   // £ per arcade token, no VAT
-export const IP_LICENSING_BOOKING_FEE_PCT = 0.10 // 10% added on top at checkout, kept by Holding Co
+export const IP_LICENSING_TOKEN_VALUE = 0.325    // £ per arcade token, no VAT
+export const IP_LICENSING_BOOKING_FEE_PCT = 0.10 // 10% added on top at checkout, kept by Plonk Golf
+export const IP_LICENSING_PAYMENT_FEE_PCT = 0.015 // Stripe-style online payment processor fee — applied to any revenue that flows through the online payment provider (all online SKUs + office bookings if Plonk Golf's bookings manager processes them digitally). Deducted from Plonk Golf P&L as a cost.
 
 // 2025 Borough online-portal SKUs (Status = complete). Revenue flows through online system.
 export const IP_LICENSING_SKUS_ONLINE_2025 = [

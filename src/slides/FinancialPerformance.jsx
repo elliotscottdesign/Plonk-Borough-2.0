@@ -23,7 +23,7 @@ const COSTS = [
   { label:'Cleaning', value:21842, pct:3.5, color:'#F87171', note:null },
   { label:'Arcades', value:17152, pct:2.7, color:'#EA580C', note:null },
   { label:'Food', value:9101, pct:1.4, color:'#F97316', note:null },
-  { label:'Google/Digital', value:8918, pct:1.4, color:'#FB923C', note:'2025 historical Lithos/Google spend · under new IP & Licensing model all ad/SEO spend sits with Plonk Holding Co from 2026' },
+  { label:'Google/Digital', value:8918, pct:1.4, color:'#FB923C', note:'2025 historical Lithos/Google spend · under new IP & Licensing model all ad/SEO spend sits with Plonk Golf from 2026' },
   { label:'Card Charges', value:5443, pct:0.9, color:'#FCD34D', note:null },
 ]
 

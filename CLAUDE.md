@@ -22,7 +22,7 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 ### Entry & shell
 - [src/main.jsx](src/main.jsx) mounts `<App />`.
 - [src/App.jsx](src/App.jsx) is the shell: four top-level tabs (`Investor Deck`, `Venue Info`, `Business Explorer`, `Plonk`) and, for the deck, a static `SLIDES` array that drives the slide nav. All tab/slide state is local `useState` — there's no router.
-- The **Plonk** top-tab is the holding-co / IP dev area — contains the `IP & Licensing` and `Marketing Engine` views as sub-tabs. Marketing Engine used to live in the deck; it was moved here when the new Plonk × Venue licensing model took shape (Holding Co now owns all ad/SEO spend via the IP & Licensing agreement).
+- The **Plonk** top-tab is the Plonk Golf / IP dev area — contains the `IP & Licensing` and `Marketing Engine` views as sub-tabs. Marketing Engine used to live in the deck; it was moved here when the new Plonk × Venue licensing model took shape (Plonk Golf now owns all ad/SEO spend via the IP & Licensing agreement).
 
 ### Adding content
 - **New deck slide**: create a component in `src/slides/`, import it in [src/App.jsx](src/App.jsx), add an entry to the `SLIDES` array (order = display order, `id` is just a key).
