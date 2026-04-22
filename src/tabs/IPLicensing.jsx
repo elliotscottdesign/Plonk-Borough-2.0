@@ -20,6 +20,7 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
     const bookingFee = s.price * IP_LICENSING_BOOKING_FEE_PCT
     const customerTotal = s.price + bookingFee
     const yearTokenCost = s.sold * tokenValue
+    // Booking fee only applies to online-portal bookings (till sales don't carry a booking fee)
     const yearBookingFees = channel === 'online' ? s.revenue * IP_LICENSING_BOOKING_FEE_PCT : 0
     return { ...s, tokenValue, bookingFee, customerTotal, yearTokenCost, yearBookingFees }
   })
@@ -66,7 +67,7 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
                   <td style={{ ...cell, textAlign: 'right', color: channel === 'online' ? '#E67E22' : '#6B7280' }}>{fmt(r.bookingFee)}</td>
                   <td style={{ ...cell, textAlign: 'right', color: '#9CA3AF' }}>{fmt(r.customerTotal)}</td>
                   <td style={{ ...cell, textAlign: 'right', color: 'var(--cream)' }}>{r.sold.toLocaleString()}</td>
-                  <td style={{ ...cell, textAlign: 'right', color: channel === 'online' ? 'var(--gold)' : '#6B7280', fontWeight: 600 }}>{fmt0(r.revenue)}</td>
+                  <td style={{ ...cell, textAlign: 'right', color: 'var(--gold)', fontWeight: 600 }}>{fmt0(r.revenue)}</td>
                 </tr>
               )
             })}
@@ -78,7 +79,7 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
               <td style={{ ...cell, textAlign: 'right', color: channel === 'online' ? '#E67E22' : '#6B7280', fontWeight: 700 }}>{fmt0(totals.yearBookingFees)}</td>
               <td style={cell}></td>
               <td style={{ ...cell, textAlign: 'right', color: 'var(--cream)', fontWeight: 700 }}>{totals.sold.toLocaleString()}</td>
-              <td style={{ ...cell, textAlign: 'right', color: channel === 'online' ? 'var(--gold)' : '#6B7280', fontWeight: 700 }}>{fmt0(totals.revenue)}</td>
+              <td style={{ ...cell, textAlign: 'right', color: 'var(--gold)', fontWeight: 700 }}>{fmt0(totals.revenue)}</td>
             </tr>
           </tbody>
         </table>
@@ -87,29 +88,29 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
   )
 }
 
-// --- Monthly trend with online/office split ---
+// --- Monthly trend with online/office split (revenue) ---
 function MonthlyTrend() {
   const data = IP_LICENSING_MONTHLY_2025
-  const maxQty = Math.max(...data.map(d => d.onlineQty + d.officeQty))
+  const maxRev = Math.max(...data.map(d => d.onlineRev + d.officeRev))
   return (
     <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 20 }}>
       <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
-        Monthly Channel Split — Ticket Volume 2025
+        Monthly Channel Split — Revenue 2025
       </div>
       <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-        Blue = online portal bookings (revenue-bearing) · Grey = office/external (payment via till, £0 online revenue).
+        Blue = online portal revenue (actual) · Grey = office revenue (imputed at SKU list price, till-settled).
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 160, marginBottom: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 180, marginBottom: 8 }}>
         {data.map(d => {
-          const total = d.onlineQty + d.officeQty
-          const onH = (d.onlineQty / maxQty) * 140
-          const ofH = (d.officeQty / maxQty) * 140
+          const total = d.onlineRev + d.officeRev
+          const onH = (d.onlineRev / maxRev) * 150
+          const ofH = (d.officeRev / maxRev) * 150
           return (
             <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 9, color: '#9CA3AF' }}>{total.toLocaleString()}</div>
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: 140 }}>
-                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7 }} title={`Office: ${d.officeQty} tickets`} />
-                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px' }} title={`Online: ${d.onlineQty} tickets`} />
+              <div style={{ fontSize: 9, color: '#9CA3AF' }}>{fmtK(total)}</div>
+              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: 150 }}>
+                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7 }} title={`Office: £${d.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}`} />
+                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px' }} title={`Online: £${d.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})}`} />
               </div>
               <div style={{ fontSize: 10, color: '#6B7280' }}>{d.month}</div>
             </div>
@@ -118,10 +119,10 @@ function MonthlyTrend() {
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9CA3AF', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, marginTop: 6 }}>
         <div style={{ display: 'flex', gap: 16 }}>
-          <span><span style={{ display:'inline-block', width:10, height:10, background:'#4FC3F7', borderRadius:2, marginRight:6 }} />Online {IP_LICENSING_GRAND_2025.onlineQty.toLocaleString()}</span>
-          <span><span style={{ display:'inline-block', width:10, height:10, background:'#6B7280', borderRadius:2, marginRight:6 }} />Office {IP_LICENSING_GRAND_2025.officeQty.toLocaleString()}</span>
+          <span><span style={{ display:'inline-block', width:10, height:10, background:'#4FC3F7', borderRadius:2, marginRight:6 }} />Online {fmt0(IP_LICENSING_GRAND_2025.onlineRev)}</span>
+          <span><span style={{ display:'inline-block', width:10, height:10, background:'#6B7280', borderRadius:2, marginRight:6 }} />Office {fmt0(IP_LICENSING_GRAND_2025.officeRev)} <span style={{ color:'#6B7280', fontStyle:'italic' }}>(imputed)</span></span>
         </div>
-        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>Online rev: {fmt0(IP_LICENSING_GRAND_2025.onlineRev)}</span>
+        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>Total: {fmt0(IP_LICENSING_GRAND_2025.totalRev)}</span>
       </div>
     </div>
   )
@@ -215,7 +216,7 @@ function CommissionModel() {
           <Row label="NET to venue (online)" value={fmt0(m.venueNet)} color={m.venueNet > 0 ? '#2DD4BF' : '#EF4444'} large />
           <div style={{ fontSize: 11, color: '#6B7280', marginTop: 10, lineHeight: 1.5 }}>
             Booking fee (10%) is paid by customer on top — venue never sees it.<br />
-            Office/till bookings ({IP_LICENSING_GRAND_2025.officeQty.toLocaleString()} tickets in 2025) settled directly at venue — no Holding Co involvement.
+            Office/till bookings ({IP_LICENSING_GRAND_2025.officeQty.toLocaleString()} tickets · imputed {fmt0(IP_LICENSING_GRAND_2025.officeRev)} in 2025) settle directly at venue — no Holding Co involvement.
           </div>
         </div>
       </div>
@@ -244,13 +245,17 @@ export default function IPLicensing() {
           IP &amp; Licensing — dev sheet (Borough 2025, split by channel)
         </div>
         <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-          Source: <strong style={{ color: 'var(--cream)' }}>ALL DMN 2025 transactions</strong>, filtered to Borough venue only, split by Status column. Under the new Holding-Co × Venue model, ONLY the online portal channel generates Holding Co revenue (booking fees + commission). Office/till bookings settle directly at the venue.
+          Source: <strong style={{ color: 'var(--cream)' }}>ALL DMN 2025 transactions</strong>, filtered to Borough venue only, split by Status column. Online revenue is actual portal revenue; office revenue is imputed at SKU list price (qty × price) because till payments don't appear in the online system. Under the Holding-Co × Venue model, only the online channel generates Holding Co revenue.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 14 }}>
-          <Stat label="Online Tickets" value={g.onlineQty.toLocaleString()} sub={`${(onlinePct * 100).toFixed(1)}% of total`} color="#4FC3F7" />
-          <Stat label="Online Revenue" value={fmt0(g.onlineRev)} sub="Status = complete" color="var(--gold)" />
-          <Stat label="Office Tickets" value={g.officeQty.toLocaleString()} sub={`${((1-onlinePct) * 100).toFixed(1)}% of total`} color="#9CA3AF" />
-          <Stat label="Office Revenue" value={fmt0(g.officeRev)} sub="Status = external (till)" color="#6B7280" />
+          <Stat label="Online Tickets" value={g.onlineQty.toLocaleString()} sub={`${(onlinePct * 100).toFixed(1)}% of volume`} color="#4FC3F7" />
+          <Stat label="Online Revenue" value={fmt0(g.onlineRev)} sub={`${(g.onlineRev / g.totalRev * 100).toFixed(1)}% of total £ · actual`} color="var(--gold)" />
+          <Stat label="Office Tickets" value={g.officeQty.toLocaleString()} sub={`${((1-onlinePct) * 100).toFixed(1)}% of volume`} color="#9CA3AF" />
+          <Stat label="Office Revenue" value={fmt0(g.officeRev)} sub={`${(g.officeRev / g.totalRev * 100).toFixed(1)}% of total £ · imputed`} color="#9CA3AF" />
+        </div>
+        <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, display:'flex', justifyContent:'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
+          <span>Combined Borough 2025 revenue</span>
+          <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{fmt0(g.totalRev)}</span>
         </div>
       </div>
 
@@ -264,7 +269,7 @@ export default function IPLicensing() {
 
       <SKUTable
         title="Section B · Office / External (Status = external)"
-        subtitle="Reservations booked by the office/bookings team. Payment settled at the venue till — no revenue flows through the online system (all £0). Same SKU pricing shown for reference / imputed value if moved online."
+        subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till, so the online system records £0 — the revenue column below is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
         rows={IP_LICENSING_SKUS_OFFICE_2025}
         accentColor="#9CA3AF"
         channel="office"
@@ -276,7 +281,8 @@ export default function IPLicensing() {
       <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
         <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
         <ul style={{ paddingLeft: 18, margin: 0 }}>
-          <li><strong style={{ color: 'var(--cream)' }}>Channel split is the key insight:</strong> ~{(onlinePct * 100).toFixed(0)}% of 2025 tickets came via the online portal (revenue-bearing). The remaining ~{((1-onlinePct) * 100).toFixed(0)}% were office bookings that bypass the portal entirely — venue handles payment. Under the new model this office channel goes away: those customers must self-serve online or contact the venue directly.</li>
+          <li><strong style={{ color: 'var(--cream)' }}>Channel split:</strong> ~{(onlinePct * 100).toFixed(0)}% of 2025 tickets (and ~{(g.onlineRev / g.totalRev * 100).toFixed(0)}% of revenue) came via the online portal. The remaining ~{((1-onlinePct) * 100).toFixed(0)}% were office/till bookings. Under the new model this office channel goes away: those customers must self-serve online or contact the venue directly.</li>
+          <li><strong style={{ color: 'var(--cream)' }}>Office revenue is imputed</strong> at each SKU's list price (qty × price = £{g.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}). Actual till revenue may differ if the office team discounts/comps. Swap in real till takings when available.</li>
           <li><strong style={{ color: 'var(--cream)' }}>Online total (£{g.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})}) reconciles</strong> with the existing deck's "Online Golf Tickets £210,485" line — small delta is from SKU categorisation edge cases (pool table reservations etc.).</li>
           <li><strong style={{ color: 'var(--cream)' }}>Booking fee 10%:</strong> customer pays ticket + 10%. Holding Co keeps the 10% (funds online funnel). Not part of venue gross.</li>
           <li><strong style={{ color: 'var(--cream)' }}>Commission %:</strong> separate, taken from venue's gross online sales — Holding Co's per-venue licensing fee.</li>
