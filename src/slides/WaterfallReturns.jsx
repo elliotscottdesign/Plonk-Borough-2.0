@@ -10,14 +10,12 @@ const SCENARIOS = {
 }
 
 function calcWaterfall(profit) {
-  const preferred = DEAL.preferred              // 8% × £88k = £7,040
-  const aShare = DEAL.aSharePriority            // £44k to founder entity
-  const remaining = Math.max(0, profit - preferred - aShare)
-  const investorDiv = remaining * DEAL.investorEq   // 36.05%
-  const founderDiv = remaining * DEAL.founderEq     // 63.95%
-  const totalInvestor = preferred + investorDiv
+  // Pure pro-rata — operating profit splits directly by equity %. No preferred, no A-share priority.
+  const investorDiv = profit * DEAL.investorEq   // 36.05%
+  const founderDiv = profit * DEAL.founderEq     // 63.95%
+  const totalInvestor = investorDiv
   const coc = totalInvestor / DEAL.investment
-  return { preferred, aShare, remaining, investorDiv, founderDiv, totalInvestor, coc }
+  return { investorDiv, founderDiv, totalInvestor, coc }
 }
 
 export default function WaterfallReturns() {
@@ -27,11 +25,8 @@ export default function WaterfallReturns() {
 
   const steps = [
     { label: 'Operating Profit', amount: s.profit, color: '#1565C0', note: `${scenario === 'base' ? '+15%' : scenario === 'bear' ? '−10%' : '+25%'} scenario` },
-    { label: 'Less: Preferred Return', amount: -w.preferred, color: '#B71C1C', note: '8% × £88k · paid to investor first' },
-    { label: 'Less: A-Share Priority', amount: -w.aShare, color: '#E67E22', note: 'Priority allocation to founder entity' },
-    { label: 'Remaining Pool', amount: w.remaining, color: '#0D9488', note: 'Available for equity distribution' },
-    { label: `Investor Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, amount: w.investorDiv, color: '#C9A84C', note: `${(DEAL.investorEq*100).toFixed(1)}% × remaining pool` },
-    { label: `Founder Dividend (${(DEAL.founderEq*100).toFixed(1)}%)`, amount: w.founderDiv, color: '#4A5568', note: `${(DEAL.founderEq*100).toFixed(1)}% × remaining pool` },
+    { label: `Investor Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, amount: w.investorDiv, color: '#C9A84C', note: `${(DEAL.investorEq*100).toFixed(1)}% × operating profit · paid pro-rata` },
+    { label: `Founder Dividend (${(DEAL.founderEq*100).toFixed(1)}%)`, amount: w.founderDiv, color: '#4A5568', note: `${(DEAL.founderEq*100).toFixed(1)}% × operating profit · paid pro-rata` },
   ]
 
   return (
@@ -40,7 +35,7 @@ export default function WaterfallReturns() {
         Investor Returns
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        How distributions flow — preferred return first, then equity split.
+        Pure pro-rata — all shareholders paid at the same time by equity %. No preferred return, no priority tiers.
       </p>
 
       {/* Scenario selector */}
@@ -98,7 +93,7 @@ export default function WaterfallReturns() {
               {fmt(w.totalInvestor)}
             </div>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>
-              Preferred {fmt(w.preferred)} + Dividend {fmt(w.investorDiv)}
+              {`${(DEAL.investorEq*100).toFixed(1)}%`} pro-rata dividend on operating profit
             </div>
           </div>
 
@@ -106,17 +101,16 @@ export default function WaterfallReturns() {
             <Row label="Cash-on-Cash Return" value={`${(w.coc * 100).toFixed(1)}%`} gold />
             <Row label="Payback Period" value={`${(DEAL.investment / w.totalInvestor).toFixed(2)} years`} />
             <Row label={`On ${fmt(DEAL.investment)} invested`} value={fmt(DEAL.investment)} />
-            <Row label="Preferred (paid first)" value={fmt(w.preferred)} gold />
-            <Row label="Equity dividend" value={fmt(w.investorDiv)} />
+            <Row label={`Equity dividend (${(DEAL.investorEq*100).toFixed(1)}%)`} value={fmt(w.investorDiv)} gold />
+            <Row label="Distribution timing" value="Same as founder" />
           </div>
 
           <div className="card" style={{ padding: 20 }}>
             <div style={{ fontSize: 11, color: 'var(--gold-dim)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
               Founder Position
             </div>
-            <Row label="A-Share Priority" value={fmt(w.aShare)} />
             <Row label={`Equity Dividend (${(DEAL.founderEq*100).toFixed(1)}%)`} value={fmt(w.founderDiv)} />
-            <Row label="Total Founder" value={fmt(w.aShare + w.founderDiv)} />
+            <Row label="Paid" value="Alongside investor, pro-rata" />
           </div>
 
           <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, padding: '4px 0' }}>

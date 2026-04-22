@@ -4,8 +4,8 @@ export default function Cover() {
   const stats = [
     { label: 'Seeking', value: '£88,000 inc VAT', sub: '36% equity · 64% retained by founder' },
     { label: '2025 Verified Revenue', value: '£741,644', sub: 'Real trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: '£57,472', sub: '65.3% cash-on-cash · payback 1.53 yrs' },
-    { label: 'Preferred Return', value: '£7,040/yr', sub: '8% annual · paid first before distributions' },
+    { label: 'Year 1 Investor Return', value: '£68,836', sub: '78.2% cash-on-cash · payback 1.28 yrs' },
+    { label: 'Distribution Model', value: 'Pro-rata', sub: 'All shareholders paid by equity % at the same time' },
     { label: 'Forecast Revenue', value: '£852,891', sub: 'Base case +15% · May 2026–Apr 2027' },
     { label: 'Valuation Entry', value: '1.70×', sub: 'EBITDA · distressed acquisition pricing' },
   ]

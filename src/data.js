@@ -8,11 +8,13 @@ export const BUSINESS = {
 }
 
 // === DEAL STRUCTURE ===
-// IP purchase reduced to a £10k + VAT licence fee (was £72k Plonk IP & Goodwill), so
-// total investment ask drops from £150k to £88k + VAT. Pre-money valuation (1.70×
-// 2025 EBITDA = £156,122) is unchanged — the business is worth what it's worth — so
-// investor equity rebalances to 36.05% (founder retains 63.95%). Derived returns all
-// recompute: smaller preferred (8% × £88k), bigger remaining pool, higher CoC.
+// Investment ask £88,000 inc VAT. Pre-money valuation 1.70× 2025 EBITDA = £156,122.
+// Investor equity 36.05% / founder 63.95%.
+//
+// DISTRIBUTION MODEL: pure pro-rata. All shareholders paid at the same time by equity %.
+// No preferred return tier (previously 8% × £88k paid first to investor — removed).
+// No A-share priority tier (previously £44k paid first to founder entity — removed).
+// The full operating profit flows through the equity split.
 export const DEAL = {
   investment: 88000,
   founderEq: 0.6395,
@@ -20,13 +22,13 @@ export const DEAL = {
   multiple: 1.6979,
   preMoney: 156122,
   postMoney: 244122,
-  preferred: 7040,        // 8% × £88k
-  aSharePriority: 44000,  // to founder entity
-  investorDividend: 50432,
-  totalInvestorReturn: 57472,
-  coc: 0.6531,
-  payback: 1.53,
-  aShareThreshold: 12206, // 5% of post-money
+  preferred: 0,              // removed — pure pro-rata, no preferred tier
+  aSharePriority: 0,         // removed — pure pro-rata, no founder priority slice
+  investorDividend: 68836,   // 36.05% × £190,945 operating profit
+  totalInvestorReturn: 68836,// equals dividend (no preferred top-up)
+  coc: 0.7822,               // 78.2% on £88k invested
+  payback: 1.28,             // years
+  aShareThreshold: 12206,    // 5% of post-money — governance floor for A-share voting rights
 }
 
 // === 2025 ACTUALS ===
@@ -151,15 +153,16 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
+// Pure pro-rata — no preferred or A-share priority. Operating profit splits directly by equity.
 export const WATERFALL = {
   operatingProfit: 190945,
-  preferred: 7040,           // 8% × £88k
-  aSharePriority: 44000,
-  remainingPool: 139905,     // 190,945 − 7,040 − 44,000
-  investorDividend: 50432,   // remainingPool × 36.05%
-  founderDividend: 89473,    // remainingPool × 63.95%
-  totalInvestor: 57472,      // preferred + investorDividend
-  totalFounder: 133473,      // aSharePriority + founderDividend
+  preferred: 0,
+  aSharePriority: 0,
+  remainingPool: 190945,       // = operating profit (no tier deductions)
+  investorDividend: 68836,     // 36.05% × £190,945
+  founderDividend: 122109,     // 63.95% × £190,945
+  totalInvestor: 68836,
+  totalFounder: 122109,
 }
 
 // === GOVERNANCE ===

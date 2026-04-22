@@ -11,7 +11,7 @@ const GROWTH = [
 
 const RISKS = [
   { risk:'Reopening timeline delay', rating:'Low', mitigation:'Lease secured, hardware acquired from liquidation, staff network retained. Target May 2026.' },
-  { risk:'Revenue below base case forecast', rating:'Low', mitigation:'Base case is +15% on verified 2025 actuals. Preferred return still paid if revenue is flat.' },
+  { risk:'Revenue below base case forecast', rating:'Low', mitigation:'Base case is +15% on verified 2025 actuals. Pro-rata dividend flexes with whatever operating profit the venue delivers.' },
   { risk:'Wage inflation', rating:'Medium', mitigation:'NMW modelled at 2025 actuals. No optimistic wage assumption. Wage calculator models scenarios.' },
   { risk:'Brand transition (Plonk→No Dice)', rating:'Medium', mitigation:'SEO redirect preserves domain authority. Existing customer database retained. Location unchanged.' },
   { risk:'Marketing variability', rating:'Low', mitigation:'Google Ads proven at £0.32 CPC with live conversion tracking. SEO programme starts Day 1.' },
@@ -81,9 +81,9 @@ export default function GrowthRisks() {
           <div className="card-highlight" style={{ padding:18, marginTop:12 }}>
             <div style={{ fontSize:11, color:'var(--gold)', marginBottom:8 }}>Overall Risk Profile</div>
             <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.6 }}>
-              Four low risks, two medium. No high risks identified. The preferred return structure
-              means investors receive £12,000/yr even in a below-forecast year, providing meaningful
-              downside protection.
+              Four low risks, two medium. No high risks identified. Investor return flexes with the
+              business — pro-rata on operating profit means upside and downside sit on the same side
+              of the table as the founder.
             </div>
           </div>
         </div>

@@ -8,18 +8,18 @@ const pct = (n) => (n * 100).toFixed(1) + '%'
 export default function InvestmentSummary() {
   const [amount, setAmount] = useState(88000)
 
-  // Remaining pool after preferred return (8% × invested amount) and founder A-share priority (£44k)
-  const REMAINING_POOL_BASE = 139905 // 190,945 operating profit − preferred (at £88k baseline) − £44k
+  // Pure pro-rata distribution — no preferred, no A-share priority.
+  // Investor's dividend = operating profit × their equity share.
+  const OPERATING_PROFIT_BASE = 190945
   const equity = amount / DEAL.postMoney
-  const preferredReturn = amount * 0.08
-  const dividend = REMAINING_POOL_BASE * equity
-  const total = preferredReturn + dividend
+  const dividend = OPERATING_PROFIT_BASE * equity
+  const total = dividend
   const coc = total / amount
   const isAShare = equity >= 0.05
 
   // Recalculate based on slider
-  const divCalc = REMAINING_POOL_BASE * equity
-  const totalCalc = amount * 0.08 + divCalc
+  const divCalc = OPERATING_PROFIT_BASE * equity
+  const totalCalc = divCalc
   const cocCalc = totalCalc / amount
 
   return (
@@ -55,8 +55,8 @@ export default function InvestmentSummary() {
             Year 1 Returns (Base Case)
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Term label="Preferred Return (8% × £88k)" value={fmt(DEAL.preferred)} gold />
             <Term label={`Equity Dividend (${pct(DEAL.investorEq)})`} value={fmt(DEAL.investorDividend)} />
+            <Term label="Distribution Model" value="Pro-rata · no tiers" gold />
             <Term label="Total Year 1 Return" value={fmt(DEAL.totalInvestorReturn)} gold large />
             <Term label="Cash-on-Cash" value={`${(DEAL.coc*100).toFixed(1)}%`} gold />
             <Term label="Payback Period" value={`${DEAL.payback} years`} />
@@ -105,9 +105,8 @@ export default function InvestmentSummary() {
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
           <CalcResult label="Ownership" value={pct(equity)} />
-          <CalcResult label="Preferred (8%)" value={fmt(amount * 0.08)} />
           <CalcResult label="Equity Dividend" value={fmt(divCalc)} />
           <CalcResult label="Total Year 1" value={fmt(totalCalc)} gold />
         </div>

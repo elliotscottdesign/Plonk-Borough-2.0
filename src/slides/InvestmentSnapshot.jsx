@@ -9,16 +9,14 @@ const SCENARIOS = {
 }
 
 function calcReturns(multiplier) {
+  // Pure pro-rata: operating profit splits directly by equity %. No preferred, no A-share priority.
   const revenue = ACTUALS_2025.revenue * multiplier
   const opProfit = revenue * 0.224
-  const preferred = 12000
-  const aShare = 44000
-  const remaining = Math.max(0, opProfit - preferred - aShare)
-  const investorDiv = remaining * DEAL.investorEq
-  const total = preferred + investorDiv
+  const investorDiv = opProfit * DEAL.investorEq
+  const total = investorDiv
   const coc = total / DEAL.investment
   const payback = DEAL.investment / total
-  return { revenue, opProfit, preferred, investorDiv, total, coc, payback }
+  return { revenue, opProfit, investorDiv, total, coc, payback }
 }
 
 export default function InvestmentSnapshot() {
@@ -66,8 +64,8 @@ export default function InvestmentSnapshot() {
           ['2025 EBITDA', fmt(ACTUALS_2025.ebitda)],
         ]} />
         <Section title="💰 Investor Returns" items={[
-          ['Preferred Return (first)', fmt(r.preferred), true],
-          ['Equity Dividend', fmt(r.investorDiv), true],
+          ['Distribution Model', 'Pro-rata · no tiers', true],
+          [`Equity Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, fmt(r.investorDiv), true],
           ['Total Year 1 Return', fmt(r.total), true],
           ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],
           ['Payback Period', `${r.payback.toFixed(1)} years`],

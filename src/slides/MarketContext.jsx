@@ -56,7 +56,7 @@ export default function MarketContext() {
         <div style={{ background:'#13131A', border:'2px solid #C9A84C', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>→ The Deal in One Line</div>
           <p style={{ fontSize:14, color:'#F5F0E8', lineHeight:1.7, marginBottom:20 }}>
-            A proven Borough Market experience venue, acquired at distressed pricing (<span style={{ color:'#C9A84C', fontWeight:700 }}>1.70× EBITDA</span>), delivering <span style={{ color:'#E67E22', fontWeight:700 }}>8% guaranteed preferred return</span> + equity participation, with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
+            A proven Borough Market experience venue, acquired at distressed pricing (<span style={{ color:'#C9A84C', fontWeight:700 }}>1.70× EBITDA</span>), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
           </p>
           {[
             { check:'✓ Not a multiple expansion bet', sub:'Returns driven by operating cash flow' },

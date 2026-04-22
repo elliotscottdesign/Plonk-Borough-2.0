@@ -131,21 +131,19 @@ function TabPerformance() {
 }
 
 function TabInvestorReturns() {
-  const preferred = 7040                // 8% × £88k
-  const aShare = 44000                  // founder A-share priority
+  // Pure pro-rata: operating profit splits directly by equity %. No preferred, no A-share priority.
   const totalProfit = 190945
-  const remaining = totalProfit - preferred - aShare
   const INVESTOR_EQ = 0.3605
   const FOUNDER_EQ = 0.6395
-  const investorDiv = Math.round(remaining * INVESTOR_EQ)
-  const founderDiv = Math.round(remaining * FOUNDER_EQ)
-  const totalInvestor = preferred + investorDiv
+  const investorDiv = Math.round(totalProfit * INVESTOR_EQ)
+  const founderDiv = Math.round(totalProfit * FOUNDER_EQ)
+  const totalInvestor = investorDiv
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'Preferred Return', value:fmt(preferred), sub:'Before profit share', color:'#C9A84C' },
-          { label:'Investor Dividend', value:fmt(investorDiv), sub:`${(INVESTOR_EQ*100).toFixed(1)}% of remaining pool`, color:'#4FC3F7' },
+          { label:'Distribution Model', value:'Pro-rata', sub:'No preferred · no tiers', color:'#C9A84C' },
+          { label:'Investor Dividend', value:fmt(investorDiv), sub:`${(INVESTOR_EQ*100).toFixed(1)}% × operating profit`, color:'#4FC3F7' },
           { label:'Total Investor Return', value:fmt(totalInvestor), sub:'Year 1 base case', color:'#2DD4BF' },
         ].map(s => (
           <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
@@ -156,13 +154,10 @@ function TabInvestorReturns() {
         ))}
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Profit Waterfall — Base Case Scenario</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Profit Split — Base Case Scenario</div>
         <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {[
             { label:'Total Operating Profit', value:fmt(totalProfit), color:'#4FC3F7', width:100 },
-            { label:'Preferred Return (Investor)', value:fmt(preferred), color:'#C9A84C', width:Math.round(preferred/totalProfit*100) },
-            { label:'A-Share Priority (Founder)', value:fmt(aShare), color:'#E67E22', width:Math.round(aShare/totalProfit*100) },
-            { label:'Remaining Pool', value:fmt(remaining), color:'#6B7280', width:Math.round(remaining/totalProfit*100) },
             { label:`Investor Share (${(INVESTOR_EQ*100).toFixed(1)}%)`, value:fmt(investorDiv), color:'#2DD4BF', width:Math.round(investorDiv/totalProfit*100) },
             { label:`Founder Share (${(FOUNDER_EQ*100).toFixed(1)}%)`, value:fmt(founderDiv), color:'#8B5CF6', width:Math.round(founderDiv/totalProfit*100) },
           ].map(item => (
@@ -254,13 +249,13 @@ function TabScenarios() {
   const baseRev = 741644
   const customRev = Math.round(baseRev * (1 + revGrowth/100) + events * 3500)
   const customEbitda = Math.round(customRev * 0.224 * (200-opex)/100)
-  // 2026 deal: £88k invested, 8% preferred (£7,040), £44k A-share priority, 36.05% investor equity
-  const customReturn = Math.round(7040 + Math.max(0, customEbitda - 7040 - 44000) * 0.3605)
+  // 2026 deal: £88k invested, 36.05% investor equity. Pure pro-rata — operating profit splits by equity.
+  const customReturn = Math.round(Math.max(0, customEbitda) * 0.3605)
   const customCoc = ((customReturn / 88000) * 100).toFixed(1)
   const scenarios = [
-    { label:'CONSERVATIVE', rev:816000, profit:87000,  ret:20004, coc:22.7 },
-    { label:'BASE CASE',    rev:853000, profit:191000, ret:57476, coc:65.3 },
-    { label:'OPTIMISTIC',   rev:927000, profit:220000, ret:67950, coc:77.2 },
+    { label:'CONSERVATIVE', rev:816000, profit:87000,  ret:31364, coc:35.6 },
+    { label:'BASE CASE',    rev:853000, profit:190945, ret:68836, coc:78.2 },
+    { label:'OPTIMISTIC',   rev:927000, profit:220000, ret:79310, coc:90.1 },
     { label:'CUSTOM',       rev:customRev, profit:customEbitda, ret:Math.max(0,customReturn), coc:parseFloat(customCoc) },
   ]
   return (

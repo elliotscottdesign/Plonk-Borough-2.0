@@ -20,9 +20,9 @@ const STRENGTHS = [
     body: `${DEAL.multiple.toFixed(2)}× EBITDA entry multiple via acquisition from liquidation. Comparable hospitality venues trade at 3–5× EBITDA. Immediate equity uplift on Day 1.`,
   },
   {
-    icon: '🛡️',
-    title: 'Preferred Return Protection',
-    body: `${fmt(DEAL.preferred)} annual preferred return paid before any equity distribution. 8% on ${fmt(DEAL.investment)} invested — guaranteed first position in the waterfall.`,
+    icon: '🤝',
+    title: 'Aligned Distribution Model',
+    body: `All shareholders paid at the same time — pure pro-rata on operating profit by equity %. No preferred return, no priority tiers. Founder and investor incentives move together from the first payout.`,
   },
   {
     icon: '🎯',
@@ -46,7 +46,7 @@ const UPSIDE = [
 
 const RISKS = [
   { risk: 'Reopening timeline', rating: 'Low', mitigation: 'Lease secured, hardware acquired, staff retained. Target May 2026.' },
-  { risk: 'Revenue below forecast', rating: 'Low', mitigation: 'Base case is +15% on verified 2025 actuals. Preferred return paid even if revenue flat.' },
+  { risk: 'Revenue below forecast', rating: 'Low', mitigation: 'Base case is +15% on verified 2025 actuals. Investor dividend is pro-rata on whatever operating profit the venue produces.' },
   { risk: 'Wage inflation', rating: 'Medium', mitigation: 'NMW modelled at 2025 actuals — no optimistic assumption. Wage calculator available for scenario testing.' },
   { risk: 'Brand transition (Plonk → No Dice)', rating: 'Medium', mitigation: 'SEO redirect preserves domain authority. Existing customer database retained. Borough Market location unchanged.' },
 ]
