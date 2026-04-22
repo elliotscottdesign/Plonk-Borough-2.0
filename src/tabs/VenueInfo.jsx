@@ -70,16 +70,16 @@ function TabCatchment() {
   const stats = [
     { value:'130K+', label:'LONDON BRIDGE FOOTFALL', sub:'daily station passengers', source:'TfL 2024', color:'#4FC3F7' },
     { value:'15-20M', label:'BOROUGH MARKET VISITORS', sub:'annual visitors to the area', source:'Borough Market Trust', color:'#4FC3F7' },
-    { value:'Â£57K', label:'SE1 MEDIAN INCOME', sub:'household income', source:'ONS 2024', color:'#2DD4BF' },
-    { value:'48%', label:'AGE 25â44', sub:'of SE1 residents', source:'Census 2021', color:'#4FC3F7' },
+    { value:'£57K', label:'SE1 MEDIAN INCOME', sub:'household income', source:'ONS 2024', color:'#2DD4BF' },
+    { value:'48%', label:'AGE 25–44', sub:'of SE1 residents', source:'Census 2021', color:'#4FC3F7' },
     { value:'90,475', label:'VENUE PAGE VIEWS 2025', sub:'verified GA4', source:'Google Analytics', color:'#4FC3F7' },
     { value:'58%', label:'ORGANIC SEARCH SHARE', sub:'of all traffic', source:'GA4 2025', color:'#2DD4BF' },
   ]
   const strengths = [
-    { icon:'ð¢', title:'CITY WORKER PROXIMITY', text:'The Square Mile is within 10-minute walking distance. Corporate lunch, after-work and team-building bookings are a core revenue opportunity.' },
-    { icon:'ð', title:'YOUNG PROFESSIONAL BASE', text:'48% of SE1 residents are aged 25â44 â the primary spending demographic for experience-led hospitality.' },
-    { icon:'âï¸', title:'INTERNATIONAL TOURISM', text:'Borough Market and The Shard draw millions of international visitors annually. No Dice Borough is a natural tourist magnet â an experience venue with no paid acquisition cost.' },
-    { icon:'ð', title:'EVENING ECONOMY', text:'London Bridge is a major night economy hub. Friday and Saturday footfall is exceptional with no enforced curfew on experience venues.' },
+    { icon:'🏢', title:'CITY WORKER PROXIMITY', text:'The Square Mile is within 10-minute walking distance. Corporate lunch, after-work and team-building bookings are a core revenue opportunity.' },
+    { icon:'👥', title:'YOUNG PROFESSIONAL BASE', text:'48% of SE1 residents are aged 25–44 — the primary spending demographic for experience-led hospitality.' },
+    { icon:'✈️', title:'INTERNATIONAL TOURISM', text:'Borough Market and The Shard draw millions of international visitors annually. No Dice Borough is a natural tourist magnet — an experience venue with no paid acquisition cost.' },
+    { icon:'🌙', title:'EVENING ECONOMY', text:'London Bridge is a major night economy hub. Friday and Saturday footfall is exceptional with no enforced curfew on experience venues.' },
   ]
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:32 }}>
