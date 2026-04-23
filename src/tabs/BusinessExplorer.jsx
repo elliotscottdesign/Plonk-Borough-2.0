@@ -2,7 +2,7 @@ import React, { useState } from 'react'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 
-const TABS = ['Overview','Financial Performance','2026 Performance','Scenarios','Market Context','Wages']
+const TABS = ['Overview','2025 Performance','2026 Performance','Scenarios','Market Context','Wages']
 
 const fmt = n => '£' + Math.round(n).toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
@@ -84,9 +84,10 @@ const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#
 const PERF_GROWTH_MIN = -20
 const PERF_GROWTH_MAX = 50
 const PERF_MARKERS = [
-  { label: 'Bear', value: -10, color: '#EF4444' },
-  { label: 'Base', value:  15, color: '#C9A84C' },
-  { label: 'Bull', value:  25, color: '#22D3EE' },
+  { label: 'Bear',   value: -10, color: '#EF4444' },
+  { label: '2025',   value:   0, color: '#9CA3AF' },  // flat — same as 2025 actuals
+  { label: 'Base',   value:  15, color: '#C9A84C' },
+  { label: 'Bull',   value:  25, color: '#22D3EE' },
 ]
 const perfGrowthToPct = g => ((g - PERF_GROWTH_MIN) / (PERF_GROWTH_MAX - PERF_GROWTH_MIN)) * 100
 
@@ -470,7 +471,7 @@ export default function BusinessExplorer() {
   const [tab, setTab] = useState('Overview')
   const tabComponents = {
     'Overview': <TabOverview />,
-    'Financial Performance': <FinancialPerformance />,
+    '2025 Performance': <FinancialPerformance />,
     '2026 Performance': <TabPerformance />,
     'Scenarios': <TabScenarios />,
     'Market Context': <TabMarketContext />,
