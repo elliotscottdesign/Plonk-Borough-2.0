@@ -71,7 +71,13 @@ export function DonutChart({ data, total, size=200 }) {
     angle += slice
     const x2 = cx+r*Math.cos(angle), y2 = cy+r*Math.sin(angle)
     const large = slice > Math.PI ? 1 : 0
-    return <path key={i} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={d.color} stroke="#0A0A0F" strokeWidth={1} />
+    const pct = d.pct != null ? d.pct : ((d.value / total) * 100).toFixed(1)
+    const tip = `${d.label || ''}: £${Math.round(d.value).toLocaleString()} · ${pct}%`
+    return (
+      <path key={i} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={d.color} stroke="#0A0A0F" strokeWidth={1}>
+        <title>{tip}</title>
+      </path>
+    )
   })
   return (
     <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
@@ -83,6 +89,8 @@ export function DonutChart({ data, total, size=200 }) {
 
 function StackedBar({ monthly, maxH=120 }) {
   const maxVal = Math.max(...monthly.map(m => m.bar+m.golf+m.events+m.hire+m.sc+m.pool))
+  const LABELS = ['Spend at Bar','Online Golf Tickets','Bookings & Events','Private Hires','Service Charge','Pool Tickets']
+  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
       {monthly.map((m,i) => {
@@ -92,10 +100,11 @@ function StackedBar({ monthly, maxH=120 }) {
           { v:m.bar, c:'#1E40AF' }, { v:m.golf, c:'#1D4ED8' }, { v:m.events, c:'#2563EB' },
           { v:m.hire, c:'#3B82F6' }, { v:m.sc, c:'#60A5FA' }, { v:m.pool, c:'#93C5FD' }
         ]
+        const monthTip = `${m.m} · Total ${fmtTip(total)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c }} />)}
+              {segs.map((s,j) => <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
@@ -107,6 +116,8 @@ function StackedBar({ monthly, maxH=120 }) {
 
 function CostStackedBar({ monthly, maxH=120 }) {
   const maxVal = Math.max(...monthly.map(m => (m.wages||0)+(m.fixed||0)+(m.drinks||0)+(m.vat||0)+(m.other||m.vat2||0)))
+  const LABELS = ['Wages','Fixed Costs','Drinks & Gas','VAT (Net)','Other']
+  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
       {monthly.map((m,i) => {
@@ -116,10 +127,11 @@ function CostStackedBar({ monthly, maxH=120 }) {
           { v:m.wages||0, c:'#991B1B' }, { v:m.fixed||0, c:'#B91C1C' },
           { v:m.drinks||0, c:'#DC2626' }, { v:m.vat||0, c:'#EF4444' }, { v:m.other||m.vat2||0, c:'#F87171' }
         ]
+        const monthTip = `${m.m} · Total ${fmtTip(total)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c }} />)}
+              {segs.map((s,j) => <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
@@ -135,8 +147,9 @@ function ChannelBars({ rows, accent, maxRev }) {
     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
       {rows.filter(r => r.sold > 0).map(r => {
         const w = (r.revenue / maxRev) * 100
+        const tip = `${r.sku}\n  Units: ${r.sold.toLocaleString()}\n  Revenue: ${fmt(r.revenue)}`
         return (
-          <div key={r.sku}>
+          <div key={r.sku} title={tip}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#D1D5DB', marginBottom:3 }}>
               <span style={{ flex:1, paddingRight:8, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.sku}</span>
               <span style={{ color:'#9CA3AF', marginRight:8 }}>{r.sold.toLocaleString()}</span>

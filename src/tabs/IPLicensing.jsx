@@ -107,12 +107,13 @@ function MonthlyTrend() {
           const total = d.onlineRev + d.officeRev
           const onH = (d.onlineRev / maxRev) * 150
           const ofH = (d.officeRev / maxRev) * 150
+          const monthTip = `${d.month} · Total ${fmt0(total)}\n  Online: ${fmt0(d.onlineRev)}\n  Office (imputed): ${fmt0(d.officeRev)}`
           return (
-            <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
+            <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }} title={monthTip}>
               <div style={{ fontSize: 9, color: '#9CA3AF' }}>{fmtK(total)}</div>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: 150 }}>
-                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7 }} title={`Office: £${d.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}`} />
-                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px' }} title={`Online: £${d.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})}`} />
+                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7 }} title={`${d.month} · Office (imputed): ${fmt0(d.officeRev)}`} />
+                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px' }} title={`${d.month} · Online: ${fmt0(d.onlineRev)}`} />
               </div>
               <div style={{ fontSize: 10, color: '#6B7280' }}>{d.month}</div>
             </div>

@@ -30,15 +30,18 @@ function TabOverview() {
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:16 }}>Monthly Revenue & EBITDA Forecast · May 2026 – Apr 2027</div>
         <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:140, marginBottom:8 }}>
-          {months.map((m,i) => (
-            <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-              <div style={{ width:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', height:120 }}>
-                <div style={{ width:'100%', background:'#4FC3F7', borderRadius:'2px 2px 0 0', height:Math.max(2,(rev[i]/maxRev)*100)+'px', opacity:0.7 }} />
-                <div style={{ width:'100%', background:ebitda[i]>0?'#2DD4BF':'#EF4444', borderRadius:'2px 2px 0 0', height:Math.max(2,(Math.abs(ebitda[i])/maxRev)*100)+'px', marginTop:2 }} />
+          {months.map((m,i) => {
+            const tip = `${m} · Revenue ${fmtK(rev[i])} · EBITDA ${fmtK(ebitda[i])}`
+            return (
+              <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }} title={tip}>
+                <div style={{ width:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', height:120 }}>
+                  <div style={{ width:'100%', background:'#4FC3F7', borderRadius:'2px 2px 0 0', height:Math.max(2,(rev[i]/maxRev)*100)+'px', opacity:0.7 }} title={`${m} · Revenue ${fmtK(rev[i])}`} />
+                  <div style={{ width:'100%', background:ebitda[i]>0?'#2DD4BF':'#EF4444', borderRadius:'2px 2px 0 0', height:Math.max(2,(Math.abs(ebitda[i])/maxRev)*100)+'px', marginTop:2 }} title={`${m} · EBITDA ${fmtK(ebitda[i])}`} />
+                </div>
+                <div style={{ fontSize:9, color:'#6B7280' }}>{m}</div>
               </div>
-              <div style={{ fontSize:9, color:'#6B7280' }}>{m}</div>
-            </div>
-          ))}
+            )
+          })}
         </div>
         <div style={{ display:'flex', gap:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#4FC3F7', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>Revenue</span></div>
@@ -290,21 +293,26 @@ function Stacked2026({ monthly, kind, maxH=120 }) {
   const palette = kind === 'income'
     ? ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
     : ['#4C1D95','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
+  const LABELS = kind === 'income'
+    ? ['Spend at Bar','Online Golf Tickets','Bookings & Events','Private Hires','Service Charge','Pool Tickets']
+    : ['Wages','Fixed Costs','Drinks & Gas','VAT (Net)','Other']
   const getSegs = m => kind === 'income'
     ? [{ v:m.bar, c:palette[0] },{ v:m.golf, c:palette[1] },{ v:m.events, c:palette[2] },{ v:m.hire, c:palette[3] },{ v:m.sc, c:palette[4] },{ v:m.pool, c:palette[5] }]
     : [{ v:m.wages, c:palette[0] },{ v:m.fixed, c:palette[1] },{ v:m.drinks, c:palette[2] },{ v:m.vat, c:palette[3] },{ v:m.other, c:palette[4] }]
   const total = m => getSegs(m).reduce((s, x) => s + (x.v || 0), 0)
   const maxVal = Math.max(...monthly.map(total))
+  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
       {monthly.map((m,i) => {
         const t = total(m)
         const h = Math.round((t / maxVal) * maxH)
         const segs = getSegs(m)
+        const monthTip = `${m.m} · Total ${fmtTip(t)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c }} />)}
+              {segs.map((s,j) => <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>

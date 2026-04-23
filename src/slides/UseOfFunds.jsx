@@ -20,7 +20,7 @@ export default function UseOfFunds() {
         <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:20 }}>Fund Allocation — Visual Breakdown</div>
           <div style={{ display:'flex', height:32, borderRadius:6, overflow:'hidden', marginBottom:24 }}>
-            {funds.map(f => <div key={f.label} style={{ width:f.pct+'%', background:f.color }} />)}
+            {funds.map(f => <div key={f.label} style={{ width:f.pct+'%', background:f.color }} title={`${f.label}: £${f.amount.toLocaleString()}${f.vat ? ' ' + f.vat : ''} · ${f.pct}%`} />)}
           </div>
           {funds.map(f => (
             <div key={f.label} style={{ marginBottom:16 }}>
