@@ -91,16 +91,36 @@ const PERF_MARKERS = [
 ]
 const perfGrowthToPct = g => ((g - PERF_GROWTH_MIN) / (PERF_GROWTH_MAX - PERF_GROWTH_MIN)) * 100
 
-function TabPerformance() {
-  const [growth, setGrowth] = useState(15)
-  const mult = 1 + growth / 100
+// Per-line growth map: the 4 breakdown sliders (Scenarios) drive 4 specific revenue
+// lines. Service Charge + Pool scale by the simple average of the 4 (keeps the old
+// "uniform" behaviour when all 4 sliders match).
+function buildLineGrowths(g) {
+  const avg = (g.bar + g.golf + g.hires + g.events) / 4
+  return {
+    'Spend at Bar': g.bar,
+    'Online Golf Tickets': g.golf,
+    'Bookings & Events': g.events,
+    'Private Hires': g.hires,
+    'Service Charge': avg,
+    'Pool Tickets': avg,
+  }
+}
 
-  const income2026 = INCOME.map((i, idx) => ({
-    label: i.label,
-    value: Math.round(i.value * mult),
-    color: INCOME_2026_COLORS[idx] || INCOME_2026_COLORS[INCOME_2026_COLORS.length - 1],
-  }))
+function TabPerformance({ growth }) {
+  const lineGrowths = buildLineGrowths(growth)
+  const BASE_TOTAL = INCOME.reduce((s, i) => s + i.value, 0)
+
+  const income2026 = INCOME.map((i, idx) => {
+    const g = lineGrowths[i.label] ?? 0
+    return {
+      label: i.label,
+      value: Math.round(i.value * (1 + g / 100)),
+      color: INCOME_2026_COLORS[idx] || INCOME_2026_COLORS[INCOME_2026_COLORS.length - 1],
+    }
+  })
   const totalIncome = income2026.reduce((s, i) => s + i.value, 0)
+  const aggGrowth = BASE_TOTAL > 0 ? ((totalIncome - BASE_TOTAL) / BASE_TOTAL) * 100 : 0
+  const mult = 1 + aggGrowth / 100   // for non-revenue-specific cost scaling
   const incomeWithPct = income2026.map(i => ({ ...i, pct: +(i.value / totalIncome * 100).toFixed(1) }))
 
   // Drinks COGS: 30% of bar revenue (2025 actual was 22.5% — models margin compression).
@@ -110,12 +130,12 @@ function TabPerformance() {
     { label: 'Wages',            value: Math.round(242370 * 1.10), note: '+10% on 2025' },
     { label: 'Fixed Costs',      value: Math.round(165059 * 1.10), note: 'Rent, rates, utilities, insurance, internet, PRS · +10% on 2025' },
     { label: 'Drinks & Gas',     value: drinksGas2026,              note: '30% of bar revenue (2025 actual was 22.5%)' },
-    { label: 'VAT (Net)',        value: Math.round(78851 * mult),   note: 'Scales with revenue' },
-    { label: 'Cleaning',         value: Math.round(21842 * mult),   note: 'Scales with revenue' },
-    { label: 'Arcades',          value: Math.round(17152 * mult),   note: 'Scales with revenue' },
-    { label: 'Food',             value: Math.round(9101 * mult),    note: 'Scales with revenue' },
+    { label: 'VAT (Net)',        value: Math.round(78851 * mult),   note: 'Scales with aggregate revenue' },
+    { label: 'Cleaning',         value: Math.round(21842 * mult),   note: 'Scales with aggregate revenue' },
+    { label: 'Arcades',          value: Math.round(17152 * mult),   note: 'Scales with aggregate revenue' },
+    { label: 'Food',             value: Math.round(9101 * mult),    note: 'Scales with aggregate revenue' },
     { label: 'Hosting (Lithos)', value: 3492,                        note: 'Fixed — SEO/Ads now owned by Plonk Golf' },
-    { label: 'Card Charges',     value: Math.round(5443 * mult),    note: 'Scales with revenue' },
+    { label: 'Card Charges',     value: Math.round(5443 * mult),    note: 'Scales with aggregate revenue' },
   ]
   const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
   const costs2026 = costsRaw.map((c, idx) => ({
@@ -126,19 +146,19 @@ function TabPerformance() {
   const ebitda = totalIncome - totalCosts
   const margin = totalIncome > 0 ? ebitda / totalIncome : 0
 
-  // Monthly 2026 — scale each line
+  // Monthly 2026 — scale each line by its own growth rate
   const monthlyIncome2026 = MONTHLY_INCOME.map(m => ({
     m: m.m,
-    bar: Math.round(m.bar * mult),
-    golf: Math.round(m.golf * mult),
-    events: Math.round(m.events * mult),
-    hire: Math.round(m.hire * mult),
-    sc: Math.round(m.sc * mult),
-    pool: Math.round(m.pool * mult),
+    bar:    Math.round(m.bar    * (1 + growth.bar    / 100)),
+    golf:   Math.round(m.golf   * (1 + growth.golf   / 100)),
+    events: Math.round(m.events * (1 + growth.events / 100)),
+    hire:   Math.round(m.hire   * (1 + growth.hires  / 100)),
+    sc:     Math.round(m.sc     * mult),
+    pool:   Math.round(m.pool   * mult),
   }))
   const monthlyCosts2026 = MONTHLY_COSTS.map(m => {
     const mi = MONTHLY_INCOME.find(x => x.m === m.m)
-    const mthBar2026 = mi ? Math.round(mi.bar * mult) : 0
+    const mthBar2026 = mi ? Math.round(mi.bar * (1 + growth.bar / 100)) : 0
     return {
       m: m.m,
       wages: Math.round(m.wages * 1.10),
@@ -149,6 +169,10 @@ function TabPerformance() {
     }
   })
 
+  // Displayed slider value = aggregate growth (rounded). Dragging the slider snaps
+  // all four breakdown sliders to that value — acts as a "uniform growth" shortcut.
+  const sliderValue = Math.round(aggGrowth)
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       {/* Slider card — stays at the top of the page per spec */}
@@ -156,22 +180,22 @@ function TabPerformance() {
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
           <div>
             <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:2 }}>2026 Performance · Scenario-adjusted forecast</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Built from 2025 actuals on the Financial Performance sheet. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, everything else scales.</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Aggregate of the four growth levers in Scenarios (Bar · Golf · Hires · Events). Dragging this slider snaps all four to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, everything else scales.</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{ fontSize:14, fontWeight:700, color:'#22D3EE', minWidth:48, textAlign:'right' }}>{growth>0?'+':''}{growth}%</span>
-            <ResetBtn onClick={()=>setGrowth(15)} title="Reset to +15% (Base)" />
+            <span style={{ fontSize:14, fontWeight:700, color:'#22D3EE', minWidth:48, textAlign:'right' }}>{sliderValue>0?'+':''}{sliderValue}%</span>
+            <ResetBtn onClick={()=>growth.setAll(15)} title="Reset all four levers to +15% (Base)" />
           </div>
         </div>
         <div style={{ position:'relative', marginTop:14, padding:'4px 0 26px' }}>
-          <input type="range" min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={growth} onChange={e=>setGrowth(Number(e.target.value))} style={{ width:'100%', accentColor:'#22D3EE' }} />
+          <input type="range" min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={sliderValue} onChange={e=>growth.setAll(Number(e.target.value))} style={{ width:'100%', accentColor:'#22D3EE' }} />
           {PERF_MARKERS.map(mk => (
-            <button key={mk.label} onClick={()=>setGrowth(mk.value)} style={{
+            <button key={mk.label} onClick={()=>growth.setAll(mk.value)} style={{
               position:'absolute', left:`calc(${perfGrowthToPct(mk.value)}% - 26px)`, top:28,
               width:52, padding:'2px 0', borderRadius:3, cursor:'pointer',
-              background: growth === mk.value ? mk.color : 'transparent',
+              background: sliderValue === mk.value ? mk.color : 'transparent',
               border: `1px solid ${mk.color}`,
-              color: growth === mk.value ? '#0A0A0F' : mk.color,
+              color: sliderValue === mk.value ? '#0A0A0F' : mk.color,
               fontSize:10, fontWeight:700, letterSpacing:'0.05em', textAlign:'center', transition:'all 0.15s',
             }}>{mk.label} {mk.value>0?'+':''}{mk.value}%</button>
           ))}
@@ -290,57 +314,123 @@ function Stacked2026({ monthly, kind, maxH=120 }) {
   )
 }
 
-function TabScenarios() {
-  const [revGrowth, setRevGrowth] = useState(15)
+// Helper — applies the 2026 cost rules (wages +10pct, fixed +10pct, drinks 30pct of bar,
+// hosting fixed, everything else scales with aggregate revenue) and returns the full
+// scenario: revenue, operating profit, investor return (36.05pct pro-rata), CoC.
+function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
+  const avg = (barG + golfG + eventsG + hiresG) / 4
+  const bar = 362836 * (1 + barG / 100)
+  const golf = 210485 * (1 + golfG / 100)
+  const events = 106023 * (1 + eventsG / 100)
+  const hires = 44999 * (1 + hiresG / 100)
+  const sc = 15102 * (1 + avg / 100)
+  const pool = 2198 * (1 + avg / 100)
+  const revenue = bar + golf + events + hires + sc + pool
+  const mult = revenue / 741644 // aggregate growth multiplier
+
+  const costs =
+    242370 * 1.10                 // wages +10pct
+    + 165059 * 1.10               // fixed +10pct
+    + bar * 0.30                  // drinks = 30pct of bar
+    + 78851 * mult                // VAT
+    + 21842 * mult                // cleaning
+    + 17152 * mult                // arcades
+    + 9101 * mult                 // food
+    + 3492                        // hosting fixed
+    + 5443 * mult                 // card charges
+
+  const adjustedCosts = costs * opexMult
+  const profit = revenue - adjustedCosts
+  const investorReturn = Math.max(0, profit) * 0.3605
+  const coc = investorReturn / 88000 * 100
+  return { revenue, profit, investorReturn, coc }
+}
+
+function TabScenarios({ growth }) {
   const [opex, setOpex] = useState(100)
-  const [events, setEvents] = useState(12)
-  const baseRev = 741644
-  const customRev = Math.round(baseRev * (1 + revGrowth/100) + events * 3500)
-  const customEbitda = Math.round(customRev * 0.224 * (200-opex)/100)
-  // 2026 deal: £88k invested, 36.05% investor equity. Pure pro-rata — operating profit splits by equity.
-  const customReturn = Math.round(Math.max(0, customEbitda) * 0.3605)
-  const customCoc = ((customReturn / 88000) * 100).toFixed(1)
-  const scenarios = [
-    { label:'CONSERVATIVE', rev:816000, profit:87000,  ret:31364, coc:35.6 },
-    { label:'BASE CASE',    rev:853000, profit:190945, ret:68836, coc:78.2 },
-    { label:'OPTIMISTIC',   rev:927000, profit:220000, ret:79310, coc:90.1 },
-    { label:'CUSTOM',       rev:customRev, profit:customEbitda, ret:Math.max(0,customReturn), coc:parseFloat(customCoc) },
+
+  const sliders = [
+    { key:'bar',    label:'Bar Increase',         value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
+    { key:'golf',   label:'Golf Ticket Increase', value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
+    { key:'hires',  label:'Private Hires',        value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
+    { key:'events', label:'Regular Events',       value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
   ]
+
+  // Custom scenario = actual live state from the 4 sliders + OpEx overlay
+  const custom = computeScenario({
+    barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires,
+    opexMult: opex / 100,
+  })
+  // Preset scenarios — uniform growth across all 4 levers, no OpEx overlay
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct })
+  const presets = [
+    { label:'CONSERVATIVE', pct:-10, ...buildPreset(-10) },
+    { label:'BASE CASE',    pct: 15, ...buildPreset(15)  },
+    { label:'OPTIMISTIC',   pct: 25, ...buildPreset(25)  },
+  ]
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* 4 growth levers + OpEx */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Build Custom Scenario</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:16 }}>
-          {[
-            { label:'Revenue Growth', value:revGrowth, set:setRevGrowth, min:-20, max:50, suffix:'%', default:15 },
-            { label:'OpEx vs Budget', value:opex, set:setOpex, min:70, max:130, suffix:'%', default:100 },
-            { label:'Private Events / Year', value:events, set:setEvents, min:0, max:52, suffix:'', default:12 },
-          ].map(s => (
-            <div key={s.label}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Build Custom Scenario</div>
+          <div style={{ fontSize:11, color:'#9CA3AF' }}>These four levers also drive the main 2026 Performance slider</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+          {sliders.map(s => (
+            <div key={s.key}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                <span style={{ color:'var(--cream)' }}>{s.label}</span>
+                <span style={{ color:'var(--cream)' }}>{s.label} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
                 <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:'var(--gold)', fontWeight:600 }}>{s.value>0&&s.suffix==='%'?'+':''}{s.value}{s.suffix}</span>
-                  <ResetBtn onClick={()=>s.set(s.default)} title={`Reset to ${s.default}${s.suffix}`} />
+                  <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
+                  <ResetBtn onClick={()=>s.set(15)} title="Reset to +15%" />
                 </span>
               </div>
-              <input type="range" min={s.min} max={s.max} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)' }} />
+              <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
+              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>New: {fmtK(s.base * (1 + s.value / 100))}</div>
             </div>
           ))}
         </div>
+        {/* OpEx overlay — only affects the Custom card */}
+        <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+            <span style={{ color:'var(--cream)' }}>OpEx vs Budget <span style={{ color:'#6B7280', marginLeft:4 }}>(costs multiplier for the Custom card only)</span></span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <span style={{ color:'#EA580C', fontWeight:600 }}>{opex}%</span>
+              <ResetBtn onClick={()=>setOpex(100)} title="Reset to 100%" />
+            </span>
+          </div>
+          <input type="range" min={70} max={130} value={opex} onChange={e=>setOpex(Number(e.target.value))} style={{ width:'100%', accentColor:'#EA580C' }} />
+        </div>
       </div>
+
+      {/* Preset + custom cards */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-        {scenarios.map((s,i) => (
-          <div key={s.label} style={{ background:i===3?'rgba(201,168,76,0.08)':'var(--ink-2)', border:i===3?'1px solid rgba(201,168,76,0.3)':'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16 }}>
-            <div style={{ fontSize:10, color:i===3?'var(--gold)':'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12, fontWeight:600 }}>{s.label}</div>
-            {[['Revenue',fmtK(s.rev)],['Op Profit',fmtK(s.profit)],['Investor Return',fmt(s.ret)],['Cash-on-Cash',s.coc+'%']].map(([l,v],j) => (
+        {presets.map(p => (
+          <button key={p.label} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}% across all four levers`} style={{
+            background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
+          }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{p.label}</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}% across all levers · click to apply</div>
+            {[['Revenue',fmtK(p.revenue)],['Op Profit',fmtK(p.profit)],['Investor Return',fmt(Math.round(p.investorReturn))],['Cash-on-Cash',p.coc.toFixed(1)+'%']].map(([l,v],j) => (
               <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
                 <span style={{ color:'#9CA3AF' }}>{l}</span>
                 <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
               </div>
             ))}
-          </div>
+          </button>
         ))}
+        <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>CUSTOM</div>
+          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>Live from sliders above · OpEx {opex}%</div>
+          {[['Revenue',fmtK(custom.revenue)],['Op Profit',fmtK(custom.profit)],['Investor Return',fmt(Math.round(custom.investorReturn))],['Cash-on-Cash',custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
+            <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
+              <span style={{ color:'#9CA3AF' }}>{l}</span>
+              <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
@@ -469,11 +559,30 @@ function TabWages() {
 
 export default function BusinessExplorer() {
   const [tab, setTab] = useState('Overview')
+
+  // Shared 2026 growth state — the four line-specific growth levers drive both the
+  // 2026 Performance tab's main slider (which displays the aggregate) and the
+  // Scenarios tab's breakdown sliders. Keeps them synced so one surface informs the other.
+  const [barGrowth, setBarGrowth]       = useState(15)
+  const [golfGrowth, setGolfGrowth]     = useState(15)
+  const [hiresGrowth, setHiresGrowth]   = useState(15)
+  const [eventsGrowth, setEventsGrowth] = useState(15)
+  const setAllGrowth = v => {
+    setBarGrowth(v); setGolfGrowth(v); setHiresGrowth(v); setEventsGrowth(v)
+  }
+  const growth = {
+    bar: barGrowth, setBar: setBarGrowth,
+    golf: golfGrowth, setGolf: setGolfGrowth,
+    hires: hiresGrowth, setHires: setHiresGrowth,
+    events: eventsGrowth, setEvents: setEventsGrowth,
+    setAll: setAllGrowth,
+  }
+
   const tabComponents = {
     'Overview': <TabOverview />,
     '2025 Performance': <FinancialPerformance />,
-    '2026 Performance': <TabPerformance />,
-    'Scenarios': <TabScenarios />,
+    '2026 Performance': <TabPerformance growth={growth} />,
+    'Scenarios': <TabScenarios growth={growth} />,
     'Market Context': <TabMarketContext />,
     'Wages': <TabWages />,
   }
