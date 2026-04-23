@@ -6,7 +6,9 @@ import {
   IP_LICENSING_GRAND_2025,
 } from '../data.js'
 
-const INCOME = [
+// Named exports — imported by BusinessExplorer's 2026 Performance tab as the 2025
+// baseline for scenario-adjusted forecasts.
+export const INCOME = [
   { label:'Spend at Bar', value:362836, pct:48.9, color:'#1E40AF' },
   { label:'Online Golf Tickets', value:210485, pct:28.4, color:'#1D4ED8' },
   { label:'Bookings & Events', value:106023, pct:14.3, color:'#2563EB' },
@@ -15,7 +17,7 @@ const INCOME = [
   { label:'Pool Tickets', value:2198, pct:0.3, color:'#93C5FD' },
 ]
 
-const COSTS = [
+export const COSTS = [
   { label:'Wages', value:242370, pct:38.4, color:'#991B1B', note:null },
   { label:'Fixed Costs', value:165059, pct:26.2, color:'#B91C1C', note:'Rent, rates, electricity, insurance, internet, PRS' },
   { label:'Drinks & Gas', value:81732, pct:13.0, color:'#DC2626', note:null },
@@ -27,7 +29,7 @@ const COSTS = [
   { label:'Card Charges', value:5443, pct:0.9, color:'#FCD34D', note:null },
 ]
 
-const MONTHLY_INCOME = [
+export const MONTHLY_INCOME = [
   { m:'Jan', bar:19305, golf:13455, events:7612, hire:2890, sc:1205, pool:183 },
   { m:'Feb', bar:17820, golf:12690, events:7014, hire:2665, sc:1112, pool:169 },
   { m:'Mar', bar:21560, golf:15234, events:8421, hire:3198, sc:1334, pool:203 },
@@ -42,7 +44,7 @@ const MONTHLY_INCOME = [
   { m:'Dec', bar:59575, golf:34624, events:17442, hire:7399, sc:2497, pool:366 },
 ]
 
-const MONTHLY_COSTS = [
+export const MONTHLY_COSTS = [
   { m:'Jan', wages:20185, fixed:13755, drinks:6811, vat:6571, other:4278 },
   { m:'Feb', wages:18620, fixed:13755, drinks:6284, vat:6063, other:3948 },
   { m:'Mar', wages:22490, fixed:13755, drinks:7590, vat:7327, other:4773 },
@@ -60,7 +62,7 @@ const MONTHLY_COSTS = [
 const fmt = n => '£' + n.toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
 
-function DonutChart({ data, total, size=200 }) {
+export function DonutChart({ data, total, size=200 }) {
   const cx = size/2, cy = size/2, r = size*0.42, inner = size*0.26
   let angle = -Math.PI/2
   const slices = data.map((d,i) => {
@@ -143,233 +145,6 @@ function ChannelBars({ rows, accent, maxRev }) {
             <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2 }}>
               <div style={{ height:'100%', width: w + '%', background: accent, borderRadius:2 }} />
             </div>
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-// --- 2026 FORECAST SECTION -----------------------------------------------
-// Scenario-adjusted projection from 2025 actuals. Revenue growth slider drives
-// every income + cost line. Bear / Base / Bull markers jump to -10% / +15% / +25%.
-// Palette shifted to teals (income) and purples (costs) to distinguish from 2025.
-
-const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
-const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#DDD6FE','#EDE9FE']
-const GROWTH_MIN = -20
-const GROWTH_MAX = 50
-const MARKERS = [
-  { label: 'Bear', value: -10, color: '#EF4444' },
-  { label: 'Base', value:  15, color: '#C9A84C' },
-  { label: 'Bull', value:  25, color: '#22D3EE' },
-]
-const growthToPct = g => ((g - GROWTH_MIN) / (GROWTH_MAX - GROWTH_MIN)) * 100
-
-function Forecast2026({ mode }) {
-  const [growth, setGrowth] = useState(15)
-  const mult = 1 + growth / 100
-
-  // Income 2026 — scale each 2025 line uniformly
-  const income2026 = INCOME.map((i, idx) => ({
-    label: i.label,
-    value: Math.round(i.value * mult),
-    color: INCOME_2026_COLORS[idx] || INCOME_2026_COLORS[INCOME_2026_COLORS.length - 1],
-  }))
-  const totalIncome = income2026.reduce((s, i) => s + i.value, 0)
-  const incomeWithPct = income2026.map(i => ({ ...i, pct: +(i.value / totalIncome * 100).toFixed(1) }))
-
-  // Costs 2026 per user-specified rules
-  // Drinks COGS: 30% of bar revenue ("cost of sale for drinks at 30% of revenue" — bar revenue
-  // is the drinks revenue line; 2025 actual was 22.5% so this represents ~7pp margin compression).
-  const barRevenue2026 = income2026.find(x => x.label === 'Spend at Bar')?.value || 0
-  const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
-  const costsRaw = [
-    { label: 'Wages',            value: Math.round(242370 * 1.10), note: '+10% on 2025' },
-    { label: 'Fixed Costs',      value: Math.round(165059 * 1.10), note: 'Rent, rates, utilities, insurance, internet, PRS · +10% on 2025 (rent same, other fixed lines inflated 10%)' },
-    { label: 'Drinks & Gas',     value: drinksGas2026,              note: '30% of bar revenue (2025 actual was 22.5%)' },
-    { label: 'VAT (Net)',        value: Math.round(78851 * mult),   note: 'Scales with revenue' },
-    { label: 'Cleaning',         value: Math.round(21842 * mult),   note: 'Scales with revenue' },
-    { label: 'Arcades',          value: Math.round(17152 * mult),   note: 'Scales with revenue' },
-    { label: 'Food',             value: Math.round(9101 * mult),    note: 'Scales with revenue' },
-    { label: 'Hosting (Lithos)', value: 3492,                        note: 'Fixed — SEO/Ads now owned by Plonk Golf, hosting-only Lithos line stays' },
-    { label: 'Card Charges',     value: Math.round(5443 * mult),    note: 'Scales with revenue' },
-  ]
-  const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
-  const costs2026 = costsRaw.map((c, idx) => ({
-    ...c,
-    pct: +(c.value / totalCosts * 100).toFixed(1),
-    color: COSTS_2026_COLORS[idx] || COSTS_2026_COLORS[COSTS_2026_COLORS.length - 1],
-  }))
-
-  const ebitda = totalIncome - totalCosts
-  const margin = totalIncome > 0 ? ebitda / totalIncome : 0
-
-  // Monthly 2026 — scale each line
-  const monthlyIncome2026 = MONTHLY_INCOME.map(m => ({
-    m: m.m,
-    bar: Math.round(m.bar * mult),
-    golf: Math.round(m.golf * mult),
-    events: Math.round(m.events * mult),
-    hire: Math.round(m.hire * mult),
-    sc: Math.round(m.sc * mult),
-    pool: Math.round(m.pool * mult),
-  }))
-  const monthlyCosts2026 = MONTHLY_COSTS.map(m => {
-    const mi = MONTHLY_INCOME.find(x => x.m === m.m)
-    const mthBar2026 = mi ? Math.round(mi.bar * mult) : 0
-    return {
-      m: m.m,
-      wages: Math.round(m.wages * 1.10),
-      fixed: Math.round(m.fixed * 1.10),
-      drinks: Math.round(mthBar2026 * 0.30),   // 30% of monthly bar revenue
-      vat: Math.round(m.vat * mult),
-      other: Math.round((m.other || m.vat2 || 0) * mult),
-    }
-  })
-
-  return (
-    <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
-      {/* Header */}
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-        <div>
-          <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>2026 Forecast · Scenario-adjusted</div>
-          <div style={{ fontSize:13, color:'#9CA3AF' }}>Drag the growth lever or click Bear / Base / Bull · costs follow the rules: wages +10%, fixed costs +10%, drinks = 30% of revenue, everything else scales</div>
-        </div>
-        <div style={{ fontSize:13, color:'#22D3EE', fontWeight:700 }}>{growth > 0 ? '+' : ''}{growth}% vs 2025</div>
-      </div>
-
-      {/* Slider + Bear/Base/Bull markers */}
-      <div style={{ position:'relative', marginBottom:28, padding:'4px 0 24px' }}>
-        <input
-          type="range" min={GROWTH_MIN} max={GROWTH_MAX} value={growth}
-          onChange={e => setGrowth(Number(e.target.value))}
-          style={{ width:'100%', accentColor:'#22D3EE' }}
-        />
-        {/* Tick labels */}
-        {MARKERS.map(mk => (
-          <button key={mk.label} onClick={() => setGrowth(mk.value)} style={{
-            position:'absolute', left:`calc(${growthToPct(mk.value)}% - 24px)`, top:28,
-            width:48, padding:'2px 0', borderRadius:3, cursor:'pointer',
-            background: growth === mk.value ? mk.color : 'transparent',
-            border: `1px solid ${mk.color}`,
-            color: growth === mk.value ? '#0A0A0F' : mk.color,
-            fontSize:10, fontWeight:700, letterSpacing:'0.05em', textAlign:'center',
-            transition:'all 0.15s',
-          }}>{mk.label} {mk.value > 0 ? '+' : ''}{mk.value}%</button>
-        ))}
-        <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginTop:2, padding:'0 2px' }}>
-          <span>{GROWTH_MIN}%</span>
-          <span>+{GROWTH_MAX}%</span>
-        </div>
-      </div>
-
-      {/* Headline KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:24 }}>
-        <KpiCard label="Adjusted Revenue" value={fmt(totalIncome)} color="#22D3EE" />
-        <KpiCard label="Adjusted EBITDA" value={fmt(ebitda)} sub={`${(margin*100).toFixed(1)}% margin`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
-        <KpiCard label="Total Costs" value={fmt(totalCosts)} color="#8B5CF6" />
-      </div>
-
-      {/* Two-column Income / Costs — mirrors 2025 layout above */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
-        {/* LEFT: 2026 Income */}
-        <div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Income · 2026 Forecast</div>
-            <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
-          </div>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-            <DonutChart data={incomeWithPct} total={totalIncome} size={220} />
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {incomeWithPct.map((item,i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-                <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-                <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:80, textAlign:'right' }}>{fmt(item.value)}</div>
-                <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
-              </div>
-            ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Income</div>
-              <div style={{ fontSize:15, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
-            </div>
-          </div>
-          <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Monthly Income 2026 — Scaled from 2025</div>
-            <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={130} />
-          </div>
-        </div>
-
-        {/* RIGHT: 2026 Costs */}
-        <div>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Operating Costs · 2026 Forecast</div>
-            <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmt(totalCosts)}</div>
-          </div>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-            <DonutChart data={costs2026} total={totalCosts} size={220} />
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {costs2026.map((item,i) => (
-              <div key={i} style={{ padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-                  <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:80, textAlign:'right' }}>{fmt(item.value)}</div>
-                  <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
-                </div>
-                {item.note && <div style={{ fontSize:11, color:'#6B7280', paddingLeft:20, marginTop:2 }}>{item.note}</div>}
-              </div>
-            ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Costs</div>
-              <div style={{ fontSize:15, fontWeight:700, color:'#A78BFA' }}>{fmt(totalCosts)}</div>
-            </div>
-          </div>
-          <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Monthly Costs 2026 — Scaled</div>
-            <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={130} />
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function KpiCard({ label, value, sub, color }) {
-  return (
-    <div style={{ background:'var(--ink-2)', border:`1px solid ${color}40`, borderRadius:10, padding:'14px 18px' }}>
-      <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{label}</div>
-      <div className="serif" style={{ fontSize:26, color, lineHeight:1 }}>{value}</div>
-      {sub && <div style={{ fontSize:11, color:'#9CA3AF', marginTop:4 }}>{sub}</div>}
-    </div>
-  )
-}
-
-// Stacked bar for 2026 — tints keyed off the new palette so it reads as "forecast" not "actuals"
-function Stacked2026({ monthly, kind, maxH=120 }) {
-  const palette = kind === 'income'
-    ? ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
-    : ['#4C1D95','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
-  const getSegs = m => kind === 'income'
-    ? [{ v:m.bar, c:palette[0] },{ v:m.golf, c:palette[1] },{ v:m.events, c:palette[2] },{ v:m.hire, c:palette[3] },{ v:m.sc, c:palette[4] },{ v:m.pool, c:palette[5] }]
-    : [{ v:m.wages, c:palette[0] },{ v:m.fixed, c:palette[1] },{ v:m.drinks, c:palette[2] },{ v:m.vat, c:palette[3] },{ v:m.other, c:palette[4] }]
-  const total = m => getSegs(m).reduce((s, x) => s + (x.v || 0), 0)
-  const maxVal = Math.max(...monthly.map(total))
-  return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
-      {monthly.map((m,i) => {
-        const t = total(m)
-        const h = Math.round((t / maxVal) * maxH)
-        const segs = getSegs(m)
-        return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
-            <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c }} />)}
-            </div>
-            <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
         )
       })}
@@ -543,8 +318,6 @@ export default function FinancialPerformance() {
           Sourced from the <strong style={{ color:'var(--cream)' }}>IP &amp; Licensing</strong> tab (2025 DMN transactions, Borough only). Online revenue is the actual portal take; office revenue is imputed as <em>units × SKU list price</em> because till payments don't flow through the online system. Swap in actual till takings when available.
         </div>
       </div>
-
-      <Forecast2026 />
     </div>
   )
 }
