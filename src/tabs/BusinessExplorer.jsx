@@ -17,7 +17,7 @@ function TabOverview() {
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'INVESTMENT ASK', value:'£88,000 inc VAT', sub:'for 36% equity', color:'var(--gold)' },
+          { label:'INVESTMENT ASK', value:'£70,000 inc VAT', sub:'for 50% equity', color:'var(--gold)' },
           { label:'FY2025 ACTUAL REVENUE', value:'£742k', sub:'Verified financial model', color:'#4FC3F7' },
           { label:'FORECAST REVENUE Y1', value:'£853k', sub:'+15.0% on prior year', color:'#2DD4BF' },
         ].map(s => (
@@ -339,7 +339,7 @@ function Stacked2026({ monthly, kind, maxH=120 }) {
 
 // Helper — applies the 2026 cost rules (wages +10pct, fixed +10pct, drinks 30pct of bar,
 // hosting fixed, everything else scales with aggregate revenue) and returns the full
-// scenario: revenue, operating profit, investor return (36.05pct pro-rata), CoC.
+// scenario: revenue, operating profit, investor return (50pct pro-rata), CoC on £70k.
 function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
   const avg = (barG + golfG + eventsG + hiresG) / 4
   const bar = 362836 * (1 + barG / 100)
@@ -364,8 +364,8 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
 
   const adjustedCosts = costs * opexMult
   const profit = revenue - adjustedCosts
-  const investorReturn = Math.max(0, profit) * 0.3605
-  const coc = investorReturn / 88000 * 100
+  const investorReturn = Math.max(0, profit) * 0.50
+  const coc = investorReturn / 70000 * 100
   return { revenue, profit, investorReturn, coc }
 }
 

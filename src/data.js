@@ -8,27 +8,29 @@ export const BUSINESS = {
 }
 
 // === DEAL STRUCTURE ===
-// Investment ask £88,000 inc VAT. Pre-money valuation 1.70× 2025 EBITDA = £156,122.
-// Investor equity 36.05% / founder 63.95%.
+// Investment ask £70,000 inc VAT. 50/50 equity — pre-money equal to investment (£70k),
+// post-money £140k. Multiple works out at 0.76× 2025 EBITDA (distressed pricing).
 //
-// DISTRIBUTION MODEL: pure pro-rata. All shareholders paid at the same time by equity %.
-// No preferred return tier (previously 8% × £88k paid first to investor — removed).
-// No A-share priority tier (previously £44k paid first to founder entity — removed).
-// The full operating profit flows through the equity split.
+// Forecast operating profit (2026 base case) lowered to £124k — reflects the realistic
+// 2026 P&L under the new cost rules (wages +10%, fixed +10%, drinks = 30% of bar,
+// hosting fixed, everything else scaled) instead of the old 22.4%-margin blanket.
+//
+// DISTRIBUTION MODEL: pure pro-rata — all shareholders paid at the same time by equity %.
+// No preferred return, no A-share priority. Full operating profit flows through the split.
 export const DEAL = {
-  investment: 88000,
-  founderEq: 0.6395,
-  investorEq: 0.3605,
-  multiple: 1.6979,
-  preMoney: 156122,
-  postMoney: 244122,
+  investment: 70000,
+  founderEq: 0.50,
+  investorEq: 0.50,
+  multiple: 0.7613,
+  preMoney: 70000,
+  postMoney: 140000,
   preferred: 0,              // removed — pure pro-rata, no preferred tier
   aSharePriority: 0,         // removed — pure pro-rata, no founder priority slice
-  investorDividend: 68836,   // 36.05% × £190,945 operating profit
-  totalInvestorReturn: 68836,// equals dividend (no preferred top-up)
-  coc: 0.7822,               // 78.2% on £88k invested
-  payback: 1.28,             // years
-  aShareThreshold: 12206,    // 5% of post-money — governance floor for A-share voting rights
+  investorDividend: 62000,   // 50% × £124,000 base-case operating profit
+  totalInvestorReturn: 62000,// equals dividend (no preferred top-up)
+  coc: 0.8857,               // 88.6% on £70k invested
+  payback: 1.13,             // years
+  aShareThreshold: 7000,     // 5% of post-money — governance floor for A-share voting rights
 }
 
 // === 2025 ACTUALS ===
@@ -48,10 +50,12 @@ export const ACTUALS_2025 = {
 }
 
 // === 2026 FORECAST (Base Case +15%) ===
+// Profit lowered from £190,945 (old 22.4% blanket margin) to £124,000 — reflects the
+// real 2026 cost model (wages +10%, fixed +10%, drinks = 30% of bar, etc.).
 export const FORECAST = {
   revenue: 852891,
-  profit: 190945,
-  margin: 0.224,
+  profit: 124000,
+  margin: 0.1454,
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
@@ -153,16 +157,16 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
-// Pure pro-rata — no preferred or A-share priority. Operating profit splits directly by equity.
+// Pure pro-rata — no preferred or A-share priority. Operating profit splits 50/50.
 export const WATERFALL = {
-  operatingProfit: 190945,
+  operatingProfit: 124000,
   preferred: 0,
   aSharePriority: 0,
-  remainingPool: 190945,       // = operating profit (no tier deductions)
-  investorDividend: 68836,     // 36.05% × £190,945
-  founderDividend: 122109,     // 63.95% × £190,945
-  totalInvestor: 68836,
-  totalFounder: 122109,
+  remainingPool: 124000,       // = operating profit (no tier deductions)
+  investorDividend: 62000,     // 50% × £124,000
+  founderDividend: 62000,      // 50% × £124,000
+  totalInvestor: 62000,
+  totalFounder: 62000,
 }
 
 // === GOVERNANCE ===
@@ -185,14 +189,16 @@ export const GOVERNANCE = {
 }
 
 // === USE OF FUNDS ===
-// All figures shown inc VAT. Total investment ask £88,000 cash. VAT reclaimable on
-// Hardware, Stock, IP (~£8,000 total) recovered against the first HMRC VAT return.
+// All figures shown inc VAT. Total investment ask £70,000 cash. VAT reclaimable on
+// Hardware, Stock, IP (~£5,833 total) recovered against the first HMRC VAT return.
+// Hardware + Stock + Working Capital scaled down from the £88k model to hit £70k total
+// while keeping rent deposit and IP licence fixed.
 export const USE_OF_FUNDS = [
-  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 30.8, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
-  { item: 'Hardware from Liquidators',   amount: 24000, pct: 27.3, vat: 'inc VAT', note: 'Bar & kitchen equipment — operational from Day 1' },
-  { item: 'Working Capital',             amount: 12922, pct: 14.7, vat: null,      note: 'Staged into business per cash flow forecast' },
-  { item: 'Stock & Supplier Restart',    amount: 12000, pct: 13.6, vat: 'inc VAT', note: 'Opening stock, software, supplier agreements' },
-  { item: 'IP License Fee',              amount: 12000, pct: 13.6, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
+  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 38.7, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
+  { item: 'Hardware from Liquidators',   amount: 15000, pct: 21.4, vat: 'inc VAT', note: 'Bar & kitchen equipment — operational from Day 1' },
+  { item: 'IP License Fee',              amount: 12000, pct: 17.1, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
+  { item: 'Stock & Supplier Restart',    amount:  8000, pct: 11.4, vat: 'inc VAT', note: 'Opening stock, software, supplier agreements' },
+  { item: 'Working Capital',             amount:  7922, pct: 11.3, vat: null,      note: 'Staged into business per cash flow forecast' },
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===

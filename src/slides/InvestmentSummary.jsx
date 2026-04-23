@@ -12,13 +12,26 @@ const SCENARIOS = {
 }
 
 // Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
+// Uses the realistic 2026 cost model: wages +10%, fixed +10%, drinks = 30% of bar,
+// hosting fixed £3,492, everything else scales with revenue. NOT the old 22.4% blanket margin.
 function calcReturns(multiplier) {
   const revenue = ACTUALS_2025.revenue * multiplier
-  const opProfit = revenue * 0.224
-  const investorDiv = opProfit * DEAL.investorEq
+  const bar = 362836 * multiplier
+  const costs =
+    242370 * 1.10                 // wages +10%
+    + 165059 * 1.10               // fixed +10%
+    + bar * 0.30                  // drinks = 30% of bar
+    + 78851 * multiplier          // VAT
+    + 21842 * multiplier          // cleaning
+    + 17152 * multiplier          // arcades
+    + 9101 * multiplier           // food
+    + 3492                        // hosting fixed
+    + 5443 * multiplier           // card charges
+  const opProfit = revenue - costs
+  const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
   const total = investorDiv
   const coc = total / DEAL.investment
-  const payback = DEAL.investment / total
+  const payback = total > 0 ? DEAL.investment / total : Infinity
   return { revenue, opProfit, investorDiv, total, coc, payback }
 }
 
@@ -27,11 +40,13 @@ export default function InvestmentSummary() {
   const s = SCENARIOS[scenario]
   const r = calcReturns(s.multiplier)
 
-  const [amount, setAmount] = useState(88000)
+  const [amount, setAmount] = useState(70000)
 
   // Pure pro-rata distribution — no preferred, no A-share priority.
   // Investor's dividend = operating profit × their equity share.
-  const OPERATING_PROFIT_BASE = 190945
+  // Base operating profit figure is the realistic 2026 base case (£124k) under the new
+  // cost rules (wages +10%, fixed +10%, drinks 30% of bar, etc.) — was £190k.
+  const OPERATING_PROFIT_BASE = 124000
   const equity = amount / DEAL.postMoney
   const isAShare = equity >= 0.05
 
@@ -85,7 +100,7 @@ export default function InvestmentSummary() {
           [`Equity Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, fmt(r.investorDiv), true],
           ['Total Year 1 Return', fmt(r.total), true],
           ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],
-          ['Payback Period', `${r.payback.toFixed(1)} years`],
+          ['Payback Period', isFinite(r.payback) ? `${r.payback.toFixed(1)} years` : 'N/A · profit ≤ 0'],
         ]} />
       </div>
 
@@ -117,17 +132,17 @@ export default function InvestmentSummary() {
             <span style={{ color: 'var(--cream-dim)' }}>Investment Amount</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
-              <ResetBtn onClick={() => setAmount(88000)} />
+              <ResetBtn onClick={() => setAmount(70000)} />
             </span>
           </div>
           <input
-            type="range" min={10000} max={155000} step={5000}
+            type="range" min={5000} max={70000} step={2500}
             value={amount} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
-            <span>£10,000</span>
-            <span>£155,000 · 50% equity cap</span>
+            <span>£5,000</span>
+            <span>£70,000 · 50% equity cap</span>
           </div>
         </div>
 

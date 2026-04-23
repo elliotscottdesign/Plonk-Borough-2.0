@@ -6,7 +6,7 @@ export default function MarketContext() {
     { multiple: '~4.1×', label: 'Hospitality & Leisure Sector Average', tag: 'Broadly in line', tagColor: '#6B7280', highlight: false },
     { multiple: '~2–4×', label: 'Small Single-Site Venues (<£200k EBITDA)', tag: 'In range', tagColor: '#6B7280', highlight: false },
     { multiple: '~2–3×', label: 'Distressed Asset Range (liquidation)', tag: 'Above — priced for risk', tagColor: '#6B7280', highlight: false },
-    { multiple: '1.70×', label: 'No Dice Borough — This Deal', tag: '→ Entry point', tagColor: '#2DD4BF', highlight: true },
+    { multiple: '0.76×', label: 'No Dice Borough — This Deal', tag: '→ Entry point', tagColor: '#2DD4BF', highlight: true },
   ]
 
   const sectorReality = [
@@ -56,7 +56,7 @@ export default function MarketContext() {
         <div style={{ background:'#13131A', border:'2px solid #C9A84C', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>→ The Deal in One Line</div>
           <p style={{ fontSize:14, color:'#F5F0E8', lineHeight:1.7, marginBottom:20 }}>
-            A proven Borough Market experience venue, acquired at distressed pricing (<span style={{ color:'#C9A84C', fontWeight:700 }}>1.70× EBITDA</span>), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
+            A proven Borough Market experience venue, acquired at distressed pricing (<span style={{ color:'#C9A84C', fontWeight:700 }}>0.76× EBITDA</span>), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
           </p>
           {[
             { check:'✓ Not a multiple expansion bet', sub:'Returns driven by operating cash flow' },
