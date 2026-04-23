@@ -10,6 +10,8 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import { LanguageProvider, useLanguage } from './i18n/context.jsx'
+import Translator from './i18n/Translator.jsx'
 
 const SLIDES = [
   { id:'cover',      label:'01  Cover',               Component: Cover },
@@ -23,7 +25,8 @@ const SLIDES = [
 
 const BASE_TOP_TABS = ['Investor Deck', 'Venue Info', 'Business Explorer']
 
-export default function App() {
+function AppInner() {
+  const { lang, setLang } = useLanguage()
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk') === '1')
   const [topTab, setTopTab] = useState('Investor Deck')
@@ -33,17 +36,24 @@ export default function App() {
   const TOP_TABS = plonkAccess ? [...BASE_TOP_TABS, 'Plonk'] : BASE_TOP_TABS
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk }) => {
+    return <PasswordGate onUnlock={({ plonk, lang: chosenLang }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       if (plonk) sessionStorage.setItem('ndb_plonk', '1')
       else sessionStorage.removeItem('ndb_plonk')
+      if (chosenLang && chosenLang !== 'en') {
+        setLang(chosenLang)
+      } else {
+        setLang('en')
+      }
       setPlonkAccess(!!plonk)
       setUnlocked(true)
     }} />
   }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
+    <>
+      <Translator />
+      <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Borough Ltd</div>
         <div style={{ display:'flex', gap:4 }}>
@@ -84,5 +94,14 @@ export default function App() {
         {topTab === 'Plonk' && plonkAccess && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <LanguageProvider>
+      <AppInner />
+    </LanguageProvider>
   )
 }
