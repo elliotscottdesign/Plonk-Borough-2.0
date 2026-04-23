@@ -9,6 +9,7 @@ import {
   IP_LICENSING_PAYMENT_FEE_PCT,
 } from '../data.js'
 import ResetBtn from '../components/ResetBtn.jsx'
+import { useChartTooltip } from '../components/ChartTooltip.jsx'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmtK = n => '£' + Math.round(n / 1000).toLocaleString() + 'k'
@@ -92,6 +93,7 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
 
 // --- Monthly trend with online/office split (revenue) ---
 function MonthlyTrend() {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
   const data = IP_LICENSING_MONTHLY_2025
   const maxRev = Math.max(...data.map(d => d.onlineRev + d.officeRev))
   return (
@@ -102,23 +104,23 @@ function MonthlyTrend() {
       <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
         Blue = online portal revenue (actual) · Grey = office revenue (imputed at SKU list price, till-settled).
       </div>
-      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 180, marginBottom: 8 }}>
+      <div {...containerProps} style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 180, marginBottom: 8, position: 'relative' }}>
         {data.map(d => {
-          const total = d.onlineRev + d.officeRev
           const onH = (d.onlineRev / maxRev) * 150
           const ofH = (d.officeRev / maxRev) * 150
-          const monthTip = `${d.month} · Total ${fmt0(total)}\n  Online: ${fmt0(d.onlineRev)}\n  Office (imputed): ${fmt0(d.officeRev)}`
+          const total = d.onlineRev + d.officeRev
           return (
-            <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }} title={monthTip}>
+            <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
               <div style={{ fontSize: 9, color: '#9CA3AF' }}>{fmtK(total)}</div>
               <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: 150 }}>
-                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7 }} title={`${d.month} · Office (imputed): ${fmt0(d.officeRev)}`} />
-                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px' }} title={`${d.month} · Online: ${fmt0(d.onlineRev)}`} />
+                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7, cursor: 'default' }} {...segmentProps(`${d.month} · Office (imputed)\n${fmt0(d.officeRev)}`)} />
+                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px', cursor: 'default' }} {...segmentProps(`${d.month} · Online\n${fmt0(d.onlineRev)}`)} />
               </div>
               <div style={{ fontSize: 10, color: '#6B7280' }}>{d.month}</div>
             </div>
           )
         })}
+        {overlay}
       </div>
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9CA3AF', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, marginTop: 6 }}>
         <div style={{ display: 'flex', gap: 16 }}>

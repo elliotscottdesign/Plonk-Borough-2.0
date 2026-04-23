@@ -5,6 +5,7 @@ import {
   IP_LICENSING_MONTHLY_2025,
   IP_LICENSING_GRAND_2025,
 } from '../data.js'
+import { useChartTooltip } from '../components/ChartTooltip.jsx'
 
 // Named exports — imported by BusinessExplorer's 2026 Performance tab as the 2025
 // baseline for scenario-adjusted forecasts.
@@ -63,6 +64,7 @@ const fmt = n => '£' + n.toLocaleString()
 const fmtK = n => '£' + Math.round(n/1000) + 'k'
 
 export function DonutChart({ data, total, size=200 }) {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
   const cx = size/2, cy = size/2, r = size*0.42, inner = size*0.26
   let angle = -Math.PI/2
   const slices = data.map((d,i) => {
@@ -72,27 +74,31 @@ export function DonutChart({ data, total, size=200 }) {
     const x2 = cx+r*Math.cos(angle), y2 = cy+r*Math.sin(angle)
     const large = slice > Math.PI ? 1 : 0
     const pct = d.pct != null ? d.pct : ((d.value / total) * 100).toFixed(1)
-    const tip = `${d.label || ''}: £${Math.round(d.value).toLocaleString()} · ${pct}%`
+    const tip = `${d.label || ''}\n£${Math.round(d.value).toLocaleString()} · ${pct}%`
     return (
-      <path key={i} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={d.color} stroke="#0A0A0F" strokeWidth={1}>
+      <path key={i} d={`M${cx},${cy} L${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} Z`} fill={d.color} stroke="#0A0A0F" strokeWidth={1} style={{ cursor:'default', transition:'opacity 0.15s' }} {...segmentProps(tip)}>
         <title>{tip}</title>
       </path>
     )
   })
   return (
-    <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-      {slices}
-      <circle cx={cx} cy={cy} r={inner} fill="#0A0A0F" />
-    </svg>
+    <div {...containerProps} style={{ display:'inline-block', position:'relative', lineHeight:0 }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {slices}
+        <circle cx={cx} cy={cy} r={inner} fill="#0A0A0F" />
+      </svg>
+      {overlay}
+    </div>
   )
 }
 
 function StackedBar({ monthly, maxH=120 }) {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
   const maxVal = Math.max(...monthly.map(m => m.bar+m.golf+m.events+m.hire+m.sc+m.pool))
   const LABELS = ['Spend at Bar','Online Golf Tickets','Bookings & Events','Private Hires','Service Charge','Pool Tickets']
   const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
+    <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
         const total = m.bar+m.golf+m.events+m.hire+m.sc+m.pool
         const h = Math.round((total/maxVal)*maxH)
@@ -100,26 +106,29 @@ function StackedBar({ monthly, maxH=120 }) {
           { v:m.bar, c:'#1E40AF' }, { v:m.golf, c:'#1D4ED8' }, { v:m.events, c:'#2563EB' },
           { v:m.hire, c:'#3B82F6' }, { v:m.sc, c:'#60A5FA' }, { v:m.pool, c:'#93C5FD' }
         ]
-        const monthTip = `${m.m} · Total ${fmtTip(total)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
+              {segs.map((s,j) => (
+                <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+              ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
         )
       })}
+      {overlay}
     </div>
   )
 }
 
 function CostStackedBar({ monthly, maxH=120 }) {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
   const maxVal = Math.max(...monthly.map(m => (m.wages||0)+(m.fixed||0)+(m.drinks||0)+(m.vat||0)+(m.other||m.vat2||0)))
   const LABELS = ['Wages','Fixed Costs','Drinks & Gas','VAT (Net)','Other']
   const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
+    <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
         const total = (m.wages||0)+(m.fixed||0)+(m.drinks||0)+(m.vat||0)+(m.other||m.vat2||0)
         const h = Math.round((total/maxVal)*maxH)
@@ -127,16 +136,18 @@ function CostStackedBar({ monthly, maxH=120 }) {
           { v:m.wages||0, c:'#991B1B' }, { v:m.fixed||0, c:'#B91C1C' },
           { v:m.drinks||0, c:'#DC2626' }, { v:m.vat||0, c:'#EF4444' }, { v:m.other||m.vat2||0, c:'#F87171' }
         ]
-        const monthTip = `${m.m} · Total ${fmtTip(total)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
+              {segs.map((s,j) => (
+                <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+              ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
         )
       })}
+      {overlay}
     </div>
   )
 }

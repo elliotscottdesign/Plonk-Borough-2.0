@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
+import { useChartTooltip } from '../components/ChartTooltip.jsx'
 
 const TABS = ['Overview','2025 Performance','2026 Performance','Scenarios','Market Context','Wages']
 
@@ -29,20 +30,7 @@ function TabOverview() {
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:16 }}>Monthly Revenue & EBITDA Forecast · May 2026 – Apr 2027</div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:140, marginBottom:8 }}>
-          {months.map((m,i) => {
-            const tip = `${m} · Revenue ${fmtK(rev[i])} · EBITDA ${fmtK(ebitda[i])}`
-            return (
-              <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }} title={tip}>
-                <div style={{ width:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', height:120 }}>
-                  <div style={{ width:'100%', background:'#4FC3F7', borderRadius:'2px 2px 0 0', height:Math.max(2,(rev[i]/maxRev)*100)+'px', opacity:0.7 }} title={`${m} · Revenue ${fmtK(rev[i])}`} />
-                  <div style={{ width:'100%', background:ebitda[i]>0?'#2DD4BF':'#EF4444', borderRadius:'2px 2px 0 0', height:Math.max(2,(Math.abs(ebitda[i])/maxRev)*100)+'px', marginTop:2 }} title={`${m} · EBITDA ${fmtK(ebitda[i])}`} />
-                </div>
-                <div style={{ fontSize:9, color:'#6B7280' }}>{m}</div>
-              </div>
-            )
-          })}
-        </div>
+        <OverviewMonthlyChart months={months} rev={rev} ebitda={ebitda} maxRev={maxRev} />
         <div style={{ display:'flex', gap:16 }}>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#4FC3F7', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>Revenue</span></div>
           <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#2DD4BF', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>EBITDA</span></div>
@@ -289,7 +277,32 @@ function KpiCard2026({ label, value, sub, color }) {
   )
 }
 
+function OverviewMonthlyChart({ months, rev, ebitda, maxRev }) {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
+  return (
+    <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:6, height:140, marginBottom:8, position:'relative' }}>
+      {months.map((m,i) => (
+        <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+          <div style={{ width:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', height:120 }}>
+            <div
+              style={{ width:'100%', background:'#4FC3F7', borderRadius:'2px 2px 0 0', height:Math.max(2,(rev[i]/maxRev)*100)+'px', opacity:0.7, cursor:'default' }}
+              {...segmentProps(`${m}\nRevenue ${fmtK(rev[i])}`)}
+            />
+            <div
+              style={{ width:'100%', background:ebitda[i]>0?'#2DD4BF':'#EF4444', borderRadius:'2px 2px 0 0', height:Math.max(2,(Math.abs(ebitda[i])/maxRev)*100)+'px', marginTop:2, cursor:'default' }}
+              {...segmentProps(`${m}\nEBITDA ${fmtK(ebitda[i])}`)}
+            />
+          </div>
+          <div style={{ fontSize:9, color:'#6B7280' }}>{m}</div>
+        </div>
+      ))}
+      {overlay}
+    </div>
+  )
+}
+
 function Stacked2026({ monthly, kind, maxH=120 }) {
+  const { containerProps, segmentProps, overlay } = useChartTooltip()
   const palette = kind === 'income'
     ? ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
     : ['#4C1D95','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
@@ -303,21 +316,23 @@ function Stacked2026({ monthly, kind, maxH=120 }) {
   const maxVal = Math.max(...monthly.map(total))
   const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
-    <div style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH }}>
+    <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
         const t = total(m)
         const h = Math.round((t / maxVal) * maxH)
         const segs = getSegs(m)
-        const monthTip = `${m.m} · Total ${fmtTip(t)}\n` + segs.map((s, k) => `  ${LABELS[k]}: ${fmtTip(s.v)}`).join('\n')
         return (
-          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }} title={monthTip}>
+          <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
-              {segs.map((s,j) => <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c }} title={`${m.m} · ${LABELS[j]}: ${fmtTip(s.v)}`} />)}
+              {segs.map((s,j) => (
+                <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+              ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
           </div>
         )
       })}
+      {overlay}
     </div>
   )
 }
