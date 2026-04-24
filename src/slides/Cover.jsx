@@ -1,27 +1,29 @@
 import React from 'react'
+import { useTranslation } from 'react-i18next'
 
 export default function Cover() {
+  const { t } = useTranslation('cover')
+
   const stats = [
-    { label: 'Seeking', value: '£70,000 inc VAT', sub: '50% equity · 50% retained by founder' },
-    { label: '2025 Verified Revenue', value: '£741,644', sub: 'Real trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: '£62,000', sub: '88.6% cash-on-cash · payback 1.13 yrs' },
-    { label: 'Distribution Model', value: 'Pro-rata', sub: 'All shareholders paid by equity % at the same time' },
-    { label: 'Forecast Revenue', value: '£852,891', sub: 'Base case +15% · May 2026–Apr 2027' },
-    { label: 'Valuation Entry', value: '0.76×', sub: 'EBITDA · distressed acquisition pricing' },
+    { label: t('stats.seeking.label'), value: '£70,000 inc VAT', sub: t('stats.seeking.sub') },
+    { label: t('stats.verifiedRevenue.label'), value: '£741,644', sub: t('stats.verifiedRevenue.sub') },
+    { label: t('stats.year1Return.label'), value: '£62,000', sub: t('stats.year1Return.sub') },
+    { label: t('stats.distribution.label'), value: t('stats.distribution.value'), sub: t('stats.distribution.sub') },
+    { label: t('stats.forecast.label'), value: '£852,891', sub: t('stats.forecast.sub') },
+    { label: t('stats.valuation.label'), value: '0.76×', sub: t('stats.valuation.sub') },
   ]
 
   return (
     <div style={{ maxWidth:900, margin:'0 auto' }}>
       <div style={{ marginBottom:48 }}>
         <div style={{ fontSize:11, letterSpacing:'0.15em', textTransform:'uppercase', color:'var(--gold)', marginBottom:16 }}>
-          Series A · Seed Investment · April 2026
+          {t('eyebrow')}
         </div>
         <h1 className="serif" style={{ fontSize:'clamp(3rem,7vw,5.5rem)', lineHeight:1, color:'var(--cream)', marginBottom:20 }}>
           No Dice<br/>Borough
         </h1>
         <p style={{ fontSize:18, color:'var(--cream-dim)', maxWidth:520, lineHeight:1.6 }}>
-          A proven Borough Market experience venue — mini golf, bar, pool, arcades and board games.
-          Generating £741,644 verified 2025 revenue, acquired at distressed pricing.
+          {t('lede')}
         </p>
       </div>
 
@@ -39,7 +41,7 @@ export default function Cover() {
 
       <div style={{ marginTop:40, padding:'16px 24px', background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:10 }}>
         <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          <strong style={{ color:'var(--gold)' }}>Borough Market SE1</strong> · Arches B C D And E, Montague Close · London Bridge
+          <strong style={{ color:'var(--gold)' }}>{t('address')}</strong> {t('addressTail')}
         </div>
       </div>
     </div>
