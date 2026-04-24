@@ -1,0 +1,39 @@
+{
+  "title": "Investor Returns",
+  "subtitle": "Pure pro-rata — all shareholders paid at the same time by equity %. No preferred return, no priority tiers.",
+  "scenarios": {
+    "bear": "Bear Case −10%",
+    "base": "Base Case +15%",
+    "bull": "Bull Case +25%"
+  },
+  "scenarioBadges": {
+    "bear": "−10% scenario",
+    "base": "+15% scenario",
+    "bull": "+25% scenario"
+  },
+  "steps": {
+    "operatingProfit": "Operating Profit",
+    "investorDividend": "Investor Dividend ({{pct}}%)",
+    "founderDividend": "Founder Dividend ({{pct}}%)",
+    "investorNote": "{{pct}}% × operating profit · paid pro-rata",
+    "founderNote": "{{pct}}% × operating profit · paid pro-rata",
+    "header": "Distribution Waterfall"
+  },
+  "summary": {
+    "header": "Investor Summary",
+    "totalReturn": "Total Investor Return",
+    "totalReturnNote": "{{pct}}% pro-rata dividend on operating profit",
+    "cashOnCash": "Cash-on-Cash Return",
+    "paybackPeriod": "Payback Period",
+    "paybackYears": "{{n}} years",
+    "onInvested": "On {{amount}} invested",
+    "equityDividend": "Equity dividend ({{pct}}%)",
+    "distributionTiming": "Distribution timing",
+    "sameAsFounder": "Same as founder",
+    "founderPosition": "Founder Position",
+    "founderEquity": "Equity Dividend ({{pct}}%)",
+    "paid": "Paid",
+    "paidNote": "Alongside investor, pro-rata",
+    "footnote": "Cash-flow driven — no exit required for investor to receive full return. Payback from Year 1 trading distributions only."
+  }
+}

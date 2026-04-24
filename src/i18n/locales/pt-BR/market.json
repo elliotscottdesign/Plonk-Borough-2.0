@@ -1,0 +1,93 @@
+{
+  "eyebrow": "Contexto de Mercado",
+  "title": "Case de Investimento e Posicionamento de Mercado",
+  "subtitle": "Fontes: CLFI, Houlihan Lokey, Moore Kingston Smith, UKHospitality — 2024/25",
+  "benchmarks": {
+    "header": "Benchmarks de Mercado — Múltiplos de EBITDA",
+    "sources": "Fontes: CLFI M&A Monitor S1 2025 · Houlihan Lokey Hospitality S1 2025 · Moore Kingston Smith 2025",
+    "rows": {
+      "midMarket": "Média do Mid-Market do Reino Unido (múltiplo de EBITDA)",
+      "hospitality": "Média do Setor de Hospitalidade e Lazer",
+      "smallSites": "Pequenos Locais de Site Único (<£200k de EBITDA)",
+      "distressed": "Faixa de Ativos em Dificuldades (liquidação)",
+      "thisDeal": "No Dice Borough — Este Acordo"
+    },
+    "tags": {
+      "above": "Acima deste acordo",
+      "inline": "Em grande parte alinhado",
+      "inRange": "Dentro da faixa",
+      "abovePriced": "Acima — precificado por risco",
+      "entry": "→ Ponto de entrada"
+    }
+  },
+  "oneLine": {
+    "header": "→ O Acordo em Uma Linha",
+    "body": "Um local de experiência consolidado no Borough Market, adquirido a preço em dificuldades (<gold>{{multiple}}</gold>), distribuindo via <orange>{{proRata}}</orange> (todos os acionistas recebem ao mesmo tempo pelo % de equity), com payback impulsionado por <teal>{{cashFlow}}</teal>.",
+    "multiple": "0.76× EBITDA",
+    "proRata": "pro-rata puro sobre o lucro operacional",
+    "cashFlow": "fluxo de caixa — sem dependência de saída",
+    "checks": {
+      "noMultiple": { "title": "✓ Não é uma aposta em expansão de múltiplo", "sub": "Retornos impulsionados pelo fluxo de caixa operacional" },
+      "cashDay1": { "title": "✓ Gera caixa desde o Dia 1", "sub": "Distribuições começam no final do Ano 1" },
+      "positive": { "title": "✓ Os 3 cenários são positivos", "sub": "De Conservador a Otimista" }
+    }
+  },
+  "sectorReality": {
+    "header": "Realidade do Setor — Contexto Honesto",
+    "items": {
+      "nics": {
+        "issue": "NICs do empregador subiram de 13,8% → 15% (abril de 2025)",
+        "response": "Aumentos de custo de mão de obra estão no modelo de projeção — não escondidos"
+      },
+      "nmw": {
+        "issue": "Salário Mínimo Nacional subiu 6,7% para £12,21/h (abril de 2025)",
+        "response": "Inflação salarial modelada sobre a base real de 2025 — sem premissa otimista"
+      },
+      "rates": {
+        "issue": "Alívio de business rates reduzido de 75% → 40% (2025/26)",
+        "response": "Ambiente de custo já incorporado — não é uma base pré-choque de custos"
+      },
+      "closures": {
+        "issue": "Hospitalidade no Reino Unido registrando ~2 fechamentos por dia (2025)",
+        "response": "Pressão setorial cria oportunidade de aquisição a preços realistas"
+      },
+      "consumer": {
+        "issue": "Comportamento do consumidor migrando para gastos voltados a experiências e baixo álcool",
+        "response": "O modelo de experiência do No Dice Borough está diretamente alinhado a essa mudança"
+      },
+      "pe": {
+        "issue": "Fundos de PE cautelosos com exposição a consumidor de um único país",
+        "response": "Oportunidade para investidor menor — menos concorrência institucional pelo acordo"
+      }
+    }
+  },
+  "differentiators": {
+    "header": "Por Que Este Negócio é Diferente",
+    "items": {
+      "proven": {
+        "title": "Base de Receita Comprovada",
+        "text": "£741,644 em números reais verificados de 2025. Não é projeção — histórico real de operação."
+      },
+      "location": {
+        "title": "Localização Premium em Londres",
+        "text": "Borough Market SE1: destino de grande fluxo de pessoas. 77,801 sessões de busca orgânica em 2025. Busca Orgânica é o principal canal de aquisição — termos de busca do Borough Market mantidos ativamente."
+      },
+      "format": {
+        "title": "Formato Voltado a Experiências",
+        "text": "Sinuca, jogos de tabuleiro, minigolfe, noites de DJ. Diretamente alinhado ao subsetor de hospitalidade que mais cresce."
+      },
+      "streams": {
+        "title": "Múltiplas Fontes de Receita",
+        "text": "Bar + ingressos de atividades + eventos + locação corporativa. Menos dependente de margens só de bebidas."
+      },
+      "ip": {
+        "title": "IP de Marca Adquirido",
+        "text": "Nome comercial Plonk, base de clientes e goodwill adquiridos. Não começa do zero."
+      },
+      "digital": {
+        "title": "Aquisição Digital",
+        "text": "Busca Orgânica: 77,801 sessões em 2025 — o principal canal de aquisição. Google Ads reiniciado em nov/2025 com tracking adequado: 105 conversões, £0.32 CPC, £5.53 por conversão. Altamente eficiente quando medido corretamente."
+      }
+    }
+  }
+}

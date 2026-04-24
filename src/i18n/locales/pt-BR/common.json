@@ -1,0 +1,49 @@
+{
+  "shell": {
+    "brand": "No Dice Borough Ltd",
+    "confidential": "CONFIDENCIAL · BOROUGH MARKET SE1",
+    "footer": "Gerado em abril de 2026 · Confidencial · No Dice Borough Ltd"
+  },
+  "tabs": {
+    "investorDeck": "Apresentação",
+    "venueInfo": "Informações do Local",
+    "businessExplorer": "Explorador do Negócio",
+    "plonk": "Plonk"
+  },
+  "slideNav": {
+    "cover": "01  Capa",
+    "summary": "02  Resumo do Investimento",
+    "funds": "03  Uso dos Fundos",
+    "market": "04  Contexto de Mercado",
+    "waterfall": "05  Retornos em Cascata",
+    "growth": "06  Crescimento e Riscos",
+    "case": "07  Case de Investimento"
+  },
+  "labels": {
+    "ebitda": "EBITDA",
+    "revenue": "Receita",
+    "total": "Total",
+    "payback": "Payback",
+    "cashOnCash": "Cash-on-Cash",
+    "investorReturn": "Retorno do Investidor",
+    "opProfit": "Lucro Operacional",
+    "investorEquity": "Equity do Investidor",
+    "founderEquity": "Equity do Fundador"
+  },
+  "units": {
+    "year_one": "1 ano",
+    "year_other": "{{count}} anos",
+    "years": "{{n}} anos",
+    "year": "{{n}} ano",
+    "yrs": "{{n}} anos",
+    "minWalk": "{{n}} min a pé",
+    "minuteWalk": "{{n}} minutos a pé",
+    "incVat": "inc IVA",
+    "priceIncVat": "£{{amount}} inc IVA",
+    "suffixIncVat": "{{text}} inc IVA"
+  },
+  "sources": {
+    "sources": "Fontes: {{list}}",
+    "source": "Fonte: {{text}}"
+  }
+}

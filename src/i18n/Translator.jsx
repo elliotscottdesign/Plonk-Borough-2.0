@@ -3,18 +3,20 @@ import { useLanguage } from './context.jsx'
 import { translate } from './dictionary.js'
 
 /**
- * DOM-walking translator.
+ * DEPRECATED — no longer mounted. Superseded by react-i18next (see
+ * ./i18n-setup.js and ./locales/). Kept on disk so we can restore
+ * quickly if the migration regresses. Do not wire this back into
+ * App.jsx without first reverting the component-level useTranslation
+ * calls, or translations will double up.
  *
- * Strategy: React renders its VDOM as English text. Once mounted, we walk the
- * real DOM and swap the text nodes (and a few attributes) to the target lang.
- * A MutationObserver catches any subsequent React updates.
+ * Original description:
  *
- * This lets us keep every existing component untouched — all translation lives
- * in this file plus the dictionary.
- *
- * Guarding against infinite loops: we only translate text whose trimmed value
- * matches a dictionary key or a pattern; once translated, the new value won't
- * match again, so re-observing doesn't re-translate.
+ * DOM-walking translator. React renders its VDOM as English text. Once
+ * mounted, we walk the real DOM and swap the text nodes (and a few
+ * attributes) to the target lang. A MutationObserver catches any
+ * subsequent React updates. Guards against infinite loops by only
+ * translating text whose trimmed value matches a dictionary key or a
+ * pattern; once translated, the new value won't match again.
  */
 
 const SKIP_TAGS = new Set(['SCRIPT', 'STYLE', 'NOSCRIPT', 'TEMPLATE'])

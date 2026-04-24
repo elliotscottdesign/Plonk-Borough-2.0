@@ -1,10 +1,12 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 const PASSWORD = 'TEST1'          // standard investor view (no Plonk tab)
 const PLONK_PASSWORD = '888999'   // investor view + Plonk franchise tab visible
 const BRAZIL_PASSWORD = 'Brazil'  // investor view in Brazilian Portuguese
 
 export default function PasswordGate({ onUnlock }) {
+  const { t } = useTranslation('gate')
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
 
@@ -33,7 +35,7 @@ export default function PasswordGate({ onUnlock }) {
           No Dice<br/>Borough
         </div>
         <div style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
-          Investor Presentation · Confidential
+          {t('eyebrow')}
         </div>
       </div>
 
@@ -42,7 +44,7 @@ export default function PasswordGate({ onUnlock }) {
       {/* Password input */}
       <div style={{ display:'flex', flexDirection:'column', gap:12, alignItems:'center' }}>
         <div style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.1em' }}>
-          Enter access code
+          {t('prompt')}
         </div>
         <div style={{ display:'flex', gap:8 }}>
           <input
@@ -63,15 +65,15 @@ export default function PasswordGate({ onUnlock }) {
             padding:'10px 20px', borderRadius:8, fontSize:13,
             background:'var(--gold)', color:'var(--ink)', border:'none',
             cursor:'pointer', fontWeight:500,
-          }}>Enter</button>
+          }}>{t('enter')}</button>
         </div>
         {error && (
-          <div style={{ fontSize:11, color:'#E53935' }}>Incorrect access code</div>
+          <div style={{ fontSize:11, color:'#E53935' }}>{t('incorrect')}</div>
         )}
       </div>
 
       <div style={{ fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', marginTop:16 }}>
-        For investor use only · Borough Market SE1
+        {t('footer')}
       </div>
     </div>
   )

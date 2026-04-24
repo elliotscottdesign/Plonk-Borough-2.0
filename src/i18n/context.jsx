@@ -1,3 +1,5 @@
+// DEPRECATED — no longer imported. Superseded by react-i18next. Kept
+// on disk alongside Translator.jsx and dictionary.js for rollback.
 import React, { createContext, useContext, useState, useCallback } from 'react'
 import { translate } from './dictionary.js'
 

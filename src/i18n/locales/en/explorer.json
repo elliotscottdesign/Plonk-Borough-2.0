@@ -1,0 +1,168 @@
+{
+  "header": "Business Explorer · Borough Market SE1",
+  "tabs": {
+    "overview": "Overview",
+    "performance2025": "2025 Performance",
+    "performance2026": "2026 Performance",
+    "scenarios": "Scenarios",
+    "market": "Market Context",
+    "wages": "Wages"
+  },
+  "overview": {
+    "stats": {
+      "ask": { "label": "INVESTMENT ASK", "sub": "for 50% equity" },
+      "fy2025": { "label": "FY2025 ACTUAL REVENUE", "sub": "Verified financial model" },
+      "forecast": { "label": "FORECAST REVENUE Y1", "sub": "+15.0% on prior year" }
+    },
+    "forecastChart": "Monthly Revenue & EBITDA Forecast · May 2026 – Apr 2027",
+    "revenueSplitHeader": "Revenue Split",
+    "splits": {
+      "bar": "Bar & Drinks",
+      "activities": "Activities",
+      "events": "Events & Hire"
+    },
+    "y1Ebitda": "Y1 Forecast EBITDA",
+    "y1Margin": "22.4% EBITDA margin",
+    "baseReturns": "Base Case Returns",
+    "cocLabel": "52.1% CoC",
+    "cocNote": "Cash-on-cash return Year 1"
+  },
+  "performance2025": {
+    "income": "Income · Jan–Dec 2025",
+    "costs": "Operating Costs · Jan–Dec 2025",
+    "verified": "verified",
+    "categorised": "categorised",
+    "totalIncome": "Total Income",
+    "totalCosts": "Total Costs",
+    "monthlyIncome": "Monthly Income — Stacked by Source",
+    "monthlyCosts": "Monthly Costs — Stacked",
+    "ticketBreakdown": "Ticket Revenue Breakdown",
+    "ticketSource": "Borough 2025 · Online portal (actual) vs Office/till (imputed at list price)",
+    "combined": "combined",
+    "online": "Online",
+    "office": "Office (imputed)",
+    "onlinePortal": "Online Portal",
+    "officeTill": "Office / Till",
+    "combinedLbl": "Combined",
+    "onlineBySku": "Online · by SKU",
+    "officeBySku": "Office · by SKU",
+    "onlineNote": "Status = complete",
+    "officeNote": "Status = external · imputed at list price",
+    "monthlyTicket": "Monthly Ticket Revenue — Online + Office Stacked"
+  },
+  "incomeSources": {
+    "bar": "Spend at Bar",
+    "onlineGolf": "Online Golf Tickets",
+    "bookings": "Bookings & Events",
+    "privateHires": "Private Hires",
+    "serviceCharge": "Service Charge",
+    "poolTickets": "Pool Tickets"
+  },
+  "costCategories": {
+    "wages": "Wages",
+    "fixed": "Fixed Costs",
+    "drinks": "Drinks & Gas",
+    "vat": "VAT (Net)",
+    "cleaning": "Cleaning",
+    "arcades": "Arcades",
+    "food": "Food",
+    "google": "Google/Digital",
+    "cardCharges": "Card Charges",
+    "fixedDesc": "Rent, rates, electricity, insurance, internet, PRS",
+    "vatDesc": "Net VAT paid to HMRC — VAT collected minus VAT reclaimed on purchases",
+    "googleDesc": "2025 historical Lithos/Google spend · under new IP & Licensing model all ad/SEO spend sits with Plonk Golf from 2026"
+  },
+  "performance2026": {
+    "header": "2026 Performance · Scenario-adjusted forecast",
+    "sliderDesc": "Aggregate of the four growth levers in Scenarios (Bar · Golf · Hires · Events). Dragging this slider snaps all four to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, everything else scales.",
+    "resetLevers": "Reset all four levers to +15% (Base)",
+    "labels": {
+      "bear": "Bear",
+      "y2025": "2025",
+      "base": "Base",
+      "bull": "Bull"
+    },
+    "adjustedRevenue": "Adjusted Revenue",
+    "adjustedEbitda": "Adjusted EBITDA",
+    "margin": "margin",
+    "income2026": "Income · 2026 Forecast",
+    "costs2026": "Operating Costs · 2026 Forecast",
+    "monthlyIncome2026": "Monthly Income 2026 — Scaled",
+    "monthlyCosts2026": "Monthly Costs 2026 — Scaled",
+    "costNotes": {
+      "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
+      "drinks": "30% of bar revenue (2025 actual was 22.5%)",
+      "scales": "Scales with aggregate revenue",
+      "hosting": "Hosting (Lithos)",
+      "hostingNote": "Fixed — SEO/Ads now owned by Plonk Golf",
+      "other": "Other"
+    },
+    "resetDefault": "Reset to default"
+  },
+  "scenarios": {
+    "buildCustom": "Build Custom Scenario",
+    "leverNote": "These four levers also drive the main 2026 Performance slider",
+    "levers": {
+      "bar": "Bar Increase",
+      "golf": "Golf Ticket Increase",
+      "hires": "Private Hires",
+      "events": "Regular Events"
+    },
+    "resetTo15": "Reset to +15%",
+    "resetTo100": "Reset to 100%",
+    "newLabel": "New:",
+    "opex": "OpEx vs Budget",
+    "opexHint": "(costs multiplier for the Custom card only)",
+    "cards": {
+      "conservative": "CONSERVATIVE",
+      "base": "BASE CASE",
+      "optimistic": "OPTIMISTIC",
+      "custom": "CUSTOM"
+    },
+    "opProfit": "Op Profit",
+    "investorReturn": "Investor Return"
+  },
+  "market": {
+    "header": "Experience Leisure Growth",
+    "growthNote": "2025 YoY — fastest growing hospitality sub-sector",
+    "visitors": "Borough Market Visitors",
+    "visitorsNote": "Annual visitors to the area",
+    "commuters": "London Bridge Commuters",
+    "commutersNote": "Daily station passengers — primary catchment",
+    "demographics": "SE1 Demographics",
+    "age": "Aged 25–44",
+    "income": "Median HH Income",
+    "edu": "Uni-educated",
+    "office": "Office workers",
+    "tailwinds": "Tailwinds & Positioning",
+    "items": {
+      "social": { "title": "Social Media Discovery", "text": "Experiential venues generate organic UGC at 5× the rate of traditional hospitality. Plonk's visual format drives free acquisition." },
+      "corporate": { "title": "Corporate Demand", "text": "Post-pandemic, team-building and offsites are structural demand. City of London proximity means Plonk Borough targets this without incremental spend." },
+      "recession": { "title": "Recession Resilience", "text": "Domestic leisure spend is sticky. Experience venues priced below £30/head replace overseas alternatives during economic downturns." },
+      "occasions": { "title": "Occasions & Celebrations", "text": "Birthday, hen and stag parties are high-value bookings with structured spend. Activity venues capture the full occasion — entry, drinks and food." },
+      "repeat": { "title": "Repeat Visit Model", "text": "Multi-activity format with regular event programme drives repeat visitation. Bar-led experience venues see 2–3× the repeat rate of single-activity venues." },
+      "pricing": { "title": "Pricing Power", "text": "+£1 across pool and golf at current volumes generates ~£15K incremental annual profit. Zero capex, zero churn risk at this price point." }
+    }
+  },
+  "wages": {
+    "total": "Total Wage Bill 2025",
+    "totalNote": "Verified rota data",
+    "hours": "Total Hours Worked",
+    "hoursValue": "10,043 hrs",
+    "hoursNote": "23 employees · fully tagged roles",
+    "pct": "Wages as % Revenue",
+    "pctNote": "£242,370 ÷ £741,644 · target ≤22%",
+    "calculatorHeader": "Sliding Wage Rate Calculator — 2026 Planning",
+    "roles": {
+      "bar": "Bar Staff",
+      "supervisor": "Supervisor",
+      "asstManager": "Asst Manager",
+      "manager": "Manager"
+    },
+    "hrs": "hrs",
+    "annual": "Annual:",
+    "projected": "Projected Wage Bill",
+    "delta": "Delta vs 2025",
+    "forecastPct": "Wages % Forecast"
+  }
+}

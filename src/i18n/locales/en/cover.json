@@ -1,0 +1,33 @@
+{
+  "eyebrow": "Series A · Seed Investment · April 2026",
+  "lede": "A proven Borough Market experience venue — mini golf, bar, pool, arcades and board games. Generating £741,644 verified 2025 revenue, acquired at distressed pricing.",
+  "address": "Borough Market SE1",
+  "addressTail": "· Arches B C D And E, Montague Close · London Bridge",
+  "stats": {
+    "seeking": {
+      "label": "Seeking",
+      "sub": "50% equity · 50% retained by founder"
+    },
+    "verifiedRevenue": {
+      "label": "2025 Verified Revenue",
+      "sub": "Real trading history — not a projection"
+    },
+    "year1Return": {
+      "label": "Year 1 Investor Return",
+      "sub": "88.6% cash-on-cash · payback 1.13 yrs"
+    },
+    "distribution": {
+      "label": "Distribution Model",
+      "value": "Pro-rata",
+      "sub": "All shareholders paid by equity % at the same time"
+    },
+    "forecast": {
+      "label": "Forecast Revenue",
+      "sub": "Base case +15% · May 2026–Apr 2027"
+    },
+    "valuation": {
+      "label": "Valuation Entry",
+      "sub": "EBITDA · distressed acquisition pricing"
+    }
+  }
+}

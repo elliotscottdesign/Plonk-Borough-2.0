@@ -1,0 +1,66 @@
+{
+  "title": "Growth & Risks",
+  "subtitle": "Upside drivers not in the base case · Risk register with mitigations",
+  "upsideHeader": "Upside Drivers (not in base case)",
+  "risksHeader": "Risk Register",
+  "overallHeader": "Overall Risk Profile",
+  "overallBody": "Four low risks, two medium. No high risks identified. Investor return flexes with the business — pro-rata on operating profit means upside and downside sit on the same side of the table as the founder.",
+  "impact": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High",
+    "strategic": "Strategic"
+  },
+  "drivers": {
+    "seo": {
+      "driver": "SEO Rebuild from Day 1",
+      "detail": "Organic traffic dropped 32% due to brand change (Plonk→No Dice). Lithos SEO programme restores rankings under No Dice Borough — compounding year-on-year. 301 redirect preserves domain authority."
+    },
+    "ads": {
+      "driver": "Google Ads at Scale",
+      "detail": "Proven £0.32 CPC and 5.7% conversion rate from Nov–Dec 2025 campaign. 105 conversions in 37 days at £580 spend. Scale to £600/mth = ~107 conversions/month with verified unit economics."
+    },
+    "corporate": {
+      "driver": "Corporate Events Pipeline",
+      "detail": "Private hire revenue £44,999 in 2025. Bookings manager focusing on corporate team days, exclusive hires and Christmas parties. High-margin, pre-paid bookings with minimal incremental cost."
+    },
+    "dj": {
+      "driver": "DJ Nights Programme",
+      "detail": "Friday and Saturday late events incremental to walk-in trade. High-margin bar revenue with zero additional fixed cost. Borough Market location draws natural footfall."
+    },
+    "repricing": {
+      "driver": "Gaming Repricing",
+      "detail": "+£1 across pool and mini golf affects 100k+ annual plays. Minimal customer resistance. Direct P&L impact with zero cost increase."
+    },
+    "secondSite": {
+      "driver": "Second Site Optionality",
+      "detail": "Proven operating model, experienced team and Borough Market brand can be replicated. Future fundraise at higher multiple is plausible once Year 1 returns are demonstrated."
+    }
+  },
+  "risks": {
+    "timeline": {
+      "risk": "Reopening timeline delay",
+      "mitigation": "Lease secured, hardware acquired from liquidation, staff network retained. Target May 2026."
+    },
+    "revenue": {
+      "risk": "Revenue below base case forecast",
+      "mitigation": "Base case is +15% on verified 2025 actuals. Pro-rata dividend flexes with whatever operating profit the venue delivers."
+    },
+    "wage": {
+      "risk": "Wage inflation",
+      "mitigation": "NMW modelled at 2025 actuals. No optimistic wage assumption. Wage calculator models scenarios."
+    },
+    "brand": {
+      "risk": "Brand transition (Plonk→No Dice)",
+      "mitigation": "SEO redirect preserves domain authority. Existing customer database retained. Location unchanged."
+    },
+    "marketing": {
+      "risk": "Marketing variability",
+      "mitigation": "Google Ads proven at £0.32 CPC with live conversion tracking. SEO programme starts Day 1."
+    },
+    "keyPerson": {
+      "risk": "Key person dependency",
+      "mitigation": "Bookings manager and experienced bar staff retained. Operating procedures documented."
+    }
+  }
+}

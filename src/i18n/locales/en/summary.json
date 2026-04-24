@@ -1,0 +1,52 @@
+{
+  "title": "Investment Summary",
+  "subtitle": "At-a-glance deal structure, returns and financials",
+  "scenarios": {
+    "conservative": { "label": "Conservative", "sub": "+10% on 2025" },
+    "base": { "label": "Base Case", "sub": "+15% on 2025" },
+    "optimistic": { "label": "Optimistic", "sub": "+25% on 2025" }
+  },
+  "sections": {
+    "deal": "🏢 Deal Structure",
+    "financial": "📊 Financial Performance",
+    "returns": "💰 Investor Returns"
+  },
+  "rows": {
+    "investorEquity": "Investor Equity",
+    "founderEquity": "Founder Equity",
+    "preMoney": "Pre-Money Valuation",
+    "postMoney": "Post-Money Valuation",
+    "valuationMultiple": "Valuation Multiple",
+    "actualRevenue": "2025 Actual Revenue",
+    "forecastRevenue": "Forecast Revenue",
+    "revenueGrowth": "Revenue Growth",
+    "forecastOpProfit": "Forecast Op Profit",
+    "ebitda2025": "2025 EBITDA",
+    "distributionModel": "Distribution Model",
+    "proRataNoTiers": "Pro-rata · no tiers",
+    "equityDividend": "Equity Dividend ({{pct}}%)",
+    "totalYear1": "Total Year 1 Return",
+    "cashOnCash": "Cash-on-Cash",
+    "payback": "Payback Period",
+    "paybackYears": "{{n}} years",
+    "paybackNA": "N/A · profit ≤ 0"
+  },
+  "highlights": {
+    "header": "Top 3 Investment Highlights",
+    "first": "{{total}} Year 1 investor return · {{coc}}% cash-on-cash on {{investment}} invested",
+    "second": "Proven Borough Market venue — {{revenue}} verified 2025 revenue · 77,801 organic search sessions · 58% organic traffic",
+    "third": "All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)"
+  },
+  "calculator": {
+    "title": "Explore Your Return",
+    "amount": "Investment Amount",
+    "capNote": "£70,000 · 50% equity cap",
+    "aShares": "A Shares · Full Voting Rights",
+    "bShares": "B Shares · Economic Rights Only",
+    "equitySuffix": "equity",
+    "ownership": "Ownership",
+    "equityDividend": "Equity Dividend",
+    "totalYear1": "Total Year 1",
+    "footnote": "Cash-on-Cash: {{coc}}% · Payback: {{payback}} years · Minimum for A shares: £{{threshold}}"
+  }
+}

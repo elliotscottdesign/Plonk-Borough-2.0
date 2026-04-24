@@ -1,0 +1,63 @@
+{
+  "title": "O Case de Investimento",
+  "subtitle": "Por que No Dice Borough · Seis motivos para investir · Drivers de upside · Mitigação de riscos",
+  "strengthsHeader": "Seis Pontos Fortes Centrais",
+  "upsideHeader": "Drivers de Upside (fora do cenário base)",
+  "risksHeader": "Riscos e Mitigações",
+  "strengths": {
+    "proven": {
+      "title": "Histórico de Operação Comprovado",
+      "body": "{{revenue}} de receita verificada em 2025 a partir de 52 semanas de P&L semanal categorizado. Não é projeção — dados reais de operação de um local estabelecido."
+    },
+    "location": {
+      "title": "Localização Defensável",
+      "body": "Borough Market SE1 — um dos destinos com maior fluxo de pessoas em Londres, entre turistas e locais. O contrato não pode ser facilmente replicado. 77,801 sessões de busca orgânica em 2025."
+    },
+    "distressed": {
+      "title": "Preço de Entrada em Dificuldades",
+      "body": "Múltiplo de entrada de {{multiple}}× EBITDA via aquisição em liquidação. Locais de hospitalidade comparáveis operam a 3–5× EBITDA. Ganho imediato de equity no Dia 1."
+    },
+    "aligned": {
+      "title": "Modelo de Distribuição Alinhado",
+      "body": "Todos os acionistas recebem ao mesmo tempo — pro-rata puro sobre o lucro operacional pelo % de equity. Sem retorno preferencial, sem níveis de prioridade. Incentivos de fundador e investidor se movem juntos desde o primeiro pagamento."
+    },
+    "streams": {
+      "title": "Múltiplas Fontes de Receita",
+      "body": "Gastos no bar (49%), ingressos online de golfe (28%), reservas e eventos (14%), locações privadas (6%), ingressos de sinuca e taxa de serviço. Sem ponto único de falha."
+    },
+    "noExit": {
+      "title": "Saída Não Necessária",
+      "body": "Retorno cash-on-cash de {{coc}}% a partir das distribuições de operação do Ano 1. Período de payback de {{payback}} anos. Retornos do investidor são orientados por fluxo de caixa — sem necessidade de venda."
+    }
+  },
+  "upside": {
+    "seo": { "driver": "Reconstrução de SEO desde o Dia 1", "detail": "Tráfego orgânico em queda de 32% por causa da mudança de marca. O programa de SEO da Lithos restaura o ranqueamento sob No Dice Borough — com ganho composto ano a ano." },
+    "ads": { "driver": "Escala de Google Ads", "detail": "CPC comprovado de £0.32 e taxa de conversão de 5,7%. Orçamento atual de £600/mês entrega ~107 conversões/mês. Escalar para £1,200/mês dobra o volume com unit economics verificados." },
+    "corporate": { "driver": "Pipeline de eventos corporativos", "detail": "Receita de locação privada de £44,999 em 2025. Gerente de reservas focado em eventos corporativos, team days e locações exclusivas — upside material sobre o cenário base." },
+    "dj": { "driver": "Programa de Noites de DJ", "detail": "Eventos noturnos de sex/sáb incrementais ao público espontâneo. Receita de bar de alta margem, sem custo fixo adicional." },
+    "repricing": { "driver": "Reprecificação dos jogos", "detail": "+£1 em sinuca e minigolfe ao longo de mais de 100 mil partidas anuais. Resistência mínima do cliente, impacto relevante no P&L." }
+  },
+  "risks": {
+    "timeline": { "risk": "Cronograma de reabertura", "mitigation": "Contrato de locação assegurado, hardware adquirido, equipe mantida. Meta: maio de 2026." },
+    "revenue": { "risk": "Receita abaixo da projeção", "mitigation": "O cenário base é +15% sobre os números reais verificados de 2025. O dividendo do investidor é pro-rata sobre qualquer lucro operacional que o local produzir." },
+    "wage": { "risk": "Inflação salarial", "mitigation": "NMW modelado sobre os números reais de 2025 — sem premissa otimista. Calculadora de salários disponível para teste de cenários." },
+    "brand": { "risk": "Transição de marca (Plonk → No Dice)", "mitigation": "Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização no Borough Market inalterada." }
+  },
+  "impact": {
+    "low": "Baixo",
+    "medium": "Médio",
+    "high": "Alto"
+  },
+  "cta": {
+    "body": "{{seeking}} <gold>{{investment}} inc IVA</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}",
+    "seeking": "Busca",
+    "for": "por",
+    "equity": "{{pct}}% de equity",
+    "year1": "Retorno no Ano 1",
+    "coc": "({{coc}}% CoC)",
+    "payback": "Payback",
+    "years": "{{n}} anos",
+    "year": "{{n}} ano",
+    "tail": "Orientado por fluxo de caixa — saída não necessária."
+  }
+}
