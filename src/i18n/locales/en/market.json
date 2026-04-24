@@ -22,6 +22,7 @@
   },
   "oneLine": {
     "header": "→ The Deal in One Line",
+    "body": "A proven Borough Market experience venue, acquired at distressed pricing (<gold>{{multiple}}</gold>), distributing via <orange>{{proRata}}</orange> (all shareholders paid at the same time by equity %), with payback driven by <teal>{{cashFlow}}</teal>.",
     "multiple": "0.76× EBITDA",
     "proRata": "pure pro-rata on operating profit",
     "cashFlow": "cash flow — not exit dependency",

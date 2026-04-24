@@ -22,6 +22,7 @@
   },
   "oneLine": {
     "header": "→ O Acordo em Uma Linha",
+    "body": "Um local de experiência consolidado no Borough Market, adquirido a preço em dificuldades (<gold>{{multiple}}</gold>), distribuindo via <orange>{{proRata}}</orange> (todos os acionistas recebem ao mesmo tempo pelo % de equity), com payback impulsionado por <teal>{{cashFlow}}</teal>.",
     "multiple": "0.76× EBITDA",
     "proRata": "pro-rata puro sobre o lucro operacional",
     "cashFlow": "fluxo de caixa — sem dependência de saída",
