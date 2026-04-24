@@ -1,14 +1,25 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
+import { formatCurrency, formatNumber } from '../i18n/format.js'
 
-const TABS = ['Overview','2025 Performance','2026 Performance','Scenarios','Market Context','Wages']
+const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market','wages']
 
-const fmt = n => '£' + Math.round(n).toLocaleString()
-const fmtK = n => '£' + Math.round(n/1000) + 'k'
+function useFmt() {
+  const { i18n } = useTranslation()
+  const lang = i18n.language
+  const fmt = (n) => formatCurrency(n, lang)
+  const fmtK = (n) => '£' + Math.round(n/1000) + 'k'
+  const fmtNum = (n) => formatNumber(n, lang)
+  return { fmt, fmtK, fmtNum, lang }
+}
 
 function TabOverview() {
+  const { t } = useTranslation('explorer')
+  const { t: tc } = useTranslation('common')
+  const { fmt, fmtK } = useFmt()
   const months = ['May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr']
   const rev =    [52000,44000,53000,89000,71000,68000,97000,173326,36000,52000,60000,58000]
   const ebitda = [-7000,-4000,5000,23000,17000,15000,30000,98000,-3000,6000,3000,8000]
@@ -17,9 +28,9 @@ function TabOverview() {
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'INVESTMENT ASK', value:'£70,000 inc VAT', sub:'for 50% equity', color:'var(--gold)' },
-          { label:'FY2025 ACTUAL REVENUE', value:'£742k', sub:'Verified financial model', color:'#4FC3F7' },
-          { label:'FORECAST REVENUE Y1', value:'£853k', sub:'+15.0% on prior year', color:'#2DD4BF' },
+          { label:t('overview.stats.ask.label'),      value:'£70,000 inc VAT', sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
+          { label:t('overview.stats.fy2025.label'),   value:'£742k',           sub:t('overview.stats.fy2025.sub'),   color:'#4FC3F7' },
+          { label:t('overview.stats.forecast.label'), value:'£853k',           sub:t('overview.stats.forecast.sub'), color:'#2DD4BF' },
         ].map(s => (
           <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
             <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:8 }}>{s.label}</div>
@@ -29,18 +40,22 @@ function TabOverview() {
         ))}
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:16 }}>Monthly Revenue & EBITDA Forecast · May 2026 – Apr 2027</div>
-        <OverviewMonthlyChart months={months} rev={rev} ebitda={ebitda} maxRev={maxRev} />
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:16 }}>{t('overview.forecastChart')}</div>
+        <OverviewMonthlyChart months={months} rev={rev} ebitda={ebitda} maxRev={maxRev} fmtK={fmtK} />
         <div style={{ display:'flex', gap:16 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#4FC3F7', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>Revenue</span></div>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#2DD4BF', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>EBITDA</span></div>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#4FC3F7', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>{tc('labels.revenue')}</span></div>
+          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#2DD4BF', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>{tc('labels.ebitda')}</span></div>
         </div>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'Revenue Split', items:[{label:'Bar & Drinks',pct:49,c:'#1E40AF'},{label:'Activities',pct:28,c:'#2563EB'},{label:'Events & Hire',pct:23,c:'#60A5FA'}] },
-          { label:'Y1 Forecast EBITDA', value:'£191k', sub:'22.4% EBITDA margin', color:'#2DD4BF' },
-          { label:'Base Case Returns', value:'52.1% CoC', sub:'Cash-on-cash return Year 1', color:'#C9A84C' },
+          { label:t('overview.revenueSplitHeader'), items:[
+            { label:t('overview.splits.bar'), pct:49, c:'#1E40AF' },
+            { label:t('overview.splits.activities'), pct:28, c:'#2563EB' },
+            { label:t('overview.splits.events'), pct:23, c:'#60A5FA' },
+          ]},
+          { label:t('overview.y1Ebitda'), value:'£191k', sub:t('overview.y1Margin'), color:'#2DD4BF' },
+          { label:t('overview.baseReturns'), value:t('overview.cocLabel'), sub:t('overview.cocNote'), color:'#C9A84C' },
         ].map((s,i) => (
           <div key={i} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
             <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{s.label}</div>
@@ -74,70 +89,68 @@ const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#
 const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#DDD6FE','#EDE9FE']
 const PERF_GROWTH_MIN = -20
 const PERF_GROWTH_MAX = 50
-const PERF_MARKERS = [
-  { label: 'Bear',   value: -10, color: '#EF4444' },
-  { label: '2025',   value:   0, color: '#9CA3AF' },  // flat — same as 2025 actuals
-  { label: 'Base',   value:  15, color: '#C9A84C' },
-  { label: 'Bull',   value:  25, color: '#22D3EE' },
-]
+
 const perfGrowthToPct = g => ((g - PERF_GROWTH_MIN) / (PERF_GROWTH_MAX - PERF_GROWTH_MIN)) * 100
 
 // Per-line growth map: the 4 breakdown sliders (Scenarios) drive 4 specific revenue
-// lines. Service Charge + Pool scale by the simple average of the 4 (keeps the old
-// "uniform" behaviour when all 4 sliders match).
+// lines. Service Charge + Pool scale by the simple average of the 4.
 function buildLineGrowths(g) {
   const avg = (g.bar + g.golf + g.hires + g.events) / 4
   return {
-    'Spend at Bar': g.bar,
-    'Online Golf Tickets': g.golf,
-    'Bookings & Events': g.events,
-    'Private Hires': g.hires,
-    'Service Charge': avg,
-    'Pool Tickets': avg,
+    bar: g.bar,
+    onlineGolf: g.golf,
+    bookings: g.events,
+    privateHires: g.hires,
+    serviceCharge: avg,
+    poolTickets: avg,
   }
 }
 
 function TabPerformance({ growth }) {
+  const { t } = useTranslation('explorer')
+  const { fmt, fmtK } = useFmt()
   const lineGrowths = buildLineGrowths(growth)
   const BASE_TOTAL = INCOME.reduce((s, i) => s + i.value, 0)
 
   const income2026 = INCOME.map((i, idx) => {
-    const g = lineGrowths[i.label] ?? 0
+    const g = lineGrowths[i.labelKey] ?? 0
     return {
-      label: i.label,
+      labelKey: i.labelKey,
+      label: t(`incomeSources.${i.labelKey}`),
       value: Math.round(i.value * (1 + g / 100)),
       color: INCOME_2026_COLORS[idx] || INCOME_2026_COLORS[INCOME_2026_COLORS.length - 1],
     }
   })
   const totalIncome = income2026.reduce((s, i) => s + i.value, 0)
   const aggGrowth = BASE_TOTAL > 0 ? ((totalIncome - BASE_TOTAL) / BASE_TOTAL) * 100 : 0
-  const mult = 1 + aggGrowth / 100   // for non-revenue-specific cost scaling
+  const mult = 1 + aggGrowth / 100
   const incomeWithPct = income2026.map(i => ({ ...i, pct: +(i.value / totalIncome * 100).toFixed(1) }))
 
-  // Drinks COGS: 30% of bar revenue (2025 actual was 22.5% — models margin compression).
-  const barRevenue2026 = income2026.find(x => x.label === 'Spend at Bar')?.value || 0
+  const barRevenue2026 = income2026.find(x => x.labelKey === 'bar')?.value || 0
   const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
+  const hostingNote = t('performance2026.costNotes.hostingNote')
+  const scalesNote = t('performance2026.costNotes.scales')
   const costsRaw = [
-    { label: 'Wages',            value: Math.round(242370 * 1.10), note: '+10% on 2025' },
-    { label: 'Fixed Costs',      value: Math.round(165059 * 1.10), note: 'Rent, rates, utilities, insurance, internet, PRS · +10% on 2025' },
-    { label: 'Drinks & Gas',     value: drinksGas2026,              note: '30% of bar revenue (2025 actual was 22.5%)' },
-    { label: 'VAT (Net)',        value: Math.round(78851 * mult),   note: 'Scales with aggregate revenue' },
-    { label: 'Cleaning',         value: Math.round(21842 * mult),   note: 'Scales with aggregate revenue' },
-    { label: 'Arcades',          value: Math.round(17152 * mult),   note: 'Scales with aggregate revenue' },
-    { label: 'Food',             value: Math.round(9101 * mult),    note: 'Scales with aggregate revenue' },
-    { label: 'Hosting (Lithos)', value: 3492,                        note: 'Fixed — SEO/Ads now owned by Plonk Golf' },
-    { label: 'Card Charges',     value: Math.round(5443 * mult),    note: 'Scales with aggregate revenue' },
+    { labelKey: 'wages',     value: Math.round(242370 * 1.10), note: '+10% on 2025' },
+    { labelKey: 'fixed',     value: Math.round(165059 * 1.10), note: t('performance2026.costNotes.fixed') },
+    { labelKey: 'drinks',    value: drinksGas2026,              note: t('performance2026.costNotes.drinks') },
+    { labelKey: 'vat',       value: Math.round(78851 * mult),   note: scalesNote },
+    { labelKey: 'cleaning',  value: Math.round(21842 * mult),   note: scalesNote },
+    { labelKey: 'arcades',   value: Math.round(17152 * mult),   note: scalesNote },
+    { labelKey: 'food',      value: Math.round(9101 * mult),    note: scalesNote },
+    { labelKey: 'hosting',   value: 3492,                        note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
+    { labelKey: 'cardCharges', value: Math.round(5443 * mult),  note: scalesNote },
   ]
   const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
   const costs2026 = costsRaw.map((c, idx) => ({
     ...c,
+    label: c.customLabel || t(`costCategories.${c.labelKey}`),
     pct: +(c.value / totalCosts * 100).toFixed(1),
     color: COSTS_2026_COLORS[idx] || COSTS_2026_COLORS[COSTS_2026_COLORS.length - 1],
   }))
   const ebitda = totalIncome - totalCosts
   const margin = totalIncome > 0 ? ebitda / totalIncome : 0
 
-  // Monthly 2026 — scale each line by its own growth rate
   const monthlyIncome2026 = MONTHLY_INCOME.map(m => ({
     m: m.m,
     bar:    Math.round(m.bar    * (1 + growth.bar    / 100)),
@@ -160,35 +173,40 @@ function TabPerformance({ growth }) {
     }
   })
 
-  // Displayed slider value = aggregate growth (rounded). Dragging the slider snaps
-  // all four breakdown sliders to that value — acts as a "uniform growth" shortcut.
   const sliderValue = Math.round(aggGrowth)
+
+  const perfMarkers = [
+    { labelKey: 'bear',  value: -10, color: '#EF4444' },
+    { labelKey: 'y2025', value:   0, color: '#9CA3AF' },
+    { labelKey: 'base',  value:  15, color: '#C9A84C' },
+    { labelKey: 'bull',  value:  25, color: '#22D3EE' },
+  ]
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* Slider card — stays at the top of the page per spec */}
+      {/* Slider card */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
           <div>
-            <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:2 }}>2026 Performance · Scenario-adjusted forecast</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Aggregate of the four growth levers in Scenarios (Bar · Golf · Hires · Events). Dragging this slider snaps all four to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, everything else scales.</div>
+            <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:2 }}>{t('performance2026.header')}</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('performance2026.sliderDesc')}</div>
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:14, fontWeight:700, color:'#22D3EE', minWidth:48, textAlign:'right' }}>{sliderValue>0?'+':''}{sliderValue}%</span>
-            <ResetBtn onClick={()=>growth.setAll(15)} title="Reset all four levers to +15% (Base)" />
+            <ResetBtn onClick={()=>growth.setAll(15)} title={t('performance2026.resetLevers')} />
           </div>
         </div>
         <div style={{ position:'relative', marginTop:14, padding:'4px 0 26px' }}>
           <input type="range" min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={sliderValue} onChange={e=>growth.setAll(Number(e.target.value))} style={{ width:'100%', accentColor:'#22D3EE' }} />
-          {PERF_MARKERS.map(mk => (
-            <button key={mk.label} onClick={()=>growth.setAll(mk.value)} style={{
+          {perfMarkers.map(mk => (
+            <button key={mk.labelKey} onClick={()=>growth.setAll(mk.value)} style={{
               position:'absolute', left:`calc(${perfGrowthToPct(mk.value)}% - 26px)`, top:28,
               width:52, padding:'2px 0', borderRadius:3, cursor:'pointer',
               background: sliderValue === mk.value ? mk.color : 'transparent',
               border: `1px solid ${mk.color}`,
               color: sliderValue === mk.value ? '#0A0A0F' : mk.color,
               fontSize:10, fontWeight:700, letterSpacing:'0.05em', textAlign:'center', transition:'all 0.15s',
-            }}>{mk.label} {mk.value>0?'+':''}{mk.value}%</button>
+            }}>{t(`performance2026.labels.${mk.labelKey}`)} {mk.value>0?'+':''}{mk.value}%</button>
           ))}
           <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginTop:2, padding:'0 2px' }}>
             <span>{PERF_GROWTH_MIN}%</span>
@@ -196,17 +214,16 @@ function TabPerformance({ growth }) {
           </div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginTop:20 }}>
-          <KpiCard2026 label="Adjusted Revenue" value={fmtK(totalIncome)} color="#22D3EE" />
-          <KpiCard2026 label="Adjusted EBITDA" value={fmtK(ebitda)} sub={`${(margin*100).toFixed(1)}% margin`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
-          <KpiCard2026 label="Total Costs" value={fmtK(totalCosts)} color="#8B5CF6" />
+          <KpiCard2026 label={t('performance2026.adjustedRevenue')} value={fmtK(totalIncome)} color="#22D3EE" />
+          <KpiCard2026 label={t('performance2026.adjustedEbitda')} value={fmtK(ebitda)} sub={`${(margin*100).toFixed(1)}% ${t('performance2026.margin')}`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
+          <KpiCard2026 label={t('performance2025.totalCosts')} value={fmtK(totalCosts)} color="#8B5CF6" />
         </div>
       </div>
 
-      {/* 2-column income / costs — donut + list + monthly stacked bar on each side */}
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Income · 2026 Forecast</div>
+            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
             <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
           </div>
           <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
@@ -222,19 +239,19 @@ function TabPerformance({ growth }) {
               </div>
             ))}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Income</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
               <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
             </div>
           </div>
           <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly Income 2026 — Scaled</div>
-            <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} />
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
+            <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
           </div>
         </div>
 
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Operating Costs · 2026 Forecast</div>
+            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.costs2026')}</div>
             <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmt(totalCosts)}</div>
           </div>
           <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
@@ -253,13 +270,13 @@ function TabPerformance({ growth }) {
               </div>
             ))}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Costs</div>
+              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalCosts')}</div>
               <div style={{ fontSize:14, fontWeight:700, color:'#A78BFA' }}>{fmt(totalCosts)}</div>
             </div>
           </div>
           <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly Costs 2026 — Scaled</div>
-            <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} />
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyCosts2026')}</div>
+            <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} fmt={fmt} t={t} />
           </div>
         </div>
       </div>
@@ -277,7 +294,7 @@ function KpiCard2026({ label, value, sub, color }) {
   )
 }
 
-function OverviewMonthlyChart({ months, rev, ebitda, maxRev }) {
+function OverviewMonthlyChart({ months, rev, ebitda, maxRev, fmtK }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   return (
     <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:6, height:140, marginBottom:8, position:'relative' }}>
@@ -301,31 +318,30 @@ function OverviewMonthlyChart({ months, rev, ebitda, maxRev }) {
   )
 }
 
-function Stacked2026({ monthly, kind, maxH=120 }) {
+function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const palette = kind === 'income'
     ? ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
     : ['#4C1D95','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
   const LABELS = kind === 'income'
-    ? ['Spend at Bar','Online Golf Tickets','Bookings & Events','Private Hires','Service Charge','Pool Tickets']
-    : ['Wages','Fixed Costs','Drinks & Gas','VAT (Net)','Other']
+    ? [t('incomeSources.bar'), t('incomeSources.onlineGolf'), t('incomeSources.bookings'), t('incomeSources.privateHires'), t('incomeSources.serviceCharge'), t('incomeSources.poolTickets')]
+    : [t('costCategories.wages'), t('costCategories.fixed'), t('costCategories.drinks'), t('costCategories.vat'), t('performance2026.costNotes.other')]
   const getSegs = m => kind === 'income'
     ? [{ v:m.bar, c:palette[0] },{ v:m.golf, c:palette[1] },{ v:m.events, c:palette[2] },{ v:m.hire, c:palette[3] },{ v:m.sc, c:palette[4] },{ v:m.pool, c:palette[5] }]
     : [{ v:m.wages, c:palette[0] },{ v:m.fixed, c:palette[1] },{ v:m.drinks, c:palette[2] },{ v:m.vat, c:palette[3] },{ v:m.other, c:palette[4] }]
   const total = m => getSegs(m).reduce((s, x) => s + (x.v || 0), 0)
   const maxVal = Math.max(...monthly.map(total))
-  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
-        const t = total(m)
-        const h = Math.round((t / maxVal) * maxH)
+        const tot = total(m)
+        const h = Math.round((tot / maxVal) * maxH)
         const segs = getSegs(m)
         return (
           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
               {segs.map((s,j) => (
-                <div key={j} style={{ height:`${t > 0 ? (s.v / t) * 100 : 0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+                <div key={j} style={{ height:`${tot > 0 ? (s.v / tot) * 100 : 0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmt(s.v)}`)} />
               ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
@@ -337,9 +353,6 @@ function Stacked2026({ monthly, kind, maxH=120 }) {
   )
 }
 
-// Helper — applies the 2026 cost rules (wages +10pct, fixed +10pct, drinks 30pct of bar,
-// hosting fixed, everything else scales with aggregate revenue) and returns the full
-// scenario: revenue, operating profit, investor return (50pct pro-rata), CoC on £70k.
 function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
   const avg = (barG + golfG + eventsG + hiresG) / 4
   const bar = 362836 * (1 + barG / 100)
@@ -349,18 +362,18 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
   const sc = 15102 * (1 + avg / 100)
   const pool = 2198 * (1 + avg / 100)
   const revenue = bar + golf + events + hires + sc + pool
-  const mult = revenue / 741644 // aggregate growth multiplier
+  const mult = revenue / 741644
 
   const costs =
-    242370 * 1.10                 // wages +10pct
-    + 165059 * 1.10               // fixed +10pct
-    + bar * 0.30                  // drinks = 30pct of bar
-    + 78851 * mult                // VAT
-    + 21842 * mult                // cleaning
-    + 17152 * mult                // arcades
-    + 9101 * mult                 // food
-    + 3492                        // hosting fixed
-    + 5443 * mult                 // card charges
+    242370 * 1.10
+    + 165059 * 1.10
+    + bar * 0.30
+    + 78851 * mult
+    + 21842 * mult
+    + 17152 * mult
+    + 9101 * mult
+    + 3492
+    + 5443 * mult
 
   const adjustedCosts = costs * opexMult
   const profit = revenue - adjustedCosts
@@ -370,73 +383,76 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
 }
 
 function TabScenarios({ growth }) {
+  const { t } = useTranslation('explorer')
+  const { t: tc } = useTranslation('common')
+  const { fmt, fmtK } = useFmt()
   const [opex, setOpex] = useState(100)
 
   const sliders = [
-    { key:'bar',    label:'Bar Increase',         value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
-    { key:'golf',   label:'Golf Ticket Increase', value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
-    { key:'hires',  label:'Private Hires',        value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
-    { key:'events', label:'Regular Events',       value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
+    { key:'bar',    labelKey:'bar',    value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
+    { key:'golf',   labelKey:'golf',   value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
+    { key:'hires',  labelKey:'hires',  value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
+    { key:'events', labelKey:'events', value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
   ]
 
-  // Custom scenario = actual live state from the 4 sliders + OpEx overlay
   const custom = computeScenario({
     barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires,
     opexMult: opex / 100,
   })
-  // Preset scenarios — uniform growth across all 4 levers, no OpEx overlay
   const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct })
   const presets = [
-    { label:'CONSERVATIVE', pct:-10, ...buildPreset(-10) },
-    { label:'BASE CASE',    pct: 15, ...buildPreset(15)  },
-    { label:'OPTIMISTIC',   pct: 25, ...buildPreset(25)  },
+    { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
+    { labelKey:'base',         pct: 15, ...buildPreset(15)  },
+    { labelKey:'optimistic',   pct: 25, ...buildPreset(25)  },
   ]
+
+  const revenueLabel = tc('labels.revenue')
+  const opProfit = t('scenarios.opProfit')
+  const investorRet = t('scenarios.investorReturn')
+  const cocLabel = tc('labels.cashOnCash')
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* 4 growth levers + OpEx */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Build Custom Scenario</div>
-          <div style={{ fontSize:11, color:'#9CA3AF' }}>These four levers also drive the main 2026 Performance slider</div>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
+          <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
           {sliders.map(s => (
             <div key={s.key}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                <span style={{ color:'var(--cream)' }}>{s.label} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
+                <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
                 <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                   <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
-                  <ResetBtn onClick={()=>s.set(15)} title="Reset to +15%" />
+                  <ResetBtn onClick={()=>s.set(15)} title={t('scenarios.resetTo15')} />
                 </span>
               </div>
               <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>New: {fmtK(s.base * (1 + s.value / 100))}</div>
+              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
             </div>
           ))}
         </div>
-        {/* OpEx overlay — only affects the Custom card */}
         <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:14 }}>
           <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-            <span style={{ color:'var(--cream)' }}>OpEx vs Budget <span style={{ color:'#6B7280', marginLeft:4 }}>(costs multiplier for the Custom card only)</span></span>
+            <span style={{ color:'var(--cream)' }}>{t('scenarios.opex')} <span style={{ color:'#6B7280', marginLeft:4 }}>{t('scenarios.opexHint')}</span></span>
             <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
               <span style={{ color:'#EA580C', fontWeight:600 }}>{opex}%</span>
-              <ResetBtn onClick={()=>setOpex(100)} title="Reset to 100%" />
+              <ResetBtn onClick={()=>setOpex(100)} title={t('scenarios.resetTo100')} />
             </span>
           </div>
           <input type="range" min={70} max={130} value={opex} onChange={e=>setOpex(Number(e.target.value))} style={{ width:'100%', accentColor:'#EA580C' }} />
         </div>
       </div>
 
-      {/* Preset + custom cards */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
         {presets.map(p => (
-          <button key={p.label} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}% across all four levers`} style={{
+          <button key={p.labelKey} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
             background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
           }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{p.label}</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}% across all levers · click to apply</div>
-            {[['Revenue',fmtK(p.revenue)],['Op Profit',fmtK(p.profit)],['Investor Return',fmt(Math.round(p.investorReturn))],['Cash-on-Cash',p.coc.toFixed(1)+'%']].map(([l,v],j) => (
+            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
+            {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
               <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
                 <span style={{ color:'#9CA3AF' }}>{l}</span>
                 <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
@@ -445,9 +461,9 @@ function TabScenarios({ growth }) {
           </button>
         ))}
         <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>CUSTOM</div>
-          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>Live from sliders above · OpEx {opex}%</div>
-          {[['Revenue',fmtK(custom.revenue)],['Op Profit',fmtK(custom.profit)],['Investor Return',fmt(Math.round(custom.investorReturn))],['Cash-on-Cash',custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
+          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>OpEx {opex}%</div>
+          {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
               <span style={{ color:'#9CA3AF' }}>{l}</span>
               <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
@@ -460,21 +476,16 @@ function TabScenarios({ growth }) {
 }
 
 function TabMarketContext() {
-  const tailwinds = [
-    { icon:'📱', title:'Social Media Discovery', text:'Experiential venues generate organic UGC at 5× the rate of traditional hospitality. Plonk’s visual format drives free acquisition.' },
-    { icon:'🏢', title:'Corporate Demand', text:'Post-pandemic, team-building and offsites are structural demand. City of London proximity means Plonk Borough targets this without incremental spend.' },
-    { icon:'💰', title:'Recession Resilience', text:'Domestic leisure spend is sticky. Experience venues priced below £30/head replace overseas alternatives during economic downturns.' },
-    { icon:'🎂', title:'Occasions & Celebrations', text:'Birthday, hen and stag parties are high-value bookings with structured spend. Activity venues capture the full occasion — entry, drinks and food.' },
-    { icon:'🔄', title:'Repeat Visit Model', text:'Multi-activity format with regular event programme drives repeat visitation. Bar-led experience venues see 2–3× the repeat rate of single-activity venues.' },
-    { icon:'📈', title:'Pricing Power', text:'+£1 across pool and golf at current volumes generates ~£15K incremental annual profit. Zero capex, zero churn risk at this price point.' },
-  ]
+  const { t } = useTranslation('explorer')
+  const tailwindKeys = ['social','corporate','recession','occasions','repeat','pricing']
+  const tailwindIcons = { social:'📱', corporate:'🏢', recession:'💰', occasions:'🎂', repeat:'🔄', pricing:'📈' }
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { value:'+31.1%', label:'Experience Leisure Growth', sub:'2025 YoY — fastest growing hospitality sub-sector', color:'#2DD4BF' },
-          { value:'15–20M', label:'Borough Market Visitors', sub:'Annual visitors to the area', color:'#4FC3F7' },
-          { value:'130K+', label:'London Bridge Commuters', sub:'Daily station passengers — primary catchment', color:'#C9A84C' },
+          { value:'+31.1%', label:t('market.header'), sub:t('market.growthNote'), color:'#2DD4BF' },
+          { value:'15–20M', label:t('market.visitors'), sub:t('market.visitorsNote'), color:'#4FC3F7' },
+          { value:'130K+',  label:t('market.commuters'), sub:t('market.commutersNote'), color:'#C9A84C' },
         ].map(s => (
           <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
             <div style={{ fontSize:28, fontWeight:800, color:s.color, marginBottom:6 }}>{s.value}</div>
@@ -484,9 +495,9 @@ function TabMarketContext() {
         ))}
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>SE1 Demographics</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{t('market.demographics')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-          {[['Aged 25–44','48%','#4FC3F7'],['Median HH Income','£57K','#C9A84C'],['Uni-educated','62%','#2DD4BF'],['Office workers','71%','#8B5CF6']].map(([l,v,c]) => (
+          {[[t('market.age'),'48%','#4FC3F7'],[t('market.income'),'£57K','#C9A84C'],[t('market.edu'),'62%','#2DD4BF'],[t('market.office'),'71%','#8B5CF6']].map(([l,v,c]) => (
             <div key={l} style={{ textAlign:'center', padding:14, background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
               <div style={{ fontSize:20, fontWeight:700, color:c, marginBottom:4 }}>{v}</div>
               <div style={{ fontSize:11, color:'#9CA3AF' }}>{l}</div>
@@ -495,14 +506,14 @@ function TabMarketContext() {
         </div>
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Tailwinds & Positioning</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('market.tailwinds')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {tailwinds.map(t => (
-            <div key={t.title} style={{ display:'flex', gap:12, padding:14, background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
-              <div style={{ fontSize:20, flexShrink:0 }}>{t.icon}</div>
+          {tailwindKeys.map(k => (
+            <div key={k} style={{ display:'flex', gap:12, padding:14, background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
+              <div style={{ fontSize:20, flexShrink:0 }}>{tailwindIcons[k]}</div>
               <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)', marginBottom:4 }}>{t.title}</div>
-                <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{t.text}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)', marginBottom:4 }}>{t(`market.items.${k}.title`)}</div>
+                <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{t(`market.items.${k}.text`)}</div>
               </div>
             </div>
           ))}
@@ -513,15 +524,17 @@ function TabMarketContext() {
 }
 
 function TabWages() {
+  const { t } = useTranslation('explorer')
+  const { fmt, fmtNum } = useFmt()
   const [barRate, setBarRate] = useState(13.85)
   const [supRate, setSupRate] = useState(14.35)
   const [amRate, setAmRate] = useState(15.38)
   const [mgrRate, setMgrRate] = useState(18.00)
   const roles = [
-    { label:'Bar Staff', hours:4967, rate:barRate, setRate:setBarRate, plan:13.85, min:12.21, max:18 },
-    { label:'Supervisor', hours:2156, rate:supRate, setRate:setSupRate, plan:14.35, min:13.85, max:20 },
-    { label:'Asst Manager', hours:1847, rate:amRate, setRate:setAmRate, plan:15.38, min:14.35, max:22 },
-    { label:'Manager', hours:1073, rate:mgrRate, setRate:setMgrRate, plan:18.00, min:15.38, max:25 },
+    { labelKey:'bar',         hours:4967, rate:barRate, setRate:setBarRate, plan:13.85, min:12.21, max:18 },
+    { labelKey:'supervisor',  hours:2156, rate:supRate, setRate:setSupRate, plan:14.35, min:13.85, max:20 },
+    { labelKey:'asstManager', hours:1847, rate:amRate,  setRate:setAmRate,  plan:15.38, min:14.35, max:22 },
+    { labelKey:'manager',     hours:1073, rate:mgrRate, setRate:setMgrRate, plan:18.00, min:15.38, max:25 },
   ]
   const totalWages = Math.round(roles.reduce((s,r)=>s+r.hours*r.rate,0))
   const planWages = 242370
@@ -530,9 +543,9 @@ function TabWages() {
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:'Total Wage Bill 2025', value:fmt(242370), sub:'Verified rota data', color:'#C9A84C' },
-          { label:'Total Hours Worked', value:'10,043 hrs', sub:'23 employees · fully tagged roles', color:'#4FC3F7' },
-          { label:'Wages as % Revenue', value:'20.8%', sub:'£242,370 ÷ £741,644 · target ≤22%', color:'#2DD4BF' },
+          { label:t('wages.total'),     value:fmt(242370), sub:t('wages.totalNote'), color:'#C9A84C' },
+          { label:t('wages.hours'),     value:t('wages.hoursValue'), sub:t('wages.hoursNote'), color:'#4FC3F7' },
+          { label:t('wages.pct'),       value:'20.8%',    sub:t('wages.pctNote'),    color:'#2DD4BF' },
         ].map(s => (
           <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
             <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{s.label}</div>
@@ -542,36 +555,36 @@ function TabWages() {
         ))}
       </div>
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>Sliding Wage Rate Calculator — 2026 Planning</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
           {roles.map(r => (
-            <div key={r.label} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
+            <div key={r.labelKey} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ fontWeight:600, color:'var(--cream)' }}>{r.label}</span>
+                <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
                 <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                   <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
-                  <ResetBtn onClick={()=>r.setRate(r.plan)} title={`Reset to £${r.plan.toFixed(2)}/hr`} />
+                  <ResetBtn onClick={()=>r.setRate(r.plan)} title={`Reset £${r.plan.toFixed(2)}/hr`} />
                 </span>
               </div>
               <input type="range" min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>r.setRate(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6 }} />
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>
-                <span>{r.hours.toLocaleString()} hrs</span>
-                <span>Annual: {fmt(Math.round(r.hours*r.rate))}</span>
+                <span>{fmtNum(r.hours)} {t('wages.hrs')}</span>
+                <span>{t('wages.annual')} {fmt(Math.round(r.hours*r.rate))}</span>
               </div>
             </div>
           ))}
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>Projected Wage Bill</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.projected')}</div>
             <div style={{ fontSize:20, fontWeight:800, color:'var(--gold)' }}>{fmt(totalWages)}</div>
           </div>
           <div style={{ background:delta>0?'rgba(239,68,68,0.08)':'rgba(45,212,191,0.08)', border:`1px solid ${delta>0?'rgba(239,68,68,0.2)':'rgba(45,212,191,0.2)'}`, borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>Delta vs 2025</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.delta')}</div>
             <div style={{ fontSize:20, fontWeight:800, color:delta>0?'#EF4444':'#2DD4BF' }}>{delta>0?'+':''}{fmt(delta)}</div>
           </div>
           <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>Wages % Forecast</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.forecastPct')}</div>
             <div style={{ fontSize:20, fontWeight:800, color:'#4FC3F7' }}>{(totalWages/852891*100).toFixed(1)}%</div>
           </div>
         </div>
@@ -581,11 +594,10 @@ function TabWages() {
 }
 
 export default function BusinessExplorer() {
-  const [tab, setTab] = useState('Overview')
+  const { t } = useTranslation('explorer')
+  const { t: tc } = useTranslation('common')
+  const [tab, setTab] = useState('overview')
 
-  // Shared 2026 growth state — the four line-specific growth levers drive both the
-  // 2026 Performance tab's main slider (which displays the aggregate) and the
-  // Scenarios tab's breakdown sliders. Keeps them synced so one surface informs the other.
   const [barGrowth, setBarGrowth]       = useState(15)
   const [golfGrowth, setGolfGrowth]     = useState(15)
   const [hiresGrowth, setHiresGrowth]   = useState(15)
@@ -602,26 +614,26 @@ export default function BusinessExplorer() {
   }
 
   const tabComponents = {
-    'Overview': <TabOverview />,
-    '2025 Performance': <FinancialPerformance />,
-    '2026 Performance': <TabPerformance growth={growth} />,
-    'Scenarios': <TabScenarios growth={growth} />,
-    'Market Context': <TabMarketContext />,
-    'Wages': <TabWages />,
+    overview: <TabOverview />,
+    performance2025: <FinancialPerformance />,
+    performance2026: <TabPerformance growth={growth} />,
+    scenarios: <TabScenarios growth={growth} />,
+    market: <TabMarketContext />,
+    wages: <TabWages />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
       <div style={{ padding:'20px 32px 0', borderBottom:'1px solid rgba(201,168,76,0.12)' }}>
         <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
-          {TABS.map(t => (
-            <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 16px', fontSize:11, cursor:'pointer', border:'none', background:'transparent', letterSpacing:'0.06em', textTransform:'uppercase', borderBottom:`2px solid ${tab===t?'var(--gold)':'transparent'}`, color:tab===t?'var(--gold)':'var(--cream-dim)', transition:'all 0.15s', whiteSpace:'nowrap' }}>{t}</button>
+          {TAB_KEYS.map(k => (
+            <button key={k} onClick={()=>setTab(k)} style={{ padding:'8px 16px', fontSize:11, cursor:'pointer', border:'none', background:'transparent', letterSpacing:'0.06em', textTransform:'uppercase', borderBottom:`2px solid ${tab===k?'var(--gold)':'transparent'}`, color:tab===k?'var(--gold)':'var(--cream-dim)', transition:'all 0.15s', whiteSpace:'nowrap' }}>{t(`tabs.${k}`)}</button>
           ))}
         </div>
       </div>
       <div style={{ padding:'24px 32px 24px', fontSize:13 }}>{tabComponents[tab]}</div>
       <div style={{ padding:'20px 32px 32px', borderTop:'1px solid rgba(201,168,76,0.12)', marginTop:12 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>No Dice Borough Ltd</div>
-        <div style={{ fontSize:14, color:'var(--cream-dim)' }}>Business Explorer · Borough Market SE1</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>{tc('shell.brand')}</div>
+        <div style={{ fontSize:14, color:'var(--cream-dim)' }}>{t('header')}</div>
       </div>
     </div>
   )

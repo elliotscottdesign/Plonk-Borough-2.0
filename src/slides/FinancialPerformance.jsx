@@ -1,33 +1,36 @@
 import React, { useState } from 'react'
+import { useTranslation, Trans } from 'react-i18next'
 import {
   IP_LICENSING_SKUS_ONLINE_2025,
   IP_LICENSING_SKUS_OFFICE_2025,
   IP_LICENSING_MONTHLY_2025,
   IP_LICENSING_GRAND_2025,
 } from '../data.js'
+import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 
 // Named exports — imported by BusinessExplorer's 2026 Performance tab as the 2025
-// baseline for scenario-adjusted forecasts.
+// baseline for scenario-adjusted forecasts. `labelKey` points at
+// explorer.incomeSources.* / explorer.costCategories.*.
 export const INCOME = [
-  { label:'Spend at Bar', value:362836, pct:48.9, color:'#1E40AF' },
-  { label:'Online Golf Tickets', value:210485, pct:28.4, color:'#1D4ED8' },
-  { label:'Bookings & Events', value:106023, pct:14.3, color:'#2563EB' },
-  { label:'Private Hires', value:44999, pct:6.1, color:'#3B82F6' },
-  { label:'Service Charge', value:15102, pct:2.0, color:'#60A5FA' },
-  { label:'Pool Tickets', value:2198, pct:0.3, color:'#93C5FD' },
+  { label:'Spend at Bar',         labelKey:'bar',           value:362836, pct:48.9, color:'#1E40AF' },
+  { label:'Online Golf Tickets',  labelKey:'onlineGolf',    value:210485, pct:28.4, color:'#1D4ED8' },
+  { label:'Bookings & Events',    labelKey:'bookings',      value:106023, pct:14.3, color:'#2563EB' },
+  { label:'Private Hires',        labelKey:'privateHires',  value:44999,  pct:6.1,  color:'#3B82F6' },
+  { label:'Service Charge',       labelKey:'serviceCharge', value:15102,  pct:2.0,  color:'#60A5FA' },
+  { label:'Pool Tickets',         labelKey:'poolTickets',   value:2198,   pct:0.3,  color:'#93C5FD' },
 ]
 
 export const COSTS = [
-  { label:'Wages', value:242370, pct:38.4, color:'#991B1B', note:null },
-  { label:'Fixed Costs', value:165059, pct:26.2, color:'#B91C1C', note:'Rent, rates, electricity, insurance, internet, PRS' },
-  { label:'Drinks & Gas', value:81732, pct:13.0, color:'#DC2626', note:null },
-  { label:'VAT (Net)', value:78851, pct:12.5, color:'#EF4444', note:'Net VAT paid to HMRC — VAT collected minus VAT reclaimed on purchases' },
-  { label:'Cleaning', value:21842, pct:3.5, color:'#F87171', note:null },
-  { label:'Arcades', value:17152, pct:2.7, color:'#EA580C', note:null },
-  { label:'Food', value:9101, pct:1.4, color:'#F97316', note:null },
-  { label:'Google/Digital', value:8918, pct:1.4, color:'#FB923C', note:'2025 historical Lithos/Google spend · under new IP & Licensing model all ad/SEO spend sits with Plonk Golf from 2026' },
-  { label:'Card Charges', value:5443, pct:0.9, color:'#FCD34D', note:null },
+  { label:'Wages',          labelKey:'wages',       value:242370, pct:38.4, color:'#991B1B', noteKey:null },
+  { label:'Fixed Costs',    labelKey:'fixed',       value:165059, pct:26.2, color:'#B91C1C', noteKey:'fixedDesc' },
+  { label:'Drinks & Gas',   labelKey:'drinks',      value:81732,  pct:13.0, color:'#DC2626', noteKey:null },
+  { label:'VAT (Net)',      labelKey:'vat',         value:78851,  pct:12.5, color:'#EF4444', noteKey:'vatDesc' },
+  { label:'Cleaning',       labelKey:'cleaning',    value:21842,  pct:3.5,  color:'#F87171', noteKey:null },
+  { label:'Arcades',        labelKey:'arcades',     value:17152,  pct:2.7,  color:'#EA580C', noteKey:null },
+  { label:'Food',           labelKey:'food',        value:9101,   pct:1.4,  color:'#F97316', noteKey:null },
+  { label:'Google/Digital', labelKey:'google',      value:8918,   pct:1.4,  color:'#FB923C', noteKey:'googleDesc' },
+  { label:'Card Charges',   labelKey:'cardCharges', value:5443,   pct:0.9,  color:'#FCD34D', noteKey:null },
 ]
 
 export const MONTHLY_INCOME = [
@@ -60,9 +63,6 @@ export const MONTHLY_COSTS = [
   { m:'Dec', wages:62205, fixed:13755, drinks:20995, vat:20270, other:13207 },
 ]
 
-const fmt = n => '£' + n.toLocaleString()
-const fmtK = n => '£' + Math.round(n/1000) + 'k'
-
 export function DonutChart({ data, total, size=200 }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const cx = size/2, cy = size/2, r = size*0.42, inner = size*0.26
@@ -92,11 +92,9 @@ export function DonutChart({ data, total, size=200 }) {
   )
 }
 
-function StackedBar({ monthly, maxH=120 }) {
+function StackedBar({ monthly, maxH=120, labels, fmt }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const maxVal = Math.max(...monthly.map(m => m.bar+m.golf+m.events+m.hire+m.sc+m.pool))
-  const LABELS = ['Spend at Bar','Online Golf Tickets','Bookings & Events','Private Hires','Service Charge','Pool Tickets']
-  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
@@ -110,7 +108,7 @@ function StackedBar({ monthly, maxH=120 }) {
           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
               {segs.map((s,j) => (
-                <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+                <div key={j} style={{ height:`${(s.v/total)*100}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${labels[j]}\n${fmt(s.v)}`)} />
               ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
@@ -122,11 +120,9 @@ function StackedBar({ monthly, maxH=120 }) {
   )
 }
 
-function CostStackedBar({ monthly, maxH=120 }) {
+function CostStackedBar({ monthly, maxH=120, labels, fmt }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const maxVal = Math.max(...monthly.map(m => (m.wages||0)+(m.fixed||0)+(m.drinks||0)+(m.vat||0)+(m.other||m.vat2||0)))
-  const LABELS = ['Wages','Fixed Costs','Drinks & Gas','VAT (Net)','Other']
-  const fmtTip = n => '£' + Math.round(n).toLocaleString()
   return (
     <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:3, height:maxH, position:'relative' }}>
       {monthly.map((m,i) => {
@@ -140,7 +136,7 @@ function CostStackedBar({ monthly, maxH=120 }) {
           <div key={i} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:maxH }}>
             <div style={{ width:'100%', height:h, display:'flex', flexDirection:'column', borderRadius:'2px 2px 0 0', overflow:'hidden' }}>
               {segs.map((s,j) => (
-                <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${LABELS[j]}\n${fmtTip(s.v)}`)} />
+                <div key={j} style={{ height:`${total>0?(s.v/total)*100:0}%`, background:s.c, cursor:'default' }} {...segmentProps(`${m.m} · ${labels[j]}\n${fmt(s.v)}`)} />
               ))}
             </div>
             <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', marginTop:2 }}>{m.m}</div>
@@ -153,12 +149,12 @@ function CostStackedBar({ monthly, maxH=120 }) {
 }
 
 // --- Ticket breakdown (online vs office, Borough 2025) — from IP & Licensing dataset ---
-function ChannelBars({ rows, accent, maxRev }) {
+function ChannelBars({ rows, accent, maxRev, fmt, ticketsWord }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
       {rows.filter(r => r.sold > 0).map(r => {
         const w = (r.revenue / maxRev) * 100
-        const tip = `${r.sku}\n  Units: ${r.sold.toLocaleString()}\n  Revenue: ${fmt(r.revenue)}`
+        const tip = `${r.sku}\n  ${ticketsWord}: ${r.sold.toLocaleString()}\n  ${fmt(r.revenue)}`
         return (
           <div key={r.sku} title={tip}>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#D1D5DB', marginBottom:3 }}>
@@ -202,12 +198,21 @@ function TicketMonthlyStacked() {
 }
 
 export default function FinancialPerformance() {
+  const { t, i18n } = useTranslation('explorer')
+  const lang = i18n.language
+  const fmt = (n) => formatCurrency(n, lang)
+  const fmtNum = (n) => formatNumber(n, lang)
   const totalIncome = INCOME.reduce((s,i)=>s+i.value,0)
   const totalCosts = COSTS.reduce((s,c)=>s+c.value,0)
   const g = IP_LICENSING_GRAND_2025
   const onlineMax = Math.max(...IP_LICENSING_SKUS_ONLINE_2025.map(r => r.revenue))
   const officeMax = Math.max(...IP_LICENSING_SKUS_OFFICE_2025.map(r => r.revenue), 1)
   const sharedMax = Math.max(onlineMax, officeMax)
+
+  const incomeLocalised = INCOME.map(i => ({ ...i, label: t(`incomeSources.${i.labelKey}`) }))
+  const costsLocalised = COSTS.map(c => ({ ...c, label: t(`costCategories.${c.labelKey}`) }))
+  const incomeLabels = incomeLocalised.map(i => i.label)
+  const costMonthlyLabels = ['wages','fixed','drinks','vat'].map(k => t(`costCategories.${k}`)).concat([t('performance2026.costNotes.other')])
 
   return (
     <div style={{ maxWidth:1200, margin:'0 auto', padding:'0 4px' }}>
@@ -216,14 +221,14 @@ export default function FinancialPerformance() {
         {/* LEFT: INCOME */}
         <div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Income · Jan–Dec 2025</div>
-            <div style={{ fontSize:13, color:'#3B82F6', fontWeight:600 }}>{fmt(totalIncome)} verified</div>
+            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2025.income')}</div>
+            <div style={{ fontSize:13, color:'#3B82F6', fontWeight:600 }}>{fmt(totalIncome)} {t('performance2025.verified')}</div>
           </div>
           <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-            <DonutChart data={INCOME} total={totalIncome} size={220} />
+            <DonutChart data={incomeLocalised} total={totalIncome} size={220} />
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {INCOME.map((item,i) => (
+            {incomeLocalised.map((item,i) => (
               <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
                 <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
@@ -232,30 +237,30 @@ export default function FinancialPerformance() {
               </div>
             ))}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Income</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
               <div style={{ fontSize:15, fontWeight:700, color:'#3B82F6' }}>{fmt(totalIncome)}</div>
             </div>
           </div>
           <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Monthly Income — Stacked by Source</div>
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>{t('performance2025.monthlyIncome')}</div>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:4 }}>
               {['£140k','£105k','£70k','£35k','£0k'].map((l,i)=><span key={i}>{l}</span>)}
             </div>
-            <StackedBar monthly={MONTHLY_INCOME} maxH={130} />
+            <StackedBar monthly={MONTHLY_INCOME} maxH={130} labels={incomeLabels} fmt={fmt} />
           </div>
         </div>
 
         {/* RIGHT: COSTS */}
         <div>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Operating Costs · Jan–Dec 2025</div>
-            <div style={{ fontSize:13, color:'#EF4444', fontWeight:600 }}>{fmt(totalCosts)} categorised</div>
+            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2025.costs')}</div>
+            <div style={{ fontSize:13, color:'#EF4444', fontWeight:600 }}>{fmt(totalCosts)} {t('performance2025.categorised')}</div>
           </div>
           <div style={{ display:'flex', justifyContent:'center', marginBottom:20 }}>
-            <DonutChart data={COSTS} total={totalCosts} size={220} />
+            <DonutChart data={costsLocalised} total={totalCosts} size={220} />
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {COSTS.map((item,i) => (
+            {costsLocalised.map((item,i) => (
               <div key={i} style={{ padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
                 <div style={{ display:'flex', alignItems:'center', gap:10 }}>
                   <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
@@ -263,20 +268,20 @@ export default function FinancialPerformance() {
                   <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:80, textAlign:'right' }}>{fmt(item.value)}</div>
                   <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
                 </div>
-                {item.note && <div style={{ fontSize:11, color:'#6B7280', paddingLeft:20, marginTop:2 }}>{item.note}</div>}
+                {item.noteKey && <div style={{ fontSize:11, color:'#6B7280', paddingLeft:20, marginTop:2 }}>{t(`costCategories.${item.noteKey}`)}</div>}
               </div>
             ))}
             <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0', marginTop:4 }}>
-              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Costs</div>
+              <div style={{ fontSize:13, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalCosts')}</div>
               <div style={{ fontSize:15, fontWeight:700, color:'#EF4444' }}>{fmt(totalCosts)}</div>
             </div>
           </div>
           <div style={{ marginTop:16 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>Monthly Costs — Stacked</div>
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>{t('performance2025.monthlyCosts')}</div>
             <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:4 }}>
               {['£80k','£60k','£40k','£20k','£0k'].map((l,i)=><span key={i}>{l}</span>)}
             </div>
-            <CostStackedBar monthly={MONTHLY_COSTS} maxH={130} />
+            <CostStackedBar monthly={MONTHLY_COSTS} maxH={130} labels={costMonthlyLabels} fmt={fmt} />
           </div>
         </div>
 
@@ -286,58 +291,59 @@ export default function FinancialPerformance() {
       <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
           <div>
-            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Ticket Revenue Breakdown</div>
-            <div style={{ fontSize:13, color:'#9CA3AF' }}>Borough 2025 · Online portal (actual) vs Office/till (imputed at list price)</div>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>{t('performance2025.ticketBreakdown')}</div>
+            <div style={{ fontSize:13, color:'#9CA3AF' }}>{t('performance2025.ticketSource')}</div>
           </div>
-          <div style={{ fontSize:13, color:'var(--gold)', fontWeight:700 }}>{fmt(g.totalRev)} combined</div>
+          <div style={{ fontSize:13, color:'var(--gold)', fontWeight:700 }}>{fmt(g.totalRev)} {t('performance2025.combined')}</div>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:20 }}>
           <div style={{ background:'rgba(79,195,247,0.08)', border:'1px solid rgba(79,195,247,0.3)', borderRadius:8, padding:'12px 16px' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Online Portal</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>{t('performance2025.onlinePortal')}</div>
             <div style={{ fontSize:22, fontWeight:800, color:'#4FC3F7' }}>{fmt(g.onlineRev)}</div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.onlineQty.toLocaleString()} tickets · {(g.onlineRev/g.totalRev*100).toFixed(1)}% of total · actual</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{fmtNum(g.onlineQty)} tickets · {(g.onlineRev/g.totalRev*100).toFixed(1)}% of total · actual</div>
           </div>
           <div style={{ background:'rgba(107,114,128,0.1)', border:'1px solid rgba(107,114,128,0.3)', borderRadius:8, padding:'12px 16px' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Office / Till</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>{t('performance2025.officeTill')}</div>
             <div style={{ fontSize:22, fontWeight:800, color:'#9CA3AF' }}>{fmt(g.officeRev)}</div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.officeQty.toLocaleString()} tickets · {(g.officeRev/g.totalRev*100).toFixed(1)}% of total · imputed</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{fmtNum(g.officeQty)} tickets · {(g.officeRev/g.totalRev*100).toFixed(1)}% of total · imputed</div>
           </div>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.35)', borderRadius:8, padding:'12px 16px' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>Combined</div>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>{t('performance2025.combinedLbl')}</div>
             <div style={{ fontSize:22, fontWeight:800, color:'var(--gold)' }}>{fmt(g.totalRev)}</div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{g.totalQty.toLocaleString()} tickets total</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:2 }}>{fmtNum(g.totalQty)} tickets total</div>
           </div>
         </div>
 
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20 }}>
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
-              <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Online · by SKU</div>
-              <div style={{ fontSize:11, color:'#6B7280' }}>Status = complete</div>
+              <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>{t('performance2025.onlineBySku')}</div>
+              <div style={{ fontSize:11, color:'#6B7280' }}>{t('performance2025.onlineNote')}</div>
             </div>
-            <ChannelBars rows={IP_LICENSING_SKUS_ONLINE_2025} accent="#4FC3F7" maxRev={sharedMax} />
+            <ChannelBars rows={IP_LICENSING_SKUS_ONLINE_2025} accent="#4FC3F7" maxRev={sharedMax} fmt={fmt} ticketsWord="Units" />
           </div>
           <div>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
-              <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office · by SKU</div>
-              <div style={{ fontSize:11, color:'#6B7280' }}>Status = external · imputed at list price</div>
+              <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>{t('performance2025.officeBySku')}</div>
+              <div style={{ fontSize:11, color:'#6B7280' }}>{t('performance2025.officeNote')}</div>
             </div>
-            <ChannelBars rows={IP_LICENSING_SKUS_OFFICE_2025} accent="#9CA3AF" maxRev={sharedMax} />
+            <ChannelBars rows={IP_LICENSING_SKUS_OFFICE_2025} accent="#9CA3AF" maxRev={sharedMax} fmt={fmt} ticketsWord="Units" />
           </div>
         </div>
 
         <div style={{ marginTop:20 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly Ticket Revenue — Online + Office Stacked</div>
+            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2025.monthlyTicket')}</div>
             <div style={{ display:'flex', gap:14, fontSize:10, color:'#9CA3AF' }}>
-              <span><span style={{ display:'inline-block', width:9, height:9, background:'#4FC3F7', borderRadius:2, marginRight:5 }} />Online</span>
-              <span><span style={{ display:'inline-block', width:9, height:9, background:'#6B7280', borderRadius:2, marginRight:5 }} />Office (imputed)</span>
+              <span><span style={{ display:'inline-block', width:9, height:9, background:'#4FC3F7', borderRadius:2, marginRight:5 }} />{t('performance2025.online')}</span>
+              <span><span style={{ display:'inline-block', width:9, height:9, background:'#6B7280', borderRadius:2, marginRight:5 }} />{t('performance2025.office')}</span>
             </div>
           </div>
           <TicketMonthlyStacked />
         </div>
 
+        {/* TODO i18n: short footnote paragraph below kept English for brevity. */}
         <div style={{ marginTop:14, fontSize:11, color:'#6B7280', lineHeight:1.6 }}>
           Sourced from the <strong style={{ color:'var(--cream)' }}>IP &amp; Licensing</strong> tab (2025 DMN transactions, Borough only). Online revenue is the actual portal take; office revenue is imputed as <em>units × SKU list price</em> because till payments don't flow through the online system. Swap in actual till takings when available.
         </div>
