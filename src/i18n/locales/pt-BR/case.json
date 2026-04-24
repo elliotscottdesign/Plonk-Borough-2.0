@@ -49,6 +49,7 @@
     "high": "Alto"
   },
   "cta": {
+    "body": "{{seeking}} <gold>{{investment}} inc IVA</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}",
     "seeking": "Busca",
     "for": "por",
     "equity": "{{pct}}% de equity",

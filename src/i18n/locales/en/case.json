@@ -49,6 +49,7 @@
     "high": "High"
   },
   "cta": {
+    "body": "{{seeking}} <gold>{{investment}} inc VAT</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}",
     "seeking": "Seeking",
     "for": "for",
     "equity": "{{pct}}% equity",
