@@ -1,7 +1,11 @@
+// DEPRECATED — locale JSON files under ./locales are now source of truth.
+// Kept for reference / rollback only. No code imports this module after
+// the react-i18next migration (Apr 2026).
+//
 // Brazilian Portuguese (pt-BR) translation dictionary for the
-// No Dice Borough investor deck. Consumed by the DOM-walking translator
-// in Translator.jsx — each trimmed DOM text node is looked up here and
-// replaced in place when lang === 'pt-BR'.
+// No Dice Borough investor deck. Previously consumed by the DOM-walking
+// translator in Translator.jsx — each trimmed DOM text node was looked
+// up here and replaced in place when lang === 'pt-BR'.
 //
 // Rules:
 //   - Brazilian Portuguese (pt-BR): "você", "time", "celular", etc.
