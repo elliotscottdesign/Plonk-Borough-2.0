@@ -1,1 +1,44 @@
-{}
+{
+  "eyebrow": "Use of Investment Funds",
+  "title": "Where Your £70,000 Goes",
+  "subtitle": "Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business",
+  "allocation": "Fund Allocation — Visual Breakdown",
+  "total": "TOTAL INVESTMENT",
+  "totalAmount": "£70,000 inc VAT",
+  "bannerHeader": "£70,000 INC VAT TOTAL · 100% DEPLOYED DAY 1",
+  "bannerNote": "VAT on startup costs (~£5,833) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
+  "items": {
+    "rent": {
+      "label": "Rent Deposit (3 months)",
+      "desc": "Security deposit held by landlord covering May, Jun, Jul 2026."
+    },
+    "hardware": {
+      "label": "Hardware from Liquidators",
+      "desc": "Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1."
+    },
+    "ip": {
+      "label": "IP License Fee",
+      "desc": "Brand + gaming IP licence — was a £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal."
+    },
+    "stock": {
+      "label": "Stock & Supplier Restart",
+      "desc": "Opening stock, supplier agreements and software subscriptions to trade from Day 1."
+    },
+    "working": {
+      "label": "Working Capital Buffer",
+      "desc": "Staged into business per cash flow model. Covers early trading before revenue covers costs."
+    }
+  },
+  "day1": {
+    "label": "Day 1 Deployed",
+    "sub": "Startup costs paid immediately"
+  },
+  "working": {
+    "label": "Working Capital",
+    "sub": "Staged per cash flow model"
+  },
+  "vatReclaim": {
+    "label": "VAT Reclaim",
+    "sub": "Recovered Q1 — August 2026"
+  }
+}

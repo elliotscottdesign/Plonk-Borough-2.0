@@ -1,1 +1,49 @@
-{}
+{
+  "shell": {
+    "brand": "No Dice Borough Ltd",
+    "confidential": "CONFIDENTIAL · BOROUGH MARKET SE1",
+    "footer": "Generated April 2026 · Confidential · No Dice Borough Ltd"
+  },
+  "tabs": {
+    "investorDeck": "Investor Deck",
+    "venueInfo": "Venue Info",
+    "businessExplorer": "Business Explorer",
+    "plonk": "Plonk"
+  },
+  "slideNav": {
+    "cover": "01  Cover",
+    "summary": "02  Investment Summary",
+    "funds": "03  Use of Funds",
+    "market": "04  Market Context",
+    "waterfall": "05  Waterfall Returns",
+    "growth": "06  Growth & Risks",
+    "case": "07  Investment Case"
+  },
+  "labels": {
+    "ebitda": "EBITDA",
+    "revenue": "Revenue",
+    "total": "Total",
+    "payback": "Payback",
+    "cashOnCash": "Cash-on-Cash",
+    "investorReturn": "Investor Return",
+    "opProfit": "Op Profit",
+    "investorEquity": "Investor Equity",
+    "founderEquity": "Founder Equity"
+  },
+  "units": {
+    "year_one": "1 year",
+    "year_other": "{{count}} years",
+    "years": "{{n}} years",
+    "year": "{{n}} year",
+    "yrs": "{{n}} yrs",
+    "minWalk": "{{n}} min walk",
+    "minuteWalk": "{{n}} minute walk",
+    "incVat": "inc VAT",
+    "priceIncVat": "£{{amount}} inc VAT",
+    "suffixIncVat": "{{text}} inc VAT"
+  },
+  "sources": {
+    "sources": "Sources: {{list}}",
+    "source": "Source: {{text}}"
+  }
+}

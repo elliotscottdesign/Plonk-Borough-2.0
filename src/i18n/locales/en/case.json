@@ -1,1 +1,62 @@
-{}
+{
+  "title": "The Investment Case",
+  "subtitle": "Why No Dice Borough · Six reasons to invest · Upside drivers · Risk mitigation",
+  "strengthsHeader": "Six Core Strengths",
+  "upsideHeader": "Upside Drivers (not in base case)",
+  "risksHeader": "Risks & Mitigations",
+  "strengths": {
+    "proven": {
+      "title": "Proven Trading History",
+      "body": "{{revenue}} verified 2025 revenue from 52 weeks of categorised weekly P&L. Not a projection — real trading data from an established venue."
+    },
+    "location": {
+      "title": "Defensible Location",
+      "body": "Borough Market SE1 — one of London's highest-footfall tourist and local destinations. The lease cannot be easily replicated. 77,801 organic search sessions in 2025."
+    },
+    "distressed": {
+      "title": "Distressed Entry Pricing",
+      "body": "{{multiple}}× EBITDA entry multiple via acquisition from liquidation. Comparable hospitality venues trade at 3–5× EBITDA. Immediate equity uplift on Day 1."
+    },
+    "aligned": {
+      "title": "Aligned Distribution Model",
+      "body": "All shareholders paid at the same time — pure pro-rata on operating profit by equity %. No preferred return, no priority tiers. Founder and investor incentives move together from the first payout."
+    },
+    "streams": {
+      "title": "Multiple Revenue Streams",
+      "body": "Bar spend (49%), online golf tickets (28%), bookings & events (14%), private hires (6%), pool tickets and service charge. No single point of failure."
+    },
+    "noExit": {
+      "title": "No Exit Required",
+      "body": "{{coc}}% cash-on-cash return from Year 1 trading distributions. {{payback}} year payback period. Investor returns are cash-flow driven — no sale required."
+    }
+  },
+  "upside": {
+    "seo": { "driver": "SEO rebuild from Day 1", "detail": "Organic traffic down 32% due to brand change. Lithos SEO programme restores rankings under No Dice Borough — compounding year-on-year." },
+    "ads": { "driver": "Google Ads scaling", "detail": "Proven £0.32 CPC and 5.7% conversion rate. Current £600/mth budget delivers ~107 conversions/mth. Scale to £1,200/mth doubles volume with verified unit economics." },
+    "corporate": { "driver": "Corporate events pipeline", "detail": "Private hire revenue £44,999 in 2025. Bookings manager focusing on corporate events, team days and exclusive hires — material upside to base case." },
+    "dj": { "driver": "DJ Nights programme", "detail": "Fri/Sat late events incremental to walk-in trade. High-margin bar revenue, zero additional fixed cost." },
+    "repricing": { "driver": "Gaming repricing", "detail": "+£1 across pool and mini golf across 100k+ annual plays. Minimal customer resistance, meaningful P&L impact." }
+  },
+  "risks": {
+    "timeline": { "risk": "Reopening timeline", "mitigation": "Lease secured, hardware acquired, staff retained. Target May 2026." },
+    "revenue": { "risk": "Revenue below forecast", "mitigation": "Base case is +15% on verified 2025 actuals. Investor dividend is pro-rata on whatever operating profit the venue produces." },
+    "wage": { "risk": "Wage inflation", "mitigation": "NMW modelled at 2025 actuals — no optimistic assumption. Wage calculator available for scenario testing." },
+    "brand": { "risk": "Brand transition (Plonk → No Dice)", "mitigation": "SEO redirect preserves domain authority. Existing customer database retained. Borough Market location unchanged." }
+  },
+  "impact": {
+    "low": "Low",
+    "medium": "Medium",
+    "high": "High"
+  },
+  "cta": {
+    "seeking": "Seeking",
+    "for": "for",
+    "equity": "{{pct}}% equity",
+    "year1": "Year 1 return",
+    "coc": "({{coc}}% CoC)",
+    "payback": "Payback",
+    "years": "{{n}} years",
+    "year": "{{n}} year",
+    "tail": "Cash-flow driven — no exit required."
+  }
+}

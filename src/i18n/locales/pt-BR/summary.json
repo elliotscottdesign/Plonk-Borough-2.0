@@ -1,1 +1,52 @@
-{}
+{
+  "title": "Resumo do Investimento",
+  "subtitle": "Estrutura do acordo, retornos e dados financeiros em um olhar",
+  "scenarios": {
+    "conservative": { "label": "Conservador", "sub": "+10% sobre 2025" },
+    "base": { "label": "Cenário Base", "sub": "+15% sobre 2025" },
+    "optimistic": { "label": "Otimista", "sub": "+25% sobre 2025" }
+  },
+  "sections": {
+    "deal": "🏢 Estrutura do Acordo",
+    "financial": "📊 Desempenho Financeiro",
+    "returns": "💰 Retornos do Investidor"
+  },
+  "rows": {
+    "investorEquity": "Equity do Investidor",
+    "founderEquity": "Equity do Fundador",
+    "preMoney": "Valuation Pré-Money",
+    "postMoney": "Valuation Pós-Money",
+    "valuationMultiple": "Múltiplo de Valuation",
+    "actualRevenue": "Receita Real 2025",
+    "forecastRevenue": "Receita Projetada",
+    "revenueGrowth": "Crescimento da Receita",
+    "forecastOpProfit": "Lucro Operacional Projetado",
+    "ebitda2025": "EBITDA 2025",
+    "distributionModel": "Modelo de Distribuição",
+    "proRataNoTiers": "Pro-rata · sem níveis",
+    "equityDividend": "Dividendo de Equity ({{pct}}%)",
+    "totalYear1": "Retorno Total no Ano 1",
+    "cashOnCash": "Cash-on-Cash",
+    "payback": "Período de Payback",
+    "paybackYears": "{{n}} anos",
+    "paybackNA": "N/A · lucro ≤ 0"
+  },
+  "highlights": {
+    "header": "Top 3 Destaques do Investimento",
+    "first": "{{total}} de retorno do investidor no Ano 1 · {{coc}}% cash-on-cash sobre {{investment}} investidos",
+    "second": "Local consolidado no Borough Market — {{revenue}} de receita verificada em 2025 · 77.801 sessões de busca orgânica · 58% de tráfego orgânico",
+    "third": "Todos os acionistas recebem ao mesmo tempo · pro-rata sobre o lucro operacional (sem preferencial, sem níveis de prioridade)"
+  },
+  "calculator": {
+    "title": "Explore seu Retorno",
+    "amount": "Valor do Investimento",
+    "capNote": "£70,000 · teto de 50% de equity",
+    "aShares": "Ações Classe A · Direito de Voto Total",
+    "bShares": "Ações Classe B · Apenas Direitos Econômicos",
+    "equitySuffix": "de equity",
+    "ownership": "Participação",
+    "equityDividend": "Dividendo de Equity",
+    "totalYear1": "Total Ano 1",
+    "footnote": "Cash-on-Cash: {{coc}}% · Payback: {{payback}} anos · Mínimo para ações Classe A: £{{threshold}}"
+  }
+}

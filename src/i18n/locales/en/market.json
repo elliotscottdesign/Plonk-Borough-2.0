@@ -1,1 +1,92 @@
-{}
+{
+  "eyebrow": "Market Context",
+  "title": "Investment Case & Market Positioning",
+  "subtitle": "Sourced from CLFI, Houlihan Lokey, Moore Kingston Smith, UKHospitality — 2024/25",
+  "benchmarks": {
+    "header": "Market Benchmarks — EBITDA Multiples",
+    "sources": "Sources: CLFI M&A Monitor H1 2025 · Houlihan Lokey Hospitality H1 2025 · Moore Kingston Smith 2025",
+    "rows": {
+      "midMarket": "UK Mid-Market Average (EBITDA multiple)",
+      "hospitality": "Hospitality & Leisure Sector Average",
+      "smallSites": "Small Single-Site Venues (<£200k EBITDA)",
+      "distressed": "Distressed Asset Range (liquidation)",
+      "thisDeal": "No Dice Borough — This Deal"
+    },
+    "tags": {
+      "above": "Above this deal",
+      "inline": "Broadly in line",
+      "inRange": "In range",
+      "abovePriced": "Above — priced for risk",
+      "entry": "→ Entry point"
+    }
+  },
+  "oneLine": {
+    "header": "→ The Deal in One Line",
+    "multiple": "0.76× EBITDA",
+    "proRata": "pure pro-rata on operating profit",
+    "cashFlow": "cash flow — not exit dependency",
+    "checks": {
+      "noMultiple": { "title": "✓ Not a multiple expansion bet", "sub": "Returns driven by operating cash flow" },
+      "cashDay1": { "title": "✓ Cash-yielding from Day 1", "sub": "Distributions begin at end of Year 1" },
+      "positive": { "title": "✓ All 3 scenarios positive", "sub": "Conservative through Optimistic" }
+    }
+  },
+  "sectorReality": {
+    "header": "Sector Reality — Honest Context",
+    "items": {
+      "nics": {
+        "issue": "Employer NICs rose from 13.8% → 15% (April 2025)",
+        "response": "Labour cost increases are built into the forecast model — not hidden"
+      },
+      "nmw": {
+        "issue": "National Minimum Wage up 6.7% to £12.21/hr (April 2025)",
+        "response": "Wage inflation modelled at 2025 actual base — no optimistic assumption"
+      },
+      "rates": {
+        "issue": "Business rates relief cut from 75% → 40% (2025/26)",
+        "response": "Cost environment is baked in — not a pre-cost-shock baseline"
+      },
+      "closures": {
+        "issue": "UK hospitality recording ~2 site closures per day (2025)",
+        "response": "Sector pressure creates acquisition opportunity at realistic pricing"
+      },
+      "consumer": {
+        "issue": "Consumer behaviour shifting toward experience-led, low-alcohol spend",
+        "response": "No Dice Borough's experience model directly aligns with this shift"
+      },
+      "pe": {
+        "issue": "PE firms cautious on single-country consumer exposure",
+        "response": "Smaller investor opportunity — less institutional competition for deal"
+      }
+    }
+  },
+  "differentiators": {
+    "header": "Why This Business is Different",
+    "items": {
+      "proven": {
+        "title": "Proven Revenue Base",
+        "text": "£741,644 verified 2025 actuals. Not a projection — real trading history."
+      },
+      "location": {
+        "title": "Prime London Location",
+        "text": "Borough Market SE1: top footfall destination. 77,801 organic search sessions in 2025. Organic Search is the primary acquisition channel — Borough Market search terms actively maintained."
+      },
+      "format": {
+        "title": "Experience-Led Format",
+        "text": "Pool, board games, mini golf, DJ nights. Directly aligned with fastest-growing hospitality sub-sector."
+      },
+      "streams": {
+        "title": "Multiple Revenue Streams",
+        "text": "Bar + activity pricing + events + corporate hire. Less dependent on drink-only margins."
+      },
+      "ip": {
+        "title": "Brand IP Acquired",
+        "text": "Plonk trading name, customer data and goodwill purchased. Not starting from zero."
+      },
+      "digital": {
+        "title": "Digital Acquisition",
+        "text": "Organic Search: 77,801 sessions in 2025 — the primary acquisition channel. Google Ads restarted Nov 2025 with proper tracking: 105 conversions, £0.32 CPC, £5.53 per conversion. Highly efficient when measured correctly."
+      }
+    }
+  }
+}

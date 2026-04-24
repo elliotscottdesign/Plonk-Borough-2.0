@@ -1,1 +1,213 @@
-{}
+{
+  "header": {
+    "eyebrow": "Informações do Local · Arches B C D And E, Montague Close SE1"
+  },
+  "tabs": {
+    "catchment": "Área de Captação",
+    "location": "Localização",
+    "floorPlan": "Planta Baixa",
+    "venueGallery": "Galeria do Local",
+    "courseGallery": "Galeria do Circuito",
+    "drinksGallery": "Galeria de Bebidas",
+    "licence": "Licença",
+    "development": "Desenvolvimento"
+  },
+  "gallery": {
+    "venue": {
+      "1": "Bar principal e área de entrada",
+      "2": "Visão geral do circuito de minigolfe",
+      "3": "Área de mesa de sinuca",
+      "4": "Assentos do bar e lounge",
+      "5": "Montagem do espaço de eventos",
+      "6": "Cabine de DJ e pista de dança",
+      "7": "Aero hóquei e jogos de LED"
+    },
+    "course": {
+      "1": "Buraco 5",
+      "2": "O arco do bar",
+      "3": "Circuito de pontos turísticos de Londres",
+      "4": "Buraco London Eye",
+      "5": "Buraco temático da cabine telefônica vermelha",
+      "6": "Uma coisa de Londres"
+    },
+    "drinks": {
+      "1": "Chope Camden Town Brewery",
+      "2": "Seleção de cervejas artesanais Cloudwater",
+      "3": "IPA Mondo Brewing no chope",
+      "4": "Coquetel tropical",
+      "5": "Negroni on the rocks",
+      "6": "Martini de pétalas de rosa",
+      "7": "Espresso martini",
+      "8": "Linha de cervejas artesanais Borough",
+      "9": "Menu de coquetéis autorais"
+    }
+  },
+  "catchment": {
+    "stats": {
+      "footfall": { "label": "FLUXO DE PESSOAS EM LONDON BRIDGE", "sub": "passageiros diários da estação", "source": "TfL 2024" },
+      "visitors": { "label": "VISITANTES DO BOROUGH MARKET", "sub": "visitantes anuais na região", "source": "Borough Market Trust" },
+      "income": { "label": "RENDA MEDIANA DO SE1", "sub": "renda domiciliar", "source": "ONS 2024" },
+      "age": { "label": "IDADE 25–44", "sub": "dos residentes do SE1", "source": "Censo 2021" },
+      "views": { "label": "VISUALIZAÇÕES DA PÁGINA DO LOCAL 2025", "sub": "verificado no GA4", "source": "Google Analytics" },
+      "organic": { "label": "PARTICIPAÇÃO DE BUSCA ORGÂNICA", "sub": "do tráfego total", "source": "GA4 2025" }
+    },
+    "strengthsHeader": "Pontos Fortes da Área de Captação",
+    "strengths": {
+      "city": { "title": "PROXIMIDADE DE TRABALHADORES DA CITY", "text": "A Square Mile fica a 10 minutos a pé. Reservas de almoço corporativo, after-work e team-building são uma oportunidade central de receita." },
+      "young": { "title": "BASE DE JOVENS PROFISSIONAIS", "text": "48% dos residentes do SE1 têm entre 25 e 44 anos — o perfil demográfico primário de gastos em hospitalidade voltada a experiências." },
+      "tourism": { "title": "TURISMO INTERNACIONAL", "text": "Borough Market e The Shard atraem milhões de visitantes internacionais por ano. O No Dice Borough é um ímã natural para turistas — um local de experiência sem custo de aquisição paga." },
+      "evening": { "title": "ECONOMIA NOTURNA", "text": "London Bridge é um grande polo de economia noturna. O fluxo de sexta e sábado é excepcional, sem toque de recolher imposto a locais de experiência." }
+    }
+  },
+  "location": {
+    "transportHeader": "Conexões de Transporte",
+    "landmarksHeader": "Pontos de Referência Próximos",
+    "hoursHeader": "Horário de Funcionamento",
+    "days": {
+      "mon": "Seg",
+      "tue": "Ter",
+      "wed": "Qua",
+      "thu": "Qui",
+      "fri": "Sex",
+      "sat": "Sáb",
+      "sun": "Dom",
+      "monFri": "Seg–Sex",
+      "saturday": "Sábado",
+      "sunday": "Domingo"
+    },
+    "tags": {
+      "transport": "Transporte",
+      "footfall": "Fluxo de Pessoas",
+      "adjacent": "Adjacente",
+      "landmark": "Ponto Turístico",
+      "cultural": "Cultural",
+      "business": "Negócios",
+      "tourism": "Turismo"
+    },
+    "transport": {
+      "northern": { "label": "LINHA NORTHERN", "sub": "London Bridge" },
+      "jubilee": { "label": "LINHA JUBILEE", "sub": "London Bridge · Southwark" },
+      "southeastern": { "label": "SOUTHEASTERN RAIL", "sub": "London Bridge" },
+      "thames": { "label": "THAMES CLIPPER", "sub": "London Bridge City Pier" },
+      "bus": { "label": "ROTAS DE ÔNIBUS", "sub": "Borough High St" }
+    },
+    "landmarks": {
+      "boroughMarket": { "name": "Borough Market", "note": "Destino Turístico", "text": "15–20 milhões de visitantes anuais · Um dos destinos gastronômicos mais visitados da Europa" },
+      "shard": { "name": "The Shard", "note": "Ponto Turístico" },
+      "london": { "name": "Estação London Bridge", "note": "Transporte", "text": "Jubilee · Northern · Southeastern" },
+      "tate": { "name": "Tate Modern", "note": "Cultural" },
+      "city": { "name": "City of London", "note": "Negócios" },
+      "southBank": { "name": "South Bank", "note": "Turismo", "text": "Circuito de golfe temático de Londres conecta passeios por Tate, Shard e South Bank" }
+    }
+  },
+  "floorPlan": {
+    "title": "Planta Baixa — Arches B C D And E, Montague Close SE1",
+    "expand": "Clique para expandir ⤢",
+    "close": "Clique em qualquer lugar para fechar",
+    "alt": "Planta baixa do local",
+    "upstairs": "ANDAR SUPERIOR",
+    "downstairs": "ANDAR INFERIOR",
+    "storesNote": "ESPAÇO ATUALMENTE USADO PARA DEPÓSITOS, ADEGA E COZINHA",
+    "licenseLabel": "LICENÇA",
+    "capacityLabel": "CAPACIDADE",
+    "toiletsLabel": "BANHEIROS",
+    "exitsLabel": "SAÍDAS DE EMERGÊNCIA",
+    "planningLabel": "PLANEJAMENTO",
+    "eClass": "Classe E"
+  },
+  "licence": {
+    "heading": "Licença do Imóvel",
+    "subheading": "Licensing Act 2003 · Conselho de Southwark",
+    "part1": "Parte 1 — Detalhes do Imóvel",
+    "part2": "Parte 2 — Titular da Licença",
+    "fields": {
+      "number": "Número da Licença",
+      "premises": "Imóvel",
+      "postCode": "CEP",
+      "mapRef": "Referência de Mapa OS",
+      "holder": "Titular da Licença",
+      "address": "Endereço Registrado",
+      "company": "Número da Empresa",
+      "issueDate": "Data de Emissão",
+      "dps": "DPS",
+      "personalLicenceNo": "Nº de Licença Pessoal",
+      "authority": "Autoridade Emissora"
+    },
+    "values": {
+      "plonkGolf": "Plonk Golf Ltd",
+      "lbTowerHamlets": "L.B Tower Hamlets"
+    },
+    "hours": {
+      "opening": "Horário de Funcionamento — 07:00 às 23:30 todos os dias",
+      "licensed": "Horário das Atividades Licenciadas — 11:00 às 23:00 todos os dias",
+      "films": "Filmes — Espaços Internos",
+      "indoorSport": "Evento Esportivo em Espaço Interno",
+      "alcohol": "Álcool — No Imóvel"
+    },
+    "annex1": "Anexo 1 — Condições Obrigatórias",
+    "annex2": "Anexo 2 — Condições do Cronograma Operacional"
+  },
+  "development": {
+    "header": "Expansão do Local · Borough Market SE1",
+    "licenceHeader": "Desenvolvimento da Licença",
+    "licenceIntro": "A licença atual do imóvel foi concedida para um local de atividades focado em golfe. Quatro variações direcionadas aumentariam materialmente o potencial de receita. Histórico zero de sanções e um formato voltado a atividades são fundamentos sólidos para as quatro solicitações.",
+    "licenceCite": "Licença do Imóvel Nº 888057 · Conselho de Southwark",
+    "basement": {
+      "title": "Espaço do Porão",
+      "intro": "O local fica sobre 300m² de porão não desenvolvido, com pleno direito de sublocar e realizar obras. A expansão é um upside estrutural já incorporado ao contrato de locação.",
+      "shortTerm": "Oportunidade de Curto Prazo",
+      "shortSub": "Porão Abaixo do Bar e do Arco de Fliperamas",
+      "longTerm": "Oportunidade de Longo Prazo",
+      "longSub": "Porão Completo e Acesso ao Túnel da TfL",
+      "body": "O porão representa um upside embutido significativo — não é especulativo. Os direitos existem, o espaço existe, e os custos estruturais não são arcados pela No Dice Borough Ltd.",
+      "tags": {
+        "rights": "Direitos Garantidos por Contrato",
+        "costs": "Custos Estruturais: Proprietário",
+        "total": "400m² de Potencial Total"
+      }
+    },
+    "yard": {
+      "eyebrow": "Espaço Externo · Oportunidade Condicional",
+      "title": "Espaço do Pátio e Capacidade Externa",
+      "intro": "Um pátio externo significativo na frente do local é atualmente usado pelo Boro Bistro mediante acordo com o proprietário. A oportunidade de reaver esse espaço está em aberto e representa um ganho material em capacidade e receita de bar.",
+      "currentStatus": "Status Atual",
+      "currentSub": "Boro Bistro — Aviso Final",
+      "currentBody": "Situação em aberto — resultado condicionado à próxima infração do Boro Bistro",
+      "ifReclaimed": "Se Reavido",
+      "ifReclaimedSub": "Ampla Capacidade e Upside de Receita de Bar",
+      "body": "O pátio não é um pipeline especulativo — é uma situação ativa. Se o Boro Bistro cometer mais uma violação do acordo, a oportunidade de retomar esse espaço fica imediatamente disponível.",
+      "tags": {
+        "private": "Terreno Privado — Sem Barreira de Licenciamento",
+        "landlord": "Proprietário: Southwark Cathedral",
+        "conditional": "Condicionado à Violação do Boro Bistro"
+      }
+    },
+    "licenceVariations": {
+      "hoursTitle": "Horário de Operação Estendido",
+      "hoursTarget": "Meta: 1h inicialmente · 2h no longo prazo",
+      "hoursCurrent": "Atualmente: Álcool até 23h · Imóvel fecha às 23h30",
+      "hoursLikelihood": "Maior Probabilidade · Aplicar Primeiro",
+      "alcoholTitle": "Acesso ao Álcool Vinculado a Atividades",
+      "alcoholTarget": "Remoção completa",
+      "alcoholCurrent": "Atualmente: Álcool vinculado à compra de ingresso de golfe ou fichas de fliperama",
+      "sportsTitle": "Esportes Internacionais ao Vivo",
+      "sportsTarget": "Apenas Partidas Internacionais",
+      "sportsCurrent": "Atualmente: Sem transmissões ao vivo de esportes permitidas (Condição 353)",
+      "recommendedHeader": "Abordagem Recomendada",
+      "recommendedSub": "Como Maximizar o Sucesso",
+      "recommendedBody": "Não solicite as quatro variações ao mesmo tempo — isso sinaliza um local buscando transformar seu perfil. Sequencie as solicitações. Um histórico de operação sem incidentes no SE1 é o maior ativo em todas as solicitações.",
+      "bars": {
+        "alcoholLink": "Remover Vínculo Golfe-Bebida 65–75%",
+        "hours1am": "Horário até 1h 35–45%",
+        "sports": "Transmissão de Esportes 40–55%",
+        "hours2am": "Horário até 2h 20–30%"
+      },
+      "to1am": "Até 1h",
+      "to2am": "Até 2h",
+      "likelihood": "Probabilidade",
+      "internationalOnly": "Apenas internacional",
+      "fullRemoval": "Remoção completa",
+      "disclaimer": "Esta análise é apenas informativa e não constitui aconselhamento jurídico. Contrate um solicitor especialista licenciado antes de enviar qualquer solicitação de variação ao Conselho de Southwark."
+    }
+  }
+}

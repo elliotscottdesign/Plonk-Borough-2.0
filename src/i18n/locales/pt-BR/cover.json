@@ -1,1 +1,33 @@
-{}
+{
+  "eyebrow": "Série A · Investimento Seed · Abril de 2026",
+  "lede": "Um local de experiência consolidado no Borough Market — minigolfe, bar, sinuca, fliperamas e jogos de tabuleiro. Gerando £741,644 de receita verificada em 2025, adquirido a preço de ativo em dificuldades.",
+  "address": "Borough Market SE1",
+  "addressTail": "· Arches B C D And E, Montague Close · London Bridge",
+  "stats": {
+    "seeking": {
+      "label": "Busca",
+      "sub": "50% de equity · 50% retido pelo fundador"
+    },
+    "verifiedRevenue": {
+      "label": "Receita Verificada 2025",
+      "sub": "Histórico real de operação — não é projeção"
+    },
+    "year1Return": {
+      "label": "Retorno do Investidor no Ano 1",
+      "sub": "88,6% cash-on-cash · payback 1,13 anos"
+    },
+    "distribution": {
+      "label": "Modelo de Distribuição",
+      "value": "Pro-rata",
+      "sub": "Todos os acionistas recebem pelo % de equity ao mesmo tempo"
+    },
+    "forecast": {
+      "label": "Receita Projetada",
+      "sub": "Cenário base +15% · Mai 2026–Abr 2027"
+    },
+    "valuation": {
+      "label": "Entrada de Valuation",
+      "sub": "EBITDA · preço de aquisição em dificuldades"
+    }
+  }
+}

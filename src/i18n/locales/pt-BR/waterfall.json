@@ -1,1 +1,39 @@
-{}
+{
+  "title": "Retornos do Investidor",
+  "subtitle": "Pro-rata puro — todos os acionistas recebem ao mesmo tempo pelo % de equity. Sem retorno preferencial, sem níveis de prioridade.",
+  "scenarios": {
+    "bear": "Cenário Pessimista −10%",
+    "base": "Cenário Base +15%",
+    "bull": "Cenário Otimista +25%"
+  },
+  "scenarioBadges": {
+    "bear": "cenário −10%",
+    "base": "cenário +15%",
+    "bull": "cenário +25%"
+  },
+  "steps": {
+    "operatingProfit": "Lucro Operacional",
+    "investorDividend": "Dividendo do Investidor ({{pct}}%)",
+    "founderDividend": "Dividendo do Fundador ({{pct}}%)",
+    "investorNote": "{{pct}}% × lucro operacional · pago pro-rata",
+    "founderNote": "{{pct}}% × lucro operacional · pago pro-rata",
+    "header": "Cascata de Distribuição"
+  },
+  "summary": {
+    "header": "Resumo do Investidor",
+    "totalReturn": "Retorno Total do Investidor",
+    "totalReturnNote": "Dividendo pro-rata de {{pct}}% sobre o lucro operacional",
+    "cashOnCash": "Retorno Cash-on-Cash",
+    "paybackPeriod": "Período de Payback",
+    "paybackYears": "{{n}} anos",
+    "onInvested": "Sobre {{amount}} investidos",
+    "equityDividend": "Dividendo de equity ({{pct}}%)",
+    "distributionTiming": "Momento da distribuição",
+    "sameAsFounder": "Igual ao fundador",
+    "founderPosition": "Posição do Fundador",
+    "founderEquity": "Dividendo de Equity ({{pct}}%)",
+    "paid": "Pago",
+    "paidNote": "Junto com o investidor, pro-rata",
+    "footnote": "Orientado por fluxo de caixa — não é necessária saída para o investidor receber o retorno total. Payback somente pelas distribuições de operação do Ano 1."
+  }
+}

@@ -1,1 +1,44 @@
-{}
+{
+  "eyebrow": "Uso dos Fundos de Investimento",
+  "title": "Para Onde Vão Seus £70,000",
+  "subtitle": "Cada libra empregada no Dia 1 da reabertura — nenhum fundo retido em reserva fora do negócio",
+  "allocation": "Alocação dos Fundos — Detalhamento Visual",
+  "total": "INVESTIMENTO TOTAL",
+  "totalAmount": "£70,000 inc IVA",
+  "bannerHeader": "£70,000 INC IVA TOTAL · 100% EMPREGADO NO DIA 1",
+  "bannerNote": "IVA sobre custos de startup (~£5,833) recuperado no 1º trimestre — creditado na primeira declaração de IVA junto à HMRC (agosto de 2026)",
+  "items": {
+    "rent": {
+      "label": "Caução de Aluguel (3 meses)",
+      "desc": "Caução mantida pelo proprietário cobrindo maio, junho e julho de 2026."
+    },
+    "hardware": {
+      "label": "Hardware de Liquidação",
+      "desc": "Equipamentos físicos de bar e cozinha — comprados a preço de liquidação. Operacionais no Dia 1."
+    },
+    "ip": {
+      "label": "Taxa de Licença de IP",
+      "desc": "Licença de IP de marca e gaming — era uma compra de Plonk IP e Goodwill de £72,000 inc IVA no acordo antigo."
+    },
+    "stock": {
+      "label": "Estoque e Retomada com Fornecedores",
+      "desc": "Estoque inicial, contratos com fornecedores e assinaturas de software para operar desde o Dia 1."
+    },
+    "working": {
+      "label": "Reserva de Capital de Giro",
+      "desc": "Aplicado ao negócio conforme o modelo de fluxo de caixa. Cobre a operação inicial até a receita cobrir os custos."
+    }
+  },
+  "day1": {
+    "label": "Empregado no Dia 1",
+    "sub": "Custos de startup pagos imediatamente"
+  },
+  "working": {
+    "label": "Capital de Giro",
+    "sub": "Aplicado conforme o modelo de fluxo de caixa"
+  },
+  "vatReclaim": {
+    "label": "Recuperação de IVA",
+    "sub": "Recuperado no 1º trimestre — agosto de 2026"
+  }
+}

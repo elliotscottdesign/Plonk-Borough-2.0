@@ -1,1 +1,168 @@
-{}
+{
+  "header": "Explorador do Negócio · Borough Market SE1",
+  "tabs": {
+    "overview": "Visão Geral",
+    "performance2025": "Desempenho 2025",
+    "performance2026": "Desempenho 2026",
+    "scenarios": "Cenários",
+    "market": "Contexto de Mercado",
+    "wages": "Salários"
+  },
+  "overview": {
+    "stats": {
+      "ask": { "label": "APORTE SOLICITADO", "sub": "por 50% de equity" },
+      "fy2025": { "label": "RECEITA REAL EXERCÍCIO 2025", "sub": "Modelo financeiro verificado" },
+      "forecast": { "label": "RECEITA PROJETADA ANO 1", "sub": "+15,0% sobre o ano anterior" }
+    },
+    "forecastChart": "Projeção Mensal de Receita e EBITDA · Mai 2026 – Abr 2027",
+    "revenueSplitHeader": "Divisão de Receita",
+    "splits": {
+      "bar": "Bar e Bebidas",
+      "activities": "Atividades",
+      "events": "Eventos e Locação"
+    },
+    "y1Ebitda": "EBITDA Projetado Ano 1",
+    "y1Margin": "22,4% de margem EBITDA",
+    "baseReturns": "Retornos do Cenário Base",
+    "cocLabel": "52,1% CoC",
+    "cocNote": "Retorno cash-on-cash Ano 1"
+  },
+  "performance2025": {
+    "income": "Receita · Jan–Dez 2025",
+    "costs": "Custos Operacionais · Jan–Dez 2025",
+    "verified": "verificado",
+    "categorised": "categorizado",
+    "totalIncome": "Receita Total",
+    "totalCosts": "Custos Totais",
+    "monthlyIncome": "Receita Mensal — Empilhada por Fonte",
+    "monthlyCosts": "Custos Mensais — Empilhados",
+    "ticketBreakdown": "Detalhamento de Receita de Ingressos",
+    "ticketSource": "Borough 2025 · Portal online (real) vs Escritório/caixa (imputado a preço de tabela)",
+    "combined": "combinado",
+    "online": "Online",
+    "office": "Escritório (imputado)",
+    "onlinePortal": "Portal Online",
+    "officeTill": "Escritório / Caixa",
+    "combinedLbl": "Combinado",
+    "onlineBySku": "Online · por SKU",
+    "officeBySku": "Escritório · por SKU",
+    "onlineNote": "Status = completo",
+    "officeNote": "Status = externo · imputado a preço de tabela",
+    "monthlyTicket": "Receita Mensal de Ingressos — Online + Escritório Empilhados"
+  },
+  "incomeSources": {
+    "bar": "Gastos no Bar",
+    "onlineGolf": "Ingressos Online de Golfe",
+    "bookings": "Reservas e Eventos",
+    "privateHires": "Locações Privadas",
+    "serviceCharge": "Taxa de Serviço",
+    "poolTickets": "Ingressos de Sinuca"
+  },
+  "costCategories": {
+    "wages": "Salários",
+    "fixed": "Custos Fixos",
+    "drinks": "Bebidas e Gás",
+    "vat": "IVA (Líquido)",
+    "cleaning": "Limpeza",
+    "arcades": "Fliperamas",
+    "food": "Comida",
+    "google": "Google/Digital",
+    "cardCharges": "Taxas de Cartão",
+    "fixedDesc": "Aluguel, taxas, eletricidade, seguro, internet, PRS",
+    "vatDesc": "IVA líquido pago à HMRC — IVA arrecadado menos IVA recuperado nas compras",
+    "googleDesc": "Gasto histórico de Lithos/Google em 2025 · sob o novo modelo de IP e Licenciamento todo gasto com anúncios/SEO fica com a Plonk Golf a partir de 2026"
+  },
+  "performance2026": {
+    "header": "Desempenho 2026 · Projeção ajustada por cenário",
+    "sliderDesc": "Agregado das quatro alavancas de crescimento em Cenários (Bar · Golfe · Locações · Eventos). Arrastar este controle iguala as quatro ao mesmo valor. Salários +10%, Fixos +10%, Bebidas = 30% do bar, Hospedagem fixa, tudo o mais escala proporcionalmente.",
+    "resetLevers": "Redefinir as quatro alavancas para +15% (Base)",
+    "labels": {
+      "bear": "Pessimista",
+      "y2025": "2025",
+      "base": "Base",
+      "bull": "Otimista"
+    },
+    "adjustedRevenue": "Receita Ajustada",
+    "adjustedEbitda": "EBITDA Ajustado",
+    "margin": "de margem",
+    "income2026": "Receita · Projeção 2026",
+    "costs2026": "Custos Operacionais · Projeção 2026",
+    "monthlyIncome2026": "Receita Mensal 2026 — Escalada",
+    "monthlyCosts2026": "Custos Mensais 2026 — Escalados",
+    "costNotes": {
+      "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
+      "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
+      "scales": "Escala com a receita agregada",
+      "hosting": "Hospedagem (Lithos)",
+      "hostingNote": "Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf",
+      "other": "Outros"
+    },
+    "resetDefault": "Restaurar padrão"
+  },
+  "scenarios": {
+    "buildCustom": "Construir Cenário Personalizado",
+    "leverNote": "Essas quatro alavancas também controlam o controle principal de Desempenho 2026",
+    "levers": {
+      "bar": "Aumento de Bar",
+      "golf": "Aumento de Ingressos de Golfe",
+      "hires": "Locações Privadas",
+      "events": "Eventos Regulares"
+    },
+    "resetTo15": "Redefinir para +15%",
+    "resetTo100": "Redefinir para 100%",
+    "newLabel": "Novo:",
+    "opex": "OpEx vs Orçamento",
+    "opexHint": "(multiplicador de custos apenas para o cartão Personalizado)",
+    "cards": {
+      "conservative": "CONSERVADOR",
+      "base": "CENÁRIO BASE",
+      "optimistic": "OTIMISTA",
+      "custom": "PERSONALIZADO"
+    },
+    "opProfit": "Lucro Operacional",
+    "investorReturn": "Retorno do Investidor"
+  },
+  "market": {
+    "header": "Crescimento de Lazer de Experiência",
+    "growthNote": "2025 YoY — subsetor de hospitalidade que mais cresce",
+    "visitors": "Visitantes do Borough Market",
+    "visitorsNote": "Visitantes anuais na região",
+    "commuters": "Passageiros de London Bridge",
+    "commutersNote": "Passageiros diários da estação — área primária de captação",
+    "demographics": "Demografia do SE1",
+    "age": "Idade 25–44",
+    "income": "Renda Familiar Mediana",
+    "edu": "Com formação universitária",
+    "office": "Trabalhadores de escritório",
+    "tailwinds": "Ventos Favoráveis e Posicionamento",
+    "items": {
+      "social": { "title": "Descoberta em Redes Sociais", "text": "Locais experienciais geram UGC orgânico a uma taxa 5× maior que a hospitalidade tradicional. O formato visual da Plonk impulsiona aquisição gratuita." },
+      "corporate": { "title": "Demanda Corporativa", "text": "Pós-pandemia, team-building e offsites viraram demanda estrutural. A proximidade com a City of London faz com que a Plonk Borough atenda esse público sem gasto incremental." },
+      "recession": { "title": "Resiliência a Recessão", "text": "Gasto doméstico com lazer é aderente. Locais de experiência precificados abaixo de £30/pessoa substituem alternativas no exterior em períodos de desaceleração econômica." },
+      "occasions": { "title": "Ocasiões e Celebrações", "text": "Aniversários, despedidas de solteira e de solteiro são reservas de alto valor com gasto estruturado. Locais de atividade capturam a ocasião inteira — entrada, bebidas e comida." },
+      "repeat": { "title": "Modelo de Visitação Recorrente", "text": "Formato multi-atividades com programação regular de eventos impulsiona a visitação recorrente. Locais de experiência focados em bar veem taxa de retorno 2–3× maior que a de locais de atividade única." },
+      "pricing": { "title": "Poder de Precificação", "text": "+£1 em sinuca e golfe nos volumes atuais gera ~£15 mil de lucro incremental por ano. Zero capex, zero risco de churn nesse ponto de preço." }
+    }
+  },
+  "wages": {
+    "total": "Folha Salarial Total 2025",
+    "totalNote": "Dados de escala verificados",
+    "hours": "Total de Horas Trabalhadas",
+    "hoursValue": "10.043 h",
+    "hoursNote": "23 funcionários · cargos totalmente tagueados",
+    "pct": "Salários como % da Receita",
+    "pctNote": "£242,370 ÷ £741,644 · meta ≤22%",
+    "calculatorHeader": "Calculadora Deslizante de Taxa Salarial — Planejamento 2026",
+    "roles": {
+      "bar": "Equipe de Bar",
+      "supervisor": "Supervisor",
+      "asstManager": "Gerente Assistente",
+      "manager": "Gerente"
+    },
+    "hrs": "h",
+    "annual": "Anual:",
+    "projected": "Folha Salarial Projetada",
+    "delta": "Delta vs 2025",
+    "forecastPct": "Salários % Projetado"
+  }
+}

@@ -1,1 +1,66 @@
-{}
+{
+  "title": "Crescimento e Riscos",
+  "subtitle": "Drivers de upside fora do cenário base · Registro de riscos com mitigações",
+  "upsideHeader": "Drivers de Upside (fora do cenário base)",
+  "risksHeader": "Registro de Riscos",
+  "overallHeader": "Perfil Geral de Risco",
+  "overallBody": "Quatro riscos baixos, dois médios. Nenhum risco alto identificado. O retorno do investidor varia com o negócio — pro-rata sobre o lucro operacional significa que upside e downside ficam do mesmo lado da mesa que o fundador.",
+  "impact": {
+    "low": "Baixo",
+    "medium": "Médio",
+    "high": "Alto",
+    "strategic": "Estratégico"
+  },
+  "drivers": {
+    "seo": {
+      "driver": "Reconstrução de SEO desde o Dia 1",
+      "detail": "Tráfego orgânico caiu 32% devido à mudança de marca (Plonk→No Dice). O programa de SEO da Lithos restaura o ranqueamento sob No Dice Borough — com ganho composto ano a ano. Redirecionamento 301 preserva a autoridade do domínio."
+    },
+    "ads": {
+      "driver": "Google Ads em Escala",
+      "detail": "CPC comprovado de £0.32 e taxa de conversão de 5,7% na campanha de nov–dez/2025. 105 conversões em 37 dias com £580 investidos. Escalando para £600/mês = ~107 conversões/mês com unit economics verificados."
+    },
+    "corporate": {
+      "driver": "Pipeline de Eventos Corporativos",
+      "detail": "Receita de locação privada de £44,999 em 2025. Gerente de reservas focado em team days corporativos, locações exclusivas e festas de Natal. Reservas pré-pagas de alta margem com custo incremental mínimo."
+    },
+    "dj": {
+      "driver": "Programação de Noites de DJ",
+      "detail": "Eventos de sexta e sábado à noite, incrementais ao público espontâneo. Receita de bar de alta margem sem custo fixo adicional. Localização no Borough Market atrai fluxo natural."
+    },
+    "repricing": {
+      "driver": "Reprecificação dos Jogos",
+      "detail": "+£1 em sinuca e minigolfe afeta mais de 100 mil partidas anuais. Resistência mínima do cliente. Impacto direto no P&L sem aumento de custos."
+    },
+    "secondSite": {
+      "driver": "Opcionalidade de Segundo Local",
+      "detail": "Modelo operacional comprovado, time experiente e marca Borough Market podem ser replicados. Captação futura em múltiplo mais alto é plausível quando os retornos do Ano 1 forem demonstrados."
+    }
+  },
+  "risks": {
+    "timeline": {
+      "risk": "Atraso no cronograma de reabertura",
+      "mitigation": "Contrato de locação assegurado, hardware adquirido em liquidação, rede de funcionários mantida. Meta: maio de 2026."
+    },
+    "revenue": {
+      "risk": "Receita abaixo da projeção do cenário base",
+      "mitigation": "O cenário base é +15% sobre os números reais verificados de 2025. O dividendo pro-rata varia com o lucro operacional que o local entregar."
+    },
+    "wage": {
+      "risk": "Inflação salarial",
+      "mitigation": "NMW (salário mínimo nacional) modelado sobre os números reais de 2025. Sem premissa salarial otimista. Calculadora de salários modela cenários."
+    },
+    "brand": {
+      "risk": "Transição de marca (Plonk→No Dice)",
+      "mitigation": "Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização inalterada."
+    },
+    "marketing": {
+      "risk": "Variabilidade de marketing",
+      "mitigation": "Google Ads comprovado a £0.32 CPC com tracking de conversão ativo. Programa de SEO começa no Dia 1."
+    },
+    "keyPerson": {
+      "risk": "Dependência de pessoas-chave",
+      "mitigation": "Gerente de reservas e equipe de bar experiente mantidos. Procedimentos operacionais documentados."
+    }
+  }
+}
