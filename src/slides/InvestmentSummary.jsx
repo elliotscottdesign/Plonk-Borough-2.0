@@ -1,15 +1,10 @@
 import React, { useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import { DEAL, ACTUALS_2025 } from '../data.js'
+import { formatCurrency, formatNumber } from '../i18n/format.js'
 import ResetBtn from '../components/ResetBtn.jsx'
 
-const fmt = (n) => '£' + Math.round(n).toLocaleString()
 const pct = (n) => (n * 100).toFixed(1) + '%'
-
-const SCENARIOS = {
-  conservative: { label: 'Conservative', sub: '+10% on 2025', multiplier: 1.10 },
-  base:         { label: 'Base Case',    sub: '+15% on 2025', multiplier: 1.15 },
-  optimistic:   { label: 'Optimistic',   sub: '+25% on 2025', multiplier: 1.25 },
-}
 
 // Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
 // Uses the realistic 2026 cost model: wages +10%, fixed +10%, drinks = 30% of bar,
@@ -36,6 +31,16 @@ function calcReturns(multiplier) {
 }
 
 export default function InvestmentSummary() {
+  const { t, i18n } = useTranslation('summary')
+  const lang = i18n.language
+  const fmt = (n) => formatCurrency(n, lang)
+
+  const SCENARIOS = {
+    conservative: { label: t('scenarios.conservative.label'), sub: t('scenarios.conservative.sub'), multiplier: 1.10 },
+    base:         { label: t('scenarios.base.label'),         sub: t('scenarios.base.sub'),         multiplier: 1.15 },
+    optimistic:   { label: t('scenarios.optimistic.label'),   sub: t('scenarios.optimistic.sub'),   multiplier: 1.25 },
+  }
+
   const [scenario, setScenario] = useState('base')
   const s = SCENARIOS[scenario]
   const r = calcReturns(s.multiplier)
@@ -55,13 +60,19 @@ export default function InvestmentSummary() {
   const totalCalc = divCalc
   const cocCalc = totalCalc / amount
 
+  const paybackVal = isFinite(r.payback)
+    ? t('rows.paybackYears', { n: r.payback.toFixed(1) })
+    : t('rows.paybackNA')
+
+  const investorEqPct = (DEAL.investorEq * 100).toFixed(1)
+
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
       <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
-        Investment Summary
+        {t('title')}
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 28, fontSize: 14 }}>
-        At-a-glance deal structure, returns and financials
+        {t('subtitle')}
       </p>
 
       {/* Scenario selector */}
@@ -81,38 +92,38 @@ export default function InvestmentSummary() {
 
       {/* 3-section snapshot grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <Section title="🏢 Deal Structure" items={[
-          ['Investor Equity', `${(DEAL.investorEq*100).toFixed(2)}%`],
-          ['Founder Equity', `${(DEAL.founderEq*100).toFixed(2)}%`],
-          ['Pre-Money Valuation', fmt(DEAL.preMoney)],
-          ['Post-Money Valuation', fmt(DEAL.postMoney)],
-          ['Valuation Multiple', `${DEAL.multiple.toFixed(2)}× EBITDA`],
+        <Section title={t('sections.deal')} items={[
+          [t('rows.investorEquity'), `${(DEAL.investorEq*100).toFixed(2)}%`],
+          [t('rows.founderEquity'),  `${(DEAL.founderEq*100).toFixed(2)}%`],
+          [t('rows.preMoney'),       fmt(DEAL.preMoney)],
+          [t('rows.postMoney'),      fmt(DEAL.postMoney)],
+          [t('rows.valuationMultiple'), `${DEAL.multiple.toFixed(2)}× EBITDA`],
         ]} />
-        <Section title="📊 Financial Performance" items={[
-          ['2025 Actual Revenue', fmt(ACTUALS_2025.revenue)],
-          ['Forecast Revenue', fmt(r.revenue)],
-          ['Revenue Growth', `+${Math.round((s.multiplier-1)*100)}%`],
-          ['Forecast Op Profit', fmt(r.opProfit)],
-          ['2025 EBITDA', fmt(ACTUALS_2025.ebitda)],
+        <Section title={t('sections.financial')} items={[
+          [t('rows.actualRevenue'),    fmt(ACTUALS_2025.revenue)],
+          [t('rows.forecastRevenue'),  fmt(r.revenue)],
+          [t('rows.revenueGrowth'),    `+${Math.round((s.multiplier-1)*100)}%`],
+          [t('rows.forecastOpProfit'), fmt(r.opProfit)],
+          [t('rows.ebitda2025'),       fmt(ACTUALS_2025.ebitda)],
         ]} />
-        <Section title="💰 Investor Returns" items={[
-          ['Distribution Model', 'Pro-rata · no tiers', true],
-          [`Equity Dividend (${(DEAL.investorEq*100).toFixed(1)}%)`, fmt(r.investorDiv), true],
-          ['Total Year 1 Return', fmt(r.total), true],
-          ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],
-          ['Payback Period', isFinite(r.payback) ? `${r.payback.toFixed(1)} years` : 'N/A · profit ≤ 0'],
+        <Section title={t('sections.returns')} items={[
+          [t('rows.distributionModel'), t('rows.proRataNoTiers'), true],
+          [t('rows.equityDividend', { pct: investorEqPct }), fmt(r.investorDiv), true],
+          [t('rows.totalYear1'), fmt(r.total), true],
+          [t('rows.cashOnCash'), `${(r.coc*100).toFixed(1)}%`, true],
+          [t('rows.payback'), paybackVal],
         ]} />
       </div>
 
       {/* Top 3 highlights */}
       <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
-        Top 3 Investment Highlights
+        {t('highlights.header')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
         {[
-          `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(DEAL.investment)} invested`,
-          `Proven Borough Market venue — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · 77,801 organic search sessions · 58% organic traffic`,
-          `All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)`,
+          t('highlights.first',  { total: fmt(r.total), coc: (r.coc*100).toFixed(1), investment: fmt(DEAL.investment) }),
+          t('highlights.second', { revenue: fmt(ACTUALS_2025.revenue) }),
+          t('highlights.third'),
         ].map((text, i) => (
           <div key={i} className="card" style={{ display: 'flex', gap: 16, padding: '14px 18px', alignItems: 'flex-start' }}>
             <span className="serif" style={{ fontSize: 18, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
@@ -124,12 +135,12 @@ export default function InvestmentSummary() {
       {/* Interactive return calculator */}
       <div className="card" style={{ padding: 28 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
-          Explore Your Return
+          {t('calculator.title')}
         </div>
 
         <div style={{ marginBottom: 24 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
-            <span style={{ color: 'var(--cream-dim)' }}>Investment Amount</span>
+            <span style={{ color: 'var(--cream-dim)' }}>{t('calculator.amount')}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
               <ResetBtn onClick={() => setAmount(70000)} />
@@ -142,7 +153,7 @@ export default function InvestmentSummary() {
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
             <span>£5,000</span>
-            <span>£70,000 · 50% equity cap</span>
+            <span>{t('calculator.capNote')}</span>
           </div>
         </div>
 
@@ -155,22 +166,24 @@ export default function InvestmentSummary() {
           fontSize: 12, color: isAShare ? 'var(--teal)' : 'var(--gold)',
         }}>
           <span>{isAShare ? '✓' : '○'}</span>
-          {isAShare ? 'A Shares · Full Voting Rights' : 'B Shares · Economic Rights Only'}
+          {isAShare ? t('calculator.aShares') : t('calculator.bShares')}
           <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>
-            {pct(equity)} equity
+            {pct(equity)} {t('calculator.equitySuffix')}
           </span>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          <CalcResult label="Ownership" value={pct(equity)} />
-          <CalcResult label="Equity Dividend" value={fmt(divCalc)} />
-          <CalcResult label="Total Year 1" value={fmt(totalCalc)} gold />
+          <CalcResult label={t('calculator.ownership')} value={pct(equity)} />
+          <CalcResult label={t('calculator.equityDividend')} value={fmt(divCalc)} />
+          <CalcResult label={t('calculator.totalYear1')} value={fmt(totalCalc)} gold />
         </div>
 
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
-          Cash-on-Cash: <span style={{ color: 'var(--gold)' }}>{(cocCalc * 100).toFixed(1)}%</span>
-          {' · '}Payback: <span style={{ color: 'var(--gold)' }}>{(amount / totalCalc).toFixed(2)} years</span>
-          {' · '}Minimum for A shares: <span style={{ color: 'var(--cream-dim)' }}>£{DEAL.aShareThreshold.toLocaleString()}</span>
+          {t('calculator.footnote', {
+            coc: (cocCalc * 100).toFixed(1),
+            payback: (amount / totalCalc).toFixed(2),
+            threshold: formatNumber(DEAL.aShareThreshold, lang),
+          })}
         </div>
       </div>
     </div>
