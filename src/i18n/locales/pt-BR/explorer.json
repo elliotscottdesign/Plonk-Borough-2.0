@@ -215,7 +215,12 @@
   },
   "priceMaker": {
     "header": "Calculadora de Preços de Ingressos · Economia por SKU",
-    "note": "Edite preço e fichas por SKU. Custo por ingresso = 16% de aluguel/contas + 20% IVA + fichas × £0,325. Volumes escalam com a alavanca de golfe acima. Total de fichas retorna à linha de Fliperamas.",
+    "note": "Edite preço e fichas por SKU. Custo por ingresso = 16% de aluguel/contas + 20% IVA + fichas × £0,325. O controle mestre escala todos os volumes de SKU proporcionalmente ao mix de vendas 2025. Total de fichas retorna à linha de Fliperamas.",
+    "masterHeader": "Volume Mestre de Ingressos",
+    "masterLabel": "Ingressos Online de Golfe",
+    "masterReset": "Redefinir para +15% (Base)",
+    "masterSub": "Escala todos os volumes de SKU proporcionalmente ao mix de vendas 2025",
+    "masterNew": "Nova receita de Ingressos Online de Golfe: {{val}}",
     "resetAll": "Redefinir todos os SKUs para padrões de 2025",
     "linkNote": "O custo total de fichas flui para a linha Fliperamas no donut de custos. Alterar fichas aqui move o EBITDA em tempo real. Linhas de receita ainda vêm das alavancas de crescimento — receita da matriz é mostrada como insight, ainda não como override ao vivo.",
     "totals": {

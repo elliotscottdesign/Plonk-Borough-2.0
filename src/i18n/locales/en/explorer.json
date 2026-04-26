@@ -215,7 +215,12 @@
   },
   "priceMaker": {
     "header": "Ticket Price Maker · Per-SKU Unit Economics",
-    "note": "Edit price and tokens per SKU. Cost per ticket = 16% rent/bills allocation + 20% VAT + tokens × £0.325. Volumes scale with the golf ticket lever above. Token totals flow back to the Arcades cost line.",
+    "note": "Edit price and tokens per SKU. Cost per ticket = 16% rent/bills allocation + 20% VAT + tokens × £0.325. The master slider scales all SKU volumes proportionally based on the 2025 sales mix. Token totals flow back to the Arcades cost line.",
+    "masterHeader": "Master Ticket Volume",
+    "masterLabel": "Online Golf Tickets",
+    "masterReset": "Reset to +15% (Base)",
+    "masterSub": "Scales all SKU volumes proportionally to 2025 sales mix",
+    "masterNew": "New Online Golf Tickets revenue: {{val}}",
     "resetAll": "Reset all SKUs to 2025 defaults",
     "linkNote": "Total token cost flows to the Arcades line in the cost donut. Changing tokens here moves EBITDA in real time. Income lines still come from the growth levers — matrix revenue is shown for unit-economics insight, not yet a live override.",
     "totals": {

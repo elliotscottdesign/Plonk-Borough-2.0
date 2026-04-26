@@ -609,15 +609,19 @@ function ScenarioLeversCard({ growth }) {
   const { isLocked } = useLockedForecast()
 
   // Sliders mirror the 2026 income breakdown lines (excluding Service Charge,
-  // which is a derived passive scaler). Bases pulled from INCOME (= 2025 actuals).
-  const sliders = SCENARIO_LEVERS.map(l => ({
-    key: l.key,
-    labelKey: l.key,
-    value: growth[l.key],
-    set: growth['set' + l.setSuffix],
-    color: l.color,
-    base: l.base,
-  }))
+  // which is a derived passive scaler, AND Online Golf Tickets, which has been
+  // promoted to a master slider on the Ticket Price Maker — see the Tickets
+  // section). Bases pulled from INCOME (= 2025 actuals).
+  const sliders = SCENARIO_LEVERS
+    .filter(l => l.key !== 'golf')
+    .map(l => ({
+      key: l.key,
+      labelKey: l.key,
+      value: growth[l.key],
+      set: growth['set' + l.setSuffix],
+      color: l.color,
+      base: l.base,
+    }))
 
   return (
     <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
@@ -625,7 +629,7 @@ function ScenarioLeversCard({ growth }) {
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
         <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
         {sliders.map(s => (
           <div key={s.key}>
             <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
@@ -713,6 +717,51 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
 // Income lines are NOT yet driven by the matrix — they still use the
 // growth levers. Future scope: aggregate matrix revenue → income lines.
 // ───────────────────────────────────────────────────────────────────────
+
+// Master ticket volume slider — the (former) Online Golf Tickets income
+// lever, relocated here. Drives growth.golf which scales all SKU 2026
+// volumes proportionally based on 2025 sales mix. Also still drives the
+// Online Golf Tickets income line in the broader cost model.
+function MasterTicketVolumeSlider({ growth, isLocked }) {
+  const { t } = useTranslation('explorer')
+  const { fmtK } = useFmt()
+  const golfBase = SCENARIO_LEVERS.find(l => l.key === 'golf')?.base ?? 210485
+  const golfColor = SCENARIO_LEVERS.find(l => l.key === 'golf')?.color ?? '#0891B2'
+  const value = growth.golf
+  const newRevenue = golfBase * (1 + value / 100)
+
+  return (
+    <div style={{ background:'rgba(8,145,178,0.06)', border:`1px solid ${golfColor}55`, borderRadius:10, padding:'14px 18px', marginBottom:14 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+        <div>
+          <div style={{ fontSize:9.5, color:golfColor, letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700, marginBottom:2 }}>{t('priceMaker.masterHeader')}</div>
+          <div style={{ fontSize:12, color:'var(--cream)' }}>
+            {t('priceMaker.masterLabel')}
+            <span style={{ color:'#6B7280', marginLeft:6 }}>(2025: {fmtK(golfBase)})</span>
+          </div>
+        </div>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+          <span style={{ color:golfColor, fontWeight:700, fontSize:16 }}>{value > 0 ? '+' : ''}{value}%</span>
+          <ResetBtn onClick={() => { if (!isLocked) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
+        </span>
+      </div>
+      <input
+        type="range" disabled={isLocked} min={-20} max={50} value={value}
+        onChange={e => { if (!isLocked) growth.setGolf(Number(e.target.value)) }}
+        style={{ width:'100%', accentColor:golfColor, opacity: isLocked ? 0.6 : 1 }}
+      />
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
+        <span>−20%</span>
+        <span style={{ color:'#9CA3AF' }}>{t('priceMaker.masterSub')}</span>
+        <span>+50%</span>
+      </div>
+      <div style={{ marginTop:8, fontSize:11, color:'#9CA3AF' }}>
+        <span>{t('priceMaker.masterNew', { val: fmtK(newRevenue) })}</span>
+      </div>
+    </div>
+  )
+}
+
 function TicketPriceMaker({ growth, pricing, setPricing }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
@@ -765,6 +814,11 @@ function TicketPriceMaker({ growth, pricing, setPricing }) {
         <ResetBtn onClick={resetAll} title={t('priceMaker.resetAll')} />
       </div>
       <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('priceMaker.note')}</div>
+
+      {/* Master ticket volume slider — drives all SKU 2026 volumes via growth.golf.
+          Same state as the income lever (now hidden from ScenarioLeversCard since
+          ticket volumes are the live editable here). */}
+      <MasterTicketVolumeSlider growth={growth} isLocked={isLocked} />
 
       {/* Aggregate summary strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:14 }}>
