@@ -315,16 +315,18 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
     pool:   Math.round(m.pool   * (1 + growth.pool   / 100)),
     sc:     Math.round(m.sc     * mult),
   }))
+  const officeCostsMonthly = Math.round(officeCostsTotal / 12)
   const monthlyCosts2026 = MONTHLY_COSTS.map(m => {
     const mi = MONTHLY_INCOME.find(x => x.m === m.m)
     const mthBar2026 = mi ? Math.round(mi.bar * (1 + growth.bar / 100)) : 0
     return {
       m: m.m,
-      wages: Math.round(m.wages * 1.10),
-      fixed: Math.round(m.fixed * 1.10),
+      wages:  Math.round(m.wages * 1.10),
+      fixed:  Math.round(m.fixed * 1.10),
+      office: officeCostsMonthly,                        // even spread; the line is fixed-per-year
       drinks: Math.round(mthBar2026 * 0.30),
-      vat: Math.round(m.vat * mult),
-      other: Math.round((m.other || m.vat2 || 0) * mult),
+      vat:    Math.round(m.vat * mult),
+      other:  Math.round((m.other || m.vat2 || 0) * mult),
     }
   })
 
@@ -1022,13 +1024,13 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const palette = kind === 'income'
     ? ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
-    : ['#4C1D95','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
+    : ['#4C1D95','#5B21B6','#6D28D9','#8B5CF6','#A78BFA','#C4B5FD']
   const LABELS = kind === 'income'
     ? [t('incomeSources.bar'), t('incomeSources.onlineGolf'), t('incomeSources.bookings'), t('incomeSources.privateHires'), t('incomeSources.serviceCharge'), t('incomeSources.poolTickets')]
-    : [t('costCategories.wages'), t('costCategories.fixed'), t('costCategories.drinks'), t('costCategories.vat'), t('performance2026.costNotes.other')]
+    : [t('costCategories.wages'), t('costCategories.fixed'), t('costCategories.office'), t('costCategories.drinks'), t('costCategories.vat'), t('performance2026.costNotes.other')]
   const getSegs = m => kind === 'income'
     ? [{ v:m.bar, c:palette[0] },{ v:m.golf, c:palette[1] },{ v:m.events, c:palette[2] },{ v:m.hire, c:palette[3] },{ v:m.sc, c:palette[4] },{ v:m.pool, c:palette[5] }]
-    : [{ v:m.wages, c:palette[0] },{ v:m.fixed, c:palette[1] },{ v:m.drinks, c:palette[2] },{ v:m.vat, c:palette[3] },{ v:m.other, c:palette[4] }]
+    : [{ v:m.wages, c:palette[0] },{ v:m.fixed, c:palette[1] },{ v:m.office, c:palette[2] },{ v:m.drinks, c:palette[3] },{ v:m.vat, c:palette[4] },{ v:m.other, c:palette[5] }]
   const total = m => getSegs(m).reduce((s, x) => s + (x.v || 0), 0)
   const maxVal = Math.max(...monthly.map(total))
   return (
