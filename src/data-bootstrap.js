@@ -118,6 +118,16 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
       DEAL.coc     = DEAL.investorDividend / DEAL.investment
       DEAL.payback = DEAL.investment / DEAL.investorDividend
     }
+    // FORECAST.revenue = 2026 base case revenue (ACTUALS × 1.15) — derived
+    // here so it reflects whatever ACTUALS_2025.revenue resolves to from the
+    // Sheet. Same derivation used by InvestmentSummary's calcReturns.
+    if (ACTUALS_2025.revenue > 0) {
+      FORECAST.revenue = Math.round(ACTUALS_2025.revenue * 1.15)
+    }
+    // FORECAST.margin = profit / revenue
+    if (FORECAST.revenue > 0 && FORECAST.profit > 0) {
+      FORECAST.margin = FORECAST.profit / FORECAST.revenue
+    }
 
     const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
     // eslint-disable-next-line no-console

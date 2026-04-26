@@ -1,16 +1,27 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
+import { DEAL, ACTUALS_2025, FORECAST } from '../data.js'
+import { formatCurrency } from '../i18n/format.js'
 
 export default function Cover() {
-  const { t } = useTranslation('cover')
+  const { t, i18n } = useTranslation('cover')
+  const lang = i18n.language
+  const fmt = (n) => formatCurrency(n, lang)
+
+  // Year-1-return sub-text is dynamic — rendered with i18next interpolation
+  // so it reflects whatever DEAL.coc / DEAL.payback resolve to at runtime
+  // (data.js defaults OR the live values pulled from the Google Sheet via
+  // the bootstrap in main.jsx).
+  const cocPct  = (DEAL.coc * 100).toFixed(1)
+  const payback = DEAL.payback.toFixed(2)
 
   const stats = [
-    { label: t('stats.seeking.label'), value: '£79,000 inc VAT', sub: t('stats.seeking.sub') },
-    { label: t('stats.verifiedRevenue.label'), value: '£741,644', sub: t('stats.verifiedRevenue.sub') },
-    { label: t('stats.year1Return.label'), value: '£62,000', sub: t('stats.year1Return.sub') },
-    { label: t('stats.distribution.label'), value: t('stats.distribution.value'), sub: t('stats.distribution.sub') },
-    { label: t('stats.forecast.label'), value: '£852,891', sub: t('stats.forecast.sub') },
-    { label: t('stats.valuation.label'), value: '0.86×', sub: t('stats.valuation.sub') },
+    { label: t('stats.seeking.label'),         value: `${fmt(DEAL.investment)} inc VAT`, sub: t('stats.seeking.sub') },
+    { label: t('stats.verifiedRevenue.label'), value: fmt(ACTUALS_2025.revenue),         sub: t('stats.verifiedRevenue.sub') },
+    { label: t('stats.year1Return.label'),     value: fmt(DEAL.investorDividend),        sub: t('stats.year1Return.sub', { coc: cocPct, payback }) },
+    { label: t('stats.distribution.label'),    value: t('stats.distribution.value'),     sub: t('stats.distribution.sub') },
+    { label: t('stats.forecast.label'),        value: fmt(FORECAST.revenue),             sub: t('stats.forecast.sub') },
+    { label: t('stats.valuation.label'),       value: `${DEAL.multiple.toFixed(2)}×`,    sub: t('stats.valuation.sub') },
   ]
 
   return (

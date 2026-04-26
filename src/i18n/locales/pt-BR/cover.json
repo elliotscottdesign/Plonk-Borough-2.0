@@ -14,7 +14,7 @@
     },
     "year1Return": {
       "label": "Retorno do Investidor no Ano 1",
-      "sub": "78,5% cash-on-cash · payback 1,27 anos"
+      "sub": "{{coc}}% cash-on-cash · payback {{payback}} anos"
     },
     "distribution": {
       "label": "Modelo de Distribuição",

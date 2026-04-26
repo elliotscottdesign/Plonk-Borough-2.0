@@ -4,6 +4,7 @@ import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, Don
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
+import { DEAL, ACTUALS_2025, FORECAST } from '../data.js'
 
 const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market','wages']
 
@@ -24,13 +25,15 @@ function TabOverview() {
   const rev =    [52000,44000,53000,89000,71000,68000,97000,173326,36000,52000,60000,58000]
   const ebitda = [-7000,-4000,5000,23000,17000,15000,30000,98000,-3000,6000,3000,8000]
   const maxRev = Math.max(...rev)
+  // Round to nearest £k for the abbreviated cards (e.g. £742k, £853k)
+  const fmtK = (n) => '£' + Math.round(n / 1000) + 'k'
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:t('overview.stats.ask.label'),      value:'£79,000 inc VAT', sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
-          { label:t('overview.stats.fy2025.label'),   value:'£742k',           sub:t('overview.stats.fy2025.sub'),   color:'#4FC3F7' },
-          { label:t('overview.stats.forecast.label'), value:'£853k',           sub:t('overview.stats.forecast.sub'), color:'#2DD4BF' },
+          { label:t('overview.stats.ask.label'),      value:`${fmt(DEAL.investment)} inc VAT`, sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
+          { label:t('overview.stats.fy2025.label'),   value:fmtK(ACTUALS_2025.revenue),         sub:t('overview.stats.fy2025.sub'),   color:'#4FC3F7' },
+          { label:t('overview.stats.forecast.label'), value:fmtK(FORECAST.revenue),             sub:t('overview.stats.forecast.sub'), color:'#2DD4BF' },
         ].map(s => (
           <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
             <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:8 }}>{s.label}</div>
