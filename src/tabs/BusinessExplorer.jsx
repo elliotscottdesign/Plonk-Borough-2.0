@@ -6,7 +6,7 @@ import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE } from '../data.js'
 
-const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market','wages']
+const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -761,73 +761,6 @@ function TabMarketContext() {
   )
 }
 
-function TabWages({ wages }) {
-  const { t } = useTranslation('explorer')
-  const { fmt, fmtNum } = useFmt()
-  // Hours come from data.js WAGE_RATES (2026 plan); rates from lifted state.
-  const roles = [
-    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:18 },
-    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:20 },
-    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:22 },
-    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:25 },
-  ]
-  const totalWages = Math.round(roles.reduce((s,r)=>s+r.hours*r.rate,0))
-  const planWages = PL_WAGE_BASE
-  const delta = totalWages - planWages
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { label:t('wages.total'),     value:fmt(242370), sub:t('wages.totalNote'), color:'#C9A84C' },
-          { label:t('wages.hours'),     value:t('wages.hoursValue'), sub:t('wages.hoursNote'), color:'#4FC3F7' },
-          { label:t('wages.pct'),       value:'20.8%',    sub:t('wages.pctNote'),    color:'#2DD4BF' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{s.label}</div>
-            <div style={{ fontSize:22, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
-          {roles.map(r => (
-            <div key={r.labelKey} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
-                  <ResetBtn onClick={()=>r.setRate(r.plan)} title={`Reset £${r.plan.toFixed(2)}/hr`} />
-                </span>
-              </div>
-              <input type="range" min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>r.setRate(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6 }} />
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>
-                <span>{fmtNum(r.hours)} {t('wages.hrs')}</span>
-                <span>{t('wages.annual')} {fmt(Math.round(r.hours*r.rate))}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-          <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.projected')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:'var(--gold)' }}>{fmt(totalWages)}</div>
-          </div>
-          <div style={{ background:delta>0?'rgba(239,68,68,0.08)':'rgba(45,212,191,0.08)', border:`1px solid ${delta>0?'rgba(239,68,68,0.2)':'rgba(45,212,191,0.2)'}`, borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.delta')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:delta>0?'#EF4444':'#2DD4BF' }}>{delta>0?'+':''}{fmt(delta)}</div>
-          </div>
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.forecastPct')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:'#4FC3F7' }}>{(totalWages/852891*100).toFixed(1)}%</div>
-          </div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function BusinessExplorer() {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
@@ -877,7 +810,6 @@ export default function BusinessExplorer() {
     performance2026: <TabPerformance growth={growth} wages={wages} opex={opex} setOpex={setOpex} />,
     scenarios: <TabScenarios growth={growth} opex={opex} setOpex={setOpex} />,
     market: <TabMarketContext />,
-    wages: <TabWages wages={wages} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
