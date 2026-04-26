@@ -19,23 +19,32 @@ export default function UseOfFunds() {
     { key:'working',  color:'#6B7280', pct:14.0, amount:11022, vat:null,     icon:'💼' },
   ]
 
-  // Mapping of STOCK_SETUP_DETAIL items to translation keys + icons. Keep order matching data.js.
-  const setupItems = [
-    { key:'alcohol',  amount:1500, icon:'🍾' },
-    { key:'soft',     amount: 300, icon:'🥤' },
-    { key:'ice',      amount:  30, icon:'🧊' },
-    { key:'cleaning', amount: 250, icon:'🧽' },
-    { key:'internet', amount: 300, icon:'📡' },
-    { key:'app',      amount: 200, icon:'📱' },
-    { key:'xero',     amount:  75, icon:'📊' },
-    { key:'rota',     amount:  75, icon:'🗓️' },
-    { key:'google',   amount:  75, icon:'🗂️' },
-    { key:'spotify',  amount:  60, icon:'🎵' },
-    { key:'supplier', amount: 135, icon:'🤝' },
-    { key:'rates',    amount:1800, icon:'🏛️' },
-    { key:'licence',  amount: 100, icon:'📜' },
+  // Stock & Operational Setup — 13 items grouped by commercial type. The first
+  // 3 groups are inc-VAT; "regulatory" is VAT-exempt (council fees don't carry
+  // UK VAT). Group subtotals add to £4,900.
+  const setupItems = {
+    alcohol:  { amount:1500, icon:'🍾' },
+    soft:     { amount: 300, icon:'🥤' },
+    ice:      { amount:  30, icon:'🧊' },
+    cleaning: { amount: 250, icon:'🧽' },
+    internet: { amount: 300, icon:'📡' },
+    app:      { amount: 200, icon:'📱' },
+    supplier: { amount: 135, icon:'🤝' },
+    xero:     { amount:  75, icon:'📊' },
+    rota:     { amount:  75, icon:'🗓️' },
+    google:   { amount:  75, icon:'🗂️' },
+    spotify:  { amount:  60, icon:'🎵' },
+    rates:    { amount:1800, icon:'🏛️' },
+    licence:  { amount: 100, icon:'📜' },
+  }
+  const setupGroups = [
+    { key:'stock',      icon:'🥃', accent:'#A78BFA', vatKey:'incVat', items:['alcohol','soft','ice'] },
+    { key:'contracts',  icon:'🛠️', accent:'#2DD4BF', vatKey:'incVat', items:['cleaning','internet','app','supplier'] },
+    { key:'subs',       icon:'💻', accent:'#4FC3F7', vatKey:'incVat', items:['xero','rota','google','spotify'] },
+    { key:'regulatory', icon:'🏛️', accent:'#F59E0B', vatKey:'exempt', items:['rates','licence'] },
   ]
-  const setupTotal = setupItems.reduce((s, i) => s + i.amount, 0)
+  const groupSubtotal = (g) => g.items.reduce((s, k) => s + setupItems[k].amount, 0)
+  const setupTotal = setupGroups.reduce((s, g) => s + groupSubtotal(g), 0)
 
   // Hardware breakdown — amounts shown EX VAT (sum to £20,000 ex VAT = £24,000 inc VAT).
   const hardwareItems = [
@@ -122,7 +131,7 @@ export default function UseOfFunds() {
         </div>
       </div>
 
-      {/* Stock & Operational Setup — itemised £3,000 detail */}
+      {/* Stock & Operational Setup — grouped £4,900 detail */}
       <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px', marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
           <div>
@@ -131,21 +140,71 @@ export default function UseOfFunds() {
           </div>
           <div style={{ fontSize:11, color:'#9CA3AF', maxWidth:340, textAlign:'right' }}>{t('setup.subtitle')}</div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
-          {setupItems.map(item => (
-            <div key={item.key} style={{ background:'rgba(45,212,191,0.04)', border:'1px solid rgba(45,212,191,0.15)', borderRadius:6, padding:'10px 12px', display:'flex', alignItems:'center', gap:10 }}>
-              <div style={{ fontSize:18, flexShrink:0, lineHeight:1 }}>{item.icon}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:12, fontWeight:600, color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{t(`setup.items.${item.key}.label`)}</div>
-                <div style={{ fontSize:10, color:'#9CA3AF', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{t(`setup.items.${item.key}.note`)}</div>
+
+        {/* 4 group cards in a 2×2 grid — each group has title, VAT badge, items, subtotal */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          {setupGroups.map(g => {
+            const sub = groupSubtotal(g)
+            const hex = g.accent
+            const bgRgba   = `${hex}0D`   // ~5% alpha
+            const borderRgba = `${hex}33` // ~20% alpha
+            return (
+              <div key={g.key} style={{ background:bgRgba, border:`1px solid ${borderRgba}`, borderRadius:8, padding:'14px 16px' }}>
+                {/* Group header: icon + title + VAT badge + subtotal */}
+                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+                  <div style={{ fontSize:18, lineHeight:1 }}>{g.icon}</div>
+                  <div style={{ flex:1, minWidth:0 }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'var(--cream)', letterSpacing:'0.04em' }}>
+                      {t(`setup.groups.${g.key}.title`)}
+                    </div>
+                  </div>
+                  <span style={{
+                    fontSize:9, color:hex, border:`1px solid ${hex}55`,
+                    borderRadius:3, padding:'1px 6px', letterSpacing:'0.06em', textTransform:'uppercase', whiteSpace:'nowrap'
+                  }}>
+                    {t(`setup.vatLabels.${g.vatKey}`)}
+                  </span>
+                  <span style={{ fontSize:14, fontWeight:700, color:hex, marginLeft:4, whiteSpace:'nowrap' }}>{fmt(sub)}</span>
+                </div>
+                <div style={{ fontSize:10, color:'#9CA3AF', marginBottom:10, marginLeft:28 }}>
+                  {t(`setup.groups.${g.key}.subtitle`)}
+                </div>
+
+                {/* Items in this group */}
+                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+                  {g.items.map(itemKey => {
+                    const item = setupItems[itemKey]
+                    return (
+                      <div key={itemKey} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0' }}>
+                        <div style={{ fontSize:14, lineHeight:1, width:18, textAlign:'center', flexShrink:0 }}>{item.icon}</div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ fontSize:12, color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                            {t(`setup.items.${itemKey}.label`)}
+                          </div>
+                        </div>
+                        <span style={{ fontSize:12, fontWeight:600, color:hex, flexShrink:0 }}>{fmt(item.amount)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
-              <div style={{ fontSize:13, fontWeight:700, color:'#2DD4BF', flexShrink:0 }}>{fmt(item.amount)}</div>
-            </div>
-          ))}
+            )
+          })}
         </div>
-        <div style={{ borderTop:'1px solid rgba(45,212,191,0.2)', marginTop:14, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+
+        {/* Footer: composition + grand total */}
+        <div style={{ borderTop:'1px solid rgba(45,212,191,0.2)', marginTop:14, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, flexWrap:'wrap' }}>
           <span style={{ fontSize:12, color:'#9CA3AF' }}>{t('setup.totalLabel')}</span>
-          <span style={{ fontSize:14, fontWeight:700, color:'#2DD4BF' }}>{fmt(setupTotal)} {vatLabel}</span>
+          <div style={{ display:'flex', alignItems:'center', gap:14, fontSize:11, color:'#9CA3AF' }}>
+            {setupGroups.map((g, i) => (
+              <span key={g.key} style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+                <span style={{ width:6, height:6, borderRadius:3, background:g.accent, display:'inline-block' }} />
+                {fmt(groupSubtotal(g))}
+                {i < setupGroups.length - 1 && <span style={{ color:'#4B5563', marginLeft:9 }}>+</span>}
+              </span>
+            ))}
+            <span style={{ fontSize:14, fontWeight:700, color:'#2DD4BF', marginLeft:8 }}>= {fmt(setupTotal)}</span>
+          </div>
         </div>
       </div>
 

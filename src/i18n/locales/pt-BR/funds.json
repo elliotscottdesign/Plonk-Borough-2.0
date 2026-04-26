@@ -46,6 +46,16 @@
     "title": "Detalhamento das Operações de £4,900 do Dia 1",
     "subtitle": "Estoque inicial, contratos, pré-pagamento de 3 meses de assinaturas e custos regulatórios pré-abertura para operar desde o Dia 1",
     "totalLabel": "Total — Estoque e Setup Operacional",
+    "vatLabels": {
+      "incVat": "inc IVA",
+      "exempt": "Isento de IVA"
+    },
+    "groups": {
+      "stock":      { "title": "Estoque Inicial",                "subtitle": "Bebidas e consumíveis de bar para o Dia 1" },
+      "contracts":  { "title": "Setup e Ativação",               "subtitle": "Limpeza profunda, instalação, cauções com fornecedores" },
+      "subs":       { "title": "Pré-pagamentos de Software (3 meses)", "subtitle": "Assinaturas de nuvem para o primeiro trimestre" },
+      "regulatory": { "title": "Regulatório Pré-Abertura",       "subtitle": "Taxas do município devidas antes da abertura" }
+    },
     "items": {
       "alcohol":  { "label": "Estoque de bebidas alcoólicas (inicial)",   "note": "Vinhos, destilados e cervejas para o Dia 1" },
       "soft":     { "label": "Refrigerantes, mixers e não-alcoólicos",   "note": "Mixers, sucos e refrigerantes — estoque inicial" },

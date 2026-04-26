@@ -46,6 +46,16 @@
     "title": "£4,900 Day-1 Operations Breakdown",
     "subtitle": "Opening stock, contracts, 3-month subscription pre-pays, and pre-trading regulatory costs so the venue trades from Day 1",
     "totalLabel": "Total — Stock & Operational Setup",
+    "vatLabels": {
+      "incVat": "inc VAT",
+      "exempt": "VAT-exempt"
+    },
+    "groups": {
+      "stock":      { "title": "Opening Stock",                "subtitle": "Drink + bar consumables for Day 1 trading" },
+      "contracts":  { "title": "Setup & Activation",           "subtitle": "Deep clean, kit setup, supplier deposits" },
+      "subs":       { "title": "3-Month Software Pre-pays",    "subtitle": "Cloud subscriptions for first quarter" },
+      "regulatory": { "title": "Pre-trading Regulatory",       "subtitle": "Council fees due before opening" }
+    },
     "items": {
       "alcohol":  { "label": "Alcohol stock (opening fill)",          "note": "Wines, spirits, beer for Day 1 trading" },
       "soft":     { "label": "Soft drinks, mixers & non-alcohol",     "note": "Mixers, juices, soft drinks opening fill" },
