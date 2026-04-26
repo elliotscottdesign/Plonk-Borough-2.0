@@ -201,7 +201,7 @@ export const GOVERNANCE = {
 // Stock & Setup trimmed to £3,000 (itemised — see STOCK_SETUP_DETAIL); £5,000 moved to
 // Working Capital so the buffer covers more of the early-trading runway.
 export const USE_OF_FUNDS = [
-  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
+  { item: 'Rent in Advance (3 months)',  amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months rent paid up front — covers May, Jun, Jul 2026 at the contractual 15% of 2025 turnover rate. NO deposit required. From August 2026 rent reverts to 15% of actual quarterly turnover (variable rent, scales with trading).' },
   { item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
   { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'One-off licensing fee paid to No Dice Bars LTD — grants indefinite use of the Plonk name. No Dice Bars LTD also runs online sales campaigns and platform maintenance under an ongoing commission, replacing the old Design My Night bookings provider' },
   { item: 'Stock & Operational Setup',   amount:  3000, pct:  3.8, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart' },
@@ -224,7 +224,7 @@ export const HARDWARE_BREAKDOWN = [
 // === STOCK & OPERATIONAL SETUP — itemised £3,000 breakdown ===
 // Detail behind the £3,000 "Stock & Operational Setup" line in USE_OF_FUNDS.
 // Mix of one-off costs (alcohol, internet hardware, cleaning restart) and
-// 3-month subscription pre-pays (matches the 3-month rent deposit cadence).
+// 3-month subscription pre-pays (matches the 3-month advance-rent cadence).
 // Reflected in the central workbook (Investment Valuation 1 sheet, Section 4
 // detail rows below the headline use-of-funds table).
 export const STOCK_SETUP_DETAIL = [

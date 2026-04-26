@@ -9,8 +9,8 @@
   "bannerNote": "IVA sobre custos de startup (~£6,500) recuperado no 1º trimestre — creditado na primeira declaração de IVA junto à HMRC (agosto de 2026)",
   "items": {
     "rent": {
-      "label": "Caução de Aluguel (3 meses)",
-      "desc": "Caução mantida pelo proprietário cobrindo maio, junho e julho de 2026."
+      "label": "Aluguel Antecipado (3 meses)",
+      "desc": "Três meses de aluguel pagos antecipadamente ao proprietário — cobrem maio, junho e julho de 2026 à taxa contratual de 15% do faturamento de 2025. Não há exigência de caução. A partir de agosto de 2026, o aluguel passa a ser 15% do faturamento trimestral real (variável, acompanha a operação)."
     },
     "hardware": {
       "label": "Hardware de Liquidação",
