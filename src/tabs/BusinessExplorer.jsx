@@ -169,13 +169,13 @@ const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(
 // sum to £165,647 — exact match with COST_CATEGORIES.fixed in data.js.
 // Defaults for the 2026 monthly editable state = (2025 annual / 12)
 // × 1.10 inflation, so model behaviour at default is unchanged.
-// Rent reference matches the cashflow basis — £27,078 paid for 3 months
-// May/Jun/Jul 2026 at the contractual 15% of 2025 turnover rate, i.e.
-// £9,026/mo × 12 = £108,312/yr at the 2025 average. From August 2026
-// rent is variable at 15% of quarterly turnover, so the 2026 figure
-// scales with actual trading. Adjust the slider to model the uplift.
+// Rent is contractually 15% of quarterly turnover — NOT editable.
+// Auto-computed = totalIncome × RENT_PCT_OF_TURNOVER and added on top
+// of the editable Fixed Costs sliders below. Shown as a read-only row
+// at the top of the FixedCostsSection.
+const RENT_PCT_OF_TURNOVER = 0.15
+
 const FIXED_COST_ITEMS = [
-  { id: 'rent',        ref2025Annual: 108312 },
   { id: 'rates',       ref2025Annual:  18000 },
   { id: 'electricity', ref2025Annual:  18000 },
   { id: 'water',       ref2025Annual:   4000 },
@@ -280,8 +280,10 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   // ─── Operating cost lines (no VAT) ─────────────────────────────────────
   // Hosting (Lithos) removed — under new IP & Licensing model, SEO/Ads
   // and the hosting fee sit with Plonk Golf, not the venue.
-  // Fixed Costs now driven by the FixedCostsSection editable matrix.
-  const fixedLine       = sumFixedCostsAnnual(fixedCosts)
+  // Fixed Costs = editable sliders (rates, utilities, etc.) + auto rent
+  // (15% of turnover, contractual, NOT editable).
+  const rent2026        = Math.round(totalIncome * RENT_PCT_OF_TURNOVER)
+  const fixedLine       = sumFixedCostsAnnual(fixedCosts) + rent2026
   const cleaningLine    = Math.round(22965 * mult)
   const foodLine        = Math.round(9101 * mult)
   const cardChargesLine = Math.round(5443 * mult)
@@ -581,7 +583,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 
           {/* FIXED COSTS */}
           {activeSection === 'fixed' && (
-            <FixedCostsSection fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />
+            <FixedCostsSection fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} totalIncome={totalIncome} />
           )}
 
           {/* WAGES */}
@@ -1052,15 +1054,22 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 // inflation (= £182,232/yr, ~£20 off the previous £182,212 due to
 // per-row rounding — within tolerance).
 // ───────────────────────────────────────────────────────────────────────
-function FixedCostsSection({ fixedCosts, setFixedCosts }) {
+function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
   const { t } = useTranslation('explorer')
   const { fmt } = useFmt()
   const { isLocked } = useLockedForecast()
 
-  const ref2025Total = FIXED_COST_ITEMS.reduce((sum, i) => sum + i.ref2025Annual, 0)
-  const totalAnnual  = sumFixedCostsAnnual(fixedCosts)
-  const totalMonthly = Math.round(totalAnnual / 12)
-  const delta        = totalAnnual - ref2025Total
+  // Auto rent — contractually 15% of turnover. Not editable.
+  const rent2025 = Math.round(ACTUALS_2025.revenue * RENT_PCT_OF_TURNOVER)
+  const rent2026 = Math.round(totalIncome * RENT_PCT_OF_TURNOVER)
+
+  // Editable rows totals + auto rent
+  const editableRef2025  = FIXED_COST_ITEMS.reduce((sum, i) => sum + i.ref2025Annual, 0)
+  const editable2026     = sumFixedCostsAnnual(fixedCosts)
+  const ref2025Total     = editableRef2025 + rent2025
+  const totalAnnual      = editable2026 + rent2026
+  const totalMonthly     = Math.round(totalAnnual / 12)
+  const delta            = totalAnnual - ref2025Total
 
   const update = (id, value) => setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
   const resetAll = () => setFixedCosts(FIXED_COSTS_2026_DEFAULTS)
@@ -1106,6 +1115,28 @@ function FixedCostsSection({ fixedCosts, setFixedCosts }) {
       {/* Per-row sliders */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('fixedCosts.sliderHeader')}</div>
+
+        {/* Auto rent — non-editable, scales with revenue at 15% (contractual) */}
+        <div style={{ background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:8, padding:'14px 16px', marginBottom:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
+              <span style={{ fontWeight:600, color:'var(--cream)' }}>{t('fixedCosts.items.rent')}</span>
+              <span style={{
+                fontSize:9, padding:'2px 7px', borderRadius:8, fontWeight:700,
+                background:'rgba(45,212,191,0.18)', color:'#2DD4BF',
+                letterSpacing:'0.08em', textTransform:'uppercase',
+              }}>{t('fixedCosts.autoPill')}</span>
+            </span>
+            <span style={{ color:'#2DD4BF', fontWeight:700, fontSize:14 }}>£{Math.round(rent2026 / 12).toLocaleString()}/mo · {fmt(rent2026)}/yr</span>
+          </div>
+          <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
+            {t('fixedCosts.rentFormula', { pct: '15%', revenue: fmt(Math.round(totalIncome)) })}
+          </div>
+          <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>
+            {t('fixedCosts.rentRef2025', { val: fmt(rent2025) })}
+          </div>
+        </div>
+
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
           {FIXED_COST_ITEMS.map(item => {
             const monthly2025 = Math.round(item.ref2025Annual / 12)
