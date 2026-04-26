@@ -51,6 +51,10 @@
         "name": "Google Workspace",
         "note": "Email, Drive, calendar. £25/mo per the 2025 weekly P&L."
       },
+      "webhosting": {
+        "name": "Basic web hosting",
+        "note": "Simple venue website (menu, contact, info page). Plonk Golf owns the booking platform; this covers the venue's own static site only. Annual prepay."
+      },
       "accounting": {
         "name": "Accounting fees",
         "note": "Annual accountant fees — year-end statutory accounts, payroll, VAT returns."

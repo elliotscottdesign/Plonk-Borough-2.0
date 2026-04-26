@@ -51,6 +51,10 @@
         "name": "Google Workspace",
         "note": "Email, Drive, calendário. £25/mês conforme P&L semanal 2025."
       },
+      "webhosting": {
+        "name": "Hospedagem web básica",
+        "note": "Site simples do local (menu, contato, página informativa). A Plonk Golf opera a plataforma de reservas; isso cobre apenas o site estático do próprio local. Pagamento anual antecipado."
+      },
       "accounting": {
         "name": "Honorários contábeis",
         "note": "Honorários anuais — contas estatutárias de fim de ano, folha de pagamento, declarações de IVA."
