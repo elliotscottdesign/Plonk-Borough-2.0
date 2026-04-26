@@ -74,8 +74,8 @@
   },
   "performance2026": {
     "header": "2026 Performance · Scenario-adjusted forecast",
-    "sliderDesc": "Aggregate of the four growth levers in Scenarios (Bar · Golf · Hires · Events). Dragging this slider snaps all four to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, everything else scales.",
-    "resetLevers": "Reset all four levers to +15% (Base)",
+    "sliderDesc": "Aggregate of the five growth levers in Scenarios (Bar · Golf · Events · Hires · Pool). Preset buttons snap all five to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, Service Charge tracks the average, everything else scales.",
+    "resetLevers": "Reset all five levers to +15% (Base)",
     "labels": {
       "bear": "Bear",
       "y2025": "2025",
@@ -104,10 +104,11 @@
     "buildCustom": "Build Custom Scenario",
     "leverNote": "These four levers also drive the main 2026 Performance slider",
     "levers": {
-      "bar": "Bar Increase",
-      "golf": "Golf Ticket Increase",
+      "bar": "Spend at Bar",
+      "golf": "Online Golf Tickets",
+      "events": "Bookings & Events",
       "hires": "Private Hires",
-      "events": "Regular Events"
+      "pool": "Pool Tickets"
     },
     "resetTo15": "Reset to +15%",
     "resetTo100": "Reset to 100%",

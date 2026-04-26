@@ -93,17 +93,34 @@ const PERF_GROWTH_MAX = 50
 
 const perfGrowthToPct = g => ((g - PERF_GROWTH_MIN) / (PERF_GROWTH_MAX - PERF_GROWTH_MIN)) * 100
 
-// Per-line growth map: the 4 breakdown sliders (Scenarios) drive 4 specific revenue
-// lines. Service Charge + Pool scale by the simple average of the 4.
+// Custom Scenario lever definitions. One entry per commercial revenue line —
+// keys match the growth state shape (`bar`, `golf`, `events`, `hires`, `pool`)
+// and `setSuffix` matches the React setter naming (`setBar`, `setGolf`, etc.).
+// Bases pulled from INCOME (= 2025 actuals), so they stay in lockstep with
+// the 2026 income breakdown chart. Colors use the INCOME_2026_COLORS palette
+// so the slider color matches the chart segment color one-for-one.
+// Service Charge is intentionally excluded — it's a derived line, not a lever.
+const SCENARIO_LEVERS = [
+  { key:'bar',    setSuffix:'Bar',    incomeKey:'bar',          color: INCOME_2026_COLORS[0], base: INCOME.find(i => i.labelKey === 'bar')?.value          ?? 362836 },
+  { key:'golf',   setSuffix:'Golf',   incomeKey:'onlineGolf',   color: INCOME_2026_COLORS[1], base: INCOME.find(i => i.labelKey === 'onlineGolf')?.value   ?? 210485 },
+  { key:'events', setSuffix:'Events', incomeKey:'bookings',     color: INCOME_2026_COLORS[2], base: INCOME.find(i => i.labelKey === 'bookings')?.value     ?? 106023 },
+  { key:'hires',  setSuffix:'Hires',  incomeKey:'privateHires', color: INCOME_2026_COLORS[3], base: INCOME.find(i => i.labelKey === 'privateHires')?.value ??  44999 },
+  { key:'pool',   setSuffix:'Pool',   incomeKey:'poolTickets',  color: INCOME_2026_COLORS[5], base: INCOME.find(i => i.labelKey === 'poolTickets')?.value  ??   2198 },
+]
+
+// Per-line growth map: the 5 breakdown sliders (Scenarios) drive 5 specific revenue
+// lines (Bar / Online Golf / Bookings & Events / Private Hires / Pool Tickets).
+// Service Charge has no slider — it scales by the simple average of the 5
+// (it's a derived line, not a commercial lever).
 function buildLineGrowths(g) {
-  const avg = (g.bar + g.golf + g.hires + g.events) / 4
+  const avg = (g.bar + g.golf + g.hires + g.events + g.pool) / 5
   return {
     bar: g.bar,
     onlineGolf: g.golf,
     bookings: g.events,
     privateHires: g.hires,
+    poolTickets: g.pool,
     serviceCharge: avg,
-    poolTickets: avg,
   }
 }
 
@@ -175,8 +192,8 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
     golf:   Math.round(m.golf   * (1 + growth.golf   / 100)),
     events: Math.round(m.events * (1 + growth.events / 100)),
     hire:   Math.round(m.hire   * (1 + growth.hires  / 100)),
+    pool:   Math.round(m.pool   * (1 + growth.pool   / 100)),
     sc:     Math.round(m.sc     * mult),
-    pool:   Math.round(m.pool   * mult),
   }))
   const monthlyCosts2026 = MONTHLY_COSTS.map(m => {
     const mi = MONTHLY_INCOME.find(x => x.m === m.m)
@@ -203,7 +220,7 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
       {/* Slider card — READ-ONLY indicator. The slider's position is derived from
-          the 4 growth levers + wage sliders below; preset buttons (Bear/2025/Base/Bull)
+          the 5 growth levers + wage sliders below; preset buttons (Bear/2025/Base/Bull)
           still snap the levers. The user can't drag this slider directly. */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
@@ -309,7 +326,7 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
         </div>
       </div>
 
-      {/* ─── BUILD CUSTOM SCENARIO ─── 4 growth levers + OpEx, drives the slider above */}
+      {/* ─── BUILD CUSTOM SCENARIO ─── 5 growth levers + OpEx, drives the slider above */}
       <ScenarioLeversCard growth={growth} opex={opex} setOpex={setOpex} />
 
       {/* ─── SLIDING WAGE RATE CALCULATOR ─── 4 wage sliders, drives the wage line above */}
@@ -320,7 +337,7 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Build Custom Scenario card — 4 growth levers + OpEx vs Budget slider.
+// Build Custom Scenario card — 5 growth levers + OpEx vs Budget slider.
 // Same state as TabScenarios (lifted in BusinessExplorer parent), so this
 // card and the standalone Scenarios tab show identical values in real time.
 // ───────────────────────────────────────────────────────────────────────
@@ -329,15 +346,19 @@ function ScenarioLeversCard({ growth, opex, setOpex }) {
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
 
-  const sliders = [
-    { key:'bar',    labelKey:'bar',    value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
-    { key:'golf',   labelKey:'golf',   value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
-    { key:'hires',  labelKey:'hires',  value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
-    { key:'events', labelKey:'events', value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
-  ]
+  // Sliders mirror the 2026 income breakdown lines (excluding Service Charge,
+  // which is a derived passive scaler). Bases pulled from INCOME (= 2025 actuals).
+  const sliders = SCENARIO_LEVERS.map(l => ({
+    key: l.key,
+    labelKey: l.key,
+    value: growth[l.key],
+    set: growth['set' + l.setSuffix],
+    color: l.color,
+    base: l.base,
+  }))
 
-  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, opexMult: opex / 100 })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct })
+  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, opexMult: opex / 100 })
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
   const presets = [
     { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
     { labelKey:'base',         pct: 15, ...buildPreset(15)  },
@@ -357,7 +378,7 @@ function ScenarioLeversCard({ growth, opex, setOpex }) {
           <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
           <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:16 }}>
           {sliders.map(s => (
             <div key={s.key}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
@@ -567,14 +588,16 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   )
 }
 
-function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
-  const avg = (barG + golfG + eventsG + hiresG) / 4
+function computeScenario({ barG, golfG, eventsG, hiresG, poolG, opexMult = 1 }) {
+  // Service Charge is the only derived line — it scales by the average of
+  // the 5 commercial levers since it tracks aggregate covers.
+  const avg = (barG + golfG + eventsG + hiresG + poolG) / 5
   const bar = 362836 * (1 + barG / 100)
   const golf = 210485 * (1 + golfG / 100)
   const events = 106023 * (1 + eventsG / 100)
   const hires = 44999 * (1 + hiresG / 100)
+  const pool = 2198 * (1 + poolG / 100)
   const sc = 15102 * (1 + avg / 100)
-  const pool = 2198 * (1 + avg / 100)
   const revenue = bar + golf + events + hires + sc + pool
   const mult = revenue / 741644
 
@@ -601,18 +624,20 @@ function TabScenarios({ growth, opex, setOpex }) {
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
 
-  const sliders = [
-    { key:'bar',    labelKey:'bar',    value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
-    { key:'golf',   labelKey:'golf',   value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
-    { key:'hires',  labelKey:'hires',  value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
-    { key:'events', labelKey:'events', value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
-  ]
+  const sliders = SCENARIO_LEVERS.map(l => ({
+    key: l.key,
+    labelKey: l.key,
+    value: growth[l.key],
+    set: growth['set' + l.setSuffix],
+    color: l.color,
+    base: l.base,
+  }))
 
   const custom = computeScenario({
-    barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires,
+    barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool,
     opexMult: opex / 100,
   })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct })
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
   const presets = [
     { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
     { labelKey:'base',         pct: 15, ...buildPreset(15)  },
@@ -631,7 +656,7 @@ function TabScenarios({ growth, opex, setOpex }) {
           <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
           <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:16 }}>
           {sliders.map(s => (
             <div key={s.key}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
@@ -812,14 +837,16 @@ export default function BusinessExplorer() {
   const [golfGrowth, setGolfGrowth]     = useState(15)
   const [hiresGrowth, setHiresGrowth]   = useState(15)
   const [eventsGrowth, setEventsGrowth] = useState(15)
+  const [poolGrowth, setPoolGrowth]     = useState(15)
   const setAllGrowth = v => {
-    setBarGrowth(v); setGolfGrowth(v); setHiresGrowth(v); setEventsGrowth(v)
+    setBarGrowth(v); setGolfGrowth(v); setHiresGrowth(v); setEventsGrowth(v); setPoolGrowth(v)
   }
   const growth = {
     bar: barGrowth, setBar: setBarGrowth,
     golf: golfGrowth, setGolf: setGolfGrowth,
     hires: hiresGrowth, setHires: setHiresGrowth,
     events: eventsGrowth, setEvents: setEventsGrowth,
+    pool: poolGrowth, setPool: setPoolGrowth,
     setAll: setAllGrowth,
   }
 

@@ -74,8 +74,8 @@
   },
   "performance2026": {
     "header": "Desempenho 2026 · Projeção ajustada por cenário",
-    "sliderDesc": "Agregado das quatro alavancas de crescimento em Cenários (Bar · Golfe · Locações · Eventos). Arrastar este controle iguala as quatro ao mesmo valor. Salários +10%, Fixos +10%, Bebidas = 30% do bar, Hospedagem fixa, tudo o mais escala proporcionalmente.",
-    "resetLevers": "Redefinir as quatro alavancas para +15% (Base)",
+    "sliderDesc": "Agregado das cinco alavancas de crescimento em Cenários (Bar · Golfe · Eventos · Locações · Sinuca). Os botões de preset igualam as cinco ao mesmo valor. Salários +10%, Fixos +10%, Bebidas = 30% do bar, Hospedagem fixa, Taxa de Serviço acompanha a média, tudo o mais escala proporcionalmente.",
+    "resetLevers": "Redefinir as cinco alavancas para +15% (Base)",
     "labels": {
       "bear": "Pessimista",
       "y2025": "2025",
@@ -104,10 +104,11 @@
     "buildCustom": "Construir Cenário Personalizado",
     "leverNote": "Essas quatro alavancas também controlam o controle principal de Desempenho 2026",
     "levers": {
-      "bar": "Aumento de Bar",
-      "golf": "Aumento de Ingressos de Golfe",
+      "bar": "Gastos no Bar",
+      "golf": "Ingressos Online de Golfe",
+      "events": "Reservas e Eventos",
       "hires": "Locações Privadas",
-      "events": "Eventos Regulares"
+      "pool": "Ingressos de Sinuca"
     },
     "resetTo15": "Redefinir para +15%",
     "resetTo100": "Redefinir para 100%",
