@@ -16,7 +16,8 @@
   },
   "fixedCosts": {
     "header": "Custos Fixos · Despesas do Imóvel",
-    "note": "Doze itens das linhas 21–32 do P&L semanal 2025. Edite o controle mensal de cada linha para testar novas cotações de fornecedores. Total flui para a linha de Custos Fixos no donut de custos.",
+    "vatPill": "incl. IVA",
+    "note": "Linhas 21–32 do P&L semanal 2025. Os valores mensais são BRUTOS — incluindo qualquer IVA cobrado pelos fornecedores, como aparece nas faturas. Total flui para a linha de Custos Fixos no donut; o modelo trata a recuperação do IVA de entrada automaticamente (IVA de saída − IVA de entrada).",
     "resetAll": "Redefinir tudo para padrões",
     "deltaLabel": "Variação",
     "vsReference": "vs real 2025",

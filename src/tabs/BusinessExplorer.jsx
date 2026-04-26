@@ -1068,7 +1068,15 @@ function FixedCostsSection({ fixedCosts, setFixedCosts }) {
       {/* Header + total tile */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.header')}</div>
+          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.header')}</div>
+            <span style={{
+              fontSize:9.5, padding:'3px 9px', borderRadius:10, fontWeight:700,
+              background:'rgba(45,212,191,0.15)', color:'#2DD4BF',
+              border:'1px solid rgba(45,212,191,0.35)',
+              letterSpacing:'0.1em', textTransform:'uppercase',
+            }}>{t('fixedCosts.vatPill')}</span>
+          </div>
           <ResetBtn onClick={resetAll} title={t('fixedCosts.resetAll')} />
         </div>
         <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('fixedCosts.note')}</div>

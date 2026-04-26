@@ -16,7 +16,8 @@
   },
   "fixedCosts": {
     "header": "Fixed Costs · Operating Premises Overhead",
-    "note": "Twelve line items from rows 21–32 of the 2025 weekly P&L workbook. Edit the monthly slider on each line to test new vendor quotes. Total flows to the Fixed Costs line in the cost donut.",
+    "vatPill": "incl. VAT",
+    "note": "Line items from rows 21–32 of the 2025 weekly P&L workbook. Monthly fees are entered GROSS — including any VAT charged by suppliers, matching how each line appears on invoices. Total flows to the Fixed Costs line in the cost donut; the model handles input-VAT reclaim automatically (output VAT − input VAT).",
     "resetAll": "Reset all to defaults",
     "deltaLabel": "Delta",
     "vsReference": "vs 2025 actual",
