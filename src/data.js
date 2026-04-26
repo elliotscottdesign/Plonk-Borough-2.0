@@ -7,9 +7,14 @@ export const BUSINESS = {
   description: 'Experience bar · Mini golf · Pool · Arcades · Board games',
 }
 
+// === EXTERNAL WORKBOOK ===
+// Central financial workbook — investors view monthly P&L, scenarios, valuation
+// breakdowns alongside the deck. Updated to match data.js after every restructure.
+export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1PY9VuebugqUwZ57UN48tlP-GHuHA5QzB/edit?usp=sharing'
+
 // === DEAL STRUCTURE ===
-// Investment ask £70,000 inc VAT. 50/50 equity — pre-money equal to investment (£70k),
-// post-money £140k. Multiple works out at 0.76× 2025 EBITDA (distressed pricing).
+// Investment ask £79,000 inc VAT. 50/50 equity — pre-money equal to investment (£79k),
+// post-money £158k. Multiple works out at 0.86× 2025 EBITDA (distressed pricing).
 //
 // Forecast operating profit (2026 base case) lowered to £124k — reflects the realistic
 // 2026 P&L under the new cost rules (wages +10%, fixed +10%, drinks = 30% of bar,
@@ -18,19 +23,19 @@ export const BUSINESS = {
 // DISTRIBUTION MODEL: pure pro-rata — all shareholders paid at the same time by equity %.
 // No preferred return, no A-share priority. Full operating profit flows through the split.
 export const DEAL = {
-  investment: 70000,
+  investment: 79000,
   founderEq: 0.50,
   investorEq: 0.50,
-  multiple: 0.7613,
-  preMoney: 70000,
-  postMoney: 140000,
+  multiple: 0.8592,
+  preMoney: 79000,
+  postMoney: 158000,
   preferred: 0,              // removed — pure pro-rata, no preferred tier
   aSharePriority: 0,         // removed — pure pro-rata, no founder priority slice
   investorDividend: 62000,   // 50% × £124,000 base-case operating profit
   totalInvestorReturn: 62000,// equals dividend (no preferred top-up)
-  coc: 0.8857,               // 88.6% on £70k invested
-  payback: 1.13,             // years
-  aShareThreshold: 7000,     // 5% of post-money — governance floor for A-share voting rights
+  coc: 0.7848,               // 78.5% on £79k invested
+  payback: 1.27,             // years
+  aShareThreshold: 7900,     // 5% of post-money — governance floor for A-share voting rights
 }
 
 // === 2025 ACTUALS ===
@@ -189,16 +194,16 @@ export const GOVERNANCE = {
 }
 
 // === USE OF FUNDS ===
-// All figures shown inc VAT. Total investment ask £70,000 cash. VAT reclaimable on
-// Hardware, Stock, IP (~£5,833 total) recovered against the first HMRC VAT return.
-// Hardware + Stock + Working Capital scaled down from the £88k model to hit £70k total
-// while keeping rent deposit and IP licence fixed.
+// All figures shown inc VAT. Total investment ask £79,000 cash.
+// VAT reclaimable on Hardware (£4,000), IP (£2,000), Stock (£1,333) = ~£7,333 total,
+// recovered against the first HMRC VAT return.
+// Hardware bumped to £24,000 inc VAT (£20,000 + VAT) for full bar & kitchen equipment fitout.
 export const USE_OF_FUNDS = [
-  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 38.7, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
-  { item: 'Hardware from Liquidators',   amount: 15000, pct: 21.4, vat: 'inc VAT', note: 'Bar & kitchen equipment — operational from Day 1' },
-  { item: 'IP License Fee',              amount: 12000, pct: 17.1, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
-  { item: 'Stock & Supplier Restart',    amount:  8000, pct: 11.4, vat: 'inc VAT', note: 'Opening stock, software, supplier agreements' },
-  { item: 'Working Capital',             amount:  7922, pct: 11.3, vat: null,      note: 'Staged into business per cash flow forecast' },
+  { item: 'Landlord Rent Deposit',       amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
+  { item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
+  { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
+  { item: 'Stock & Supplier Restart',    amount:  8000, pct: 10.1, vat: 'inc VAT', note: 'Opening stock, software, supplier agreements' },
+  { item: 'Working Capital',             amount:  7922, pct: 10.0, vat: null,      note: 'Staged into business per cash flow forecast' },
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===

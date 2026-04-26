@@ -11,6 +11,7 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import { WORKBOOK_URL } from './data.js'
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -54,8 +55,19 @@ export default function App() {
           {TOP_TAB_KEYS.map(k => (
             <button key={k} onClick={() => setTopTab(k)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===k?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===k?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===k?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===k?600:400 }}>{t(`tabs.${k}`)}</button>
           ))}
+          <button onClick={() => window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer')} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'2px solid rgba(255,255,255,0.1)', color:'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}>{t('tabs.workbook')}</button>
         </div>
-        <div style={{ fontSize:9, color:'var(--gold-dim)', letterSpacing:'0.1em' }}>{t('shell.confidential')}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:0, border:'1px solid rgba(201,168,76,0.25)', borderRadius:6, overflow:'hidden' }}>
+          {[
+            { code:'en',    label:'EN' },
+            { code:'pt-BR', label:'PT' },
+          ].map(({code, label}) => {
+            const active = i18n.language === code
+            return (
+              <button key={code} onClick={() => i18n.changeLanguage(code)} style={{ padding:'4px 12px', fontSize:11, cursor:'pointer', background:active?'var(--gold)':'transparent', color:active?'var(--ink)':'var(--cream-dim)', border:'none', fontWeight:active?700:400, letterSpacing:'0.08em', transition:'all 0.15s' }}>{label}</button>
+            )
+          })}
+        </div>
       </div>
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {topTab === 'investorDeck' && (

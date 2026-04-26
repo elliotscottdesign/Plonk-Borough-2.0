@@ -9,7 +9,7 @@ export default function MarketContext() {
     { multiple: '~4.1×', labelKey: 'hospitality', tagKey: 'inline',      highlight: false },
     { multiple: '~2–4×', labelKey: 'smallSites',  tagKey: 'inRange',     highlight: false },
     { multiple: '~2–3×', labelKey: 'distressed',  tagKey: 'abovePriced', highlight: false },
-    { multiple: '0.76×', labelKey: 'thisDeal',    tagKey: 'entry',       highlight: true  },
+    { multiple: '0.86×', labelKey: 'thisDeal',    tagKey: 'entry',       highlight: true  },
   ]
 
   const sectorKeys = ['nics','nmw','rates','closures','consumer','pe']

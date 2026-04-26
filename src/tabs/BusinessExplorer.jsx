@@ -28,7 +28,7 @@ function TabOverview() {
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
         {[
-          { label:t('overview.stats.ask.label'),      value:'£70,000 inc VAT', sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
+          { label:t('overview.stats.ask.label'),      value:'£79,000 inc VAT', sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
           { label:t('overview.stats.fy2025.label'),   value:'£742k',           sub:t('overview.stats.fy2025.sub'),   color:'#4FC3F7' },
           { label:t('overview.stats.forecast.label'), value:'£853k',           sub:t('overview.stats.forecast.sub'), color:'#2DD4BF' },
         ].map(s => (
@@ -378,7 +378,7 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
   const adjustedCosts = costs * opexMult
   const profit = revenue - adjustedCosts
   const investorReturn = Math.max(0, profit) * 0.50
-  const coc = investorReturn / 70000 * 100
+  const coc = investorReturn / 79000 * 100
   return { revenue, profit, investorReturn, coc }
 }
 

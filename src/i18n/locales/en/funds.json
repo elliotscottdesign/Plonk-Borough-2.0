@@ -1,12 +1,12 @@
 {
   "eyebrow": "Use of Investment Funds",
-  "title": "Where Your £70,000 Goes",
+  "title": "Where Your £79,000 Goes",
   "subtitle": "Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business",
   "allocation": "Fund Allocation — Visual Breakdown",
   "total": "TOTAL INVESTMENT",
-  "totalAmount": "£70,000 inc VAT",
-  "bannerHeader": "£70,000 INC VAT TOTAL · 100% DEPLOYED DAY 1",
-  "bannerNote": "VAT on startup costs (~£5,833) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
+  "totalAmount": "£79,000 inc VAT",
+  "bannerHeader": "£79,000 INC VAT TOTAL · 100% DEPLOYED DAY 1",
+  "bannerNote": "VAT on startup costs (~£7,333) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
   "items": {
     "rent": {
       "label": "Rent Deposit (3 months)",
@@ -14,7 +14,7 @@
     },
     "hardware": {
       "label": "Hardware from Liquidators",
-      "desc": "Physical bar & kitchen equipment — purchased at liquidation pricing. Operational on Day 1."
+      "desc": "Physical bar & kitchen equipment (£20,000 + VAT) — purchased at liquidation pricing. Operational on Day 1."
     },
     "ip": {
       "label": "IP License Fee",

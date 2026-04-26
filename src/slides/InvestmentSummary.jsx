@@ -45,7 +45,7 @@ export default function InvestmentSummary() {
   const s = SCENARIOS[scenario]
   const r = calcReturns(s.multiplier)
 
-  const [amount, setAmount] = useState(70000)
+  const [amount, setAmount] = useState(79000)
 
   // Pure pro-rata distribution — no preferred, no A-share priority.
   // Investor's dividend = operating profit × their equity share.
@@ -143,11 +143,11 @@ export default function InvestmentSummary() {
             <span style={{ color: 'var(--cream-dim)' }}>{t('calculator.amount')}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
-              <ResetBtn onClick={() => setAmount(70000)} />
+              <ResetBtn onClick={() => setAmount(79000)} />
             </span>
           </div>
           <input
-            type="range" min={5000} max={70000} step={2500}
+            type="range" min={5000} max={79000} step={2500}
             value={amount} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />

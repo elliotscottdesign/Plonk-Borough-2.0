@@ -10,11 +10,11 @@ export default function UseOfFunds() {
   const vatLabel = tc('units.incVat')
 
   const funds = [
-    { key:'rent',     color:'#8B5CF6', pct:38.7, amount:27078, vat:vatLabel, icon:'🏠' },
-    { key:'hardware', color:'#4FC3F7', pct:21.4, amount:15000, vat:vatLabel, icon:'🔧' },
-    { key:'ip',       color:'#C9A84C', pct:17.1, amount:12000, vat:vatLabel, icon:'⭐' },
-    { key:'stock',    color:'#2DD4BF', pct:11.4, amount:8000,  vat:vatLabel, icon:'📦' },
-    { key:'working',  color:'#6B7280', pct:11.3, amount:7922,  vat:null,     icon:'💼' },
+    { key:'rent',     color:'#8B5CF6', pct:34.3, amount:27078, vat:vatLabel, icon:'🏠' },
+    { key:'hardware', color:'#4FC3F7', pct:30.4, amount:24000, vat:vatLabel, icon:'🔧' },
+    { key:'ip',       color:'#C9A84C', pct:15.2, amount:12000, vat:vatLabel, icon:'⭐' },
+    { key:'stock',    color:'#2DD4BF', pct:10.1, amount:8000,  vat:vatLabel, icon:'📦' },
+    { key:'working',  color:'#6B7280', pct:10.0, amount:7922,  vat:null,     icon:'💼' },
   ]
 
   return (
@@ -76,7 +76,7 @@ export default function UseOfFunds() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
           <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>{t('day1.label')}</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£62,078</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£71,078</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('day1.sub')}</div>
           </div>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
@@ -86,7 +86,7 @@ export default function UseOfFunds() {
           </div>
           <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>{t('vatReclaim.label')}</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£5,833</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£7,333</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('vatReclaim.sub')}</div>
           </div>
         </div>

@@ -5,12 +5,12 @@ export default function Cover() {
   const { t } = useTranslation('cover')
 
   const stats = [
-    { label: t('stats.seeking.label'), value: '£70,000 inc VAT', sub: t('stats.seeking.sub') },
+    { label: t('stats.seeking.label'), value: '£79,000 inc VAT', sub: t('stats.seeking.sub') },
     { label: t('stats.verifiedRevenue.label'), value: '£741,644', sub: t('stats.verifiedRevenue.sub') },
     { label: t('stats.year1Return.label'), value: '£62,000', sub: t('stats.year1Return.sub') },
     { label: t('stats.distribution.label'), value: t('stats.distribution.value'), sub: t('stats.distribution.sub') },
     { label: t('stats.forecast.label'), value: '£852,891', sub: t('stats.forecast.sub') },
-    { label: t('stats.valuation.label'), value: '0.76×', sub: t('stats.valuation.sub') },
+    { label: t('stats.valuation.label'), value: '0.86×', sub: t('stats.valuation.sub') },
   ]
 
   return (
