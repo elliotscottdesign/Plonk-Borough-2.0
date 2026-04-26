@@ -138,16 +138,30 @@ export const MONTHLY_PROFIT = [
   { month:'Dec', income:121758, profit:55162 },
 ]
 
-// === WAGES — 2026 PLANNING RATES ===
+// === WAGES — 2026 PLANNING RATES + HOURS ===
+// 2026 staffing model:
+//   Bar Staff      same as 2025 (4,967 hrs)
+//   Shift Sup      part-time            1,000 hrs  (was 2,859 — supervisor hours
+//                                                   reallocated to a 2nd full-time
+//                                                   asst manager, see below)
+//   Asst Manager   full-time            2,000 hrs  (was   505 — promoted to FT)
+//   Manager        full-time            2,000 hrs  (was 1,712 — bumped to FT)
+// Total 2026 hours: 9,967 (vs 10,043 in 2025) — slight reduction with senior shift.
+//
+// The P&L wage line in 2026 = (sum of slider rate × hours above) × overhead
+// multiplier (= ACTUALS_2025.wages / ROTA_TOTAL = ~1.586). The multiplier covers
+// Employer NICs, pension auto-enrolment, holiday pay, agency cover, training.
 export const WAGE_RATES = [
   { role:'Bar Staff',        rate:13.85, hours:4967, color:'#E67E22' },
-  { role:'Supervisor',       rate:14.35, hours:2859, color:'#D4A843' },
-  { role:'Asst. Manager',    rate:15.38, hours:505,  color:'#94A3B8' },
-  { role:'Manager',          rate:18.00, hours:1712, color:'#0D9488' },
+  { role:'Supervisor',       rate:14.35, hours:1000, color:'#D4A843' },
+  { role:'Asst. Manager',    rate:15.38, hours:2000, color:'#94A3B8' },
+  { role:'Manager',          rate:18.00, hours:2000, color:'#0D9488' },
 ]
 
-export const PL_WAGE_BASE = 242370
-export const ROTA_TOTAL   = 152801
+export const PL_WAGE_BASE = 242370   // 2025 verified P&L wage line
+export const ROTA_TOTAL   = 152801   // 2025 rota cost (rate × hours, before overhead)
+// 2025 P&L : Rota = 1.5862 — used to scale 2026 rota cost up to a P&L-equivalent figure.
+export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 
 // === DIGITAL MARKETING (GA4 verified) ===
 export const MARKETING = {

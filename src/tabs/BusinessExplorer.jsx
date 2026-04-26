@@ -4,7 +4,7 @@ import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, Don
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
-import { DEAL, ACTUALS_2025, FORECAST } from '../data.js'
+import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE } from '../data.js'
 
 const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market','wages']
 
@@ -107,9 +107,10 @@ function buildLineGrowths(g) {
   }
 }
 
-function TabPerformance({ growth }) {
+function TabPerformance({ growth, wages, opex, setOpex }) {
   const { t } = useTranslation('explorer')
-  const { fmt, fmtK } = useFmt()
+  const { t: tc } = useTranslation('common')
+  const { fmt, fmtK, fmtNum } = useFmt()
   const lineGrowths = buildLineGrowths(growth)
   const BASE_TOTAL = INCOME.reduce((s, i) => s + i.value, 0)
 
@@ -127,12 +128,23 @@ function TabPerformance({ growth }) {
   const mult = 1 + aggGrowth / 100
   const incomeWithPct = income2026.map(i => ({ ...i, pct: +(i.value / totalIncome * 100).toFixed(1) }))
 
+  // 2026 wage bill — computed from wage sliders × WAGE_RATES.hours, then
+  // scaled by the 2025 P&L:Rota overhead multiplier (~1.586) to cover NICs,
+  // pension, holiday pay, etc. Replaces the old "242370 × 1.10" rule.
+  const rota2026 = (
+    wages.bar * WAGE_RATES[0].hours +
+    wages.sup * WAGE_RATES[1].hours +
+    wages.am  * WAGE_RATES[2].hours +
+    wages.mgr * WAGE_RATES[3].hours
+  )
+  const wageBill2026 = Math.round(rota2026 * WAGE_OVERHEAD_MULT)
+
   const barRevenue2026 = income2026.find(x => x.labelKey === 'bar')?.value || 0
   const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
   const hostingNote = t('performance2026.costNotes.hostingNote')
   const scalesNote = t('performance2026.costNotes.scales')
   const costsRaw = [
-    { labelKey: 'wages',     value: Math.round(242370 * 1.10), note: '+10% on 2025' },
+    { labelKey: 'wages',     value: wageBill2026,                note: t('performance2026.costNotes.wagesDriven') },
     { labelKey: 'fixed',     value: Math.round(165647 * 1.10), note: t('performance2026.costNotes.fixed') },
     { labelKey: 'drinks',    value: drinksGas2026,              note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',       value: Math.round(78851 * mult),   note: scalesNote },
@@ -142,11 +154,16 @@ function TabPerformance({ growth }) {
     { labelKey: 'hosting',   value: 3492,                        note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
     { labelKey: 'cardCharges', value: Math.round(5443 * mult),  note: scalesNote },
   ]
-  const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
+  // OpEx multiplier scales the entire cost base (e.g. for stress-test scenarios).
+  // Default 100% = pure model output; higher % = cost overrun stress test.
+  const opexMult = opex / 100
+  const rawTotalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
+  const totalCosts = Math.round(rawTotalCosts * opexMult)
   const costs2026 = costsRaw.map((c, idx) => ({
     ...c,
+    value: Math.round(c.value * opexMult),
     label: c.customLabel || t(`costCategories.${c.labelKey}`),
-    pct: +(c.value / totalCosts * 100).toFixed(1),
+    pct: +(Math.round(c.value * opexMult) / totalCosts * 100).toFixed(1),
     color: COSTS_2026_COLORS[idx] || COSTS_2026_COLORS[COSTS_2026_COLORS.length - 1],
   }))
   const ebitda = totalIncome - totalCosts
@@ -185,7 +202,9 @@ function TabPerformance({ growth }) {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* Slider card */}
+      {/* Slider card — READ-ONLY indicator. The slider's position is derived from
+          the 4 growth levers + wage sliders below; preset buttons (Bear/2025/Base/Bull)
+          still snap the levers. The user can't drag this slider directly. */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
           <div>
@@ -198,7 +217,15 @@ function TabPerformance({ growth }) {
           </div>
         </div>
         <div style={{ position:'relative', marginTop:14, padding:'4px 0 26px' }}>
-          <input type="range" min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={sliderValue} onChange={e=>growth.setAll(Number(e.target.value))} style={{ width:'100%', accentColor:'#22D3EE' }} />
+          <input
+            type="range"
+            min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={sliderValue}
+            readOnly
+            disabled
+            tabIndex={-1}
+            aria-label={t('performance2026.header')}
+            style={{ width:'100%', accentColor:'#22D3EE', opacity:0.85, pointerEvents:'none', cursor:'default' }}
+          />
           {perfMarkers.map(mk => (
             <button key={mk.labelKey} onClick={()=>growth.setAll(mk.value)} style={{
               position:'absolute', left:`calc(${perfGrowthToPct(mk.value)}% - 26px)`, top:28,
@@ -278,6 +305,192 @@ function TabPerformance({ growth }) {
           <div style={{ marginTop:14 }}>
             <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyCosts2026')}</div>
             <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} fmt={fmt} t={t} />
+          </div>
+        </div>
+      </div>
+
+      {/* ─── BUILD CUSTOM SCENARIO ─── 4 growth levers + OpEx, drives the slider above */}
+      <ScenarioLeversCard growth={growth} opex={opex} setOpex={setOpex} />
+
+      {/* ─── SLIDING WAGE RATE CALCULATOR ─── 4 wage sliders, drives the wage line above */}
+      <WageCalculatorCard wages={wages} totalIncome={totalIncome} />
+
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Build Custom Scenario card — 4 growth levers + OpEx vs Budget slider.
+// Same state as TabScenarios (lifted in BusinessExplorer parent), so this
+// card and the standalone Scenarios tab show identical values in real time.
+// ───────────────────────────────────────────────────────────────────────
+function ScenarioLeversCard({ growth, opex, setOpex }) {
+  const { t } = useTranslation('explorer')
+  const { t: tc } = useTranslation('common')
+  const { fmt, fmtK } = useFmt()
+
+  const sliders = [
+    { key:'bar',    labelKey:'bar',    value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
+    { key:'golf',   labelKey:'golf',   value: growth.golf,   set: growth.setGolf,   color:'#2563EB', base: 210485 },
+    { key:'hires',  labelKey:'hires',  value: growth.hires,  set: growth.setHires,  color:'#3B82F6', base:  44999 },
+    { key:'events', labelKey:'events', value: growth.events, set: growth.setEvents, color:'#60A5FA', base: 106023 },
+  ]
+
+  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, opexMult: opex / 100 })
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct })
+  const presets = [
+    { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
+    { labelKey:'base',         pct: 15, ...buildPreset(15)  },
+    { labelKey:'optimistic',   pct: 25, ...buildPreset(25)  },
+  ]
+
+  const revenueLabel = tc('labels.revenue')
+  const opProfit  = t('scenarios.opProfit')
+  const investorRet = t('scenarios.investorReturn')
+  const cocLabel = tc('labels.cashOnCash')
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* Levers */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
+          <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+          {sliders.map(s => (
+            <div key={s.key}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+                <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
+                  <ResetBtn onClick={()=>s.set(15)} title={t('scenarios.resetTo15')} />
+                </span>
+              </div>
+              <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
+              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:14 }}>
+          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+            <span style={{ color:'var(--cream)' }}>{t('scenarios.opex')} <span style={{ color:'#6B7280', marginLeft:4 }}>{t('scenarios.opexHint')}</span></span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <span style={{ color:'#EA580C', fontWeight:600 }}>{opex}%</span>
+              <ResetBtn onClick={()=>setOpex(100)} title={t('scenarios.resetTo100')} />
+            </span>
+          </div>
+          <input type="range" min={70} max={130} value={opex} onChange={e=>setOpex(Number(e.target.value))} style={{ width:'100%', accentColor:'#EA580C' }} />
+        </div>
+      </div>
+
+      {/* Scenario cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+        {presets.map(p => (
+          <button key={p.labelKey} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
+            background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
+          }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
+            {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
+              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
+                <span style={{ color:'#9CA3AF' }}>{l}</span>
+                <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
+              </div>
+            ))}
+          </button>
+        ))}
+        <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
+          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>OpEx {opex}%</div>
+          {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
+            <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
+              <span style={{ color:'#9CA3AF' }}>{l}</span>
+              <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Sliding Wage Rate Calculator card — 4 role-rate sliders (Bar / Sup / AM / Mgr)
+// using 2026 hours (Bar 4,967 / Sup 1,000 / AM 2,000 / Mgr 2,000). Computes the
+// 2026 P&L wage bill = (rate × hours summed) × WAGE_OVERHEAD_MULT (~1.586).
+// Same state as the standalone Wages tab — slider changes here flow through
+// to the 2026 cost calculation above and to the Wages tab.
+// ───────────────────────────────────────────────────────────────────────
+function WageCalculatorCard({ wages, totalIncome }) {
+  const { t } = useTranslation('explorer')
+  const { fmt, fmtNum } = useFmt()
+
+  const roles = [
+    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:18 },
+    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:20 },
+    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:22 },
+    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:25 },
+  ]
+  const totalHours = roles.reduce((s, r) => s + r.hours, 0)
+  const rotaCost   = Math.round(roles.reduce((s, r) => s + r.hours * r.rate, 0))
+  const plWage2026 = Math.round(rotaCost * WAGE_OVERHEAD_MULT)
+  const delta      = plWage2026 - PL_WAGE_BASE
+  const pctOfRev   = totalIncome > 0 ? (plWage2026 / totalIncome) * 100 : 0
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* Top stat strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+        {[
+          { label:t('wages.total'),     value:fmt(PL_WAGE_BASE),                       sub:t('wages.totalNote'), color:'#C9A84C' },
+          { label:t('wages.hours'),     value:fmtNum(totalHours) + ' ' + t('wages.hrs'), sub:t('wages.hoursNote'), color:'#4FC3F7' },
+          { label:t('wages.pct'),       value:'20.8%',                                 sub:t('wages.pctNote'),   color:'#2DD4BF' },
+        ].map(s => (
+          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{s.label}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Calculator */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+          {roles.map(r => (
+            <div key={r.labelKey} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
+                <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
+                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                  <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
+                  <ResetBtn onClick={()=>r.setRate(r.plan)} title={`Reset £${r.plan.toFixed(2)}/hr`} />
+                </span>
+              </div>
+              <input type="range" min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>r.setRate(Number(e.target.value))} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>
+                <span>{fmtNum(r.hours)} {t('wages.hrs')}</span>
+                <span>{t('wages.annual')} {fmt(Math.round(r.hours*r.rate))}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:8, padding:14, textAlign:'center' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.projected')}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:'var(--gold)' }}>{fmt(plWage2026)}</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>incl. NICs / pension / cover</div>
+          </div>
+          <div style={{ background:delta>0?'rgba(239,68,68,0.08)':'rgba(45,212,191,0.08)', border:`1px solid ${delta>0?'rgba(239,68,68,0.2)':'rgba(45,212,191,0.2)'}`, borderRadius:8, padding:14, textAlign:'center' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.delta')}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:delta>0?'#EF4444':'#2DD4BF' }}>{delta>0?'+':''}{fmt(delta)}</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>vs 2025 actual</div>
+          </div>
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:14, textAlign:'center' }}>
+            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.forecastPct')}</div>
+            <div style={{ fontSize:20, fontWeight:800, color:'#4FC3F7' }}>{pctOfRev.toFixed(1)}%</div>
+            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>of 2026 revenue</div>
           </div>
         </div>
       </div>
@@ -383,11 +596,10 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
   return { revenue, profit, investorReturn, coc }
 }
 
-function TabScenarios({ growth }) {
+function TabScenarios({ growth, opex, setOpex }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
-  const [opex, setOpex] = useState(100)
 
   const sliders = [
     { key:'bar',    labelKey:'bar',    value: growth.bar,    set: growth.setBar,    color:'#1D4ED8', base: 362836 },
@@ -524,21 +736,18 @@ function TabMarketContext() {
   )
 }
 
-function TabWages() {
+function TabWages({ wages }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
-  const [barRate, setBarRate] = useState(13.85)
-  const [supRate, setSupRate] = useState(14.35)
-  const [amRate, setAmRate] = useState(15.38)
-  const [mgrRate, setMgrRate] = useState(18.00)
+  // Hours come from data.js WAGE_RATES (2026 plan); rates from lifted state.
   const roles = [
-    { labelKey:'bar',         hours:4967, rate:barRate, setRate:setBarRate, plan:13.85, min:12.21, max:18 },
-    { labelKey:'supervisor',  hours:2156, rate:supRate, setRate:setSupRate, plan:14.35, min:13.85, max:20 },
-    { labelKey:'asstManager', hours:1847, rate:amRate,  setRate:setAmRate,  plan:15.38, min:14.35, max:22 },
-    { labelKey:'manager',     hours:1073, rate:mgrRate, setRate:setMgrRate, plan:18.00, min:15.38, max:25 },
+    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:18 },
+    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:20 },
+    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:22 },
+    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:25 },
   ]
   const totalWages = Math.round(roles.reduce((s,r)=>s+r.hours*r.rate,0))
-  const planWages = 242370
+  const planWages = PL_WAGE_BASE
   const delta = totalWages - planWages
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
@@ -614,13 +823,34 @@ export default function BusinessExplorer() {
     setAll: setAllGrowth,
   }
 
+  // OpEx multiplier lifted so 2026 Performance + Scenarios tabs share a value.
+  const [opex, setOpex] = useState(100)
+
+  // Wage rates lifted to parent so the 2026 Performance tab and the standalone
+  // Wages tab share the same state — moving a slider in either reflects in both.
+  // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
+  const [barRate, setBarRate] = useState(WAGE_RATES[0].rate)
+  const [supRate, setSupRate] = useState(WAGE_RATES[1].rate)
+  const [amRate,  setAmRate]  = useState(WAGE_RATES[2].rate)
+  const [mgrRate, setMgrRate] = useState(WAGE_RATES[3].rate)
+  const wages = {
+    bar: barRate, setBar: setBarRate,
+    sup: supRate, setSup: setSupRate,
+    am:  amRate,  setAm:  setAmRate,
+    mgr: mgrRate, setMgr: setMgrRate,
+    resetAll: () => {
+      setBarRate(WAGE_RATES[0].rate); setSupRate(WAGE_RATES[1].rate)
+      setAmRate(WAGE_RATES[2].rate);  setMgrRate(WAGE_RATES[3].rate)
+    },
+  }
+
   const tabComponents = {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
-    performance2026: <TabPerformance growth={growth} />,
-    scenarios: <TabScenarios growth={growth} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} opex={opex} setOpex={setOpex} />,
+    scenarios: <TabScenarios growth={growth} opex={opex} setOpex={setOpex} />,
     market: <TabMarketContext />,
-    wages: <TabWages />,
+    wages: <TabWages wages={wages} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

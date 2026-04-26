@@ -90,6 +90,7 @@
     "monthlyIncome2026": "Monthly Income 2026 — Scaled",
     "monthlyCosts2026": "Monthly Costs 2026 — Scaled",
     "costNotes": {
+      "wagesDriven": "Driven by the wage calculator below — sliders control the rate per role × 2026 hours",
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",

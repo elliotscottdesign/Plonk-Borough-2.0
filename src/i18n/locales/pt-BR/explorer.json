@@ -90,6 +90,7 @@
     "monthlyIncome2026": "Receita Mensal 2026 — Escalada",
     "monthlyCosts2026": "Custos Mensais 2026 — Escalados",
     "costNotes": {
+      "wagesDriven": "Calculado pela calculadora de salários abaixo — controles ajustam a taxa por função × horas 2026",
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
