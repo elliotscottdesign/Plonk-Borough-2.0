@@ -6,7 +6,7 @@
   "total": "INVESTIMENTO TOTAL",
   "totalAmount": "£79,000 inc IVA",
   "bannerHeader": "£79,000 INC IVA TOTAL · 100% EMPREGADO NO DIA 1",
-  "bannerNote": "IVA sobre custos de startup (~£7,333) recuperado no 1º trimestre — creditado na primeira declaração de IVA junto à HMRC (agosto de 2026)",
+  "bannerNote": "IVA sobre custos de startup (~£6,500) recuperado no 1º trimestre — creditado na primeira declaração de IVA junto à HMRC (agosto de 2026)",
   "items": {
     "rent": {
       "label": "Caução de Aluguel (3 meses)",
@@ -21,8 +21,8 @@
       "desc": "Licença de IP de marca e gaming — era uma compra de Plonk IP e Goodwill de £72,000 inc IVA no acordo antigo."
     },
     "stock": {
-      "label": "Estoque e Retomada com Fornecedores",
-      "desc": "Estoque inicial, contratos com fornecedores e assinaturas de software para operar desde o Dia 1."
+      "label": "Estoque e Setup Operacional",
+      "desc": "Itemizado em £3,000 — estoque de bebidas, assinaturas (Xero, Rota Cloud, Google), internet, retomada de limpeza. Detalhamento abaixo."
     },
     "working": {
       "label": "Reserva de Capital de Giro",
@@ -40,5 +40,24 @@
   "vatReclaim": {
     "label": "Recuperação de IVA",
     "sub": "Recuperado no 1º trimestre — agosto de 2026"
+  },
+  "setup": {
+    "eyebrow": "Estoque e Setup Operacional — Itemizado",
+    "title": "Detalhamento das Operações de £3,000 do Dia 1",
+    "subtitle": "Estoque inicial, contratos e pré-pagamento de 3 meses de assinaturas para operar desde o Dia 1",
+    "totalLabel": "Total — Estoque e Setup Operacional",
+    "items": {
+      "alcohol":  { "label": "Estoque de bebidas alcoólicas (inicial)",   "note": "Vinhos, destilados e cervejas para o Dia 1" },
+      "soft":     { "label": "Refrigerantes, mixers e não-alcoólicos",   "note": "Mixers, sucos e refrigerantes — estoque inicial" },
+      "ice":      { "label": "Suprimento de gelo (primeira entrega)",     "note": "Entrega diária — apenas primeira entrega" },
+      "cleaning": { "label": "Retomada de contratos de limpeza",          "note": "Limpeza profunda + primeiro mês de limpeza comercial" },
+      "internet": { "label": "Internet — Starlink / BT Business",         "note": "Setup do equipamento + primeiro mês de conectividade" },
+      "app":      { "label": "Setup de app e plataforma de reservas",     "note": "Sistema Plonk Golf + integrações de apps de delivery" },
+      "xero":     { "label": "Xero contabilidade (3 meses)",              "note": "£25/mês × 3 — contabilidade na nuvem" },
+      "rota":     { "label": "Rota Cloud — escalas (3 meses)",            "note": "£25/mês × 3 — sistema de escalas e timesheet" },
+      "google":   { "label": "Google Workspace (3 meses)",                "note": "Email + Drive + ferramentas colaborativas, 2 usuários" },
+      "spotify":  { "label": "Spotify Business (3 meses)",                "note": "£20/mês × 3 — licenciamento musical do bar" },
+      "supplier": { "label": "Cauções de contratos com fornecedores",     "note": "Água, lixo, gás/eletricidade — cauções de medidores" }
+    }
   }
 }

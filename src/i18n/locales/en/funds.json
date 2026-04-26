@@ -6,7 +6,7 @@
   "total": "TOTAL INVESTMENT",
   "totalAmount": "£79,000 inc VAT",
   "bannerHeader": "£79,000 INC VAT TOTAL · 100% DEPLOYED DAY 1",
-  "bannerNote": "VAT on startup costs (~£7,333) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
+  "bannerNote": "VAT on startup costs (~£6,500) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
   "items": {
     "rent": {
       "label": "Rent Deposit (3 months)",
@@ -21,12 +21,12 @@
       "desc": "Brand + gaming IP licence — was a £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal."
     },
     "stock": {
-      "label": "Stock & Supplier Restart",
-      "desc": "Opening stock, supplier agreements and software subscriptions to trade from Day 1."
+      "label": "Stock & Operational Setup",
+      "desc": "Itemised £3,000 — alcohol stock, software subs (Xero, Rota Cloud, Google), internet, cleaning restart. Detail below."
     },
     "working": {
       "label": "Working Capital Buffer",
-      "desc": "Staged into business per cash flow model. Covers early trading before revenue covers costs."
+      "desc": "Staged into business per cash flow model. Covers early trading runway before revenue covers costs."
     }
   },
   "day1": {
@@ -40,5 +40,24 @@
   "vatReclaim": {
     "label": "VAT Reclaim",
     "sub": "Recovered Q1 — August 2026"
+  },
+  "setup": {
+    "eyebrow": "Stock & Operational Setup — Itemised",
+    "title": "£3,000 Day-1 Operations Breakdown",
+    "subtitle": "Opening stock, contracts and 3-month subscription pre-pays so the venue trades from Day 1",
+    "totalLabel": "Total — Stock & Operational Setup",
+    "items": {
+      "alcohol":  { "label": "Alcohol stock (opening fill)",          "note": "Wines, spirits, beer for Day 1 trading" },
+      "soft":     { "label": "Soft drinks, mixers & non-alcohol",     "note": "Mixers, juices, soft drinks opening fill" },
+      "ice":      { "label": "Ice supplies (first delivery)",         "note": "Daily delivery — first delivery only" },
+      "cleaning": { "label": "Cleaning contracts restart",            "note": "Deep clean + first month commercial cleaning" },
+      "internet": { "label": "Internet — Starlink / BT Business",     "note": "Hardware setup + first month connectivity" },
+      "app":      { "label": "App & booking platform setup",          "note": "Plonk Golf booking + delivery app integrations" },
+      "xero":     { "label": "Xero accounting (3 months)",            "note": "£25/mth × 3 — cloud accounting" },
+      "rota":     { "label": "Rota Cloud — staff scheduling (3 mo)",  "note": "£25/mth × 3 — rota & timesheet system" },
+      "google":   { "label": "Google Workspace (3 months)",           "note": "Email + Drive + collab tools, 2 users" },
+      "spotify":  { "label": "Spotify Business (3 months)",           "note": "£20/mth × 3 — bar music licensing" },
+      "supplier": { "label": "Supplier contract deposits",            "note": "Water, refuse, gas/electricity meter deposits" }
+    }
   }
 }
