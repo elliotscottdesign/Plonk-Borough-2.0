@@ -203,7 +203,7 @@ export const GOVERNANCE = {
 export const USE_OF_FUNDS = [
   { item: 'Landlord Rent Deposit',       amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months deposit — covers May, Jun, Jul' },
   { item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
-  { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'Brand + gaming IP licence — was £72,000 inc VAT Plonk IP & Goodwill purchase under the old deal' },
+  { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'One-off licensing fee paid to No Dice Bars LTD — grants indefinite use of the Plonk name. No Dice Bars LTD also runs online sales campaigns and platform maintenance under an ongoing commission, replacing the old Design My Night bookings provider' },
   { item: 'Stock & Operational Setup',   amount:  3000, pct:  3.8, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart' },
   { item: 'Working Capital',             amount: 12922, pct: 16.4, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
 ]
