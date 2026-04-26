@@ -7,7 +7,7 @@ const GROWTH_META = [
   { key:'corporate',   impact:'high' },
   { key:'dj',          impact:'medium' },
   { key:'repricing',   impact:'low' },
-  { key:'secondSite',  impact:'strategic' },
+  { key:'development', impact:'strategic' },
 ]
 
 const RISKS_META = [

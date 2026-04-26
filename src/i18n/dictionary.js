@@ -274,7 +274,6 @@ export const PT_BR = {
   'Gaming Repricing': 'Reprecificação dos Jogos',
   '+£1 across pool and mini golf affects 100k+ annual plays. Minimal customer resistance. Direct P&L impact with zero cost increase.':
     '+£1 em sinuca e minigolfe afeta mais de 100 mil partidas anuais. Resistência mínima do cliente. Impacto direto no P&L sem aumento de custos.',
-  'Second Site Optionality': 'Opcionalidade de Segundo Local',
   'Proven operating model, experienced team and Borough Market brand can be replicated. Future fundraise at higher multiple is plausible once Year 1 returns are demonstrated.':
     'Modelo operacional comprovado, time experiente e marca Borough Market podem ser replicados. Captação futura em múltiplo mais alto é plausível quando os retornos do Ano 1 forem demonstrados.',
 
