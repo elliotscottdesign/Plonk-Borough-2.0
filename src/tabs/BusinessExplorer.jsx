@@ -83,8 +83,8 @@ function TabOverview() {
 
 // 2026 Performance — scenario-adjusted forecast built from the 2025 figures on the
 // Financial Performance sheet. Slider (with Bear/Base/Bull markers) drives income and
-// costs: wages +10%, fixed +10%, drinks = 30% of bar revenue, hosting fixed £3,492,
-// everything else scales with revenue. Palette shifted to teals (income) and purples
+// costs: wages +10%, fixed +10%, drinks = 30% of bar revenue, office driven by
+// the OfficeCostsSection, everything else scales with revenue. Palette shifted to teals (income) and purples
 // (costs) to read as "forecast" vs the blue/red 2025 actuals.
 const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
 const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#D8B4FE','#DDD6FE','#EDE9FE']
@@ -237,14 +237,14 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 
   const barRevenue2026 = income2026.find(x => x.labelKey === 'bar')?.value || 0
   const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
-  const hostingNote = t('performance2026.costNotes.hostingNote')
   const scalesNote = t('performance2026.costNotes.scales')
 
   // ─── Operating cost lines (no VAT) ─────────────────────────────────────
+  // Hosting (Lithos) removed — under new IP & Licensing model, SEO/Ads
+  // and the hosting fee sit with Plonk Golf, not the venue.
   const fixedLine       = Math.round(165647 * 1.10)
   const cleaningLine    = Math.round(22965 * mult)
   const foodLine        = Math.round(9101 * mult)
-  const hostingLine     = 3492
   const cardChargesLine = Math.round(5443 * mult)
 
   // Arcades = baseline (volume-scaled) + matrix-driven token-cost delta.
@@ -263,7 +263,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   // Output VAT  = revenue × 1/6  (revenue is gross of 20% VAT)
   // Input VAT   = VAT-able costs × 1/6
   // VAT-able    = fixed + drinks + cleaning + cardCharges
-  // Zero-rated  = wages, arcades, food, hosting (per business owner)
+  // Zero-rated  = wages, arcades, food (per business owner)
   // Sense check: 2025 actuals → ~£77.8k, vs P&L £78.85k (1.3% diff) ✓
   const VAT_FRACTION   = 1 / 6
   const vatableCosts   = fixedLine + drinksGas2026 + cleaningLine + cardChargesLine
@@ -285,7 +285,6 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
     { labelKey: 'cleaning',    value: cleaningLine,     note: scalesNote },
     { labelKey: 'arcades',     value: arcadesLine,      note: t('performance2026.costNotes.arcades') },
     { labelKey: 'food',        value: foodLine,         note: scalesNote },
-    { labelKey: 'hosting',     value: hostingLine,      note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
     { labelKey: 'cardCharges', value: cardChargesLine,  note: scalesNote },
   ]
   const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
@@ -389,7 +388,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
       </div>
 
       {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
-      <ScenarioPresetsCard growth={growth} />
+      <ScenarioPresetsCard growth={growth} officeCostsTotal={officeCostsTotal} />
 
       {/* ─── INDEX + CONTENT ─── left-side nav, right-side active section */}
       <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
@@ -564,13 +563,13 @@ function ScenarioLeversCard({ growth }) {
 // Custom card mirrors live lever positions. Stand-alone so it can render in
 // either spot of the 2026 Performance tab (currently directly under the slider).
 // ───────────────────────────────────────────────────────────────────────
-function ScenarioPresetsCard({ growth }) {
+function ScenarioPresetsCard({ growth, officeCostsTotal }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
 
-  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
+  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, officeCostsTotal })
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct, officeCostsTotal })
   const presets = [
     { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
     { labelKey:'base',         pct: 15, ...buildPreset(15)  },
@@ -1055,7 +1054,7 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   )
 }
 
-function computeScenario({ barG, golfG, eventsG, hiresG, poolG }) {
+function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal = 0 }) {
   // Service Charge is the only derived line — it scales by the average of
   // the 5 commercial levers since it tracks aggregate covers.
   const avg = (barG + golfG + eventsG + hiresG + poolG) / 5
@@ -1069,15 +1068,17 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG }) {
   const mult = revenue / 741644
 
   const costs =
-    242370 * 1.10
-    + 165647 * 1.10
-    + bar * 0.30
-    + 78851 * mult
-    + 22965 * mult
-    + 17152 * mult
-    + 9101 * mult
-    + 3492
-    + 5443 * mult
+    242370 * 1.10        // wages
+    + 165647 * 1.10      // fixed
+    + officeCostsTotal   // office (Apps + AI + Accounting + Director — flows from OfficeCostsSection)
+    + bar * 0.30         // drinks (30% of bar)
+    + 78851 * mult       // VAT (scaled — proper formula in TabPerformance)
+    + 22965 * mult       // cleaning
+    + 17152 * mult       // arcades (token-driven detail in TabPerformance)
+    + 9101 * mult        // food
+    + 5443 * mult        // card charges
+    // hosting (Lithos) removed — under new IP & Licensing model SEO/Ads
+    // sit with Plonk Golf, not the venue.
 
   const profit = revenue - costs
   const investorReturn = Math.max(0, profit) * 0.50

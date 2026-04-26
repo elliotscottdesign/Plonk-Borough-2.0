@@ -152,9 +152,7 @@
       "scales": "Scales with aggregate revenue",
       "office": "Apps, AI, accountant fees and director's salary — driven by the Office Costs section below.",
       "arcades": "Operator cost = sum of (tokens × volume) across all SKUs × £0.325. Lower per-SKU tokens in the Ticket Price Maker below to cut this.",
-      "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades, food and hosting are zero-rated",
-      "hosting": "Hosting (Lithos)",
-      "hostingNote": "Fixed — SEO/Ads now owned by Plonk Golf",
+      "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades and food are zero-rated",
       "other": "Other"
     },
     "resetDefault": "Reset to default"

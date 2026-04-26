@@ -152,9 +152,7 @@
       "scales": "Escala com a receita agregada",
       "office": "Apps, IA, contador e salário do diretor — definido pela seção Custos de Escritório abaixo.",
       "arcades": "Custo do operador = soma de (fichas × volume) em todos os SKUs × £0,325. Reduza fichas por SKU na Calculadora de Preços de Ingressos abaixo para diminuir.",
-      "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas, comida e hospedagem são isentos",
-      "hosting": "Hospedagem (Lithos)",
-      "hostingNote": "Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf",
+      "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas e comida são isentos",
       "other": "Outros"
     },
     "resetDefault": "Restaurar padrão"

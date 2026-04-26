@@ -683,7 +683,6 @@ export const PT_BR = {
   '30% of bar revenue (2025 actual was 22.5%)':
     '30% da receita do bar (real de 2025 foi 22,5%)',
   'Scales with aggregate revenue': 'Escala com a receita agregada',
-  'Hosting (Lithos)': 'Hospedagem (Lithos)',
   'Fixed — SEO/Ads now owned by Plonk Golf':
     'Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf',
   'Other': 'Outros',
