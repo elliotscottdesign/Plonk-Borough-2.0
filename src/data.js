@@ -10,7 +10,7 @@ export const BUSINESS = {
 // === EXTERNAL WORKBOOK ===
 // Central financial workbook — investors view monthly P&L, scenarios, valuation
 // breakdowns alongside the deck. Updated to match data.js after every restructure.
-export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1PY9VuebugqUwZ57UN48tlP-GHuHA5QzB/edit?usp=sharing'
+export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1dtqbmoKK01oRY-0Zi1ZllVh82NiIGk8eS-l8aKJG_8Y/edit?usp=sharing'
 
 // === DEAL STRUCTURE ===
 // Investment ask £79,000 inc VAT. 50/50 equity — pre-money equal to investment (£79k),
