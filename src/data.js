@@ -195,17 +195,19 @@ export const GOVERNANCE = {
 
 // === USE OF FUNDS ===
 // All figures shown inc VAT. Total investment ask £79,000 cash.
-// VAT reclaimable on Hardware (£4,000), IP (£2,000), Stock & Setup (£500) = ~£6,500 total,
-// recovered against the first HMRC VAT return.
+// VAT reclaimable on Hardware (£4,000), IP (£2,000), Stock & Setup (£500 — only the
+// inc-VAT component; rates and licence fees inside Stock & Setup are VAT-exempt) =
+// ~£6,500 total, recovered against the first HMRC VAT return.
 // Hardware bumped to £24,000 inc VAT (£20,000 + VAT) for full bar & kitchen equipment fitout.
-// Stock & Setup trimmed to £3,000 (itemised — see STOCK_SETUP_DETAIL); £5,000 moved to
-// Working Capital so the buffer covers more of the early-trading runway.
+// Stock & Setup expanded from £3,000 → £4,900 to include first month business rates
+// (£1,800, VAT-exempt) and alcohol licence change (£100, VAT-exempt). Working Capital
+// reduced by £1,900 in lockstep — total raise unchanged at £79,000.
 export const USE_OF_FUNDS = [
   { item: 'Rent in Advance (3 months)',  amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months rent paid up front — covers May, Jun, Jul 2026 at the contractual 15% of 2025 turnover rate. NO deposit required. From August 2026 rent reverts to 15% of actual quarterly turnover (variable rent, scales with trading).' },
   { item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
   { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'One-off licensing fee paid to No Dice Bars LTD — grants indefinite use of the Plonk name. No Dice Bars LTD also runs online sales campaigns and platform maintenance under an ongoing commission, replacing the old Design My Night bookings provider' },
-  { item: 'Stock & Operational Setup',   amount:  3000, pct:  3.8, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart' },
-  { item: 'Working Capital',             amount: 12922, pct: 16.4, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
+  { item: 'Stock & Operational Setup',   amount:  4900, pct:  6.2, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart, business rates (first month) + alcohol licence change' },
+  { item: 'Working Capital',             amount: 11022, pct: 14.0, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
 ]
 
 // === HARDWARE FROM LIQUIDATORS — itemised £20,000 ex VAT breakdown ===
@@ -221,24 +223,27 @@ export const HARDWARE_BREAKDOWN = [
   { item: 'Arcade machines, furniture & fittings',  amount: 4000,  note: 'Arcade cabinets, pool tables, board game stock, seating, lighting fittings' },
 ]
 
-// === STOCK & OPERATIONAL SETUP — itemised £3,000 breakdown ===
-// Detail behind the £3,000 "Stock & Operational Setup" line in USE_OF_FUNDS.
-// Mix of one-off costs (alcohol, internet hardware, cleaning restart) and
-// 3-month subscription pre-pays (matches the 3-month advance-rent cadence).
-// Reflected in the central workbook (Investment Valuation 1 sheet, Section 4
-// detail rows below the headline use-of-funds table).
+// === STOCK & OPERATIONAL SETUP — itemised £4,900 breakdown ===
+// Detail behind the £4,900 "Stock & Operational Setup" line in USE_OF_FUNDS.
+// Mix of inc-VAT items (alcohol, software subs, internet, cleaning restart) and
+// VAT-exempt regulatory costs (business rates, council licence fees). 3-month
+// subscription pre-pays match the 3-month advance-rent cadence so the venue
+// trades from Day 1.
+// Reflected in the central workbook (Investment Valuation 1 sheet, Section 4a).
 export const STOCK_SETUP_DETAIL = [
-  { item: 'Alcohol stock (opening fill)',                amount: 1500, type: 'oneOff',     note: 'Wines, spirits, beer for Day 1 trading' },
-  { item: 'Soft drinks, mixers & non-alcohol stock',     amount:   300, type: 'oneOff',    note: 'Opening fill — cocktail mixers, soft drinks, juices' },
-  { item: 'Ice supplies (first delivery)',               amount:    30, type: 'oneOff',     note: 'Daily delivery contract — first delivery only' },
-  { item: 'Cleaning contracts restart',                  amount:   250, type: 'oneOff',     note: 'Deep clean + first month commercial cleaning' },
-  { item: 'Internet — Starlink / BT Business',           amount:   300, type: 'setupPlus1', note: 'Hardware setup + first month connectivity' },
-  { item: 'App & booking platform setup',                amount:   200, type: 'oneOff',     note: 'Plonk Golf booking system, delivery app integrations' },
-  { item: 'Xero accounting',                             amount:    75, type: 'sub3mo',     note: '£25/mth × 3 — cloud accounting' },
-  { item: 'Rota Cloud — staff scheduling',               amount:    75, type: 'sub3mo',     note: '£25/mth × 3 — rota & timesheet system' },
-  { item: 'Google Workspace',                            amount:    75, type: 'sub3mo',     note: 'Email + Drive + collab tools — 3 months × 2 users' },
-  { item: 'Spotify Business',                            amount:    60, type: 'sub3mo',     note: '£20/mth × 3 — bar music licensing' },
-  { item: 'Supplier contract deposits',                  amount:   135, type: 'oneOff',     note: 'Water cooler, refuse, gas/electricity meter deposits' },
+  { item: 'Alcohol stock (opening fill)',                amount: 1500, type: 'oneOff',     vatExempt: false, note: 'Wines, spirits, beer for Day 1 trading' },
+  { item: 'Soft drinks, mixers & non-alcohol stock',     amount:  300, type: 'oneOff',     vatExempt: false, note: 'Opening fill — cocktail mixers, soft drinks, juices' },
+  { item: 'Ice supplies (first delivery)',               amount:   30, type: 'oneOff',     vatExempt: false, note: 'Daily delivery contract — first delivery only' },
+  { item: 'Cleaning contracts restart',                  amount:  250, type: 'oneOff',     vatExempt: false, note: 'Deep clean + first month commercial cleaning' },
+  { item: 'Internet — Starlink / BT Business',           amount:  300, type: 'setupPlus1', vatExempt: false, note: 'Hardware setup + first month connectivity' },
+  { item: 'App & booking platform setup',                amount:  200, type: 'oneOff',     vatExempt: false, note: 'Plonk Golf booking system, delivery app integrations' },
+  { item: 'Xero accounting',                             amount:   75, type: 'sub3mo',     vatExempt: false, note: '£25/mth × 3 — cloud accounting' },
+  { item: 'Rota Cloud — staff scheduling',               amount:   75, type: 'sub3mo',     vatExempt: false, note: '£25/mth × 3 — rota & timesheet system' },
+  { item: 'Google Workspace',                            amount:   75, type: 'sub3mo',     vatExempt: false, note: 'Email + Drive + collab tools — 3 months × 2 users' },
+  { item: 'Spotify Business',                            amount:   60, type: 'sub3mo',     vatExempt: false, note: '£20/mth × 3 — bar music licensing' },
+  { item: 'Supplier contract deposits',                  amount:  135, type: 'oneOff',     vatExempt: false, note: 'Water cooler, refuse, gas/electricity meter deposits' },
+  { item: 'Business rates (first month)',                amount: 1800, type: 'monthly',    vatExempt: true,  note: 'First month UK business rates due before/at opening — Southwark Council (post-relief)' },
+  { item: 'Alcohol licence change (DPS)',                amount:  100, type: 'oneOff',     vatExempt: true,  note: 'Designated Premises Supervisor change fee — Southwark Licensing' },
 ]
 
 // === IP & LICENSING — ISOLATED DEV SHEET ===

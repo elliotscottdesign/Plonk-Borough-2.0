@@ -43,8 +43,8 @@
   },
   "setup": {
     "eyebrow": "Stock & Operational Setup — Itemised",
-    "title": "£3,000 Day-1 Operations Breakdown",
-    "subtitle": "Opening stock, contracts and 3-month subscription pre-pays so the venue trades from Day 1",
+    "title": "£4,900 Day-1 Operations Breakdown",
+    "subtitle": "Opening stock, contracts, 3-month subscription pre-pays, and pre-trading regulatory costs so the venue trades from Day 1",
     "totalLabel": "Total — Stock & Operational Setup",
     "items": {
       "alcohol":  { "label": "Alcohol stock (opening fill)",          "note": "Wines, spirits, beer for Day 1 trading" },
@@ -57,7 +57,9 @@
       "rota":     { "label": "Rota Cloud — staff scheduling (3 mo)",  "note": "£25/mth × 3 — rota & timesheet system" },
       "google":   { "label": "Google Workspace (3 months)",           "note": "Email + Drive + collab tools, 2 users" },
       "spotify":  { "label": "Spotify Business (3 months)",           "note": "£20/mth × 3 — bar music licensing" },
-      "supplier": { "label": "Supplier contract deposits",            "note": "Water, refuse, gas/electricity meter deposits" }
+      "supplier": { "label": "Supplier contract deposits",            "note": "Water, refuse, gas/electricity meter deposits" },
+      "rates":    { "label": "Business rates (first month)",          "note": "First month UK business rates due before opening — Southwark Council, post-relief (VAT-exempt)" },
+      "licence":  { "label": "Alcohol licence change (DPS)",          "note": "Designated Premises Supervisor change fee — Southwark Licensing (VAT-exempt)" }
     }
   },
   "hardware": {

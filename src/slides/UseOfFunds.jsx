@@ -14,8 +14,8 @@ export default function UseOfFunds() {
     { key:'rent',     color:'#8B5CF6', pct:34.3, amount:27078, vat:vatLabel, icon:'🏠' },
     { key:'hardware', color:'#4FC3F7', pct:30.4, amount:24000, vat:vatLabel, icon:'🔧' },
     { key:'ip',       color:'#C9A84C', pct:15.2, amount:12000, vat:vatLabel, icon:'⭐' },
-    { key:'stock',    color:'#2DD4BF', pct: 3.8, amount: 3000, vat:vatLabel, icon:'📦' },
-    { key:'working',  color:'#6B7280', pct:16.4, amount:12922, vat:null,     icon:'💼' },
+    { key:'stock',    color:'#2DD4BF', pct: 6.2, amount: 4900, vat:vatLabel, icon:'📦' },
+    { key:'working',  color:'#6B7280', pct:14.0, amount:11022, vat:null,     icon:'💼' },
   ]
 
   // Mapping of STOCK_SETUP_DETAIL items to translation keys + icons. Keep order matching data.js.
@@ -31,6 +31,8 @@ export default function UseOfFunds() {
     { key:'google',   amount:  75, icon:'🗂️' },
     { key:'spotify',  amount:  60, icon:'🎵' },
     { key:'supplier', amount: 135, icon:'🤝' },
+    { key:'rates',    amount:1800, icon:'🏛️' },
+    { key:'licence',  amount: 100, icon:'📜' },
   ]
   const setupTotal = setupItems.reduce((s, i) => s + i.amount, 0)
 
@@ -103,12 +105,12 @@ export default function UseOfFunds() {
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
           <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>{t('day1.label')}</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£66,078</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£67,978</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('day1.sub')}</div>
           </div>
           <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
             <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>{t('working.label')}</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£12,922</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£11,022</div>
             <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('working.sub')}</div>
           </div>
           <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
