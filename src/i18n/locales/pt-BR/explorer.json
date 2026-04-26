@@ -121,6 +121,17 @@
     "opProfit": "Lucro Operacional",
     "investorReturn": "Retorno do Investidor"
   },
+  "tokens": {
+    "header": "Fichas de Fliperama — Receita Embutida",
+    "note": "Já contabilizadas em Ingressos Online de Golfe, Gastos no Bar e Locações Privadas acima. Mostradas aqui para modelar crescimento da taxa de fichas sem dupla contagem.",
+    "revenueLabel": "Receita de Fichas",
+    "attachLabel": "Fichas por Ingresso de Golfe",
+    "defaultMarker": "padrão 4",
+    "resetAttach": "Redefinir para 4 fichas",
+    "vsDefault": "vs padrão",
+    "atDefault": "no padrão",
+    "upliftHint": "+1 ficha por ingresso → {{perToken}} de receita extra / ano no volume atual."
+  },
   "wages": {
     "compareHeader": "Folha Salarial — Real 2025 vs Projeção 2026",
     "compareBill": "Folha Salarial",

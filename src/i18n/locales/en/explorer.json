@@ -121,6 +121,17 @@
     "opProfit": "Op Profit",
     "investorReturn": "Investor Return"
   },
+  "tokens": {
+    "header": "Arcade Tokens — Embedded Revenue",
+    "note": "Already counted in Online Golf Tickets, Spend at Bar and Private Hires above. Surfaced here so we can model attach-rate growth without double-counting.",
+    "revenueLabel": "Token Revenue",
+    "attachLabel": "Tokens per Golf Ticket",
+    "defaultMarker": "default 4",
+    "resetAttach": "Reset to 4 tokens",
+    "vsDefault": "vs default attach",
+    "atDefault": "at default attach",
+    "upliftHint": "+1 token per ticket → {{perToken}} extra revenue / yr at current bundle volumes."
+  },
   "wages": {
     "compareHeader": "Wage Bill — 2025 Actual vs 2026 Forecast",
     "compareBill": "Wage Bill",
