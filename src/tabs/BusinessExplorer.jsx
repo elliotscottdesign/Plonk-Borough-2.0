@@ -6,7 +6,7 @@ import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE } from '../data.js'
 
-const TAB_KEYS = ['overview','performance2025','performance2026','scenarios','market']
+const TAB_KEYS = ['overview','performance2025','performance2026']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -366,9 +366,9 @@ function TabPerformance({ growth, wages }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Build Custom Scenario card — 5 growth levers driving custom forecast.
-// Same state as TabScenarios (lifted in BusinessExplorer parent), so this
-// card and the standalone Scenarios tab show identical values in real time.
+// Build Custom Scenario card — 5 growth levers driving the 2026 forecast.
+// State is lifted in BusinessExplorer parent so the levers, the read-only
+// slider above, and the income/cost donuts all stay in sync.
 // ───────────────────────────────────────────────────────────────────────
 function ScenarioLeversCard({ growth }) {
   const { t } = useTranslation('explorer')
@@ -686,136 +686,6 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG }) {
   return { revenue, profit, investorReturn, coc }
 }
 
-function TabScenarios({ growth }) {
-  const { t } = useTranslation('explorer')
-  const { t: tc } = useTranslation('common')
-  const { fmt, fmtK } = useFmt()
-
-  const sliders = SCENARIO_LEVERS.map(l => ({
-    key: l.key,
-    labelKey: l.key,
-    value: growth[l.key],
-    set: growth['set' + l.setSuffix],
-    color: l.color,
-    base: l.base,
-  }))
-
-  const custom = computeScenario({
-    barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool,
-  })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
-  const presets = [
-    { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
-    { labelKey:'base',         pct: 15, ...buildPreset(15)  },
-    { labelKey:'optimistic',   pct: 25, ...buildPreset(25)  },
-  ]
-
-  const revenueLabel = tc('labels.revenue')
-  const opProfit = t('scenarios.opProfit')
-  const investorRet = t('scenarios.investorReturn')
-  const cocLabel = tc('labels.cashOnCash')
-
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
-          <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:16 }}>
-          {sliders.map(s => (
-            <div key={s.key}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
-                  <ResetBtn onClick={()=>s.set(15)} title={t('scenarios.resetTo15')} />
-                </span>
-              </div>
-              <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-        {presets.map(p => (
-          <button key={p.labelKey} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
-            background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
-          }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
-            {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
-                <span style={{ color:'#9CA3AF' }}>{l}</span>
-                <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
-              </div>
-            ))}
-          </button>
-        ))}
-        <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
-          {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
-            <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
-              <span style={{ color:'#9CA3AF' }}>{l}</span>
-              <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function TabMarketContext() {
-  const { t } = useTranslation('explorer')
-  const tailwindKeys = ['social','corporate','recession','occasions','repeat','pricing']
-  const tailwindIcons = { social:'📱', corporate:'🏢', recession:'💰', occasions:'🎂', repeat:'🔄', pricing:'📈' }
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { value:'+31.1%', label:t('market.header'), sub:t('market.growthNote'), color:'#2DD4BF' },
-          { value:'15–20M', label:t('market.visitors'), sub:t('market.visitorsNote'), color:'#4FC3F7' },
-          { value:'130K+',  label:t('market.commuters'), sub:t('market.commutersNote'), color:'#C9A84C' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:28, fontWeight:800, color:s.color, marginBottom:6 }}>{s.value}</div>
-            <div style={{ fontSize:12, fontWeight:700, color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>{s.label}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{t('market.demographics')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-          {[[t('market.age'),'48%','#4FC3F7'],[t('market.income'),'£57K','#C9A84C'],[t('market.edu'),'62%','#2DD4BF'],[t('market.office'),'71%','#8B5CF6']].map(([l,v,c]) => (
-            <div key={l} style={{ textAlign:'center', padding:14, background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
-              <div style={{ fontSize:20, fontWeight:700, color:c, marginBottom:4 }}>{v}</div>
-              <div style={{ fontSize:11, color:'#9CA3AF' }}>{l}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('market.tailwinds')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {tailwindKeys.map(k => (
-            <div key={k} style={{ display:'flex', gap:12, padding:14, background:'rgba(255,255,255,0.03)', borderRadius:8 }}>
-              <div style={{ fontSize:20, flexShrink:0 }}>{tailwindIcons[k]}</div>
-              <div>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)', marginBottom:4 }}>{t(`market.items.${k}.title`)}</div>
-                <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{t(`market.items.${k}.text`)}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  )
-}
-
 export default function BusinessExplorer() {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
@@ -860,8 +730,6 @@ export default function BusinessExplorer() {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
     performance2026: <TabPerformance growth={growth} wages={wages} />,
-    scenarios: <TabScenarios growth={growth} />,
-    market: <TabMarketContext />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

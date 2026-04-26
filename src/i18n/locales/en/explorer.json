@@ -3,9 +3,7 @@
   "tabs": {
     "overview": "Overview",
     "performance2025": "2025 Performance",
-    "performance2026": "2026 Performance",
-    "scenarios": "Scenarios",
-    "market": "Market Context"
+    "performance2026": "2026 Performance"
   },
   "overview": {
     "stats": {
@@ -122,28 +120,6 @@
     },
     "opProfit": "Op Profit",
     "investorReturn": "Investor Return"
-  },
-  "market": {
-    "header": "Experience Leisure Growth",
-    "growthNote": "2025 YoY — fastest growing hospitality sub-sector",
-    "visitors": "Borough Market Visitors",
-    "visitorsNote": "Annual visitors to the area",
-    "commuters": "London Bridge Commuters",
-    "commutersNote": "Daily station passengers — primary catchment",
-    "demographics": "SE1 Demographics",
-    "age": "Aged 25–44",
-    "income": "Median HH Income",
-    "edu": "Uni-educated",
-    "office": "Office workers",
-    "tailwinds": "Tailwinds & Positioning",
-    "items": {
-      "social": { "title": "Social Media Discovery", "text": "Experiential venues generate organic UGC at 5× the rate of traditional hospitality. Plonk's visual format drives free acquisition." },
-      "corporate": { "title": "Corporate Demand", "text": "Post-pandemic, team-building and offsites are structural demand. City of London proximity means Plonk Borough targets this without incremental spend." },
-      "recession": { "title": "Recession Resilience", "text": "Domestic leisure spend is sticky. Experience venues priced below £30/head replace overseas alternatives during economic downturns." },
-      "occasions": { "title": "Occasions & Celebrations", "text": "Birthday, hen and stag parties are high-value bookings with structured spend. Activity venues capture the full occasion — entry, drinks and food." },
-      "repeat": { "title": "Repeat Visit Model", "text": "Multi-activity format with regular event programme drives repeat visitation. Bar-led experience venues see 2–3× the repeat rate of single-activity venues." },
-      "pricing": { "title": "Pricing Power", "text": "+£1 across pool and golf at current volumes generates ~£15K incremental annual profit. Zero capex, zero churn risk at this price point." }
-    }
   },
   "wages": {
     "compareHeader": "Wage Bill — 2025 Actual vs 2026 Forecast",

@@ -3,9 +3,7 @@
   "tabs": {
     "overview": "Visão Geral",
     "performance2025": "Desempenho 2025",
-    "performance2026": "Desempenho 2026",
-    "scenarios": "Cenários",
-    "market": "Contexto de Mercado"
+    "performance2026": "Desempenho 2026"
   },
   "overview": {
     "stats": {
@@ -122,28 +120,6 @@
     },
     "opProfit": "Lucro Operacional",
     "investorReturn": "Retorno do Investidor"
-  },
-  "market": {
-    "header": "Crescimento de Lazer de Experiência",
-    "growthNote": "2025 YoY — subsetor de hospitalidade que mais cresce",
-    "visitors": "Visitantes do Borough Market",
-    "visitorsNote": "Visitantes anuais na região",
-    "commuters": "Passageiros de London Bridge",
-    "commutersNote": "Passageiros diários da estação — área primária de captação",
-    "demographics": "Demografia do SE1",
-    "age": "Idade 25–44",
-    "income": "Renda Familiar Mediana",
-    "edu": "Com formação universitária",
-    "office": "Trabalhadores de escritório",
-    "tailwinds": "Ventos Favoráveis e Posicionamento",
-    "items": {
-      "social": { "title": "Descoberta em Redes Sociais", "text": "Locais experienciais geram UGC orgânico a uma taxa 5× maior que a hospitalidade tradicional. O formato visual da Plonk impulsiona aquisição gratuita." },
-      "corporate": { "title": "Demanda Corporativa", "text": "Pós-pandemia, team-building e offsites viraram demanda estrutural. A proximidade com a City of London faz com que a Plonk Borough atenda esse público sem gasto incremental." },
-      "recession": { "title": "Resiliência a Recessão", "text": "Gasto doméstico com lazer é aderente. Locais de experiência precificados abaixo de £30/pessoa substituem alternativas no exterior em períodos de desaceleração econômica." },
-      "occasions": { "title": "Ocasiões e Celebrações", "text": "Aniversários, despedidas de solteira e de solteiro são reservas de alto valor com gasto estruturado. Locais de atividade capturam a ocasião inteira — entrada, bebidas e comida." },
-      "repeat": { "title": "Modelo de Visitação Recorrente", "text": "Formato multi-atividades com programação regular de eventos impulsiona a visitação recorrente. Locais de experiência focados em bar veem taxa de retorno 2–3× maior que a de locais de atividade única." },
-      "pricing": { "title": "Poder de Precificação", "text": "+£1 em sinuca e golfe nos volumes atuais gera ~£15 mil de lucro incremental por ano. Zero capex, zero risco de churn nesse ponto de preço." }
-    }
   },
   "wages": {
     "compareHeader": "Folha Salarial — Real 2025 vs Projeção 2026",
