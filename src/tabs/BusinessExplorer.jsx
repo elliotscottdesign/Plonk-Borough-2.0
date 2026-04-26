@@ -177,7 +177,6 @@ const FIXED_COST_ITEMS = [
   { id: 'insurance',   ref2025Annual: 10000 },
   { id: 'internet',    ref2025Annual:  4000 },
   { id: 'prs',         ref2025Annual:  2500 },
-  { id: 'waste',       ref2025Annual:  4500 },
   { id: 'maintenance', ref2025Annual: 14000 },
   { id: 'misc',        ref2025Annual:  4147 },
 ]
