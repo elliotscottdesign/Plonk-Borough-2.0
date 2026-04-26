@@ -93,6 +93,7 @@
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
+      "arcades": "Custo do operador = pacotes × fichas-por-ingresso × £0,325. Reduza a taxa de fichas abaixo para diminuir.",
       "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas, comida e hospedagem são isentos",
       "hosting": "Hospedagem (Lithos)",
       "hostingNote": "Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf",
@@ -122,15 +123,18 @@
     "investorReturn": "Retorno do Investidor"
   },
   "tokens": {
-    "header": "Fichas de Fliperama — Receita Embutida",
-    "note": "Já contabilizadas em Ingressos Online de Golfe, Gastos no Bar e Locações Privadas acima. Mostradas aqui para modelar crescimento da taxa de fichas sem dupla contagem.",
-    "revenueLabel": "Receita de Fichas",
+    "header": "Fichas de Fliperama — Alavanca da Taxa de Fichas",
+    "note": "Fichas são embutidas no preço dos ingressos de golfe; cada ficha custa £0,325 ao operador do fliperama. Reduzir a taxa de fichas mantém essa receita conosco — flui direto para o EBITDA via menor custo de Fliperamas. A receita total do ingresso é inalterada.",
     "attachLabel": "Fichas por Ingresso de Golfe",
     "defaultMarker": "padrão 4",
     "resetAttach": "Redefinir para 4 fichas",
-    "vsDefault": "vs padrão",
-    "atDefault": "no padrão",
-    "upliftHint": "+1 ficha por ingresso → {{perToken}} de receita extra / ano no volume atual."
+    "atDefault": "Reduza abaixo de 4 para cortar custo do operador. Cada −1 ficha economiza ~{{perToken}} / ano.",
+    "savingsHint": "{{savings}} de uplift no EBITDA vs padrão — direto na linha final.",
+    "costHint": "{{cost}} de custo extra vs padrão — pago ao operador do fliperama.",
+    "profitImpactLabel": "Impacto no Lucro Líquido",
+    "revenueLabel": "Fatia de Fichas",
+    "bundlesLabel": "Pacotes 2026",
+    "perTokenLabel": "{{val}} por ±1 ficha"
   },
   "wages": {
     "compareHeader": "Folha Salarial — Real 2025 vs Projeção 2026",

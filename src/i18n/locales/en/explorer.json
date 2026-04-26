@@ -93,6 +93,7 @@
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
+      "arcades": "Operator cost = bundles × tokens-per-ticket × £0.325. Lower the token attach rate below to cut this.",
       "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades, food and hosting are zero-rated",
       "hosting": "Hosting (Lithos)",
       "hostingNote": "Fixed — SEO/Ads now owned by Plonk Golf",
@@ -122,15 +123,18 @@
     "investorReturn": "Investor Return"
   },
   "tokens": {
-    "header": "Arcade Tokens — Embedded Revenue",
-    "note": "Already counted in Online Golf Tickets, Spend at Bar and Private Hires above. Surfaced here so we can model attach-rate growth without double-counting.",
-    "revenueLabel": "Token Revenue",
+    "header": "Arcade Tokens — Attach Rate Lever",
+    "note": "Tokens are bundled into golf ticket prices; each token costs £0.325 in arcade operator share. Reducing attach rate keeps that revenue with us — flows direct to EBITDA via lower Arcades cost. Total ticket revenue is unchanged.",
     "attachLabel": "Tokens per Golf Ticket",
     "defaultMarker": "default 4",
     "resetAttach": "Reset to 4 tokens",
-    "vsDefault": "vs default attach",
-    "atDefault": "at default attach",
-    "upliftHint": "+1 token per ticket → {{perToken}} extra revenue / yr at current bundle volumes."
+    "atDefault": "Reduce below 4 to cut operator cost. Each −1 token saves ~{{perToken}} / yr.",
+    "savingsHint": "{{savings}} EBITDA uplift vs default attach — straight to bottom line.",
+    "costHint": "{{cost}} extra cost vs default attach — paid to arcade operator.",
+    "profitImpactLabel": "Net Profit Impact",
+    "revenueLabel": "Token Slice",
+    "bundlesLabel": "Bundles 2026",
+    "perTokenLabel": "{{val}} per ±1 token"
   },
   "wages": {
     "compareHeader": "Wage Bill — 2025 Actual vs 2026 Forecast",

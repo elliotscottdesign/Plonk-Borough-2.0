@@ -93,6 +93,22 @@ const PERF_GROWTH_MAX = 50
 
 const perfGrowthToPct = g => ((g - PERF_GROWTH_MIN) / (PERF_GROWTH_MAX - PERF_GROWTH_MIN)) * 100
 
+// ─── Token economics ─────────────────────────────────────────────────
+// Tokens are bundled into golf tickets (4 per Adult/U18 Golf bundle at
+// current pricing). Each token represents £0.325 of value that, under
+// current pricing, gets passed to the arcade operator. So:
+//   - Reducing tokens per ticket = saved operator cost = profit uplift.
+//   - Adding tokens per ticket    = extra operator cost = profit hit.
+// Total ticket revenue is unchanged either way; only the cost side moves.
+const TOKENS_DEFAULT_ATTACH = 4
+
+// Sum of tokened (golf-with-tokens) bundles sold in 2025 across both
+// online portal and till channels. Used to scale token costs in 2026.
+const sumTokenedBundles = (skus) => skus
+  .filter(s => s.tokens > 0)
+  .reduce((sum, s) => sum + s.sold, 0)
+const TOKENED_BUNDLES_2025 = sumTokenedBundles(IP_LICENSING_SKUS_ONLINE_2025) + sumTokenedBundles(IP_LICENSING_SKUS_OFFICE_2025)
+
 // Custom Scenario lever definitions. One entry per commercial revenue line —
 // keys match the growth state shape (`bar`, `golf`, `events`, `hires`, `pool`)
 // and `setSuffix` matches the React setter naming (`setBar`, `setGolf`, etc.).
@@ -124,7 +140,7 @@ function buildLineGrowths(g) {
   }
 }
 
-function TabPerformance({ growth, wages }) {
+function TabPerformance({ growth, wages, tokenAttach, setTokenAttach }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK, fmtNum } = useFmt()
@@ -164,10 +180,16 @@ function TabPerformance({ growth, wages }) {
   // ─── Operating cost lines (no VAT) ─────────────────────────────────────
   const fixedLine       = Math.round(165647 * 1.10)
   const cleaningLine    = Math.round(22965 * mult)
-  const arcadesLine     = Math.round(17152 * mult)
   const foodLine        = Math.round(9101 * mult)
   const hostingLine     = 3492
   const cardChargesLine = Math.round(5443 * mult)
+
+  // Arcades = baseline (volume-scaled) + attach-rate adjustment.
+  // Each token bundled with a golf ticket carries £0.325 of operator cost.
+  // Reducing attach rate vs default 4 saves cost; raising it adds cost.
+  const tokenedBundles2026 = Math.round(TOKENED_BUNDLES_2025 * (1 + growth.golf / 100))
+  const arcadeAttachAdjust = (tokenAttach - TOKENS_DEFAULT_ATTACH) * tokenedBundles2026 * IP_LICENSING_TOKEN_VALUE
+  const arcadesLine        = Math.round(17152 * mult + arcadeAttachAdjust)
 
   // ─── Net VAT (computed, replaces the historical 78851*mult line) ───────
   // Output VAT  = revenue × 1/6  (revenue is gross of 20% VAT)
@@ -188,7 +210,7 @@ function TabPerformance({ growth, wages }) {
     { labelKey: 'drinks',      value: drinksGas2026,    note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',         value: netVat,            note: vatComputedNote },
     { labelKey: 'cleaning',    value: cleaningLine,     note: scalesNote },
-    { labelKey: 'arcades',     value: arcadesLine,      note: scalesNote },
+    { labelKey: 'arcades',     value: arcadesLine,      note: t('performance2026.costNotes.arcades') },
     { labelKey: 'food',        value: foodLine,         note: scalesNote },
     { labelKey: 'hosting',     value: hostingLine,      note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
     { labelKey: 'cardCharges', value: cardChargesLine,  note: scalesNote },
@@ -294,8 +316,8 @@ function TabPerformance({ growth, wages }) {
       {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
       <ScenarioPresetsCard growth={growth} />
 
-      {/* ─── ARCADE TOKENS SPOTLIGHT ─── Surface the embedded token revenue stream */}
-      <TokenSpotlightCard growth={growth} />
+      {/* ─── ARCADE TOKENS SPOTLIGHT ─── Slider drives the Arcades cost line above */}
+      <TokenSpotlightCard growth={growth} tokenAttach={tokenAttach} setTokenAttach={setTokenAttach} />
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
@@ -475,89 +497,82 @@ function ScenarioPresetsCard({ growth }) {
 // per ticket" attach rate — so investors can see the upside of pushing
 // attach rate from 4 → 5 or 6.
 //
-// Critically: this card does NOT add to the income donut total — token
-// revenue is already counted upstream. It's a visibility + growth-modelling
-// surface only.
+// The slider drives a real model impact: the Arcades cost line in
+// TabPerformance moves up/down based on (attach − DEFAULT) × bundles ×
+// £0.325. Lower attach = lower operator cost = higher EBITDA. This card
+// shows the trade-off; the cost line on the donut chart reflects it.
 // ───────────────────────────────────────────────────────────────────────
-const TOKENS_DEFAULT_ATTACH = 4   // current pricing: 4 tokens per Adult/U18 Golf bundle
-
-function TokenSpotlightCard({ growth }) {
+function TokenSpotlightCard({ growth, tokenAttach, setTokenAttach }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
-  const [attachRate, setAttachRate] = useState(TOKENS_DEFAULT_ATTACH)
 
-  // Sum 2025 tokened-bundle volume across online + till channels.
-  const sumBundles = (skus) => skus
-    .filter(s => s.tokens > 0)
-    .reduce((sum, s) => sum + s.sold, 0)
-  const bundles2025 = sumBundles(IP_LICENSING_SKUS_ONLINE_2025) + sumBundles(IP_LICENSING_SKUS_OFFICE_2025)
+  // 2026 bundle volume scales with the golf ticket lever.
+  const golfMult    = 1 + growth.golf / 100
+  const bundles2026 = Math.round(TOKENED_BUNDLES_2025 * golfMult)
 
-  // 2025 token revenue at the actual 4-token attach rate.
-  const tokenRev2025 = bundles2025 * TOKENS_DEFAULT_ATTACH * IP_LICENSING_TOKEN_VALUE
+  // Token revenue (informational — already inside the parent income lines).
+  const tokenRev2025 = TOKENED_BUNDLES_2025 * TOKENS_DEFAULT_ATTACH * IP_LICENSING_TOKEN_VALUE
+  const tokenRev2026 = bundles2026 * tokenAttach * IP_LICENSING_TOKEN_VALUE
 
-  // 2026 forecast: bundles scale with the golf ticket lever (the Online Golf
-  // Tickets line is the dominant token vehicle). Token revenue then depends
-  // on the user-set attach rate.
-  const golfMult       = 1 + growth.golf / 100
-  const bundles2026    = Math.round(bundles2025 * golfMult)
-  const tokenRev2026   = bundles2026 * attachRate * IP_LICENSING_TOKEN_VALUE
-  const baselineRev2026 = bundles2026 * TOKENS_DEFAULT_ATTACH * IP_LICENSING_TOKEN_VALUE
-  const upliftFromAttach = tokenRev2026 - baselineRev2026
-  const upliftPerToken   = bundles2026 * IP_LICENSING_TOKEN_VALUE   // value of each +1 token/ticket
+  // Profit impact vs the 4-token default. Reducing attach by 1 saves
+  // (bundles × £0.325) of operator cost — that drops to EBITDA.
+  // attachDelta is negative when attach is below default → impact positive.
+  const attachDelta   = tokenAttach - TOKENS_DEFAULT_ATTACH
+  const profitImpact  = -attachDelta * bundles2026 * IP_LICENSING_TOKEN_VALUE
+  const perTokenValue = bundles2026 * IP_LICENSING_TOKEN_VALUE
 
-  const deltaColor = upliftFromAttach > 0 ? '#2DD4BF' : upliftFromAttach < 0 ? '#EF4444' : '#9CA3AF'
-  const deltaText  = upliftFromAttach === 0
-    ? t('tokens.atDefault')
-    : `${upliftFromAttach > 0 ? '+' : ''}${fmt(Math.round(upliftFromAttach))} ${t('tokens.vsDefault')}`
+  const impactColor = profitImpact > 0 ? '#2DD4BF' : profitImpact < 0 ? '#EF4444' : '#9CA3AF'
+  const impactText  = profitImpact === 0
+    ? t('tokens.atDefault', { perToken: fmt(Math.round(perTokenValue)) })
+    : profitImpact > 0
+      ? t('tokens.savingsHint', { savings: fmt(Math.round(profitImpact)) })
+      : t('tokens.costHint',    { cost:    fmt(Math.round(Math.abs(profitImpact))) })
 
   return (
     <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('tokens.header')}</div>
-        <ResetBtn onClick={() => setAttachRate(TOKENS_DEFAULT_ATTACH)} title={t('tokens.resetAttach')} />
+        <ResetBtn onClick={() => setTokenAttach(TOKENS_DEFAULT_ATTACH)} title={t('tokens.resetAttach')} />
       </div>
       <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:18 }}>{t('tokens.note')}</div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        {/* Left: 2025 vs 2026 comparison */}
-        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'16px 14px' }}>
-          <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14, textAlign:'center' }}>{t('tokens.revenueLabel')}</div>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1px 1fr', gap:12, alignItems:'center' }}>
-            <div style={{ textAlign:'center' }}>
-              <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2025</div>
-              <div style={{ fontSize:18, color:'#9CA3AF', fontWeight:700 }}>{fmt(Math.round(tokenRev2025))}</div>
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>{fmtNum(bundles2025)} × 4</div>
-            </div>
-            <div style={{ width:1, alignSelf:'stretch', background:'rgba(255,255,255,0.08)' }} />
-            <div style={{ textAlign:'center' }}>
-              <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2026</div>
-              <div style={{ fontSize:22, color:'var(--gold)', fontWeight:800 }}>{fmt(Math.round(tokenRev2026))}</div>
-              <div style={{ fontSize:11, color:deltaColor, fontWeight:600, marginTop:3 }}>{deltaText}</div>
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>{fmtNum(bundles2026)} × {attachRate}</div>
-            </div>
-          </div>
+      {/* Slider — full width, with a default-attach tick beneath */}
+      <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'16px 18px', marginBottom:14 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+          <span style={{ color:'var(--cream)', fontWeight:600 }}>{t('tokens.attachLabel')}</span>
+          <span style={{ color:'var(--gold)', fontWeight:700, fontSize:20 }}>{tokenAttach}</span>
         </div>
+        <input
+          type="range" min={0} max={8} step={1}
+          value={tokenAttach}
+          onChange={e => setTokenAttach(Number(e.target.value))}
+          style={{ width:'100%', accentColor:'var(--gold)' }}
+        />
+        <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginTop:4 }}>
+          <span>0</span>
+          <span style={{ color:'#9CA3AF' }}>{t('tokens.defaultMarker')}</span>
+          <span>8</span>
+        </div>
+      </div>
 
-        {/* Right: Attach rate slider + uplift hint */}
-        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'16px 14px' }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-            <span style={{ color:'var(--cream)', fontWeight:600 }}>{t('tokens.attachLabel')}</span>
-            <span style={{ color:'var(--gold)', fontWeight:700, fontSize:18 }}>{attachRate}</span>
+      {/* Three-up summary: profit impact (headline), token mix, bundle volume */}
+      <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr 1fr', gap:12 }}>
+        <div style={{ background:'rgba(45,212,191,0.05)', border:`1px solid ${impactColor}33`, borderRadius:8, padding:'14px 16px' }}>
+          <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{t('tokens.profitImpactLabel')}</div>
+          <div style={{ fontSize:24, fontWeight:800, color:impactColor, marginBottom:4 }}>
+            {profitImpact > 0 ? '+' : ''}{fmt(Math.round(profitImpact))}
           </div>
-          <input
-            type="range" min={0} max={8} step={1}
-            value={attachRate}
-            onChange={e => setAttachRate(Number(e.target.value))}
-            style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6 }}
-          />
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginBottom:14 }}>
-            <span>0</span>
-            <span style={{ color:'#9CA3AF' }}>{t('tokens.defaultMarker')}</span>
-            <span>8</span>
-          </div>
-          <div style={{ padding:'10px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.18)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-            {t('tokens.upliftHint', { perToken: fmt(Math.round(upliftPerToken)) })}
-          </div>
+          <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.4 }}>{impactText}</div>
+        </div>
+        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px' }}>
+          <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{t('tokens.revenueLabel')}</div>
+          <div style={{ fontSize:18, fontWeight:700, color:'#F5F0E8', marginBottom:2 }}>{fmt(Math.round(tokenRev2026))}</div>
+          <div style={{ fontSize:10, color:'#6B7280' }}>2025: {fmt(Math.round(tokenRev2025))}</div>
+        </div>
+        <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px' }}>
+          <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{t('tokens.bundlesLabel')}</div>
+          <div style={{ fontSize:18, fontWeight:700, color:'#F5F0E8', marginBottom:2 }}>{fmtNum(bundles2026)}</div>
+          <div style={{ fontSize:10, color:'#6B7280' }}>{t('tokens.perTokenLabel', { val: fmt(Math.round(perTokenValue)) })}</div>
         </div>
       </div>
     </div>
@@ -809,6 +824,12 @@ export default function BusinessExplorer() {
     setAll: setAllGrowth,
   }
 
+  // Token attach rate (tokens bundled per golf ticket). Default 4 = current
+  // pricing. Lowering it cuts operator cost and lifts EBITDA; raising it costs
+  // more. Lifted here so TabPerformance (cost calc) and TokenSpotlightCard
+  // (slider + display) share the same state.
+  const [tokenAttach, setTokenAttach] = useState(TOKENS_DEFAULT_ATTACH)
+
   // Wage rates lifted to parent so the 2026 Performance tab and the standalone
   // Wages tab share the same state — moving a slider in either reflects in both.
   // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
@@ -830,7 +851,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
-    performance2026: <TabPerformance growth={growth} wages={wages} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} tokenAttach={tokenAttach} setTokenAttach={setTokenAttach} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
