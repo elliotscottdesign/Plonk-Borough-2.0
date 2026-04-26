@@ -291,6 +291,9 @@ function TabPerformance({ growth, wages }) {
         </div>
       </div>
 
+      {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
+      <ScenarioPresetsCard growth={growth} />
+
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
@@ -369,7 +372,6 @@ function TabPerformance({ growth, wages }) {
 // ───────────────────────────────────────────────────────────────────────
 function ScenarioLeversCard({ growth }) {
   const { t } = useTranslation('explorer')
-  const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
 
   // Sliders mirror the 2026 income breakdown lines (excluding Service Charge,
@@ -383,6 +385,42 @@ function ScenarioLeversCard({ growth }) {
     base: l.base,
   }))
 
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
+        <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16 }}>
+        {sliders.map(s => (
+          <div key={s.key}>
+            <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
+              <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
+              <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
+                <ResetBtn onClick={()=>s.set(15)} title={t('scenarios.resetTo15')} />
+              </span>
+            </div>
+            <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
+            <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Scenario presets card — 4 summary cards (Conservative/Base/Optimistic/Custom).
+// Each preset button snaps all 5 levers to the same value via growth.setAll;
+// Custom card mirrors live lever positions. Stand-alone so it can render in
+// either spot of the 2026 Performance tab (currently directly under the slider).
+// ───────────────────────────────────────────────────────────────────────
+function ScenarioPresetsCard({ growth }) {
+  const { t } = useTranslation('explorer')
+  const { t: tc } = useTranslation('common')
+  const { fmt, fmtK } = useFmt()
+
   const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool })
   const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
   const presets = [
@@ -392,60 +430,34 @@ function ScenarioLeversCard({ growth }) {
   ]
 
   const revenueLabel = tc('labels.revenue')
-  const opProfit  = t('scenarios.opProfit')
+  const opProfit    = t('scenarios.opProfit')
   const investorRet = t('scenarios.investorReturn')
-  const cocLabel = tc('labels.cashOnCash')
+  const cocLabel    = tc('labels.cashOnCash')
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* Levers */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('scenarios.buildCustom')}</div>
-          <div style={{ fontSize:11, color:'#9CA3AF' }}>{t('scenarios.leverNote')}</div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:16, marginBottom:16 }}>
-          {sliders.map(s => (
-            <div key={s.key}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-                <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
-                  <ResetBtn onClick={()=>s.set(15)} title={t('scenarios.resetTo15')} />
-                </span>
-              </div>
-              <input type="range" min={-20} max={50} value={s.value} onChange={e=>s.set(Number(e.target.value))} style={{ width:'100%', accentColor:s.color }} />
-              <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Scenario cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
-        {presets.map(p => (
-          <button key={p.labelKey} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
-            background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
-          }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
-            {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
-              <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
-                <span style={{ color:'#9CA3AF' }}>{l}</span>
-                <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
-              </div>
-            ))}
-          </button>
-        ))}
-        <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
-          {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, fontSize:13 }}>
+      {presets.map(p => (
+        <button key={p.labelKey} onClick={()=>growth.setAll(p.pct)} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
+          background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor:'pointer', textAlign:'left', transition:'all 0.15s',
+        }}>
+          <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
+          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
+          {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
               <span style={{ color:'#9CA3AF' }}>{l}</span>
               <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
             </div>
           ))}
-        </div>
+        </button>
+      ))}
+      <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
+        <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
+        {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
+          <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
+            <span style={{ color:'#9CA3AF' }}>{l}</span>
+            <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
+          </div>
+        ))}
       </div>
     </div>
   )
