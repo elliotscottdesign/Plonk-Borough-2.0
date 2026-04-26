@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { DEAL, ACTUALS_2025 } from '../data.js'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import ResetBtn from '../components/ResetBtn.jsx'
+import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
@@ -30,20 +31,43 @@ function calcReturns(multiplier) {
   return { revenue, opProfit, investorDiv, total, coc, payback }
 }
 
+// Custom scenario uses the locked snapshot directly — no multiplier
+// approximation, because the snapshot already reflects user edits to
+// price, tokens, fixed costs, wages, office costs, etc.
+function calcReturnsFromSnapshot(snapshot) {
+  const opProfit = snapshot.opProfit
+  const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
+  const total = investorDiv
+  const coc = total / DEAL.investment
+  const payback = total > 0 ? DEAL.investment / total : Infinity
+  return { revenue: snapshot.revenue, opProfit, investorDiv, total, coc, payback }
+}
+
 export default function InvestmentSummary() {
   const { t, i18n } = useTranslation('summary')
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
+  const { snapshot, isLocked } = useLockedForecast()
 
   const SCENARIOS = {
     conservative: { label: t('scenarios.conservative.label'), sub: t('scenarios.conservative.sub'), multiplier: 1.10 },
     base:         { label: t('scenarios.base.label'),         sub: t('scenarios.base.sub'),         multiplier: 1.15 },
     optimistic:   { label: t('scenarios.optimistic.label'),   sub: t('scenarios.optimistic.sub'),   multiplier: 1.25 },
+    custom:       {
+      label:      t('scenarios.custom.label'),
+      sub:        isLocked ? t('scenarios.custom.sub') : t('scenarios.custom.subUnlocked'),
+      multiplier: snapshot ? snapshot.revenue / ACTUALS_2025.revenue : 1.15,
+      disabled:   !isLocked,
+    },
   }
 
   const [scenario, setScenario] = useState('base')
-  const s = SCENARIOS[scenario]
-  const r = calcReturns(s.multiplier)
+  // Force selection back to base if user had Custom selected and then unlocked
+  const activeKey = SCENARIOS[scenario]?.disabled ? 'base' : scenario
+  const s = SCENARIOS[activeKey]
+  const r = activeKey === 'custom' && snapshot
+    ? calcReturnsFromSnapshot(snapshot)
+    : calcReturns(s.multiplier)
 
   const [amount, setAmount] = useState(DEAL.investment)
 
@@ -78,14 +102,16 @@ export default function InvestmentSummary() {
       {/* Scenario selector */}
       <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
         {Object.entries(SCENARIOS).map(([key, sc]) => (
-          <button key={key} onClick={() => setScenario(key)} style={{
-            padding: '7px 18px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
-            background: scenario === key ? 'rgba(201,168,76,0.15)' : 'transparent',
-            border: `1px solid ${scenario === key ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
-            color: scenario === key ? 'var(--gold)' : 'var(--cream-dim)',
+          <button key={key} onClick={() => { if (!sc.disabled) setScenario(key) }} disabled={sc.disabled} style={{
+            padding: '7px 18px', fontSize: 11, borderRadius: 6, cursor: sc.disabled ? 'not-allowed' : 'pointer',
+            background: activeKey === key ? 'rgba(201,168,76,0.15)' : 'transparent',
+            border: `1px solid ${activeKey === key ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
+            color: activeKey === key ? 'var(--gold)' : 'var(--cream-dim)',
             transition: 'all 0.15s',
-          }}>
+            opacity: sc.disabled ? 0.45 : 1,
+          }} title={sc.disabled ? sc.sub : undefined}>
             {sc.label}
+            {sc.sub && <span style={{ fontSize:9, color:'var(--cream-dim)', display:'block', marginTop:2 }}>{sc.sub}</span>}
           </button>
         ))}
       </div>

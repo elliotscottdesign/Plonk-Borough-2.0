@@ -11,7 +11,8 @@
     "bear": "cenário Conservador",
     "base": "cenário Base",
     "bull": "cenário Otimista",
-    "custom": "cenário Personalizado · ao vivo do Business Explorer"
+    "custom": "cenário Personalizado · ao vivo da projeção bloqueada do Business Explorer",
+    "customUnlocked": "Bloqueie a aba Desempenho 2026 para preencher"
   },
   "steps": {
     "operatingProfit": "Lucro Operacional",

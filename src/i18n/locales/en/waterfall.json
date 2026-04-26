@@ -11,7 +11,8 @@
     "bear": "Conservative scenario",
     "base": "Base case scenario",
     "bull": "Optimistic scenario",
-    "custom": "Custom scenario · live from Business Explorer"
+    "custom": "Custom scenario · live from locked Business Explorer forecast",
+    "customUnlocked": "Lock the 2026 Performance tab to populate"
   },
   "steps": {
     "operatingProfit": "Operating Profit",

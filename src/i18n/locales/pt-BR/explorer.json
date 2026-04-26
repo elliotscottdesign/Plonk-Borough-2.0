@@ -165,6 +165,11 @@
       "base": "Base",
       "bull": "Otimista"
     },
+    "lock": "Bloquear",
+    "locked": "Bloqueado",
+    "lockTitle": "Bloquear a projeção — captura os valores atuais e congela todos os controles. Valores bloqueados fluem para os slides do deck como cenário Personalizado.",
+    "unlockTitle": "Desbloqueie para editar novamente. Os slides voltarão aos cenários padrão até serem bloqueados novamente.",
+    "lockedNote": "Projeção bloqueada — todos os inputs editáveis congelados. Os valores bloqueados populam o cartão de cenário Personalizado nos slides Resumo do Investimento e Retornos do Investidor. Clique em Desbloquear para editar novamente.",
     "adjustedRevenue": "Receita Ajustada",
     "adjustedEbitda": "EBITDA Ajustado",
     "profitAfterVat": "Lucro Após IVA",

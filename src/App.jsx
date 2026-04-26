@@ -11,6 +11,7 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import { LockedForecastProvider } from './components/LockedForecastContext.jsx'
 import { WORKBOOK_URL } from './data.js'
 
 const SLIDE_DEFS = [
@@ -46,6 +47,7 @@ export default function App() {
   }
 
   return (
+    <LockedForecastProvider>
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>{t('shell.brand')}</div>
@@ -98,5 +100,6 @@ export default function App() {
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
+    </LockedForecastProvider>
   )
 }

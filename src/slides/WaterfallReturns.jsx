@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { WATERFALL, DEAL } from '../data.js'
 import { formatCurrency } from '../i18n/format.js'
+import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
 function calcWaterfall(profit) {
   // Pure pro-rata — operating profit splits directly by equity %. No preferred, no A-share priority.
@@ -16,15 +17,25 @@ export default function WaterfallReturns() {
   const { t, i18n } = useTranslation('waterfall')
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
+  const { snapshot, isLocked } = useLockedForecast()
 
-  // Custom scenario reads from a runtime snapshot when the 2026 Performance
-  // tab is locked (mechanism added in a follow-up). For now defaults to base
-  // until the lock state is wired through to the deck.
+  // Custom scenario reads from the locked snapshot. When the 2026
+  // Performance tab is locked, snapshot.opProfit (= profitAfterVat)
+  // populates the Custom card. When unlocked, Custom is greyed out
+  // and falls back to base.
+  const customProfit = snapshot?.opProfit ?? 124000
+
   const SCENARIOS = {
-    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: 0,      color: '#E53935' },
-    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: 124000, color: '#C9A84C' },
-    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: 174000, color: '#2DD4BF' },
-    custom: { label: t('scenarios.custom'), badge: t('scenarioBadges.custom'), profit: 124000, color: 'var(--gold)' },
+    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: 0,            color: '#E53935' },
+    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: 124000,       color: '#C9A84C' },
+    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: 174000,       color: '#2DD4BF' },
+    custom: {
+      label:  t('scenarios.custom'),
+      badge:  isLocked ? t('scenarioBadges.custom') : t('scenarioBadges.customUnlocked'),
+      profit: customProfit,
+      color:  'var(--gold)',
+      disabled: !isLocked,
+    },
   }
 
   const [scenario, setScenario] = useState('base')
@@ -52,10 +63,11 @@ export default function WaterfallReturns() {
       {/* Scenario selector */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 36 }}>
         {Object.entries(SCENARIOS).map(([key, sc]) => (
-          <button key={key} onClick={() => setScenario(key)} style={{
-            padding: '8px 20px', borderRadius: 6, fontSize: 12, cursor: 'pointer',
+          <button key={key} onClick={() => { if (!sc.disabled) setScenario(key) }} disabled={sc.disabled} style={{
+            padding: '8px 20px', borderRadius: 6, fontSize: 12, cursor: sc.disabled ? 'not-allowed' : 'pointer',
             background: scenario === key ? sc.color : 'transparent',
             border: `1px solid ${sc.color}`,
+            opacity: sc.disabled ? 0.4 : 1,
             color: scenario === key ? '#0A0A0F' : sc.color,
             fontWeight: scenario === key ? 600 : 400,
             transition: 'all 0.15s',

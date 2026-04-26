@@ -4,7 +4,8 @@
   "scenarios": {
     "conservative": { "label": "Conservador", "sub": "+10% sobre 2025" },
     "base": { "label": "Cenário Base", "sub": "+15% sobre 2025" },
-    "optimistic": { "label": "Otimista", "sub": "+25% sobre 2025" }
+    "optimistic": { "label": "Otimista", "sub": "+25% sobre 2025" },
+    "custom": { "label": "Personalizado", "sub": "Bloqueado do Business Explorer", "subUnlocked": "Bloqueie a aba Desempenho 2026 para preencher" }
   },
   "sections": {
     "deal": "🏢 Estrutura do Acordo",
