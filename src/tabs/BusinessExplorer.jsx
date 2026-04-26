@@ -84,8 +84,9 @@ function TabOverview() {
 
 // 2026 Performance — scenario-adjusted forecast built from the 2025 figures on the
 // Financial Performance sheet. Slider (with Bear/Base/Bull markers) drives income and
-// costs: wages +10%, fixed +10%, drinks = 30% of bar revenue, office driven by
-// the OfficeCostsSection, everything else scales with revenue. Palette shifted to teals (income) and purples
+// costs: wages +10%, non-rent fixed +10%, drinks = 30% of bar revenue, rent = 15%
+// of turnover (contractual, NO inflation), office driven by the OfficeCostsSection,
+// everything else scales with revenue. Palette shifted to teals (income) and purples
 // (costs) to read as "forecast" vs the blue/red 2025 actuals.
 const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
 const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#D8B4FE','#DDD6FE','#EDE9FE']
@@ -170,10 +171,18 @@ const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(
 // Defaults for the 2026 monthly editable state = (2025 annual / 12)
 // × 1.10 inflation, so model behaviour at default is unchanged.
 // Rent is contractually 15% of quarterly turnover — NOT editable.
-// Auto-computed = totalIncome × RENT_PCT_OF_TURNOVER and added on top
-// of the editable Fixed Costs sliders below. Shown as a read-only row
-// at the top of the FixedCostsSection.
+// Auto-computed = revenue × RENT_PCT_OF_TURNOVER. Replaces the old
+// "165647 × 1.10" fixed-cost shorthand which baked in a flat 10%
+// inflation on rent — rent now scales with turnover, not inflation.
 const RENT_PCT_OF_TURNOVER = 0.15
+
+// Historical 2025 fixed-cost split — used by deck slides and the
+// computeScenario helper so they can apply the new "rent = 15% of
+// revenue" rule consistently with the 2026 Performance tab.
+//   HISTORICAL_RENT_2025 = 15% × £741,644 ≈ £111,247
+//   HISTORICAL_NON_RENT_FIXED_2025 = £165,647 (P&L total) − rent ≈ £54,400
+const HISTORICAL_RENT_2025          = 111247
+const HISTORICAL_NON_RENT_FIXED_2025 = 54400
 
 const FIXED_COST_ITEMS = [
   { id: 'rates',       ref2025Annual:  18000 },
@@ -356,13 +365,17 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
     sc:     Math.round(m.sc     * mult),
   }))
   const officeCostsMonthly = Math.round(officeCostsTotal / 12)
+  // Even-spread the slider-driven Fixed Costs total across 12 months —
+  // sliders are annual-monthly figures and rent (15% of turnover) doesn't
+  // have month-on-month seasonality in the model.
+  const fixedCostsMonthly = Math.round(fixedLine / 12)
   const monthlyCosts2026 = MONTHLY_COSTS.map(m => {
     const mi = MONTHLY_INCOME.find(x => x.m === m.m)
     const mthBar2026 = mi ? Math.round(mi.bar * (1 + growth.bar / 100)) : 0
     return {
       m: m.m,
       wages:  Math.round(m.wages * 1.10),
-      fixed:  Math.round(m.fixed * 1.10),
+      fixed:  fixedCostsMonthly,                         // even spread of slider total + auto rent
       office: officeCostsMonthly,                        // even spread; the line is fixed-per-year
       drinks: Math.round(mthBar2026 * 0.30),
       vat:    Math.round(m.vat * mult),
@@ -1347,15 +1360,16 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal
   const mult = revenue / 741644
 
   const costs =
-    242370 * 1.10        // wages
-    + 165647 * 1.10      // fixed
-    + officeCostsTotal   // office (Apps + AI + Accounting + Director — flows from OfficeCostsSection)
-    + bar * 0.30         // drinks (30% of bar)
-    + 78851 * mult       // VAT (scaled — proper formula in TabPerformance)
-    + 22965 * mult       // cleaning
-    + 17152 * mult       // arcades (token-driven detail in TabPerformance)
-    + 9101 * mult        // food
-    + 5443 * mult        // card charges
+    242370 * 1.10                                // wages +10%
+    + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // fixed (rates + utilities + insurance + internet + PRS + maintenance + misc) +10%
+    + revenue * RENT_PCT_OF_TURNOVER             // rent — 15% of turnover (NO inflation)
+    + officeCostsTotal                            // office (Apps + AI + Accounting + Director)
+    + bar * 0.30                                  // drinks (30% of bar)
+    + 78851 * mult                                // VAT (scaled — proper formula in TabPerformance)
+    + 22965 * mult                                // cleaning
+    + 17152 * mult                                // arcades (token-driven detail in TabPerformance)
+    + 9101 * mult                                 // food
+    + 5443 * mult                                 // card charges
     // hosting (Lithos) removed — under new IP & Licensing model SEO/Ads
     // sit with Plonk Golf, not the venue.
 

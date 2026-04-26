@@ -152,7 +152,7 @@
     "food": "Comida",
     "google": "Google/Digital",
     "cardCharges": "Taxas de Cartão",
-    "fixedDesc": "Aluguel, taxas, eletricidade, seguro, internet, PRS",
+    "fixedDesc": "Aluguel (auto · 15% do faturamento), taxas, eletricidade, seguro, internet, PRS, manutenção",
     "vatDesc": "IVA líquido pago à HMRC — IVA arrecadado menos IVA recuperado nas compras",
     "googleDesc": "Gasto histórico de Lithos/Google em 2025 · sob o novo modelo de IP e Licenciamento todo gasto com anúncios/SEO fica com a Plonk Golf a partir de 2026"
   },
@@ -182,7 +182,7 @@
     "monthlyCosts2026": "Custos Mensais 2026 — Escalados",
     "costNotes": {
       "wagesDriven": "Calculado pela calculadora de salários abaixo — controles ajustam a taxa por função × horas 2026",
-      "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
+      "fixed": "Aluguel (15% do faturamento) + taxas, utilidades, seguro, internet, PRS a +10% sobre 2025",
       "fixedDriven": "Definido pela seção Custos Fixos — 12 linhas, cada uma com controle mensal para testar cotações de fornecedores",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",

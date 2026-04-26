@@ -16,9 +16,10 @@ export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1dtqbmoKK01o
 // Investment ask £79,000 inc VAT. 50/50 equity — pre-money equal to investment (£79k),
 // post-money £158k. Multiple works out at 0.86× 2025 EBITDA (distressed pricing).
 //
-// Forecast operating profit (2026 base case) lowered to £124k — reflects the realistic
-// 2026 P&L under the new cost rules (wages +10%, fixed +10%, drinks = 30% of bar,
-// hosting fixed, everything else scaled) instead of the old 22.4%-margin blanket.
+// Forecast operating profit (2026 base case) reflects the realistic 2026 P&L under
+// the new cost rules: wages +10%, non-rent fixed +10%, drinks = 30% of bar, rent =
+// 15% of turnover (contractual, NO inflation), everything else scales with revenue.
+// Replaces the older 22.4%-margin blanket and the now-deprecated flat rent inflation.
 //
 // DISTRIBUTION MODEL: pure pro-rata — all shareholders paid at the same time by equity %.
 // No preferred return, no A-share priority. Full operating profit flows through the split.
@@ -60,8 +61,8 @@ export const ACTUALS_2025 = {
 }
 
 // === 2026 FORECAST (Base Case +15%) ===
-// Profit lowered from £190,945 (old 22.4% blanket margin) to £124,000 — reflects the
-// real 2026 cost model (wages +10%, fixed +10%, drinks = 30% of bar, etc.).
+// Profit reflects the real 2026 cost model — wages +10%, non-rent fixed +10%,
+// drinks = 30% of bar, rent = 15% of turnover (contractual, NO inflation), etc.
 export const FORECAST = {
   revenue: 852891,
   profit: 124000,

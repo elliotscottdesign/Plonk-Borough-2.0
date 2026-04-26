@@ -8,21 +8,30 @@ import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
 // Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
-// Uses the realistic 2026 cost model: wages +10%, fixed +10%, drinks = 30% of bar,
-// hosting fixed £3,492, everything else scales with revenue. NOT the old 22.4% blanket margin.
+// Uses the realistic 2026 cost model: wages +10%, non-rent fixed +10%, drinks = 30% of bar,
+// rent = 15% of turnover (NO inflation — contractual), hosting removed (now Plonk Golf).
+// NOT the old 22.4% blanket margin.
+//
+// HISTORICAL_NON_RENT_FIXED_2025 = £54,400 — the £165,647 P&L Fixed Costs line minus
+// the implied rent at 15% × 2025 turnover (£111,247). Rent is now broken out so it
+// scales with turnover, not inflation.
+const HISTORICAL_NON_RENT_FIXED_2025 = 54400
+const RENT_PCT_OF_TURNOVER           = 0.15
+
 function calcReturns(multiplier) {
   const revenue = ACTUALS_2025.revenue * multiplier
   const bar = 362836 * multiplier
   const costs =
-    242370 * 1.10                 // wages +10%
-    + 165647 * 1.10               // fixed +10%
-    + bar * 0.30                  // drinks = 30% of bar
-    + 78851 * multiplier          // VAT
-    + 22965 * multiplier          // cleaning
-    + 17152 * multiplier          // arcades
-    + 9101 * multiplier           // food
-    + 3492                        // hosting fixed
-    + 5443 * multiplier           // card charges
+    242370 * 1.10                                // wages +10%
+    + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // non-rent fixed costs +10%
+    + revenue * RENT_PCT_OF_TURNOVER             // rent = 15% of turnover (NO inflation)
+    + bar * 0.30                                 // drinks = 30% of bar
+    + 78851 * multiplier                         // VAT
+    + 22965 * multiplier                         // cleaning
+    + 17152 * multiplier                         // arcades
+    + 9101 * multiplier                          // food
+    + 5443 * multiplier                          // card charges
+    // hosting removed — Plonk Golf owns it under the IP & Licensing model
   const opProfit = revenue - costs
   const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
   const total = investorDiv
@@ -74,7 +83,7 @@ export default function InvestmentSummary() {
   // Pure pro-rata distribution — no preferred, no A-share priority.
   // Investor's dividend = operating profit × their equity share.
   // Base operating profit figure is the realistic 2026 base case (£124k) under the new
-  // cost rules (wages +10%, fixed +10%, drinks 30% of bar, etc.) — was £190k.
+  // cost rules (wages +10%, non-rent fixed +10%, drinks 30% of bar, rent 15% of turnover, etc.) — was £190k.
   const OPERATING_PROFIT_BASE = 124000
   const equity = amount / DEAL.postMoney
   const isAShare = equity >= 0.05

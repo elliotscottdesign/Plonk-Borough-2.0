@@ -152,7 +152,7 @@
     "food": "Food",
     "google": "Google/Digital",
     "cardCharges": "Card Charges",
-    "fixedDesc": "Rent, rates, electricity, insurance, internet, PRS",
+    "fixedDesc": "Rent (auto · 15% of turnover), rates, electricity, insurance, internet, PRS, maintenance",
     "vatDesc": "Net VAT paid to HMRC — VAT collected minus VAT reclaimed on purchases",
     "googleDesc": "2025 historical Lithos/Google spend · under new IP & Licensing model all ad/SEO spend sits with Plonk Golf from 2026"
   },
@@ -182,7 +182,7 @@
     "monthlyCosts2026": "Monthly Costs 2026 — Scaled",
     "costNotes": {
       "wagesDriven": "Driven by the wage calculator below — sliders control the rate per role × 2026 hours",
-      "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
+      "fixed": "Rent (15% of turnover) + rates, utilities, insurance, internet, PRS at +10% on 2025",
       "fixedDriven": "Driven by the Fixed Costs section — 12 line items, each with a monthly slider to test vendor quotes",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
