@@ -27,13 +27,11 @@
       "rent": "Aluguel",
       "rates": "IPTU Comercial",
       "electricity": "Eletricidade",
-      "gas": "Gás",
       "water": "Água",
       "insurance": "Seguro",
       "internet": "Internet e Telefone",
       "prs": "Licença Musical PRS",
       "waste": "Coleta de Lixo",
-      "pest": "Controle de Pragas",
       "maintenance": "Manutenção e Reparos",
       "misc": "Equipamentos e Diversos"
     }

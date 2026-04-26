@@ -173,13 +173,11 @@ const FIXED_COST_ITEMS = [
   { id: 'rent',        ref2025Annual: 75000 },
   { id: 'rates',       ref2025Annual: 18000 },
   { id: 'electricity', ref2025Annual: 18000 },
-  { id: 'gas',         ref2025Annual: 10000 },
   { id: 'water',       ref2025Annual:  4000 },
   { id: 'insurance',   ref2025Annual: 10000 },
   { id: 'internet',    ref2025Annual:  4000 },
   { id: 'prs',         ref2025Annual:  2500 },
   { id: 'waste',       ref2025Annual:  4500 },
-  { id: 'pest',        ref2025Annual:  1500 },
   { id: 'maintenance', ref2025Annual: 14000 },
   { id: 'misc',        ref2025Annual:  4147 },
 ]

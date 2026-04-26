@@ -27,13 +27,11 @@
       "rent": "Rent",
       "rates": "Business Rates",
       "electricity": "Electricity",
-      "gas": "Gas",
       "water": "Water",
       "insurance": "Insurance",
       "internet": "Internet & Phone",
       "prs": "PRS / Music Licence",
       "waste": "Waste Collection",
-      "pest": "Pest Control",
       "maintenance": "Maintenance & Repairs",
       "misc": "Equipment & Misc"
     }
