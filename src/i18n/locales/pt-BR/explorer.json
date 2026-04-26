@@ -146,13 +146,13 @@
     }
   },
   "wages": {
-    "total": "Folha Salarial Total 2025",
-    "totalNote": "Dados de escala verificados",
-    "hours": "Total de Horas Trabalhadas",
-    "hoursValue": "10.043 h",
-    "hoursNote": "23 funcionários · cargos totalmente tagueados",
-    "pct": "Salários como % da Receita",
-    "pctNote": "£242,370 ÷ £741,644 · meta ≤22%",
+    "compareHeader": "Folha Salarial — Real 2025 vs Projeção 2026",
+    "compareBill": "Folha Salarial",
+    "compareBillSub": "incl. INSS / previdência / cobertura",
+    "compareHours": "Horas Trabalhadas",
+    "compareHoursSub": "cargos da escala · 23 funcionários",
+    "comparePct": "Salários % Receita",
+    "comparePctSub": "Salários P&L ÷ receita",
     "calculatorHeader": "Calculadora Deslizante de Taxa Salarial — Planejamento 2026",
     "roles": {
       "bar": "Equipe de Bar",
@@ -161,9 +161,6 @@
       "manager": "Gerente"
     },
     "hrs": "h",
-    "annual": "Anual:",
-    "projected": "Folha Salarial Projetada",
-    "delta": "Delta vs 2025",
-    "forecastPct": "Salários % Projetado"
+    "annual": "Anual:"
   }
 }

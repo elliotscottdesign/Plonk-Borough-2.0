@@ -468,33 +468,67 @@ function WageCalculatorCard({ wages, totalIncome }) {
     { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:22 },
     { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:25 },
   ]
-  const totalHours = roles.reduce((s, r) => s + r.hours, 0)
-  const rotaCost   = Math.round(roles.reduce((s, r) => s + r.hours * r.rate, 0))
-  const plWage2026 = Math.round(rotaCost * WAGE_OVERHEAD_MULT)
-  const delta      = plWage2026 - PL_WAGE_BASE
-  const pctOfRev   = totalIncome > 0 ? (plWage2026 / totalIncome) * 100 : 0
+
+  // 2025 actuals (constants from rota source)
+  const TOTAL_HOURS_2025 = 10043
+  const REVENUE_2025     = 741644
+
+  // 2026 derived from sliders + WAGE_RATES.hours
+  const totalHours2026 = roles.reduce((s, r) => s + r.hours, 0)
+  const rotaCost2026   = Math.round(roles.reduce((s, r) => s + r.hours * r.rate, 0))
+  const plWage2026     = Math.round(rotaCost2026 * WAGE_OVERHEAD_MULT)
+
+  // Comparison metrics (P&L wage basis on both years for apples-to-apples)
+  const pct2025 = (PL_WAGE_BASE / REVENUE_2025) * 100
+  const pct2026 = totalIncome > 0 ? (plWage2026 / totalIncome) * 100 : 0
+  const wageDelta  = plWage2026 - PL_WAGE_BASE
+  const hoursDelta = totalHours2026 - TOTAL_HOURS_2025
+  const pctDelta   = pct2026 - pct2025
+
+  // Delta sign helpers — for cost/wage %, "lower is better" (teal); for hours, neutral.
+  const deltaCash  = (n) => (n > 0 ? '+' : '') + fmt(n)
+  const deltaHours = (n) => (n > 0 ? '+' : '') + fmtNum(n) + ' ' + t('wages.hrs')
+  const deltaPts   = (n) => (n > 0 ? '+' : '') + n.toFixed(1) + ' pts'
+  const goodIfDown = (n) => (n < 0 ? '#2DD4BF' : n > 0 ? '#EF4444' : '#9CA3AF')
+  const neutral    = (n) => (n === 0 ? '#9CA3AF' : '#22D3EE')
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* Top stat strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { label:t('wages.total'),     value:fmt(PL_WAGE_BASE),                       sub:t('wages.totalNote'), color:'#C9A84C' },
-          { label:t('wages.hours'),     value:fmtNum(totalHours) + ' ' + t('wages.hrs'), sub:t('wages.hoursNote'), color:'#4FC3F7' },
-          { label:t('wages.pct'),       value:'20.8%',                                 sub:t('wages.pctNote'),   color:'#2DD4BF' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:8 }}>{s.label}</div>
-            <div style={{ fontSize:22, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-          </div>
-        ))}
+      {/* ─── 2025 vs 2026 comparison strip (replaces the old top + bottom stat strips) */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('wages.compareHeader')}</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
+          <CompareCard
+            label={t('wages.compareBill')}
+            v2025={fmt(PL_WAGE_BASE)}
+            v2026={fmt(plWage2026)}
+            delta={deltaCash(wageDelta)}
+            deltaColor={goodIfDown(wageDelta)}
+            sub={t('wages.compareBillSub')}
+          />
+          <CompareCard
+            label={t('wages.compareHours')}
+            v2025={fmtNum(TOTAL_HOURS_2025) + ' ' + t('wages.hrs')}
+            v2026={fmtNum(totalHours2026) + ' ' + t('wages.hrs')}
+            delta={deltaHours(hoursDelta)}
+            deltaColor={neutral(hoursDelta)}
+            sub={t('wages.compareHoursSub')}
+          />
+          <CompareCard
+            label={t('wages.comparePct')}
+            v2025={pct2025.toFixed(1) + '%'}
+            v2026={pct2026.toFixed(1) + '%'}
+            delta={deltaPts(pctDelta)}
+            deltaColor={goodIfDown(pctDelta)}
+            sub={t('wages.comparePctSub')}
+          />
+        </div>
       </div>
 
-      {/* Calculator */}
+      {/* ─── Wage rate calculator (sliders only — KPI strip removed, consolidated above) */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16, marginBottom:16 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
           {roles.map(r => (
             <div key={r.labelKey} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
@@ -512,24 +546,31 @@ function WageCalculatorCard({ wages, totalIncome }) {
             </div>
           ))}
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-          <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.projected')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:'var(--gold)' }}>{fmt(plWage2026)}</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>incl. NICs / pension / cover</div>
-          </div>
-          <div style={{ background:delta>0?'rgba(239,68,68,0.08)':'rgba(45,212,191,0.08)', border:`1px solid ${delta>0?'rgba(239,68,68,0.2)':'rgba(45,212,191,0.2)'}`, borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.delta')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:delta>0?'#EF4444':'#2DD4BF' }}>{delta>0?'+':''}{fmt(delta)}</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>vs 2025 actual</div>
-          </div>
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:14, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', marginBottom:6 }}>{t('wages.forecastPct')}</div>
-            <div style={{ fontSize:20, fontWeight:800, color:'#4FC3F7' }}>{pctOfRev.toFixed(1)}%</div>
-            <div style={{ fontSize:10, color:'#6B7280', marginTop:4 }}>of 2026 revenue</div>
-          </div>
+      </div>
+    </div>
+  )
+}
+
+// Compact 2025 vs 2026 comparison card. 2025 column is muted (reference);
+// 2026 column is gold and prominent (the live forecast). Delta sits under
+// the 2026 value, sub-text spans the bottom.
+function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
+  return (
+    <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'16px 14px' }}>
+      <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:14, textAlign:'center' }}>{label}</div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1px 1fr', gap:12, alignItems:'center' }}>
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2025</div>
+          <div style={{ fontSize:18, color:'#9CA3AF', fontWeight:700 }}>{v2025}</div>
+        </div>
+        <div style={{ width:1, alignSelf:'stretch', background:'rgba(255,255,255,0.08)' }} />
+        <div style={{ textAlign:'center' }}>
+          <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2026</div>
+          <div style={{ fontSize:22, color:'var(--gold)', fontWeight:800 }}>{v2026}</div>
+          {delta && <div style={{ fontSize:11, color:deltaColor, fontWeight:600, marginTop:3 }}>{delta}</div>}
         </div>
       </div>
+      {sub && <div style={{ fontSize:10, color:'#6B7280', textAlign:'center', marginTop:12 }}>{sub}</div>}
     </div>
   )
 }

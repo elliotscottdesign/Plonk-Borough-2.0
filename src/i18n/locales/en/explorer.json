@@ -146,13 +146,13 @@
     }
   },
   "wages": {
-    "total": "Total Wage Bill 2025",
-    "totalNote": "Verified rota data",
-    "hours": "Total Hours Worked",
-    "hoursValue": "10,043 hrs",
-    "hoursNote": "23 employees · fully tagged roles",
-    "pct": "Wages as % Revenue",
-    "pctNote": "£242,370 ÷ £741,644 · target ≤22%",
+    "compareHeader": "Wage Bill — 2025 Actual vs 2026 Forecast",
+    "compareBill": "Wage Bill",
+    "compareBillSub": "incl. NICs / pension / cover",
+    "compareHours": "Hours Worked",
+    "compareHoursSub": "rota-tagged roles · 23 employees",
+    "comparePct": "Wages % Revenue",
+    "comparePctSub": "P&L wages ÷ revenue",
     "calculatorHeader": "Sliding Wage Rate Calculator — 2026 Planning",
     "roles": {
       "bar": "Bar Staff",
@@ -161,9 +161,6 @@
       "manager": "Manager"
     },
     "hrs": "hrs",
-    "annual": "Annual:",
-    "projected": "Projected Wage Bill",
-    "delta": "Delta vs 2025",
-    "forecastPct": "Wages % Forecast"
+    "annual": "Annual:"
   }
 }
