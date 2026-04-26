@@ -59,5 +59,17 @@
       "spotify":  { "label": "Spotify Business (3 meses)",                "note": "£20/mês × 3 — licenciamento musical do bar" },
       "supplier": { "label": "Cauções de contratos com fornecedores",     "note": "Água, lixo, gás/eletricidade — cauções de medidores" }
     }
+  },
+  "hardware": {
+    "eyebrow": "Hardware de Liquidação — Itemizado",
+    "title": "£20,000 sem IVA  ·  £24,000 inc IVA",
+    "subtitle": "Bar, mini golfe, fliperama e consumíveis comprados em liquidação a preços de ativo em dificuldade",
+    "totalLabel": "Total — Hardware de Liquidação",
+    "items": {
+      "minigolf": { "label": "Pista de mini golfe",                          "note": "Buracos, superfícies de putt, acessórios e elementos cenográficos" },
+      "barEquip": { "label": "Equipamentos de bar (todo o local)",           "note": "Linhas de chope, geladeiras, lavadora de copos, balcões, torneiras, máquina de gelo, hardware de PDV" },
+      "wetStock": { "label": "Consumíveis molhados e ferramentas",          "note": "Vidraria, produtos de limpeza, ferramentas de reparo, carrinhos, utensílios" },
+      "arcade":   { "label": "Fliperama, mobiliário e fixações",            "note": "Cabinetes de fliperama, mesas de sinuca, jogos de tabuleiro, assentos, iluminação" }
+    }
   }
 }

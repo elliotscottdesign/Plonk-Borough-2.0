@@ -59,5 +59,17 @@
       "spotify":  { "label": "Spotify Business (3 months)",           "note": "£20/mth × 3 — bar music licensing" },
       "supplier": { "label": "Supplier contract deposits",            "note": "Water, refuse, gas/electricity meter deposits" }
     }
+  },
+  "hardware": {
+    "eyebrow": "Hardware from Liquidators — Itemised",
+    "title": "£20,000 ex VAT  ·  £24,000 inc VAT",
+    "subtitle": "Bar, mini golf, arcade and consumables purchased from liquidation at distressed pricing",
+    "totalLabel": "Total — Hardware from Liquidators",
+    "items": {
+      "minigolf": { "label": "Mini golf course",                       "note": "Holes, putting surfaces, course fittings & feature props" },
+      "barEquip": { "label": "Bar equipment across site",              "note": "Beer lines, fridges, glasswash, bar tops, taps, ice machine, POS hardware" },
+      "wetStock": { "label": "Wet stock consumables & tools",          "note": "Glassware, cleaning chemicals, repair tools, hand-trolleys, small wares" },
+      "arcade":   { "label": "Arcade machines, furniture & fittings",  "note": "Arcade cabinets, pool tables, board game stock, seating, lighting fittings" }
+    }
   }
 }

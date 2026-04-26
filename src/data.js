@@ -208,6 +208,19 @@ export const USE_OF_FUNDS = [
   { item: 'Working Capital',             amount: 12922, pct: 16.4, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
 ]
 
+// === HARDWARE FROM LIQUIDATORS — itemised £20,000 ex VAT breakdown ===
+// Detail behind the £24,000 inc VAT "Hardware from Liquidators" line.
+// All amounts shown EX VAT (£20,000 ex VAT  →  £24,000 inc VAT after 20% VAT).
+// Each line is a category of physical equipment purchased from the liquidation.
+// Reflected in the central workbook (Investment Valuation 1 sheet, Section 4b
+// detail rows below the Stock & Setup breakdown).
+export const HARDWARE_BREAKDOWN = [
+  { item: 'Mini golf course',                       amount: 4000,  note: 'Holes, putting surfaces, course fittings & feature props' },
+  { item: 'Bar equipment across site',              amount: 10000, note: 'Beer lines, fridges, glasswash, bar tops, taps, ice machine, POS hardware' },
+  { item: 'Wet stock consumables & tools',          amount: 2000,  note: 'Glassware, cleaning chemicals, repair tools, hand-trolleys, small wares' },
+  { item: 'Arcade machines, furniture & fittings',  amount: 4000,  note: 'Arcade cabinets, pool tables, board game stock, seating, lighting fittings' },
+]
+
 // === STOCK & OPERATIONAL SETUP — itemised £3,000 breakdown ===
 // Detail behind the £3,000 "Stock & Operational Setup" line in USE_OF_FUNDS.
 // Mix of one-off costs (alcohol, internet hardware, cleaning restart) and

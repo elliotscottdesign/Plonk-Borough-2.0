@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatCurrency } from '../i18n/format.js'
-import { STOCK_SETUP_DETAIL } from '../data.js'
+import { STOCK_SETUP_DETAIL, HARDWARE_BREAKDOWN } from '../data.js'
 
 export default function UseOfFunds() {
   const { t, i18n } = useTranslation('funds')
@@ -33,6 +33,16 @@ export default function UseOfFunds() {
     { key:'supplier', amount: 135, icon:'🤝' },
   ]
   const setupTotal = setupItems.reduce((s, i) => s + i.amount, 0)
+
+  // Hardware breakdown — amounts shown EX VAT (sum to £20,000 ex VAT = £24,000 inc VAT).
+  const hardwareItems = [
+    { key:'minigolf', amount: 4000, icon:'⛳' },
+    { key:'barEquip', amount:10000, icon:'🍻' },
+    { key:'wetStock', amount: 2000, icon:'🔧' },
+    { key:'arcade',   amount: 4000, icon:'🕹️' },
+  ]
+  const hardwareExVat = hardwareItems.reduce((s, i) => s + i.amount, 0)
+  const hardwareIncVat = Math.round(hardwareExVat * 1.2)
 
   return (
     <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
@@ -110,7 +120,7 @@ export default function UseOfFunds() {
       </div>
 
       {/* Stock & Operational Setup — itemised £3,000 detail */}
-      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px' }}>
+      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px', marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
           <div>
             <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>{t('setup.eyebrow')}</div>
@@ -133,6 +143,36 @@ export default function UseOfFunds() {
         <div style={{ borderTop:'1px solid rgba(45,212,191,0.2)', marginTop:14, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
           <span style={{ fontSize:12, color:'#9CA3AF' }}>{t('setup.totalLabel')}</span>
           <span style={{ fontSize:14, fontWeight:700, color:'#2DD4BF' }}>{fmt(setupTotal)} {vatLabel}</span>
+        </div>
+      </div>
+
+      {/* Hardware from Liquidators — itemised £20,000 ex VAT detail */}
+      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px' }}>
+        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
+          <div>
+            <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>{t('hardware.eyebrow')}</div>
+            <h3 className="serif" style={{ fontSize:22, color:'var(--cream)', margin:0 }}>{t('hardware.title')}</h3>
+          </div>
+          <div style={{ fontSize:11, color:'#9CA3AF', maxWidth:340, textAlign:'right' }}>{t('hardware.subtitle')}</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:10 }}>
+          {hardwareItems.map(item => (
+            <div key={item.key} style={{ background:'rgba(79,195,247,0.04)', border:'1px solid rgba(79,195,247,0.18)', borderRadius:6, padding:'14px 16px', display:'flex', alignItems:'center', gap:14 }}>
+              <div style={{ fontSize:24, flexShrink:0, lineHeight:1 }}>{item.icon}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)', marginBottom:2 }}>{t(`hardware.items.${item.key}.label`)}</div>
+                <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.4 }}>{t(`hardware.items.${item.key}.note`)}</div>
+              </div>
+              <div style={{ textAlign:'right', flexShrink:0 }}>
+                <div style={{ fontSize:15, fontWeight:700, color:'#4FC3F7' }}>{fmt(item.amount)}</div>
+                <div style={{ fontSize:9, color:'#6B7280', letterSpacing:'0.06em', textTransform:'uppercase' }}>ex VAT</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ borderTop:'1px solid rgba(79,195,247,0.25)', marginTop:14, paddingTop:10, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+          <span style={{ fontSize:12, color:'#9CA3AF' }}>{t('hardware.totalLabel')}</span>
+          <span style={{ fontSize:14, fontWeight:700, color:'#4FC3F7' }}>{fmt(hardwareExVat)} ex VAT  ·  {fmt(hardwareIncVat)} {vatLabel}</span>
         </div>
       </div>
     </div>
