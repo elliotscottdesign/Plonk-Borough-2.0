@@ -34,7 +34,7 @@ export default function Cover() {
           No Dice<br/>Borough
         </h1>
         <p style={{ fontSize:18, color:'var(--cream-dim)', maxWidth:520, lineHeight:1.6 }}>
-          {t('lede')}
+          {t('lede', { revenue: fmt(ACTUALS_2025.revenue) })}
         </p>
       </div>
 

@@ -1,11 +1,11 @@
 {
   "eyebrow": "Use of Investment Funds",
-  "title": "Where Your £79,000 Goes",
+  "title": "Where Your {{investment}} Goes",
   "subtitle": "Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business",
   "allocation": "Fund Allocation — Visual Breakdown",
   "total": "TOTAL INVESTMENT",
-  "totalAmount": "£79,000 inc VAT",
-  "bannerHeader": "£79,000 INC VAT TOTAL · 100% DEPLOYED DAY 1",
+  "totalAmount": "{{investment}} inc VAT",
+  "bannerHeader": "{{investment}} INC VAT TOTAL · 100% DEPLOYED DAY 1",
   "bannerNote": "VAT on startup costs (~£6,500) reclaimed in Q1 — credited against first HMRC VAT return (August 2026)",
   "items": {
     "rent": {

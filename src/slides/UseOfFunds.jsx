@@ -1,7 +1,7 @@
 import React from 'react'
 import { useTranslation } from 'react-i18next'
 import { formatCurrency } from '../i18n/format.js'
-import { STOCK_SETUP_DETAIL, HARDWARE_BREAKDOWN } from '../data.js'
+import { STOCK_SETUP_DETAIL, HARDWARE_BREAKDOWN, DEAL } from '../data.js'
 
 export default function UseOfFunds() {
   const { t, i18n } = useTranslation('funds')
@@ -9,6 +9,7 @@ export default function UseOfFunds() {
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
   const vatLabel = tc('units.incVat')
+  const investment = fmt(DEAL.investment)  // for {{investment}} interpolation
 
   const funds = [
     { key:'rent',     color:'#8B5CF6', pct:34.3, amount:27078, vat:vatLabel, icon:'🏠' },
@@ -50,7 +51,7 @@ export default function UseOfFunds() {
     <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>{t('eyebrow')}</div>
-        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>{t('title')}</h2>
+        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>{t('title', { investment })}</h2>
         <p style={{ fontSize:14, color:'#9CA3AF' }}>{t('subtitle')}</p>
       </div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
@@ -78,7 +79,7 @@ export default function UseOfFunds() {
           ))}
           <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:12, display:'flex', justifyContent:'space-between' }}>
             <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>{t('total')}</span>
-            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>{t('totalAmount')}</span>
+            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>{t('totalAmount', { investment })}</span>
           </div>
         </div>
         <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -99,7 +100,7 @@ export default function UseOfFunds() {
       </div>
       <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'16px 20px', marginBottom:20 }}>
         <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>{t('bannerHeader')}</div>
+          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>{t('bannerHeader', { investment })}</div>
           <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('bannerNote')}</div>
         </div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>

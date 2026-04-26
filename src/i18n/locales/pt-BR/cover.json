@@ -1,6 +1,6 @@
 {
   "eyebrow": "Série A · Investimento Seed · Abril de 2026",
-  "lede": "Um local de experiência consolidado no Borough Market — minigolfe, bar, sinuca, fliperamas e jogos de tabuleiro. Gerando £741,644 de receita verificada em 2025, adquirido a preço de ativo em dificuldades.",
+  "lede": "Um local de experiência consolidado no Borough Market — minigolfe, bar, sinuca, fliperamas e jogos de tabuleiro. Gerando {{revenue}} de receita verificada em 2025, adquirido a preço de ativo em dificuldades.",
   "address": "Borough Market SE1",
   "addressTail": "· Arches B C D And E, Montague Close · London Bridge",
   "stats": {

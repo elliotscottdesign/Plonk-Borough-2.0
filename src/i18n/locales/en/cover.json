@@ -1,6 +1,6 @@
 {
   "eyebrow": "Series A · Seed Investment · April 2026",
-  "lede": "A proven Borough Market experience venue — mini golf, bar, pool, arcades and board games. Generating £741,644 verified 2025 revenue, acquired at distressed pricing.",
+  "lede": "A proven Borough Market experience venue — mini golf, bar, pool, arcades and board games. Generating {{revenue}} verified 2025 revenue, acquired at distressed pricing.",
   "address": "Borough Market SE1",
   "addressTail": "· Arches B C D And E, Montague Close · London Bridge",
   "stats": {
