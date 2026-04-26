@@ -14,10 +14,10 @@ function calcReturns(multiplier) {
   const bar = 362836 * multiplier
   const costs =
     242370 * 1.10                 // wages +10%
-    + 165059 * 1.10               // fixed +10%
+    + 165647 * 1.10               // fixed +10%
     + bar * 0.30                  // drinks = 30% of bar
     + 78851 * multiplier          // VAT
-    + 21842 * multiplier          // cleaning
+    + 22965 * multiplier          // cleaning
     + 17152 * multiplier          // arcades
     + 9101 * multiplier           // food
     + 3492                        // hosting fixed

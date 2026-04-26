@@ -23,10 +23,10 @@ export const INCOME = [
 
 export const COSTS = [
   { label:'Wages',          labelKey:'wages',       value:242370, pct:38.4, color:'#991B1B', noteKey:null },
-  { label:'Fixed Costs',    labelKey:'fixed',       value:165059, pct:26.2, color:'#B91C1C', noteKey:'fixedDesc' },
-  { label:'Drinks & Gas',   labelKey:'drinks',      value:81732,  pct:13.0, color:'#DC2626', noteKey:null },
+  { label:'Fixed Costs',    labelKey:'fixed',       value:165647, pct:26.2, color:'#B91C1C', noteKey:'fixedDesc' },
+  { label:'Drinks & Gas',   labelKey:'drinks',      value:80609,  pct:12.8, color:'#DC2626', noteKey:null },
   { label:'VAT (Net)',      labelKey:'vat',         value:78851,  pct:12.5, color:'#EF4444', noteKey:'vatDesc' },
-  { label:'Cleaning',       labelKey:'cleaning',    value:21842,  pct:3.5,  color:'#F87171', noteKey:null },
+  { label:'Cleaning',       labelKey:'cleaning',    value:22965,  pct:3.6,  color:'#F87171', noteKey:null },
   { label:'Arcades',        labelKey:'arcades',     value:17152,  pct:2.7,  color:'#EA580C', noteKey:null },
   { label:'Food',           labelKey:'food',        value:9101,   pct:1.4,  color:'#F97316', noteKey:null },
   { label:'Google/Digital', labelKey:'google',      value:8918,   pct:1.4,  color:'#FB923C', noteKey:'googleDesc' },

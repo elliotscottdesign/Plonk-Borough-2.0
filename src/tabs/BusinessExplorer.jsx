@@ -132,10 +132,10 @@ function TabPerformance({ growth }) {
   const scalesNote = t('performance2026.costNotes.scales')
   const costsRaw = [
     { labelKey: 'wages',     value: Math.round(242370 * 1.10), note: '+10% on 2025' },
-    { labelKey: 'fixed',     value: Math.round(165059 * 1.10), note: t('performance2026.costNotes.fixed') },
+    { labelKey: 'fixed',     value: Math.round(165647 * 1.10), note: t('performance2026.costNotes.fixed') },
     { labelKey: 'drinks',    value: drinksGas2026,              note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',       value: Math.round(78851 * mult),   note: scalesNote },
-    { labelKey: 'cleaning',  value: Math.round(21842 * mult),   note: scalesNote },
+    { labelKey: 'cleaning',  value: Math.round(22965 * mult),   note: scalesNote },
     { labelKey: 'arcades',   value: Math.round(17152 * mult),   note: scalesNote },
     { labelKey: 'food',      value: Math.round(9101 * mult),    note: scalesNote },
     { labelKey: 'hosting',   value: 3492,                        note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
@@ -366,10 +366,10 @@ function computeScenario({ barG, golfG, eventsG, hiresG, opexMult = 1 }) {
 
   const costs =
     242370 * 1.10
-    + 165059 * 1.10
+    + 165647 * 1.10
     + bar * 0.30
     + 78851 * mult
-    + 21842 * mult
+    + 22965 * mult
     + 17152 * mult
     + 9101 * mult
     + 3492

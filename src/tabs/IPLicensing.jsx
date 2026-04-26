@@ -4,6 +4,7 @@ import {
   IP_LICENSING_SKUS_OFFICE_2025,
   IP_LICENSING_MONTHLY_2025,
   IP_LICENSING_GRAND_2025,
+  IP_LICENSING_COMMISSION_2025,
   IP_LICENSING_TOKEN_VALUE,
   IP_LICENSING_BOOKING_FEE_PCT,
   IP_LICENSING_PAYMENT_FEE_PCT,
@@ -344,6 +345,21 @@ export default function IPLicensing() {
         <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, display:'flex', justifyContent:'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
           <span>Combined Borough 2025 revenue</span>
           <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{fmt0(g.totalRev)}</span>
+        </div>
+      </div>
+
+      {/* Verified 2025 commission income to Plonk Golf — drawn from source weekly P&L */}
+      <div style={{ background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.25)', borderRadius: 10, padding: '14px 18px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
+          <div style={{ fontSize: 11, color: '#2DD4BF', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
+            Plonk Golf — Verified 2025 Commission Income
+          </div>
+          <div className="serif" style={{ fontSize: 22, color: '#2DD4BF', fontWeight: 700 }}>
+            {fmt0(IP_LICENSING_COMMISSION_2025.onlineTicketCommission)}
+          </div>
+        </div>
+        <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+          Online ticket commission already booked under the existing Design My Night arrangement during 2025 — verified from the Borough weekly P&L (source: <em>Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx</em>, row 67, sum of cols 12-63). This is Plonk Golf P&L income, NOT venue revenue. Going forward the same commercial relationship moves from Design My Night to No Dice Bars LTD with the same effective rate; the sliders below model 2026+ scenarios.
         </div>
       </div>
 

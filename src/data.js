@@ -39,16 +39,21 @@ export const DEAL = {
 }
 
 // === 2025 ACTUALS ===
+// Reconciled to "Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx" — the
+// authoritative weekly P&L. 2025 = ISO weeks starting 30/12/24 through 28/12/25
+// (52 weeks in source xlsx cols 12-63). Categories below match source summary
+// rows R70-R77 exactly. See the workbook's "2025 Weekly Categorised Costs"
+// sheet for the full week-by-week breakdown.
 export const ACTUALS_2025 = {
   revenue: 741644,
   wages: 242370,
-  fixedCosts: 165059,
-  drinksGas: 81732,
+  fixedCosts: 165647,   // source R71 — was £165,059 (£588 drift, line item moved between extractions)
+  drinksGas: 80609,     // source R72 — Nisbets (£1,123) reclassified to cleaning per source
   vatNet: 78851,
-  cleaning: 21842,
+  cleaning: 22965,      // source R73 — now includes Nisbets Stock £1,123
   arcades: 17152,
   food: 9101,
-  googleAds: 8918,   // website/Lithos costs in P&L (not pure Google Ads)
+  googleAds: 8918,      // website/Lithos costs in P&L (not pure Google Ads)
   cardCharges: 5443,
   profit: 111177,
   ebitda: 91950,
@@ -74,12 +79,13 @@ export const INCOME_SOURCES = [
 ]
 
 // === COSTS BY CATEGORY (Jan–Dec 2025) ===
+// Reconciled to source xlsx R70-R77. Total: £631,056.
 export const COST_CATEGORIES = [
-  { name: 'Wages',        amount: 242370, pct: 38.5, color: '#4A0000' },
-  { name: 'Fixed Costs',  amount: 165059, pct: 26.2, color: '#7B0000' },
-  { name: 'Drinks & Gas', amount:  81732, pct: 13.0, color: '#B71C1C' },
+  { name: 'Wages',        amount: 242370, pct: 38.4, color: '#4A0000' },
+  { name: 'Fixed Costs',  amount: 165647, pct: 26.2, color: '#7B0000' },
+  { name: 'Drinks & Gas', amount:  80609, pct: 12.8, color: '#B71C1C' },
   { name: 'VAT (Net)',     amount:  78851, pct: 12.5, color: '#C62828' },
-  { name: 'Cleaning',     amount:  21842, pct:  3.5, color: '#E53935' },
+  { name: 'Cleaning',     amount:  22965, pct:  3.6, color: '#E53935' },
   { name: 'Arcades',      amount:  17152, pct:  2.7, color: '#D84315' },
   { name: 'Food',         amount:   9101, pct:  1.4, color: '#EF6C00' },
   { name: 'Google/Digital',amount:  8918, pct:  1.4, color: '#F9A825' },
@@ -322,4 +328,17 @@ export const IP_LICENSING_GRAND_2025 = {
   onlineQty: 15188, onlineRev: 211163.70,                 // actual online portal revenue
   officeQty:  4512, officeRev:  61629.00,                 // imputed at SKU list price
   totalQty:  19700, totalRev:  272792.70,                 // combined Borough 2025 revenue
+}
+
+// === PLONK GOLF COMMISSION INCOME (2025 verified) ===
+// Online Ticket Commission line from the source weekly P&L (R67) — £8,419.39
+// in 2025. This is Plonk Golf's commission income from running the online
+// booking platform — NOT venue revenue. Treated as Plonk Golf P&L on the
+// IP & Licensing tab. The deck's separate "Service Charge £15,102" income
+// line on the venue side is drawn from DMN data (10% of office-processed
+// volume) and is unrelated to this commission line.
+export const IP_LICENSING_COMMISSION_2025 = {
+  onlineTicketCommission: 8419.39,
+  source: 'Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx · CLEAR TOTALS · row 67 · sum cols 12-63',
+  note: 'Verified 2025 commission income to Plonk Golf for running the online booking platform. Replaces Design My Night going forward — same commercial relationship, new entity.',
 }
