@@ -17,7 +17,7 @@
   "fixedCosts": {
     "header": "Custos Fixos · Despesas do Imóvel",
     "vatPill": "incl. IVA",
-    "note": "Linhas 21–32 do P&L semanal 2025. Os valores mensais são BRUTOS — incluindo qualquer IVA cobrado pelos fornecedores, como aparece nas faturas. Total flui para a linha de Custos Fixos no donut; o modelo trata a recuperação do IVA de entrada automaticamente (IVA de saída − IVA de entrada).",
+    "note": "Linhas 21–32 do P&L semanal 2025. Os valores mensais são BRUTOS — incluindo qualquer IVA cobrado pelos fornecedores, como aparece nas faturas. Total flui para a linha de Custos Fixos no donut; o modelo trata a recuperação do IVA de entrada automaticamente (IVA de saída − IVA de entrada). O Aluguel é contratualmente variável em 15% do faturamento trimestral — o padrão abaixo reflete a base de fluxo de caixa 2025 (£27.078 pré-pagos para mai–jul 2026 = £9.026/mês). Arraste o controle de aluguel para cima para modelar o aumento com maior faturamento em 2026.",
     "resetAll": "Redefinir tudo para padrões",
     "deltaLabel": "Variação",
     "vsReference": "vs real 2025",

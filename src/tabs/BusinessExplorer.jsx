@@ -169,16 +169,21 @@ const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(
 // sum to £165,647 — exact match with COST_CATEGORIES.fixed in data.js.
 // Defaults for the 2026 monthly editable state = (2025 annual / 12)
 // × 1.10 inflation, so model behaviour at default is unchanged.
+// Rent reference matches the cashflow basis — £27,078 paid for 3 months
+// May/Jun/Jul 2026 at the contractual 15% of 2025 turnover rate, i.e.
+// £9,026/mo × 12 = £108,312/yr at the 2025 average. From August 2026
+// rent is variable at 15% of quarterly turnover, so the 2026 figure
+// scales with actual trading. Adjust the slider to model the uplift.
 const FIXED_COST_ITEMS = [
-  { id: 'rent',        ref2025Annual: 75000 },
-  { id: 'rates',       ref2025Annual: 18000 },
-  { id: 'electricity', ref2025Annual: 18000 },
-  { id: 'water',       ref2025Annual:  4000 },
-  { id: 'insurance',   ref2025Annual: 10000 },
-  { id: 'internet',    ref2025Annual:  4000 },
-  { id: 'prs',         ref2025Annual:  2500 },
-  { id: 'maintenance', ref2025Annual: 14000 },
-  { id: 'misc',        ref2025Annual:  4147 },
+  { id: 'rent',        ref2025Annual: 108312 },
+  { id: 'rates',       ref2025Annual:  18000 },
+  { id: 'electricity', ref2025Annual:  18000 },
+  { id: 'water',       ref2025Annual:   4000 },
+  { id: 'insurance',   ref2025Annual:  10000 },
+  { id: 'internet',    ref2025Annual:   4000 },
+  { id: 'prs',         ref2025Annual:   2500 },
+  { id: 'maintenance', ref2025Annual:  14000 },
+  { id: 'misc',        ref2025Annual:   4147 },
 ]
 
 // Default 2026 monthly = 2025 monthly × 1.10 inflation, rounded to £.

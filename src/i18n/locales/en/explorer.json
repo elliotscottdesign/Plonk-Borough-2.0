@@ -17,7 +17,7 @@
   "fixedCosts": {
     "header": "Fixed Costs · Operating Premises Overhead",
     "vatPill": "incl. VAT",
-    "note": "Line items from rows 21–32 of the 2025 weekly P&L workbook. Monthly fees are entered GROSS — including any VAT charged by suppliers, matching how each line appears on invoices. Total flows to the Fixed Costs line in the cost donut; the model handles input-VAT reclaim automatically (output VAT − input VAT).",
+    "note": "Line items from rows 21–32 of the 2025 weekly P&L workbook. Monthly fees are entered GROSS — including any VAT charged by suppliers, matching how each line appears on invoices. Total flows to the Fixed Costs line in the cost donut; the model handles input-VAT reclaim automatically (output VAT − input VAT). Rent is contractually variable at 15% of quarterly turnover — the default below mirrors the 2025 cashflow basis (£27,078 prepaid for May–Jul 2026 = £9,026/mo). Drag the rent slider up to model the uplift at higher 2026 turnover.",
     "resetAll": "Reset all to defaults",
     "deltaLabel": "Delta",
     "vsReference": "vs 2025 actual",
