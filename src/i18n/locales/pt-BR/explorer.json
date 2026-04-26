@@ -93,7 +93,7 @@
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
-      "arcades": "Custo do operador = pacotes × fichas-por-ingresso × £0,325. Reduza a taxa de fichas abaixo para diminuir.",
+      "arcades": "Custo do operador = soma de (fichas × volume) em todos os SKUs × £0,325. Reduza fichas por SKU na Calculadora de Preços de Ingressos abaixo para diminuir.",
       "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas, comida e hospedagem são isentos",
       "hosting": "Hospedagem (Lithos)",
       "hostingNote": "Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf",
@@ -122,19 +122,31 @@
     "opProfit": "Lucro Operacional",
     "investorReturn": "Retorno do Investidor"
   },
-  "tokens": {
-    "header": "Fichas de Fliperama — Alavanca da Taxa de Fichas",
-    "note": "Fichas são embutidas no preço dos ingressos de golfe; cada ficha custa £0,325 ao operador do fliperama. Reduzir a taxa de fichas mantém essa receita conosco — flui direto para o EBITDA via menor custo de Fliperamas. A receita total do ingresso é inalterada.",
-    "attachLabel": "Fichas por Ingresso de Golfe",
-    "defaultMarker": "padrão 4",
-    "resetAttach": "Redefinir para 4 fichas",
-    "atDefault": "Reduza abaixo de 4 para cortar custo do operador. Cada −1 ficha economiza ~{{perToken}} / ano.",
-    "savingsHint": "{{savings}} de uplift no EBITDA vs padrão — direto na linha final.",
-    "costHint": "{{cost}} de custo extra vs padrão — pago ao operador do fliperama.",
-    "profitImpactLabel": "Impacto no Lucro Líquido",
-    "revenueLabel": "Fatia de Fichas",
-    "bundlesLabel": "Pacotes 2026",
-    "perTokenLabel": "{{val}} por ±1 ficha"
+  "priceMaker": {
+    "header": "Calculadora de Preços de Ingressos · Economia por SKU",
+    "note": "Edite preço e fichas por SKU. Custo por ingresso = 16% de aluguel/contas + 20% IVA + fichas × £0,325. Volumes escalam com a alavanca de golfe acima. Total de fichas retorna à linha de Fliperamas.",
+    "resetAll": "Redefinir todos os SKUs para padrões de 2025",
+    "linkNote": "O custo total de fichas flui para a linha Fliperamas no donut de custos. Alterar fichas aqui move o EBITDA em tempo real. Linhas de receita ainda vêm das alavancas de crescimento — receita da matriz é mostrada como insight, ainda não como override ao vivo.",
+    "totals": {
+      "volume": "Ingressos Vendidos",
+      "revenue": "Receita de Ingressos",
+      "margin": "Margem Total",
+      "tokenCost": "Custo de Fichas",
+      "tokenCostSub": "para linha Fliperamas"
+    },
+    "col": {
+      "sku": "SKU",
+      "price2025": "Preço 2025",
+      "rounds": "Rodadas",
+      "tokens": "Fichas",
+      "price2026": "Preço 2026",
+      "vol2025": "Vol 2025",
+      "vol2026": "Vol 2026",
+      "marginPerTicket": "Margem / ing.",
+      "totalMargin": "Margem Total",
+      "marginPct": "Margem %",
+      "totals": "Totais"
+    }
   },
   "wages": {
     "compareHeader": "Folha Salarial — Real 2025 vs Projeção 2026",

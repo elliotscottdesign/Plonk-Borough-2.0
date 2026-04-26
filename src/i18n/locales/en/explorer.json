@@ -93,7 +93,7 @@
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
-      "arcades": "Operator cost = bundles × tokens-per-ticket × £0.325. Lower the token attach rate below to cut this.",
+      "arcades": "Operator cost = sum of (tokens × volume) across all SKUs × £0.325. Lower per-SKU tokens in the Ticket Price Maker below to cut this.",
       "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades, food and hosting are zero-rated",
       "hosting": "Hosting (Lithos)",
       "hostingNote": "Fixed — SEO/Ads now owned by Plonk Golf",
@@ -122,19 +122,31 @@
     "opProfit": "Op Profit",
     "investorReturn": "Investor Return"
   },
-  "tokens": {
-    "header": "Arcade Tokens — Attach Rate Lever",
-    "note": "Tokens are bundled into golf ticket prices; each token costs £0.325 in arcade operator share. Reducing attach rate keeps that revenue with us — flows direct to EBITDA via lower Arcades cost. Total ticket revenue is unchanged.",
-    "attachLabel": "Tokens per Golf Ticket",
-    "defaultMarker": "default 4",
-    "resetAttach": "Reset to 4 tokens",
-    "atDefault": "Reduce below 4 to cut operator cost. Each −1 token saves ~{{perToken}} / yr.",
-    "savingsHint": "{{savings}} EBITDA uplift vs default attach — straight to bottom line.",
-    "costHint": "{{cost}} extra cost vs default attach — paid to arcade operator.",
-    "profitImpactLabel": "Net Profit Impact",
-    "revenueLabel": "Token Slice",
-    "bundlesLabel": "Bundles 2026",
-    "perTokenLabel": "{{val}} per ±1 token"
+  "priceMaker": {
+    "header": "Ticket Price Maker · Per-SKU Unit Economics",
+    "note": "Edit price and tokens per SKU. Cost per ticket = 16% rent/bills allocation + 20% VAT + tokens × £0.325. Volumes scale with the golf ticket lever above. Token totals flow back to the Arcades cost line.",
+    "resetAll": "Reset all SKUs to 2025 defaults",
+    "linkNote": "Total token cost flows to the Arcades line in the cost donut. Changing tokens here moves EBITDA in real time. Income lines still come from the growth levers — matrix revenue is shown for unit-economics insight, not yet a live override.",
+    "totals": {
+      "volume": "Tickets Sold",
+      "revenue": "Ticket Revenue",
+      "margin": "Total Margin",
+      "tokenCost": "Token Cost",
+      "tokenCostSub": "to Arcades line"
+    },
+    "col": {
+      "sku": "SKU",
+      "price2025": "2025 £",
+      "rounds": "Rounds",
+      "tokens": "Tokens",
+      "price2026": "2026 £",
+      "vol2025": "Vol 2025",
+      "vol2026": "Vol 2026",
+      "marginPerTicket": "Margin / tkt",
+      "totalMargin": "Total Margin",
+      "marginPct": "Margin %",
+      "totals": "Totals"
+    }
   },
   "wages": {
     "compareHeader": "Wage Bill — 2025 Actual vs 2026 Forecast",

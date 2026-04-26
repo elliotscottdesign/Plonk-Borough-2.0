@@ -292,33 +292,34 @@ export const IP_LICENSING_BOOKING_FEE_PCT = 0.10 // 10% added on top at checkout
 export const IP_LICENSING_PAYMENT_FEE_PCT = 0.015 // Stripe-style online payment processor fee — applied to any revenue that flows through the online payment provider (all online SKUs + office bookings if Plonk Golf's bookings manager processes them digitally). Deducted from Plonk Golf P&L as a cost.
 
 // 2025 Borough online-portal SKUs (Status = complete). Revenue flows through online system.
+// `rounds` = golf rounds bundled into the SKU (Pool/token-only SKUs = 0 rounds).
 export const IP_LICENSING_SKUS_ONLINE_2025 = [
-  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 9646, revenue: 153995.10 },
-  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold: 2932, revenue:  36485.00 },
-  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  970, revenue:   9677.00 },
-  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:    0, revenue:      0.00 },
-  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:  393, revenue:   4713.60 },
-  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:  788, revenue:   3940.00 },
-  { sku: 'Pool Table Reservation — 30 Mins',       tokens: 0, price:  5.00, sold:  422, revenue:   2108.00 },
-  { sku: 'Doubles Pool Tournament',                tokens: 0, price:  5.00, sold:    5, revenue:     40.00 },
-  { sku: 'Extra Arcade Tokens (add-on)',           tokens: 0, price:  5.00, sold:   31, revenue:    155.00 },
-  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:    1, revenue:     50.00 },
+  { sku: 'Adult — Golf + 4 Tokens (Peak)',        rounds: 1, tokens: 4, price: 16.00, sold: 9646, revenue: 153995.10 },
+  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      rounds: 1, tokens: 4, price: 12.50, sold: 2932, revenue:  36485.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',           rounds: 1, tokens: 4, price: 10.00, sold:  970, revenue:   9677.00 },
+  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  rounds: 1, tokens: 4, price: 10.00, sold:    0, revenue:      0.00 },
+  { sku: 'Game & Drink',                          rounds: 1, tokens: 0, price: 12.00, sold:  393, revenue:   4713.60 },
+  { sku: 'Late Night Golf',                       rounds: 1, tokens: 0, price:  5.00, sold:  788, revenue:   3940.00 },
+  { sku: 'Pool Table Reservation — 30 Mins',      rounds: 0, tokens: 0, price:  5.00, sold:  422, revenue:   2108.00 },
+  { sku: 'Doubles Pool Tournament',               rounds: 0, tokens: 0, price:  5.00, sold:    5, revenue:     40.00 },
+  { sku: 'Extra Arcade Tokens (add-on)',          rounds: 0, tokens: 0, price:  5.00, sold:   31, revenue:    155.00 },
+  { sku: "Valentine's Day Deal",                  rounds: 1, tokens: 0, price: 50.00, sold:    1, revenue:     50.00 },
 ]
 
 // 2025 Borough office/external SKUs (Status = external). Payment happens at venue till — the online
 // system records £0. Revenue here is IMPUTED at SKU list price (qty × price) to give a complete
 // picture of real venue revenue. Actual till revenue may differ if the office team discounts/comps.
 export const IP_LICENSING_SKUS_OFFICE_2025 = [
-  { sku: 'Adult — Golf + 4 Tokens (Peak)',        tokens: 4, price: 16.00, sold: 1977, revenue: 31632.00 },
-  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      tokens: 4, price: 12.50, sold: 1868, revenue: 23350.00 },
-  { sku: 'Under 18s — Golf + 4 Tokens',           tokens: 4, price: 10.00, sold:  268, revenue:  2680.00 },
-  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  tokens: 4, price: 10.00, sold:    8, revenue:    80.00 },
-  { sku: 'Game & Drink',                           tokens: 0, price: 12.00, sold:  276, revenue:  3312.00 },
-  { sku: 'Late Night Golf',                        tokens: 0, price:  5.00, sold:   12, revenue:    60.00 },
-  { sku: 'Pool Table Reservation — 30 Mins',       tokens: 0, price:  5.00, sold:  103, revenue:   515.00 },
-  { sku: 'Doubles Pool Tournament',                tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
-  { sku: 'Extra Arcade Tokens (add-on)',           tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
-  { sku: "Valentine's Day Deal",                   tokens: 0, price: 50.00, sold:    0, revenue:     0.00 },
+  { sku: 'Adult — Golf + 4 Tokens (Peak)',        rounds: 1, tokens: 4, price: 16.00, sold: 1977, revenue: 31632.00 },
+  { sku: 'Off-Peak Adult — Golf + 4 Tokens',      rounds: 1, tokens: 4, price: 12.50, sold: 1868, revenue: 23350.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',           rounds: 1, tokens: 4, price: 10.00, sold:  268, revenue:  2680.00 },
+  { sku: 'Off-Peak Under 18s — Golf + 4 Tokens',  rounds: 1, tokens: 4, price: 10.00, sold:    8, revenue:    80.00 },
+  { sku: 'Game & Drink',                          rounds: 1, tokens: 0, price: 12.00, sold:  276, revenue:  3312.00 },
+  { sku: 'Late Night Golf',                       rounds: 1, tokens: 0, price:  5.00, sold:   12, revenue:    60.00 },
+  { sku: 'Pool Table Reservation — 30 Mins',      rounds: 0, tokens: 0, price:  5.00, sold:  103, revenue:   515.00 },
+  { sku: 'Doubles Pool Tournament',               rounds: 0, tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
+  { sku: 'Extra Arcade Tokens (add-on)',          rounds: 0, tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
+  { sku: "Valentine's Day Deal",                  rounds: 1, tokens: 0, price: 50.00, sold:    0, revenue:     0.00 },
 ]
 
 // Per-month split: online (actual portal revenue) vs office (imputed at list price per SKU).
