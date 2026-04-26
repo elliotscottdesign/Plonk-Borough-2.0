@@ -23,26 +23,24 @@ const SLIDE_DEFS = [
   { id:'case',       labelKey:'case',      Component: InvestmentCase },
 ]
 
-const BASE_TOP_TAB_KEYS = ['investorDeck', 'venueInfo', 'businessExplorer']
+// Plonk tab is now visible for all unlocks — was previously gated behind the
+// 888999 password. Both TEST1 and 888999 still work; they no longer differ.
+const TOP_TAB_KEYS = ['investorDeck', 'venueInfo', 'businessExplorer', 'plonk']
 
 export default function App() {
   const { t, i18n } = useTranslation('common')
   const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
-  const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDE_DEFS[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
-  const TOP_TAB_KEYS = plonkAccess ? [...BASE_TOP_TAB_KEYS, 'plonk'] : BASE_TOP_TAB_KEYS
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, lang: chosenLang }) => {
+    return <PasswordGate onUnlock={({ lang: chosenLang }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
-      if (plonk) sessionStorage.setItem('ndb_plonk', '1')
-      else sessionStorage.removeItem('ndb_plonk')
+      sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
       const targetLang = chosenLang && chosenLang !== 'en' ? chosenLang : 'en'
       i18n.changeLanguage(targetLang)
-      setPlonkAccess(!!plonk)
       setUnlocked(true)
     }} />
   }
@@ -97,7 +95,7 @@ export default function App() {
         )}
         {topTab === 'venueInfo' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
-        {topTab === 'plonk' && plonkAccess && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
+        {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
   )
