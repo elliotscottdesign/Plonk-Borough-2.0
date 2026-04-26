@@ -87,7 +87,7 @@ function TabOverview() {
 // everything else scales with revenue. Palette shifted to teals (income) and purples
 // (costs) to read as "forecast" vs the blue/red 2025 actuals.
 const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
-const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#DDD6FE','#EDE9FE']
+const COSTS_2026_COLORS  = ['#4C1D95','#5B21B6','#6D28D9','#7C3AED','#8B5CF6','#A78BFA','#C4B5FD','#D8B4FE','#DDD6FE','#EDE9FE']
 const PERF_GROWTH_MIN = -20
 const PERF_GROWTH_MAX = 50
 
@@ -128,6 +128,35 @@ const TICKET_PRICING_DEFAULTS = TICKET_SKUS_2025.reduce((acc, s) => {
 // Baseline 2025 token count across all SKUs at default attach rates.
 // Used to compute the Arcades cost baseline when matrix tokens change.
 const BASELINE_TOKENS_2025 = TICKET_SKUS_2025.reduce((sum, s) => sum + s.tokens * s.sold, 0)
+
+// ─── Office costs (Apps · AI · Accounting · Director) ────────────────
+// Forward-looking 2026 admin-overhead bucket. Recurring SaaS subs come
+// from 2025 weekly P&L (£25/mo Xero, £25/mo Google) where available;
+// RotaCloud sized up for 10 users (~£40/mo); Claude AI from current Pro
+// pricing (£20/mo); accounting and director salary user-specified.
+// Total flows to the cost donut as a new "Office & Admin" line.
+const OFFICE_COST_ITEMS = [
+  { id: 'xero',       monthlyHint: 25,   source: 'weekly2025' },
+  { id: 'rotacloud',  monthlyHint: 40,   source: 'pricing'    },
+  { id: 'claude',     monthlyHint: 20,   source: 'pricing'    },
+  { id: 'google',     monthlyHint: 25,   source: 'weekly2025' },
+  { id: 'accounting', monthlyHint: null, source: 'specified'  },
+  { id: 'director',   monthlyHint: null, source: 'estimated'  },
+]
+
+const OFFICE_COSTS_2026_DEFAULTS = {
+  xero:        300,   // £25/mo × 12
+  rotacloud:   480,   // ~£40/mo for 10 users × 12
+  claude:      240,   // Claude Pro £20/mo × 12
+  google:      300,   // £25/mo × 12
+  accounting: 3000,   // annual fees (user-specified)
+  director:  40000,   // founder salary (estimated)
+}
+
+const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(
+  (sum, item) => sum + (state[item.id] ?? OFFICE_COSTS_2026_DEFAULTS[item.id]),
+  0,
+)
 
 // Custom Scenario lever definitions. One entry per commercial revenue line —
 // keys match the growth state shape (`bar`, `golf`, `events`, `hires`, `pool`)
@@ -171,7 +200,7 @@ const PERF_SECTIONS = [
   { id: 'office',  icon: '🏢' },
 ]
 
-function TabPerformance({ growth, wages, pricing, setPricing }) {
+function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOfficeCosts }) {
   const [activeSection, setActiveSection] = useState('tickets')
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
@@ -241,9 +270,14 @@ function TabPerformance({ growth, wages, pricing, setPricing }) {
   const netVat         = Math.round(outputVat - inputVat)
   const vatComputedNote = t('performance2026.costNotes.vatComputed')
 
+  // Office costs (Apps + AI + Accounting + Director). Driven by the
+  // OfficeCostsSection editable matrix; flows here as a single line.
+  const officeCostsTotal = sumOfficeCosts(officeCosts)
+
   const costsRaw = [
     { labelKey: 'wages',       value: wageBill2026,    note: t('performance2026.costNotes.wagesDriven') },
     { labelKey: 'fixed',       value: fixedLine,        note: t('performance2026.costNotes.fixed') },
+    { labelKey: 'office',      value: officeCostsTotal, note: t('performance2026.costNotes.office'), customLabel: t('costCategories.office') },
     { labelKey: 'drinks',      value: drinksGas2026,    note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',         value: netVat,            note: vatComputedNote },
     { labelKey: 'cleaning',    value: cleaningLine,     note: scalesNote },
@@ -466,7 +500,7 @@ function TabPerformance({ growth, wages, pricing, setPricing }) {
 
           {/* OFFICE COSTS */}
           {activeSection === 'office' && (
-            <OfficeCostsSection />
+            <OfficeCostsSection officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} />
           )}
         </div>
       </div>
@@ -861,66 +895,88 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Office Costs section — drill-down on the Fixed Costs P&L line.
-// 2025 actual £165,647; 2026 forecast = 2025 × 1.10 (+10% inflation rule).
-// Shows a 2-column comparison + descriptive component breakdown. No
-// detailed line-item data exists in data.js, so the breakdown is purely
-// descriptive (item names + character of each cost).
+// Office Costs section — Apps / AI / Accounting / Director.
+// Editable per-line annual £. Total flows to the cost donut as the
+// new "Office & Admin" line. Recurring SaaS rates sourced from 2025
+// weekly P&L where present, otherwise current online pricing.
 // ───────────────────────────────────────────────────────────────────────
-function OfficeCostsSection() {
+function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
   const { t } = useTranslation('explorer')
   const { fmt } = useFmt()
 
-  const FIXED_COSTS_2025 = 165647
-  const INFLATION = 1.10
-  const fixed2026 = Math.round(FIXED_COSTS_2025 * INFLATION)
-  const delta = fixed2026 - FIXED_COSTS_2025
+  const total = sumOfficeCosts(officeCosts)
+  const monthlyAvg = Math.round(total / 12)
 
-  const items = [
-    { id: 'rent',      character: t('officeCosts.character.variable') },
-    { id: 'rates',     character: t('officeCosts.character.fixed')    },
-    { id: 'utilities', character: t('officeCosts.character.variable') },
-    { id: 'insurance', character: t('officeCosts.character.fixed')    },
-    { id: 'internet',  character: t('officeCosts.character.fixed')    },
-    { id: 'prs',       character: t('officeCosts.character.fixed')    },
-  ]
+  const update = (id, value) => setOfficeCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
+  const resetAll = () => setOfficeCosts(OFFICE_COSTS_2026_DEFAULTS)
+
+  const cellTd = { padding:'10px 8px', fontSize:12, borderBottom:'1px solid rgba(255,255,255,0.05)' }
+  const headTh = { padding:'10px 8px', fontSize:9.5, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, textAlign:'right', borderBottom:'1px solid rgba(255,255,255,0.1)' }
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* 2025 vs 2026 comparison strip */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('officeCosts.header')}</div>
-        <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('officeCosts.note')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>2025 Actual</div>
-            <div style={{ fontSize:22, fontWeight:700, color:'#9CA3AF' }}>{fmt(FIXED_COSTS_2025)}</div>
-          </div>
-          <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>2026 Forecast (+10%)</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'var(--gold)' }}>{fmt(fixed2026)}</div>
-            <div style={{ fontSize:11, color:'#EF4444', fontWeight:600, marginTop:3 }}>+{fmt(delta)} {t('officeCosts.vsActual')}</div>
-          </div>
-        </div>
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('officeCosts.header')}</div>
+        <ResetBtn onClick={resetAll} title={t('officeCosts.resetAll')} />
+      </div>
+      <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('officeCosts.note')}</div>
+
+      {/* Total tile */}
+      <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center', marginBottom:14 }}>
+        <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{t('officeCosts.totalLabel')}</div>
+        <div style={{ fontSize:24, fontWeight:800, color:'var(--gold)' }}>{fmt(total)}</div>
+        <div style={{ fontSize:11, color:'#6B7280', marginTop:4 }}>{t('officeCosts.monthlyAvg', { val: fmt(monthlyAvg) })}</div>
       </div>
 
-      {/* Component breakdown */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('officeCosts.breakdownHeader')}</div>
-        <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-          {items.map(item => (
-            <div key={item.id} style={{ display:'flex', alignItems:'flex-start', gap:14, padding:'12px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-              <div style={{ minWidth:120 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)' }}>{t(`officeCosts.items.${item.id}.name`)}</div>
-                <div style={{ fontSize:10, color:'#6B7280', marginTop:2, textTransform:'uppercase', letterSpacing:'0.06em' }}>{item.character}</div>
-              </div>
-              <div style={{ flex:1, fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{t(`officeCosts.items.${item.id}.note`)}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.18)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-          {t('officeCosts.modelNote')}
-        </div>
+      {/* Editable items table */}
+      <div style={{ overflowX:'auto', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8 }}>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead>
+            <tr>
+              <th style={{ ...headTh, textAlign:'left' }}>{t('officeCosts.col.item')}</th>
+              <th style={{ ...headTh, textAlign:'left' }}>{t('officeCosts.col.description')}</th>
+              <th style={headTh}>{t('officeCosts.col.source')}</th>
+              <th style={headTh}>{t('officeCosts.col.monthly')}</th>
+              <th style={headTh}>{t('officeCosts.col.annual')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {OFFICE_COST_ITEMS.map(item => {
+              const annual = officeCosts[item.id] ?? OFFICE_COSTS_2026_DEFAULTS[item.id]
+              const monthly = Math.round(annual / 12)
+              return (
+                <tr key={item.id}>
+                  <td style={{ ...cellTd, color:'var(--cream)', fontWeight:600, textAlign:'left' }}>{t(`officeCosts.items.${item.id}.name`)}</td>
+                  <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'left' }}>{t(`officeCosts.items.${item.id}.note`)}</td>
+                  <td style={{ ...cellTd, color:'#6B7280', textAlign:'right', fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>{t(`officeCosts.source.${item.source}`)}</td>
+                  <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>{item.monthlyHint != null ? `£${monthly}` : '—'}</td>
+                  <td style={{ ...cellTd, textAlign:'right' }}>
+                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+                      <span style={{ color:'#6B7280', fontSize:11 }}>£</span>
+                      <input
+                        type="number" min={0} step={1}
+                        value={annual}
+                        onChange={e => update(item.id, e.target.value)}
+                        style={{ width:80, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12 }}
+                      />
+                    </span>
+                  </td>
+                </tr>
+              )
+            })}
+            <tr style={{ background:'rgba(201,168,76,0.05)', borderTop:'2px solid rgba(201,168,76,0.25)' }}>
+              <td style={{ ...cellTd, color:'var(--gold)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', fontSize:10.5, textAlign:'left' }}>{t('officeCosts.col.totals')}</td>
+              <td style={cellTd}></td>
+              <td style={cellTd}></td>
+              <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>£{monthlyAvg}</td>
+              <td style={{ ...cellTd, color:'var(--gold)', fontWeight:700, textAlign:'right' }}>{fmt(total)}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.18)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
+        {t('officeCosts.modelNote')}
       </div>
     </div>
   )
@@ -1052,6 +1108,10 @@ export default function BusinessExplorer() {
   // Aggregate tokens × volumes drives the Arcades cost line in TabPerformance.
   const [pricing, setPricing] = useState(TICKET_PRICING_DEFAULTS)
 
+  // Office costs (Apps + AI + Accounting + Director) — annual £ per item.
+  // Total flows to the cost donut as a new "Office & Admin" line.
+  const [officeCosts, setOfficeCosts] = useState(OFFICE_COSTS_2026_DEFAULTS)
+
   // Wage rates lifted to parent so the 2026 Performance tab and the standalone
   // Wages tab share the same state — moving a slider in either reflects in both.
   // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
@@ -1073,7 +1133,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
-    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

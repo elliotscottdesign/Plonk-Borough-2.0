@@ -14,39 +14,50 @@
     "office": "Custos de Escritório"
   },
   "officeCosts": {
-    "header": "Custos de Escritório · Despesas Fixas",
-    "note": "Aluguel, IPTU comercial, utilidades, seguro, internet e licença musical PRS. O P&L 2025 soma £165.647; o modelo aplica +10% de inflação para projetar 2026.",
-    "vsActual": "vs real 2025",
-    "breakdownHeader": "Detalhamento por Componente",
-    "modelNote": "Nota: divisões detalhadas por linha ainda não estão na camada de dados. O total de 2025 (£165.647) e a projeção +10% são os valores que dirigem o modelo — este detalhamento é apenas descritivo.",
-    "character": {
-      "fixed": "Fixo",
-      "variable": "Variável"
+    "header": "Custos de Escritório · Apps, IA e Diretor",
+    "note": "Assinaturas de software, ferramentas de IA, honorários do contador e remuneração do diretor. Tarifas SaaS extraídas do P&L semanal 2025 quando disponível, ou do preço atual online. Todos os valores editáveis.",
+    "totalLabel": "Total Custos de Escritório 2026",
+    "monthlyAvg": "{{val}} / média mensal",
+    "resetAll": "Redefinir tudo para padrões",
+    "modelNote": "Este total flui para o donut de custos como uma nova linha \"Escritório e Admin\". Reduzir um item diminui custos e aumenta o EBITDA em tempo real.",
+    "col": {
+      "item": "Item",
+      "description": "Descrição",
+      "source": "Fonte",
+      "monthly": "Mensal",
+      "annual": "Anual £",
+      "totals": "Total"
+    },
+    "source": {
+      "weekly2025": "P&L 2025",
+      "pricing": "Preço online",
+      "specified": "Especificado",
+      "estimated": "Estimado"
     },
     "items": {
-      "rent": {
-        "name": "Aluguel",
-        "note": "Aluguel variável de 15% sobre o faturamento trimestral a partir de agosto 2026 (3 meses pré-pagos mai–jul 2026). Escala com a receita; menor em cenário bear, maior em bull."
+      "xero": {
+        "name": "Xero",
+        "note": "Software de contabilidade na nuvem. £25/mês conforme P&L semanal 2025."
       },
-      "rates": {
-        "name": "IPTU Comercial",
-        "note": "Cobrança do Conselho de Southwark pós-desconto. Revisado periodicamente; trate como ~fixo ano após ano."
+      "rotacloud": {
+        "name": "RotaCloud",
+        "note": "Escala de pessoal para 10 usuários. ~£40/mês na precificação atual por usuário."
       },
-      "utilities": {
-        "name": "Utilidades",
-        "note": "Eletricidade, gás, água. Acompanha movimento e horário de operação; amplamente variável com a ocupação."
+      "claude": {
+        "name": "Claude IA",
+        "note": "Assinatura Claude Pro para operações/análise. £20/mês na precificação atual."
       },
-      "insurance": {
-        "name": "Seguro",
-        "note": "Responsabilidade civil e empresarial, conteúdo, interrupção de negócios. Prêmio anual, fixo após renovação."
+      "google": {
+        "name": "Google Workspace",
+        "note": "Email, Drive, calendário. £25/mês conforme P&L semanal 2025."
       },
-      "internet": {
-        "name": "Internet e Telefone",
-        "note": "Banda larga empresarial + aluguel de linha. Contrato mensal fixo."
+      "accounting": {
+        "name": "Honorários contábeis",
+        "note": "Honorários anuais — contas estatutárias de fim de ano, folha de pagamento, declarações de IVA."
       },
-      "prs": {
-        "name": "Licença Musical PRS",
-        "note": "Licença anual PPL/PRS for Music. Necessária para tocar música licenciada no local. Efetivamente fixo."
+      "director": {
+        "name": "Salário do Diretor",
+        "note": "Remuneração do fundador. Mix PAYE / dividendos a critério do diretor."
       }
     }
   },
@@ -103,6 +114,7 @@
   "costCategories": {
     "wages": "Salários",
     "fixed": "Custos Fixos",
+    "office": "Escritório e Admin",
     "drinks": "Bebidas e Gás",
     "vat": "IVA (Líquido)",
     "cleaning": "Limpeza",
@@ -116,7 +128,7 @@
   },
   "performance2026": {
     "header": "Desempenho 2026 · Projeção ajustada por cenário",
-    "sliderDesc": "Agregado das cinco alavancas de crescimento em Cenários (Bar · Golfe · Eventos · Locações · Sinuca). Os botões de preset igualam as cinco ao mesmo valor. Salários +10%, Fixos +10%, Bebidas = 30% do bar, Hospedagem fixa, Taxa de Serviço acompanha a média, tudo o mais escala proporcionalmente.",
+    "sliderDesc": "Leitura ao vivo da projeção 2026. Use as Seções abaixo — Preço de Ingressos · Receita · Custos Operacionais · Salários · Custos de Escritório — para modelar seu plano 2026. O controle, KPIs e cartões de cenário atualizam conforme você edita.",
     "resetLevers": "Redefinir as cinco alavancas para +15% (Base)",
     "labels": {
       "bear": "Pessimista",
@@ -138,6 +150,7 @@
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
+      "office": "Apps, IA, contador e salário do diretor — definido pela seção Custos de Escritório abaixo.",
       "arcades": "Custo do operador = soma de (fichas × volume) em todos os SKUs × £0,325. Reduza fichas por SKU na Calculadora de Preços de Ingressos abaixo para diminuir.",
       "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas, comida e hospedagem são isentos",
       "hosting": "Hospedagem (Lithos)",

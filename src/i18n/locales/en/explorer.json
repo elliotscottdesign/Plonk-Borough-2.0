@@ -14,39 +14,50 @@
     "office": "Office Costs"
   },
   "officeCosts": {
-    "header": "Office Costs · Fixed Overhead",
-    "note": "Rent, business rates, utilities, insurance, internet and PRS music licence. The 2025 P&L line totals £165,647; the model applies a flat +10% inflation to forecast 2026.",
-    "vsActual": "vs 2025 actual",
-    "breakdownHeader": "Component Breakdown",
-    "modelNote": "Note: detailed line-item splits are not yet in the data layer. The 2025 total (£165,647) and the +10% inflation forecast are the figures driving the model — this breakdown is descriptive only.",
-    "character": {
-      "fixed": "Fixed",
-      "variable": "Variable"
+    "header": "Office Costs · Apps, AI & Director",
+    "note": "Software subscriptions, AI tooling, accountant fees and director compensation. SaaS rates pulled from the 2025 weekly P&L where present, otherwise from current online pricing. All figures editable.",
+    "totalLabel": "Total Office Costs 2026",
+    "monthlyAvg": "{{val}} / month average",
+    "resetAll": "Reset all to defaults",
+    "modelNote": "This total flows to the cost donut as a new \"Office & Admin\" line. Lowering an item drops costs and lifts EBITDA in real time.",
+    "col": {
+      "item": "Item",
+      "description": "Description",
+      "source": "Source",
+      "monthly": "Monthly",
+      "annual": "Annual £",
+      "totals": "Total"
+    },
+    "source": {
+      "weekly2025": "2025 P&L",
+      "pricing": "Online price",
+      "specified": "Specified",
+      "estimated": "Estimated"
     },
     "items": {
-      "rent": {
-        "name": "Rent",
-        "note": "Variable rent at 15% of quarterly turnover from August 2026 (3 months pre-paid May–Jul 2026). Scales with revenue; lower in a bear scenario, higher in a bull."
+      "xero": {
+        "name": "Xero",
+        "note": "Cloud accounting software. £25/mo per the 2025 weekly P&L."
       },
-      "rates": {
-        "name": "Business Rates",
-        "note": "Southwark Council post-relief charge. Re-evaluated periodically by the council; treat as ~fixed year-on-year."
+      "rotacloud": {
+        "name": "RotaCloud",
+        "note": "Staff scheduling for 10 users. ~£40/mo at current per-user pricing."
       },
-      "utilities": {
-        "name": "Utilities",
-        "note": "Electricity, gas, water. Tracks footfall and trading hours; broadly variable with occupancy."
+      "claude": {
+        "name": "Claude AI",
+        "note": "Claude Pro subscription for ops/analysis. £20/mo current pricing."
       },
-      "insurance": {
-        "name": "Insurance",
-        "note": "Public liability, employer's liability, contents, business interruption. Annual premium, fixed once renewed."
+      "google": {
+        "name": "Google Workspace",
+        "note": "Email, Drive, calendar. £25/mo per the 2025 weekly P&L."
       },
-      "internet": {
-        "name": "Internet & Phone",
-        "note": "Business broadband + line rental. Fixed monthly contract."
+      "accounting": {
+        "name": "Accounting fees",
+        "note": "Annual accountant fees — year-end statutory accounts, payroll, VAT returns."
       },
-      "prs": {
-        "name": "PRS / Music Licence",
-        "note": "PPL/PRS for Music annual licence. Required for playing licensed music in the venue. Effectively fixed."
+      "director": {
+        "name": "Director's salary",
+        "note": "Founder compensation. PAYE / dividend mix at the director's discretion."
       }
     }
   },
@@ -103,6 +114,7 @@
   "costCategories": {
     "wages": "Wages",
     "fixed": "Fixed Costs",
+    "office": "Office & Admin",
     "drinks": "Drinks & Gas",
     "vat": "VAT (Net)",
     "cleaning": "Cleaning",
@@ -116,7 +128,7 @@
   },
   "performance2026": {
     "header": "2026 Performance · Scenario-adjusted forecast",
-    "sliderDesc": "Aggregate of the five growth levers in Scenarios (Bar · Golf · Events · Hires · Pool). Preset buttons snap all five to the same value. Wages +10%, Fixed +10%, Drinks = 30% of bar, Hosting fixed, Service Charge tracks the average, everything else scales.",
+    "sliderDesc": "Live readout of the 2026 forecast. Use the Sections below — Ticket Price · Income · Operating Costs · Wages · Office Costs — to model your 2026 plan. The slider, KPI tiles and scenario cards update as you go.",
     "resetLevers": "Reset all five levers to +15% (Base)",
     "labels": {
       "bear": "Bear",
@@ -138,6 +150,7 @@
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
+      "office": "Apps, AI, accountant fees and director's salary — driven by the Office Costs section below.",
       "arcades": "Operator cost = sum of (tokens × volume) across all SKUs × £0.325. Lower per-SKU tokens in the Ticket Price Maker below to cut this.",
       "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades, food and hosting are zero-rated",
       "hosting": "Hosting (Lithos)",
