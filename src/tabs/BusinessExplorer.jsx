@@ -150,7 +150,9 @@ const OFFICE_COSTS_2026_DEFAULTS = {
   claude:      240,   // Claude Pro £20/mo × 12
   google:      300,   // £25/mo × 12
   accounting: 3000,   // annual fees (user-specified)
-  director:  40000,   // founder salary (estimated)
+  director:  30000,   // total directors' compensation budget — can be split
+                      // across multiple directors. Aligned with other
+                      // references throughout the deck.
 }
 
 const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(

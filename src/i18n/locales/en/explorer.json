@@ -56,8 +56,8 @@
         "note": "Annual accountant fees — year-end statutory accounts, payroll, VAT returns."
       },
       "director": {
-        "name": "Director's salary",
-        "note": "Founder compensation. PAYE / dividend mix at the director's discretion."
+        "name": "Directors' salaries",
+        "note": "Total budget for all directors' time — can be spread across multiple directors. PAYE / dividend mix at each director's discretion."
       }
     }
   },

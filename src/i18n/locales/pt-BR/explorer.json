@@ -56,8 +56,8 @@
         "note": "Honorários anuais — contas estatutárias de fim de ano, folha de pagamento, declarações de IVA."
       },
       "director": {
-        "name": "Salário do Diretor",
-        "note": "Remuneração do fundador. Mix PAYE / dividendos a critério do diretor."
+        "name": "Salários dos diretores",
+        "note": "Orçamento total para o tempo de todos os diretores — pode ser distribuído entre múltiplos diretores. Mix PAYE / dividendos a critério de cada diretor."
       }
     }
   },
