@@ -25,8 +25,6 @@ function TabOverview() {
   const rev =    [52000,44000,53000,89000,71000,68000,97000,173326,36000,52000,60000,58000]
   const ebitda = [-7000,-4000,5000,23000,17000,15000,30000,98000,-3000,6000,3000,8000]
   const maxRev = Math.max(...rev)
-  // Round to nearest £k for the abbreviated cards (e.g. £742k, £853k)
-  const fmtK = (n) => '£' + Math.round(n / 1000) + 'k'
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
