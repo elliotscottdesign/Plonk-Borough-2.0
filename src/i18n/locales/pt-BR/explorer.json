@@ -5,6 +5,51 @@
     "performance2025": "Desempenho 2025",
     "performance2026": "Desempenho 2026"
   },
+  "sections": {
+    "indexLabel": "Seções",
+    "tickets": "Preço de Ingressos",
+    "income": "Receita",
+    "opcosts": "Custos Operacionais",
+    "wages": "Salários",
+    "office": "Custos de Escritório"
+  },
+  "officeCosts": {
+    "header": "Custos de Escritório · Despesas Fixas",
+    "note": "Aluguel, IPTU comercial, utilidades, seguro, internet e licença musical PRS. O P&L 2025 soma £165.647; o modelo aplica +10% de inflação para projetar 2026.",
+    "vsActual": "vs real 2025",
+    "breakdownHeader": "Detalhamento por Componente",
+    "modelNote": "Nota: divisões detalhadas por linha ainda não estão na camada de dados. O total de 2025 (£165.647) e a projeção +10% são os valores que dirigem o modelo — este detalhamento é apenas descritivo.",
+    "character": {
+      "fixed": "Fixo",
+      "variable": "Variável"
+    },
+    "items": {
+      "rent": {
+        "name": "Aluguel",
+        "note": "Aluguel variável de 15% sobre o faturamento trimestral a partir de agosto 2026 (3 meses pré-pagos mai–jul 2026). Escala com a receita; menor em cenário bear, maior em bull."
+      },
+      "rates": {
+        "name": "IPTU Comercial",
+        "note": "Cobrança do Conselho de Southwark pós-desconto. Revisado periodicamente; trate como ~fixo ano após ano."
+      },
+      "utilities": {
+        "name": "Utilidades",
+        "note": "Eletricidade, gás, água. Acompanha movimento e horário de operação; amplamente variável com a ocupação."
+      },
+      "insurance": {
+        "name": "Seguro",
+        "note": "Responsabilidade civil e empresarial, conteúdo, interrupção de negócios. Prêmio anual, fixo após renovação."
+      },
+      "internet": {
+        "name": "Internet e Telefone",
+        "note": "Banda larga empresarial + aluguel de linha. Contrato mensal fixo."
+      },
+      "prs": {
+        "name": "Licença Musical PRS",
+        "note": "Licença anual PPL/PRS for Music. Necessária para tocar música licenciada no local. Efetivamente fixo."
+      }
+    }
+  },
   "overview": {
     "stats": {
       "ask": { "label": "APORTE SOLICITADO", "sub": "por 50% de equity" },

@@ -5,6 +5,51 @@
     "performance2025": "2025 Performance",
     "performance2026": "2026 Performance"
   },
+  "sections": {
+    "indexLabel": "Sections",
+    "tickets": "Ticket Price",
+    "income": "Income",
+    "opcosts": "Operating Costs",
+    "wages": "Wages",
+    "office": "Office Costs"
+  },
+  "officeCosts": {
+    "header": "Office Costs · Fixed Overhead",
+    "note": "Rent, business rates, utilities, insurance, internet and PRS music licence. The 2025 P&L line totals £165,647; the model applies a flat +10% inflation to forecast 2026.",
+    "vsActual": "vs 2025 actual",
+    "breakdownHeader": "Component Breakdown",
+    "modelNote": "Note: detailed line-item splits are not yet in the data layer. The 2025 total (£165,647) and the +10% inflation forecast are the figures driving the model — this breakdown is descriptive only.",
+    "character": {
+      "fixed": "Fixed",
+      "variable": "Variable"
+    },
+    "items": {
+      "rent": {
+        "name": "Rent",
+        "note": "Variable rent at 15% of quarterly turnover from August 2026 (3 months pre-paid May–Jul 2026). Scales with revenue; lower in a bear scenario, higher in a bull."
+      },
+      "rates": {
+        "name": "Business Rates",
+        "note": "Southwark Council post-relief charge. Re-evaluated periodically by the council; treat as ~fixed year-on-year."
+      },
+      "utilities": {
+        "name": "Utilities",
+        "note": "Electricity, gas, water. Tracks footfall and trading hours; broadly variable with occupancy."
+      },
+      "insurance": {
+        "name": "Insurance",
+        "note": "Public liability, employer's liability, contents, business interruption. Annual premium, fixed once renewed."
+      },
+      "internet": {
+        "name": "Internet & Phone",
+        "note": "Business broadband + line rental. Fixed monthly contract."
+      },
+      "prs": {
+        "name": "PRS / Music Licence",
+        "note": "PPL/PRS for Music annual licence. Required for playing licensed music in the venue. Effectively fixed."
+      }
+    }
+  },
   "overview": {
     "stats": {
       "ask": { "label": "INVESTMENT ASK", "sub": "for 50% equity" },

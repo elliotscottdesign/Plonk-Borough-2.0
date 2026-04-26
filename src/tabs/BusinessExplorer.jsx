@@ -160,7 +160,19 @@ function buildLineGrowths(g) {
   }
 }
 
+// Section keys for the 2026 Performance left-nav. Each maps to a content
+// block rendered on the right when active. Order matters — it's the
+// reading order an investor sees.
+const PERF_SECTIONS = [
+  { id: 'tickets', icon: '🎟' },
+  { id: 'income',  icon: '💰' },
+  { id: 'opcosts', icon: '💸' },
+  { id: 'wages',   icon: '👥' },
+  { id: 'office',  icon: '🏢' },
+]
+
 function TabPerformance({ growth, wages, pricing, setPricing }) {
+  const [activeSection, setActiveSection] = useState('tickets')
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK, fmtNum } = useFmt()
@@ -341,75 +353,123 @@ function TabPerformance({ growth, wages, pricing, setPricing }) {
       {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
       <ScenarioPresetsCard growth={growth} />
 
-      {/* ─── TICKET PRICE MAKER ─── per-SKU pricing matrix; tokens flow back to Arcades */}
-      <TicketPriceMaker growth={growth} pricing={pricing} setPricing={setPricing} />
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
-            <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
-          </div>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
-            <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {incomeWithPct.map((item, i) => (
-              <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-                <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-                <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
-                <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
-              </div>
-            ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
-            </div>
-          </div>
-          <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
-            <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
-          </div>
+      {/* ─── INDEX + CONTENT ─── left-side nav, right-side active section */}
+      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
+        {/* Sticky sidebar TOC */}
+        <div style={{ position:'sticky', top:16, background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:8 }}>
+          <div style={{ fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.1em', padding:'6px 8px 10px' }}>{t('sections.indexLabel')}</div>
+          {PERF_SECTIONS.map(s => {
+            const isActive = activeSection === s.id
+            return (
+              <button
+                key={s.id}
+                onClick={() => setActiveSection(s.id)}
+                style={{
+                  display:'flex', alignItems:'center', gap:10,
+                  width:'100%', padding:'10px 12px', marginBottom:4,
+                  background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+                  border: isActive ? '1px solid rgba(201,168,76,0.35)' : '1px solid transparent',
+                  borderRadius:6,
+                  color: isActive ? 'var(--gold)' : 'var(--cream)',
+                  fontSize:12, fontWeight: isActive ? 700 : 500,
+                  cursor:'pointer', textAlign:'left',
+                  letterSpacing:'0.04em', transition:'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize:14, opacity:0.8 }}>{s.icon}</span>
+                <span style={{ flex:1 }}>{t(`sections.${s.id}`)}</span>
+                {isActive && <span style={{ color:'var(--gold)', fontSize:10 }}>●</span>}
+              </button>
+            )
+          })}
         </div>
 
-        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-            <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.costs2026')}</div>
-            <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmt(totalCosts)}</div>
-          </div>
-          <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
-            <DonutChart data={costs2026} total={totalCosts} size={200} />
-          </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-            {costs2026.map((item, i) => (
-              <div key={i} style={{ padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-                  <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-                  <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-                  <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
-                  <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+        {/* Active section content */}
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {/* TICKETS */}
+          {activeSection === 'tickets' && (
+            <TicketPriceMaker growth={growth} pricing={pricing} setPricing={setPricing} />
+          )}
+
+          {/* INCOME — growth levers + income donut + monthly */}
+          {activeSection === 'income' && (
+            <>
+              <ScenarioLeversCard growth={growth} />
+              <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+                  <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
+                  <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
                 </div>
-                {item.note && <div style={{ fontSize:11, color:'#6B7280', paddingLeft:20, marginTop:2 }}>{item.note}</div>}
+                <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+                  <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
+                </div>
+                <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                  {incomeWithPct.map((item, i) => (
+                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
+                      <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
+                      <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+                    </div>
+                  ))}
+                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
+                    <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
+                    <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
+                  </div>
+                </div>
+                <div style={{ marginTop:14 }}>
+                  <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
+                  <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
+                </div>
               </div>
-            ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalCosts')}</div>
-              <div style={{ fontSize:14, fontWeight:700, color:'#A78BFA' }}>{fmt(totalCosts)}</div>
+            </>
+          )}
+
+          {/* OPERATING COSTS — full cost donut + monthly */}
+          {activeSection === 'opcosts' && (
+            <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+                <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.costs2026')}</div>
+                <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmt(totalCosts)}</div>
+              </div>
+              <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+                <DonutChart data={costs2026} total={totalCosts} size={200} />
+              </div>
+              <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+                {costs2026.map((item, i) => (
+                  <div key={i} style={{ padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+                      <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
+                      <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
+                      <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
+                      <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+                    </div>
+                    {item.note && <div style={{ fontSize:11, color:'#6B7280', paddingLeft:20, marginTop:2 }}>{item.note}</div>}
+                  </div>
+                ))}
+                <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
+                  <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalCosts')}</div>
+                  <div style={{ fontSize:14, fontWeight:700, color:'#A78BFA' }}>{fmt(totalCosts)}</div>
+                </div>
+              </div>
+              <div style={{ marginTop:14 }}>
+                <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyCosts2026')}</div>
+                <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} fmt={fmt} t={t} />
+              </div>
             </div>
-          </div>
-          <div style={{ marginTop:14 }}>
-            <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyCosts2026')}</div>
-            <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} fmt={fmt} t={t} />
-          </div>
+          )}
+
+          {/* WAGES */}
+          {activeSection === 'wages' && (
+            <WageCalculatorCard wages={wages} totalIncome={totalIncome} />
+          )}
+
+          {/* OFFICE COSTS */}
+          {activeSection === 'office' && (
+            <OfficeCostsSection />
+          )}
         </div>
       </div>
-
-      {/* ─── BUILD CUSTOM SCENARIO ─── 5 growth levers, drives the slider above */}
-      <ScenarioLeversCard growth={growth} />
-
-      {/* ─── SLIDING WAGE RATE CALCULATOR ─── 4 wage sliders, drives the wage line above */}
-      <WageCalculatorCard wages={wages} totalIncome={totalIncome} />
 
     </div>
   )
@@ -796,6 +856,72 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
         </div>
       </div>
       {sub && <div style={{ fontSize:10, color:'#6B7280', textAlign:'center', marginTop:12 }}>{sub}</div>}
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Office Costs section — drill-down on the Fixed Costs P&L line.
+// 2025 actual £165,647; 2026 forecast = 2025 × 1.10 (+10% inflation rule).
+// Shows a 2-column comparison + descriptive component breakdown. No
+// detailed line-item data exists in data.js, so the breakdown is purely
+// descriptive (item names + character of each cost).
+// ───────────────────────────────────────────────────────────────────────
+function OfficeCostsSection() {
+  const { t } = useTranslation('explorer')
+  const { fmt } = useFmt()
+
+  const FIXED_COSTS_2025 = 165647
+  const INFLATION = 1.10
+  const fixed2026 = Math.round(FIXED_COSTS_2025 * INFLATION)
+  const delta = fixed2026 - FIXED_COSTS_2025
+
+  const items = [
+    { id: 'rent',      character: t('officeCosts.character.variable') },
+    { id: 'rates',     character: t('officeCosts.character.fixed')    },
+    { id: 'utilities', character: t('officeCosts.character.variable') },
+    { id: 'insurance', character: t('officeCosts.character.fixed')    },
+    { id: 'internet',  character: t('officeCosts.character.fixed')    },
+    { id: 'prs',       character: t('officeCosts.character.fixed')    },
+  ]
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* 2025 vs 2026 comparison strip */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('officeCosts.header')}</div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('officeCosts.note')}</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>2025 Actual</div>
+            <div style={{ fontSize:22, fontWeight:700, color:'#9CA3AF' }}>{fmt(FIXED_COSTS_2025)}</div>
+          </div>
+          <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4 }}>2026 Forecast (+10%)</div>
+            <div style={{ fontSize:24, fontWeight:800, color:'var(--gold)' }}>{fmt(fixed2026)}</div>
+            <div style={{ fontSize:11, color:'#EF4444', fontWeight:600, marginTop:3 }}>+{fmt(delta)} {t('officeCosts.vsActual')}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Component breakdown */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('officeCosts.breakdownHeader')}</div>
+        <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+          {items.map(item => (
+            <div key={item.id} style={{ display:'flex', alignItems:'flex-start', gap:14, padding:'12px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ minWidth:120 }}>
+                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)' }}>{t(`officeCosts.items.${item.id}.name`)}</div>
+                <div style={{ fontSize:10, color:'#6B7280', marginTop:2, textTransform:'uppercase', letterSpacing:'0.06em' }}>{item.character}</div>
+              </div>
+              <div style={{ flex:1, fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{t(`officeCosts.items.${item.id}.note`)}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.18)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
+          {t('officeCosts.modelNote')}
+        </div>
+      </div>
     </div>
   )
 }
