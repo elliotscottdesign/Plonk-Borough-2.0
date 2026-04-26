@@ -113,10 +113,7 @@
       "pool": "Pool Tickets"
     },
     "resetTo15": "Reset to +15%",
-    "resetTo100": "Reset to 100%",
     "newLabel": "New:",
-    "opex": "OpEx vs Budget",
-    "opexHint": "(costs multiplier for the Custom card only)",
     "cards": {
       "conservative": "CONSERVATIVE",
       "base": "BASE CASE",

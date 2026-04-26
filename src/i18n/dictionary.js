@@ -693,15 +693,8 @@ export const PT_BR = {
   'Build Custom Scenario': 'Construir Cenário Personalizado',
   'These four levers also drive the main 2026 Performance slider':
     'Essas quatro alavancas também controlam o controle principal de Desempenho 2026',
-  'Bar Increase': 'Aumento de Bar',
-  'Golf Ticket Increase': 'Aumento de Ingressos de Golfe',
-  'Regular Events': 'Eventos Regulares',
   'Reset to +15%': 'Redefinir para +15%',
-  'Reset to 100%': 'Redefinir para 100%',
   'New:': 'Novo:',
-  'OpEx vs Budget': 'OpEx vs Orçamento',
-  '(costs multiplier for the Custom card only)':
-    '(multiplicador de custos apenas para o cartão Personalizado)',
   'CONSERVATIVE': 'CONSERVADOR',
   'BASE CASE': 'CENÁRIO BASE',
   'OPTIMISTIC': 'OTIMISTA',

@@ -113,10 +113,7 @@
       "pool": "Ingressos de Sinuca"
     },
     "resetTo15": "Redefinir para +15%",
-    "resetTo100": "Redefinir para 100%",
     "newLabel": "Novo:",
-    "opex": "OpEx vs Orçamento",
-    "opexHint": "(multiplicador de custos apenas para o cartão Personalizado)",
     "cards": {
       "conservative": "CONSERVADOR",
       "base": "CENÁRIO BASE",

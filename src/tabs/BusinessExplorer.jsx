@@ -124,7 +124,7 @@ function buildLineGrowths(g) {
   }
 }
 
-function TabPerformance({ growth, wages, opex, setOpex }) {
+function TabPerformance({ growth, wages }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK, fmtNum } = useFmt()
@@ -193,16 +193,11 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
     { labelKey: 'hosting',     value: hostingLine,      note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
     { labelKey: 'cardCharges', value: cardChargesLine,  note: scalesNote },
   ]
-  // OpEx multiplier scales the entire cost base (e.g. for stress-test scenarios).
-  // Default 100% = pure model output; higher % = cost overrun stress test.
-  const opexMult = opex / 100
-  const rawTotalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
-  const totalCosts = Math.round(rawTotalCosts * opexMult)
+  const totalCosts = costsRaw.reduce((s, c) => s + c.value, 0)
   const costs2026 = costsRaw.map((c, idx) => ({
     ...c,
-    value: Math.round(c.value * opexMult),
     label: c.customLabel || t(`costCategories.${c.labelKey}`),
-    pct: +(Math.round(c.value * opexMult) / totalCosts * 100).toFixed(1),
+    pct: +(c.value / totalCosts * 100).toFixed(1),
     color: COSTS_2026_COLORS[idx] || COSTS_2026_COLORS[COSTS_2026_COLORS.length - 1],
   }))
 
@@ -210,8 +205,7 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
   // Adjusted EBITDA = Revenue − OPERATING costs (excludes VAT) — proper
   // accounting EBITDA (VAT is a tax pass-through, not an operating cost).
   // Profit After VAT = Revenue − Total Costs (= EBITDA − Net VAT) — bottom line.
-  const netVatAdjusted = Math.round(netVat * opexMult)
-  const operatingCosts = totalCosts - netVatAdjusted
+  const operatingCosts = totalCosts - netVat
   const ebitda = totalIncome - operatingCosts
   const margin = totalIncome > 0 ? ebitda / totalIncome : 0
   const profitAfterVat = totalIncome - totalCosts
@@ -293,7 +287,7 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
           <KpiCard2026 label={t('performance2026.adjustedRevenue')} value={fmtK(totalIncome)} color="#22D3EE" />
           <KpiCard2026 label={t('performance2026.adjustedEbitda')} value={fmtK(ebitda)} sub={`${(margin*100).toFixed(1)}% ${t('performance2026.margin')}`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
           <KpiCard2026 label={t('performance2025.totalCosts')} value={fmtK(totalCosts)} color="#8B5CF6" />
-          <KpiCard2026 label={t('performance2026.profitAfterVat')} value={fmtK(profitAfterVat)} sub={`${(profitAfterVatMargin*100).toFixed(1)}% ${t('performance2026.margin')} · ${t('performance2026.netVatLabel')} ${fmtK(netVatAdjusted)}`} color={profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'} />
+          <KpiCard2026 label={t('performance2026.profitAfterVat')} value={fmtK(profitAfterVat)} sub={`${(profitAfterVatMargin*100).toFixed(1)}% ${t('performance2026.margin')} · ${t('performance2026.netVatLabel')} ${fmtK(netVat)}`} color={profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'} />
         </div>
       </div>
 
@@ -358,8 +352,8 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
         </div>
       </div>
 
-      {/* ─── BUILD CUSTOM SCENARIO ─── 5 growth levers + OpEx, drives the slider above */}
-      <ScenarioLeversCard growth={growth} opex={opex} setOpex={setOpex} />
+      {/* ─── BUILD CUSTOM SCENARIO ─── 5 growth levers, drives the slider above */}
+      <ScenarioLeversCard growth={growth} />
 
       {/* ─── SLIDING WAGE RATE CALCULATOR ─── 4 wage sliders, drives the wage line above */}
       <WageCalculatorCard wages={wages} totalIncome={totalIncome} />
@@ -369,11 +363,11 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Build Custom Scenario card — 5 growth levers + OpEx vs Budget slider.
+// Build Custom Scenario card — 5 growth levers driving custom forecast.
 // Same state as TabScenarios (lifted in BusinessExplorer parent), so this
 // card and the standalone Scenarios tab show identical values in real time.
 // ───────────────────────────────────────────────────────────────────────
-function ScenarioLeversCard({ growth, opex, setOpex }) {
+function ScenarioLeversCard({ growth }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
@@ -389,7 +383,7 @@ function ScenarioLeversCard({ growth, opex, setOpex }) {
     base: l.base,
   }))
 
-  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, opexMult: opex / 100 })
+  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool })
   const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
   const presets = [
     { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
@@ -425,16 +419,6 @@ function ScenarioLeversCard({ growth, opex, setOpex }) {
             </div>
           ))}
         </div>
-        <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:14 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-            <span style={{ color:'var(--cream)' }}>{t('scenarios.opex')} <span style={{ color:'#6B7280', marginLeft:4 }}>{t('scenarios.opexHint')}</span></span>
-            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-              <span style={{ color:'#EA580C', fontWeight:600 }}>{opex}%</span>
-              <ResetBtn onClick={()=>setOpex(100)} title={t('scenarios.resetTo100')} />
-            </span>
-          </div>
-          <input type="range" min={70} max={130} value={opex} onChange={e=>setOpex(Number(e.target.value))} style={{ width:'100%', accentColor:'#EA580C' }} />
-        </div>
       </div>
 
       {/* Scenario cards */}
@@ -454,8 +438,7 @@ function ScenarioLeversCard({ growth, opex, setOpex }) {
           </button>
         ))}
         <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
-          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>OpEx {opex}%</div>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
           {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
               <span style={{ color:'#9CA3AF' }}>{l}</span>
@@ -620,7 +603,7 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   )
 }
 
-function computeScenario({ barG, golfG, eventsG, hiresG, poolG, opexMult = 1 }) {
+function computeScenario({ barG, golfG, eventsG, hiresG, poolG }) {
   // Service Charge is the only derived line — it scales by the average of
   // the 5 commercial levers since it tracks aggregate covers.
   const avg = (barG + golfG + eventsG + hiresG + poolG) / 5
@@ -644,14 +627,13 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG, opexMult = 1 }) 
     + 3492
     + 5443 * mult
 
-  const adjustedCosts = costs * opexMult
-  const profit = revenue - adjustedCosts
+  const profit = revenue - costs
   const investorReturn = Math.max(0, profit) * 0.50
   const coc = investorReturn / 79000 * 100
   return { revenue, profit, investorReturn, coc }
 }
 
-function TabScenarios({ growth, opex, setOpex }) {
+function TabScenarios({ growth }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
@@ -667,7 +649,6 @@ function TabScenarios({ growth, opex, setOpex }) {
 
   const custom = computeScenario({
     barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool,
-    opexMult: opex / 100,
   })
   const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct })
   const presets = [
@@ -703,16 +684,6 @@ function TabScenarios({ growth, opex, setOpex }) {
             </div>
           ))}
         </div>
-        <div style={{ borderTop:'1px solid rgba(255,255,255,0.06)', paddingTop:14 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', fontSize:12, marginBottom:6 }}>
-            <span style={{ color:'var(--cream)' }}>{t('scenarios.opex')} <span style={{ color:'#6B7280', marginLeft:4 }}>{t('scenarios.opexHint')}</span></span>
-            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-              <span style={{ color:'#EA580C', fontWeight:600 }}>{opex}%</span>
-              <ResetBtn onClick={()=>setOpex(100)} title={t('scenarios.resetTo100')} />
-            </span>
-          </div>
-          <input type="range" min={70} max={130} value={opex} onChange={e=>setOpex(Number(e.target.value))} style={{ width:'100%', accentColor:'#EA580C' }} />
-        </div>
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
@@ -731,8 +702,7 @@ function TabScenarios({ growth, opex, setOpex }) {
           </button>
         ))}
         <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
-          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>OpEx {opex}%</div>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
           {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
             <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
               <span style={{ color:'#9CA3AF' }}>{l}</span>
@@ -815,9 +785,6 @@ export default function BusinessExplorer() {
     setAll: setAllGrowth,
   }
 
-  // OpEx multiplier lifted so 2026 Performance + Scenarios tabs share a value.
-  const [opex, setOpex] = useState(100)
-
   // Wage rates lifted to parent so the 2026 Performance tab and the standalone
   // Wages tab share the same state — moving a slider in either reflects in both.
   // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
@@ -839,8 +806,8 @@ export default function BusinessExplorer() {
   const tabComponents = {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
-    performance2026: <TabPerformance growth={growth} wages={wages} opex={opex} setOpex={setOpex} />,
-    scenarios: <TabScenarios growth={growth} opex={opex} setOpex={setOpex} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} />,
+    scenarios: <TabScenarios growth={growth} />,
     market: <TabMarketContext />,
   }
   return (
