@@ -83,6 +83,8 @@
     },
     "adjustedRevenue": "Adjusted Revenue",
     "adjustedEbitda": "Adjusted EBITDA",
+    "profitAfterVat": "Profit After VAT",
+    "netVatLabel": "Net VAT",
     "margin": "margin",
     "income2026": "Income · 2026 Forecast",
     "costs2026": "Operating Costs · 2026 Forecast",
@@ -93,6 +95,7 @@
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
+      "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades, food and hosting are zero-rated",
       "hosting": "Hosting (Lithos)",
       "hostingNote": "Fixed — SEO/Ads now owned by Plonk Golf",
       "other": "Other"

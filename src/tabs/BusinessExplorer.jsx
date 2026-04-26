@@ -160,16 +160,38 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
   const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
   const hostingNote = t('performance2026.costNotes.hostingNote')
   const scalesNote = t('performance2026.costNotes.scales')
+
+  // ─── Operating cost lines (no VAT) ─────────────────────────────────────
+  const fixedLine       = Math.round(165647 * 1.10)
+  const cleaningLine    = Math.round(22965 * mult)
+  const arcadesLine     = Math.round(17152 * mult)
+  const foodLine        = Math.round(9101 * mult)
+  const hostingLine     = 3492
+  const cardChargesLine = Math.round(5443 * mult)
+
+  // ─── Net VAT (computed, replaces the historical 78851*mult line) ───────
+  // Output VAT  = revenue × 1/6  (revenue is gross of 20% VAT)
+  // Input VAT   = VAT-able costs × 1/6
+  // VAT-able    = fixed + drinks + cleaning + cardCharges
+  // Zero-rated  = wages, arcades, food, hosting (per business owner)
+  // Sense check: 2025 actuals → ~£77.8k, vs P&L £78.85k (1.3% diff) ✓
+  const VAT_FRACTION   = 1 / 6
+  const vatableCosts   = fixedLine + drinksGas2026 + cleaningLine + cardChargesLine
+  const outputVat      = totalIncome * VAT_FRACTION
+  const inputVat       = vatableCosts * VAT_FRACTION
+  const netVat         = Math.round(outputVat - inputVat)
+  const vatComputedNote = t('performance2026.costNotes.vatComputed')
+
   const costsRaw = [
-    { labelKey: 'wages',     value: wageBill2026,                note: t('performance2026.costNotes.wagesDriven') },
-    { labelKey: 'fixed',     value: Math.round(165647 * 1.10), note: t('performance2026.costNotes.fixed') },
-    { labelKey: 'drinks',    value: drinksGas2026,              note: t('performance2026.costNotes.drinks') },
-    { labelKey: 'vat',       value: Math.round(78851 * mult),   note: scalesNote },
-    { labelKey: 'cleaning',  value: Math.round(22965 * mult),   note: scalesNote },
-    { labelKey: 'arcades',   value: Math.round(17152 * mult),   note: scalesNote },
-    { labelKey: 'food',      value: Math.round(9101 * mult),    note: scalesNote },
-    { labelKey: 'hosting',   value: 3492,                        note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
-    { labelKey: 'cardCharges', value: Math.round(5443 * mult),  note: scalesNote },
+    { labelKey: 'wages',       value: wageBill2026,    note: t('performance2026.costNotes.wagesDriven') },
+    { labelKey: 'fixed',       value: fixedLine,        note: t('performance2026.costNotes.fixed') },
+    { labelKey: 'drinks',      value: drinksGas2026,    note: t('performance2026.costNotes.drinks') },
+    { labelKey: 'vat',         value: netVat,            note: vatComputedNote },
+    { labelKey: 'cleaning',    value: cleaningLine,     note: scalesNote },
+    { labelKey: 'arcades',     value: arcadesLine,      note: scalesNote },
+    { labelKey: 'food',        value: foodLine,         note: scalesNote },
+    { labelKey: 'hosting',     value: hostingLine,      note: hostingNote, customLabel: t('performance2026.costNotes.hosting') },
+    { labelKey: 'cardCharges', value: cardChargesLine,  note: scalesNote },
   ]
   // OpEx multiplier scales the entire cost base (e.g. for stress-test scenarios).
   // Default 100% = pure model output; higher % = cost overrun stress test.
@@ -183,8 +205,17 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
     pct: +(Math.round(c.value * opexMult) / totalCosts * 100).toFixed(1),
     color: COSTS_2026_COLORS[idx] || COSTS_2026_COLORS[COSTS_2026_COLORS.length - 1],
   }))
-  const ebitda = totalIncome - totalCosts
+
+  // ─── KPI metrics ─────────────────────────────────────────────────────
+  // Adjusted EBITDA = Revenue − OPERATING costs (excludes VAT) — proper
+  // accounting EBITDA (VAT is a tax pass-through, not an operating cost).
+  // Profit After VAT = Revenue − Total Costs (= EBITDA − Net VAT) — bottom line.
+  const netVatAdjusted = Math.round(netVat * opexMult)
+  const operatingCosts = totalCosts - netVatAdjusted
+  const ebitda = totalIncome - operatingCosts
   const margin = totalIncome > 0 ? ebitda / totalIncome : 0
+  const profitAfterVat = totalIncome - totalCosts
+  const profitAfterVatMargin = totalIncome > 0 ? profitAfterVat / totalIncome : 0
 
   const monthlyIncome2026 = MONTHLY_INCOME.map(m => ({
     m: m.m,
@@ -258,10 +289,11 @@ function TabPerformance({ growth, wages, opex, setOpex }) {
             <span>+{PERF_GROWTH_MAX}%</span>
           </div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginTop:20 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginTop:20 }}>
           <KpiCard2026 label={t('performance2026.adjustedRevenue')} value={fmtK(totalIncome)} color="#22D3EE" />
           <KpiCard2026 label={t('performance2026.adjustedEbitda')} value={fmtK(ebitda)} sub={`${(margin*100).toFixed(1)}% ${t('performance2026.margin')}`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
           <KpiCard2026 label={t('performance2025.totalCosts')} value={fmtK(totalCosts)} color="#8B5CF6" />
+          <KpiCard2026 label={t('performance2026.profitAfterVat')} value={fmtK(profitAfterVat)} sub={`${(profitAfterVatMargin*100).toFixed(1)}% ${t('performance2026.margin')} · ${t('performance2026.netVatLabel')} ${fmtK(netVatAdjusted)}`} color={profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'} />
         </div>
       </div>
 

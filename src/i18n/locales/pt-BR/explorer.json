@@ -83,6 +83,8 @@
     },
     "adjustedRevenue": "Receita Ajustada",
     "adjustedEbitda": "EBITDA Ajustado",
+    "profitAfterVat": "Lucro Após IVA",
+    "netVatLabel": "IVA Líquido",
     "margin": "de margem",
     "income2026": "Receita · Projeção 2026",
     "costs2026": "Custos Operacionais · Projeção 2026",
@@ -93,6 +95,7 @@
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
+      "vatComputed": "IVA de saída (receita × 1/6) − IVA de entrada recuperável — salários, fliperamas, comida e hospedagem são isentos",
       "hosting": "Hospedagem (Lithos)",
       "hostingNote": "Fixo — SEO/Anúncios agora de responsabilidade da Plonk Golf",
       "other": "Outros"
