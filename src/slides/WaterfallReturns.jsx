@@ -17,10 +17,14 @@ export default function WaterfallReturns() {
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
 
+  // Custom scenario reads from a runtime snapshot when the 2026 Performance
+  // tab is locked (mechanism added in a follow-up). For now defaults to base
+  // until the lock state is wired through to the deck.
   const SCENARIOS = {
-    bear: { label: t('scenarios.bear'), badge: t('scenarioBadges.bear'), profit: 0,      color: '#E53935' },
-    base: { label: t('scenarios.base'), badge: t('scenarioBadges.base'), profit: 124000, color: '#C9A84C' },
-    bull: { label: t('scenarios.bull'), badge: t('scenarioBadges.bull'), profit: 174000, color: '#2DD4BF' },
+    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: 0,      color: '#E53935' },
+    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: 124000, color: '#C9A84C' },
+    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: 174000, color: '#2DD4BF' },
+    custom: { label: t('scenarios.custom'), badge: t('scenarioBadges.custom'), profit: 124000, color: 'var(--gold)' },
   }
 
   const [scenario, setScenario] = useState('base')

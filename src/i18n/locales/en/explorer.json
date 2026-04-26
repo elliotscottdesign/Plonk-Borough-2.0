@@ -10,8 +10,33 @@
     "tickets": "Ticket Price",
     "income": "Income",
     "opcosts": "Operating Costs",
+    "fixed": "Fixed Costs",
     "wages": "Wages",
     "office": "Office Costs"
+  },
+  "fixedCosts": {
+    "header": "Fixed Costs · Operating Premises Overhead",
+    "note": "Twelve line items from rows 21–32 of the 2025 weekly P&L workbook. Edit the monthly slider on each line to test new vendor quotes. Total flows to the Fixed Costs line in the cost donut.",
+    "resetAll": "Reset all to defaults",
+    "deltaLabel": "Delta",
+    "vsReference": "vs 2025 actual",
+    "sliderHeader": "Per-Line Monthly Sliders",
+    "ref2025": "2025: {{val}}/mo",
+    "annual": "{{val}}/yr",
+    "items": {
+      "rent": "Rent",
+      "rates": "Business Rates",
+      "electricity": "Electricity",
+      "gas": "Gas",
+      "water": "Water",
+      "insurance": "Insurance",
+      "internet": "Internet & Phone",
+      "prs": "PRS / Music Licence",
+      "waste": "Waste Collection",
+      "pest": "Pest Control",
+      "maintenance": "Maintenance & Repairs",
+      "misc": "Equipment & Misc"
+    }
   },
   "officeCosts": {
     "header": "Office Costs · Apps, AI & Director",
@@ -132,13 +157,13 @@
   },
   "performance2026": {
     "header": "2026 Performance · Scenario-adjusted forecast",
-    "sliderDesc": "Live readout of the 2026 forecast. Use the Sections below — Ticket Price · Income · Operating Costs · Wages · Office Costs — to model your 2026 plan. The slider, KPI tiles and scenario cards update as you go.",
+    "sliderDesc": "Live readout of the 2026 forecast. Use the Sections below — Ticket Price · Income · Operating Costs · Fixed Costs · Wages · Office Costs — to model your 2026 plan. The slider, KPI tiles and scenario cards update as you go.",
     "resetLevers": "Reset all five levers to +15% (Base)",
     "labels": {
-      "bear": "Bear",
+      "bear": "Conservative",
       "y2025": "2025",
       "base": "Base",
-      "bull": "Bull"
+      "bull": "Optimistic"
     },
     "adjustedRevenue": "Adjusted Revenue",
     "adjustedEbitda": "Adjusted EBITDA",
@@ -152,6 +177,7 @@
     "costNotes": {
       "wagesDriven": "Driven by the wage calculator below — sliders control the rate per role × 2026 hours",
       "fixed": "Rent, rates, utilities, insurance, internet, PRS · +10% on 2025",
+      "fixedDriven": "Driven by the Fixed Costs section — 12 line items, each with a monthly slider to test vendor quotes",
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
       "office": "Apps, AI, accountant fees and director's salary — driven by the Office Costs section below.",

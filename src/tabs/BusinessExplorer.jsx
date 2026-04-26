@@ -162,6 +162,38 @@ const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(
   0,
 )
 
+// ─── Fixed costs (rent, rates, utilities) ────────────────────────────
+// Sourced from rows 21–32 of "2025 WEEKLY CATEGORISED COSTS" in the
+// authoritative weekly P&L workbook. The 12 reference annual values
+// sum to £165,647 — exact match with COST_CATEGORIES.fixed in data.js.
+// Defaults for the 2026 monthly editable state = (2025 annual / 12)
+// × 1.10 inflation, so model behaviour at default is unchanged.
+const FIXED_COST_ITEMS = [
+  { id: 'rent',        ref2025Annual: 75000 },
+  { id: 'rates',       ref2025Annual: 18000 },
+  { id: 'electricity', ref2025Annual: 18000 },
+  { id: 'gas',         ref2025Annual: 10000 },
+  { id: 'water',       ref2025Annual:  4000 },
+  { id: 'insurance',   ref2025Annual: 10000 },
+  { id: 'internet',    ref2025Annual:  4000 },
+  { id: 'prs',         ref2025Annual:  2500 },
+  { id: 'waste',       ref2025Annual:  4500 },
+  { id: 'pest',        ref2025Annual:  1500 },
+  { id: 'maintenance', ref2025Annual: 14000 },
+  { id: 'misc',        ref2025Annual:  4147 },
+]
+
+// Default 2026 monthly = 2025 monthly × 1.10 inflation, rounded to £.
+const FIXED_COSTS_2026_DEFAULTS = FIXED_COST_ITEMS.reduce((acc, item) => {
+  acc[item.id] = Math.round((item.ref2025Annual / 12) * 1.10)
+  return acc
+}, {})
+
+const sumFixedCostsAnnual = (state) => FIXED_COST_ITEMS.reduce(
+  (sum, item) => sum + (state[item.id] ?? FIXED_COSTS_2026_DEFAULTS[item.id]) * 12,
+  0,
+)
+
 // Custom Scenario lever definitions. One entry per commercial revenue line —
 // keys match the growth state shape (`bar`, `golf`, `events`, `hires`, `pool`)
 // and `setSuffix` matches the React setter naming (`setBar`, `setGolf`, etc.).
@@ -200,11 +232,12 @@ const PERF_SECTIONS = [
   { id: 'tickets', icon: '🎟' },
   { id: 'income',  icon: '💰' },
   { id: 'opcosts', icon: '💸' },
+  { id: 'fixed',   icon: '🏠' },
   { id: 'wages',   icon: '👥' },
   { id: 'office',  icon: '🏢' },
 ]
 
-function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOfficeCosts }) {
+function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOfficeCosts, fixedCosts, setFixedCosts }) {
   const [activeSection, setActiveSection] = useState('tickets')
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
@@ -244,7 +277,8 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   // ─── Operating cost lines (no VAT) ─────────────────────────────────────
   // Hosting (Lithos) removed — under new IP & Licensing model, SEO/Ads
   // and the hosting fee sit with Plonk Golf, not the venue.
-  const fixedLine       = Math.round(165647 * 1.10)
+  // Fixed Costs now driven by the FixedCostsSection editable matrix.
+  const fixedLine       = sumFixedCostsAnnual(fixedCosts)
   const cleaningLine    = Math.round(22965 * mult)
   const foodLine        = Math.round(9101 * mult)
   const cardChargesLine = Math.round(5443 * mult)
@@ -280,7 +314,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 
   const costsRaw = [
     { labelKey: 'wages',       value: wageBill2026,    note: t('performance2026.costNotes.wagesDriven') },
-    { labelKey: 'fixed',       value: fixedLine,        note: t('performance2026.costNotes.fixed') },
+    { labelKey: 'fixed',       value: fixedLine,        note: t('performance2026.costNotes.fixedDriven') },
     { labelKey: 'office',      value: officeCostsTotal, note: t('performance2026.costNotes.office'), customLabel: t('costCategories.office') },
     { labelKey: 'drinks',      value: drinksGas2026,    note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',         value: netVat,            note: vatComputedNote },
@@ -496,6 +530,11 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
                 <Stacked2026 monthly={monthlyCosts2026} kind="costs" maxH={120} fmt={fmt} t={t} />
               </div>
             </div>
+          )}
+
+          {/* FIXED COSTS */}
+          {activeSection === 'fixed' && (
+            <FixedCostsSection fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />
           )}
 
           {/* WAGES */}
@@ -900,6 +939,98 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
+// ───────────────────────────────────────────────────────────────────────
+// Fixed Costs section — rent, rates, utilities, insurance, etc.
+// 12 line items sourced from rows 21–32 of the 2025 weekly P&L workbook.
+// Each row gets a slider for monthly £; total × 12 drives the Fixed Costs
+// line in the cost donut. Defaults match the 2025 reference × 1.10
+// inflation (= £182,232/yr, ~£20 off the previous £182,212 due to
+// per-row rounding — within tolerance).
+// ───────────────────────────────────────────────────────────────────────
+function FixedCostsSection({ fixedCosts, setFixedCosts }) {
+  const { t } = useTranslation('explorer')
+  const { fmt } = useFmt()
+
+  const ref2025Total = FIXED_COST_ITEMS.reduce((sum, i) => sum + i.ref2025Annual, 0)
+  const totalAnnual  = sumFixedCostsAnnual(fixedCosts)
+  const totalMonthly = Math.round(totalAnnual / 12)
+  const delta        = totalAnnual - ref2025Total
+
+  const update = (id, value) => setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
+  const resetAll = () => setFixedCosts(FIXED_COSTS_2026_DEFAULTS)
+
+  const deltaColor = delta > 0 ? '#EF4444' : delta < 0 ? '#2DD4BF' : '#9CA3AF'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* Header + total tile */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.header')}</div>
+          <ResetBtn onClick={resetAll} title={t('fixedCosts.resetAll')} />
+        </div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('fixedCosts.note')}</div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
+          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2025 Actual</div>
+            <div style={{ fontSize:20, fontWeight:700, color:'#9CA3AF' }}>{fmt(ref2025Total)}</div>
+          </div>
+          <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2026 Forecast</div>
+            <div style={{ fontSize:22, fontWeight:800, color:'var(--gold)' }}>{fmt(totalAnnual)}</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:3 }}>{fmt(totalMonthly)} / month</div>
+          </div>
+          <div style={{ background:'rgba(255,255,255,0.03)', border:`1px solid ${deltaColor}33`, borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
+            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{t('fixedCosts.deltaLabel')}</div>
+            <div style={{ fontSize:22, fontWeight:800, color:deltaColor }}>{delta > 0 ? '+' : ''}{fmt(delta)}</div>
+            <div style={{ fontSize:11, color:'#6B7280', marginTop:3 }}>{t('fixedCosts.vsReference')}</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Per-row sliders */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('fixedCosts.sliderHeader')}</div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
+          {FIXED_COST_ITEMS.map(item => {
+            const monthly2025 = Math.round(item.ref2025Annual / 12)
+            const monthly2026 = fixedCosts[item.id] ?? FIXED_COSTS_2026_DEFAULTS[item.id]
+            const annual2026  = monthly2026 * 12
+            const sliderMax   = Math.max(monthly2025 * 2, monthly2026 + 100)
+            const monthDelta  = monthly2026 - monthly2025
+            const itemDeltaColor = monthDelta > 0 ? '#EF4444' : monthDelta < 0 ? '#2DD4BF' : '#9CA3AF'
+            const step = monthly2025 >= 2000 ? 25 : monthly2025 >= 500 ? 5 : 1
+            return (
+              <div key={item.id} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'12px 14px' }}>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
+                  <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`fixedCosts.items.${item.id}`)}</span>
+                  <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                    <span style={{ color:'var(--gold)', fontWeight:700, fontSize:14 }}>£{monthly2026.toLocaleString()}/mo</span>
+                    <ResetBtn onClick={() => update(item.id, FIXED_COSTS_2026_DEFAULTS[item.id])} title={`Reset £${FIXED_COSTS_2026_DEFAULTS[item.id]}/mo`} />
+                  </span>
+                </div>
+                <input
+                  type="range" min={0} max={sliderMax} step={step}
+                  value={monthly2026}
+                  onChange={e => update(item.id, e.target.value)}
+                  style={{ width:'100%', accentColor:'var(--gold)' }}
+                />
+                <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
+                  <span>{t('fixedCosts.ref2025', { val: '£' + monthly2025.toLocaleString() })}</span>
+                  <span style={{ color: itemDeltaColor, fontWeight:600 }}>{monthDelta !== 0 ? `${monthDelta > 0 ? '+' : ''}£${Math.abs(monthDelta).toLocaleString()}/mo` : '—'}</span>
+                  <span style={{ color:'#9CA3AF' }}>{t('fixedCosts.annual', { val: fmt(annual2026) })}</span>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
 // Office Costs section — Apps / AI / Accounting / Director.
 // Editable per-line annual £. Total flows to the cost donut as the
 // new "Office & Admin" line. Recurring SaaS rates sourced from 2025
@@ -1119,6 +1250,10 @@ export default function BusinessExplorer() {
   // Total flows to the cost donut as a new "Office & Admin" line.
   const [officeCosts, setOfficeCosts] = useState(OFFICE_COSTS_2026_DEFAULTS)
 
+  // Fixed costs (rent, rates, utilities, etc.) — monthly £ per item.
+  // Total × 12 replaces the static fixedLine in the cost model.
+  const [fixedCosts, setFixedCosts] = useState(FIXED_COSTS_2026_DEFAULTS)
+
   // Wage rates lifted to parent so the 2026 Performance tab and the standalone
   // Wages tab share the same state — moving a slider in either reflects in both.
   // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
@@ -1140,7 +1275,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
-    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

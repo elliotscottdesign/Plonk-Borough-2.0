@@ -10,8 +10,33 @@
     "tickets": "Preço de Ingressos",
     "income": "Receita",
     "opcosts": "Custos Operacionais",
+    "fixed": "Custos Fixos",
     "wages": "Salários",
     "office": "Custos de Escritório"
+  },
+  "fixedCosts": {
+    "header": "Custos Fixos · Despesas do Imóvel",
+    "note": "Doze itens das linhas 21–32 do P&L semanal 2025. Edite o controle mensal de cada linha para testar novas cotações de fornecedores. Total flui para a linha de Custos Fixos no donut de custos.",
+    "resetAll": "Redefinir tudo para padrões",
+    "deltaLabel": "Variação",
+    "vsReference": "vs real 2025",
+    "sliderHeader": "Controles Mensais por Linha",
+    "ref2025": "2025: {{val}}/mês",
+    "annual": "{{val}}/ano",
+    "items": {
+      "rent": "Aluguel",
+      "rates": "IPTU Comercial",
+      "electricity": "Eletricidade",
+      "gas": "Gás",
+      "water": "Água",
+      "insurance": "Seguro",
+      "internet": "Internet e Telefone",
+      "prs": "Licença Musical PRS",
+      "waste": "Coleta de Lixo",
+      "pest": "Controle de Pragas",
+      "maintenance": "Manutenção e Reparos",
+      "misc": "Equipamentos e Diversos"
+    }
   },
   "officeCosts": {
     "header": "Custos de Escritório · Apps, IA e Diretor",
@@ -132,10 +157,10 @@
   },
   "performance2026": {
     "header": "Desempenho 2026 · Projeção ajustada por cenário",
-    "sliderDesc": "Leitura ao vivo da projeção 2026. Use as Seções abaixo — Preço de Ingressos · Receita · Custos Operacionais · Salários · Custos de Escritório — para modelar seu plano 2026. O controle, KPIs e cartões de cenário atualizam conforme você edita.",
+    "sliderDesc": "Leitura ao vivo da projeção 2026. Use as Seções abaixo — Preço de Ingressos · Receita · Custos Operacionais · Custos Fixos · Salários · Custos de Escritório — para modelar seu plano 2026. O controle, KPIs e cartões de cenário atualizam conforme você edita.",
     "resetLevers": "Redefinir as cinco alavancas para +15% (Base)",
     "labels": {
-      "bear": "Pessimista",
+      "bear": "Conservador",
       "y2025": "2025",
       "base": "Base",
       "bull": "Otimista"
@@ -152,6 +177,7 @@
     "costNotes": {
       "wagesDriven": "Calculado pela calculadora de salários abaixo — controles ajustam a taxa por função × horas 2026",
       "fixed": "Aluguel, taxas, utilidades, seguro, internet, PRS · +10% sobre 2025",
+      "fixedDriven": "Definido pela seção Custos Fixos — 12 linhas, cada uma com controle mensal para testar cotações de fornecedores",
       "drinks": "30% da receita do bar (real de 2025 foi 22,5%)",
       "scales": "Escala com a receita agregada",
       "office": "Apps, IA, contador e salário do diretor — definido pela seção Custos de Escritório abaixo.",

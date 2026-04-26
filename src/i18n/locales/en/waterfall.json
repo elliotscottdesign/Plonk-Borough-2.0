@@ -2,14 +2,16 @@
   "title": "Investor Returns",
   "subtitle": "Pure pro-rata — all shareholders paid at the same time by equity %. No preferred return, no priority tiers.",
   "scenarios": {
-    "bear": "Bear Case −10%",
+    "bear": "Conservative −10%",
     "base": "Base Case +15%",
-    "bull": "Bull Case +25%"
+    "bull": "Optimistic +25%",
+    "custom": "Custom"
   },
   "scenarioBadges": {
-    "bear": "−10% scenario",
-    "base": "+15% scenario",
-    "bull": "+25% scenario"
+    "bear": "Conservative scenario",
+    "base": "Base case scenario",
+    "bull": "Optimistic scenario",
+    "custom": "Custom scenario · live from Business Explorer"
   },
   "steps": {
     "operatingProfit": "Operating Profit",

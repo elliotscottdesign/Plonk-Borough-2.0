@@ -2,14 +2,16 @@
   "title": "Retornos do Investidor",
   "subtitle": "Pro-rata puro — todos os acionistas recebem ao mesmo tempo pelo % de equity. Sem retorno preferencial, sem níveis de prioridade.",
   "scenarios": {
-    "bear": "Cenário Pessimista −10%",
+    "bear": "Conservador −10%",
     "base": "Cenário Base +15%",
-    "bull": "Cenário Otimista +25%"
+    "bull": "Otimista +25%",
+    "custom": "Personalizado"
   },
   "scenarioBadges": {
-    "bear": "cenário −10%",
-    "base": "cenário +15%",
-    "bull": "cenário +25%"
+    "bear": "cenário Conservador",
+    "base": "cenário Base",
+    "bull": "cenário Otimista",
+    "custom": "cenário Personalizado · ao vivo do Business Explorer"
   },
   "steps": {
     "operatingProfit": "Lucro Operacional",
