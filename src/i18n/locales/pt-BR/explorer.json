@@ -81,6 +81,10 @@
         "name": "Hospedagem web básica",
         "note": "Site simples do local (menu, contato, página informativa). A Plonk Golf opera a plataforma de reservas; isso cobre apenas o site estático do próprio local. Pagamento anual antecipado."
       },
+      "amazonPrime": {
+        "name": "Amazon Prime",
+        "note": "Assinatura mensal do Prime para entrega rápida de estoque, equipamentos e consumíveis. £8,99/mês no preço atual."
+      },
       "accounting": {
         "name": "Honorários contábeis",
         "note": "Honorários anuais — contas estatutárias de fim de ano, folha de pagamento, declarações de IVA."

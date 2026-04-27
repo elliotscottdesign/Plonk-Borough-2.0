@@ -143,20 +143,22 @@ const OFFICE_COST_ITEMS = [
   { id: 'claude',     monthlyHint: 20,   source: 'pricing'    },
   { id: 'google',     monthlyHint: 25,   source: 'weekly2025' },
   { id: 'webhosting', monthlyHint: 42,   source: 'pricing'    },
+  { id: 'amazonPrime', monthlyHint: 9,   source: 'pricing'    },
   { id: 'accounting', monthlyHint: null, source: 'specified'  },
   { id: 'director',   monthlyHint: null, source: 'estimated'  },
 ]
 
 const OFFICE_COSTS_2026_DEFAULTS = {
-  xero:        300,   // £25/mo × 12
-  rotacloud:   480,   // ~£40/mo for 10 users × 12
-  claude:      240,   // Claude Pro £20/mo × 12
-  google:      300,   // £25/mo × 12
-  webhosting:  500,   // basic shared hosting · annual prepay (~£42/mo equivalent)
-  accounting: 3000,   // annual fees (user-specified)
-  director:  30000,   // total directors' compensation budget — can be split
-                      // across multiple directors. Aligned with other
-                      // references throughout the deck.
+  xero:         300,   // £25/mo × 12
+  rotacloud:    480,   // ~£40/mo for 10 users × 12
+  claude:       240,   // Claude Pro £20/mo × 12
+  google:       300,   // £25/mo × 12
+  webhosting:   500,   // basic shared hosting · annual prepay (~£42/mo equivalent)
+  amazonPrime:  108,   // £8.99/mo × 12 ≈ £108 — venue stock + supplies delivery
+  accounting:  3000,   // annual fees (user-specified)
+  director:   30000,   // total directors' compensation budget — can be split
+                       // across multiple directors. Aligned with other
+                       // references throughout the deck.
 }
 
 const sumOfficeCosts = (state) => OFFICE_COST_ITEMS.reduce(

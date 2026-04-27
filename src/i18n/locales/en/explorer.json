@@ -81,6 +81,10 @@
         "name": "Basic web hosting",
         "note": "Simple venue website (menu, contact, info page). Plonk Golf owns the booking platform; this covers the venue's own static site only. Annual prepay."
       },
+      "amazonPrime": {
+        "name": "Amazon Prime",
+        "note": "Monthly Prime subscription for fast delivery on stock supplies, equipment and consumables. £8.99/mo at current pricing."
+      },
       "accounting": {
         "name": "Accounting fees",
         "note": "Annual accountant fees — year-end statutory accounts, payroll, VAT returns."
