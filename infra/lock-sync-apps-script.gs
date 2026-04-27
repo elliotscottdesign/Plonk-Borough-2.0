@@ -44,7 +44,13 @@ const CELL       = 'A1'                                               // cell ho
 const LOCK_SECRET = ''                                                // optional shared secret; '' = no check
 
 function _sheet() {
-  return SpreadsheetApp.openById(SHEET_ID).getSheetByName(SHEET_NAME)
+  const ss = SpreadsheetApp.openById(SHEET_ID)
+  let sh = ss.getSheetByName(SHEET_NAME)
+  if (!sh) {
+    sh = ss.insertSheet(SHEET_NAME)
+    sh.getRange('A1').setNote('Auto-created by lock-sync web app — holds the locked 2026 forecast snapshot as JSON.')
+  }
+  return sh
 }
 
 function _json(payload, status) {
