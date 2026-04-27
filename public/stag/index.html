@@ -46,6 +46,9 @@
   .wrap { max-width: 1100px; margin: 0 auto; }
   .section-title { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin: 0 0 10px; }
   .section-heading { font-size: clamp(30px, 5vw, 46px); margin: 0 0 32px; line-height: 1.1; max-width: 780px; }
+  .theme-card { padding: 32px; background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 12px; }
+  .theme-lead { margin: 0; font-size: 18px; line-height: 1.65; color: var(--cream); }
+  .theme-lead strong { color: var(--gold); font-weight: 500; }
 
   .timeline { display: grid; gap: 14px; }
   .stop { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; transition: border-color .15s ease; overflow: hidden; }
@@ -114,6 +117,8 @@
     .cta-row { margin-top: 28px; }
     section { padding: 48px 20px; }
     .section-heading { margin-bottom: 24px; }
+    .theme-card { padding: 22px; }
+    .theme-lead { font-size: 16px; line-height: 1.6; }
     .stop summary { padding: 16px; gap: 12px; grid-template-columns: 86px 1fr; }
     .stop-time { font-size: 14px; }
     .stop-name { font-size: 20px; }
@@ -151,6 +156,16 @@
     <a href="#rsvp" class="btn btn-big">Jump to RSVP →</a>
   </div>
 </div>
+
+<section>
+  <div class="wrap">
+    <div class="section-title">The Theme</div>
+    <h2 class="serif section-heading">A history tour through London.</h2>
+    <div class="theme-card">
+      <p class="theme-lead">We start our history tour with a walk to Clays. <strong>Julian will be crowned in a Roman Centurion's helmet</strong> — about all the cringe he can handle — as we go on an eventful history tour through London.</p>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
