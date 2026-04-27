@@ -67,13 +67,6 @@ const OFFERS = [
   },
 ]
 
-const WARRANTY_TERMS = [
-  { label: 'Warranty', value: 'Valid only while a Maintenance Plan is active. No maintenance plan = no warranty cover.', tone: 'warn' },
-  { label: 'Maintenance visit', value: '1 on-site day per month · London venues · £400 / month', tone: 'ok' },
-  { label: 'Hardware discounts', value: 'Plan holders get discounted rates on all new hardware and equipment.', tone: 'ok' },
-  { label: 'Vandalism', value: 'Not covered under warranty or maintenance plan — venue\'s responsibility.', tone: 'warn' },
-]
-
 export default function PlonkHowItWorks() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -164,24 +157,6 @@ export default function PlonkHowItWorks() {
                 <div style={{ fontSize: 10, color: o.accent, border: `1px solid ${o.accent}60`, borderRadius: 20, padding: '2px 10px', letterSpacing: '0.05em' }}>{o.pill}</div>
               </div>
               <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>{o.body}</div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* --- Moved from Plonk Cover: Maintenance & Warranty terms --- */}
-      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 14 }}>
-          Maintenance &amp; Warranty Terms
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
-          {WARRANTY_TERMS.map((t, i) => (
-            <div key={i} style={{ display: 'flex', gap: 12, padding: '12px 14px', background: t.tone === 'warn' ? 'rgba(239,68,68,0.06)' : 'rgba(45,212,191,0.06)', border: `1px solid ${t.tone === 'warn' ? 'rgba(239,68,68,0.25)' : 'rgba(45,212,191,0.25)'}`, borderRadius: 8 }}>
-              <div style={{ fontSize: 13, color: t.tone === 'warn' ? '#EF4444' : '#2DD4BF', flexShrink: 0, width: 22, textAlign: 'center' }}>{t.tone === 'warn' ? '!' : '✓'}</div>
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--cream)', marginBottom: 3 }}>{t.label}</div>
-                <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{t.value}</div>
-              </div>
             </div>
           ))}
         </div>

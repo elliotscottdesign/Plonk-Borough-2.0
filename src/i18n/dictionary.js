@@ -846,19 +846,6 @@ export const PT_BR = {
   '£400 / month for London-based venues — includes one on-site day per month. Plan holders also unlock discounts on all new hardware and equipment orders.':
     '£400 / mês para locais em Londres — inclui um dia de atendimento presencial por mês. Assinantes do plano também obtêm descontos em todos os novos pedidos de hardware e equipamentos.',
   '£400 / mo': '£400 / mês',
-  'Maintenance & Warranty Terms': 'Termos de Manutenção e Garantia',
-  'Warranty': 'Garantia',
-  'Valid only while a Maintenance Plan is active. No maintenance plan = no warranty cover.':
-    'Válida apenas enquanto um Plano de Manutenção estiver ativo. Sem plano de manutenção = sem cobertura de garantia.',
-  'Maintenance visit': 'Visita de manutenção',
-  '1 on-site day per month · London venues · £400 / month':
-    '1 dia presencial por mês · Locais em Londres · £400 / mês',
-  'Hardware discounts': 'Descontos em hardware',
-  'Plan holders get discounted rates on all new hardware and equipment.':
-    'Assinantes do plano obtêm tarifas com desconto em todos os novos hardwares e equipamentos.',
-  'Vandalism': 'Vandalismo',
-  "Not covered under warranty or maintenance plan — venue's responsibility.":
-    'Não coberto pela garantia ou plano de manutenção — responsabilidade do local.',
 
   // ---------- IP & Licensing ----------
   'IP & Licensing — dev sheet (Borough 2025, split by channel)':
