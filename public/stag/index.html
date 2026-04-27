@@ -186,28 +186,6 @@
   </div>
 </section>
 
-<section>
-  <div class="wrap">
-    <div class="section-title">Packages</div>
-    <h2 class="serif section-heading">Day, evening, or full bore.</h2>
-    <div class="pkgs">
-      <div class="pkg pkg-day">
-        <div class="pkg-label">Day Package</div>
-        <div class="serif pkg-name">Shooting → Mortadella</div>
-        <div class="serif pkg-price" id="day-price">£0</div>
-        <div class="pkg-includes" id="day-includes"></div>
-      </div>
-      <div class="pkg pkg-evening">
-        <div class="pkg-label">Evening Package</div>
-        <div class="serif pkg-name">Strippers → Sunrise</div>
-        <div class="serif pkg-price" id="ev-price">£0</div>
-        <div class="pkg-includes" id="ev-includes"></div>
-      </div>
-    </div>
-    <p class="footnote">Day package excludes drinks at Smokoloko (pay your own beers in the market). Pub crawl is pay-as-you-drink. Club OM door is included in the evening package.</p>
-  </div>
-</section>
-
 <section id="rsvp" class="rsvp-banner">
   <div class="wrap">
     <div class="section-title" style="margin-bottom: 16px;">RSVP</div>
@@ -387,16 +365,6 @@
       </details>
     `).join('')
   }
-  function renderPackages() {
-    const day = EVENTS.filter(e => e.pkg === 'day' && !e.extraOnly && !e.walk)
-    const ev  = EVENTS.filter(e => e.pkg === 'evening' && !e.extraOnly && !e.walk)
-    document.getElementById('day-price').textContent = '£' + day.reduce((s,e)=>s+e.price,0)
-    document.getElementById('ev-price').textContent  = '£' + ev.reduce((s,e)=>s+e.price,0)
-    document.getElementById('day-includes').innerHTML = day.map(e =>
-      `<div>· ${escapeHtml(e.short)} — £${e.price}${e.priceNote ? ' <span style="color:var(--cream-dim)">('+escapeHtml(e.priceNote)+')</span>' : ''}</div>`).join('')
-    document.getElementById('ev-includes').innerHTML = ev.map(e =>
-      `<div>· ${escapeHtml(e.short)} — ${e.price ? '£'+e.price : (e.tba ? 'TBA' : 'BYO')}${e.priceNote ? ' <span style="color:var(--cream-dim)">('+escapeHtml(e.priceNote)+')</span>' : ''}</div>`).join('')
-  }
   function wireRsvp() {
     const url = (RSVP_URL || '').trim()
     const btn = document.getElementById('rsvp-btn')
@@ -410,7 +378,6 @@
   }
 
   renderTimeline()
-  renderPackages()
   wireRsvp()
 </script>
 </body>
