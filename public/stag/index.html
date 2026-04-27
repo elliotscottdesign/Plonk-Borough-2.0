@@ -295,18 +295,15 @@
       notes: "Once the ladies have left we'll fire up the BBQ and get this sausage party really on. Take on fuel, break, smoke, sharpen. Beers and drinks can be bought from the off-license or from Elliot. Sausage contributions taken at the bar.",
     },
     {
-      id: 'crawl', name: 'Hackney Pub Crawl',
-      sub: 'Optional · 1 drink in each, get your own in',
-      time: '10:00 PM', short: '10pm Pub crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)',
+      id: 'crawl', name: 'Dalston Crawl', branch: 'Kingsland Road',
+      sub: 'Optional · concentrated crawl, taxi from the BBQ',
+      time: '10:00 PM', short: '10pm Dalston Crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)',
       venues: [
-        { name: "Rasputin's",                  walk: 'Start' },
-        { name: "Easy Eights",                 walk: '~5 min walk' },
-        { name: 'Saint Monday',                walk: '~5 min walk' },
-        { name: 'The Last Tuesday Society',    walk: '~5 min walk' },
-        { name: 'Broadway Market',             walk: '~10 min walk' },
-        { name: 'Loop into Dalston',           walk: '~15 min walk' },
+        { name: 'The Fox',          walk: 'Start · taxi from the Clubhouse' },
+        { name: 'Hacha Agavería',   walk: '~5 min walk' },
+        { name: 'Final stop — TBA', walk: '~5 min walk' },
       ],
-      notes: 'Optional from 10pm — depends on the state of the Stag. 1 drink in each, get your own in. Then loop back and head to Dalston for the late heads.',
+      notes: "Those who still have courage take a taxi across to Dalston for a concentrated crawl on Kingsland Road. Starting at The Fox, then Hacha Agavería, and finishing at — TBA. Optional from 10pm, depending on the state of the Stag. 1 drink in each, get your own in.",
     },
     {
       id: 'om', name: 'Club OM', branch: 'Dalston',
@@ -343,7 +340,7 @@
       const items = e.venues.map(v => `
         <li>
           <span class="venue-name">${escapeHtml(v.name)}</span>
-          <a class="extra-link" href="${mapsUrl(v.name + ' Hackney London')}" target="_blank" rel="noopener">Maps ↗</a>
+          <a class="extra-link" href="${mapsUrl(v.name + ' Dalston Kingsland Road London')}" target="_blank" rel="noopener">Maps ↗</a>
           <span class="venue-walk">${escapeHtml(v.walk)}</span>
         </li>
       `).join('')
