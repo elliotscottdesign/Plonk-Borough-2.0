@@ -7,7 +7,7 @@ import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025 } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
-const TAB_KEYS = ['overview','performance2025','performance2026']
+const TAB_KEYS = ['performance2025','performance2026']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -16,70 +16,6 @@ function useFmt() {
   const fmtK = (n) => '£' + Math.round(n/1000) + 'k'
   const fmtNum = (n) => formatNumber(n, lang)
   return { fmt, fmtK, fmtNum, lang }
-}
-
-function TabOverview() {
-  const { t } = useTranslation('explorer')
-  const { t: tc } = useTranslation('common')
-  const { fmt, fmtK } = useFmt()
-  const months = ['May','Jun','Jul','Aug','Sep','Oct','Nov','Dec','Jan','Feb','Mar','Apr']
-  const rev =    [52000,44000,53000,89000,71000,68000,97000,173326,36000,52000,60000,58000]
-  const ebitda = [-7000,-4000,5000,23000,17000,15000,30000,98000,-3000,6000,3000,8000]
-  const maxRev = Math.max(...rev)
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20, fontSize:13 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { label:t('overview.stats.ask.label'),      value:`${fmt(DEAL.investment)} inc VAT`, sub:t('overview.stats.ask.sub'),      color:'var(--gold)' },
-          { label:t('overview.stats.fy2025.label'),   value:fmtK(ACTUALS_2025.revenue),         sub:t('overview.stats.fy2025.sub'),   color:'#4FC3F7' },
-          { label:t('overview.stats.forecast.label'), value:fmtK(FORECAST.revenue),             sub:t('overview.stats.forecast.sub'), color:'#2DD4BF' },
-        ].map(s => (
-          <div key={s.label} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, textAlign:'center' }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:8 }}>{s.label}</div>
-            <div style={{ fontSize:28, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-          </div>
-        ))}
-      </div>
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:16 }}>{t('overview.forecastChart')}</div>
-        <OverviewMonthlyChart months={months} rev={rev} ebitda={ebitda} maxRev={maxRev} fmtK={fmtK} />
-        <div style={{ display:'flex', gap:16 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#4FC3F7', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>{tc('labels.revenue')}</span></div>
-          <div style={{ display:'flex', alignItems:'center', gap:6 }}><div style={{ width:10, height:10, background:'#2DD4BF', borderRadius:2 }} /><span style={{ fontSize:11, color:'#9CA3AF' }}>{tc('labels.ebitda')}</span></div>
-        </div>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-        {[
-          { label:t('overview.revenueSplitHeader'), items:[
-            { label:t('overview.splits.bar'), pct:49, c:'#1E40AF' },
-            { label:t('overview.splits.activities'), pct:28, c:'#2563EB' },
-            { label:t('overview.splits.events'), pct:23, c:'#60A5FA' },
-          ]},
-          { label:t('overview.y1Ebitda'), value:'£191k', sub:t('overview.y1Margin'), color:'#2DD4BF' },
-          { label:t('overview.baseReturns'), value:t('overview.cocLabel'), sub:t('overview.cocNote'), color:'#C9A84C' },
-        ].map((s,i) => (
-          <div key={i} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-            <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{s.label}</div>
-            {s.items ? s.items.map(item => (
-              <div key={item.label} style={{ marginBottom:8 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:12, marginBottom:3 }}>
-                  <span style={{ color:'var(--cream)' }}>{item.label}</span>
-                  <span style={{ color:item.c, fontWeight:600 }}>{item.pct}%</span>
-                </div>
-                <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2 }}>
-                  <div style={{ height:'100%', width:item.pct+'%', background:item.c, borderRadius:2 }} />
-                </div>
-              </div>
-            )) : <>
-              <div style={{ fontSize:26, fontWeight:800, color:s.color, marginBottom:4 }}>{s.value}</div>
-              <div style={{ fontSize:12, color:'#9CA3AF' }}>{s.sub}</div>
-            </>}
-          </div>
-        ))}
-      </div>
-    </div>
-  )
 }
 
 // 2026 Performance — scenario-adjusted forecast built from the 2025 figures on the
@@ -1307,30 +1243,6 @@ function KpiCard2026({ label, value, sub, color }) {
   )
 }
 
-function OverviewMonthlyChart({ months, rev, ebitda, maxRev, fmtK }) {
-  const { containerProps, segmentProps, overlay } = useChartTooltip()
-  return (
-    <div {...containerProps} style={{ display:'flex', alignItems:'flex-end', gap:6, height:140, marginBottom:8, position:'relative' }}>
-      {months.map((m,i) => (
-        <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
-          <div style={{ width:'100%', display:'flex', flexDirection:'column', justifyContent:'flex-end', height:120 }}>
-            <div
-              style={{ width:'100%', background:'#4FC3F7', borderRadius:'2px 2px 0 0', height:Math.max(2,(rev[i]/maxRev)*100)+'px', opacity:0.7, cursor:'default' }}
-              {...segmentProps(`${m}\nRevenue ${fmtK(rev[i])}`)}
-            />
-            <div
-              style={{ width:'100%', background:ebitda[i]>0?'#2DD4BF':'#EF4444', borderRadius:'2px 2px 0 0', height:Math.max(2,(Math.abs(ebitda[i])/maxRev)*100)+'px', marginTop:2, cursor:'default' }}
-              {...segmentProps(`${m}\nEBITDA ${fmtK(ebitda[i])}`)}
-            />
-          </div>
-          <div style={{ fontSize:9, color:'#6B7280' }}>{m}</div>
-        </div>
-      ))}
-      {overlay}
-    </div>
-  )
-}
-
 function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const palette = kind === 'income'
@@ -1402,7 +1314,7 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal
 export default function BusinessExplorer() {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
-  const [tab, setTab] = useState('overview')
+  const [tab, setTab] = useState('performance2026')
 
   const [barGrowth, setBarGrowth]       = useState(15)
   const [golfGrowth, setGolfGrowth]     = useState(15)
@@ -1453,7 +1365,6 @@ export default function BusinessExplorer() {
   }
 
   const tabComponents = {
-    overview: <TabOverview />,
     performance2025: <FinancialPerformance />,
     performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />,
   }

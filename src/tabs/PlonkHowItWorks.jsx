@@ -45,28 +45,6 @@ const ANNUAL_SAVINGS = [
 
 const totalAnnual = ANNUAL_SAVINGS.reduce((s, r) => s + r.annual, 0)
 
-// --- Commercial offer (moved from Plonk Cover) ---
-const OFFERS = [
-  {
-    label: 'Franchise Commission',
-    body: 'A % on golf ticket sales routed through the Plonk online booking system — and, optionally, on office-handled bookings if Plonk Golf provides a bookings manager. Pool tables, private events and group bookings 12+ remain venue-managed.',
-    accent: '#4FC3F7',
-    pill: 'Recurring',
-  },
-  {
-    label: 'Hardware Purchase Fee',
-    body: 'One-off fee for the Plonk course and equipment — built bespoke for the venue, delivered and installed. Hardware is bought outright by the venue.',
-    accent: '#C9A84C',
-    pill: 'One-off',
-  },
-  {
-    label: 'Maintenance Plan (optional)',
-    body: '£400 / month for London-based venues — includes one on-site day per month. Plan holders also unlock discounts on all new hardware and equipment orders.',
-    accent: '#2DD4BF',
-    pill: '£400 / mo',
-  },
-]
-
 export default function PlonkHowItWorks() {
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -138,29 +116,6 @@ export default function PlonkHowItWorks() {
         </div>
       </div>
 
-      {/* Divider before moved section */}
-      <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, var(--gold), transparent)', margin: '8px 0' }} />
-
-      {/* --- Moved from Plonk Cover: The New Model commercial levers --- */}
-      <div>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 4 }}>
-          The New Model · 2026 &amp; On
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--cream-dim)', marginBottom: 16, maxWidth: 720, lineHeight: 1.6 }}>
-          Plonk Golf licenses the IP, sells the hardware, and runs the digital funnel. Venues run the day-to-day. Three commercial levers:
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
-          {OFFERS.map(o => (
-            <div key={o.label} style={{ background: 'var(--ink-2)', border: `1px solid ${o.accent}40`, borderRadius: 10, padding: 20, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 11, color: o.accent, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700 }}>{o.label}</div>
-                <div style={{ fontSize: 10, color: o.accent, border: `1px solid ${o.accent}60`, borderRadius: 20, padding: '2px 10px', letterSpacing: '0.05em' }}>{o.pill}</div>
-              </div>
-              <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>{o.body}</div>
-            </div>
-          ))}
-        </div>
-      </div>
     </div>
   )
 }

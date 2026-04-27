@@ -1,7 +1,6 @@
 {
   "header": "Explorador do Negócio · Borough Market SE1",
   "tabs": {
-    "overview": "Visão Geral",
     "performance2025": "Desempenho 2025",
     "performance2026": "Desempenho 2026"
   },
@@ -94,25 +93,6 @@
         "note": "Orçamento total para o tempo de todos os diretores — pode ser distribuído entre múltiplos diretores. Mix PAYE / dividendos a critério de cada diretor."
       }
     }
-  },
-  "overview": {
-    "stats": {
-      "ask": { "label": "APORTE SOLICITADO", "sub": "por 50% de equity" },
-      "fy2025": { "label": "RECEITA REAL EXERCÍCIO 2025", "sub": "Modelo financeiro verificado" },
-      "forecast": { "label": "RECEITA PROJETADA ANO 1", "sub": "+15,0% sobre o ano anterior" }
-    },
-    "forecastChart": "Projeção Mensal de Receita e EBITDA · Mai 2026 – Abr 2027",
-    "revenueSplitHeader": "Divisão de Receita",
-    "splits": {
-      "bar": "Bar e Bebidas",
-      "activities": "Atividades",
-      "events": "Eventos e Locação"
-    },
-    "y1Ebitda": "EBITDA Projetado Ano 1",
-    "y1Margin": "22,4% de margem EBITDA",
-    "baseReturns": "Retornos do Cenário Base",
-    "cocLabel": "52,1% CoC",
-    "cocNote": "Retorno cash-on-cash Ano 1"
   },
   "performance2025": {
     "income": "Receita · Jan–Dez 2025",

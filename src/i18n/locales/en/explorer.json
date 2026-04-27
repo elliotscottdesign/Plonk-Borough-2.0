@@ -1,7 +1,6 @@
 {
   "header": "Business Explorer · Borough Market SE1",
   "tabs": {
-    "overview": "Overview",
     "performance2025": "2025 Performance",
     "performance2026": "2026 Performance"
   },
@@ -94,25 +93,6 @@
         "note": "Total budget for all directors' time — can be spread across multiple directors. PAYE / dividend mix at each director's discretion."
       }
     }
-  },
-  "overview": {
-    "stats": {
-      "ask": { "label": "INVESTMENT ASK", "sub": "for 50% equity" },
-      "fy2025": { "label": "FY2025 ACTUAL REVENUE", "sub": "Verified financial model" },
-      "forecast": { "label": "FORECAST REVENUE Y1", "sub": "+15.0% on prior year" }
-    },
-    "forecastChart": "Monthly Revenue & EBITDA Forecast · May 2026 – Apr 2027",
-    "revenueSplitHeader": "Revenue Split",
-    "splits": {
-      "bar": "Bar & Drinks",
-      "activities": "Activities",
-      "events": "Events & Hire"
-    },
-    "y1Ebitda": "Y1 Forecast EBITDA",
-    "y1Margin": "22.4% EBITDA margin",
-    "baseReturns": "Base Case Returns",
-    "cocLabel": "52.1% CoC",
-    "cocNote": "Cash-on-cash return Year 1"
   },
   "performance2025": {
     "income": "Income · Jan–Dec 2025",
