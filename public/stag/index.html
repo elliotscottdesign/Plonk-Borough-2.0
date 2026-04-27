@@ -52,7 +52,9 @@
   .wrap { max-width: 1100px; margin: 0 auto; }
   .section-title { font-size: 12px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin: 0 0 10px; }
   .section-heading { font-size: clamp(30px, 5vw, 46px); margin: 0 0 32px; line-height: 1.1; max-width: 780px; }
-  .theme-card { padding: 32px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; text-align: center; }
+  .theme-card { position: relative; padding: 48px 38px; text-align: center; background: radial-gradient(circle at 22% 28%, rgba(212,175,55,0.05), transparent 35%), radial-gradient(circle at 78% 74%, rgba(212,175,55,0.035), transparent 32%), radial-gradient(circle at 50% 50%, transparent 45%, rgba(0,0,0,0.18) 100%), var(--bg-2); border: 2px solid var(--line); border-radius: 28px 36px 22px 32px / 36px 24px 34px 26px; box-shadow: inset 5px 5px 18px rgba(0,0,0,0.35), inset -5px -5px 18px rgba(0,0,0,0.28), 0 10px 30px rgba(0,0,0,0.4); }
+  .theme-card::before { content: ''; position: absolute; inset: 10px; border: 1px solid rgba(212,175,55,0.18); border-radius: 22px 30px 16px 26px / 30px 18px 28px 20px; pointer-events: none; }
+  .theme-card::after { content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; background: radial-gradient(ellipse at top left, transparent 78%, rgba(0,0,0,0.45) 100%), radial-gradient(ellipse at bottom right, transparent 78%, rgba(0,0,0,0.45) 100%); }
   .theme-lead { margin: 0; font-size: 18px; line-height: 1.65; color: var(--cream); }
   .theme-lead strong { color: var(--gold); font-weight: 500; }
   .theme-lead + .theme-lead { margin-top: 16px; }
