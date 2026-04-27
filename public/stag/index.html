@@ -275,7 +275,7 @@
     {
       id: 'crawl', name: 'Dalston Crawl', branch: 'Kingsland Road',
       sub: 'Optional · concentrated crawl, taxi from the BBQ',
-      time: '10:00 PM', short: '10pm Dalston Crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)',
+      time: '10:00 PM', short: '10pm Dalston Crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)', extraTag: 'Club entry · £15 / or late-night bar',
       venues: [
         { name: 'The Fox', walk: 'Start · taxi from the Clubhouse' },
         { name: 'Club OM', walk: '~10 min walk · £15 on door · closes 6am' },
@@ -354,6 +354,7 @@
             </div>
             <div class="stop-sub">${escapeHtml(e.sub)}</div>
             ${e.pintPrice ? `<div class="stop-pint">Pint · ${escapeHtml(e.pintPrice)}</div>` : ''}
+            ${e.extraTag ? `<div class="stop-pint">${escapeHtml(e.extraTag)}</div>` : ''}
             <span class="stop-toggle" aria-hidden="true">More info <span class="stop-toggle-icon">▾</span></span>
           </div>
           <div class="stop-price">
