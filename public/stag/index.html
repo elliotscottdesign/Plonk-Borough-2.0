@@ -148,7 +148,7 @@
   <h1 class="serif hero-title">Saturday<br><em>2nd May</em></h1>
   <div class="hero-date">City → Spitalfields → Hoxton → Hackney → Dalston · sunrise pending</div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num">9</div><div class="hero-stat-label">stops</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">10</div><div class="hero-stat-label">stops</div></div>
     <div class="hero-stat"><div class="hero-stat-num">12+</div><div class="hero-stat-label">hours</div></div>
     <div class="hero-stat"><div class="hero-stat-num">£91</div><div class="hero-stat-label">full bore</div></div>
   </div>
@@ -233,6 +233,13 @@
       address: 'Clays — The City, London (see website for exact address)',
       website: 'https://www.clays.bar/clays-city', websiteLabel: 'clays.bar/clays-city',
       notes: 'Our own lane for 90 minutes with full real-weight decommissioned shotguns and large-format digital clay pigeon shooting screens. Shame we won\u2019t be able to shoot the Essex crowd \u2014 but we\u2019ll out-gun them!',
+    },
+    {
+      id: 'amphitheatre', name: 'A Walk to the Games', branch: 'Guildhall',
+      sub: "London's lost Roman amphitheatre · 5 min walk from Clays",
+      time: '2:00 PM', short: '2pm Amphitheatre', price: 0, pkg: 'day', free: true, priceNote: 'free entry · 20 min',
+      address: 'Guildhall Yard, London EC2V 5AE',
+      notes: "5-minute stroll through Roman London to discover London's lost amphitheatre. Found when Guildhall was redeveloped, London's arena of death is free to enter and takes about 20 minutes to see. Nota Bene: there's a metal detector and bag scanner on the way in.",
     },
     {
       id: 'smokoloko', name: 'Smokoloko', branch: 'Steak stand · Spitalfields Market',
@@ -351,7 +358,7 @@
             <div class="stop-sub">${escapeHtml(e.sub)}</div>
           </div>
           <div class="stop-price">
-            ${e.price > 0 ? '£' + e.price : 'BYO'}
+            ${e.price > 0 ? '£' + e.price : (e.free ? 'Free' : 'BYO')}
             <small>${escapeHtml(e.priceNote || (e.price > 0 ? 'per head' : ''))}</small>
           </div>
         </summary>
