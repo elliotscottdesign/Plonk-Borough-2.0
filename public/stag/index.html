@@ -148,7 +148,7 @@
   <h1 class="serif hero-title">Saturday<br><em>2nd May</em></h1>
   <div class="hero-date">City → Spitalfields → Hoxton → Hackney → Dalston · sunrise pending</div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num">10</div><div class="hero-stat-label">stops</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">11</div><div class="hero-stat-label">stops</div></div>
     <div class="hero-stat"><div class="hero-stat-num">12+</div><div class="hero-stat-label">hours</div></div>
     <div class="hero-stat"><div class="hero-stat-num">£91</div><div class="hero-stat-label">full bore</div></div>
   </div>
@@ -242,9 +242,15 @@
       notes: "5-minute stroll through Roman London to discover London's lost amphitheatre. Found when Guildhall was redeveloped, London's arena of death is free to enter and takes about 20 minutes to see. Nota Bene: there's a metal detector and bag scanner on the way in.",
     },
     {
+      id: 'march', name: 'We March for Meat', branch: 'Following the Roman wall',
+      sub: 'Walk along the Roman wall to Spitalfields',
+      time: '2:20 PM', short: '2:20 March', price: 0, pkg: 'day', walk: true, priceNote: '15 min',
+      notes: "We follow the old Roman wall as we march to the first meat stop at the Medieval Market of Spitalfields. Veggies available as well.",
+    },
+    {
       id: 'smokoloko', name: 'Smokoloko', branch: 'Steak stand · Spitalfields Market',
       sub: 'Food after the shoot, then beers in the market',
-      time: '2:30 PM', short: '2:30 Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks',
+      time: '2:35 PM', short: '2:35 Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks',
       address: 'Old Spitalfields Market, 16 Horner Square, London E1 6EW',
       notes: 'Steak stand inside the market — order food, then grab beers at the market bars before walking up to Hackney.',
     },
@@ -358,7 +364,7 @@
             <div class="stop-sub">${escapeHtml(e.sub)}</div>
           </div>
           <div class="stop-price">
-            ${e.price > 0 ? '£' + e.price : (e.free ? 'Free' : 'BYO')}
+            ${e.price > 0 ? '£' + e.price : (e.walk ? 'Walk' : (e.free ? 'Free' : 'BYO'))}
             <small>${escapeHtml(e.priceNote || (e.price > 0 ? 'per head' : ''))}</small>
           </div>
         </summary>
@@ -367,8 +373,8 @@
     `).join('')
   }
   function renderPackages() {
-    const day = EVENTS.filter(e => e.pkg === 'day' && !e.extraOnly)
-    const ev  = EVENTS.filter(e => e.pkg === 'evening' && !e.extraOnly)
+    const day = EVENTS.filter(e => e.pkg === 'day' && !e.extraOnly && !e.walk)
+    const ev  = EVENTS.filter(e => e.pkg === 'evening' && !e.extraOnly && !e.walk)
     document.getElementById('day-price').textContent = '£' + day.reduce((s,e)=>s+e.price,0)
     document.getElementById('ev-price').textContent  = '£' + ev.reduce((s,e)=>s+e.price,0)
     document.getElementById('day-includes').innerHTML = day.map(e =>
