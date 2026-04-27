@@ -59,7 +59,8 @@
   .stop summary::-webkit-details-marker { display: none; }
   .stop summary::marker { display: none; }
   .stop:hover summary { background: rgba(212, 175, 55, 0.04); }
-  .stop-time { color: var(--gold); font-weight: 700; font-size: 16px; }
+  .stop-time { color: var(--gold); font-weight: 700; font-size: 16px; line-height: 1.2; }
+  .stop-time-end { display: block; font-size: 11px; color: var(--cream-dim); font-weight: 400; margin-top: 3px; letter-spacing: 0.02em; }
   .stop-content { min-width: 0; }
   .stop-name { font-size: 24px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; line-height: 1.15; }
   .stop-branch { color: var(--cream-dim); font-size: 0.62em; font-family: 'DM Sans', sans-serif; font-weight: 400; letter-spacing: 0.02em; }
@@ -229,7 +230,7 @@
     },
     {
       id: 'clays', name: 'Clays', branch: 'The City', sub: 'Indoor digital clay pigeon shooting',
-      time: '12:30 PM', short: '12:30 Clays', price: 14, pkg: 'day',
+      time: '12:30 PM', timeEnd: '2:15 PM', short: '12:30 Clays', price: 14, pkg: 'day',
       address: 'Clays — The City, London (see website for exact address)',
       website: 'https://www.clays.bar/clays-city', websiteLabel: 'clays.bar/clays-city',
       notes: 'Our own lane for 90 minutes with full real-weight decommissioned shotguns and large-format digital clay pigeon shooting screens. Shame we won\u2019t be able to shoot the Essex crowd \u2014 but we\u2019ll out-gun them!',
@@ -237,14 +238,14 @@
     {
       id: 'amphitheatre', name: 'A Walk to the Games', branch: 'Guildhall',
       sub: "London's lost Roman amphitheatre · 5 min walk from Clays",
-      time: '2:00 PM', short: '2pm Amphitheatre', price: 0, pkg: 'day', free: true, priceNote: 'free entry · 20 min',
+      time: '2:30 PM', timeEnd: '3:00 PM', short: '2:30 Amphitheatre', price: 0, pkg: 'day', free: true, priceNote: 'free entry',
       address: 'Guildhall Yard, London EC2V 5AE',
       notes: "5-minute stroll through Roman London to discover London's lost amphitheatre. Found when Guildhall was redeveloped, London's arena of death is free to enter and takes about 20 minutes to see. Nota Bene: there's a metal detector and bag scanner on the way in.",
     },
     {
       id: 'march', name: 'We March for Meat', branch: 'Following the Roman wall',
       sub: 'Walk along the Roman wall to Spitalfields',
-      time: '2:20 PM', short: '2:20 March', price: 0, pkg: 'day', walk: true, priceNote: '15 min',
+      time: '3:15 PM', timeEnd: '4:00 PM', short: '3:15 March', price: 0, pkg: 'day', walk: true, priceNote: '45 min',
       notes: "We follow the old Roman wall as we march to the first meat stop at the Medieval Market of Spitalfields. Veggies available as well.",
     },
     {
@@ -255,12 +256,12 @@
       notes: 'Steak stand inside the market — order food, then grab beers at the market bars before walking up to Hackney.',
     },
     {
-      id: 'mikkeller', name: 'Mikkeller', branch: 'Walking stop',
-      sub: 'A swift half on the way to Hackney',
-      time: '4:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own half',
-      address: 'Mikkeller, London',
+      id: 'mikkeller', name: 'Mikkeller', branch: "St Leonard's Church corner",
+      sub: 'Corner pub · takeaway craft beers · drink in the church ground',
+      time: '4:00 PM', timeEnd: '5:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own',
+      address: "Mikkeller, Shoreditch (alongside St Leonard's Church), London",
       website: 'https://mikkeller.com', websiteLabel: 'mikkeller.com',
-      notes: 'Pit stop on the walk. One half each, then onwards.',
+      notes: "Mikkeller is a lovely corner pub, sat alongside the grand St Leonard's Church. Part owned by Rick Astley (who Julian loves), this Danish brewhouse offers takeaway craft beers, so we can blaze it up in the green church ground next door.",
     },
     {
       id: 'virginqueen', name: 'The Virgin Queen', branch: 'Walking stop',
@@ -354,7 +355,7 @@
     document.getElementById('timeline').innerHTML = EVENTS.map(e => `
       <details class="stop ${e.pkg}">
         <summary>
-          <div class="stop-time">${escapeHtml(e.time)}</div>
+          <div class="stop-time">${escapeHtml(e.time)}${e.timeEnd ? `<span class="stop-time-end">to ${escapeHtml(e.timeEnd)}</span>` : ''}</div>
           <div class="stop-content">
             <div class="serif stop-name">
               <span>${escapeHtml(e.name)}</span>
