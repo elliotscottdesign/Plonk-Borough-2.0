@@ -64,8 +64,10 @@
   .stop-content { min-width: 0; }
   .stop-name { font-size: 24px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; line-height: 1.15; }
   .stop-branch { color: var(--cream-dim); font-size: 0.62em; font-family: 'DM Sans', sans-serif; font-weight: 400; letter-spacing: 0.02em; }
-  .stop-toggle { font-size: 0.5em; color: var(--gold); transition: transform 0.2s; margin-left: 4px; }
-  .stop[open] .stop-toggle { transform: rotate(180deg); }
+  .stop-toggle { display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 6px 12px; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); font-weight: 600; border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(212, 175, 55, 0.06); width: fit-content; font-family: 'DM Sans', sans-serif; line-height: 1; }
+  .stop[open] .stop-toggle { background: rgba(212, 175, 55, 0.18); border-color: var(--gold); }
+  .stop-toggle-icon { transition: transform 0.2s ease; font-size: 12px; line-height: 1; }
+  .stop[open] .stop-toggle-icon { transform: rotate(180deg); }
   .stop-sub { color: var(--cream-dim); font-size: 14px; line-height: 1.5; }
   .stop-pint { color: var(--gold); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; margin-top: 8px; opacity: 0.9; }
   .stop-price { text-align: right; font-weight: 700; font-size: 18px; }
@@ -82,6 +84,11 @@
   .venue-list li::before { content: counter(venue) '.'; counter-increment: venue; color: var(--gold); font-weight: 700; font-size: 13px; }
   .venue-name { color: var(--cream); }
   .venue-walk { color: var(--cream-dim); font-size: 12.5px; grid-column: 2 / 4; }
+  .highlight-list { flex: 1 1 100%; display: grid; gap: 6px; }
+  .highlight-item { display: flex; gap: 10px 14px; align-items: baseline; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+  .highlight-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .highlight-name { color: var(--cream); font-weight: 500; }
+  .highlight-desc { color: var(--cream-dim); font-size: 13px; flex: 1; }
   @media (max-width: 720px) {
     .stop summary { grid-template-columns: 90px 1fr; padding: 16px; }
     .stop-price { grid-column: 2; text-align: left; margin-top: 8px; }
@@ -246,14 +253,14 @@
     {
       id: 'march', name: 'We March for Meat', branch: 'Roman wall → Smokoloko',
       sub: 'Walk the Roman wall, arrive at Smokoloko in Spitalfields',
-      time: '3:15 PM', timeEnd: '4:00 PM', short: '3:15 March + Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks · veggies available', pintPrice: '~£6.50',
+      time: '3:15 PM', timeEnd: '4:00 PM', short: '3:15 March + Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks · veggies available', pintPrice: '~£7',
       address: 'Old Spitalfields Market, 16 Horner Square, London E1 6EW',
       notes: "We follow the old Roman wall as we march to the first meat stop at the Medieval Market of Spitalfields. The march ends at Smokoloko — a steak stand inside the market. £10 for steak, plus drinks at the market bars. Veggie options available too.",
     },
     {
       id: 'mikkeller', name: 'Mikkeller', branch: "St Leonard's Church corner",
       sub: 'Corner pub · takeaway craft beers · drink in the church ground',
-      time: '4:00 PM', timeEnd: '5:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£8',
+      time: '4:00 PM', timeEnd: '5:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£7-8',
       address: "Mikkeller, Shoreditch (alongside St Leonard's Church), London",
       website: 'https://mikkeller.com', websiteLabel: 'mikkeller.com',
       notes: "Mikkeller is a lovely corner pub, sat alongside the grand St Leonard's Church. Part owned by Rick Astley (who Julian loves), this Danish brewhouse offers takeaway craft beers, so we can blaze it up in the green church ground next door.",
@@ -266,16 +273,21 @@
       notes: 'Second pit stop on the walk into Hackney.',
     },
     {
-      id: 'netil', name: 'Netil Market', branch: 'Hackney',
-      sub: 'Mortadella mountain & a pint',
-      time: '6:00 PM', short: '6pm Netil', price: 12, pkg: 'day', pintPrice: '~£6.50',
-      address: '13–23 Westgate Street, London E8 3RL',
-      website: 'https://netilmarket.com', websiteLabel: 'netilmarket.com',
+      id: 'netil', name: 'Market Day', branch: 'Broadway Market',
+      sub: 'Saturday market vibes · two mates-rate highlights',
+      time: '6:00 PM', short: '6pm Market Day', price: 12, pkg: 'day', priceNote: 'mortadella + pint mates rate', pintPrice: '~£6.50',
+      address: 'Broadway Market, London E8',
+      website: 'https://broadwaymarket.co.uk', websiteLabel: 'broadwaymarket.co.uk',
+      highlights: [
+        { name: 'Fin and Flounder', desc: 'oysters · mates rates' },
+        { name: 'Netil Market',     desc: 'mortadella · mates rates' },
+      ],
+      notes: 'We arrive at Broadway Market — a bustling Saturday market with all the trappings of every generic London food market in 2026. Two mates-rate highlights: oysters at Fin and Flounder, and mortadella at Netil Market. Both optional.',
     },
     {
       id: 'oysters', name: 'Oysters and Sausages', branch: 'No Dice Clubhouse',
       sub: 'Oysters ×4, martinis ×2, strippers',
-      time: '7:00 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening', pintPrice: '~£6.50',
+      time: '7:00 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening',
       address: '15 Mentmore Terrace, London E8 3PN',
       website: 'https://nodice.bar', websiteLabel: 'nodice.bar',
     },
@@ -337,6 +349,19 @@
         <ol class="venue-list">${items}</ol>
       </div>`)
     }
+    if (e.highlights) {
+      const items = e.highlights.map(h => `
+        <div class="highlight-item">
+          <span class="highlight-name">${escapeHtml(h.name)}</span>
+          <span class="highlight-desc">${escapeHtml(h.desc)}</span>
+          <a class="extra-link" href="${mapsUrl(h.name + ' Broadway Market London')}" target="_blank" rel="noopener">Maps ↗</a>
+        </div>
+      `).join('')
+      rows.push(`<div class="extra-row">
+        <span class="extra-label">Highlights</span>
+        <div class="highlight-list">${items}</div>
+      </div>`)
+    }
     if (e.notes) {
       rows.push(`<div class="extra-row">
         <span class="extra-label">Notes</span>
@@ -355,10 +380,10 @@
             <div class="serif stop-name">
               <span>${escapeHtml(e.name)}</span>
               ${e.branch ? `<span class="stop-branch">· ${escapeHtml(e.branch)}</span>` : ''}
-              <span class="stop-toggle" aria-hidden="true">▾</span>
             </div>
             <div class="stop-sub">${escapeHtml(e.sub)}</div>
             ${e.pintPrice ? `<div class="stop-pint">Pint · ${escapeHtml(e.pintPrice)}</div>` : ''}
+            <span class="stop-toggle" aria-hidden="true">More info <span class="stop-toggle-icon">▾</span></span>
           </div>
           <div class="stop-price">
             ${e.price > 0 ? '£' + e.price : (e.walk ? 'Walk' : (e.free ? 'Free' : 'BYO'))}
