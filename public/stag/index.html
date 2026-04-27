@@ -279,11 +279,12 @@
       notes: "We arrive at Broadway Market, thankfully it's finished, so we head to Netil Market around the corner where we have some mates-rate mortadella and pints.",
     },
     {
-      id: 'oysters', name: 'Oysters and Sausages', branch: 'No Dice Clubhouse',
-      sub: 'Oysters ×4, martinis ×2, strippers',
-      time: '7:00 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening',
+      id: 'strips', name: 'Strips & Spots', branch: 'No Dice Clubhouse',
+      sub: 'Partial nudity · pool · prizes',
+      time: '7:00 PM', timeEnd: '7:45 PM', short: '7pm Strips & Spots', price: 0, pkg: 'evening', tba: true,
       address: '15 Mentmore Terrace, London E8 3PN',
       website: 'https://nodice.bar', websiteLabel: 'nodice.bar',
+      notes: "Expect partial nudity, pool and prizes. Price TBA. If anyone feels uncomfortable playing pool with women who undress, you can wait it out at Saint Monday Brewery just down the road.",
     },
     {
       id: 'crawl', name: 'Hackney Pub Crawl',
@@ -380,7 +381,7 @@
             <span class="stop-toggle" aria-hidden="true">More info <span class="stop-toggle-icon">▾</span></span>
           </div>
           <div class="stop-price">
-            ${e.price > 0 ? '£' + e.price : (e.walk ? 'Walk' : (e.free ? 'Free' : 'BYO'))}
+            ${e.price > 0 ? '£' + e.price : (e.tba ? 'TBA' : (e.walk ? 'Walk' : (e.free ? 'Free' : 'BYO')))}
             <small>${escapeHtml(e.priceNote || (e.price > 0 ? 'per head' : ''))}</small>
           </div>
         </summary>
@@ -396,7 +397,7 @@
     document.getElementById('day-includes').innerHTML = day.map(e =>
       `<div>· ${escapeHtml(e.short)} — £${e.price}${e.priceNote ? ' <span style="color:var(--cream-dim)">('+escapeHtml(e.priceNote)+')</span>' : ''}</div>`).join('')
     document.getElementById('ev-includes').innerHTML = ev.map(e =>
-      `<div>· ${escapeHtml(e.short)} — ${e.price ? '£'+e.price : 'BYO'}${e.priceNote ? ' <span style="color:var(--cream-dim)">('+escapeHtml(e.priceNote)+')</span>' : ''}</div>`).join('')
+      `<div>· ${escapeHtml(e.short)} — ${e.price ? '£'+e.price : (e.tba ? 'TBA' : 'BYO')}${e.priceNote ? ' <span style="color:var(--cream-dim)">('+escapeHtml(e.priceNote)+')</span>' : ''}</div>`).join('')
   }
   function wireRsvp() {
     const url = (RSVP_URL || '').trim()
