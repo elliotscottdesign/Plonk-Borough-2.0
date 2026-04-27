@@ -393,10 +393,13 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   ]
 
   // ─── Lock / snapshot ─────────────────────────────────────────────────
-  // When user clicks Lock, capture the live forecast totals. Deck slides
-  // read this snapshot to populate the Custom scenario card.
-  const { isLocked, lock, unlock } = useLockedForecast()
+  // When founder clicks Lock, capture the live forecast totals AND
+  // persist to localStorage so the lock survives reloads / new sessions.
+  // Deck slides read this snapshot to populate the Custom scenario card.
+  // Non-founders see the page in read-only mode regardless of lock state.
+  const { isLocked, isFounder, canEdit, lock, unlock } = useLockedForecast()
   const handleLockToggle = () => {
+    if (!isFounder) return                              // founder-only action
     if (isLocked) {
       unlock()
     } else {
@@ -428,28 +431,42 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
           </div>
           <div style={{ display:'flex', alignItems:'center', gap:10 }}>
             <span style={{ fontSize:14, fontWeight:700, color:'#22D3EE', minWidth:48, textAlign:'right' }}>{sliderValue>0?'+':''}{sliderValue}%</span>
-            <ResetBtn onClick={()=>{ if (!isLocked) growth.setAll(15) }} title={t('performance2026.resetLevers')} />
-            <button
-              onClick={handleLockToggle}
-              title={t(isLocked ? 'performance2026.unlockTitle' : 'performance2026.lockTitle')}
-              style={{
+            <ResetBtn onClick={()=>{ if (canEdit) growth.setAll(15) }} title={t('performance2026.resetLevers')} />
+            {isFounder ? (
+              <button
+                onClick={handleLockToggle}
+                title={t(isLocked ? 'performance2026.unlockTitle' : 'performance2026.lockTitle')}
+                style={{
+                  display:'inline-flex', alignItems:'center', gap:6,
+                  padding:'6px 12px', borderRadius:6, fontSize:11, fontWeight:700,
+                  letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
+                  background: isLocked ? 'rgba(45,212,191,0.15)' : 'rgba(201,168,76,0.10)',
+                  border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.35)'}`,
+                  color: isLocked ? '#2DD4BF' : 'var(--gold)',
+                  transition:'all 0.15s',
+                }}
+              >
+                <span>{isLocked ? '🔒' : '🔓'}</span>
+                <span>{t(isLocked ? 'performance2026.locked' : 'performance2026.lock')}</span>
+              </button>
+            ) : (
+              <span style={{
                 display:'inline-flex', alignItems:'center', gap:6,
                 padding:'6px 12px', borderRadius:6, fontSize:11, fontWeight:700,
-                letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
-                background: isLocked ? 'rgba(45,212,191,0.15)' : 'rgba(201,168,76,0.10)',
-                border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.35)'}`,
-                color: isLocked ? '#2DD4BF' : 'var(--gold)',
-                transition:'all 0.15s',
-              }}
-            >
-              <span>{isLocked ? '🔒' : '🔓'}</span>
-              <span>{t(isLocked ? 'performance2026.locked' : 'performance2026.lock')}</span>
-            </button>
+                letterSpacing:'0.06em', textTransform:'uppercase',
+                background:'rgba(45,212,191,0.10)',
+                border:'1px solid rgba(45,212,191,0.25)',
+                color:'#2DD4BF',
+              }}>
+                <span>👁</span>
+                <span>{t('performance2026.viewOnly')}</span>
+              </span>
+            )}
           </div>
         </div>
-        {isLocked && (
+        {(isLocked || !isFounder) && (
           <div style={{ marginTop:8, padding:'8px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-            {t('performance2026.lockedNote')}
+            {t(isFounder ? 'performance2026.lockedNote' : 'performance2026.viewOnlyNote')}
           </div>
         )}
         <div style={{ position:'relative', marginTop:14, padding:'4px 0 26px' }}>
@@ -463,7 +480,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
             style={{ width:'100%', accentColor:'#22D3EE', opacity:0.85, pointerEvents:'none', cursor:'default' }}
           />
           {perfMarkers.map(mk => (
-            <button key={mk.labelKey} onClick={()=>{ if (!isLocked) growth.setAll(mk.value) }} disabled={isLocked} style={{
+            <button key={mk.labelKey} onClick={()=>{ if (canEdit) growth.setAll(mk.value) }} disabled={!canEdit} style={{
               position:'absolute', left:`calc(${perfGrowthToPct(mk.value)}% - 26px)`, top:28,
               width:52, padding:'2px 0', borderRadius:3, cursor:'pointer',
               background: sliderValue === mk.value ? mk.color : 'transparent',
@@ -623,7 +640,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 function ScenarioLeversCard({ growth }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtK } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   // Sliders mirror the 2026 income breakdown lines (excluding Service Charge,
   // which is a derived passive scaler, AND Online Golf Tickets, which has been
@@ -653,10 +670,10 @@ function ScenarioLeversCard({ growth }) {
               <span style={{ color:'var(--cream)' }}>{t(`scenarios.levers.${s.labelKey}`)} <span style={{ color:'#6B7280', marginLeft:4 }}>(2025: {fmtK(s.base)})</span></span>
               <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                 <span style={{ color:s.color, fontWeight:600 }}>{s.value>0?'+':''}{s.value}%</span>
-                <ResetBtn onClick={()=>{ if (!isLocked) s.set(15) }} title={t('scenarios.resetTo15')} />
+                <ResetBtn onClick={()=>{ if (canEdit) s.set(15) }} title={t('scenarios.resetTo15')} />
               </span>
             </div>
-            <input type="range" disabled={isLocked} min={-20} max={50} value={s.value} onChange={e=>{ if (!isLocked) s.set(Number(e.target.value)) }} style={{ width:'100%', accentColor:s.color, opacity: isLocked ? 0.6 : 1 }} />
+            <input type="range" disabled={!canEdit} min={-20} max={50} value={s.value} onChange={e=>{ if (canEdit) s.set(Number(e.target.value)) }} style={{ width:'100%', accentColor:s.color, opacity: canEdit ? 1 : 0.6 }} />
             <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
           </div>
         ))}
@@ -675,7 +692,7 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, officeCostsTotal })
   const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct, officeCostsTotal })
@@ -693,8 +710,8 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
   return (
     <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, fontSize:13 }}>
       {presets.map(p => (
-        <button key={p.labelKey} disabled={isLocked} onClick={()=>{ if (!isLocked) growth.setAll(p.pct) }} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
-          background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor: isLocked ? 'not-allowed' : 'pointer', textAlign:'left', transition:'all 0.15s', opacity: isLocked ? 0.6 : 1,
+        <button key={p.labelKey} disabled={!canEdit} onClick={()=>{ if (canEdit) growth.setAll(p.pct) }} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
+          background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor: canEdit ? 'pointer' : 'not-allowed', textAlign:'left', transition:'all 0.15s', opacity: canEdit ? 1 : 0.6,
         }}>
           <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
           <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
@@ -739,9 +756,10 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
 // lever, relocated here. Drives growth.golf which scales all SKU 2026
 // volumes proportionally based on 2025 sales mix. Also still drives the
 // Online Golf Tickets income line in the broader cost model.
-function MasterTicketVolumeSlider({ growth, isLocked }) {
+function MasterTicketVolumeSlider({ growth }) {
   const { t } = useTranslation('explorer')
   const { fmtK } = useFmt()
+  const { canEdit } = useLockedForecast()
   const golfBase = SCENARIO_LEVERS.find(l => l.key === 'golf')?.base ?? 210485
   const golfColor = SCENARIO_LEVERS.find(l => l.key === 'golf')?.color ?? '#0891B2'
   const value = growth.golf
@@ -759,13 +777,13 @@ function MasterTicketVolumeSlider({ growth, isLocked }) {
         </div>
         <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
           <span style={{ color:golfColor, fontWeight:700, fontSize:16 }}>{value > 0 ? '+' : ''}{value}%</span>
-          <ResetBtn onClick={() => { if (!isLocked) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
+          <ResetBtn onClick={() => { if (canEdit) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
         </span>
       </div>
       <input
-        type="range" disabled={isLocked} min={-20} max={50} value={value}
-        onChange={e => { if (!isLocked) growth.setGolf(Number(e.target.value)) }}
-        style={{ width:'100%', accentColor:golfColor, opacity: isLocked ? 0.6 : 1 }}
+        type="range" disabled={!canEdit} min={-20} max={50} value={value}
+        onChange={e => { if (canEdit) growth.setGolf(Number(e.target.value)) }}
+        style={{ width:'100%', accentColor:golfColor, opacity: canEdit ? 1 : 0.6 }}
       />
       <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
         <span>−20%</span>
@@ -782,7 +800,7 @@ function MasterTicketVolumeSlider({ growth, isLocked }) {
 function TicketPriceMaker({ growth, pricing, setPricing }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   const golfVolMult = 1 + growth.golf / 100
 
@@ -835,7 +853,7 @@ function TicketPriceMaker({ growth, pricing, setPricing }) {
       {/* Master ticket volume slider — drives all SKU 2026 volumes via growth.golf.
           Same state as the income lever (now hidden from ScenarioLeversCard since
           ticket volumes are the live editable here). */}
-      <MasterTicketVolumeSlider growth={growth} isLocked={isLocked} />
+      <MasterTicketVolumeSlider growth={growth} />
 
       {/* Aggregate summary strip */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:14 }}>
@@ -870,18 +888,18 @@ function TicketPriceMaker({ growth, pricing, setPricing }) {
                 <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>{r.rounds}</td>
                 <td style={{ ...cellTd, textAlign:'right' }}>
                   <input
-                    type="number" min={0} max={20} step={1} disabled={isLocked}
+                    type="number" min={0} max={20} step={1} disabled={!canEdit}
                     value={r.tokens}
                     onChange={e => updateSku(r.sku, 'tokens', Math.max(0, Number(e.target.value) || 0))}
-                    style={{ width:48, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: isLocked ? 0.6 : 1 }}
+                    style={{ width:48, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: canEdit ? 1 : 0.6 }}
                   />
                 </td>
                 <td style={{ ...cellTd, textAlign:'right' }}>
                   <input
-                    type="number" min={0} max={500} step={0.50} disabled={isLocked}
+                    type="number" min={0} max={500} step={0.50} disabled={!canEdit}
                     value={r.price}
                     onChange={e => updateSku(r.sku, 'price', Math.max(0, Number(e.target.value) || 0))}
-                    style={{ width:64, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: isLocked ? 0.6 : 1 }}
+                    style={{ width:64, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: canEdit ? 1 : 0.6 }}
                   />
                 </td>
                 <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>{fmtNum(r.vol2025)}</td>
@@ -943,7 +961,7 @@ function SummaryTile({ label, v2025, v2026, sub, highlight }) {
 function WageCalculatorCard({ wages, totalIncome }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   const roles = [
     { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:18 },
@@ -1018,10 +1036,10 @@ function WageCalculatorCard({ wages, totalIncome }) {
                 <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
                 <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                   <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
-                  <ResetBtn onClick={()=>{ if (!isLocked) r.setRate(r.plan) }} title={`Reset £${r.plan.toFixed(2)}/hr`} />
+                  <ResetBtn onClick={()=>{ if (canEdit) r.setRate(r.plan) }} title={`Reset £${r.plan.toFixed(2)}/hr`} />
                 </span>
               </div>
-              <input type="range" disabled={isLocked} min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>{ if (!isLocked) r.setRate(Number(e.target.value)) }} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6, opacity: isLocked ? 0.6 : 1 }} />
+              <input type="range" disabled={!canEdit} min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>{ if (canEdit) r.setRate(Number(e.target.value)) }} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6, opacity: canEdit ? 1 : 0.6 }} />
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>
                 <span>{fmtNum(r.hours)} {t('wages.hrs')}</span>
                 <span>{t('wages.annual')} {fmt(Math.round(r.hours*r.rate))}</span>
@@ -1070,7 +1088,7 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
   const { t } = useTranslation('explorer')
   const { fmt } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   // Auto rent — contractually 15% of turnover. Not editable.
   const rent2025 = Math.round(ACTUALS_2025.revenue * RENT_PCT_OF_TURNOVER)
@@ -1165,14 +1183,14 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
                   <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`fixedCosts.items.${item.id}`)}</span>
                   <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
                     <span style={{ color:'var(--gold)', fontWeight:700, fontSize:14 }}>£{monthly2026.toLocaleString()}/mo</span>
-                    <ResetBtn onClick={() => { if (!isLocked) update(item.id, FIXED_COSTS_2026_DEFAULTS[item.id]) }} title={`Reset £${FIXED_COSTS_2026_DEFAULTS[item.id]}/mo`} />
+                    <ResetBtn onClick={() => { if (canEdit) update(item.id, FIXED_COSTS_2026_DEFAULTS[item.id]) }} title={`Reset £${FIXED_COSTS_2026_DEFAULTS[item.id]}/mo`} />
                   </span>
                 </div>
                 <input
-                  type="range" disabled={isLocked} min={0} max={sliderMax} step={step}
+                  type="range" disabled={!canEdit} min={0} max={sliderMax} step={step}
                   value={monthly2026}
-                  onChange={e => { if (!isLocked) update(item.id, e.target.value) }}
-                  style={{ width:'100%', accentColor:'var(--gold)', opacity: isLocked ? 0.6 : 1 }}
+                  onChange={e => { if (canEdit) update(item.id, e.target.value) }}
+                  style={{ width:'100%', accentColor:'var(--gold)', opacity: canEdit ? 1 : 0.6 }}
                 />
                 <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
                   <span>{t('fixedCosts.ref2025', { val: '£' + monthly2025.toLocaleString() })}</span>
@@ -1197,7 +1215,7 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
 function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
   const { t } = useTranslation('explorer')
   const { fmt } = useFmt()
-  const { isLocked } = useLockedForecast()
+  const { isLocked, canEdit } = useLockedForecast()
 
   const total = sumOfficeCosts(officeCosts)
   const monthlyAvg = Math.round(total / 12)
@@ -1249,10 +1267,10 @@ function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
                     <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
                       <span style={{ color:'#6B7280', fontSize:11 }}>£</span>
                       <input
-                        type="number" min={0} step={1} disabled={isLocked}
+                        type="number" min={0} step={1} disabled={!canEdit}
                         value={annual}
                         onChange={e => update(item.id, e.target.value)}
-                        style={{ width:80, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: isLocked ? 0.6 : 1 }}
+                        style={{ width:80, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: canEdit ? 1 : 0.6 }}
                       />
                     </span>
                   </td>

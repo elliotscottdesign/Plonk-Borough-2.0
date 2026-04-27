@@ -37,9 +37,14 @@ export default function App() {
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ lang: chosenLang }) => {
+    return <PasswordGate onUnlock={({ plonk, lang: chosenLang }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
+      // Founder flag — only the 888999 password (PasswordGate sets plonk:true)
+      // grants edit access on the 2026 Performance tab. TEST1 users get the
+      // same view but in read-only mode.
+      if (plonk) sessionStorage.setItem('ndb_founder', '1')
+      else        sessionStorage.removeItem('ndb_founder')
       const targetLang = chosenLang && chosenLang !== 'en' ? chosenLang : 'en'
       i18n.changeLanguage(targetLang)
       setUnlocked(true)
