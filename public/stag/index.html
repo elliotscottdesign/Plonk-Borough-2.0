@@ -48,18 +48,39 @@
   .section-heading { font-size: clamp(30px, 5vw, 46px); margin: 0 0 32px; line-height: 1.1; max-width: 780px; }
 
   .timeline { display: grid; gap: 14px; }
-  .stop { display: grid; grid-template-columns: 110px 1fr auto; gap: 24px; padding: 22px 24px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; align-items: center; transition: transform .15s ease, border-color .15s ease; }
-  .stop:hover { transform: translateX(2px); border-color: var(--gold-dim); }
+  .stop { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; transition: border-color .15s ease; overflow: hidden; }
   .stop.day { border-left: 3px solid var(--teal); }
   .stop.evening { border-left: 3px solid var(--red); }
+  .stop[open] { border-color: var(--gold-dim); }
+  .stop summary { display: grid; grid-template-columns: 110px 1fr auto; gap: 24px; padding: 22px 24px; align-items: center; cursor: pointer; list-style: none; user-select: none; }
+  .stop summary::-webkit-details-marker { display: none; }
+  .stop summary::marker { display: none; }
+  .stop:hover summary { background: rgba(212, 175, 55, 0.04); }
   .stop-time { color: var(--gold); font-weight: 700; font-size: 16px; }
-  .stop-name { font-size: 24px; margin: 0 0 4px; }
+  .stop-content { min-width: 0; }
+  .stop-name { font-size: 24px; margin: 0 0 4px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; line-height: 1.15; }
+  .stop-branch { color: var(--cream-dim); font-size: 0.62em; font-family: 'DM Sans', sans-serif; font-weight: 400; letter-spacing: 0.02em; }
+  .stop-toggle { font-size: 0.5em; color: var(--gold); transition: transform 0.2s; margin-left: 4px; }
+  .stop[open] .stop-toggle { transform: rotate(180deg); }
   .stop-sub { color: var(--cream-dim); font-size: 14px; line-height: 1.5; }
   .stop-price { text-align: right; font-weight: 700; font-size: 18px; }
   .stop-price small { display: block; color: var(--cream-dim); font-weight: 400; font-size: 11px; margin-top: 2px; letter-spacing: 0.05em; }
+  .stop-extra { padding: 18px 24px 22px; border-top: 1px solid var(--line); display: grid; gap: 14px; font-size: 14px; }
+  .extra-row { display: flex; gap: 14px; align-items: baseline; flex-wrap: wrap; }
+  .extra-label { flex: 0 0 78px; color: var(--gold); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; font-weight: 500; padding-top: 2px; }
+  .extra-value { flex: 1 1 200px; color: var(--cream); line-height: 1.5; }
+  .extra-link { color: var(--gold); text-decoration: none; font-weight: 500; white-space: nowrap; }
+  .extra-link:hover { color: var(--cream); text-decoration: underline; }
+  .venue-list { flex: 1 1 100%; list-style: none; padding: 0; margin: 0; counter-reset: venue; }
+  .venue-list li { display: grid; grid-template-columns: 22px 1fr auto; column-gap: 12px; row-gap: 4px; padding: 10px 0; border-bottom: 1px dashed var(--line); align-items: baseline; }
+  .venue-list li:last-child { border-bottom: none; padding-bottom: 0; }
+  .venue-list li::before { content: counter(venue) '.'; counter-increment: venue; color: var(--gold); font-weight: 700; font-size: 13px; }
+  .venue-name { color: var(--cream); }
+  .venue-walk { color: var(--cream-dim); font-size: 12.5px; grid-column: 2 / 4; }
   @media (max-width: 720px) {
-    .stop { grid-template-columns: 90px 1fr; padding: 16px; }
+    .stop summary { grid-template-columns: 90px 1fr; padding: 16px; }
     .stop-price { grid-column: 2; text-align: left; margin-top: 8px; }
+    .stop-extra { padding: 14px 16px 18px; }
   }
 
   .pkgs { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -93,11 +114,14 @@
     .cta-row { margin-top: 28px; }
     section { padding: 48px 20px; }
     .section-heading { margin-bottom: 24px; }
-    .stop { padding: 16px; gap: 12px; grid-template-columns: 86px 1fr; }
+    .stop summary { padding: 16px; gap: 12px; grid-template-columns: 86px 1fr; }
     .stop-time { font-size: 14px; }
     .stop-name { font-size: 20px; }
     .stop-sub { font-size: 13.5px; line-height: 1.5; }
     .stop-price { font-size: 16px; margin-top: 4px; }
+    .stop-extra { padding: 14px 16px 16px; gap: 12px; }
+    .extra-label { flex-basis: 100%; padding-top: 0; }
+    .extra-value { flex-basis: 100%; }
     .pkg { padding: 22px; }
     .pkg-name { font-size: 24px; }
     .pkg-price { font-size: 38px; }
@@ -119,9 +143,9 @@
   <h1 class="serif hero-title">Saturday<br><em>2nd May</em></h1>
   <div class="hero-date">Hackney → Spitalfields → Hackney → Dalston · sunrise pending</div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num">7</div><div class="hero-stat-label">stops</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">9</div><div class="hero-stat-label">stops</div></div>
     <div class="hero-stat"><div class="hero-stat-num">12+</div><div class="hero-stat-label">hours</div></div>
-    <div class="hero-stat"><div class="hero-stat-num">£137</div><div class="hero-stat-label">full bore</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">£93</div><div class="hero-stat-label">full bore</div></div>
   </div>
   <div class="cta-row">
     <a href="#rsvp" class="btn btn-big">Jump to RSVP →</a>
@@ -143,7 +167,7 @@
     <div class="pkgs">
       <div class="pkg pkg-day">
         <div class="pkg-label">Day Package</div>
-        <div class="serif pkg-name">Lunch → Mortadella</div>
+        <div class="serif pkg-name">Shooting → Mortadella</div>
         <div class="serif pkg-price" id="day-price">£0</div>
         <div class="pkg-includes" id="day-includes"></div>
       </div>
@@ -180,32 +204,143 @@
   // ─────────────────────────────────────────────────────────────────────
 
   const EVENTS = [
-    { id: 'morito',    name: 'Morito',           sub: 'Hackney Road · lunch & light snacks',                              time: '1:00 PM', short: '1pm Morito',     price: 30, pkg: 'day' },
-    { id: 'clays',     name: 'Clays',            sub: 'Shooting · Spitalfields',                                          time: '3:00 PM', short: '3pm Clays',      price: 30, pkg: 'day' },
-    { id: 'smokoloko', name: 'Smokoloko',        sub: 'Steak house · Spitalfields, then beers in the market',             time: '5:00 PM', short: '5pm Smokoloko',  price: 10, pkg: 'day', priceNote: '+ drinks' },
-    { id: 'netil',     name: 'Netil Market',     sub: 'Mortadella mountain & a pint · Hackney',                           time: '6:00 PM', short: '6pm Netil',      price: 12, pkg: 'day' },
-    { id: 'elliots',   name: "Elliot's House",   sub: 'Oysters ×4, martinis ×2, strippers',                               time: '7–9 PM',  short: "7pm Elliot's",   price: 40, pkg: 'evening' },
-    { id: 'crawl',     name: 'Hackney Pub Crawl',sub: 'Rasputins → Easy 8s → Saint Monday → Last Tuesday Society → Broadway → Dalston', time: '9:00 PM', short: 'Pub crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink' },
-    { id: 'om',        name: 'Club OM',          sub: 'Last stop · Dalston late heads',                                   time: 'Late',    short: 'Club OM',        price: 15, pkg: 'evening' },
+    {
+      id: 'ned', name: 'The Ned', branch: 'Meet-up',
+      sub: 'A pint before the shoot · then walk to Clays',
+      time: '12:00 PM', short: '12pm The Ned', price: 0, pkg: 'day', priceNote: 'buy your own pint',
+      address: '27 Poultry, London EC2R 8AJ',
+      website: 'https://www.thened.com', websiteLabel: 'thened.com',
+      notes: 'Everyone meets at The Ned for a pint. Short walk over to Clays for 12:30.',
+    },
+    {
+      id: 'clays', name: 'Clays', branch: 'The City', sub: 'Indoor clay pigeon shooting',
+      time: '12:30 PM', short: '12:30 Clays', price: 16, pkg: 'day',
+      address: 'Clays — The City, London (see website for exact address)',
+      website: 'https://www.clays.bar/clays-city', websiteLabel: 'clays.bar/clays-city',
+    },
+    {
+      id: 'smokoloko', name: 'Smokoloko', branch: 'Steak stand · Spitalfields Market',
+      sub: 'Food after the shoot, then beers in the market',
+      time: '2:30 PM', short: '2:30 Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks',
+      address: 'Old Spitalfields Market, 16 Horner Square, London E1 6EW',
+      notes: 'Steak stand inside the market — order food, then grab beers at the market bars before walking up to Hackney.',
+    },
+    {
+      id: 'mikkeller', name: 'Mikkeller', branch: 'Walking stop',
+      sub: 'A swift half on the way to Hackney',
+      time: '4:30 PM', short: '4:30 Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own half',
+      address: 'Mikkeller, London',
+      website: 'https://mikkeller.com', websiteLabel: 'mikkeller.com',
+      notes: 'Pit stop on the walk. One half each, then onwards.',
+    },
+    {
+      id: 'virginqueen', name: 'The Virgin Queen', branch: 'Walking stop',
+      sub: 'Another half before Netil',
+      time: '5:30 PM', short: '5:30 Virgin Queen', price: 0, pkg: 'day', priceNote: 'buy your own half',
+      address: '30 Goldsmiths Row, London E2 8QA',
+      notes: 'Second pit stop on the walk into Hackney.',
+    },
+    {
+      id: 'netil', name: 'Netil Market', branch: 'Hackney',
+      sub: 'Mortadella mountain & a pint',
+      time: '6:00 PM', short: '6pm Netil', price: 12, pkg: 'day',
+      address: '13–23 Westgate Street, London E8 3RL',
+      website: 'https://netilmarket.com', websiteLabel: 'netilmarket.com',
+    },
+    {
+      id: 'oysters', name: 'Oysters and Sausages', branch: 'No Dice Clubhouse',
+      sub: 'Oysters ×4, martinis ×2, strippers',
+      time: '7–9 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening',
+      address: '15 Mentmore Terrace, London E8 3PN',
+      website: 'https://nodice.bar', websiteLabel: 'nodice.bar',
+    },
+    {
+      id: 'crawl', name: 'Hackney Pub Crawl',
+      sub: '1 drink in each · get your own in',
+      time: '9:00 PM', short: 'Pub crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink',
+      venues: [
+        { name: "Rasputin's",                  walk: 'Start' },
+        { name: "Easy Eights",                 walk: '~5 min walk' },
+        { name: 'Saint Monday',                walk: '~5 min walk' },
+        { name: 'The Last Tuesday Society',    walk: '~5 min walk' },
+        { name: 'Broadway Market',             walk: '~10 min walk' },
+        { name: 'Loop into Dalston',           walk: '~15 min walk' },
+      ],
+      notes: '1 drink in each. Get your own in. Then loop back and head to Dalston for the late heads.',
+    },
+    {
+      id: 'om', name: 'Club OM', branch: 'Dalston',
+      sub: 'Last stop · late heads only',
+      time: 'Late', short: 'Club OM', price: 15, pkg: 'evening', priceNote: 'pay on door · no pre-booking',
+      notes: 'Pay on the door — no pre-booking needed.',
+    },
   ]
 
   function escapeHtml(s) {
     return String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]))
   }
 
+  function mapsUrl(query) {
+    return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(query)
+  }
+
+  function eventDetailsHtml(e) {
+    const rows = []
+    if (e.address) {
+      rows.push(`<div class="extra-row">
+        <span class="extra-label">Address</span>
+        <span class="extra-value">${escapeHtml(e.address)}</span>
+        <a class="extra-link" href="${mapsUrl(e.address)}" target="_blank" rel="noopener">Open in Maps ↗</a>
+      </div>`)
+    }
+    if (e.website) {
+      rows.push(`<div class="extra-row">
+        <span class="extra-label">Website</span>
+        <a class="extra-link" href="${e.website}" target="_blank" rel="noopener">${escapeHtml(e.websiteLabel || e.website)} ↗</a>
+      </div>`)
+    }
+    if (e.venues) {
+      const items = e.venues.map(v => `
+        <li>
+          <span class="venue-name">${escapeHtml(v.name)}</span>
+          <a class="extra-link" href="${mapsUrl(v.name + ' Hackney London')}" target="_blank" rel="noopener">Maps ↗</a>
+          <span class="venue-walk">${escapeHtml(v.walk)}</span>
+        </li>
+      `).join('')
+      rows.push(`<div class="extra-row">
+        <span class="extra-label">Route</span>
+        <ol class="venue-list">${items}</ol>
+      </div>`)
+    }
+    if (e.notes) {
+      rows.push(`<div class="extra-row">
+        <span class="extra-label">Notes</span>
+        <span class="extra-value">${escapeHtml(e.notes)}</span>
+      </div>`)
+    }
+    return rows.length ? `<div class="stop-extra">${rows.join('')}</div>` : ''
+  }
+
   function renderTimeline() {
     document.getElementById('timeline').innerHTML = EVENTS.map(e => `
-      <div class="stop ${e.pkg}">
-        <div class="stop-time">${e.time}</div>
-        <div>
-          <div class="serif stop-name">${escapeHtml(e.name)}</div>
-          <div class="stop-sub">${escapeHtml(e.sub)}</div>
-        </div>
-        <div class="stop-price">
-          ${e.price > 0 ? '£' + e.price : 'BYO'}
-          <small>${e.priceNote || (e.price > 0 ? 'per head' : '')}</small>
-        </div>
-      </div>
+      <details class="stop ${e.pkg}">
+        <summary>
+          <div class="stop-time">${escapeHtml(e.time)}</div>
+          <div class="stop-content">
+            <div class="serif stop-name">
+              <span>${escapeHtml(e.name)}</span>
+              ${e.branch ? `<span class="stop-branch">· ${escapeHtml(e.branch)}</span>` : ''}
+              <span class="stop-toggle" aria-hidden="true">▾</span>
+            </div>
+            <div class="stop-sub">${escapeHtml(e.sub)}</div>
+          </div>
+          <div class="stop-price">
+            ${e.price > 0 ? '£' + e.price : 'BYO'}
+            <small>${escapeHtml(e.priceNote || (e.price > 0 ? 'per head' : ''))}</small>
+          </div>
+        </summary>
+        ${eventDetailsHtml(e)}
+      </details>
     `).join('')
   }
   function renderPackages() {
