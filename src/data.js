@@ -12,6 +12,33 @@ export const BUSINESS = {
 // breakdowns alongside the deck. Updated to match data.js after every restructure.
 export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1dtqbmoKK01oRY-0Zi1ZllVh82NiIGk8eS-l8aKJG_8Y/edit?usp=sharing'
 
+// === LOCK SYNC ENDPOINT ===
+// Cross-device sync for the 2026 Performance locked snapshot.
+//
+// When the founder clicks Lock on the 2026 Performance tab, the snapshot is
+// (1) saved to localStorage (per-browser fallback) and (2) POSTed to this URL
+// for cross-device sync. On every page boot, data-bootstrap.js GETs from
+// this URL and seeds the LockedForecastContext — so investors visiting from
+// any browser see the founder's latest locked forecast.
+//
+// To enable, deploy ONE of the two server snippets in /infra and paste the
+// resulting URL below. Leave empty to fall back to localStorage-only mode.
+//   - infra/lock-sync-apps-script.gs   — Google Apps Script web app (free,
+//                                        writes to a cell on the existing
+//                                        workbook, simplest setup).
+//   - infra/lock-sync-worker.js        — Cloudflare Worker + KV (also free,
+//                                        slightly faster, fully decoupled
+//                                        from the workbook).
+//
+// Both implementations expect:
+//   GET  → { snapshot: <object>|null }
+//   POST { snapshot: <object>|null } → { ok: true }
+export const LOCK_SYNC_URL = ''
+// Optional shared secret — sent with POST requests for write authorisation.
+// The server snippets check this before writing. Leave empty if your endpoint
+// is already access-restricted (e.g. Cloudflare Worker behind Access).
+export const LOCK_SYNC_SECRET = ''
+
 // === DEAL STRUCTURE ===
 // Investment ask £79,000 inc VAT. 50/50 equity — pre-money equal to investment (£79k),
 // post-money £158k. Multiple works out at 0.86× 2025 EBITDA (distressed pricing).

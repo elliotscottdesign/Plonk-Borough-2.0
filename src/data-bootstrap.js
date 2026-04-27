@@ -19,7 +19,7 @@
 //
 // CoC and payback are computed from the fetched investment + investor return.
 
-import { DEAL, FORECAST, ACTUALS_2025 } from './data.js'
+import { DEAL, FORECAST, ACTUALS_2025, LOCK_SYNC_URL } from './data.js'
 
 const SHEET_ID = '1dtqbmoKK01oRY-0Zi1ZllVh82NiIGk8eS-l8aKJG_8Y'
 
@@ -132,11 +132,44 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
     const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
     // eslint-disable-next-line no-console
     console.info(`[deck-data] ✓ live from Sheet · ${appliedCount} fields · ${ms}ms`)
+
+    // Best-effort: also pull the locked-forecast snapshot from the sync
+    // endpoint (if configured). Stored on window for LockedForecastContext
+    // to pick up at provider init.
+    await fetchLockedSnapshot()
+
     return { source: 'sheet', appliedCount, durationMs: ms }
   } catch (err) {
     const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
     // eslint-disable-next-line no-console
     console.warn(`[deck-data] ✗ Sheet fetch failed (${ms}ms), using data.js defaults: ${err.message}`)
+    // Try the lock snapshot fetch even if the Sheet bootstrap failed —
+    // they are independent endpoints.
+    await fetchLockedSnapshot()
     return { source: 'fallback', error: err.message, durationMs: ms }
+  }
+}
+
+// Fetch the locked-forecast snapshot from LOCK_SYNC_URL (if set) and store
+// it on window.__NDB_LOCK_SNAPSHOT for LockedForecastContext to read at init.
+// Falls back silently — the provider will use localStorage if this fails.
+async function fetchLockedSnapshot() {
+  if (!LOCK_SYNC_URL) return
+  try {
+    const ctrl = new AbortController()
+    const timeout = setTimeout(() => ctrl.abort(), 3000)
+    const res = await fetch(LOCK_SYNC_URL, { cache: 'no-store', signal: ctrl.signal })
+    clearTimeout(timeout)
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    if (data && typeof data === 'object') {
+      // Server responds with { snapshot: <object>|null }
+      window.__NDB_LOCK_SNAPSHOT = data.snapshot ?? null
+      // eslint-disable-next-line no-console
+      console.info('[deck-data] ✓ lock snapshot synced from server' + (data.snapshot ? '' : ' (empty)'))
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[deck-data] lock snapshot fetch failed, using local state:', e.message)
   }
 }
