@@ -67,6 +67,7 @@
   .stop-toggle { font-size: 0.5em; color: var(--gold); transition: transform 0.2s; margin-left: 4px; }
   .stop[open] .stop-toggle { transform: rotate(180deg); }
   .stop-sub { color: var(--cream-dim); font-size: 14px; line-height: 1.5; }
+  .stop-pint { color: var(--gold); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; font-weight: 500; margin-top: 8px; opacity: 0.9; }
   .stop-price { text-align: right; font-weight: 700; font-size: 18px; }
   .stop-price small { display: block; color: var(--cream-dim); font-weight: 400; font-size: 11px; margin-top: 2px; letter-spacing: 0.05em; }
   .stop-extra { padding: 18px 24px 22px; border-top: 1px solid var(--line); display: grid; gap: 14px; font-size: 14px; }
@@ -223,14 +224,14 @@
     {
       id: 'ned', name: 'The Ned', branch: 'The Nickel Bar',
       sub: 'Drink and a snack before the shoot · optional',
-      time: '12:00 PM', short: '12pm The Ned', price: 0, pkg: 'day', priceNote: 'buy your own',
+      time: '12:00 PM', short: '12pm The Ned', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£8.50',
       address: '27 Poultry, London EC2R 8AJ',
       website: 'https://www.thened.com', websiteLabel: 'thened.com',
       notes: 'Meet at The Nickel Bar in The Ned for a drink and a snack if you want, before walking over to Clays for 12:30.',
     },
     {
       id: 'clays', name: 'Clays', branch: 'The City', sub: 'Indoor digital clay pigeon shooting',
-      time: '12:30 PM', timeEnd: '2:15 PM', short: '12:30 Clays', price: 14, pkg: 'day',
+      time: '12:30 PM', timeEnd: '2:15 PM', short: '12:30 Clays', price: 14, pkg: 'day', pintPrice: '~£7.50',
       address: 'Clays — The City, London (see website for exact address)',
       website: 'https://www.clays.bar/clays-city', websiteLabel: 'clays.bar/clays-city',
       notes: 'Our own lane for 90 minutes with full real-weight decommissioned shotguns and large-format digital clay pigeon shooting screens. Shame we won\u2019t be able to shoot the Essex crowd \u2014 but we\u2019ll out-gun them!',
@@ -245,14 +246,14 @@
     {
       id: 'march', name: 'We March for Meat', branch: 'Roman wall → Smokoloko',
       sub: 'Walk the Roman wall, arrive at Smokoloko in Spitalfields',
-      time: '3:15 PM', timeEnd: '4:00 PM', short: '3:15 March + Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks · veggies available',
+      time: '3:15 PM', timeEnd: '4:00 PM', short: '3:15 March + Smokoloko', price: 10, pkg: 'day', priceNote: '+ drinks · veggies available', pintPrice: '~£6.50',
       address: 'Old Spitalfields Market, 16 Horner Square, London E1 6EW',
       notes: "We follow the old Roman wall as we march to the first meat stop at the Medieval Market of Spitalfields. The march ends at Smokoloko — a steak stand inside the market. £10 for steak, plus drinks at the market bars. Veggie options available too.",
     },
     {
       id: 'mikkeller', name: 'Mikkeller', branch: "St Leonard's Church corner",
       sub: 'Corner pub · takeaway craft beers · drink in the church ground',
-      time: '4:00 PM', timeEnd: '5:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own',
+      time: '4:00 PM', timeEnd: '5:00 PM', short: '4pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£8',
       address: "Mikkeller, Shoreditch (alongside St Leonard's Church), London",
       website: 'https://mikkeller.com', websiteLabel: 'mikkeller.com',
       notes: "Mikkeller is a lovely corner pub, sat alongside the grand St Leonard's Church. Part owned by Rick Astley (who Julian loves), this Danish brewhouse offers takeaway craft beers, so we can blaze it up in the green church ground next door.",
@@ -260,28 +261,28 @@
     {
       id: 'virginqueen', name: 'The Virgin Queen', branch: 'Walking stop',
       sub: 'Another half before Netil',
-      time: '5:00 PM', short: '5pm Virgin Queen', price: 0, pkg: 'day', priceNote: 'buy your own half',
+      time: '5:00 PM', short: '5pm Virgin Queen', price: 0, pkg: 'day', priceNote: 'buy your own half', pintPrice: '~£6.50',
       address: '30 Goldsmiths Row, London E2 8QA',
       notes: 'Second pit stop on the walk into Hackney.',
     },
     {
       id: 'netil', name: 'Netil Market', branch: 'Hackney',
       sub: 'Mortadella mountain & a pint',
-      time: '6:00 PM', short: '6pm Netil', price: 12, pkg: 'day',
+      time: '6:00 PM', short: '6pm Netil', price: 12, pkg: 'day', pintPrice: '~£6.50',
       address: '13–23 Westgate Street, London E8 3RL',
       website: 'https://netilmarket.com', websiteLabel: 'netilmarket.com',
     },
     {
       id: 'oysters', name: 'Oysters and Sausages', branch: 'No Dice Clubhouse',
       sub: 'Oysters ×4, martinis ×2, strippers',
-      time: '7:00 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening',
+      time: '7:00 PM', short: '7pm Oysters & Sausages', price: 40, pkg: 'evening', pintPrice: '~£6.50',
       address: '15 Mentmore Terrace, London E8 3PN',
       website: 'https://nodice.bar', websiteLabel: 'nodice.bar',
     },
     {
       id: 'crawl', name: 'Hackney Pub Crawl',
       sub: '1 drink in each · get your own in',
-      time: '9:00 PM', short: 'Pub crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink',
+      time: '9:00 PM', short: 'Pub crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)',
       venues: [
         { name: "Rasputin's",                  walk: 'Start' },
         { name: "Easy Eights",                 walk: '~5 min walk' },
@@ -295,7 +296,7 @@
     {
       id: 'om', name: 'Club OM', branch: 'Dalston',
       sub: 'Last stop · late heads only',
-      time: 'Late', short: 'Club OM', price: 15, pkg: 'evening', extraOnly: true, priceNote: 'pay on door · no pre-booking',
+      time: 'Late', short: 'Club OM', price: 15, pkg: 'evening', extraOnly: true, priceNote: 'pay on door · no pre-booking', pintPrice: '~£8',
       notes: 'Pay on the door — no pre-booking needed.',
     },
   ]
@@ -357,6 +358,7 @@
               <span class="stop-toggle" aria-hidden="true">▾</span>
             </div>
             <div class="stop-sub">${escapeHtml(e.sub)}</div>
+            ${e.pintPrice ? `<div class="stop-pint">Pint · ${escapeHtml(e.pintPrice)}</div>` : ''}
           </div>
           <div class="stop-price">
             ${e.price > 0 ? '£' + e.price : (e.walk ? 'Walk' : (e.free ? 'Free' : 'BYO'))}
