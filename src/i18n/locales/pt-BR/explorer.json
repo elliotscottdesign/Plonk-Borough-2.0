@@ -2,7 +2,45 @@
   "header": "Explorador do Negócio · Borough Market SE1",
   "tabs": {
     "performance2025": "Desempenho 2025",
-    "performance2026": "Desempenho 2026"
+    "performance2026": "Desempenho 2026",
+    "cashflow": "Projeção de Caixa"
+  },
+  "cashflow": {
+    "header": "Projeção de Caixa · Mai 2026 → Abr 2027",
+    "note": "Entradas, saídas e posição acumulada de caixa mensal. Pagamentos trimestrais de aluguel em ago, nov e fev (mai–jul pré-pagos). Para o modelo detalhado completo, veja a planilha.",
+    "workbookLink": "Abrir na Planilha",
+    "chartHeader": "Posição Acumulada de Caixa",
+    "tableHeader": "Detalhamento Mensal",
+    "customDisabledHint": "Bloqueie a projeção 2026 Performance para preencher o cenário Personalizado.",
+    "scenarios": {
+      "conservative": "Conservador −10%",
+      "base": "Base +15%",
+      "optimistic": "Otimista +25%",
+      "custom": "Personalizado (Bloqueado)"
+    },
+    "kpi": {
+      "closing": "Caixa Final · Abr 2027",
+      "closingSub": "após 12 meses de operação",
+      "peak": "Pico de Caixa",
+      "reserveHit": "Atinge Reserva de 3 Meses",
+      "reserveSub": "= ",
+      "capitalHit": "Recupera Capital do Investidor",
+      "capitalSub": "= ",
+      "notHit": "Não na janela"
+    },
+    "legend": {
+      "cumulative": "Caixa acumulado",
+      "reserve": "Reserva de aluguel 3 meses",
+      "capital": "Capital do investidor"
+    },
+    "col": {
+      "month": "Mês",
+      "inflow": "Entrada",
+      "opex": "Operacional",
+      "rent": "Aluguel",
+      "net": "Líquido",
+      "cumulative": "Acumulado"
+    }
   },
   "sections": {
     "indexLabel": "Seções",

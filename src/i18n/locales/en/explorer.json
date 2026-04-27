@@ -2,7 +2,45 @@
   "header": "Business Explorer · Borough Market SE1",
   "tabs": {
     "performance2025": "2025 Performance",
-    "performance2026": "2026 Performance"
+    "performance2026": "2026 Performance",
+    "cashflow": "Cashflow Forecast"
+  },
+  "cashflow": {
+    "header": "Cashflow Forecast · May 2026 → Apr 2027",
+    "note": "Monthly inflows, outflows and cumulative cash position. Quarterly rent payments hit Aug, Nov and Feb (May–Jul prepaid). For the full detailed model see the workbook.",
+    "workbookLink": "Open in Workbook",
+    "chartHeader": "Cumulative Cash Position",
+    "tableHeader": "Monthly Breakdown",
+    "customDisabledHint": "Lock the 2026 Performance forecast to populate the Custom scenario.",
+    "scenarios": {
+      "conservative": "Conservative −10%",
+      "base": "Base +15%",
+      "optimistic": "Optimistic +25%",
+      "custom": "Custom (Locked)"
+    },
+    "kpi": {
+      "closing": "Closing Cash · Apr 2027",
+      "closingSub": "after 12 months trading",
+      "peak": "Peak Cash Position",
+      "reserveHit": "Hit 3-Month Reserve",
+      "reserveSub": "= ",
+      "capitalHit": "Recovered Investor Capital",
+      "capitalSub": "= ",
+      "notHit": "Not in window"
+    },
+    "legend": {
+      "cumulative": "Cumulative cash",
+      "reserve": "3-month rent reserve",
+      "capital": "Investor capital"
+    },
+    "col": {
+      "month": "Month",
+      "inflow": "Inflow",
+      "opex": "Operating",
+      "rent": "Rent",
+      "net": "Net",
+      "cumulative": "Cumulative"
+    }
   },
   "sections": {
     "indexLabel": "Sections",

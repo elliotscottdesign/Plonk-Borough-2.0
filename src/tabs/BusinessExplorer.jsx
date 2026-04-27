@@ -4,10 +4,10 @@ import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, Don
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
-import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025 } from '../data.js'
+import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
-const TAB_KEYS = ['performance2025','performance2026']
+const TAB_KEYS = ['performance2025','performance2026','cashflow']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -1243,6 +1243,276 @@ function KpiCard2026({ label, value, sub, color }) {
   )
 }
 
+// ───────────────────────────────────────────────────────────────────────
+// Cashflow Forecast — 12 months from May 2026 → Apr 2027
+//
+// Mirrors the structure of the workbook's "Cash Flow Forecast" sheet but
+// kept simple here for at-a-glance investor view. Workbook button links
+// out for the full detailed breakdown.
+//
+// Cashflow logic per month:
+//   - Inflow:    revenue × seasonal weight / 12
+//   - Outflow:   non-rent operating costs × seasonal weight / 12
+//                + quarterly rent payment (Aug, Nov, Feb only)
+//                  = 15% × revenue × sum of next-3-month seasonal weights / 12
+//   - First-3-month rent already prepaid (£27,078 deposit, NOT shown here as
+//     an outflow — assumed funded from initial investment)
+//   - Net:       inflow − outflow
+//   - Cumulative: running sum of nets, starting from £0
+//
+// Threshold lines on chart:
+//   - 3-month rent reserve (£27,078 — when cumulative cash covers a
+//     fresh quarter of rent prepay equivalent)
+//   - Investor capital (£79,000 — when cumulative covers the original
+//     investment)
+//
+// Scenario selector: Conservative -10%, Base +15%, Optimistic +25%, Custom
+// (live from locked snapshot if present, disabled otherwise).
+// ───────────────────────────────────────────────────────────────────────
+
+const CASHFLOW_MONTHS = ['May 2026','Jun 2026','Jul 2026','Aug 2026','Sep 2026','Oct 2026','Nov 2026','Dec 2026','Jan 2027','Feb 2027','Mar 2027','Apr 2027']
+// Seasonal weights — pulled from the 2025 monthly trading pattern, shifted to
+// align with May start. Sums to 12.0 so total ÷ 12 = annual.
+// Indexes: 0=May, 1=Jun, 2=Jul, 3=Aug, 4=Sep, 5=Oct, 6=Nov, 7=Dec, 8=Jan, 9=Feb, 10=Mar, 11=Apr
+const CASHFLOW_SEASONAL = [0.90, 0.85, 1.00, 1.05, 1.05, 1.10, 1.20, 1.40, 0.85, 0.95, 1.00, 0.95]
+// Rent prepay months 0,1,2 are prepaid (£27,078). Quarterly rent due at
+// months 3 (Aug, covers Aug-Oct), 6 (Nov, covers Nov-Jan), 9 (Feb, covers Feb-Apr).
+const RENT_QUARTER_MAP = { 3: [3,4,5], 6: [6,7,8], 9: [9,10,11] }
+
+const RENT_3MO_RESERVE  = 27078
+const INVESTOR_CAPITAL  = 79000
+
+function buildCashflow({ revenue, totalCosts }) {
+  const annualRent     = revenue * 0.15
+  const nonRentCosts   = Math.max(0, totalCosts - annualRent)
+  const out = []
+  let cumulative = 0
+  for (let i = 0; i < 12; i++) {
+    const w           = CASHFLOW_SEASONAL[i]
+    const inflow      = Math.round(revenue * w / 12)
+    const opex        = Math.round(nonRentCosts * w / 12)
+    let rent          = 0
+    if (RENT_QUARTER_MAP[i]) {
+      const wsum = RENT_QUARTER_MAP[i].reduce((s, m) => s + CASHFLOW_SEASONAL[m], 0)
+      rent = Math.round(annualRent * wsum / 12)
+    }
+    const outflow = opex + rent
+    const net     = inflow - outflow
+    cumulative   += net
+    out.push({ month: CASHFLOW_MONTHS[i], inflow, opex, rent, outflow, net, cumulative })
+  }
+  return out
+}
+
+function TabCashflow({ growth }) {
+  const { t } = useTranslation('explorer')
+  const { fmt, fmtK } = useFmt()
+  const { snapshot, isLocked } = useLockedForecast()
+
+  // Scenario set — uses the same mult logic as InvestmentSummary.calcReturns
+  // for Conservative/Base/Optimistic; Custom reads the locked snapshot.
+  const SCENARIOS = {
+    conservative: { labelKey: 'conservative', mult: 1.10, color: '#94A3B8' },
+    base:         { labelKey: 'base',         mult: 1.15, color: '#C9A84C' },
+    optimistic:   { labelKey: 'optimistic',   mult: 1.25, color: '#2DD4BF' },
+    custom:       { labelKey: 'custom',       mult: snapshot ? snapshot.revenue / ACTUALS_2025.revenue : 1.15, color: 'var(--gold)', disabled: !isLocked },
+  }
+  const [active, setActive] = useState('base')
+  const sc = SCENARIOS[active]?.disabled ? SCENARIOS.base : SCENARIOS[active]
+  const activeKey = SCENARIOS[active]?.disabled ? 'base' : active
+
+  // Compute revenue + costs for the selected scenario
+  const cf = (() => {
+    if (activeKey === 'custom' && snapshot) {
+      return buildCashflow({ revenue: snapshot.revenue, totalCosts: snapshot.totalCosts })
+    }
+    // Otherwise approximate from sc.mult: revenue scales linearly,
+    // costs partial — use the InvestmentSummary calcReturns-style estimate.
+    const rev = ACTUALS_2025.revenue * sc.mult
+    const bar = 362836 * sc.mult
+    const totalCosts =
+        242370 * 1.10                          // wages
+      + 54400 * 1.10                           // non-rent fixed
+      + rev * 0.15                              // rent (15% of revenue)
+      + bar * 0.30                              // drinks
+      + 78851 * sc.mult                         // VAT
+      + 22965 * sc.mult                         // cleaning
+      + 17152 * sc.mult                         // arcades
+      + 9101 * sc.mult                          // food
+      + 5443 * sc.mult                          // card charges
+    return buildCashflow({ revenue: rev, totalCosts })
+  })()
+
+  const closingCash    = cf[cf.length - 1].cumulative
+  const minCash        = Math.min(0, ...cf.map(m => m.cumulative))
+  const maxCash        = Math.max(closingCash, RENT_3MO_RESERVE, INVESTOR_CAPITAL)
+  const peakMonth      = cf.reduce((best, m) => m.cumulative > best.cumulative ? m : best, cf[0])
+  const reserveCrossed = cf.find(m => m.cumulative >= RENT_3MO_RESERVE)
+  const capitalCrossed = cf.find(m => m.cumulative >= INVESTOR_CAPITAL)
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* Header — scenario picker + workbook link */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:14, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>{t('cashflow.header')}</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('cashflow.note')}</div>
+          </div>
+          <a href={WORKBOOK_URL} target="_blank" rel="noopener noreferrer" style={{
+            display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:6, fontSize:11, fontWeight:700,
+            letterSpacing:'0.06em', textTransform:'uppercase', textDecoration:'none', whiteSpace:'nowrap',
+            background:'rgba(201,168,76,0.10)', border:'1px solid rgba(201,168,76,0.35)', color:'var(--gold)',
+          }}>
+            <span>↗</span><span>{t('cashflow.workbookLink')}</span>
+          </a>
+        </div>
+
+        {/* Scenario tabs */}
+        <div style={{ display:'flex', gap:6 }}>
+          {Object.entries(SCENARIOS).map(([key, s]) => (
+            <button
+              key={key}
+              onClick={() => { if (!s.disabled) setActive(key) }}
+              disabled={s.disabled}
+              title={s.disabled ? t('cashflow.customDisabledHint') : undefined}
+              style={{
+                padding:'7px 16px', fontSize:11, borderRadius:6,
+                cursor: s.disabled ? 'not-allowed' : 'pointer',
+                background: activeKey === key ? `${s.color}22` : 'transparent',
+                border: `1px solid ${activeKey === key ? s.color : '#2A2F3A'}`,
+                color: activeKey === key ? s.color : 'var(--cream-dim)',
+                fontWeight: activeKey === key ? 700 : 400,
+                letterSpacing:'0.06em', textTransform:'uppercase',
+                opacity: s.disabled ? 0.45 : 1,
+                transition:'all 0.15s',
+              }}
+            >
+              {t(`cashflow.scenarios.${s.labelKey}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+        <KpiCard2026 label={t('cashflow.kpi.closing')} value={fmt(Math.round(closingCash))} sub={t('cashflow.kpi.closingSub')} color={closingCash > 0 ? '#2DD4BF' : '#EF4444'} />
+        <KpiCard2026 label={t('cashflow.kpi.peak')} value={fmt(Math.round(peakMonth.cumulative))} sub={peakMonth.month} color="#22D3EE" />
+        <KpiCard2026 label={t('cashflow.kpi.reserveHit')} value={reserveCrossed ? reserveCrossed.month : t('cashflow.kpi.notHit')} sub={`${t('cashflow.kpi.reserveSub')} ${fmt(RENT_3MO_RESERVE)}`} color={reserveCrossed ? '#2DD4BF' : '#EF4444'} />
+        <KpiCard2026 label={t('cashflow.kpi.capitalHit')} value={capitalCrossed ? capitalCrossed.month : t('cashflow.kpi.notHit')} sub={`${t('cashflow.kpi.capitalSub')} ${fmt(INVESTOR_CAPITAL)}`} color={capitalCrossed ? 'var(--gold)' : '#9CA3AF'} />
+      </div>
+
+      {/* Line chart with threshold markers */}
+      <CashflowLineChart cf={cf} sc={sc} minCash={minCash} maxCash={maxCash} fmt={fmt} fmtK={fmtK} t={t} />
+
+      {/* Monthly breakdown table */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:0, overflow:'hidden' }}>
+        <div style={{ padding:'14px 18px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase' }}>{t('cashflow.tableHeader')}</div>
+        </div>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead>
+            <tr style={{ background:'rgba(255,255,255,0.02)' }}>
+              <th style={cfTh('left')}>{t('cashflow.col.month')}</th>
+              <th style={cfTh('right')}>{t('cashflow.col.inflow')}</th>
+              <th style={cfTh('right')}>{t('cashflow.col.opex')}</th>
+              <th style={cfTh('right')}>{t('cashflow.col.rent')}</th>
+              <th style={cfTh('right')}>{t('cashflow.col.net')}</th>
+              <th style={cfTh('right')}>{t('cashflow.col.cumulative')}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cf.map(m => (
+              <tr key={m.month} style={{ borderTop:'1px solid rgba(255,255,255,0.04)' }}>
+                <td style={cfTd('left', '#D1D5DB')}>{m.month}</td>
+                <td style={cfTd('right', '#9CA3AF')}>{fmt(m.inflow)}</td>
+                <td style={cfTd('right', '#9CA3AF')}>{fmt(-m.opex)}</td>
+                <td style={cfTd('right', m.rent > 0 ? '#A78BFA' : '#6B7280')}>{m.rent > 0 ? fmt(-m.rent) : '—'}</td>
+                <td style={cfTd('right', m.net >= 0 ? '#2DD4BF' : '#EF4444', 600)}>{m.net >= 0 ? '+' : ''}{fmt(m.net)}</td>
+                <td style={cfTd('right', m.cumulative >= 0 ? 'var(--gold)' : '#EF4444', 700)}>{fmt(Math.round(m.cumulative))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+const cfTh = (align) => ({ padding:'10px 14px', fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, textAlign:align, whiteSpace:'nowrap' })
+const cfTd = (align, color, weight=400) => ({ padding:'10px 14px', fontSize:12.5, color, fontWeight:weight, textAlign:align, whiteSpace:'nowrap' })
+
+function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t }) {
+  // SVG line chart — 12 months × cumulative cash position
+  const W = 760
+  const H = 280
+  const padL = 60, padR = 30, padT = 24, padB = 36
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  const yMin = Math.min(0, minCash) - Math.abs(minCash * 0.05 || 1000)
+  const yMax = maxCash + Math.abs(maxCash * 0.05 || 1000)
+  const yRange = yMax - yMin
+  const x = (i) => padL + (i / (cf.length - 1)) * innerW
+  const y = (v) => padT + innerH - ((v - yMin) / yRange) * innerH
+
+  // Threshold horizontal line points
+  const yReserve = y(RENT_3MO_RESERVE)
+  const yCapital = y(INVESTOR_CAPITAL)
+  const yZero    = y(0)
+
+  // Cumulative line as polyline
+  const points = cf.map((m, i) => `${x(i)},${y(m.cumulative)}`).join(' ')
+
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase' }}>{t('cashflow.chartHeader')}</div>
+        <div style={{ display:'flex', gap:14, fontSize:10.5, color:'#9CA3AF' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:2, background:sc.color }} />
+            {t('cashflow.legend.cumulative')}
+          </span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:1, background:'#A78BFA', borderTop:'1px dashed #A78BFA', borderColor:'#A78BFA' }} />
+            {t('cashflow.legend.reserve')} ({fmtK(RENT_3MO_RESERVE)})
+          </span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:1, borderTop:'1px dashed var(--gold)' }} />
+            {t('cashflow.legend.capital')} ({fmtK(INVESTOR_CAPITAL)})
+          </span>
+        </div>
+      </div>
+
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:'block' }}>
+        {/* Grid + zero baseline */}
+        <line x1={padL} x2={W-padR} y1={yZero} y2={yZero} stroke="rgba(255,255,255,0.18)" strokeWidth={1} />
+        {/* Threshold lines */}
+        <line x1={padL} x2={W-padR} y1={yReserve} y2={yReserve} stroke="#A78BFA" strokeWidth={1} strokeDasharray="6 4" opacity={0.7} />
+        <line x1={padL} x2={W-padR} y1={yCapital} y2={yCapital} stroke="#C9A84C" strokeWidth={1} strokeDasharray="6 4" opacity={0.7} />
+        {/* Cumulative line */}
+        <polyline points={points} fill="none" stroke={sc.color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        {/* Data points */}
+        {cf.map((m, i) => (
+          <g key={i}>
+            <circle cx={x(i)} cy={y(m.cumulative)} r={3} fill={sc.color} />
+            <title>{`${m.month}\nCumulative ${fmt(Math.round(m.cumulative))}\nNet ${m.net >= 0 ? '+' : ''}${fmt(m.net)}`}</title>
+          </g>
+        ))}
+        {/* X-axis labels */}
+        {cf.map((m, i) => (
+          <text key={i} x={x(i)} y={H - padB + 16} fontSize="9.5" fill="#9CA3AF" textAnchor="middle">
+            {m.month.slice(0, 3)}
+          </text>
+        ))}
+        {/* Y-axis labels */}
+        <text x={padL - 8} y={yZero + 4}     fontSize="9.5" fill="#6B7280" textAnchor="end">£0</text>
+        <text x={padL - 8} y={yReserve + 4}  fontSize="9.5" fill="#A78BFA" textAnchor="end">{fmtK(RENT_3MO_RESERVE)}</text>
+        <text x={padL - 8} y={yCapital + 4}  fontSize="9.5" fill="#C9A84C" textAnchor="end">{fmtK(INVESTOR_CAPITAL)}</text>
+      </svg>
+    </div>
+  )
+}
+
 function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   const { containerProps, segmentProps, overlay } = useChartTooltip()
   const palette = kind === 'income'
@@ -1367,6 +1637,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />,
+    cashflow:        <TabCashflow growth={growth} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
