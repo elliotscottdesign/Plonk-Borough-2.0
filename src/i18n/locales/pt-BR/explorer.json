@@ -285,6 +285,8 @@
       "manager": "Gerente"
     },
     "hrs": "h",
-    "annual": "Anual:"
+    "annual": "Anual:",
+    "hourly": "Taxa horária",
+    "annualLabel": "Salário anual"
   }
 }

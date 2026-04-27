@@ -902,10 +902,13 @@ function WageCalculatorCard({ wages, totalIncome }) {
   const { isLocked, canEdit } = useLockedForecast()
 
   const roles = [
-    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:18 },
-    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:20 },
-    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:22 },
-    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:25 },
+    // min = 2026 NMW for the role · max set wide so the annual-salary input
+    // can accommodate London market-rate management salaries (e.g. Manager
+    // at GBP 60-80k/yr = GBP 30-40/hr at 2,000 hrs).
+    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:25 },
+    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:30 },
+    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:35 },
+    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:45 },
   ]
 
   // 2025 actuals (constants from rota source)
@@ -964,27 +967,91 @@ function WageCalculatorCard({ wages, totalIncome }) {
         </div>
       </div>
 
-      {/* ─── Wage rate calculator (sliders only — KPI strip removed, consolidated above) */}
+      {/* ─── Wage rate calculator — hourly slider + editable hourly + annual inputs ─── */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
           {roles.map(r => (
-            <div key={r.labelKey} style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-                <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
-                <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                  <span style={{ color:'var(--gold)', fontWeight:700 }}>£{r.rate.toFixed(2)}/hr</span>
-                  <ResetBtn onClick={()=>{ if (canEdit) r.setRate(r.plan) }} title={`Reset £${r.plan.toFixed(2)}/hr`} />
-                </span>
-              </div>
-              <input type="range" disabled={!canEdit} min={r.min} max={r.max} step={0.01} value={r.rate} onChange={e=>{ if (canEdit) r.setRate(Number(e.target.value)) }} style={{ width:'100%', accentColor:'var(--gold)', marginBottom:6, opacity: canEdit ? 1 : 0.6 }} />
-              <div style={{ display:'flex', justifyContent:'space-between', fontSize:11, color:'#6B7280' }}>
-                <span>{fmtNum(r.hours)} {t('wages.hrs')}</span>
-                <span>{t('wages.annual')} {fmt(Math.round(r.hours*r.rate))}</span>
-              </div>
-            </div>
+            <WageRoleRow key={r.labelKey} role={r} canEdit={canEdit} t={t} fmt={fmt} fmtNum={fmtNum} />
           ))}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Wage role row — slider + editable £/hr input + editable annual £ input.
+// All three views are locked to a single underlying state (rate). Edit
+// any one and the other two recompute (annual = hours × rate).
+// ───────────────────────────────────────────────────────────────────────
+function WageRoleRow({ role: r, canEdit, t, fmt, fmtNum }) {
+  const annual = Math.round(r.hours * r.rate)
+  const onAnnualChange = (e) => {
+    if (!canEdit) return
+    const newAnnual = Math.max(0, Number(e.target.value) || 0)
+    const newRate = r.hours > 0 ? newAnnual / r.hours : 0
+    // Clamp to slider min/max so the slider thumb stays valid
+    const clamped = Math.max(r.min, Math.min(r.max, newRate))
+    r.setRate(Number(clamped.toFixed(2)))
+  }
+  const onHourlyChange = (e) => {
+    if (!canEdit) return
+    const v = Math.max(0, Number(e.target.value) || 0)
+    const clamped = Math.max(r.min, Math.min(r.max, v))
+    r.setRate(Number(clamped.toFixed(2)))
+  }
+  const inputBase = {
+    padding:'4px 8px', textAlign:'right', background:'rgba(0,0,0,0.3)',
+    border:'1px solid rgba(201,168,76,0.3)', borderRadius:4,
+    color:'var(--gold)', fontWeight:600, fontSize:12,
+    opacity: canEdit ? 1 : 0.6,
+  }
+  return (
+    <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
+        <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:10, color:'#6B7280' }}>{fmtNum(r.hours)} {t('wages.hrs')}</span>
+          <ResetBtn onClick={()=>{ if (canEdit) r.setRate(r.plan) }} title={`Reset £${r.plan.toFixed(2)}/hr`} />
+        </span>
+      </div>
+      <input
+        type="range" disabled={!canEdit}
+        min={r.min} max={r.max} step={0.01}
+        value={r.rate}
+        onChange={e=>{ if (canEdit) r.setRate(Number(e.target.value)) }}
+        style={{ width:'100%', accentColor:'var(--gold)', marginBottom:10, opacity: canEdit ? 1 : 0.6 }}
+      />
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
+        <label style={{ display:'flex', flexDirection:'column', gap:3 }}>
+          <span style={{ fontSize:9, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t('wages.hourly')}</span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+            <span style={{ fontSize:11, color:'#6B7280' }}>£</span>
+            <input
+              type="number" disabled={!canEdit}
+              min={r.min} max={r.max} step={0.01}
+              value={r.rate.toFixed(2)}
+              onChange={onHourlyChange}
+              style={{ ...inputBase, width:'100%' }}
+            />
+            <span style={{ fontSize:10, color:'#6B7280' }}>/hr</span>
+          </span>
+        </label>
+        <label style={{ display:'flex', flexDirection:'column', gap:3 }}>
+          <span style={{ fontSize:9, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t('wages.annualLabel')}</span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
+            <span style={{ fontSize:11, color:'#6B7280' }}>£</span>
+            <input
+              type="number" disabled={!canEdit}
+              min={0} step={100}
+              value={annual}
+              onChange={onAnnualChange}
+              style={{ ...inputBase, width:'100%' }}
+            />
+            <span style={{ fontSize:10, color:'#6B7280' }}>/yr</span>
+          </span>
+        </label>
       </div>
     </div>
   )

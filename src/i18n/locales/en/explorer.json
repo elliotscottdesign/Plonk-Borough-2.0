@@ -285,6 +285,8 @@
       "manager": "Manager"
     },
     "hrs": "hrs",
-    "annual": "Annual:"
+    "annual": "Annual:",
+    "hourly": "Hourly rate",
+    "annualLabel": "Annual salary"
   }
 }
