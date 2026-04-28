@@ -30,9 +30,19 @@ export default function GrowthRisks() {
       <h2 className="serif" style={{ fontSize:'clamp(1.8rem,3.5vw,2.8rem)', color:'var(--cream)', marginBottom:8 }}>
         {t('title')}
       </h2>
-      <p style={{ color:'var(--cream-dim)', marginBottom:32, fontSize:14 }}>
+      <p style={{ color:'var(--cream-dim)', marginBottom:24, fontSize:14 }}>
         {t('subtitle')}
       </p>
+
+      {/* ─── Overall Risk Profile — full-width lead card ─── */}
+      <div className="card-highlight" style={{ padding:'22px 28px', marginBottom:32 }}>
+        <div style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:10 }}>
+          {t('overallHeader')}
+        </div>
+        <div style={{ fontSize:14, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          {t('overallBody')}
+        </div>
+      </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:32 }}>
 
@@ -78,14 +88,6 @@ export default function GrowthRisks() {
                 <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.5 }}>{t(`risks.${r.key}.mitigation`)}</div>
               </div>
             ))}
-          </div>
-
-          {/* Summary */}
-          <div className="card-highlight" style={{ padding:18, marginTop:12 }}>
-            <div style={{ fontSize:11, color:'var(--gold)', marginBottom:8 }}>{t('overallHeader')}</div>
-            <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.6 }}>
-              {t('overallBody')}
-            </div>
           </div>
         </div>
       </div>
