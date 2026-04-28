@@ -1,5 +1,13 @@
 import React, { useState } from 'react'
-import { USE_OF_FUNDS, computeDealFromInvestment } from '../../data/hackney.js'
+import {
+  USE_OF_FUNDS,
+  WAGE_RATES,
+  PL_WAGE_BASE,
+  ROTA_TOTAL,
+  WAGE_OVERHEAD_MULT,
+  HACKNEY_WAGE_MODEL,
+  computeDealFromInvestment,
+} from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // BusinessExplorer — clones Borough's 3-sub-tab structure:
@@ -46,8 +54,91 @@ function Tab2025() {
       <STitle>Monthly Performance</STitle>
       <Tbd>12-month income + profit chart + table. Income/profit per month already populated in MONTHLY_INCOME / MONTHLY_PROFIT. Cost-by-category-by-month TBD.</Tbd>
 
-      <STitle>Wages — Role Breakdown</STitle>
-      <Tbd>Role-by-role table (headcount, hours, rate, weekly/monthly/annual cost). Source: Wages Breakdown sheet of the Hackney workbook.</Tbd>
+      <STitle>Wages — 2025 Rota Reference (4-role bar-only)</STitle>
+      <WageRotaReference />
+
+      <STitle>Wages — Modelled Full Build-Out (12 roles)</STitle>
+      <WageModelBreakdown />
+    </div>
+  )
+}
+
+// ─── Wages — 2025 rota reference (bar-only, 4 roles) ──────────────────
+function WageRotaReference() {
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const totalHours = WAGE_RATES.reduce((s, r) => s + r.hours, 0)
+  const grossTotal = WAGE_RATES.reduce((s, r) => s + r.rate * r.hours, 0)
+  const loadedTotal = grossTotal * WAGE_OVERHEAD_MULT
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, fontSize:11, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
+        <span>Role</span><span style={{ textAlign:'right' }}>Avg rate</span><span style={{ textAlign:'right' }}>Hours (yr)</span><span style={{ textAlign:'right' }}>Gross</span>
+      </div>
+      {WAGE_RATES.map(r => (
+        <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13 }}>
+          <span style={{ color:'var(--cream)' }}><span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}</span>
+          <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>£{r.rate.toFixed(2)}</span>
+          <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hours.toLocaleString('en-GB')}</span>
+          <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
+        </div>
+      ))}
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'10px 0 4px', fontSize:13, fontWeight:600 }}>
+        <span style={{ color:'var(--cream)' }}>Total · gross</span>
+        <span></span>
+        <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{totalHours.toLocaleString('en-GB')}</span>
+        <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(grossTotal)}</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'2px 0', fontSize:12, color:'var(--cream-dim)' }}>
+        <span>Fully-loaded × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday)</span>
+        <span></span><span></span>
+        <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(loadedTotal)}</span>
+      </div>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:8, lineHeight:1.5 }}>
+        Source: Wages Breakdown · 2025 Rota Reference Rates. Cross-checks to Monthly Summary G15 wage line ({fmt(PL_WAGE_BASE)}). Rota total {fmt(ROTA_TOTAL)} pre-loading.
+      </div>
+    </div>
+  )
+}
+
+// ─── Wages — modelled full build-out (5 groups, 12 roles) ─────────────
+function WageModelBreakdown() {
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const m = HACKNEY_WAGE_MODEL
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', marginBottom:14, lineHeight:1.5 }}>
+        Modelled staffing for the venue at full operational capacity — what wages would cost if every role is filled. Differs from 2025 actuals ({fmt(PL_WAGE_BASE)}) because the venue is currently running leaner. Reference only — NOT in the forecast.
+      </div>
+      {m.groups.map(g => (
+        <div key={g.key} style={{ marginBottom:14 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid rgba(201,168,76,0.15)', fontSize:12, color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
+            <span>{g.title}</span><span>{fmt(g.subtotal)}/yr</span>
+          </div>
+          {g.roles.map(r => (
+            <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2.4fr 0.5fr 0.6fr 0.7fr 0.8fr', gap:8, padding:'5px 0', fontSize:12, color:'var(--cream-dim)' }}>
+              <span style={{ color:'var(--cream)' }}>{r.role}</span>
+              <span style={{ textAlign:'right' }}>×{r.headcount}</span>
+              <span style={{ textAlign:'right' }}>{r.hours === 'salary' ? 'salary' : `${r.hours}h/wk`}</span>
+              <span style={{ textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.rate ? `£${r.rate.toFixed(2)}` : '—'}</span>
+              <span style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(r.annual)}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginTop:14, paddingTop:12, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross weekly</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(m.totals.grossWeekly)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross annual</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(m.totals.grossAnnual)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Fully-loaded annual</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(m.totals.loadedAnnual)}</div>
+        </div>
+      </div>
     </div>
   )
 }
@@ -65,7 +156,7 @@ function Tab2026() {
       <Tbd>Borough's LockedForecastContext lets the founder edit values then click Lock — the snapshot becomes the Custom scenario in Investment Summary and Waterfall Returns. Wire the same provider into HackneyApp once the underlying inputs are finalised.</Tbd>
 
       <STitle>Wage Calculator</STitle>
-      <Tbd>Per-role rate slider + hours input. Connects to PL_WAGE_BASE / ROTA_TOTAL / WAGE_OVERHEAD_MULT in data/hackney.js. Placeholder rates already in WAGE_RATES — replace with Hackney role/hour list from Wages Breakdown sheet.</Tbd>
+      <WageCalculator />
 
       <STitle>Income Levers — Scenario Builder</STitle>
       <Tbd>Per-source revenue lever (bar uplift, bookings uplift, private hires, etc.) feeding the Custom scenario. Borough has 6 levers; Hackney's lever list TBD pending the income-source split.</Tbd>
@@ -132,6 +223,73 @@ function TabCashflow() {
 
       <STitle>Net Position & Safety Floor</STitle>
       <Tbd>Closing-balance line chart with the £25,000 safety floor reference line. Lowest month is Feb 27 at £39,250 (£14k above floor). Will recompute against locked Day-1 outflow once chart is wired.</Tbd>
+    </div>
+  )
+}
+
+// ─── Wage Calculator (2026 Performance) ───────────────────────────────
+// Per-role rate slider + hours input. Live total recomputes against the
+// 2025 rota baseline (PL_WAGE_BASE = £179,872). Differs from Borough's
+// model because Hackney holds 2026 wages flat at 2025 actuals — no
+// inflation assumption baked in. Founder can drag rates / hours to
+// stress-test the wage budget against a different staffing mix.
+function WageCalculator() {
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const [rows, setRows] = useState(() =>
+    WAGE_RATES.map(r => ({ ...r }))   // shallow clone so sliders are mutable
+  )
+  const reset = () => setRows(WAGE_RATES.map(r => ({ ...r })))
+  const setField = (idx, key, value) =>
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r))
+
+  const grossTotal = rows.reduce((s, r) => s + r.rate * r.hours, 0)
+  const loadedTotal = grossTotal * WAGE_OVERHEAD_MULT
+  const baselineDelta = loadedTotal - PL_WAGE_BASE
+  const deltaPct = (baselineDelta / PL_WAGE_BASE) * 100
+
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <span style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.5 }}>
+          Drag each role's rate and hours. Loaded total = gross × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday). Compares to 2025 actual {fmt(PL_WAGE_BASE)}.
+        </span>
+        <button onClick={reset} style={{ fontSize:11, padding:'4px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+      </div>
+
+      {rows.map((r, i) => (
+        <div key={r.role} style={{ display:'grid', gridTemplateColumns:'1.5fr 2fr 2fr 1fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+          <span style={{ color:'var(--cream)', fontSize:13 }}>
+            <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}
+          </span>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Rate · £{r.rate.toFixed(2)}/hr</div>
+            <input type="range" min="10" max="25" step="0.10" value={r.rate} onChange={e => setField(i, 'rate', +e.target.value)} style={{ width:'100%', accentColor:r.color }} />
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Hours · {r.hours.toLocaleString('en-GB')}/yr</div>
+            <input type="range" min="0" max="6000" step="50" value={r.hours} onChange={e => setField(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color }} />
+          </div>
+          <span style={{ color:r.color, textAlign:'right', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
+        </div>
+      ))}
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, marginTop:16, paddingTop:14, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross / yr</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(grossTotal)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Loaded / yr</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(loadedTotal)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>vs 2025 Actual</div>
+          <div className="serif" style={{ fontSize:18, color: baselineDelta > 0 ? '#F87171' : '#10B981' }}>
+            {baselineDelta >= 0 ? '+' : ''}{fmt(baselineDelta)}
+          </div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%</div>
+        </div>
+      </div>
     </div>
   )
 }

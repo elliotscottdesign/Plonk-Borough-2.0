@@ -156,22 +156,64 @@ export const MONTHLY_PROFIT = [
   { month: 'Dec', income: 36295.14, profit: -2970.25 },
 ]
 
-// === WAGES — 2026 PLANNING RATES + HOURS ===
-// TBD: Hackney's role-by-role staffing model isn't yet aligned with Borough's
-// (Borough has Bar/Supervisor/Asst Manager/Manager). The workbook's
-// "Wages Breakdown" sheet has the full role list — extract once the team
-// structure for the relaunch is finalised.
-// Placeholder rates are NMW-floor (£12.21) so the slider renders something.
+// === WAGES — 2025 ROTA REFERENCE (4-role calculator basis) ===
+// Source: Wages Breakdown sheet, "2025 Rota Reference Rates" block (bottom).
+// Verified bar-only rota — total 8,300.3 hours, £130,817.32 gross. Mirrors
+// Borough's 4-role schema so the wage calculator on Business Explorer
+// 2026 Performance can interpolate against an editable rate × hours input.
 export const WAGE_RATES = [
-  { role: 'Bar Staff',     rate: 12.21, hours: TBD, color: '#E67E22' },
-  { role: 'Supervisor',    rate: 13.50, hours: TBD, color: '#D4A843' },
-  { role: 'Asst. Manager', rate: 14.50, hours: TBD, color: '#94A3B8' },
-  { role: 'Manager',       rate: 16.00, hours: TBD, color: '#0D9488' },
+  { role: 'Bar Staff',     rate: 13.81, hours: 4017,   color: '#E67E22' },
+  { role: 'Supervisor',    rate: 15.08, hours: 1216.5, color: '#D4A843' },
+  { role: 'Asst. Manager', rate: 16.48, hours: 1796.2, color: '#94A3B8' },
+  { role: 'Manager',       rate: 18.26, hours: 1270.6, color: '#0D9488' },
 ]
 
-export const PL_WAGE_BASE = 179872            // 2025 verified P&L wage line
-export const ROTA_TOTAL   = 130817            // 2025 rota cost before overhead (per brief Section 4)
+export const PL_WAGE_BASE = 179872            // 2025 verified P&L wage line — Monthly Summary!G15
+export const ROTA_TOTAL   = 130817            // 2025 gross rota cost — Wages Breakdown!E61
 export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.375 — covers NIC + pension + holiday
+
+// === MODELLED STAFFING — full 12-role build-out ===
+// Source: Wages Breakdown sheet, modelled staffing block (rows 10–40).
+// This is the venue at full operational capacity (£387,795.30/yr fully-loaded).
+// Differs from PL_WAGE_BASE (£179,872 — 2025 actuals at lean staffing) because
+// it shows what the venue COULD cost if every modelled role is filled. Useful
+// as a reference panel on the Business Explorer 2025 Performance tab.
+export const HACKNEY_WAGE_MODEL = {
+  loadingPct: 0.214,            // employer NIC + pension + holiday
+  totals: {
+    grossWeekly:    6143,
+    grossMonthly:   26619.67,
+    grossAnnual:    319436,
+    loadedWeekly:   7457.60,
+    loadedMonthly:  32316.28,
+    loadedAnnual:   387795.30,
+  },
+  groups: [
+    { key: 'management', title: '1. Management', subtotal: 72259.20, roles: [
+      { role: 'Director / Owner',                 headcount: 1, hours: 'salary', rate: null,   weekly:  305.48, annual: 15885 },
+      { role: 'General Manager',                  headcount: 1, hours: 40,        rate: 18.26,  weekly:  730.40, annual: 37980.80 },
+      { role: 'Assistant Manager',                headcount: 1, hours: 40,        rate: 16.48,  weekly:  659.20, annual: 34278.40 },
+    ] },
+    { key: 'supervisory', title: '2. Supervisory', subtotal: 50186.24, roles: [
+      { role: 'Supervisor (Senior)',              headcount: 1, hours: 40,        rate: 15.08,  weekly:  603.20, annual: 31366.40 },
+      { role: 'Supervisor (Junior / Cover)',      headcount: 1, hours: 24,        rate: 15.08,  weekly:  361.92, annual: 18819.84 },
+    ] },
+    { key: 'barStaff', title: '3. Bar Staff', subtotal: 128419.20, roles: [
+      { role: 'Bar Lead / Head Bartender',        headcount: 1, hours: 40,        rate: 14.31,  weekly:  572.40, annual: 29764.80 },
+      { role: 'Bartender (FT)',                   headcount: 2, hours: 40,        rate: 13.81,  weekly: 1104.80, annual: 57449.60 },
+      { role: 'Bartender (PT)',                   headcount: 2, hours: 20,        rate: 13.81,  weekly:  552.40, annual: 28724.80 },
+      { role: 'Bar Back / Runner (PT)',           headcount: 1, hours: 24,        rate: 10.00,  weekly:  240.00, annual: 12480 },
+    ] },
+    { key: 'floorEvents', title: '4. Floor & Events', subtotal: 50793.60, roles: [
+      { role: 'Floor Staff / Events Host (FT)',   headcount: 1, hours: 40,        rate: 12.21,  weekly:  488.40, annual: 25396.80 },
+      { role: 'Floor Staff / Events Host (PT)',   headcount: 2, hours: 20,        rate: 12.21,  weekly:  488.40, annual: 25396.80 },
+    ] },
+    { key: 'cleaningMaintenance', title: '5. Cleaning & Maintenance', subtotal: 17777.76, roles: [
+      { role: 'Cleaning Staff',                   headcount: 1, hours: 20,        rate: 12.21,  weekly:  244.20, annual: 12698.40 },
+      { role: 'Maintenance / Handyperson',        headcount: 1, hours:  8,        rate: 12.21,  weekly:   97.68, annual:  5079.36 },
+    ] },
+  ],
+}
 
 // === DIGITAL MARKETING ===
 // Hackney runs zero paid search. Channels: organic social, local listings,
