@@ -124,6 +124,36 @@
   footer { text-align: center; padding: 40px 24px; color: var(--cream-dim); font-size: 12px; letter-spacing: 0.1em; }
   footer em { color: var(--gold); font-style: normal; }
 
+  /* Roman narrative additions */
+  .hero-narrative { color: var(--cream-dim); font-size: 17px; line-height: 1.7; max-width: 620px; margin: -4px auto 28px; position: relative; }
+
+  .character-section { padding: 80px 24px 64px; border-bottom: 1px solid var(--line); position: relative; }
+  .character-card { max-width: 720px; margin: 0 auto; padding: 44px 36px 38px; text-align: center; background: radial-gradient(circle at 30% 20%, rgba(212,175,55,0.06), transparent 40%), radial-gradient(circle at 70% 80%, rgba(226,62,62,0.04), transparent 35%), linear-gradient(135deg, var(--bg-2) 0%, var(--bg-3) 100%); border: 2px solid var(--gold-dim); border-radius: 26px 32px 20px 28px / 32px 22px 30px 24px; position: relative; box-shadow: inset 4px 4px 16px rgba(0,0,0,0.32), inset -4px -4px 16px rgba(0,0,0,0.24), 0 10px 28px rgba(0,0,0,0.4); }
+  .character-card::before { content: '⚜'; position: absolute; top: -22px; left: 50%; transform: translateX(-50%); background: var(--bg); padding: 0 14px; color: var(--gold); font-size: 28px; line-height: 1; }
+  .character-eyebrow { color: var(--gold); letter-spacing: 0.3em; text-transform: uppercase; font-size: 12px; margin-bottom: 10px; font-weight: 600; }
+  .character-name { font-size: clamp(26px, 4.2vw, 40px); margin: 0 0 16px; color: var(--cream); line-height: 1.15; }
+  .character-tagline { color: var(--cream-dim); font-size: 16px; line-height: 1.65; margin: 0 auto; max-width: 520px; font-style: italic; }
+
+  .stop-chapter { color: var(--red); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; opacity: 0.92; }
+
+  .roster-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .roster-item { padding: 18px 20px; background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 10px; text-align: left; }
+  .roster-title { color: var(--gold); font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; font-weight: 700; margin-bottom: 4px; }
+  .roster-name { color: var(--cream); font-size: 15px; font-style: italic; }
+  .roster-name.unfilled { color: var(--cream-dim); opacity: 0.55; }
+
+  .quest-list { display: grid; gap: 10px; max-width: 600px; margin: 0 auto; }
+  .quest-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
+  .quest-item:hover { border-color: var(--gold-dim); }
+  .quest-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
+  .quest-item-text { color: var(--cream); font-size: 16px; line-height: 1.4; }
+  .quest-item.is-complete { background: rgba(212,175,55,0.06); border-color: var(--gold-dim); }
+  .quest-item.is-complete .quest-item-text { color: var(--cream-dim); text-decoration: line-through; }
+
+  footer .footer-motto { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; font-size: 26px; color: var(--gold); letter-spacing: 0.04em; margin-bottom: 6px; line-height: 1.2; text-transform: none; }
+  footer .footer-translation { color: var(--cream-dim); font-size: 13px; font-style: italic; margin-bottom: 18px; letter-spacing: 0.05em; text-transform: none; }
+  footer .footer-tagline { color: var(--cream); font-size: 13px; letter-spacing: 0.08em; line-height: 1.6; }
+
   /* Phone tweaks — easier reading + bigger touch targets */
   @media (max-width: 600px) {
     .hero-image-wrap { height: 72vh; max-height: 720px; min-height: 460px; }
@@ -167,23 +197,34 @@
   <div class="hero-image-wrap">
     <img src="julian-centurion.jpg" alt="Julian, the Centurion stag" class="hero-image">
     <div class="hero-image-overlay">
-      <div class="hero-eyebrow">The Stag · One Last Ride</div>
+      <div class="hero-eyebrow">Legio IX · Polonia Victrix</div>
       <h1 class="serif hero-title">Saturday<br><em>2nd May</em></h1>
     </div>
   </div>
   <div class="hero-meta">
-    <h2 class="serif hero-title">We March</h2>
-    <div class="hero-eyebrow">…In secret</div>
+    <div class="hero-eyebrow">Anno MMXXVI · The final campaign</div>
+    <h2 class="serif hero-title">The Return of the Lost Legion</h2>
+    <p class="hero-narrative">On the Second Day of May, Centurion Julianus marches once more through Londinium with his chosen brothers. Their sacred mission: <strong style="color:var(--gold);">recover the lost Eagle</strong> and survive one final glorious campaign.</p>
     <div class="hero-date">City → Spitalfields → Hoxton → Hackney → Dalston · sunrise pending</div>
     <div class="hero-stats">
-      <div class="hero-stat"><div class="hero-stat-num">9</div><div class="hero-stat-label">stops</div></div>
-      <div class="hero-stat"><div class="hero-stat-num">12+</div><div class="hero-stat-label">hours</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">IX</div><div class="hero-stat-label">chapters</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">XII+</div><div class="hero-stat-label">hours</div></div>
     </div>
     <div class="cta-row">
-      <a href="#rsvp" class="btn btn-big">Jump to RSVP →</a>
+      <a href="#rsvp" class="btn btn-big">Join the March →</a>
     </div>
   </div>
 </div>
+
+<section class="character-section">
+  <div class="wrap">
+    <div class="character-card">
+      <div class="character-eyebrow">The Stag · Centurion Julianus</div>
+      <h3 class="serif character-name">of Legio IX · Polonia Victrix</h3>
+      <p class="character-tagline">Commander of morale. Slayer of sobriety. Reclaimer of Eagles.</p>
+    </div>
+  </div>
+</section>
 
 <section>
   <div class="wrap">
@@ -203,6 +244,47 @@
   </div>
 </section>
 
+<section>
+  <div class="wrap">
+    <div class="section-title">The Brotherhood</div>
+    <h2 class="serif section-heading">The chosen few.</h2>
+    <p class="footnote" style="margin: 0 0 24px;">Every campaign needs its officers. The Centurion has appointed his ranks for the day.</p>
+    <div class="roster-grid">
+      <div class="roster-item"><div class="roster-title">Centurion</div><div class="roster-name">Julianus</div></div>
+      <div class="roster-item"><div class="roster-title">Praetorian of Pints</div><div class="roster-name unfilled">— to be appointed</div></div>
+      <div class="roster-item"><div class="roster-title">Keeper of the Eagle</div><div class="roster-name unfilled">— to be appointed</div></div>
+      <div class="roster-item"><div class="roster-title">Tribune of Bad Decisions</div><div class="roster-name unfilled">— to be appointed</div></div>
+      <div class="roster-item"><div class="roster-title">Master of Logistics</div><div class="roster-name">Elliot</div></div>
+      <div class="roster-item"><div class="roster-title">Protector of the Centurion</div><div class="roster-name unfilled">— to be appointed</div></div>
+      <div class="roster-item"><div class="roster-title">Chancellor of Late-Night Kebabs</div><div class="roster-name unfilled">— to be appointed</div></div>
+      <div class="roster-item"><div class="roster-title">Standard-Bearer</div><div class="roster-name unfilled">— to be appointed</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="section-title">The Quest</div>
+    <h2 class="serif section-heading">Mission objectives.</h2>
+    <p class="footnote" style="margin: 0 0 24px;">Tap to mark each victory as it falls. Progress saves to your device.</p>
+    <div class="quest-list" id="quest-list">
+      <label class="quest-item"><input type="checkbox" data-quest="helmet"><span class="quest-item-text">Helmet secured upon the Centurion's head</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="firstpint"><span class="quest-item-text">First pint taken at the muster</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="trial"><span class="quest-item-text">Gladiatorial trial survived (Clays)</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="amphitheatre"><span class="quest-item-text">Amphitheatre of Blood walked</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="wall"><span class="quest-item-text">Roman wall marched in full</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="meat"><span class="quest-item-text">Meat consumed at the feast</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="rites"><span class="quest-item-text">Rites observed at Saint Leonard's gate</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="forum"><span class="quest-item-text">Mortadella claimed at the Forum</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="temptation"><span class="quest-item-text">Centurion withstood the Temptation</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="fires"><span class="quest-item-text">Fires of Victory lit (Brazilian Bangers)</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="taverns"><span class="quest-item-text">Taverns of Temptation conquered</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="eagle"><span class="quest-item-text">The Eagle recovered</span></label>
+      <label class="quest-item"><input type="checkbox" data-quest="standing"><span class="quest-item-text">Centurion still standing at sunrise</span></label>
+    </div>
+  </div>
+</section>
+
 <section id="rsvp" class="rsvp-banner">
   <div class="wrap">
     <div class="section-title" style="margin-bottom: 16px;">RSVP</div>
@@ -214,7 +296,9 @@
 </section>
 
 <footer>
-  Built for the stag · <em>shhh</em>
+  <div class="footer-motto">Aquila Reperta, Vita Incipit</div>
+  <div class="footer-translation">The Eagle is Found, Life Begins</div>
+  <div class="footer-tagline">For Julianus. For the Eagle. For one last glorious bender.</div>
 </footer>
 
 <script>
@@ -226,7 +310,7 @@
 
   const EVENTS = [
     {
-      id: 'ned', name: 'A Brunch of Bankers', branch: "Millie's Lounge · The Ned",
+      id: 'ned', chapter: 'Chapter I · Muster at Londinium', name: 'A Brunch of Bankers', branch: "Millie's Lounge · The Ned",
       sub: 'A classical Roman revival banquet hall like no other',
       time: '11:30 AM', timeEnd: '12:15 PM', short: '11:30am Brunch', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£8.50', extraTag: 'Brunch · ~£25',
       address: '27 Poultry, London EC2R 8AJ',
@@ -234,28 +318,28 @@
       notes: "We'll start at 11:30am at Millie's Lounge in The Ned for a slight brunch (approx £25) and meeting point for the day. Optional — can just join for drinks. Walk over to Clays for 12:30.",
     },
     {
-      id: 'clays', name: 'Clays', branch: 'The City', sub: 'Indoor digital clay pigeon shooting',
+      id: 'clays', chapter: 'Chapter II · The Gladiatorial Trial', name: 'Clays', branch: 'The City', sub: 'Indoor digital clay pigeon shooting',
       time: '12:30 PM', timeEnd: '2:15 PM', short: '12:30 Clays', price: 14, pkg: 'day', pintPrice: '~£7.50',
       address: 'Clays — The City, London (see website for exact address)',
       website: 'https://www.clays.bar/clays-city', websiteLabel: 'clays.bar/clays-city',
       notes: 'Our own lane for 90 minutes with full real-weight decommissioned shotguns and large-format digital clay pigeon shooting screens. Shame we won\u2019t be able to shoot the Essex crowd \u2014 but we\u2019ll out-gun them!',
     },
     {
-      id: 'amphitheatre', name: 'Off to the Games', branch: 'Guildhall',
+      id: 'amphitheatre', chapter: 'Chapter III · The Amphitheatre of Blood', name: 'Off to the Games', branch: 'Guildhall',
       sub: "London's lost Roman amphitheatre · 5 min walk from Clays",
       time: '2:30 PM', timeEnd: '3:15 PM', short: '2:30 Amphitheatre', price: 0, pkg: 'day', free: true, priceNote: 'free entry',
       address: 'Guildhall Yard, London EC2V 5AE',
       notes: "5-minute stroll through Roman London to discover London's lost amphitheatre. Found when Guildhall was redeveloped, London's arena of death is free to enter and takes about 20 minutes to see. Nota Bene: there's a metal detector and bag scanner on the way in.",
     },
     {
-      id: 'march', name: 'We March for Meat', branch: 'Roman wall → Smokoloko',
+      id: 'march', chapter: 'Chapter IV · The Wall March & Feast of Meats', name: 'We March for Meat', branch: 'Roman wall → Smokoloko',
       sub: 'Walk the Roman wall, arrive at Smokoloko in Spitalfields',
       time: '3:15 PM', timeEnd: '4:30 PM', short: '3:15 March + Smokoloko', price: 10, pkg: 'day', priceNote: 'steak contribution', pintPrice: '~£7',
       address: 'Old Spitalfields Market, 16 Horner Square, London E1 6EW',
       notes: "Smokoloko has been smoking up briskets, brine-soaked chickens and grilling sirloins for over 12 years at Spitalfields Market. As a buddy he'll make us a meat platter for mates rates, and we can grab beers from the market or a shop.",
     },
     {
-      id: 'mikkeller', name: 'Mikkeller', branch: "St Leonard's Church corner",
+      id: 'mikkeller', chapter: "Chapter V · Rites at Saint Leonard's Gate", name: 'Mikkeller', branch: "St Leonard's Church corner",
       sub: 'Corner pub · takeaway craft beers · drink in the church ground',
       time: '5:00 PM', short: '5pm Mikkeller', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£7-8',
       address: "Mikkeller, Shoreditch (alongside St Leonard's Church), London",
@@ -263,7 +347,7 @@
       notes: "Mikkeller is a lovely corner pub, sat alongside the grand St Leonard's Church. Part owned by Rick Astley (who Julian loves), this Danish brewhouse offers takeaway craft beers. People can either grab beers from the pub or cans from the shop whilst we chill in the church yard.",
     },
     {
-      id: 'netil', name: 'Market Day', branch: 'Broadway Market',
+      id: 'netil', chapter: 'Chapter VI · The Forum of Mortadella', name: 'Market Day', branch: 'Broadway Market',
       sub: 'Saturday market vibes · mortadella mates rate at Netil',
       time: '6:00 PM', short: '6pm Market Day', price: 12, pkg: 'day', priceNote: 'mortadella + pint mates rate', pintPrice: '~£6.50',
       address: 'Broadway Market, London E8',
@@ -274,7 +358,7 @@
       notes: "We arrive at Broadway Market, thankfully it's finished, so we head to Netil Market around the corner where we have some mates-rate mortadella and pints.",
     },
     {
-      id: 'strips', name: 'Spots & Strips', branch: 'No Dice Clubhouse',
+      id: 'strips', chapter: "Chapter VII · The Centurion's Temptation", name: 'Spots & Strips', branch: 'No Dice Clubhouse',
       sub: 'Partial nudity · pool · prizes',
       time: '7:00 PM', timeEnd: '7:45 PM', short: '7pm Spots & Strips', price: 0, pkg: 'evening', tba: true,
       address: '15 Mentmore Terrace, London E8 3PN',
@@ -282,7 +366,7 @@
       notes: "Expect partial nudity, pool and prizes. Price TBA. If anyone feels uncomfortable playing pool with women who undress, you can wait it out at Saint Monday Brewery just down the road.",
     },
     {
-      id: 'bbq', name: 'BBQ Brazilian Bangers', branch: 'No Dice Clubhouse',
+      id: 'bbq', chapter: 'Chapter VIII · The Fires of Victory', name: 'BBQ Brazilian Bangers', branch: 'No Dice Clubhouse',
       sub: 'Sausage party · fire up the BBQ',
       time: '8:00 PM', timeEnd: '10:00 PM', short: '8pm BBQ', price: 5, pkg: 'evening', priceNote: 'sausage contribution at the bar',
       address: '15 Mentmore Terrace, London E8 3PN',
@@ -290,7 +374,7 @@
       notes: "Once the ladies have left we'll fire up the BBQ and get this sausage party really on. Take on fuel, break, smoke, sharpen. Beers and drinks can be bought from the off-license or from Elliot. £5 sausage contribution at the bar.",
     },
     {
-      id: 'crawl', name: 'Dalston Crawl', branch: 'Kingsland Road',
+      id: 'crawl', chapter: 'Chapter IX · The Taverns of Temptation & Recovery of the Eagle', name: 'Dalston Crawl', branch: 'Kingsland Road',
       sub: 'Optional · concentrated crawl, taxi from the BBQ',
       time: '10:00 PM', short: '10pm Dalston Crawl', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)', extraTag: 'Club entry · £15 / or late-night bar',
       venues: [
@@ -365,6 +449,7 @@
         <summary>
           <div class="stop-time">${escapeHtml(e.time)}${e.timeEnd ? `<span class="stop-time-end">to ${escapeHtml(e.timeEnd)}</span>` : ''}</div>
           <div class="stop-content">
+            ${e.chapter ? `<div class="stop-chapter">${escapeHtml(e.chapter)}</div>` : ''}
             <div class="serif stop-name">
               <span>${escapeHtml(e.name)}</span>
               ${e.branch ? `<span class="stop-branch">· ${escapeHtml(e.branch)}</span>` : ''}
@@ -395,8 +480,24 @@
     }
   }
 
+  function wireQuest() {
+    const KEY = 'stag_quest_v1'
+    const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch (e) { return {} } })()
+    document.querySelectorAll('.quest-item input[type="checkbox"]').forEach(cb => {
+      const id = cb.dataset.quest
+      const item = cb.closest('.quest-item')
+      if (saved[id]) { cb.checked = true; item.classList.add('is-complete') }
+      cb.addEventListener('change', () => {
+        item.classList.toggle('is-complete', cb.checked)
+        saved[id] = cb.checked
+        try { localStorage.setItem(KEY, JSON.stringify(saved)) } catch (e) {}
+      })
+    })
+  }
+
   renderTimeline()
   wireRsvp()
+  wireQuest()
 </script>
 </body>
 </html>
