@@ -1,26 +1,32 @@
 import React, { useState } from 'react'
-import { DEAL } from '../../data/hackney.js'
+import { DEAL, computeDealFromInvestment } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // WaterfallReturns — clones Borough's structure: 4-button scenario selector +
 // 3-step waterfall (Operating Profit → Investor Dividend → Founder Dividend) +
 // summary cards (Total Return / Cash-on-Cash / Founder Position).
 //
-// Pure pro-rata 50/50 — same model as Borough. No preferred return, no
-// founder priority slice. Hackney scenario profit figures are placeholders
-// for now; they'll be replaced by the locked Business Explorer snapshot once
-// that tab is built for Hackney.
+// Pure pro-rata. When the founder has locked the Use of Funds slider tool,
+// the deal terms here recompute off the locked total — investor / founder
+// equity %, total raise, cash-on-cash all flex. Otherwise the static DEAL
+// constants in data/hackney.js carry the defaults.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-function calcWaterfall(profit) {
-  const investorDiv = profit * DEAL.investorEq
-  const founderDiv = profit * DEAL.founderEq
+function calcWaterfall(profit, deal) {
+  const investorDiv = profit * deal.investorEq
+  const founderDiv = profit * deal.founderEq
   const totalInvestor = investorDiv
-  const coc = totalInvestor / DEAL.investment
+  const coc = totalInvestor / deal.investment
   return { investorDiv, founderDiv, totalInvestor, coc }
 }
 
 export default function WaterfallReturns() {
+  const { snapshot, isLocked } = useLockedUseOfFunds()
+  const effective = isLocked && snapshot
+    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
+    : DEAL
+
   // TBD: replace these scenario profit figures with Hackney's calibrated
   // Conservative/Base/Optimistic numbers once the bar-only cost model is
   // restated for 2026/27. Current values from Excel Scenario Planning rows
@@ -29,15 +35,21 @@ export default function WaterfallReturns() {
     bear:   { label: 'Conservative −10%', badge: 'Conservative scenario',                                          profit: 30345,        color: '#E53935' },
     base:   { label: 'Base Case +15%',     badge: 'Base case scenario',                                              profit: 45632,        color: '#C9A84C' },
     bull:   { label: 'Optimistic +20%',    badge: 'Optimistic scenario',                                             profit: 63512,        color: '#2DD4BF' },
-    custom: { label: 'Custom',             badge: 'Lock the 2026 Performance tab to populate',                       profit: 45632,        color: 'var(--gold)', disabled: true },
+    custom: {
+      label:    'Custom',
+      badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
+      profit:   45632,
+      color:    'var(--gold)',
+      disabled: !isLocked,
+    },
   }
 
-  const [scenario, setScenario] = useState('base')
+  const [scenario, setScenario] = useState(isLocked ? 'custom' : 'base')
   const s = SCENARIOS[scenario]
-  const w = calcWaterfall(s.profit)
+  const w = calcWaterfall(s.profit, effective)
 
-  const investorPct = (DEAL.investorEq * 100).toFixed(1)
-  const founderPct = (DEAL.founderEq * 100).toFixed(1)
+  const investorPct = (effective.investorEq * 100).toFixed(1)
+  const founderPct = (effective.founderEq * 100).toFixed(1)
 
   const steps = [
     { label: 'Operating Profit',                          amount: s.profit,    color: '#1565C0', note: s.badge },
@@ -115,8 +127,8 @@ export default function WaterfallReturns() {
 
           <div className="card" style={{ padding: 20 }}>
             <Row label="Cash-on-Cash Return" value={`${(w.coc * 100).toFixed(1)}%`} gold />
-            <Row label="Payback Period" value={`${(DEAL.investment / w.totalInvestor).toFixed(2)} years`} />
-            <Row label={`On ${fmt(DEAL.investment)} invested`} value={fmt(DEAL.investment)} />
+            <Row label="Payback Period" value={`${(effective.investment / w.totalInvestor).toFixed(2)} years`} />
+            <Row label={`On ${fmt(effective.investment)} invested`} value={fmt(effective.investment)} gold={isLocked} />
             <Row label={`Equity dividend (${investorPct}%)`} value={fmt(w.investorDiv)} gold />
             <Row label="Distribution timing" value="Same as founder" />
           </div>

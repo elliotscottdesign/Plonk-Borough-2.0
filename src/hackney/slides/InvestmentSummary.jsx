@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { DEAL, ACTUALS_2025, FORECAST } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // InvestmentSummary — clones Borough's structure exactly:
 //   • Title + subtitle
@@ -8,9 +9,10 @@ import { DEAL, ACTUALS_2025, FORECAST } from '../../data/hackney.js'
 //   • Top 3 investment highlights
 //   • Interactive return calculator (slider + 3 result tiles)
 //
-// English-only, no i18n. The Custom-scenario LockedForecastContext hookup is
-// stubbed out for the framework — Hackney doesn't yet have a 2026 Performance
-// tab to populate it. Wire that in once the Business Explorer is built.
+// When the Use of Funds slider tool is locked, the deal terms here recompute
+// off the locked total — investment, investor equity, post-money all flex
+// with the minimum-viable raise. When unlocked, the static DEAL constants
+// from data/hackney.js carry the defaults.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 const pct = (n) => (n * 100).toFixed(1) + '%'
@@ -19,33 +21,47 @@ const pct = (n) => (n * 100).toFixed(1) + '%'
 // 2025 actuals. Hackney's equivalent rules are TBD pending a restatement of
 // the bar-only cost lines. Placeholder: scale total costs linearly with the
 // scenario multiplier so the calculator at least responds to inputs.
-function calcReturns(multiplier) {
+function calcReturns(multiplier, deal) {
   const revenue = ACTUALS_2025.revenue * multiplier
   // TBD: replace with Hackney's 2026 cost model (wages, fixed, variable, VAT).
   // For now use a flat margin estimate so the calculator renders something.
   const opProfit = Math.round(FORECAST.profit * (multiplier / 1.15))   // 1.15 = base
-  const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
+  const investorDiv = Math.max(0, opProfit) * deal.investorEq
   const total = investorDiv
-  const coc = total / DEAL.investment
-  const payback = total > 0 ? DEAL.investment / total : Infinity
+  const coc = total / deal.investment
+  const payback = total > 0 ? deal.investment / total : Infinity
   return { revenue, opProfit, investorDiv, total, coc, payback }
 }
 
 export default function InvestmentSummary() {
+  const { snapshot, isLocked } = useLockedUseOfFunds()
+
+  // When the founder has locked the Use of Funds slider tool, deal terms
+  // (investment size, investor/founder equity, post-money) recompute off
+  // the locked total. Otherwise fall back to the static DEAL defaults.
+  const effective = isLocked && snapshot
+    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
+    : DEAL
+
   const SCENARIOS = {
     conservative: { label: 'Conservative', sub: '+10% on 2025', multiplier: 1.10 },
     base:         { label: 'Base Case',    sub: '+15% on 2025', multiplier: 1.15 },
     optimistic:   { label: 'Optimistic',   sub: '+20% on 2025', multiplier: 1.20 },
-    custom:       { label: 'Custom',       sub: 'Lock the 2026 Performance tab to populate', multiplier: 1.15, disabled: true },
+    custom:       {
+      label:    'Custom',
+      sub:      isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
+      multiplier: 1.15,
+      disabled: !isLocked,
+    },
   }
 
-  const [scenario, setScenario] = useState('base')
+  const [scenario, setScenario] = useState(isLocked ? 'custom' : 'base')
   const activeKey = SCENARIOS[scenario]?.disabled ? 'base' : scenario
   const s = SCENARIOS[activeKey]
-  const r = calcReturns(s.multiplier)
+  const r = calcReturns(s.multiplier, effective)
 
-  const [amount, setAmount] = useState(DEAL.investment)
-  const equity = amount / DEAL.postMoney
+  const [amount, setAmount] = useState(effective.investment)
+  const equity = amount / effective.postMoney
   const isAShare = equity >= 0.05
 
   // Calculator dividend = base operating profit × equity slider.
@@ -58,7 +74,7 @@ export default function InvestmentSummary() {
     ? `${r.payback.toFixed(1)} years`
     : 'N/A · profit ≤ 0'
 
-  const investorEqPct = (DEAL.investorEq * 100).toFixed(1)
+  const investorEqPct = (effective.investorEq * 100).toFixed(1)
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -88,12 +104,12 @@ export default function InvestmentSummary() {
 
       {/* 3-section snapshot grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
-        <Section title="🏢 Deal Structure" items={[
-          ['Investor Equity',    `${(DEAL.investorEq*100).toFixed(2)}%`],
-          ['Founder Equity',     `${(DEAL.founderEq*100).toFixed(2)}%`],
-          ['Pre-Money Valuation', fmt(DEAL.preMoney)],
-          ['Post-Money Valuation', fmt(DEAL.postMoney)],
-          ['Valuation Multiple', `${DEAL.multiple.toFixed(2)}× EBITDA`],
+        <Section title={`🏢 Deal Structure${isLocked ? ' · LOCKED' : ''}`} items={[
+          ['Investment Sought',   fmt(effective.investment), isLocked],
+          ['Investor Equity',    `${(effective.investorEq*100).toFixed(2)}%`],
+          ['Founder Equity',     `${(effective.founderEq*100).toFixed(2)}%`],
+          ['Pre-Money Valuation', fmt(effective.preMoney)],
+          ['Post-Money Valuation', fmt(effective.postMoney)],
         ]} />
         <Section title="📊 Financial Performance" items={[
           ['2025 Actual Revenue',  fmt(ACTUALS_2025.revenue)],
@@ -117,7 +133,7 @@ export default function InvestmentSummary() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
         {[
-          `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(DEAL.investment)} invested`,
+          `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
           'All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)',
         ].map((text, i) => (
@@ -140,13 +156,13 @@ export default function InvestmentSummary() {
             <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
           </div>
           <input
-            type="range" min={5000} max={DEAL.investment} step={2500}
-            value={amount} onChange={e => setAmount(+e.target.value)}
+            type="range" min={5000} max={effective.investment} step={2500}
+            value={Math.min(amount, effective.investment)} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
             <span>£5,000</span>
-            <span>{fmt(DEAL.investment)} · 50% equity cap</span>
+            <span>{fmt(effective.investment)} · {(effective.investorEq*100).toFixed(1)}% equity cap</span>
           </div>
         </div>
 
@@ -173,6 +189,7 @@ export default function InvestmentSummary() {
 
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
           Cash-on-Cash: {(cocCalc * 100).toFixed(1)}% · Payback: {(amount / totalCalc).toFixed(2)} years · Minimum for A shares: £{DEAL.aShareThreshold.toLocaleString('en-GB')}
+          {isLocked && <span style={{ display:'block', color:'#10B981', marginTop:6 }}>✓ Live from locked Use of Funds — investment {fmt(effective.investment)} · {(effective.investorEq*100).toFixed(1)}% equity</span>}
         </div>
       </div>
     </div>

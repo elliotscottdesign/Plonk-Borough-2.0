@@ -9,6 +9,7 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import { LockedUseOfFundsProvider } from './components/LockedUseOfFundsContext.jsx'
 import { WORKBOOK_URL } from '../data/hackney.js'
 
 // HackneyApp — clones the structure of Borough's App.jsx exactly:
@@ -48,6 +49,7 @@ export default function HackneyApp() {
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
 
   return (
+    <LockedUseOfFundsProvider>
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
 
       {/* Top header — brand + tab buttons + back-to-Borough */}
@@ -96,5 +98,6 @@ export default function HackneyApp() {
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
+    </LockedUseOfFundsProvider>
   )
 }

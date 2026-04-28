@@ -1,223 +1,283 @@
-import React from 'react'
-import { DEAL, USE_OF_FUNDS } from '../../data/hackney.js'
+import React, { useState, useEffect } from 'react'
+import {
+  USE_OF_FUNDS,
+  USE_OF_FUNDS_RANGES,
+  computeDealFromInvestment,
+} from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
-// UseOfFunds — clones Borough's structure: 5 fund items (visual breakdown +
-// item cards), 3-card cash banner (Day 1 / Working Capital / VAT Reclaim),
-// followed by two detail breakdowns (stock & operational setup grouped, then
-// hardware itemised). Hackney's detail breakdowns are TBD pending workbook
-// itemisation — placeholder rows render so the layout is visible and the
-// data shape is locked in.
+// UseOfFunds — minimum-viable-raise calculator for No Dice Hackney.
+// Six sliders (5 continuous + rent snap). Founder (888999) edits and Locks.
+// Locked snapshot persists per browser via LockedUseOfFundsContext and flows
+// downstream into Investment Summary, Waterfall Returns and the Cashflow
+// Forecast sub-tab.
+//
+// Default starting values come from USE_OF_FUNDS — these are the conservative
+// "max ask" for each line. Drag down to find the floor that still gets the
+// venue safe and reopen-ready. When trading begins, run further rounds.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-// Hackney's 5 fund items mapped onto the visual structure.
-// Colours mirror Borough's UseOfFunds palette so the bar chart reads similarly.
-const FUND_META = {
-  'Stock Purchase — Liquidators':       { color: '#4FC3F7', icon: '📦' },
-  'Landlord — Rent Deposit (3 mo)':     { color: '#8B5CF6', icon: '🏠' },
-  'Garden Refurbishment':                { color: '#2DD4BF', icon: '🌿' },
-  'Interior Completion & Signage':       { color: '#C9A84C', icon: '🛠️' },
-  'Legals, Restart & Working Capital':   { color: '#6B7280', icon: '💼' },
+// Slider order on the slide. `key` matches USE_OF_FUNDS_RANGES + USE_OF_FUNDS.
+const ORDER = ['stock', 'rent', 'garden', 'interior', 'marketing', 'legals']
+
+// Build a map of defaults from the static USE_OF_FUNDS list. Rent default is
+// 3 months (the original spec); others use their static `amount`.
+function defaultValues() {
+  const byKey = Object.fromEntries(USE_OF_FUNDS.map(u => [u.key, u]))
+  return {
+    stock:     byKey.stock.amount,      // £24,000
+    rentMonths: 3,                      // snap-slider position
+    rent:      byKey.rent.amount,       // £26,750
+    garden:    byKey.garden.amount,     // £12,000
+    interior:  byKey.interior.amount,   // £10,000
+    marketing: byKey.marketing.amount,  // £3,000
+    legals:    byKey.legals.amount,     // £2,000
+  }
 }
 
-// Stock & Operational Setup — 4 group structure mirrors Borough's. Items in
-// each group are TBD until the £42k stock purchase + £10k interior lines are
-// itemised in the Hackney workbook.
-const setupGroups = [
-  { key: 'stock',      title: 'Opening Stock',             subtitle: 'Drink + bar consumables for Day 1 trading',  icon: '🥃', accent: '#A78BFA', vatLabel: 'inc VAT',     items: ['alcohol','soft','ice'] },
-  { key: 'contracts',  title: 'Setup & Activation',        subtitle: 'Deep clean, kit setup, supplier deposits',   icon: '🛠️', accent: '#2DD4BF', vatLabel: 'inc VAT',     items: ['cleaning','internet','app','supplier'] },
-  { key: 'subs',       title: '3-Month Software Pre-pays', subtitle: 'Cloud subscriptions for first quarter',      icon: '💻', accent: '#4FC3F7', vatLabel: 'inc VAT',     items: ['xero','rota','google','spotify'] },
-  { key: 'regulatory', title: 'Pre-trading Regulatory',    subtitle: 'Council fees due before opening',            icon: '🏛️', accent: '#F59E0B', vatLabel: 'VAT-exempt',  items: ['rates','licence'] },
-]
-
-const setupItems = {
-  alcohol:  { label: 'Alcohol stock (opening fill)',          icon: '🍾', amount: null },
-  soft:     { label: 'Soft drinks, mixers & non-alcohol',     icon: '🥤', amount: null },
-  ice:      { label: 'Ice supplies (first delivery)',         icon: '🧊', amount: null },
-  cleaning: { label: 'Cleaning contracts restart',            icon: '🧽', amount: null },
-  internet: { label: 'Internet — Starlink / BT Business',     icon: '📡', amount: null },
-  app:      { label: 'Booking platform setup',                 icon: '📱', amount: null },
-  xero:     { label: 'Xero accounting (3 months)',             icon: '📊', amount: null },
-  rota:     { label: 'Rota Cloud — staff scheduling (3 mo)',   icon: '🗓️', amount: null },
-  google:   { label: 'Google Workspace (3 months)',            icon: '🗂️', amount: null },
-  spotify:  { label: 'Spotify Business (3 months)',            icon: '🎵', amount: null },
-  supplier: { label: 'Supplier contract deposits',             icon: '🤝', amount: null },
-  rates:    { label: 'Business rates (first month)',           icon: '🏛️', amount: null },   // Hackney Council, post-relief
-  licence:  { label: 'Alcohol licence change (DPS)',           icon: '📜', amount: null },   // Hackney Licensing
+// Build the snapshot shape from a values map.
+function snapshotOf(v) {
+  return {
+    stock: v.stock,
+    rentMonths: v.rentMonths,
+    rent: v.rent,
+    garden: v.garden,
+    interior: v.interior,
+    marketing: v.marketing,
+    legals: v.legals,
+    total: v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals,
+  }
 }
 
-// Stock Purchase £42,000 itemised breakdown — TBD pending liquidator inventory.
-const hardwareItems = [
-  { key:'barCellar', label: 'Bar equipment & cellar',  icon: '🍻', amount: null, note: 'Beer lines, fridges, glasswash, taps, ice machine, POS hardware' },
-  { key:'kitchen',   label: 'Kitchen equipment',       icon: '🔪', amount: null, note: 'Counters, fridges, prep, small wares' },
-  { key:'wetStock',  label: 'Glassware & wet stock',   icon: '🧰', amount: null, note: 'Glassware, cleaning chemicals, repair tools, hand-trolleys' },
-  { key:'games',     label: 'Games & furniture',       icon: '🎱', amount: null, note: 'Pool tables, arcades, board game stock, seating, lighting' },
-]
-
-const fmtOrTbd = (n) => (n == null ? <span style={{ color:'var(--gold-dim)', fontWeight:400 }}>TBD</span> : fmt(n))
+// Map from rentMonths (1/2/3) to the £ deposit per the lease.
+function rentAmountForMonths(months) {
+  const snap = USE_OF_FUNDS_RANGES.rent.snaps.find(s => s.months === months)
+  return snap ? snap.amount : USE_OF_FUNDS_RANGES.rent.snaps[2].amount
+}
 
 export default function UseOfFunds() {
-  const investment = fmt(DEAL.investment)
-  const funds = USE_OF_FUNDS.map(f => ({
-    ...f,
-    color: FUND_META[f.item]?.color ?? '#6B7280',
-    icon:  FUND_META[f.item]?.icon  ?? '💼',
-  }))
+  const { snapshot, isLocked, isFounder, canEdit, lock, unlock } = useLockedUseOfFunds()
+
+  // Live slider state — seeded from locked snapshot (if any) or defaults.
+  const [values, setValues] = useState(() =>
+    snapshot
+      ? { stock: snapshot.stock, rentMonths: snapshot.rentMonths, rent: snapshot.rent,
+          garden: snapshot.garden, interior: snapshot.interior, marketing: snapshot.marketing,
+          legals: snapshot.legals }
+      : defaultValues()
+  )
+
+  // If the snapshot changes externally (e.g. founder unlocks elsewhere),
+  // re-sync the slider positions.
+  useEffect(() => {
+    if (snapshot) {
+      setValues({
+        stock: snapshot.stock, rentMonths: snapshot.rentMonths, rent: snapshot.rent,
+        garden: snapshot.garden, interior: snapshot.interior, marketing: snapshot.marketing,
+        legals: snapshot.legals,
+      })
+    }
+  }, [snapshot])
+
+  // What the slide currently shows: locked snapshot wins, else live sliders.
+  const display = isLocked ? snapshot : snapshotOf(values)
+  const deal = computeDealFromInvestment(display.total)
+
+  const set = (k, v) => setValues(prev => {
+    const next = { ...prev, [k]: v }
+    if (k === 'rentMonths') next.rent = rentAmountForMonths(v)
+    return next
+  })
+
+  const handleLock = () => lock(snapshotOf(values))
+  const handleReset = () => {
+    if (!isFounder) return
+    if (isLocked) unlock()
+    setValues(defaultValues())
+  }
 
   return (
-    <div style={{ maxWidth:1100, margin:'0 auto', padding:'0 4px' }}>
-      <div style={{ marginBottom:24 }}>
-        <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>Use of Investment Funds</div>
-        <h2 className="serif" style={{ fontSize:'clamp(2rem, 4vw, 3rem)', color:'var(--cream)', marginBottom:8 }}>Where Your {investment} Goes</h2>
-        <p style={{ fontSize:14, color:'#9CA3AF' }}>Every pound deployed on Day 1 of reopening — no funds held in reserve outside the business.</p>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <div style={{ marginBottom: 24 }}>
+        <div style={{ fontSize: 12, color: '#4FC3F7', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Use of Investment Funds</div>
+        <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
+          {fmt(display.total)} · Minimum Viable Raise
+        </h2>
+        <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
+          Drag each slider to find how little we need to raise to get the venue safe and reopen-ready. Pre-money valuation is fixed at {fmt(deal.preMoney)} (verified 2025 EBITDA × multiple); investor equity recomputes as the raise size changes. When trading begins, we run further rounds — this round only buys what we need to get back to trading.
+        </p>
       </div>
 
-      {/* Allocation chart + per-item cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:20, marginBottom:20 }}>
-        <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:24 }}>
-          <div style={{ fontSize:12, color:'#4FC3F7', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:20 }}>Fund Allocation — Visual Breakdown</div>
-          <div style={{ display:'flex', height:32, borderRadius:6, overflow:'hidden', marginBottom:24 }}>
-            {funds.map(f => (
-              <div key={f.item} style={{ width:f.pct+'%', background:f.color }} title={`${f.item}: ${fmt(f.amount)}${f.vat ? ' ' + f.vat : ''} · ${f.pct}%`} />
-            ))}
-          </div>
-          {funds.map(f => (
-            <div key={f.item} style={{ marginBottom:16 }}>
-              <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:6 }}>
-                <div style={{ width:12, height:12, borderRadius:2, background:f.color, flexShrink:0 }} />
-                <span style={{ fontSize:13, fontWeight:600, color:'var(--cream)', flex:1 }}>{f.item}</span>
-                {f.vat && <span style={{ fontSize:10, color:f.color, border:`1px solid ${f.color}`, borderRadius:3, padding:'1px 6px' }}>{f.vat}</span>}
-                <span style={{ fontSize:13, color:f.color, fontWeight:600, minWidth:36, textAlign:'right' }}>{f.pct}%</span>
-                <span style={{ fontSize:13, fontWeight:700, color:f.color, minWidth:64, textAlign:'right' }}>{fmt(f.amount)}</span>
-              </div>
-              <div style={{ height:4, background:'rgba(255,255,255,0.06)', borderRadius:2, marginLeft:20 }}>
-                <div style={{ height:'100%', width:f.pct+'%', background:f.color, borderRadius:2 }} />
-              </div>
-            </div>
-          ))}
-          <div style={{ borderTop:'1px solid rgba(255,255,255,0.1)', marginTop:8, paddingTop:12, display:'flex', justifyContent:'space-between' }}>
-            <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>TOTAL INVESTMENT</span>
-            <span style={{ fontSize:16, fontWeight:700, color:'#C9A84C' }}>{investment} inc VAT</span>
-          </div>
-        </div>
-        <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-          {funds.map(f => (
-            <div key={f.item} style={{ background:'#0D1117', border:'1px solid #21262D', borderLeft:`3px solid ${f.color}`, borderRadius:8, padding:'14px 18px', display:'flex', gap:14, alignItems:'flex-start' }}>
-              <div style={{ fontSize:22, flexShrink:0 }}>{f.icon}</div>
-              <div style={{ flex:1 }}>
-                <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
-                  <span style={{ fontSize:14, fontWeight:700, color:'var(--cream)' }}>{f.item}</span>
-                  <span style={{ fontSize:12, color:f.color, fontWeight:600, marginLeft:'auto' }}>{f.pct}%</span>
-                  <span style={{ fontSize:14, fontWeight:700, color:f.color }}>{fmt(f.amount)}</span>
-                </div>
-                <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.5 }}>{f.note}</div>
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* Headline cards — total, equity, founder share, lock state */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
+        <HeadlineCard label="TOTAL RAISE"      value={fmt(display.total)}                 colour={isLocked ? '#10B981' : '#C9A84C'} sub={isLocked ? 'Locked snapshot' : 'Live preview'} />
+        <HeadlineCard label="INVESTOR EQUITY"  value={(deal.investorEq * 100).toFixed(1) + '%'}  colour="#4FC3F7"  sub={`On ${fmt(deal.investment)} invested`} />
+        <HeadlineCard label="FOUNDER EQUITY"   value={(deal.founderEq * 100).toFixed(1) + '%'}   colour="#A78BFA"  sub={`Pre-money ${fmt(deal.preMoney)}`} />
+        <HeadlineCard label="POST-MONEY"        value={fmt(deal.postMoney)}                       colour="#2DD4BF"  sub="Pre-money + raise" />
       </div>
 
-      {/* 3-card cash banner */}
-      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'16px 20px', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16 }}>
-          <div style={{ fontSize:13, fontWeight:700, color:'var(--cream)', letterSpacing:'0.06em' }}>{investment} INC VAT TOTAL · 100% DEPLOYED DAY 1</div>
-          {/* TBD: confirm Hackney VAT reclaim figure once startup VAT items finalised */}
-          <div style={{ fontSize:12, color:'#9CA3AF' }}>VAT on startup costs reclaimed in Q1 — credited against first HMRC VAT return.</div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-          <div style={{ background:'rgba(234,88,12,0.1)', border:'1px solid rgba(234,88,12,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
-            <div style={{ fontSize:11, color:'#EA580C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Day 1 Deployed</div>
-            {/* Day 1 = Stock + Deposit + Garden + Interior = £90,750 */}
-            <div style={{ fontSize:24, fontWeight:800, color:'#EA580C', marginBottom:4 }}>£90,750</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Startup costs paid immediately</div>
-          </div>
-          <div style={{ background:'rgba(201,168,76,0.08)', border:'2px solid rgba(201,168,76,0.4)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
-            <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>Working Capital</div>
-            <div style={{ fontSize:24, fontWeight:800, color:'#C9A84C', marginBottom:4 }}>£9,250</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Staged per cash flow model</div>
-          </div>
-          <div style={{ background:'rgba(45,212,191,0.08)', border:'1px solid rgba(45,212,191,0.3)', borderRadius:8, padding:'14px 18px', textAlign:'center' }}>
-            <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>VAT Reclaim</div>
-            {/* Excel: Cash Flow Forecast!B8 — May 2026 reclaim */}
-            <div style={{ fontSize:24, fontWeight:800, color:'#2DD4BF', marginBottom:4 }}>£13,458</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Recovered Q1 — August 2026</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Stock & Operational Setup — grouped detail */}
-      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px', marginBottom:20 }}>
-        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
+      {/* Lock / Reset / Founder gate */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', marginBottom: 20, background:'var(--ink-2)', border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`, borderRadius: 10 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+          <div style={{ width: 10, height: 10, borderRadius: '50%', background: isLocked ? '#10B981' : 'var(--gold-dim)' }} />
           <div>
-            <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Stock & Operational Setup — Itemised</div>
-            <h3 className="serif" style={{ fontSize:22, color:'var(--cream)', margin:0 }}>Day-1 Operations Breakdown</h3>
+            <div style={{ fontSize: 12, color: 'var(--cream)', fontWeight: 600 }}>
+              {isLocked
+                ? `Locked · ${snapshot?.lockedAt ? new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' }) : ''}`
+                : isFounder ? 'Editable — drag the sliders, then Lock to save' : 'Read-only · only the founder (888999) can edit'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 2 }}>
+              Locked values flow into Investment Summary · Waterfall Returns · Cashflow Forecast.
+            </div>
           </div>
-          <div style={{ fontSize:11, color:'#9CA3AF', maxWidth:340, textAlign:'right' }}>Opening stock, contracts, 3-month subscription pre-pays, and pre-trading regulatory costs so the venue trades from Day 1. <strong style={{ color:'var(--gold-dim)' }}>Item amounts TBD — pending workbook itemisation.</strong></div>
         </div>
+        <div style={{ display:'flex', gap: 8 }}>
+          <button onClick={handleReset} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, ghost: true })}>Reset</button>
+          {isLocked ? (
+            <button onClick={() => unlock()} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, gold: true })}>Unlock</button>
+          ) : (
+            <button onClick={handleLock} disabled={!canEdit} style={btnStyle({ disabled: !canEdit, gold: true })}>Lock</button>
+          )}
+        </div>
+      </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-          {setupGroups.map(g => {
-            const hex = g.accent
-            const bgRgba   = `${hex}0D`
-            const borderRgba = `${hex}33`
-            const knownItems = g.items.map(k => setupItems[k].amount).filter(a => a != null)
-            const sub = knownItems.length === 0 ? null : knownItems.reduce((s, a) => s + a, 0)
+      {/* Sliders */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {ORDER.map(key => {
+          const meta = USE_OF_FUNDS.find(u => u.key === key)
+          if (key === 'rent') {
             return (
-              <div key={g.key} style={{ background:bgRgba, border:`1px solid ${borderRgba}`, borderRadius:8, padding:'14px 16px' }}>
-                <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-                  <div style={{ fontSize:18, lineHeight:1 }}>{g.icon}</div>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'var(--cream)', letterSpacing:'0.04em' }}>{g.title}</div>
-                  </div>
-                  <span style={{ fontSize:9, color:hex, border:`1px solid ${hex}55`, borderRadius:3, padding:'1px 6px', letterSpacing:'0.06em', textTransform:'uppercase', whiteSpace:'nowrap' }}>{g.vatLabel}</span>
-                  <span style={{ fontSize:14, fontWeight:700, color:hex, marginLeft:4, whiteSpace:'nowrap' }}>{fmtOrTbd(sub)}</span>
-                </div>
-                <div style={{ fontSize:10, color:'#9CA3AF', marginBottom:10, marginLeft:28 }}>{g.subtitle}</div>
-                <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-                  {g.items.map(itemKey => {
-                    const item = setupItems[itemKey]
-                    return (
-                      <div key={itemKey} style={{ display:'flex', alignItems:'center', gap:8, padding:'4px 0' }}>
-                        <div style={{ fontSize:14, lineHeight:1, width:18, textAlign:'center', flexShrink:0 }}>{item.icon}</div>
-                        <div style={{ flex:1, minWidth:0 }}>
-                          <div style={{ fontSize:12, color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{item.label}</div>
-                        </div>
-                        <span style={{ fontSize:12, fontWeight:600, color:hex, flexShrink:0 }}>{fmtOrTbd(item.amount)}</span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
+              <RentSnapSlider
+                key={key}
+                meta={meta}
+                months={isLocked ? snapshot.rentMonths : values.rentMonths}
+                onChange={(m) => set('rentMonths', m)}
+                disabled={!canEdit}
+              />
             )
-          })}
-        </div>
+          }
+          const range = USE_OF_FUNDS_RANGES[key]
+          return (
+            <ContinuousSlider
+              key={key}
+              meta={meta}
+              range={range}
+              value={isLocked ? snapshot[key] : values[key]}
+              onChange={(v) => set(key, v)}
+              disabled={!canEdit}
+            />
+          )
+        })}
       </div>
 
-      {/* Stock Purchase — itemised £42,000 */}
-      <div style={{ background:'#0D1117', border:'1px solid #21262D', borderRadius:10, padding:'20px 24px' }}>
-        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:16 }}>
-          <div>
-            <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Stock Purchase from Liquidators — Itemised</div>
-            <h3 className="serif" style={{ fontSize:22, color:'var(--cream)', margin:0 }}>£42,000 inc VAT</h3>
-          </div>
-          <div style={{ fontSize:11, color:'#9CA3AF', maxWidth:340, textAlign:'right' }}>Bar, kitchen, glassware and games purchased from liquidation at distressed pricing. <strong style={{ color:'var(--gold-dim)' }}>Per-line amounts TBD pending liquidator inventory.</strong></div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:10 }}>
-          {hardwareItems.map(item => (
-            <div key={item.key} style={{ background:'rgba(79,195,247,0.04)', border:'1px solid rgba(79,195,247,0.18)', borderRadius:6, padding:'14px 16px', display:'flex', alignItems:'center', gap:14 }}>
-              <div style={{ fontSize:24, flexShrink:0, lineHeight:1 }}>{item.icon}</div>
-              <div style={{ flex:1, minWidth:0 }}>
-                <div style={{ fontSize:13, fontWeight:600, color:'var(--cream)', marginBottom:2 }}>{item.label}</div>
-                <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.4 }}>{item.note}</div>
+      {/* Per-line summary table */}
+      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: 20, marginTop: 20 }}>
+        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Allocation summary</div>
+        {ORDER.map(key => {
+          const meta = USE_OF_FUNDS.find(u => u.key === key)
+          const amount = display[key]
+          const pct = display.total > 0 ? amount / display.total : 0
+          return (
+            <div key={key} style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: 'var(--cream)' }}>{meta.item}{key === 'rent' ? ` (${display.rentMonths} ${display.rentMonths === 1 ? 'month' : 'months'})` : ''}</span>
+                <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmt(amount)} <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}>· {(pct * 100).toFixed(1)}%</span></span>
               </div>
-              <div style={{ textAlign:'right', flexShrink:0 }}>
-                <div style={{ fontSize:15, fontWeight:700, color:'#4FC3F7' }}>{fmtOrTbd(item.amount)}</div>
-                <div style={{ fontSize:9, color:'#6B7280', letterSpacing:'0.06em', textTransform:'uppercase' }}>per liquidator inventory</div>
+              <div style={{ height: 4, background: 'rgba(201,168,76,0.08)', borderRadius: 2 }}>
+                <div style={{ width: `${pct * 100}%`, height: '100%', background: 'var(--gold)', borderRadius: 2 }} />
               </div>
             </div>
-          ))}
+          )
+        })}
+        <div style={{ borderTop: '1px solid rgba(201,168,76,0.2)', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
+          <span style={{ fontSize: 13, color: 'var(--cream)', fontWeight: 600 }}>Total raise</span>
+          <span className="serif" style={{ fontSize: 18, color: isLocked ? '#10B981' : 'var(--gold)' }}>{fmt(display.total)}</span>
         </div>
       </div>
     </div>
   )
+}
+
+function HeadlineCard({ label, value, sub, colour }) {
+  return (
+    <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 18 }}>
+      <div style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{label}</div>
+      <div className="serif" style={{ fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', color: colour, lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{sub}</div>
+    </div>
+  )
+}
+
+function ContinuousSlider({ meta, range, value, onChange, disabled }) {
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+        <span style={{ fontSize:13, color:'var(--cream)', fontWeight:500 }}>{meta.item}</span>
+        <span style={{ fontSize:15, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmt(value)}</span>
+      </div>
+      <input
+        type="range"
+        min={range.min} max={range.max} step={range.step}
+        value={value}
+        onChange={e => onChange(+e.target.value)}
+        disabled={disabled}
+        style={{ width:'100%', accentColor:'var(--gold)', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
+      />
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--gold-dim)', marginTop:4 }}>
+        <span>{fmt(range.min)}</span>
+        <span style={{ fontSize:10, color:'var(--cream-dim)' }}>{meta.note}</span>
+        <span>{fmt(range.max)} {meta.vat || ''}</span>
+      </div>
+    </div>
+  )
+}
+
+function RentSnapSlider({ meta, months, onChange, disabled }) {
+  const snaps = USE_OF_FUNDS_RANGES.rent.snaps
+  const current = snaps.find(s => s.months === months) || snaps[2]
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+        <span style={{ fontSize:13, color:'var(--cream)', fontWeight:500 }}>{meta.item}</span>
+        <span style={{ fontSize:15, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmt(current.amount)}</span>
+      </div>
+      <div style={{ display:'flex', gap:6 }}>
+        {snaps.map(s => {
+          const active = s.months === months
+          return (
+            <button
+              key={s.months}
+              onClick={() => onChange(s.months)}
+              disabled={disabled}
+              style={{
+                flex: 1, padding: '8px 10px', borderRadius: 6, fontSize: 12,
+                cursor: disabled ? 'not-allowed' : 'pointer',
+                background: active ? 'rgba(201,168,76,0.2)' : 'transparent',
+                border: `1px solid ${active ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
+                color: active ? 'var(--gold)' : 'var(--cream-dim)',
+                fontWeight: active ? 600 : 400,
+                opacity: disabled ? 0.5 : 1,
+                transition: 'all 0.15s',
+              }}
+            >
+              {s.label}
+              <span style={{ display:'block', fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{fmt(s.amount)}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize:10, color:'var(--gold-dim)', marginTop:8 }}>{meta.note}</div>
+    </div>
+  )
+}
+
+function btnStyle({ disabled = false, gold = false, ghost = false }) {
+  const base = {
+    padding: '8px 18px', borderRadius: 6, fontSize: 12, letterSpacing: '0.05em', fontWeight: 600,
+    cursor: disabled ? 'not-allowed' : 'pointer', transition: 'all 0.15s', opacity: disabled ? 0.4 : 1,
+  }
+  if (gold) return { ...base, background: 'var(--gold)', color: 'var(--ink)', border: '1px solid var(--gold)' }
+  if (ghost) return { ...base, background: 'transparent', color: 'var(--cream-dim)', border: '1px solid rgba(201,168,76,0.3)' }
+  return base
 }

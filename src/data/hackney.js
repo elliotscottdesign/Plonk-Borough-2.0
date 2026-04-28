@@ -229,15 +229,53 @@ export const GOVERNANCE = {
 }
 
 // === USE OF FUNDS ===
-// Excel: Investment Valuation 1!A24:D28 — five line items, sums to £100,000.
-// `pct` derived from amount / 100000.
+// Six categories, all variable via the slider tool on the Use of Funds slide.
+// User-set ranges (April 2026): explicit minimum-viable-raise framing — see
+// USE_OF_FUNDS_RANGES below. Defaults below are the "max ask" values that
+// the slider starts at; the founder drags down to find the floor.
 export const USE_OF_FUNDS = [
-  { item: 'Stock Purchase — Liquidators',     amount: 42000, pct: 42.0, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
-  { item: 'Landlord — Rent Deposit (3 mo)',   amount: 26750, pct: 26.75, vat: 'inc VAT', note: '3 months × monthly rent. Held by landlord, refundable on exit.' },
-  { item: 'Garden Refurbishment',             amount: 12000, pct: 12.0, vat: 'inc VAT', note: 'Outdoor trading area refurb (£10k + VAT).' },
-  { item: 'Interior Completion & Signage',    amount: 10000, pct: 10.0, vat: 'inc VAT', note: 'Fit-out completion, signage, branding.' },
-  { item: 'Legals, Restart & Working Capital',amount:  9250, pct:  9.25, vat: null,     note: 'Staged per cash flow — covers early trading runway.' },
+  { key: 'stock',     item: 'Stock Purchase — Liquidators',     amount: 24000, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
+  { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 26750, vat: 'inc VAT', note: 'Lease deposit — refundable on exit. Slider snaps to 1, 2 or 3 months.' },
+  { key: 'garden',    item: 'Garden Refurbishment',             amount: 12000, vat: 'inc VAT', note: 'Outdoor trading area refurb — soundproofing investment is the priority spend.' },
+  { key: 'interior',  item: 'Interior Completion & Signage',    amount: 10000, vat: 'inc VAT', note: 'Fit-out completion, signage, internal acoustic treatment.' },
+  { key: 'marketing', item: 'Marketing — Pre-launch & Year 1',  amount:  3000, vat: 'inc VAT', note: 'Organic / local listings / events — no paid Google Ads spend.' },
+  { key: 'legals',    item: 'Legals, Restart & Working Capital',amount:  2000, vat: null,     note: 'Solicitor fees, share registry, staged trading runway.' },
 ]
+
+// === USE OF FUNDS — slider ranges ===
+// Drives the calculator on the Use of Funds slide. Rent is a snap slider
+// (1 / 2 / 3 months). Everything else is continuous within min/max with a
+// £500 step. Maxes mirror the user-set spec for the minimum-viable-raise
+// tool; the founder locks a snapshot which then flows into the Investment
+// Summary, Waterfall Returns and Cash Flow Forecast downstream.
+export const USE_OF_FUNDS_RANGES = {
+  stock:     { min: 0,    max: 24000, step: 500, label: 'Stock Purchase — Liquidators' },
+  rent:      { snaps: [
+    { months: 1, amount:  8917, label: '1 month' },
+    { months: 2, amount: 17833, label: '2 months' },
+    { months: 3, amount: 26750, label: '3 months' },
+  ], label: 'Landlord — Rent Deposit' },
+  garden:    { min: 1000, max: 12000, step: 500, label: 'Garden Refurbishment' },
+  interior:  { min: 1000, max: 12000, step: 500, label: 'Interior Completion & Signage' },
+  marketing: { min: 1000, max:  6000, step: 500, label: 'Marketing — Pre-launch & Year 1' },
+  legals:    { min: 1000, max:  3000, step: 500, label: 'Legals, Restart & Working Capital' },
+}
+
+// Pre-money valuation is fixed at the EBITDA-based number — the slider tool
+// varies the investment size, so investor equity recomputes against a
+// constant pre-money. This is the conventional approach (multiple stays
+// recognisable; the trade-off is on equity %, not on company value).
+//
+// Pre-money = 2025 EBITDA × multiple. Multiple captured in DEAL.multiple.
+// Helper exported so the calculator and downstream slides share a single
+// computation path.
+export function computeDealFromInvestment(investment) {
+  const preMoney   = 100000   // = ACTUALS_2025.profit (£30,896) × DEAL.multiple (3.2367)
+  const postMoney  = preMoney + investment
+  const investorEq = postMoney > 0 ? investment / postMoney : 0
+  const founderEq  = 1 - investorEq
+  return { investment, preMoney, postMoney, investorEq, founderEq }
+}
 
 // === HARDWARE FROM LIQUIDATORS — itemised breakdown ===
 // TBD: Hackney's £42,000 stock-purchase line isn't yet itemised by category.

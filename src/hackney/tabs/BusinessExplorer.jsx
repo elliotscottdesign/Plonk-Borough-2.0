@@ -1,4 +1,6 @@
 import React, { useState } from 'react'
+import { USE_OF_FUNDS, computeDealFromInvestment } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // BusinessExplorer — clones Borough's 3-sub-tab structure:
 //   • 2025 Performance — verified actuals + breakdowns
@@ -72,22 +74,64 @@ function Tab2026() {
 }
 
 function TabCashflow() {
+  const { snapshot, isLocked } = useLockedUseOfFunds()
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+
+  // Day-1 startup-cost rows: locked snapshot if present, else the static
+  // USE_OF_FUNDS defaults. The locked snapshot is the founder's chosen
+  // minimum-viable raise from the Use of Funds slider tool.
+  const day1 = isLocked && snapshot
+    ? [
+        { label: 'Stock Purchase — Liquidators',     amount: snapshot.stock },
+        { label: `Landlord — Rent Deposit (${snapshot.rentMonths} ${snapshot.rentMonths === 1 ? 'month' : 'months'})`, amount: snapshot.rent },
+        { label: 'Garden Refurbishment',             amount: snapshot.garden },
+        { label: 'Interior Completion & Signage',    amount: snapshot.interior },
+        { label: 'Marketing — Pre-launch & Year 1',  amount: snapshot.marketing },
+        { label: 'Legals, Restart & Working Capital',amount: snapshot.legals },
+      ]
+    : USE_OF_FUNDS.map(u => ({ label: u.item, amount: u.amount }))
+  const day1Total = day1.reduce((s, r) => s + r.amount, 0)
+  const deal = computeDealFromInvestment(day1Total)
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>Cashflow Forecast — May 2026 to Apr 2027</STitle>
-      <Tbd>Month-by-month opening / inflows / outflows / closing balance. Source: Cash Flow Forecast sheet — peak £82,337 (Aug 26), low £39,250 (Feb 27), year-end £72,462 (Apr 27). Verified figures available, chart + table TBD.</Tbd>
+      <Tbd>Month-by-month opening / inflows / outflows / closing balance. Source: Cash Flow Forecast sheet — peak £82,337 (Aug 26), low £39,250 (Feb 27), year-end £72,462 (Apr 27). Verified figures available; chart + table TBD.</Tbd>
 
       <STitle>Cash Inflows — by Source</STitle>
-      <Tbd>Investment receipt (£100k May 26), VAT reclaim (£13,458 May 26), monthly trading income. Mirror Borough's cashflow inflow table.</Tbd>
+      <Tbd>Investment receipt ({fmt(day1Total)} May 26), VAT reclaim (£13,458 May 26), monthly trading income. Mirror Borough's cashflow inflow table.</Tbd>
 
-      <STitle>One-off Startup Costs (Day 1)</STitle>
-      <Tbd>Stock £42k, deposit £26.75k, garden £12k, interior £10k, legals £9.25k = £100k. Already in USE_OF_FUNDS — render as the cashflow Day 1 outflow table.</Tbd>
+      {/* Day-1 startup costs — driven by the Use of Funds slider lock */}
+      <div style={{ background:'var(--ink-2)', border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
+          <STitle>One-off Startup Costs (Day 1)</STitle>
+          <span style={{ fontSize:11, color: isLocked ? '#10B981' : 'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+            {isLocked ? '✓ Live from locked Use of Funds' : 'Default ask · founder can lock a smaller raise'}
+          </span>
+        </div>
+        <div>
+          {day1.map(r => (
+            <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:13 }}>
+              <span style={{ color:'var(--cream-dim)' }}>{r.label}</span>
+              <span style={{ color: isLocked ? '#10B981' : 'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(r.amount)}</span>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 0', fontSize:14, fontWeight:600 }}>
+            <span style={{ color:'var(--cream)' }}>Total Day-1 outflow</span>
+            <span className="serif" style={{ color: isLocked ? '#10B981' : 'var(--gold)', fontSize:18 }}>{fmt(day1Total)}</span>
+          </div>
+        </div>
+        <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:6, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          Investor equity at this raise: <strong style={{ color:'var(--cream)' }}>{(deal.investorEq*100).toFixed(1)}%</strong> on {fmt(deal.investment)} into a {fmt(deal.preMoney)} pre-money business — post-money {fmt(deal.postMoney)}.
+          {isLocked && snapshot?.lockedAt ? ` · Locked ${new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })}.` : ''}
+        </div>
+      </div>
 
       <STitle>Monthly Operating Outflows</STitle>
       <Tbd>Wages, director salary, fixed overheads, accountancy, variable costs, rent (£0 for first 4 months, then £1,833/mo), VAT output (quarterly).</Tbd>
 
       <STitle>Net Position & Safety Floor</STitle>
-      <Tbd>Closing-balance line chart with the £25,000 safety floor reference line. Lowest month is Feb 27 at £39,250 (£14k above floor).</Tbd>
+      <Tbd>Closing-balance line chart with the £25,000 safety floor reference line. Lowest month is Feb 27 at £39,250 (£14k above floor). Will recompute against locked Day-1 outflow once chart is wired.</Tbd>
     </div>
   )
 }
