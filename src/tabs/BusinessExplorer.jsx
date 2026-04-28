@@ -444,8 +444,11 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
       <ScenarioPresetsCard growth={growth} officeCostsTotal={officeCostsTotal} />
 
       {/* ─── SECTION TITLE ─── divides the scenario summary from the editable forecast levers below */}
-      <div style={{ marginTop: 12, marginBottom: -4 }}>
-        <h2 className="serif" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', lineHeight: 1.1, color: 'var(--cream)', margin: 0 }}>
+      <div style={{ marginTop: 24, marginBottom: 4, paddingBottom: 12, borderBottom: '1px solid rgba(201,168,76,0.25)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6, fontWeight: 600 }}>
+          Build Your Own Scenario
+        </div>
+        <h2 className="serif" style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.6rem)', lineHeight: 1.1, color: 'var(--cream)', margin: 0 }}>
           Forecast Calculator
         </h2>
       </div>
