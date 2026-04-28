@@ -307,6 +307,39 @@ export const WATERFALL = {
   totalFounder: 22816,
 }
 
+// === 5-YEAR INVESTOR RETURNS ===
+// Pure pro-rata 50/50, no preferred return. Revenue and pre-share profit
+// from Excel: Investor Returns!B19:F22 (Y2–Y5 growth held at 7.5%).
+// Investor share = 50% × profit each year. Powers the multi-year payout
+// schedule on the WaterfallReturns slide.
+export const HACKNEY_INVESTOR_RETURNS = {
+  year1: {
+    profit: 45631.82,
+    investorEq: 0.5,
+    investorReturn: 22815.91,
+    coc: 0.2282,
+    paybackYears: 4.38,
+  },
+  fiveYear: [
+    { year: 'Y1 2026/27', revenue: 618804.17, profit: 45631.82, investorShare: 22815.91, founderShare: 22815.91 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit: 49054.21, investorShare: 24527.10, founderShare: 24527.11 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 52733.28, investorShare: 26366.64, founderShare: 26366.64 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 56688.28, investorShare: 28344.14, founderShare: 28344.14 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 60939.90, investorShare: 30469.95, founderShare: 30469.95 },
+  ],
+  cumulativeDividends: 132523.74,    // Sum of investor shares Y1–Y5
+  exit: {
+    y5Ebitda:        60939.90,
+    multiple:        4,                // Sector-average exit multiple
+    businessValue:   243759.60,        // Y5 EBITDA × multiple
+    investorProceeds:121879.80,        // 50% × business value
+    founderProceeds: 121879.80,
+  },
+  totalReturned:     254403.54,        // Cumulative dividends + investor exit
+  multipleOfMoney:   2.5440,           // £254,404 / £100,000
+  irr:               0.2810,           // IRR on flows: -100k, +22816, +24527, +26367, +28344, +152350
+}
+
 // === GOVERNANCE ===
 // Mirrors Borough's reserved-matters list — confirm any Hackney-specific
 // additions (e.g. landlord consents) before sign-off.
