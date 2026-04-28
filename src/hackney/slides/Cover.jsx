@@ -11,12 +11,12 @@ const pct = (n, d=1) => (n*100).toFixed(d) + '%'
 
 export default function Cover() {
   const stats = [
-    { label: 'Seeking',           value: fmt(HACKNEY_DEAL.investment),                       sub: `For ${pct(HACKNEY_DEAL.investorEq, 2)} B-share equity` },
+    { label: 'Seeking',           value: fmt(HACKNEY_DEAL.investment),                       sub: `For ${pct(HACKNEY_DEAL.investorEq, 0)} equity · single share class` },
     { label: 'Verified revenue',  value: fmt(HACKNEY_ACTUALS_2025.revenue),                  sub: '2025 bar-only trading actuals' },
     { label: 'Year 1 return',     value: fmt(HACKNEY_INVESTOR_RETURNS.year1.investorReturn), sub: `${pct(HACKNEY_INVESTOR_RETURNS.year1.coc)} cash-on-cash · ~${HACKNEY_INVESTOR_RETURNS.year1.paybackYears}yr payback` },
-    { label: 'Distribution',      value: 'A = B equal',                                      sub: '8% preferred · then pro-rata by equity' },
+    { label: 'Distribution',      value: 'Pro-rata 50/50',                                   sub: '8% preferred · then equal split with founder' },
     { label: 'Forecast revenue',  value: fmt(HACKNEY_FORECAST.revenue),                      sub: 'May 2026 – Apr 2027 · Base case (+15%)' },
-    { label: 'Valuation',         value: `${HACKNEY_DEAL.multiple.toFixed(1)}×`,             sub: 'Hospitality sector average (Houlihan Lokey H1 2025)' },
+    { label: 'Entry valuation',   value: `${HACKNEY_DEAL.multiple.toFixed(2)}×`,             sub: 'EBITDA · below 4.1× hospitality sector avg' },
   ]
 
   return (
@@ -38,7 +38,7 @@ export default function Cover() {
       </div>
 
       <p style={{ fontSize: 19, color: 'var(--cream-dim)', maxWidth: 640, lineHeight: 1.55, marginBottom: 36 }}>
-        <strong style={{ color: 'var(--cream)' }}>{fmt(HACKNEY_DEAL.investment)} for {pct(HACKNEY_DEAL.investorEq, 2)} of a proven Hackney Wick bar.</strong>
+        <strong style={{ color: 'var(--cream)' }}>{fmt(HACKNEY_DEAL.investment)} for {pct(HACKNEY_DEAL.investorEq, 0)} of a proven Hackney Wick bar.</strong>
         {' '}A bar-only relaunch of an established trading entity — {fmt(HACKNEY_ACTUALS_2025.revenue)} verified 2025 revenue, mini golf drag removed, cash-yielding from day one.
       </p>
 

@@ -17,15 +17,15 @@ const WHY_DIFFERENT = [
   { headline: 'DJ &  events programme',        detail: 'Fri/Sat highest-revenue nights with experience-led format.' },
   { headline: 'Brand IP retained',             detail: 'Trading name, customer data, goodwill carry across.' },
   { headline: 'Zero paid-search spend',         detail: 'Runs on organic / local / word-of-mouth — no Google Ads dependency.' },
-  { headline: '4× hospitality multiple',       detail: 'Sector average per Houlihan Lokey H1 2025 — defensible, not aspirational.' },
-  { headline: 'A = B equal in waterfall',      detail: 'No founder priority slice. After 8% preferred and reserve gate, pure pro-rata by equity.' },
+  { headline: 'Below sector entry multiple',   detail: '3.24× EBITDA at entry — under the 4.1× hospitality sector average. Exit assumption holds at 4×.' },
+  { headline: '50/50 single share class',      detail: 'No A/B distinction, no founder priority slice. After 8% preferred and reserve gate, pure pro-rata.' },
   { headline: 'Cash-yielding from day one',    detail: 'Returns come from operating cash flow — no multiple-expansion bet required.' },
 ]
 
 const HOW_PAID = [
   { n: 1, title: 'Preferred return — paid first',    body: `8% × £100,000 = £8,000 every year, before any other distribution. Priority not guarantee.` },
   { n: 2, title: 'Reserve protected',                 body: `Before equity dividends, the business retains enough to cover 3 months of Fixed OH + Rent (${fmt(HACKNEY_DEAL.reserveTarget)}). Withheld only when trading cash falls short.` },
-  { n: 3, title: 'Pro-rata by equity',                body: `Remaining profit splits ${pct(HACKNEY_DEAL.investorEq)} to investor / ${pct(HACKNEY_DEAL.founderEq)} to founder. A-shares and B-shares treated equally.` },
+  { n: 3, title: 'Pro-rata by equity',                body: `Remaining profit splits 50/50 — ${pct(HACKNEY_DEAL.investorEq, 0)} to investor / ${pct(HACKNEY_DEAL.founderEq, 0)} to founder. Single share class, no founder priority slice.` },
 ]
 
 export default function Close() {
@@ -36,10 +36,10 @@ export default function Close() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Close</div>
         <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.05, color: 'var(--cream)', marginBottom: 14 }}>
-          A cash-generating bar at hospitality sector average — priced honestly.
+          A 50/50 cash-yielding bar — priced below sector average.
         </h2>
         <p style={{ fontSize: 17, color: 'var(--cream-dim)', maxWidth: 760, lineHeight: 1.6 }}>
-          Equity-led, founder-controlled, pure pro-rata after preferred. Returns come from real operating cash, not a multiple-expansion thesis.
+          Single share class, founder-controlled day-to-day, pure pro-rata after preferred. Returns come from real operating cash, not a multiple-expansion thesis.
         </p>
       </div>
 
@@ -79,7 +79,7 @@ export default function Close() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 24 }}>
         {[
           { label: 'Invest',          value: fmt(HACKNEY_DEAL.investment) },
-          { label: 'Receive',         value: pct(HACKNEY_DEAL.investorEq) + ' B-shares' },
+          { label: 'Receive',         value: pct(HACKNEY_DEAL.investorEq, 0) + ' equity' },
           { label: 'Year 1',          value: fmt(r.year1.investorReturn) + ` · ${(r.year1.coc*100).toFixed(1)}%` },
           { label: '5 years',         value: fmt(r.totalReturned) + ` · ${r.multipleOfMoney.toFixed(2)}× MoM` },
         ].map(c => (

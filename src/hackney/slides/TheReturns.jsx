@@ -20,7 +20,7 @@ export default function TheReturns() {
           {fmt(r.year1.investorReturn)} year one. {fmt(r.totalReturned)} over five.
         </h2>
         <p style={{ fontSize: 17, color: 'var(--cream-dim)', maxWidth: 760, lineHeight: 1.6 }}>
-          Returns come from operating cash flow — paid as dividends — plus an exit at year five at the same {HACKNEY_DEAL.multiple.toFixed(0)}× multiple. No multiple-expansion bet required.
+          Returns come from operating cash flow — paid as dividends — plus an exit at year five at the {HACKNEY_DEAL.exitMultiple.toFixed(0)}× hospitality sector multiple. Entry was compressed to {HACKNEY_DEAL.multiple.toFixed(2)}× by the 50/50 split — slight multiple expansion at exit, no aggressive thesis required.
         </p>
       </div>
 
@@ -114,7 +114,7 @@ export default function TheReturns() {
                 <td style={{ padding: '14px 0 4px', textAlign: 'right', color: 'var(--gold)' }}>{fmt(r.cumulativeDividends)}</td>
               </tr>
               <tr>
-                <td colSpan={3} style={{ padding: '4px 0', color: 'var(--cream-dim)', fontSize: 12 }}>+ Year 5 exit ({HACKNEY_DEAL.multiple}× EBITDA × {pct(HACKNEY_DEAL.investorEq, 2)})</td>
+                <td colSpan={3} style={{ padding: '4px 0', color: 'var(--cream-dim)', fontSize: 12 }}>+ Year 5 exit ({HACKNEY_DEAL.exitMultiple}× EBITDA × {pct(HACKNEY_DEAL.investorEq, 0)})</td>
                 <td style={{ padding: '4px 0', textAlign: 'right', color: 'var(--gold)' }}>{fmt(r.exit.investorProceeds)}</td>
               </tr>
               <tr style={{ borderTop: '1px solid var(--gold-dim)' }}>

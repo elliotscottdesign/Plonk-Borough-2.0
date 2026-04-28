@@ -17,18 +17,21 @@ export const HACKNEY_BUSINESS = {
 }
 
 // === DEAL ===
-// 4× EBITDA on £30,896 verified 2025 bar-only profit. Pre-money £123,584.68;
-// £100k investment lifts post-money to £223,584.68. Investor takes 44.73%
-// B-shares, founder retains 55.27% A-shares. A=B equal in waterfall (no
-// founder priority — removed from Borough's structure because at £30k EBITDA
-// a £44k/yr A-share priority would consume all residual profit).
+// Single share class (all A-shares) — no A/B distinction. £100k investment
+// for 50% equity; pre-money equals investment (£100k) → post-money £200k.
+// The implied entry multiple is £100k / £30,896.17 = 3.24× — below the 4.1×
+// hospitality sector average, sits inside the small-single-site 2–4× band.
+// Exit multiple held at 4× (sector average) for the Y5 valuation. Preferred
+// return retained as a contractual feature attached to the investor (not
+// share-class-attached, since there is only one class).
 export const HACKNEY_DEAL = {
-  investment: 100000,           // Excel: Investment Valuation 1!D7
-  multiple: 4,                  // Excel: Investment Valuation 1!B7
-  preMoney: 123584.68,          // Excel: Investment Valuation 1!C7
-  postMoney: 223584.68,         // Excel: Investment Valuation 1!E7
-  founderEq: 0.5527421646,      // Excel: Investment Valuation 1!C18
-  investorEq: 0.4472578354,     // Excel: Investment Valuation 1!C19
+  investment: 100000,           // Investment amount
+  multiple: 3.236647,           // ENTRY: investment / 2025 EBITDA — derived for 50/50 split
+  exitMultiple: 4,              // Excel: Investor Returns!D27 (Y5 exit valuation)
+  preMoney: 100000,             // = investment (50/50)
+  postMoney: 200000,            // pre-money + investment
+  founderEq: 0.5,               // Single share class — 50/50 split
+  investorEq: 0.5,
   preferredPct: 0.08,           // Excel: Dividend & Distribution Model!B23
   preferredAmount: 8000,        // 8% × £100,000
   reserveTarget: 34684,         // Excel: Dividend & Distribution Model!G86 (3 × Fixed OH + Rent)
@@ -135,12 +138,14 @@ export const HACKNEY_CASH = {
 }
 
 // === SCENARIOS ===
-// Excel: Scenario Planning!B105:F111 (revenue/profit) +
-// Dividend & Distribution Model!B57/D57 (investor Y1 by scenario).
+// Revenue and profit from Excel: Scenario Planning!B105:F111. Investor Y1
+// recomputed for the 50/50 single-share structure: preferred £8,000 paid
+// first, then 50% of (profit − preferred). Differs from the original Excel
+// outputs (which assumed 44.73/55.27).
 export const HACKNEY_SCENARIOS = [
-  { name: 'Conservative', growth: '+10%', revenue: 591899.63, profit: 30345.19, investorY1: 17994.06, coc: 0.1799 },
-  { name: 'Base Case',    growth: '+15%', revenue: 618804.17, profit: 45631.82, investorY1: 24831.13, coc: 0.2483 },
-  { name: 'Optimistic',   growth: '+20%', revenue: 645708.68, profit: 63512.15, investorY1: 32828.25, coc: 0.3283 },
+  { name: 'Conservative', growth: '+10%', revenue: 591899.63, profit: 30345.19, investorY1: 19172.60, coc: 0.1917 },
+  { name: 'Base Case',    growth: '+15%', revenue: 618804.17, profit: 45631.82, investorY1: 26815.91, coc: 0.2682 },
+  { name: 'Optimistic',   growth: '+20%', revenue: 645708.68, profit: 63512.15, investorY1: 35756.07, coc: 0.3576 },
 ]
 
 // === DOWNSIDE STRESS TEST ===
@@ -156,43 +161,44 @@ export const HACKNEY_DOWNSIDE = {
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// Excel: Investor Returns sheet. Growth assumption Y2–Y5 = 7.5% (Section D).
+// Revenue and pre-share profit from Excel: Investor Returns!B19:F22 (Y2–Y5
+// growth held at 7.5%). Investor share recomputed for 50/50 single-share
+// structure: preferred £8,000 + 50% of residual.
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit: 45631.82,         // Excel: Investor Returns!D9
-    investorEq: 0.4472578354, // Excel: Investor Returns!D10
-    investorReturn: 24831.13, // Excel: Investor Returns!D11 (also Dividend Model!B41)
-    coc: 0.2483113,           // Excel: Investor Returns!D13
-    paybackYears: 4,          // Excel: Investor Returns!D14
+    investorEq: 0.5,          // Single share class — 50%
+    investorReturn: 26815.91, // £8,000 preferred + 50% × (£45,631.82 − £8,000)
+    coc: 0.2682,
+    paybackYears: 4,
   },
-  // Excel: Investor Returns!B19:F22 — 5-year projection table.
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit: 45631.82, investorShare: 24831.13 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit: 49054.21, investorShare: 26361.82 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 52733.28, investorShare: 28007.31 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 56688.28, investorShare: 29776.21 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 60939.90, investorShare: 31677.79 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit: 45631.82, investorShare: 26815.91 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit: 49054.21, investorShare: 28527.10 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 52733.28, investorShare: 30366.64 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 56688.28, investorShare: 32344.14 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 60939.90, investorShare: 34469.95 },
   ],
-  cumulativeDividends: 140654.26, // Excel: Investor Returns!G22
+  cumulativeDividends: 152523.74,
   exit: {
     y5Ebitda: 60939.90,           // Excel: Investor Returns!D26
-    multiple: 4,                  // Excel: Investor Returns!D27
-    businessValue: 243759.60,     // Excel: Investor Returns!D28
-    investorProceeds: 109023.39,  // Excel: Investor Returns!D29
+    multiple: 4,                  // Exit at sector-average 4× (entry was compressed to 3.24×)
+    businessValue: 243759.60,     // Y5 EBITDA × 4
+    investorProceeds: 121879.80,  // 50% × business value
   },
-  totalReturned: 249677.65,       // Excel: Investor Returns!D30
-  multipleOfMoney: 2.5,           // Excel: Investor Returns!D31
-  irr: 0.2833510225,              // Excel: Investor Returns!D36
+  totalReturned: 274403.54,       // Cumulative dividends + exit
+  multipleOfMoney: 2.7440,
+  irr: 0.3182,                    // IRR on cash flows: -100k, +26816, +28527, +30367, +32344, +156350
 }
 
 // === DISTRIBUTION WATERFALL (4 STEPS) ===
-// A=B EQUAL — no founder priority slice, no preferred top-up beyond Step 2.
-// Pure pro-rata after preferred + reserve gate.
+// Single share class — 50/50 pro-rata after preferred + reserve gate.
+// No founder priority slice. Preferred return is contractual to the investor.
 export const HACKNEY_WATERFALL = [
   { step: 1, label: 'Total operating profit', value: 45632, note: 'Year 1 base case, after director salary.' },
   { step: 2, label: 'Investor preferred return — paid first', value: 8000, note: '8% × £100,000 — priority not guarantee.' },
   { step: 3, label: 'Reserve retention', value: 0, note: '3-month Fixed OH + Rent target (£34,684) — currently funded by trading cash, £0 withheld.' },
-  { step: 4, label: 'Remaining pool — pro-rata', value: 37632, note: '44.73% investor / 55.27% founder. A-shares and B-shares treated equally.' },
+  { step: 4, label: 'Remaining pool — pro-rata 50/50', value: 37632, note: 'Single share class — 50% investor / 50% founder. £18,816 each.' },
 ]
 
 // === MARKETING (NO PAID SEARCH) ===
