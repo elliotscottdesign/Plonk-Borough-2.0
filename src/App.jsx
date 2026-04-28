@@ -11,8 +11,17 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import HackneyApp from './hackney/HackneyApp.jsx'
 import { LockedForecastProvider } from './components/LockedForecastContext.jsx'
 import { WORKBOOK_URL } from './data.js'
+
+// Path-based deck dispatch. /hackney (and any nested path under it) renders
+// the Hackney deck; everything else stays on the Borough shell.
+// Combined with public/404.html (SPA fallback) this works on GitHub Pages
+// without a router dependency.
+const isHackneyPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/hackney(\/|$)/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -49,6 +58,11 @@ export default function App() {
       i18n.changeLanguage(targetLang)
       setUnlocked(true)
     }} />
+  }
+
+  // After unlock, dispatch by path. Both TEST1 and 888999 unlock both decks.
+  if (isHackneyPath()) {
+    return <HackneyApp />
   }
 
   return (

@@ -5,6 +5,17 @@ import App from './App.jsx'
 import './index.css'
 import { bootstrapDataFromSheet } from './data-bootstrap.js'
 
+// SPA fallback restore — public/404.html stashes the original path here
+// when GitHub Pages can't find the route (e.g. /hackney) as a static file.
+// We rewrite the URL back before React mounts so App sees the real pathname.
+const stashed = sessionStorage.getItem('ndb_redirect')
+if (stashed) {
+  sessionStorage.removeItem('ndb_redirect')
+  if (stashed !== location.pathname + location.search + location.hash) {
+    history.replaceState(null, '', stashed)
+  }
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 // Brief loading indicator while we sync from the live Google Sheet.

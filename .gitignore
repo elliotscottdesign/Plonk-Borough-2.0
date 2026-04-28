@@ -1,3 +1,8 @@
 node_modules
 dist
 .DS_Store
+
+# Hackney handover materials — Excel model is sensitive financial data,
+# and the local handover docs aren't part of the deployed app.
+_hackney-handover/
+*.xlsx
