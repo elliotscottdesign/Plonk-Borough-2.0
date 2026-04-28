@@ -157,20 +157,24 @@ export const MONTHLY_PROFIT = [
 ]
 
 // === WAGES — 2025 ROTA REFERENCE (4-role calculator basis) ===
-// Source: Wages Breakdown sheet, "2025 Rota Reference Rates" block (bottom).
-// Verified bar-only rota — total 8,300.3 hours, £130,817.32 gross. Mirrors
-// Borough's 4-role schema so the wage calculator on Business Explorer
-// 2026 Performance can interpolate against an editable rate × hours input.
+// Source: live rota Google Sheets (sheet 1NgIp2TcNPcf9pWcD5CVELexarlmnxe9jeC61aTCZKy0)
+// Aggregated 2025 bar-only shifts (excluding Golf Host mini-golf shifts and
+// summary/spacer rows). Total 10,309 hours, £146,786.31 gross. Used as the
+// calculator basis on Business Explorer 2026 Performance.
+//
+// Differs from the local Excel summary's "2025 Rota Reference" block (which
+// reported 8,300.3 hrs / £130,817) — that summary under-counted Bar Staff
+// hours by ~1,900 hrs. Live rota is the source of truth.
 export const WAGE_RATES = [
-  { role: 'Bar Staff',     rate: 13.81, hours: 4017,   color: '#E67E22' },
-  { role: 'Supervisor',    rate: 15.08, hours: 1216.5, color: '#D4A843' },
-  { role: 'Asst. Manager', rate: 16.48, hours: 1796.2, color: '#94A3B8' },
-  { role: 'Manager',       rate: 18.26, hours: 1270.6, color: '#0D9488' },
+  { role: 'Bar Staff',     rate: 13.82, hours: 5921.2, color: '#E67E22' },
+  { role: 'Supervisor',    rate: 15.12, hours: 1216.5, color: '#D4A843' },
+  { role: 'Asst. Manager', rate: 16.46, hours: 1796.2, color: '#94A3B8' },
+  { role: 'Manager',       rate: 18.26, hours: 1375.1, color: '#0D9488' },
 ]
 
 export const PL_WAGE_BASE = 179872            // 2025 verified P&L wage line — Monthly Summary!G15
-export const ROTA_TOTAL   = 130817            // 2025 gross rota cost — Wages Breakdown!E61
-export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.375 — covers NIC + pension + holiday
+export const ROTA_TOTAL   = 146786            // 2025 gross rota cost — live rota aggregate (4 roles, bar-only)
+export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.225 — aligns with documented 21.4% loading
 
 // === MODELLED STAFFING — full 12-role build-out ===
 // Source: Wages Breakdown sheet, modelled staffing block (rows 10–40).
