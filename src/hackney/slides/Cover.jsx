@@ -24,7 +24,7 @@ export default function Cover() {
       <div style={{
         marginBottom: 32, padding: 0, borderRadius: 14, overflow: 'hidden',
         position: 'relative', height: 280,
-        backgroundImage: 'linear-gradient(180deg, rgba(10,10,15,0.05) 0%, rgba(10,10,15,0.85) 100%), url(/hackney/cover/hero1.jpg)',
+        backgroundImage: 'linear-gradient(180deg, rgba(10,10,15,0.05) 0%, rgba(10,10,15,0.85) 100%), url(/hackney/garden/g3.jpg)',
         backgroundSize: 'cover', backgroundPosition: 'center',
       }}>
         <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', padding: 32 }}>
