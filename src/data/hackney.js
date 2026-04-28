@@ -328,26 +328,34 @@ export const GOVERNANCE = {
   ],
 }
 
+// === RAISE TARGET ===
+// Fixed total investment ask. The slider tool allocates this across explicit
+// use-of-funds buckets; whatever's left after the 6 explicit sliders becomes
+// Working Capital (a derived residual line, displayed but not user-editable).
+// Drag stock down → working capital up. Drag everything to minimum → working
+// capital is the bulk of the raise. The total raised stays at this target;
+// only the allocation between explicit spend and working-capital float varies.
+export const HACKNEY_RAISE_TARGET = 100000
+
 // === USE OF FUNDS ===
-// Six categories, all variable via the slider tool on the Use of Funds slide.
-// User-set ranges (April 2026): explicit minimum-viable-raise framing — see
-// USE_OF_FUNDS_RANGES below. Defaults below are the "max ask" values that
-// the slider starts at; the founder drags down to find the floor.
+// Six EXPLICIT slider categories (stock, rent, garden, interior, marketing,
+// legals + restart). Working Capital is the 7th line, derived as
+// HACKNEY_RAISE_TARGET minus the sum of the six. Defaults below are the
+// "headline" values for each line; founder drags to reallocate.
 export const USE_OF_FUNDS = [
   { key: 'stock',     item: 'Stock Purchase — Liquidators',     amount: 24000, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
   { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 26750, vat: 'inc VAT', note: 'Lease deposit — refundable on exit. Slider snaps to 1, 2 or 3 months.' },
   { key: 'garden',    item: 'Garden Refurbishment',             amount: 12000, vat: 'inc VAT', note: 'Outdoor trading area refurb — soundproofing investment is the priority spend.' },
   { key: 'interior',  item: 'Interior Completion & Signage',    amount: 10000, vat: 'inc VAT', note: 'Fit-out completion, signage, internal acoustic treatment.' },
   { key: 'marketing', item: 'Marketing — Pre-launch & Year 1',  amount:  3000, vat: 'inc VAT', note: 'Organic / local listings / events — no paid Google Ads spend.' },
-  { key: 'legals',    item: 'Legals, Restart & Working Capital',amount:  2000, vat: null,     note: 'Solicitor fees, share registry, staged trading runway.' },
+  { key: 'legals',    item: 'Legals & Restart',                 amount:  2000, vat: null,      note: 'Solicitor fees, share registry, restart admin.' },
 ]
 
 // === USE OF FUNDS — slider ranges ===
 // Drives the calculator on the Use of Funds slide. Rent is a snap slider
 // (1 / 2 / 3 months). Everything else is continuous within min/max with a
-// £500 step. Maxes mirror the user-set spec for the minimum-viable-raise
-// tool; the founder locks a snapshot which then flows into the Investment
-// Summary, Waterfall Returns and Cash Flow Forecast downstream.
+// £500 step. Founder locks a snapshot which then flows into Investment
+// Summary, Waterfall Returns, and Cash Flow Forecast downstream.
 export const USE_OF_FUNDS_RANGES = {
   stock:     { min: 0,    max: 24000, step: 500, label: 'Stock Purchase — Liquidators' },
   rent:      { snaps: [
@@ -358,7 +366,7 @@ export const USE_OF_FUNDS_RANGES = {
   garden:    { min: 1000, max: 12000, step: 500, label: 'Garden Refurbishment' },
   interior:  { min: 1000, max: 12000, step: 500, label: 'Interior Completion & Signage' },
   marketing: { min: 1000, max:  6000, step: 500, label: 'Marketing — Pre-launch & Year 1' },
-  legals:    { min: 1000, max:  3000, step: 500, label: 'Legals, Restart & Working Capital' },
+  legals:    { min: 1000, max:  3000, step: 500, label: 'Legals & Restart' },
 }
 
 // 50/50 split is the fixed structural decision (pure pro-rata, single share

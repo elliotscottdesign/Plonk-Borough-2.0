@@ -343,8 +343,8 @@ function TabCashflow() {
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
   // Day-1 startup-cost rows: locked snapshot if present, else the static
-  // USE_OF_FUNDS defaults. The locked snapshot is the founder's chosen
-  // minimum-viable raise from the Use of Funds slider tool.
+  // USE_OF_FUNDS defaults. Total raise is fixed; Working Capital is the
+  // residual that absorbs whatever's left after the six explicit allocations.
   const day1 = isLocked && snapshot
     ? [
         { label: 'Stock Purchase — Liquidators',     amount: snapshot.stock },
@@ -352,9 +352,15 @@ function TabCashflow() {
         { label: 'Garden Refurbishment',             amount: snapshot.garden },
         { label: 'Interior Completion & Signage',    amount: snapshot.interior },
         { label: 'Marketing — Pre-launch & Year 1',  amount: snapshot.marketing },
-        { label: 'Legals, Restart & Working Capital',amount: snapshot.legals },
+        { label: 'Legals & Restart',                 amount: snapshot.legals },
+        { label: 'Working Capital (residual)',       amount: snapshot.workingCapital ?? 0, residual: true },
       ]
-    : USE_OF_FUNDS.map(u => ({ label: u.item, amount: u.amount }))
+    : (() => {
+        const explicit = USE_OF_FUNDS.map(u => ({ label: u.item, amount: u.amount }))
+        const allocated = explicit.reduce((s, r) => s + r.amount, 0)
+        const wc = Math.max(0, 100000 - allocated)   // HACKNEY_RAISE_TARGET = 100k
+        return [...explicit, { label: 'Working Capital (residual)', amount: wc, residual: true }]
+      })()
   const day1Total = day1.reduce((s, r) => s + r.amount, 0)
   const deal = computeDealFromInvestment(day1Total)
 
@@ -377,12 +383,12 @@ function TabCashflow() {
         <div>
           {day1.map(r => (
             <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:13 }}>
-              <span style={{ color:'var(--cream-dim)' }}>{r.label}</span>
-              <span style={{ color: isLocked ? '#10B981' : 'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(r.amount)}</span>
+              <span style={{ color: r.residual ? 'var(--teal)' : 'var(--cream-dim)' }}>{r.label}</span>
+              <span style={{ color: r.residual ? 'var(--teal)' : (isLocked ? '#10B981' : 'var(--cream)'), fontVariantNumeric:'tabular-nums' }}>{fmt(r.amount)}</span>
             </div>
           ))}
           <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 0', fontSize:14, fontWeight:600 }}>
-            <span style={{ color:'var(--cream)' }}>Total Day-1 outflow</span>
+            <span style={{ color:'var(--cream)' }}>Total raise</span>
             <span className="serif" style={{ color: isLocked ? '#10B981' : 'var(--gold)', fontSize:18 }}>{fmt(day1Total)}</span>
           </div>
         </div>
