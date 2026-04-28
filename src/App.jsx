@@ -33,34 +33,48 @@ const SLIDE_DEFS = [
   { id:'case',       labelKey:'case',      Component: InvestmentCase },
 ]
 
-// Plonk tab is now visible for all unlocks — was previously gated behind the
-// 888999 password. Both TEST1 and 888999 still work; they no longer differ.
-const TOP_TAB_KEYS = ['investorDeck', 'venueInfo', 'businessExplorer', 'plonk']
+// Plonk top-tab is PRIVATE — only the founder (888999) and VALEX investor
+// codes see it. TEST1 and BRAZIL get the 3-tab investor view.
+const TOP_TAB_KEYS_BASE = ['investorDeck', 'venueInfo', 'businessExplorer']
+const TOP_TAB_KEYS_PLONK = [...TOP_TAB_KEYS_BASE, 'plonk']
 
 export default function App() {
   const { t, i18n } = useTranslation('common')
-  const [unlocked, setUnlocked] = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
+  const [unlocked, setUnlocked]       = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
+  const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDE_DEFS[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
 
+  // Top tabs depend on plonk access. Tabs the user can't see are stripped
+  // from the array so the "plonk" key can never become the active tab.
+  const topTabKeys = plonkAccess ? TOP_TAB_KEYS_PLONK : TOP_TAB_KEYS_BASE
+
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, lang: chosenLang }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, role, lang: chosenLang }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
-      // Founder flag — only the 888999 password (PasswordGate sets plonk:true)
-      // grants edit access on the 2026 Performance tab. TEST1 users get the
-      // same view but in read-only mode.
-      if (plonk) sessionStorage.setItem('ndb_founder', '1')
-      else        sessionStorage.removeItem('ndb_founder')
+      // Founder flag — only 888999 grants edit access on the 2026 Performance
+      // tab via LockedForecastContext.canEdit. Everyone else is read-only.
+      if (founder) sessionStorage.setItem('ndb_founder', '1')
+      else         sessionStorage.removeItem('ndb_founder')
+      // Plonk visibility — 888999 and VALEX get the Plonk top-tab; TEST1
+      // and BRAZIL do not. Stripped from the tab array below.
+      if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
+      else       sessionStorage.removeItem('ndb_plonk_access')
+      // Role tag — components can branch on this for role-specific UI
+      // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
+      sessionStorage.setItem('ndb_role', role || 'investor')
       const targetLang = chosenLang && chosenLang !== 'en' ? chosenLang : 'en'
       i18n.changeLanguage(targetLang)
+      setPlonkAccess(!!plonk)
       setUnlocked(true)
     }} />
   }
 
-  // After unlock, dispatch by path. Both TEST1 and 888999 unlock both decks.
+  // After unlock, dispatch by path. All access codes unlock the Hackney deck;
+  // only 888999 / VALEX additionally see the Plonk top-tab on Borough.
   if (isHackneyPath()) {
     return <HackneyApp />
   }
@@ -71,7 +85,7 @@ export default function App() {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>{t('shell.brand')}</div>
         <div style={{ display:'flex', gap:4 }}>
-          {TOP_TAB_KEYS.map(k => (
+          {topTabKeys.map(k => (
             <button key={k} onClick={() => setTopTab(k)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===k?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===k?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===k?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===k?600:400 }}>{t(`tabs.${k}`)}</button>
           ))}
           <button onClick={() => window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer')} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'2px solid rgba(255,255,255,0.1)', color:'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}>{t('tabs.workbook')}</button>
@@ -116,7 +130,7 @@ export default function App() {
         )}
         {topTab === 'venueInfo' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
-        {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
+        {topTab === 'plonk' && plonkAccess && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
     </LockedForecastProvider>

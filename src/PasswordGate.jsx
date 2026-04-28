@@ -1,10 +1,27 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-const PASSWORD = 'TEST1'          // standard investor view (no Plonk tab)
-const PLONK_PASSWORD = '888999'   // investor view + Plonk franchise tab visible
-// Brazilian Portuguese is now an in-app EN | PT toggle in the top bar — no
-// separate password.
+// ─── Access codes ──────────────────────────────────────────────────────
+// Each code grants a role with three orthogonal flags:
+//   - plonk:    can see the Plonk top-tab (IP & Licensing + Digital
+//               Marketing + How It Works + Cover + SEO Marketing)
+//   - founder:  full edit access on the 2026 Performance tab — drives
+//               canEdit on every slider/input via LockedForecastContext
+//   - role:     a string tag persisted to sessionStorage so individual
+//               components can branch behaviour (e.g. a BRAZIL viewer
+//               sees the ticket slider locked even though everything
+//               else is read-only by default for non-founders too)
+//
+// Plonk is now PRIVATE — only 888999 (founder) and VALEX (investor)
+// can see it. TEST1 and BRAZIL get the standard 3-tab investor view.
+// Brazilian Portuguese remains an in-app EN | PT toggle (no code).
+// ───────────────────────────────────────────────────────────────────────
+const ACCESS_CODES = {
+  '888999': { plonk: true,  founder: true,  role: 'founder' },
+  'VALEX':  { plonk: true,  founder: false, role: 'valex'   },
+  'TEST1':  { plonk: false, founder: false, role: 'test'    },
+  'BRAZIL': { plonk: false, founder: false, role: 'brazil'  },
+}
 
 export default function PasswordGate({ onUnlock }) {
   const { t } = useTranslation('gate')
@@ -12,10 +29,12 @@ export default function PasswordGate({ onUnlock }) {
   const [error, setError] = useState(false)
 
   const attempt = () => {
-    if (input === PLONK_PASSWORD) {
-      onUnlock({ plonk: true, lang: 'en' })
-    } else if (input === PASSWORD) {
-      onUnlock({ plonk: false, lang: 'en' })
+    // Codes are case-sensitive on the digit form (888999) but the named
+    // codes (VALEX, TEST1, BRAZIL) accept any case for friendliness.
+    const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
+    const access = ACCESS_CODES[candidate]
+    if (access) {
+      onUnlock({ ...access, lang: 'en' })
     } else {
       setError(true)
       setInput('')

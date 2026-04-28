@@ -708,6 +708,8 @@ function MasterTicketVolumeSlider({ growth }) {
   const { t } = useTranslation('explorer')
   const { fmtK } = useFmt()
   const { canEdit } = useLockedForecast()
+  const role = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ndb_role')) || ''
+  const isBrazil = role === 'brazil'
   const golfBase = SCENARIO_LEVERS.find(l => l.key === 'golf')?.base ?? 210485
   const golfColor = SCENARIO_LEVERS.find(l => l.key === 'golf')?.color ?? '#0891B2'
   const value = growth.golf
@@ -724,6 +726,14 @@ function MasterTicketVolumeSlider({ growth }) {
           </div>
         </div>
         <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+          {isBrazil && (
+            <span style={{
+              fontSize:9, padding:'2px 8px', borderRadius:10, fontWeight:700,
+              letterSpacing:'0.08em', textTransform:'uppercase',
+              background:'rgba(229,57,53,0.12)', color:'#EF4444',
+              border:'1px solid rgba(229,57,53,0.35)',
+            }}>🔒 Locked</span>
+          )}
           <span style={{ color:golfColor, fontWeight:700, fontSize:16 }}>{value > 0 ? '+' : ''}{value}%</span>
           <ResetBtn onClick={() => { if (canEdit) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
         </span>
