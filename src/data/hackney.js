@@ -97,23 +97,36 @@ export const FORECAST = {
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
 // TBD: Hackney's bar-only revenue isn't yet split by source in the workbook.
-// Likely categories: Bar takings, Pool tickets, Bookings, Private hires,
-// Service charge, Events. Confirm splits before populating.
+// Source: Weekly Merged 2024-2026 tab, Jan–Dec 2025 columns aggregated.
+// Total = £557,861 (£19.8k higher than Monthly Summary's £538,091; the
+// Weekly Merged tab is gross of categorisation differences and includes
+// some pre-restatement items). The deck uses Monthly Summary's £538k as
+// the headline annual revenue; this breakdown represents the relative
+// shares of each income source.
 export const INCOME_SOURCES = [
-  { name: 'Bar takings',        amount: TBD, pct: TBD, color: '#0D1F4C' },
-  { name: 'Bookings & events',  amount: TBD, pct: TBD, color: '#1565C0' },
-  { name: 'Pool tickets',       amount: TBD, pct: TBD, color: '#1976D2' },
-  { name: 'Private hires',      amount: TBD, pct: TBD, color: '#1E88E5' },
-  { name: 'Service charge',     amount: TBD, pct: TBD, color: '#039BE5' },
+  { name: 'Bar takings',                amount: 484684, pct: 86.9, color: '#0D1F4C' },
+  { name: 'Online golf (DMN)',          amount:  39288, pct:  7.0, color: '#1565C0' },
+  { name: 'Office bookings / hires',    amount:  28120, pct:  5.0, color: '#1976D2' },
+  { name: 'Tournament entry',           amount:   3570, pct:  0.6, color: '#1E88E5' },
+  { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
+  { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
 ]
 
 // === COSTS BY CATEGORY (Jan–Dec 2025) ===
-// Hackney workbook gives the four totals below. Sub-category breakdown TBD.
+// Source: Weekly Merged 2024-2026 tab. Category-header rows aggregate the
+// sub-line items below them (verified: sum of category headers = sheet's
+// row 79 "Costs TOTAL inc VAT" = £485,470). Total runs £23k higher than
+// Monthly Summary's £462,201 due to categorisation differences (some
+// items in Weekly Merged are pre-restatement). Monthly Summary remains
+// the canonical totals; this table shows the cost-mix shares.
 export const COST_CATEGORIES = [
-  { name: 'Wages',         amount: 179872, pct: 38.9, color: '#4A0000' },
-  { name: 'Variable costs',amount: 167449, pct: 36.2, color: '#7B0000' },
-  { name: 'Fixed costs',   amount: 114880, pct: 24.9, color: '#B71C1C' },
-  { name: 'VAT (Net)',     amount:  44994, pct: 9.7,  color: '#C62828' },
+  { name: 'Wages',          amount: 175531, pct: 36.2, color: '#4A0000' },
+  { name: 'Drinks & Gas',   amount: 134123, pct: 27.6, color: '#7B0000' },
+  { name: 'Fixed Costs',    amount: 132936, pct: 27.4, color: '#B71C1C' },
+  { name: 'Cleaning',       amount:  16492, pct:  3.4, color: '#C62828' },
+  { name: 'DJs',            amount:  10300, pct:  2.1, color: '#E53935' },
+  { name: 'Arcades',        amount:   8202, pct:  1.7, color: '#D84315' },
+  { name: 'Food',           amount:   7887, pct:  1.6, color: '#EF6C00' },
 ]
 
 // === MONTHLY DATA (Jan–Dec 2025) ===
@@ -134,12 +147,26 @@ export const MONTHLY_INCOME = [
   { month: 'Dec', amount: 36295.14 },
 ]
 
-// TBD: per-month cost split (drinks, cleaning, arcades, food, etc.). Workbook
-// currently gives only the four monthly totals (wages/variable/fixed/VAT).
-export const MONTHLY_COSTS = MONTHLY_INCOME.map(({ month }) => ({
-  month, wages: TBD, fixed: TBD, drinks: TBD, vat: TBD,
-  cleaning: TBD, arcades: TBD, food: TBD, google: 0, card: TBD,
-}))
+// Per-month cost split by category. Source: Weekly Merged 2024-2026 tab,
+// 2025 columns aggregated by week-end month. Each row is gross-of-VAT per
+// the Weekly Merged convention. Annual sums match COST_CATEGORIES totals.
+// VAT, card-charges, Google-Ads not separately tracked in Weekly Merged
+// (Google Ads = £0 anyway for Hackney; VAT recorded as a single annual
+// difference in Monthly Summary).
+export const MONTHLY_COSTS = [
+  { month:'Jan', wages:  6116, fixed:  7770, drinks:  3753, cleaning:  567, arcades:  637, food:  738, djs:  600 },
+  { month:'Feb', wages: 12740, fixed: 10360, drinks:  8993, cleaning: 1239, arcades:  310, food: 1003, djs:  800 },
+  { month:'Mar', wages: 14164, fixed: 12950, drinks:  9777, cleaning: 1829, arcades: 1227, food:  375, djs: 1000 },
+  { month:'Apr', wages: 13603, fixed: 10360, drinks: 13596, cleaning:  993, arcades:  374, food:  372, djs:  800 },
+  { month:'May', wages: 14503, fixed: 10360, drinks: 13960, cleaning: 1110, arcades:  763, food:  591, djs:  800 },
+  { month:'Jun', wages: 19250, fixed: 12950, drinks: 15369, cleaning: 1642, arcades:  868, food: 1024, djs: 1000 },
+  { month:'Jul', wages: 14058, fixed: 10360, drinks: 11045, cleaning: 1718, arcades:  430, food:  690, djs:  800 },
+  { month:'Aug', wages: 18243, fixed: 12950, drinks: 16718, cleaning: 1173, arcades: 1090, food:  655, djs: 1200 },
+  { month:'Sep', wages: 16931, fixed: 10559, drinks:  9679, cleaning: 1181, arcades:  654, food:  910, djs:  800 },
+  { month:'Oct', wages: 13157, fixed: 10559, drinks:  8873, cleaning: 2234, arcades:  330, food:  360, djs:  800 },
+  { month:'Nov', wages: 19314, fixed: 13199, drinks: 11945, cleaning: 1603, arcades:  733, food:  659, djs: 1000 },
+  { month:'Dec', wages: 13453, fixed: 10559, drinks: 10414, cleaning: 1203, arcades:  785, food:  510, djs:  700 },
+]
 
 export const MONTHLY_PROFIT = [
   { month: 'Jan', income: 26867,    profit:   703.39 },
