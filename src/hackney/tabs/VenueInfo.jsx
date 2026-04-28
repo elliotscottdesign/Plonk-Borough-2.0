@@ -260,16 +260,12 @@ function TabFloorPlan() {
       )}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:16 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-          <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Floor Plan — Arch 407 Mentmore Terrace, E8 3PH</div>
+          <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>The New Layout — Arch 407 Mentmore Terrace, E8 3PH</div>
           <button onClick={()=>setZoomed(true)} style={{ fontSize:11, color:'var(--gold)', background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, padding:'3px 10px', cursor:'pointer' }}>Click to expand ⤢</button>
         </div>
-        <div style={{ aspectRatio:'4/3', background:'var(--ink-3)', borderRadius:6, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, padding:24 }}>
-          <div style={{ fontSize:48 }}>📐</div>
-          <div style={{ fontSize:13, color:'var(--cream)', textAlign:'center', maxWidth:360, lineHeight:1.6 }}>
-            <strong style={{ color:'var(--gold)' }}>Floor plan upload pending.</strong>
-            <br/>Drop the architectural plan PNG/SVG into <code style={{ fontSize:11, background:'rgba(201,168,76,0.08)', padding:'2px 6px', borderRadius:4 }}>public/hackney/floorplan_1.png</code> and it will render here.
-            <br/><br/>The premises licence plan reference (PLAN/109311/10112020) sits in Annex 4 of the licence — Hackney Council Licensing can supply a copy.
-          </div>
+        <img onClick={()=>setZoomed(true)} src="/hackney/floorplan_1.png" alt="No Dice Hackney venue floor plan — bar, garden, arcades, pool, mezzanine" style={{ width:'100%', borderRadius:6, objectFit:'contain', maxHeight:560, display:'block', cursor:'zoom-in' }} />
+        <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:10, lineHeight:1.6 }}>
+          Legend: walls · mezzanine and stairs · pool tables · arcades · speakers · seating · DJ trolley.
         </div>
       </div>
       <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
