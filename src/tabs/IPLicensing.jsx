@@ -442,7 +442,8 @@ function Stat({ label, value, sub, color }) {
 // Connects to the Digital Marketing slide's forecast calculator (Plonk →
 // Digital Marketing tab): Google Ads + SEO investment generate incremental
 // ticket sales; this card shows where those sales land by SKU and what
-// they're worth.
+// they're worth — AND validates that the projected volume actually fits
+// inside the venue's physical capacity at realistic utilisation levels.
 //
 // Default value 8,000 incremental tickets/yr — sits between conservative
 // and full marketing-engine upside. User drags the slider to model their
@@ -462,6 +463,29 @@ function MarketingUpliftCard() {
   const total2025 = combined.reduce((s, r) => s + r.sold2025, 0)
 
   const [extraTickets, setExtraTickets] = useState(8000)
+  // ─── Venue capacity assumptions (editable) ───────────────────────────
+  // Defaults based on user spec: 60 players/hr peak ceiling. Open hours
+  // and utilisation factor are blended estimates — realistic utilisation
+  // accounts for the fact that weekday daytime sits well below peak.
+  const [maxPerHour,     setMaxPerHour]     = useState(60)
+  const [openHoursPerDay, setOpenHoursPerDay] = useState(12)
+  const [daysPerYear,    setDaysPerYear]    = useState(360)
+  const [utilisationPct, setUtilisationPct] = useState(40)
+
+  const theoreticalMax = maxPerHour * openHoursPerDay * daysPerYear
+  const realisticMax   = Math.round(theoreticalMax * (utilisationPct / 100))
+  const forecast2026   = total2025 + extraTickets
+  const util2025       = realisticMax > 0 ? (total2025 / realisticMax) * 100 : 0
+  const util2026       = realisticMax > 0 ? (forecast2026 / realisticMax) * 100 : 0
+  const headroom       = realisticMax - forecast2026
+
+  // Status colour for the utilisation bar
+  const utilColor = util2026 < 70 ? '#2DD4BF' : util2026 < 90 ? '#E67E22' : '#EF4444'
+  const statusMessage =
+    util2026 >= 100 ? `⚠ Exceeds realistic capacity by ${(forecast2026 - realisticMax).toLocaleString()} tickets — uplift not achievable at current open hours / utilisation.` :
+    util2026 >= 90  ? `⚠ Approaching realistic capacity (${util2026.toFixed(0)}%) — peak slots likely fully booked. Off-peak still has room.` :
+    util2026 >= 70  ? `Comfortable: ${util2026.toFixed(0)}% of realistic capacity. Healthy headroom on weekday + Sunday slots.` :
+                      `✓ Well within realistic capacity (${util2026.toFixed(0)}%). ${headroom.toLocaleString()} tickets headroom for further growth.`
 
   // Distribute proportionally
   const rows = combined.map(r => {
@@ -490,8 +514,34 @@ function MarketingUpliftCard() {
       <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 14 }}>
         Set the projected number of <strong style={{ color: 'var(--cream)' }}>additional ticket sales</strong> for 2026 from
         the marketing engine (Google Ads + SEO). Tickets are distributed across SKUs in proportion to
-        2025 sales mix. Drives the same 2026 ticket volume the Digital Marketing forecast calculator
-        ends up at — the two views are complementary.
+        2025 sales mix. The capacity check below validates that the projected volume actually fits
+        inside venue capacity at realistic utilisation.
+      </div>
+
+      {/* ─── Venue capacity context ──────────────────────────────── */}
+      <div style={{ background: 'rgba(0,0,0,0.20)', border: `1px solid ${utilColor}33`, borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+          <span style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 700 }}>Venue Capacity Reality Check</span>
+          <span style={{ fontSize: 11, color: '#6B7280' }}>theoretical max {theoreticalMax.toLocaleString()} · realistic {realisticMax.toLocaleString()}</span>
+        </div>
+
+        {/* Editable assumptions */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 14 }}>
+          <CapacityInput label="Max players / hr"   value={maxPerHour}      setValue={setMaxPerHour}      step={5}  />
+          <CapacityInput label="Open hrs / day"     value={openHoursPerDay} setValue={setOpenHoursPerDay} step={1}  />
+          <CapacityInput label="Days open / yr"     value={daysPerYear}     setValue={setDaysPerYear}     step={5}  />
+          <CapacityInput label="Realistic util %"   value={utilisationPct}  setValue={setUtilisationPct}  step={5} suffix="%" />
+        </div>
+
+        {/* 2025 + 2026 utilisation bars */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <UtilBar label="2025 actual"    value={total2025}    realisticMax={realisticMax} pct={util2025} color="#9CA3AF" />
+          <UtilBar label="2026 forecast"  value={forecast2026} realisticMax={realisticMax} pct={util2026} color={utilColor} highlight />
+        </div>
+
+        <div style={{ marginTop: 12, padding: '8px 12px', background: `${utilColor}10`, border: `1px solid ${utilColor}30`, borderRadius: 6, fontSize: 11.5, color: '#D1D5DB', lineHeight: 1.5 }}>
+          {statusMessage}
+        </div>
       </div>
 
       {/* Master slider */}
@@ -565,7 +615,53 @@ function MarketingUpliftCard() {
       <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
         Distribution assumes the 2025 SKU mix holds — bigger sellers (Adult Peak Golf) absorb the
         biggest share of new traffic. Adjust the slider above to match the Digital Marketing
-        calculator output (Google Ads conversions/yr + SEO conversions/yr).
+        calculator output (Google Ads conversions/yr + SEO conversions/yr). Capacity check above
+        flags whether the projected volume fits inside the venue's realistic operating window
+        (max-players / open hours / utilisation).
+      </div>
+    </div>
+  )
+}
+
+function CapacityInput({ label, value, setValue, step = 1, suffix }) {
+  return (
+    <label style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+      <span style={{ fontSize: 9.5, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+        <input
+          type="number" min={0} step={step}
+          value={value}
+          onChange={e => setValue(Math.max(0, Number(e.target.value) || 0))}
+          style={{
+            width: '100%', padding: '4px 6px', textAlign: 'right',
+            background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(79,195,247,0.3)',
+            borderRadius: 4, color: '#4FC3F7', fontWeight: 600, fontSize: 12,
+          }}
+        />
+        {suffix && <span style={{ fontSize: 11, color: '#6B7280' }}>{suffix}</span>}
+      </span>
+    </label>
+  )
+}
+
+function UtilBar({ label, value, realisticMax, pct, color, highlight }) {
+  const cappedPct = Math.min(100, pct)
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11.5, marginBottom: 4 }}>
+        <span style={{ color: highlight ? 'var(--cream)' : '#9CA3AF', fontWeight: highlight ? 600 : 400 }}>{label}</span>
+        <span style={{ color: '#9CA3AF' }}>
+          <span style={{ color: highlight ? 'var(--cream)' : '#9CA3AF', fontWeight: 600 }}>{value.toLocaleString()}</span>
+          <span style={{ color: '#6B7280' }}> tickets / </span>
+          <span style={{ color }}>{pct.toFixed(0)}%</span>
+          <span style={{ color: '#6B7280' }}> of realistic</span>
+        </span>
+      </div>
+      <div style={{ height: 8, background: 'rgba(255,255,255,0.06)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+        <div style={{ height: '100%', width: `${cappedPct}%`, background: color, transition: 'width 0.2s, background 0.2s' }} />
+        {pct > 100 && (
+          <div style={{ position: 'absolute', right: 4, top: '50%', transform: 'translateY(-50%)', fontSize: 9, color: '#FFF', fontWeight: 700 }}>OVER</div>
+        )}
       </div>
     </div>
   )
