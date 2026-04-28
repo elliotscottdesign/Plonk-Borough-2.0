@@ -14,7 +14,7 @@ const RISKS = [
   { risk: 'Cost overruns',                        mitigation: '30% hard variable-cost cap holds in all three scenarios.' },
   { risk: 'Cash dip risk',                        mitigation: '4-month rent-free + £34,684 reserve target (3 months Fixed OH + Rent).' },
   { risk: 'Top-line drop (-10%)',                 mitigation: 'Honest stress test below — surfaces an annual loss rather than hiding it.' },
-  { risk: 'Competitor density',                   mitigation: 'Hackney Wick scene is collaborative; partnerships drive traffic, not cannibalise it.' },
+  { risk: 'Competitor density',                   mitigation: 'London Fields scene is collaborative; partnerships drive traffic, not cannibalise it.' },
   { risk: 'Consumer slowdown',                    mitigation: 'Activity-led format works sober; lower alcohol spend tolerated by the unit economics.' },
 ]
 

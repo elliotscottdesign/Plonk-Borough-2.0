@@ -109,7 +109,7 @@ export default function ThePlan() {
             <li>DJ Fri/Sat — highest-revenue nights</li>
             <li>Listen-bar format — early evening</li>
             <li>Corporate &amp; private hire</li>
-            <li>Tacos &amp; brand collabs (Hackney Wickend)</li>
+            <li>Tacos &amp; brand collabs (Broadway Market, neighbourhood)</li>
             <li>Pool league nights</li>
           </ul>
         </div>

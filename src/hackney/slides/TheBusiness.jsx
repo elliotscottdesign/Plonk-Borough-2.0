@@ -26,7 +26,7 @@ export default function TheBusiness() {
       <div style={{ marginBottom: 28 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>The Business</div>
         <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', lineHeight: 1.05, color: 'var(--cream)', marginBottom: 14 }}>
-          A trading bar in Hackney Wick — restated bar-only.
+          A trading bar in London Fields — restated bar-only.
         </h2>
         <p style={{ fontSize: 17, color: 'var(--cream-dim)', maxWidth: 760, lineHeight: 1.6 }}>
           The 2025 figures are verified bar-only trading actuals — not a projection. Mini golf operations have been excluded from every line, removing a loss-making drag worth roughly £19,800 of net cost across the year.

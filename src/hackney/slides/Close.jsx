@@ -12,7 +12,7 @@ const pct = (n, d=2) => (n*100).toFixed(d) + '%'
 const WHY_DIFFERENT = [
   { headline: 'Proven revenue base',          detail: `${fmt(HACKNEY_ACTUALS_2025.revenue)} verified 2025 bar-only trading actuals — not a projection.` },
   { headline: 'Mini golf drag removed',        detail: 'Restated to exclude the loss-making golf operation; saves ~£19,800 net per year.' },
-  { headline: 'Hackney Wick location',         detail: 'Established East London late-night destination with built-in footfall.' },
+  { headline: 'London Fields location',         detail: 'Established East London late-night destination with built-in footfall.' },
   { headline: '4-month rent-free period',      detail: 'Landlord acquisition concession protects opening cash runway.' },
   { headline: 'DJ &  events programme',        detail: 'Fri/Sat highest-revenue nights with experience-led format.' },
   { headline: 'Brand IP retained',             detail: 'Trading name, customer data, goodwill carry across.' },
@@ -94,7 +94,7 @@ export default function Close() {
       <div className="card" style={{ padding: 22, marginBottom: 24 }}>
         <div style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 10 }}>Next steps</div>
         <div style={{ fontSize: 14, color: 'var(--cream)', lineHeight: 1.7 }}>
-          Read the full 39-sheet financial model on request. Site visits available — Hackney Wick, London E9. Subscription documents and shareholders' agreement to follow once interest is confirmed.
+          Read the full 39-sheet financial model on request. Site visits available — London Fields, London E8. Subscription documents and shareholders' agreement to follow once interest is confirmed.
         </div>
       </div>
 

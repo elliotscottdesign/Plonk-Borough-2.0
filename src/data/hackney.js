@@ -12,7 +12,7 @@
 
 export const HACKNEY_BUSINESS = {
   name: 'No Dice Hackney Ltd',
-  location: 'Hackney Wick, London E9',
+  location: 'London Fields, London E8',
   description: 'Bar · DJ & events · Garden · Pool · Arcades · Board games',
 }
 
@@ -209,7 +209,7 @@ export const HACKNEY_MARKETING = {
   pctOfRevenue: 0.013,
   channels: [
     { label: 'Organic social',      amount: 3000, note: 'Instagram, TikTok, in-house content.' },
-    { label: 'Local listings',      amount: 2000, note: 'Time Out, Resident Advisor, Hackney Wickend, neighbourhood SEO.' },
+    { label: 'Local listings',      amount: 2000, note: 'Time Out, Resident Advisor, Broadway Market, neighbourhood SEO.' },
     { label: 'Events & partnerships', amount: 3000, note: 'DJ programme, brand collabs, taco nights, community.' },
   ],
 }

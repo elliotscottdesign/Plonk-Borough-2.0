@@ -38,7 +38,7 @@ export default function Cover() {
       </div>
 
       <p style={{ fontSize: 19, color: 'var(--cream-dim)', maxWidth: 640, lineHeight: 1.55, marginBottom: 36 }}>
-        <strong style={{ color: 'var(--cream)' }}>{fmt(HACKNEY_DEAL.investment)} for {pct(HACKNEY_DEAL.investorEq, 0)} of a proven Hackney Wick bar.</strong>
+        <strong style={{ color: 'var(--cream)' }}>{fmt(HACKNEY_DEAL.investment)} for {pct(HACKNEY_DEAL.investorEq, 0)} of a proven London Fields bar.</strong>
         {' '}A bar-only relaunch of an established trading entity — {fmt(HACKNEY_ACTUALS_2025.revenue)} verified 2025 revenue, mini golf drag removed, cash-yielding from day one.
       </p>
 
@@ -56,7 +56,7 @@ export default function Cover() {
 
       <div style={{ marginTop: 32, padding: '14px 22px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10 }}>
         <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-          <strong style={{ color: 'var(--gold)' }}>Hackney Wick, London E9.</strong> Established late-night East London destination. Bar · DJ &amp; events · Garden · Pool · Arcades.
+          <strong style={{ color: 'var(--gold)' }}>London Fields, London E8.</strong> Established late-night East London destination. Bar · DJ &amp; events · Garden · Pool · Arcades.
         </div>
       </div>
     </div>
