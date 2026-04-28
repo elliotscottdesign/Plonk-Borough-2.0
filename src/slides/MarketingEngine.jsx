@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { MARKETING, ACTUALS_2025 } from '../data.js'
+import MarketingUpliftCard from '../components/MarketingUpliftCard.jsx'
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString()
 const fmtK = (n) => '£' + (Math.round(n / 1000)).toLocaleString() + 'k'
@@ -127,6 +128,11 @@ export default function MarketingEngine() {
 
       {/* ─── 2026 Marketing-Driven Ticket Sales Forecast ────────────── */}
       <MarketingForecastCalculator />
+
+      {/* ─── Where do those tickets land? + capacity reality check ─── */}
+      <div style={{ marginTop: 36 }}>
+        <MarketingUpliftCard />
+      </div>
     </div>
   )
 }
