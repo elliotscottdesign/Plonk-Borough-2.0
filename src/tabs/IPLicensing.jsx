@@ -403,6 +403,8 @@ export default function IPLicensing() {
         helperText="Same golf-only scope as online. Office-channel revenue is imputed at SKU list price — Plonk Golf commission on it is a modelled scenario, not a current revenue stream."
       />
 
+      <MarketingUpliftCard />
+
       <MonthlyTrend />
       <CommissionModel commissionOnlinePct={commissionOnlinePct} commissionOfficePct={commissionOfficePct} />
 
@@ -429,6 +431,142 @@ function Stat({ label, value, sub, color }) {
       <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>{label}</div>
       <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
       <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{sub}</div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Marketing-Driven Ticket Uplift slider — distributes additional 2026
+// tickets across the existing SKU mix in proportion to 2025 sales.
+//
+// Connects to the Digital Marketing slide's forecast calculator (Plonk →
+// Digital Marketing tab): Google Ads + SEO investment generate incremental
+// ticket sales; this card shows where those sales land by SKU and what
+// they're worth.
+//
+// Default value 8,000 incremental tickets/yr — sits between conservative
+// and full marketing-engine upside. User drags the slider to model their
+// own assumption.
+// ───────────────────────────────────────────────────────────────────────
+function MarketingUpliftCard() {
+  // Combined 2025 ticket volumes (online + till) per SKU — these define
+  // the distribution proportions.
+  const combined = IP_LICENSING_SKUS_ONLINE_2025.map(online => {
+    const office = IP_LICENSING_SKUS_OFFICE_2025.find(o => o.sku === online.sku)
+    return {
+      sku: online.sku,
+      price: online.price,
+      sold2025: online.sold + (office?.sold || 0),
+    }
+  })
+  const total2025 = combined.reduce((s, r) => s + r.sold2025, 0)
+
+  const [extraTickets, setExtraTickets] = useState(8000)
+
+  // Distribute proportionally
+  const rows = combined.map(r => {
+    const share        = total2025 > 0 ? r.sold2025 / total2025 : 0
+    const extraForSku  = Math.round(extraTickets * share)
+    const extraRevenue = extraForSku * r.price
+    const newTotal     = r.sold2025 + extraForSku
+    return { ...r, share, extraForSku, extraRevenue, newTotal }
+  })
+  // Sort by 2025 volume (biggest sellers first) for at-a-glance scanning
+  rows.sort((a, b) => b.sold2025 - a.sold2025)
+  const totalRevenueUplift = rows.reduce((s, r) => s + r.extraRevenue, 0)
+  const blendedTicketPrice = extraTickets > 0 ? totalRevenueUplift / extraTickets : 0
+
+  const cell = { padding: '8px 10px', fontSize: 11.5, borderBottom: '1px solid rgba(255,255,255,0.05)' }
+  const head = { ...cell, fontSize: 9.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: '#9CA3AF', fontWeight: 600, borderBottom: '1px solid rgba(78,195,247,0.25)' }
+
+  return (
+    <div style={{ background: 'rgba(79,195,247,0.05)', border: '1px solid rgba(79,195,247,0.3)', borderRadius: 10, padding: '18px 22px' }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 6 }}>
+        <div style={{ fontSize: 11, color: '#4FC3F7', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>
+          Marketing-Driven Ticket Uplift · 2026 Plan
+        </div>
+        <ResetBtn onClick={() => setExtraTickets(8000)} title="Reset to 8,000" />
+      </div>
+      <div style={{ fontSize: 12, color: '#9CA3AF', lineHeight: 1.6, marginBottom: 14 }}>
+        Set the projected number of <strong style={{ color: 'var(--cream)' }}>additional ticket sales</strong> for 2026 from
+        the marketing engine (Google Ads + SEO). Tickets are distributed across SKUs in proportion to
+        2025 sales mix. Drives the same 2026 ticket volume the Digital Marketing forecast calculator
+        ends up at — the two views are complementary.
+      </div>
+
+      {/* Master slider */}
+      <div style={{ background: 'rgba(0,0,0,0.25)', borderRadius: 8, padding: '14px 16px', marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+          <span style={{ fontSize: 12, color: 'var(--cream-dim)' }}>Additional 2026 tickets from marketing</span>
+          <span className="serif" style={{ fontSize: 26, color: '#4FC3F7', fontWeight: 700 }}>
+            {extraTickets.toLocaleString()}
+          </span>
+        </div>
+        <input
+          type="range" min={0} max={30000} step={250}
+          value={extraTickets}
+          onChange={e => setExtraTickets(Number(e.target.value))}
+          style={{ width: '100%', accentColor: '#4FC3F7' }}
+        />
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 4 }}>
+          <span>0</span>
+          <span>15,000</span>
+          <span>30,000</span>
+        </div>
+      </div>
+
+      {/* Headline numbers */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+        <Stat label="Additional Tickets" value={extraTickets.toLocaleString()} sub="across all SKUs"               color="#4FC3F7" />
+        <Stat label="Blended Ticket £"   value={fmt(blendedTicketPrice)}        sub="weighted avg price"           color="#9CA3AF" />
+        <Stat label="Revenue Uplift"     value={fmt0(totalRevenueUplift)}       sub="annual"                       color="var(--gold)" />
+        <Stat label="2026 Forecast Vol"  value={(total2025 + extraTickets).toLocaleString()} sub={`vs 2025 ${total2025.toLocaleString()}`} color="#2DD4BF" />
+      </div>
+
+      {/* Per-SKU distribution table */}
+      <div style={{ overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 720 }}>
+          <thead>
+            <tr>
+              <th style={{ ...head, textAlign: 'left' }}>SKU</th>
+              <th style={{ ...head, textAlign: 'right' }}>2025 sold</th>
+              <th style={{ ...head, textAlign: 'right' }}>2025 mix</th>
+              <th style={{ ...head, textAlign: 'right' }}>Price</th>
+              <th style={{ ...head, textAlign: 'right' }}>+ Tickets</th>
+              <th style={{ ...head, textAlign: 'right' }}>+ Revenue</th>
+              <th style={{ ...head, textAlign: 'right' }}>2026 total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(r => (
+              <tr key={r.sku}>
+                <td style={{ ...cell, color: 'var(--cream)' }}>{r.sku}</td>
+                <td style={{ ...cell, color: '#9CA3AF', textAlign: 'right' }}>{r.sold2025.toLocaleString()}</td>
+                <td style={{ ...cell, color: '#6B7280', textAlign: 'right' }}>{(r.share * 100).toFixed(1)}%</td>
+                <td style={{ ...cell, color: '#9CA3AF', textAlign: 'right' }}>{fmt(r.price)}</td>
+                <td style={{ ...cell, color: '#4FC3F7', fontWeight: 600, textAlign: 'right' }}>+{r.extraForSku.toLocaleString()}</td>
+                <td style={{ ...cell, color: 'var(--gold)', fontWeight: 600, textAlign: 'right' }}>{fmt0(r.extraRevenue)}</td>
+                <td style={{ ...cell, color: '#2DD4BF', fontWeight: 600, textAlign: 'right' }}>{r.newTotal.toLocaleString()}</td>
+              </tr>
+            ))}
+            <tr style={{ background: 'rgba(79,195,247,0.06)' }}>
+              <td style={{ ...cell, color: '#4FC3F7', fontWeight: 700, textTransform: 'uppercase', fontSize: 10, letterSpacing: '0.06em' }}>Total</td>
+              <td style={{ ...cell, color: '#9CA3AF', textAlign: 'right' }}>{total2025.toLocaleString()}</td>
+              <td style={{ ...cell, color: '#6B7280', textAlign: 'right' }}>100%</td>
+              <td style={cell}></td>
+              <td style={{ ...cell, color: '#4FC3F7', fontWeight: 700, textAlign: 'right' }}>+{extraTickets.toLocaleString()}</td>
+              <td style={{ ...cell, color: 'var(--gold)', fontWeight: 700, textAlign: 'right' }}>{fmt0(totalRevenueUplift)}</td>
+              <td style={{ ...cell, color: '#2DD4BF', fontWeight: 700, textAlign: 'right' }}>{(total2025 + extraTickets).toLocaleString()}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ marginTop: 12, fontSize: 11, color: '#6B7280', lineHeight: 1.6 }}>
+        Distribution assumes the 2025 SKU mix holds — bigger sellers (Adult Peak Golf) absorb the
+        biggest share of new traffic. Adjust the slider above to match the Digital Marketing
+        calculator output (Google Ads conversions/yr + SEO conversions/yr).
+      </div>
     </div>
   )
 }
