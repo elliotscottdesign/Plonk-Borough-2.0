@@ -47,10 +47,11 @@ export default function PasswordGate({ onUnlock }) {
       height:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
       background:'var(--ink)', flexDirection:'column', gap:32,
     }}>
-      {/* Logo */}
+      {/* Logo — shared gate for both decks (Borough at /, Hackney at /hackney).
+           Stays brand-neutral so the venue name only resolves after unlock. */}
       <div style={{ textAlign:'center' }}>
         <div className="serif" style={{ fontSize:52, color:'var(--gold)', lineHeight:1, marginBottom:12 }}>
-          No Dice<br/>Borough
+          No Dice
         </div>
         <div style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
           {t('eyebrow')}
