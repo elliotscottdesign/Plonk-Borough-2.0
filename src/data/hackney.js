@@ -27,8 +27,12 @@ export const BUSINESS = {
 }
 
 // === EXTERNAL WORKBOOK ===
-// TBD: paste the shared Hackney workbook URL here once it exists.
-export const WORKBOOK_URL = ''
+// Hackney financial workbook — investors view monthly P&L, scenarios,
+// valuation breakdowns alongside the deck. Mirrors the Borough setup
+// (Google Sheets, "Anyone with link · Viewer"). Update this URL after
+// every workbook restructure so the React deck and the Sheets stay in
+// lockstep.
+export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg/edit?usp=sharing'
 
 // === LOCK SYNC ENDPOINT ===
 // Same shape as Borough's. Empty = localStorage-only (no cross-device sync).
