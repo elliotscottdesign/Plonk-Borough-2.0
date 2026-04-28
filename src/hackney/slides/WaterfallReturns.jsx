@@ -63,7 +63,7 @@ export default function WaterfallReturns() {
         Investor Returns
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        Pure pro-rata — all shareholders paid at the same time by equity %. No preferred return, no priority tiers.
+        Pure pro-rata 50/50 — investor and founder paid at the same time. No preferred return, no priority tiers, single share class.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
 
       {/* Scenario selector */}

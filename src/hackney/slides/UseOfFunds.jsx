@@ -105,16 +105,16 @@ export default function UseOfFunds() {
           {fmt(display.total)} · Minimum Viable Raise
         </h2>
         <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
-          Drag each slider to find how little we need to raise to get the venue safe and reopen-ready. Pre-money valuation is fixed at {fmt(deal.preMoney)} (verified 2025 EBITDA × multiple); investor equity recomputes as the raise size changes. When trading begins, we run further rounds — this round only buys what we need to get back to trading.
+          Drag each slider to find how little we need to raise to get the venue safe and reopen-ready. The 50/50 split is fixed (pure pro-rata, single share class) — pre-money flexes to equal the investment so the equity outcome holds, and the implied EBITDA multiple is the derived result. When trading begins we run further rounds priced off live performance, not this seed pre-money.
         </p>
       </div>
 
-      {/* Headline cards — total, equity, founder share, lock state */}
+      {/* Headline cards — total raise, fixed 50/50 split, implied multiple, post-money */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-        <HeadlineCard label="TOTAL RAISE"      value={fmt(display.total)}                 colour={isLocked ? '#10B981' : '#C9A84C'} sub={isLocked ? 'Locked snapshot' : 'Live preview'} />
-        <HeadlineCard label="INVESTOR EQUITY"  value={(deal.investorEq * 100).toFixed(1) + '%'}  colour="#4FC3F7"  sub={`On ${fmt(deal.investment)} invested`} />
-        <HeadlineCard label="FOUNDER EQUITY"   value={(deal.founderEq * 100).toFixed(1) + '%'}   colour="#A78BFA"  sub={`Pre-money ${fmt(deal.preMoney)}`} />
-        <HeadlineCard label="POST-MONEY"        value={fmt(deal.postMoney)}                       colour="#2DD4BF"  sub="Pre-money + raise" />
+        <HeadlineCard label="TOTAL RAISE"        value={fmt(display.total)}                          colour={isLocked ? '#10B981' : '#C9A84C'} sub={isLocked ? 'Locked snapshot' : 'Live preview'} />
+        <HeadlineCard label="50/50 SPLIT"        value="LOCKED"                                       colour="#A78BFA"                          sub="Pure pro-rata · single share class" />
+        <HeadlineCard label="IMPLIED MULTIPLE"   value={`${deal.impliedMult.toFixed(2)}×`}            colour="#4FC3F7"                          sub="Pre-money ÷ 2025 EBITDA" />
+        <HeadlineCard label="POST-MONEY"          value={fmt(deal.postMoney)}                          colour="#2DD4BF"                          sub={`Pre-money ${fmt(deal.preMoney)} + raise`} />
       </div>
 
       {/* Lock / Reset / Founder gate */}

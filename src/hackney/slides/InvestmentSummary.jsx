@@ -106,10 +106,11 @@ export default function InvestmentSummary() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
         <Section title={`🏢 Deal Structure${isLocked ? ' · LOCKED' : ''}`} items={[
           ['Investment Sought',   fmt(effective.investment), isLocked],
-          ['Investor Equity',    `${(effective.investorEq*100).toFixed(2)}%`],
-          ['Founder Equity',     `${(effective.founderEq*100).toFixed(2)}%`],
+          ['Investor Equity',    `${(effective.investorEq*100).toFixed(0)}%`],
+          ['Founder Equity',     `${(effective.founderEq*100).toFixed(0)}%`],
           ['Pre-Money Valuation', fmt(effective.preMoney)],
           ['Post-Money Valuation', fmt(effective.postMoney)],
+          ['Implied Multiple',    effective.impliedMult ? `${effective.impliedMult.toFixed(2)}× EBITDA` : `${DEAL.multiple.toFixed(2)}× EBITDA`],
         ]} />
         <Section title="📊 Financial Performance" items={[
           ['2025 Actual Revenue',  fmt(ACTUALS_2025.revenue)],
@@ -162,7 +163,7 @@ export default function InvestmentSummary() {
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
             <span>£5,000</span>
-            <span>{fmt(effective.investment)} · {(effective.investorEq*100).toFixed(1)}% equity cap</span>
+            <span>{fmt(effective.investment)} · 50% equity cap</span>
           </div>
         </div>
 
@@ -189,7 +190,7 @@ export default function InvestmentSummary() {
 
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
           Cash-on-Cash: {(cocCalc * 100).toFixed(1)}% · Payback: {(amount / totalCalc).toFixed(2)} years · Minimum for A shares: £{DEAL.aShareThreshold.toLocaleString('en-GB')}
-          {isLocked && <span style={{ display:'block', color:'#10B981', marginTop:6 }}>✓ Live from locked Use of Funds — investment {fmt(effective.investment)} · {(effective.investorEq*100).toFixed(1)}% equity</span>}
+          {isLocked && <span style={{ display:'block', color:'#10B981', marginTop:6 }}>✓ Live from locked Use of Funds — investment {fmt(effective.investment)} · 50/50 split · implied {effective.impliedMult.toFixed(2)}× EBITDA</span>}
         </div>
       </div>
     </div>

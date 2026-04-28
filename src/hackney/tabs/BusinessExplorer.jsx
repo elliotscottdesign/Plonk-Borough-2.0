@@ -122,7 +122,7 @@ function TabCashflow() {
           </div>
         </div>
         <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:6, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          Investor equity at this raise: <strong style={{ color:'var(--cream)' }}>{(deal.investorEq*100).toFixed(1)}%</strong> on {fmt(deal.investment)} into a {fmt(deal.preMoney)} pre-money business — post-money {fmt(deal.postMoney)}.
+          50/50 split locked. Pre-money {fmt(deal.preMoney)} · post-money {fmt(deal.postMoney)} · implied <strong style={{ color:'var(--cream)' }}>{deal.impliedMult.toFixed(2)}× EBITDA</strong> at this raise.
           {isLocked && snapshot?.lockedAt ? ` · Locked ${new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })}.` : ''}
         </div>
       </div>

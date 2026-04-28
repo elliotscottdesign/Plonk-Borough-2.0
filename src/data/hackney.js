@@ -261,20 +261,30 @@ export const USE_OF_FUNDS_RANGES = {
   legals:    { min: 1000, max:  3000, step: 500, label: 'Legals, Restart & Working Capital' },
 }
 
-// Pre-money valuation is fixed at the EBITDA-based number — the slider tool
-// varies the investment size, so investor equity recomputes against a
-// constant pre-money. This is the conventional approach (multiple stays
-// recognisable; the trade-off is on equity %, not on company value).
+// 50/50 split is the fixed structural decision (pure pro-rata, single share
+// class). The slider tool varies the investment size; pre-money flexes to
+// equal the investment so the 50/50 split holds, and the implied EBITDA
+// multiple is the derived result. Helper exported so the calculator and
+// downstream slides share a single computation path.
 //
-// Pre-money = 2025 EBITDA × multiple. Multiple captured in DEAL.multiple.
-// Helper exported so the calculator and downstream slides share a single
-// computation path.
+//   investorEq = 0.5 (fixed)
+//   founderEq  = 0.5 (fixed)
+//   preMoney   = investment           (so 50/50 holds)
+//   postMoney  = investment × 2
+//   multiple   = preMoney / 2025 EBITDA  (derived — see helper below)
+//
+// Smaller raise = smaller implied pre-money = smaller implied multiple. The
+// founder gives up the same 50%, just on a smaller pie. Logic checks out
+// when the raise is sized to "minimum-viable to get safe and reopen" —
+// further rounds price off live trading, not the seed pre-money.
 export function computeDealFromInvestment(investment) {
-  const preMoney   = 100000   // = ACTUALS_2025.profit (£30,896) × DEAL.multiple (3.2367)
-  const postMoney  = preMoney + investment
-  const investorEq = postMoney > 0 ? investment / postMoney : 0
-  const founderEq  = 1 - investorEq
-  return { investment, preMoney, postMoney, investorEq, founderEq }
+  const preMoney      = investment
+  const postMoney     = investment * 2
+  const investorEq    = 0.5
+  const founderEq     = 0.5
+  const ebitda        = 30896.17                    // = ACTUALS_2025.profit
+  const impliedMult   = ebitda > 0 ? preMoney / ebitda : 0
+  return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult }
 }
 
 // === HARDWARE FROM LIQUIDATORS — itemised breakdown ===
