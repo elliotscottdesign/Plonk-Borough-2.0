@@ -183,6 +183,31 @@ export const MONTHLY_PROFIT = [
   { month: 'Dec', income: 36295.14, profit: -2970.25 },
 ]
 
+// === 2026/27 CASH FLOW FORECAST (May 2026 – Apr 2027) ===
+// Excel: Cash Flow Forecast!B30:M31 (net flow + cumulative cash).
+// Peak £82,337 (Aug), low £39,250 (Feb), year-end £72,462 (Apr).
+export const HACKNEY_CASHFLOW = [
+  { month: 'May 26', net:  19889.52, closing: 19889.52 },
+  { month: 'Jun 26', net:  33900.15, closing: 53789.67 },
+  { month: 'Jul 26', net:   9146.58, closing: 62936.25 },
+  { month: 'Aug 26', net:  19400.92, closing: 82337.17 },
+  { month: 'Sep 26', net:  -4703.39, closing: 77633.78 },
+  { month: 'Oct 26', net:     94.91, closing: 77728.69 },
+  { month: 'Nov 26', net:  -9186.49, closing: 68542.20 },
+  { month: 'Dec 26', net:  -5509.88, closing: 63032.32 },
+  { month: 'Jan 27', net:  -8369.97, closing: 54662.35 },
+  { month: 'Feb 27', net: -15412.44, closing: 39249.91 },
+  { month: 'Mar 27', net:  20129.18, closing: 59379.09 },
+  { month: 'Apr 27', net:  13083.32, closing: 72462.41 },
+]
+
+export const HACKNEY_CASH = {
+  peak: 82337,        // Aug 2026
+  low: 39250,         // Feb 2027
+  yearEnd: 72462,     // Apr 2027
+  safetyFloor: 25000, // user-set floor; Feb low stays £14k above
+}
+
 // === WAGES — 2025 ROTA REFERENCE (4-role calculator basis) ===
 // Source: live rota Google Sheets (sheet 1NgIp2TcNPcf9pWcD5CVELexarlmnxe9jeC61aTCZKy0)
 // Aggregated 2025 bar-only shifts. Filters applied:
