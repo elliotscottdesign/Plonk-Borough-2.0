@@ -443,6 +443,13 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
       {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
       <ScenarioPresetsCard growth={growth} officeCostsTotal={officeCostsTotal} />
 
+      {/* ─── SECTION TITLE ─── divides the scenario summary from the editable forecast levers below */}
+      <div style={{ marginTop: 12, marginBottom: -4 }}>
+        <h2 className="serif" style={{ fontSize: 'clamp(1.6rem, 3vw, 2.4rem)', lineHeight: 1.1, color: 'var(--cream)', margin: 0 }}>
+          Forecast Calculator
+        </h2>
+      </div>
+
       {/* ─── INDEX + CONTENT ─── left-side nav, right-side active section */}
       <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
         {/* Sticky sidebar TOC */}
