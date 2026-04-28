@@ -1,5 +1,17 @@
 import React, { useState } from 'react'
 import {
+  ResponsiveContainer, BarChart, Bar, ComposedChart, LineChart, Line,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
+} from 'recharts'
+import {
+  ACTUALS_2025,
+  INCOME_SOURCES,
+  COST_CATEGORIES,
+  MONTHLY_INCOME,
+  MONTHLY_PROFIT,
+  MONTHLY_COSTS,
+  HACKNEY_CASHFLOW,
+  HACKNEY_CASH,
   USE_OF_FUNDS,
   WAGE_RATES,
   PL_WAGE_BASE,
@@ -9,6 +21,9 @@ import {
   computeDealFromInvestment,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
+
+const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 
 // BusinessExplorer — clones Borough's 3-sub-tab structure:
 //   • 2025 Performance — verified actuals + breakdowns
@@ -43,22 +58,181 @@ function Tab2025() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>2025 Verified Actuals — Bar Only</STitle>
-      <Tbd>Top-line summary cards (Revenue · Wages · Fixed Costs · Variable Costs · VAT · EBITDA). Verified totals are populated in <code>src/data/hackney.js</code> ACTUALS_2025; mirror Borough's snapshot cards layout here.</Tbd>
+      <TopLineCards />
 
       <STitle>Income by Source</STitle>
-      <Tbd>Donut chart + per-source table. Borough splits into 6 sources (Bar, Online Golf, Bookings, Private Hires, Service Charge, Pool). Hackney bar-only equivalent splits TBD — needs restated weekly P&L.</Tbd>
+      <IncomeBySourceChart />
 
       <STitle>Costs by Category</STitle>
-      <Tbd>Stacked bar + 9-line category breakdown (Wages, Fixed, Drinks/Gas, VAT Net, Cleaning, Arcades, Food, Marketing, Card Charges). Hackney workbook currently only splits four totals — sub-category breakdown TBD.</Tbd>
+      <CostsByCategoryChart />
 
       <STitle>Monthly Performance</STitle>
-      <Tbd>12-month income + profit chart + table. Income/profit per month already populated in MONTHLY_INCOME / MONTHLY_PROFIT. Cost-by-category-by-month TBD.</Tbd>
+      <MonthlyPerformanceChart />
 
       <STitle>Wages — 2025 Rota Reference (4-role bar-only)</STitle>
       <WageRotaReference />
 
       <STitle>Wages — Modelled Full Build-Out (12 roles)</STitle>
       <WageModelBreakdown />
+    </div>
+  )
+}
+
+// ─── 2025 — Top-line summary cards ─────────────────────────────────────
+function TopLineCards() {
+  const cards = [
+    { label: 'Revenue',          value: ACTUALS_2025.revenue,       colour: '#4FC3F7' },
+    { label: 'Wages',            value: ACTUALS_2025.wages,         colour: '#E67E22' },
+    { label: 'Variable Costs',   value: ACTUALS_2025.variableCosts, colour: '#A78BFA' },
+    { label: 'Fixed Costs',      value: ACTUALS_2025.fixedCosts,    colour: '#F87171' },
+    { label: 'VAT (Net)',        value: ACTUALS_2025.vatNet,        colour: '#9CA3AF' },
+    { label: 'EBITDA',           value: ACTUALS_2025.ebitda,        colour: '#10B981' },
+  ]
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
+      {cards.map(c => (
+        <div key={c.label} className="card" style={{ padding:14 }}>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{c.label}</div>
+          <div className="serif" style={{ fontSize:'clamp(1.2rem, 2.2vw, 1.6rem)', color: c.colour, lineHeight:1 }}>{fmtMoney(c.value)}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── 2025 — Income by Source (horizontal bar + table) ─────────────────
+function IncomeBySourceChart() {
+  const total = INCOME_SOURCES.reduce((s, r) => s + (r.amount || 0), 0)
+  const data = INCOME_SOURCES.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>{INCOME_SOURCES.length} sources · 2025 weekly P&amp;L (Weekly Merged tab)</span>
+        <span style={{ fontSize:13, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(total)} aggregate</span>
+      </div>
+      <div style={{ height: 230 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
+            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
+            <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Bar dataKey="amount" radius={[0,4,4,0]}>
+              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        {data.map(r => (
+          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
+            <span style={{ color:'var(--cream)' }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
+            </span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
+            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 2025 — Costs by Category (horizontal bar) ────────────────────────
+function CostsByCategoryChart() {
+  const total = COST_CATEGORIES.reduce((s, r) => s + (r.amount || 0), 0)
+  const data = COST_CATEGORIES.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>{COST_CATEGORIES.length} categories · category-header rows from Weekly Merged</span>
+        <span style={{ fontSize:13, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(total)} aggregate</span>
+      </div>
+      <div style={{ height: 240 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
+            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
+            <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Bar dataKey="amount" radius={[0,4,4,0]}>
+              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        {data.map(r => (
+          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
+            <span style={{ color:'var(--cream)' }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
+            </span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
+            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 2025 — Monthly Performance (income bars + profit line) ───────────
+function MonthlyPerformanceChart() {
+  // Combine MONTHLY_INCOME and MONTHLY_PROFIT (already share month keys);
+  // also overlay monthly cost-stack via MONTHLY_COSTS for the lower chart.
+  const data = MONTHLY_INCOME.map((m, i) => ({
+    month:  m.month,
+    income: m.amount,
+    profit: MONTHLY_PROFIT[i].profit,
+    ...MONTHLY_COSTS[i],
+  }))
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', marginBottom:12 }}>
+        Monthly bars = revenue · line = profit after VAT.
+      </div>
+      <div style={{ height: 260 }}>
+        <ResponsiveContainer>
+          <ComposedChart data={data}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+            <Bar dataKey="income" name="Income"  fill="var(--gold)" radius={[3,3,0,0]} />
+            <Line type="monotone" dataKey="profit" name="Profit (after VAT)" stroke="var(--teal)" strokeWidth={2} dot={{ r:3, fill:'var(--teal)' }} />
+            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ fontSize:11, color:'var(--cream-dim)', margin:'18px 0 8px' }}>Monthly cost stack — by category (gross, Weekly Merged categorisation):</div>
+      <div style={{ height: 220 }}>
+        <ResponsiveContainer>
+          <BarChart data={data}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
+            <Bar dataKey="wages"        name="Wages"        stackId="a" fill="#4A0000" />
+            <Bar dataKey="drinks"       name="Drinks & Gas" stackId="a" fill="#7B0000" />
+            <Bar dataKey="fixed"        name="Fixed Costs"  stackId="a" fill="#B71C1C" />
+            <Bar dataKey="cleaning"     name="Cleaning"     stackId="a" fill="#C62828" />
+            <Bar dataKey="djs"          name="DJs"          stackId="a" fill="#E53935" />
+            <Bar dataKey="arcades"      name="Arcades"      stackId="a" fill="#D84315" />
+            <Bar dataKey="food"         name="Food"         stackId="a" fill="#EF6C00" radius={[3,3,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
@@ -187,7 +361,7 @@ function TabCashflow() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>Cashflow Forecast — May 2026 to Apr 2027</STitle>
-      <Tbd>Month-by-month opening / inflows / outflows / closing balance. Source: Cash Flow Forecast sheet — peak £82,337 (Aug 26), low £39,250 (Feb 27), year-end £72,462 (Apr 27). Verified figures available; chart + table TBD.</Tbd>
+      <Tbd>Month-by-month opening / inflows / outflows / closing balance table. Headline numbers (peak £82,337 Aug 26 · low £39,250 Feb 27 · year-end £72,462 Apr 27) are rendered in the Net Position chart below; per-month per-line tabular detail is the next pass.</Tbd>
 
       <STitle>Cash Inflows — by Source</STitle>
       <Tbd>Investment receipt ({fmt(day1Total)} May 26), VAT reclaim (£13,458 May 26), monthly trading income. Mirror Borough's cashflow inflow table.</Tbd>
@@ -222,7 +396,39 @@ function TabCashflow() {
       <Tbd>Wages, director salary, fixed overheads, accountancy, variable costs, rent (£0 for first 4 months, then £1,833/mo), VAT output (quarterly).</Tbd>
 
       <STitle>Net Position & Safety Floor</STitle>
-      <Tbd>Closing-balance line chart with the £25,000 safety floor reference line. Lowest month is Feb 27 at £39,250 (£14k above floor). Will recompute against locked Day-1 outflow once chart is wired.</Tbd>
+      <CashflowChart />
+    </div>
+  )
+}
+
+// ─── Cashflow chart — closing balance per month + safety floor ────────
+function CashflowChart() {
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>
+          Peak {fmtMoney(HACKNEY_CASH.peak)} (Aug 26) · Low {fmtMoney(HACKNEY_CASH.low)} (Feb 27) · Year-end {fmtMoney(HACKNEY_CASH.yearEnd)}
+        </span>
+        <span style={{ fontSize:11, color:'#F87171' }}>
+          Safety floor {fmtMoney(HACKNEY_CASH.safetyFloor)}
+        </span>
+      </div>
+      <div style={{ height: 260 }}>
+        <ResponsiveContainer>
+          <LineChart data={HACKNEY_CASHFLOW}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ stroke: 'rgba(201,168,76,0.2)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <ReferenceLine y={HACKNEY_CASH.safetyFloor} stroke="#F87171" strokeDasharray="4 4" label={{ value:'Safety floor', position:'right', fill:'#F87171', fontSize:10 }} />
+            <Line type="monotone" dataKey="closing" name="Closing balance" stroke="var(--gold)" strokeWidth={2} dot={{ r:3, fill:'var(--gold)' }} />
+            <Line type="monotone" dataKey="net" name="Net flow" stroke="var(--teal)" strokeWidth={1.5} dot={{ r:2, fill:'var(--teal)' }} />
+            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }

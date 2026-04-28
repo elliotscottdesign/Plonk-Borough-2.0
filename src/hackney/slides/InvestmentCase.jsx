@@ -30,7 +30,7 @@ const STRENGTHS = [
   {
     key: 'streams', icon: '🎯',
     title: 'Multiple Revenue Streams',
-    body: () => 'Bar takings + bookings + private hires + events + service charge. Less dependent on drink-only margins. Source split TBD pending bar-only restatement.',
+    body: () => 'Bar takings ~87% of 2025 income (£485k of £558k aggregate). Bookings, online golf, tournaments and pool tickets fill out the rest. Less dependent on drink-only margins.',
   },
   {
     key: 'noExit', icon: '⚡',
