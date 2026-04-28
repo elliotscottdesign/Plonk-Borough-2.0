@@ -246,7 +246,7 @@ function TabFloorPlan() {
     { label: 'TOTAL CAPACITY',     badge: 'EXCLUDES STAFF',                  value: '67',     color: '#4FC3F7' },
     { label: 'PREMISES LICENCE',   badge: null,                              value: '109311', color: '#C9A84C' },
     { label: 'TRADING HOURS',      badge: 'PER LICENCE',                     value: '23:30',  color: '#2DD4BF' },
-    { label: 'PLANNING USE CLASS', badge: 'CONFIRM',                         value: 'TBD',    color: '#C9A84C' },
+    { label: 'PLANNING USE CLASS', badge: 'GRANTED',                         value: 'Sui Generis', color: '#10B981' },
   ]
   return (
     <div style={{ display:'grid', gridTemplateColumns:'1.4fr 1fr', gap:20, alignItems:'start' }}>
@@ -454,7 +454,7 @@ function TabDevelopment() {
               'Active resident voice — three formal objections to the 2023 hours-extension variation, citing noise, breach allegations and dispersal nuisance',
               'The rear terrace / former crazy-golf area has no soundproofing — lifted directly from the residents\' Licensing Sub-Committee submission',
               'Any hours extension or capacity uplift requires a soundproofing investment + dispersal policy as a precondition',
-              'The site was originally light industrial — change-of-use was never formally granted alongside the licence',
+              'Site change-of-use is now Sui Generis (granted) — the planning question that drove resident concern in 2023 is settled',
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#F87171" /><span>{item}</span></div>)}
           </div>
           <div style={card('#C9A84C')}>
@@ -515,7 +515,7 @@ function TabDevelopment() {
               'Bar fit-out completion (back-bar, glasswash positioning, service stations)',
               'Frontage signage rebrand to No Dice Hackney — conservation-area review for new external signage',
               'Internal acoustic treatment (rear wall, ceiling baffles)',
-              'Operates inside the existing planning use — TBD: confirm planning class on transfer (was light industrial originally)',
+              'Operates inside the granted Sui Generis planning use — bespoke class explicitly recognises the entertainment-led operation',
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#C9A84C" /><span>{item}</span></div>)}
           </div>
           <div style={card('#4FC3F7')}>
