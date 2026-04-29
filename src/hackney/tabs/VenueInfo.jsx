@@ -1,4 +1,8 @@
 import React, { useState } from 'react'
+import { HACKNEY_RAISE_TARGET } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
+
+const fmtRaise = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 // VenueInfo — clones Borough's sub-tab structure exactly, populated for the
 // Hackney bar-only entity. Mini-golf-specific copy and the "Course Gallery"
@@ -465,6 +469,9 @@ function TabLicence() {
 // DEVELOPMENT — Hackney-specific strategies, residential context considered
 // =============================================================================
 function TabDevelopment() {
+  const { snapshot, isLocked } = useLockedUseOfFunds()
+  const raiseTotal = isLocked && snapshot ? snapshot.total : HACKNEY_RAISE_TARGET
+  const raiseLabel = fmtRaise(raiseTotal)
   const Arr = ({c}) => <span style={{ color:c, flexShrink:0 }}>→</span>
   const Tag = ({label,color}) => <span style={{ fontSize:11, border:`1px solid ${color}`, color, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase', marginRight:8, display:'inline-block', marginBottom:6 }}>{label}</span>
   const Bar = ({label,pct,val,color}) => (
@@ -538,7 +545,7 @@ function TabDevelopment() {
         <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:8 }}>Phase 1 · Day-1 Development</div>
         <h2 style={{ fontSize:'clamp(1.5rem,3vw,2.2rem)', fontWeight:900, color:'#fff', textTransform:'uppercase', marginBottom:12 }}>Within Existing Licence — In Scope at Reopening</h2>
         <p style={{ fontSize:14, color:'#9CA3AF', lineHeight:1.6, marginBottom:24 }}>
-          The £100k Use of Funds covers four physical works that operate inside the current premises licence and conservation envelope. No external consents required.
+          The {raiseLabel} Use of Funds covers four physical works that operate inside the current premises licence and conservation envelope. No external consents required.
         </p>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
           <div style={card('#2DD4BF')}>
@@ -577,7 +584,7 @@ function TabDevelopment() {
             {[
               'Held by the landlord per the lease — refundable on exit',
               'Paid in 3 monthly instalments of £6,500 inc VAT during the 4-month rent-free start',
-              'Funded from operating cash flow — does not consume the £100k Day-1 raise',
+              `Funded from operating cash flow — does not consume the ${raiseLabel} Day-1 raise`,
               'Establishes rent compliance footing with the freeholder from Day 1',
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#A78BFA" /><span>{item}</span></div>)}
           </div>

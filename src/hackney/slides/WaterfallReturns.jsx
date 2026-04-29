@@ -21,6 +21,30 @@ function calcWaterfall(profit, deal) {
   return { investorDiv, founderDiv, totalInvestor, coc }
 }
 
+// Newton-Raphson IRR. flows = [-investment, year1, year2, ...].
+// Returns the discount rate that makes NPV = 0. Returns NaN if it
+// fails to converge (e.g. all-negative or all-positive flows).
+function computeIRR(flows, guess = 0.5) {
+  if (!flows || flows.length < 2) return NaN
+  let r = guess
+  for (let iter = 0; iter < 80; iter++) {
+    let npv = 0
+    let dnpv = 0
+    for (let t = 0; t < flows.length; t++) {
+      const denom = Math.pow(1 + r, t)
+      npv  += flows[t] / denom
+      dnpv -= t * flows[t] / (denom * (1 + r))
+    }
+    if (Math.abs(npv) < 0.5) return r
+    if (dnpv === 0) break
+    const next = r - npv / dnpv
+    if (!isFinite(next)) break
+    if (Math.abs(next - r) < 1e-7) return next
+    r = next
+  }
+  return r
+}
+
 export default function WaterfallReturns() {
   const { snapshot, isLocked } = useLockedUseOfFunds()
   const effective = isLocked && snapshot
@@ -152,25 +176,34 @@ export default function WaterfallReturns() {
       </div>
 
       {/* 5-Year Share Payout Breakdown */}
-      <FiveYearPayoutBreakdown />
+      <FiveYearPayoutBreakdown investment={effective.investment} isLocked={isLocked} />
     </div>
   )
 }
 
 // ─── 5-Year share payout schedule + cumulative tracker ────────────────
-// Shows year-by-year how the £100k investor stake gets paid back via
-// pro-rata dividends + Year 5 exit. Mirrors Borough's payout-schedule
-// presentation: per-year revenue, profit, investor + founder share, and
-// cumulative-back-to-investor tracker. Total returned, MoM, IRR at the
-// bottom for the headline summary.
-function FiveYearPayoutBreakdown() {
+// Shows year-by-year how the investor stake gets paid back via pro-rata
+// dividends + Year 5 exit. Investor's £-share of each year's profit is
+// fixed (50% of operating profit, independent of investment size), so
+// dividend rows stay constant — only MoM, CoC and IRR scale with the
+// locked investment amount. Mirrors Borough's payout-schedule layout.
+function FiveYearPayoutBreakdown({ investment, isLocked }) {
   const r = HACKNEY_INVESTOR_RETURNS
-  const investment = 100000
+  // Recompute investor-side metrics live from the locked investment so
+  // MoM / CoC / IRR cascade from the Use-of-Funds slider. Y1–Y5 share
+  // amounts are baked into HACKNEY_INVESTOR_RETURNS (50/50 split holds
+  // regardless of investment, so they don't change).
+  const cashFlows = [-investment, ...r.fiveYear.map((y, i) =>
+    i === r.fiveYear.length - 1 ? y.investorShare + r.exit.investorProceeds : y.investorShare
+  )]
+  const totalReturned   = r.cumulativeDividends + r.exit.investorProceeds
+  const multipleOfMoney = investment > 0 ? totalReturned / investment : 0
+  const irr             = computeIRR(cashFlows)
   let cumInv = 0
   return (
     <div style={{ marginTop: 40 }}>
       <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-        5-Year Share Payout Schedule
+        5-Year Share Payout Schedule{isLocked ? ' · Locked' : ''}
       </div>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
         How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. Each year's profit splits 50/50 with the founder. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend. No preferred return, no priority tiers — investor and founder track exactly together.
@@ -212,9 +245,9 @@ function FiveYearPayoutBreakdown() {
           <span style={{ color: 'var(--cream)' }}>Total returned</span>
           <span></span>
           <span></span>
-          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{fmt(r.totalReturned)}</span>
+          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{fmt(totalReturned)}</span>
           <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(r.cumulativeDividends + r.exit.founderProceeds)}</span>
-          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{r.multipleOfMoney.toFixed(2)}× MoM</span>
+          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{multipleOfMoney.toFixed(2)}× MoM</span>
         </div>
       </div>
 
@@ -222,8 +255,8 @@ function FiveYearPayoutBreakdown() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
         <SummaryTile label="Cumulative dividends Y1–Y5"  value={fmt(r.cumulativeDividends)}    sub="Pure pro-rata, paid annually" />
         <SummaryTile label="Y5 exit proceeds"             value={fmt(r.exit.investorProceeds)} sub={`50% of £${(r.exit.businessValue/1000).toFixed(0)}k business value`} />
-        <SummaryTile label="Total returned · MoM"          value={`${r.multipleOfMoney.toFixed(2)}×`}             sub={`${fmt(r.totalReturned)} on £100,000`} colour="#10B981" />
-        <SummaryTile label="IRR"                            value={`${(r.irr*100).toFixed(1)}%`} sub="5-year internal rate of return" colour="#10B981" />
+        <SummaryTile label="Total returned · MoM"          value={`${multipleOfMoney.toFixed(2)}×`}             sub={`${fmt(totalReturned)} on ${fmt(investment)}`} colour="#10B981" />
+        <SummaryTile label="IRR"                            value={isFinite(irr) ? `${(irr*100).toFixed(1)}%` : '—'} sub="5-year internal rate of return" colour="#10B981" />
       </div>
     </div>
   )

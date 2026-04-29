@@ -1,17 +1,27 @@
 import React from 'react'
-import { DEAL } from '../../data/hackney.js'
+import { DEAL, computeDealFromInvestment } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // MarketContext — clones Borough's structure: market benchmarks list,
 // "Deal in One Line" gold card, sector reality items, differentiators grid.
 // All sources/copy mirror Borough; numbers swapped for Hackney where they apply.
+// The implied EBITDA multiple in the benchmarks table + Deal-in-One-Line
+// reads from the locked Use-of-Funds snapshot when locked, so the
+// market-positioning narrative stays consistent with the slider.
 
 export default function MarketContext() {
+  const { snapshot, isLocked } = useLockedUseOfFunds()
+  const effective = isLocked && snapshot
+    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
+    : DEAL
+  const dealMultiple = effective.impliedMult ?? DEAL.multiple
+
   const benchmarks = [
     { multiple: '~5.3×',                          label: 'UK Mid-Market Average (EBITDA multiple)',     tag: 'Above this deal',           highlight: false },
     { multiple: '~4.1×',                          label: 'Hospitality & Leisure Sector Average',         tag: 'Above this deal',           highlight: false },
     { multiple: '~2–4×',                          label: 'Small Single-Site Venues (<£200k EBITDA)',     tag: 'In range',                   highlight: false },
     { multiple: '~2–3×',                          label: 'Distressed Asset Range (liquidation)',         tag: 'Below — priced for return', highlight: false },
-    { multiple: `${DEAL.multiple.toFixed(2)}×`,   label: 'No Dice Hackney — This Deal',                  tag: '→ Entry point',              highlight: true  },
+    { multiple: `${dealMultiple.toFixed(2)}×`,   label: 'No Dice Hackney — This Deal',                  tag: '→ Entry point',              highlight: true  },
   ]
 
   const sectorReality = [
@@ -67,7 +77,7 @@ export default function MarketContext() {
         <div style={{ background:'#13131A', border:'2px solid #C9A84C', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>→ The Deal in One Line</div>
           <p style={{ fontSize:14, color:'#F5F0E8', lineHeight:1.7, marginBottom:20 }}>
-            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{DEAL.multiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
+            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{dealMultiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
           </p>
           {checks.map((c, i) => (
             <div key={i} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, padding:'10px 14px', marginBottom:8 }}>

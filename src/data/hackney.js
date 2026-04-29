@@ -54,12 +54,14 @@ export const DEAL = {
   postMoney: 200000,
   preferred: 0,                  // no preferred return
   aSharePriority: 0,             // no founder priority slice
-  // TBD: tie these to Y1 base case once forecast operating profit is finalised.
-  // Current placeholders use Y1 forecast profit £45,632 × 50% = £22,816 (50/50 pro-rata).
-  investorDividend: 22816,
-  totalInvestorReturn: 22816,
-  coc: 0.2282,                   // 22.82% on £100k invested
-  payback: 4.38,                 // years (100,000 / 22,816)
+  // Defaults reflect the latest Y1 base case profit £90,598 × 50% = £45,299
+  // (50/50 pro-rata). Slides that consume the locked Use-of-Funds snapshot
+  // override these via computeDealFromInvestment(snapshot.total); these
+  // constants are the un-locked fallback only.
+  investorDividend: 45299,
+  totalInvestorReturn: 45299,
+  coc: 0.4530,                   // 45.30% on £100k invested
+  payback: 2.21,                 // years (100,000 / 45,299)
   aShareThreshold: 10000,        // 5% of post-money — governance floor
 }
 
@@ -372,16 +374,18 @@ export const MARKETING = {
 
 // === WATERFALL ===
 // Pure pro-rata 50/50. No preferred, no founder priority slice.
-// Y1 base profit £45,632 → £22,816 each.
+// Y1 base profit £90,598 → £45,299 each. Slides that consume a locked
+// Use-of-Funds snapshot recompute these live; this constant is the
+// un-locked fallback.
 export const WATERFALL = {
-  operatingProfit: 45632,
+  operatingProfit: 90598,
   preferred: 0,
   aSharePriority: 0,
-  remainingPool: 45632,
-  investorDividend: 22816,
-  founderDividend: 22816,
-  totalInvestor: 22816,
-  totalFounder: 22816,
+  remainingPool: 90598,
+  investorDividend: 45299,
+  founderDividend: 45299,
+  totalInvestor: 45299,
+  totalFounder: 45299,
 }
 
 // === 5-YEAR INVESTOR RETURNS ===

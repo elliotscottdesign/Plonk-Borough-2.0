@@ -14,6 +14,7 @@ import {
   HACKNEY_CASH,
   HACKNEY_FIXED_COSTS_2025,
   USE_OF_FUNDS,
+  HACKNEY_RAISE_TARGET,
   WAGE_RATES,
   PL_WAGE_BASE,
   ROTA_TOTAL,
@@ -702,7 +703,7 @@ function TabCashflow() {
     : (() => {
         const explicit = USE_OF_FUNDS.map(u => ({ label: u.item, amount: u.amount }))
         const allocated = explicit.reduce((s, r) => s + r.amount, 0)
-        const wc = Math.max(0, 100000 - allocated)   // HACKNEY_RAISE_TARGET = 100k
+        const wc = Math.max(0, HACKNEY_RAISE_TARGET - allocated)
         return [...explicit, { label: 'Working Capital (residual)', amount: wc, residual: true }]
       })()
   const day1Total = day1.reduce((s, r) => s + r.amount, 0)
