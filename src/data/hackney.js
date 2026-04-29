@@ -314,6 +314,19 @@ export const WAGE_RATES = [
   { role: 'Manager',       rate: 18.26, hours: 2080,   color: '#0D9488' },  // 40 × 52 (salaried)
 ]
 
+// Raw rota figures as recorded in the live rota cloud — kept here so the
+// 2025 Performance tab can render a transparent investor-facing wage
+// reconciliation (raw rota → manual salaried correction → financial truth).
+// These are the figures an investor will see if they pull the rota Google
+// Sheet directly; the two salaried roles come in below 40 × 52 because the
+// rota only logs on-floor scheduled shifts, not management / admin time.
+export const WAGE_RATES_ROTA_RAW_2025 = [
+  { role: 'Bar Staff',     rate: 13.82, hoursRaw: 4506.3, hoursAdjusted: 4506.3, salaried: false, color: '#E67E22' },
+  { role: 'Supervisor',    rate: 15.12, hoursRaw: 1216.5, hoursAdjusted: 1216.5, salaried: false, color: '#D4A843' },
+  { role: 'Asst. Manager', rate: 16.46, hoursRaw: 1796.2, hoursAdjusted: 2080,   salaried: true,  color: '#94A3B8' },
+  { role: 'Manager',       rate: 18.26, hoursRaw: 1375.1, hoursAdjusted: 2080,   salaried: true,  color: '#0D9488' },
+]
+
 // === WAGE FINANCIAL TRUTH — Weekly Merged 2024-2026 ==================
 // Methodology rule for the Hackney deck: the only true financial wage
 // data for 2025 comes from Weekly Merged 2024-2026 (which is what

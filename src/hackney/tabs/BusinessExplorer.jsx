@@ -15,6 +15,7 @@ import {
   HACKNEY_FIXED_COSTS_2025,
   USE_OF_FUNDS,
   WAGE_RATES,
+  WAGE_RATES_ROTA_RAW_2025,
   PL_WAGE_BASE,
   ROTA_TOTAL,
   WAGE_OVERHEAD_MULT,
@@ -71,6 +72,9 @@ function Tab2025() {
 
       <STitle>Hours — 2025 Rota Reference (4-role bar-only)</STitle>
       <WageRotaReference />
+
+      <STitle>Wage Reconciliation — Investor Fact-Check</STitle>
+      <WageReconciliation />
     </div>
   )
 }
@@ -270,6 +274,105 @@ function WageRotaReference() {
       <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:10, lineHeight:1.6 }}>
         Source: live rota Google Sheet · 2025 bar-only shifts (Bar Staff, Supervisor, Asst. Manager, Manager — Golf Host + Kitchen excluded). <strong style={{ color:'var(--cream)' }}>Operational data only — no £ values attributed at the rota level.</strong> Total bar wage spend for 2025 ({fmt(PL_WAGE_BASE)}) is shown on the top-line cards above; that figure is the financial truth, sourced from Weekly Merged 2024-2026 / Monthly Summary G15.
       </div>
+    </div>
+  )
+}
+
+// ─── Wage Reconciliation — investor fact-check panel ──────────────────
+// Surfaces the discrepancy between what an investor will see if they pull
+// the live rota Google Sheet directly vs the figures used elsewhere on
+// the deck. Three blocks: (1) raw rota as recorded, (2) manual salaried
+// correction applied for Manager + Asst. Manager (the rota cloud only
+// logs on-floor scheduled shifts and under-counts both salaried roles),
+// (3) reconciliation to financial truth from Weekly Merged 2024-2026.
+//
+// Any investor doing forensic fact-checking can see exactly which
+// figures move, by how much, and why.
+function WageReconciliation() {
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const rows = WAGE_RATES_ROTA_RAW_2025
+  const totalRaw      = rows.reduce((s, r) => s + r.hoursRaw, 0)
+  const totalAdjusted = rows.reduce((s, r) => s + r.hoursAdjusted, 0)
+  const netAdd        = totalAdjusted - totalRaw
+  const adjustedGross = rows.reduce((s, r) => s + r.rate * r.hoursAdjusted, 0)
+  const impliedLoading = PL_WAGE_BASE / adjustedGross - 1
+  const correctedRows = rows.filter(r => r.salaried)
+
+  return (
+    <div className="card" style={{ padding:18 }}>
+      {/* Lead disclaimer */}
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:16, padding:'10px 14px', background:'rgba(234,179,8,0.06)', borderLeft:'3px solid #EAB308', borderRadius:4 }}>
+        <strong style={{ color:'#EAB308' }}>For investor fact-check.</strong> If you pull the live rota Google Sheet directly you will see fewer hours than the Hours Rota Reference card above. The two numbers reconcile here: <strong style={{ color:'var(--cream)' }}>Manager + Asst. Manager are salaried</strong>, and the rota cloud only logs their on-floor scheduled shifts — not management / admin / supplier / HR time. Their salaries already cover full-time work and the financial wage line on Weekly Merged reflects that, so we set both roles to <strong style={{ color:'var(--cream)' }}>40 × 52 = 2,080 hrs</strong> as the contracted basis. Hourly-paid roles (Bar Staff, Supervisor) stay at the rota-recorded figure.
+      </div>
+
+      {/* Block 1: Raw rota */}
+      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>1 · Rota cloud — as recorded in 2025</div>
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1.5fr', gap:12, fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
+        <span>Role</span><span style={{ textAlign:'right' }}>Hours (raw)</span><span style={{ textAlign:'right' }}>Note</span>
+      </div>
+      {rows.map(r => (
+        <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1.5fr', gap:12, padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, alignItems:'baseline' }}>
+          <span style={{ color:'var(--cream)' }}>
+            <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}
+          </span>
+          <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hoursRaw.toLocaleString('en-GB')}</span>
+          <span style={{ color: r.salaried ? '#EAB308' : 'var(--cream-dim)', textAlign:'right', fontSize:11 }}>
+            {r.salaried ? '⚠ rota under-records salaried' : 'hourly · rota is truth'}
+          </span>
+        </div>
+      ))}
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1.5fr', gap:12, padding:'12px 0 4px', fontSize:14, fontWeight:600 }}>
+        <span style={{ color:'var(--cream)' }}>Rota cloud total</span>
+        <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{totalRaw.toLocaleString('en-GB')} hrs</span>
+        <span></span>
+      </div>
+
+      {/* Block 2: Manual salaried correction */}
+      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', margin:'24px 0 8px', fontWeight:600 }}>2 · Manual correction — salaried roles to 40 × 52</div>
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1fr 0.8fr', gap:12, fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
+        <span>Role</span><span style={{ textAlign:'right' }}>Raw</span><span style={{ textAlign:'right' }}>Adjusted</span><span style={{ textAlign:'right' }}>Δ</span>
+      </div>
+      {correctedRows.map(r => {
+        const delta = r.hoursAdjusted - r.hoursRaw
+        return (
+          <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1fr 0.8fr', gap:12, padding:'9px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, alignItems:'baseline' }}>
+            <span style={{ color:'var(--cream)' }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}
+            </span>
+            <span style={{ color:'var(--cream-dim)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hoursRaw.toLocaleString('en-GB')}</span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hoursAdjusted.toLocaleString('en-GB')}</span>
+            <span style={{ color:'#10B981', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>+{delta.toLocaleString('en-GB', { maximumFractionDigits: 1 })}</span>
+          </div>
+        )
+      })}
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1fr 0.8fr', gap:12, padding:'12px 0 4px', fontSize:14, fontWeight:600 }}>
+        <span style={{ color:'var(--cream)' }}>Net add</span>
+        <span></span><span></span>
+        <span style={{ color:'#10B981', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>+{netAdd.toLocaleString('en-GB', { maximumFractionDigits: 1 })} hrs</span>
+      </div>
+
+      {/* Block 3: Adjusted basis + reconciliation to financial truth */}
+      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', margin:'24px 0 8px', fontWeight:600 }}>3 · Adjusted basis · reconciliation to financial truth</div>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
+        <ReconTile label="Adjusted hours total"  value={`${totalAdjusted.toLocaleString('en-GB', { maximumFractionDigits: 1 })} hrs`} sub="Used in calculator + 2025 reference" colour="var(--gold)" />
+        <ReconTile label="Adjusted gross (rate × hours)" value={fmt(adjustedGross)} sub="Sum of role-by-role rota basis" colour="var(--cream)" />
+        <ReconTile label="Weekly Merged G15 (financial truth)" value={fmt(PL_WAGE_BASE)} sub={`Implied loading +${(impliedLoading * 100).toFixed(1)}% (NIC + pension + holiday)`} colour="#10B981" />
+      </div>
+
+      {/* Footnote */}
+      <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.04)', borderLeft:'3px solid #2DD4BF', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+        <strong style={{ color:'#2DD4BF' }}>Bottom line:</strong> the rota cloud's <strong style={{ color:'var(--cream)' }}>{totalRaw.toLocaleString('en-GB')}</strong> raw hours and the deck's <strong style={{ color:'var(--cream)' }}>{totalAdjusted.toLocaleString('en-GB', { maximumFractionDigits:1 })}</strong> adjusted hours both ladder to the same {fmt(PL_WAGE_BASE)} financial-truth wage line on the 2025 P&L. The +{netAdd.toLocaleString('en-GB', { maximumFractionDigits:1 })} hrs adjustment isn't a number we've invented — it's the salaried element of management pay that the rota tool simply doesn't track. Investor verification path: Weekly Merged 2024-2026 (rows 14–24) sums to £179,872 regardless of which view you take of the rota.
+      </div>
+    </div>
+  )
+}
+
+function ReconTile({ label, value, sub, colour }) {
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8, padding:14 }}>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6 }}>{label}</div>
+      <div className="serif" style={{ fontSize:'clamp(1.1rem, 1.8vw, 1.4rem)', color: colour || 'var(--cream)', lineHeight:1, marginBottom:6, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>{sub}</div>
     </div>
   )
 }
