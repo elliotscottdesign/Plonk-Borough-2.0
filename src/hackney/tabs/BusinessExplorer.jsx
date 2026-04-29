@@ -87,7 +87,10 @@ function TopLineCards() {
     { label: 'Variable Costs',   value: ACTUALS_2025.variableCosts, colour: '#A78BFA' },
     { label: 'Fixed Costs',      value: ACTUALS_2025.fixedCosts,    colour: '#F87171' },
     { label: 'VAT (Net)',        value: ACTUALS_2025.vatNet,        colour: '#9CA3AF' },
-    { label: 'EBITDA',           value: ACTUALS_2025.ebitda,        colour: '#10B981' },
+    // Bar-only entity, no depreciation line ⇒ Operating Profit = EBITDA.
+    // Surfaced as "Operating Profit" so it reads as profit at a glance;
+    // EBITDA shown as a sub-label for investors who think in those terms.
+    { label: 'Operating Profit', value: ACTUALS_2025.profit,        colour: '#10B981', sub: '= EBITDA · no D&A line' },
   ]
   return (
     <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
@@ -95,6 +98,7 @@ function TopLineCards() {
         <div key={c.label} className="card" style={{ padding:14 }}>
           <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{c.label}</div>
           <div className="serif" style={{ fontSize:'clamp(1.2rem, 2.2vw, 1.6rem)', color: c.colour, lineHeight:1 }}>{fmtMoney(c.value)}</div>
+          {c.sub && <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:6 }}>{c.sub}</div>}
         </div>
       ))}
     </div>
