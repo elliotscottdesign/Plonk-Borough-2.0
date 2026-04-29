@@ -16,17 +16,12 @@ import React, { useState } from 'react'
 //     transferred from Network Rail to Blackstone / Telereal Trillium JV.
 
 const TABS = [
-  { key: 'catchment',     label: 'Catchment' },
-  { key: 'location',      label: 'Location' },
-  { key: 'floorPlan',     label: 'Floor Plan' },
-  { key: 'courseGallery', label: 'Course' },
-  { key: 'venueGallery',  label: 'Venue' },
-  { key: 'gardenGallery', label: 'Garden' },
-  { key: 'drinksGallery', label: 'Drinks' },
-  { key: 'gamesGallery',  label: 'Games' },
-  { key: 'poolGallery',   label: 'Pool Nights' },
-  { key: 'licence',       label: 'Licence' },
-  { key: 'development',   label: 'Development' },
+  { key: 'catchment',  label: 'Catchment' },
+  { key: 'location',   label: 'Location' },
+  { key: 'floorPlan',  label: 'Floor Plan' },
+  { key: 'gallery',    label: 'Gallery' },
+  { key: 'licence',    label: 'Licence' },
+  { key: 'development',label: 'Development' },
 ]
 
 const range = (n, fn) => Array.from({ length: n }, (_, i) => fn(i + 1))
@@ -37,6 +32,58 @@ const GARDEN_IMGS = range(8,  n => ({ src: `/hackney/garden/Garden_${n}.jpg`,  c
 const DRINKS_IMGS = range(15, n => ({ src: `/hackney/drinks/Drinks_${n}.jpg`,  caption: 'No Dice Hackney — bar & drinks' }))
 const GAMES_IMGS  = range(9,  n => ({ src: `/hackney/games/Games_${n}.jpg`,    caption: 'No Dice Hackney — games & arcade' }))
 const POOL_IMGS   = range(12, n => ({ src: `/hackney/pool/Pool_${n}.jpg`,      caption: 'No Dice Hackney — pool nights' }))
+
+const GALLERIES = [
+  { key: 'venue',  label: 'Venue',       images: VENUE_IMGS },
+  { key: 'course', label: 'Course',      images: COURSE_IMGS },
+  { key: 'garden', label: 'Garden',      images: GARDEN_IMGS },
+  { key: 'drinks', label: 'Drinks',      images: DRINKS_IMGS },
+  { key: 'games',  label: 'Games',       images: GAMES_IMGS },
+  { key: 'pool',   label: 'Pool Nights', images: POOL_IMGS },
+]
+
+function GalleryHub() {
+  const [activeKey, setActiveKey] = useState(GALLERIES[0].key)
+  const active = GALLERIES.find(g => g.key === activeKey) || GALLERIES[0]
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:24, alignItems:'start' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:2, borderRight:'1px solid rgba(201,168,76,0.12)', paddingRight:16 }}>
+        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, padding:'4px 12px 10px' }}>Galleries</div>
+        {GALLERIES.map(g => {
+          const isActive = g.key === activeKey
+          return (
+            <button
+              key={g.key}
+              onClick={() => setActiveKey(g.key)}
+              style={{
+                textAlign:'left',
+                padding:'10px 12px',
+                fontSize:13,
+                cursor:'pointer',
+                border:'none',
+                background: isActive ? 'rgba(201,168,76,0.10)' : 'transparent',
+                color: isActive ? 'var(--gold)' : 'var(--cream-dim)',
+                borderLeft:`2px solid ${isActive ? 'var(--gold)' : 'transparent'}`,
+                borderRadius:'0 6px 6px 0',
+                letterSpacing:'0.04em',
+                fontWeight: isActive ? 600 : 400,
+                display:'flex',
+                justifyContent:'space-between',
+                alignItems:'center',
+                gap:8,
+                transition:'all 0.15s',
+              }}
+            >
+              <span>{g.label}</span>
+              <span style={{ fontSize:11, color: isActive ? 'var(--gold-dim)' : 'rgba(255,255,255,0.3)' }}>{g.images.length}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div><Gallery key={active.key} images={active.images} /></div>
+    </div>
+  )
+}
 
 function Gallery({ images }) {
   const [active, setActive] = useState(0)
@@ -625,17 +672,12 @@ function TabDevelopment() {
 export default function VenueInfo() {
   const [tab, setTab] = useState('catchment')
   const tabComponents = {
-    catchment:     <TabCatchment />,
-    location:      <TabLocation />,
-    floorPlan:     <TabFloorPlan />,
-    courseGallery: <Gallery images={COURSE_IMGS} />,
-    venueGallery:  <Gallery images={VENUE_IMGS} />,
-    gardenGallery: <Gallery images={GARDEN_IMGS} />,
-    drinksGallery: <Gallery images={DRINKS_IMGS} />,
-    gamesGallery:  <Gallery images={GAMES_IMGS} />,
-    poolGallery:   <Gallery images={POOL_IMGS} />,
-    licence:       <TabLicence />,
-    development:   <TabDevelopment />,
+    catchment:   <TabCatchment />,
+    location:    <TabLocation />,
+    floorPlan:   <TabFloorPlan />,
+    gallery:     <GalleryHub />,
+    licence:     <TabLicence />,
+    development: <TabDevelopment />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
