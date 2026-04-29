@@ -12,15 +12,23 @@ import { useTranslation } from 'react-i18next'
 //               sees the ticket slider locked even though everything
 //               else is read-only by default for non-founders too)
 //
-// Plonk is now PRIVATE — only 888999 (founder) and VALEX (investor)
-// can see it. TEST1 and BRAZIL get the standard 3-tab investor view.
-// Brazilian Portuguese remains an in-app EN | PT toggle (no code).
+// Plonk is now PRIVATE — only 888999 (founder), VALEX and JOHN1 see it.
+// TEST1 and BRAZIL get the standard 3-tab investor view. Brazilian
+// Portuguese remains an in-app EN | PT toggle (no code).
+//
+// JOHN1 is an "observer-founder" tier — same slider + lock access as the
+// real founder (can drag every slider, lock every value, see every
+// page) but the role tag is 'observer' so any external-sheet-write or
+// document-edit flow that ever ships should gate against it. The deck
+// itself doesn't currently push to external sheets from the UI, so in
+// practice JOHN1 ≡ 888999 inside the app today.
 // ───────────────────────────────────────────────────────────────────────
 const ACCESS_CODES = {
-  '888999': { plonk: true,  founder: true,  role: 'founder' },
-  'VALEX':  { plonk: true,  founder: false, role: 'valex'   },
-  'TEST1':  { plonk: false, founder: false, role: 'test'    },
-  'BRAZIL': { plonk: false, founder: false, role: 'brazil'  },
+  '888999': { plonk: true,  founder: true,  role: 'founder'  },
+  'JOHN1':  { plonk: true,  founder: true,  role: 'observer' },
+  'VALEX':  { plonk: true,  founder: false, role: 'valex'    },
+  'TEST1':  { plonk: false, founder: false, role: 'test'     },
+  'BRAZIL': { plonk: false, founder: false, role: 'brazil'   },
 }
 
 export default function PasswordGate({ onUnlock }) {
