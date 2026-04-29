@@ -1024,6 +1024,15 @@ export const HACKNEY_DMN_GRAND_2025 = {
   tokensOnline:    15098,                                // 4-token SKUs × qty + Add-Five × qty
   tokensOffice:     4385,                                // same calc for external SKUs
   tokensTotal:     19483,                                // bundled into Hackney DMN tickets in 2025
+  // The actual £ paid out to arcade-machine operators per token is
+  // already booked inside the bar P&L's "Arcades" cost category
+  // (COST_CATEGORIES → Arcades, ~£8,202 for 2025). The Weekly Merged
+  // 2024-2026 sheet's ARCADES rows (Pinball Geoff + LTF/JP) net to
+  // £7,850.19 across 52 weeks of 2025 — small variance to the £8,202
+  // P&L figure is normal categorisation rounding. No separate token-
+  // settlement line needs to be modelled — this cost is already inside
+  // the Variable Costs / Arcades line on the 2025 Performance tab.
+  arcadesPaidWeeklyMerged2025: 7850.19,                  // financial truth from Weekly Merged ARCADES rows
 }
 
 // === IP & LICENSING — NOT APPLICABLE TO HACKNEY ===

@@ -406,7 +406,10 @@ function DmnSkuBreakdown() {
           </div>
         </div>
         <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, paddingTop:12, borderTop:'1px solid rgba(45,212,191,0.2)' }}>
-          <strong style={{ color:'var(--cream)' }}>The mechanic:</strong> token revenue is entirely a No Dice line. Customers pay for tokens (either bundled inside an online ticket SKU or directly at the bar till) and use them in the venue's arcade machines. The new golf operator runs the course but takes no share of any token value sold inside SKUs or at the bar — token income flows wholly to the No Dice bar entity.
+          <strong style={{ color:'var(--cream)' }}>The mechanic:</strong> token revenue is entirely a No Dice line. Customers pay for tokens (either bundled inside an online ticket SKU or directly at the bar till) and use them in the venue's arcade machines. The new golf operator runs the course but takes no share of any token value — token income flows wholly to No Dice.
+        </div>
+        <div style={{ marginTop:10, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          <strong style={{ color:'var(--cream)' }}>Cost side already accounted for:</strong> the £ actually paid out to the arcade-machine operators (Pinball Geoff, LTF/JP) for tokens used is already booked under the bar P&amp;L's <strong style={{ color:'var(--cream)' }}>Arcades</strong> cost category — ~£{grand.arcadesPaidWeeklyMerged2025.toLocaleString('en-GB', { maximumFractionDigits:0 })} across 52 weeks of 2025 per Weekly Merged 2024-2026 (matches the £8,202 figure on the 2025 Performance tab). No separate token-settlement line is added here to avoid double-counting.
         </div>
       </div>
     </div>
