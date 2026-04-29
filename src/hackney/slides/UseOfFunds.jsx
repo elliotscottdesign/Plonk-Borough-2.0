@@ -35,8 +35,8 @@ function defaultValues() {
   const byKey = Object.fromEntries(USE_OF_FUNDS.map(u => [u.key, u]))
   return {
     stock:     byKey.stock.amount,      // £24,000
-    rentMonths: 3,                      // snap-slider position
-    rent:      byKey.rent.amount,       // £16,250 (3 mo × £65k/12 net)
+    rentMonths: 0,                      // snap-slider position — default = paid monthly from cash
+    rent:      byKey.rent.amount,       // £0 — deposit paid from trading cash during rent-free period
     garden:    byKey.garden.amount,     // £12,000
     interior:  byKey.interior.amount,   // £10,000
     marketing: byKey.marketing.amount,  // £3,000
@@ -62,10 +62,12 @@ function snapshotOf(v) {
   }
 }
 
-// Map from rentMonths (1/2/3) to the £ deposit per the lease.
+// Map from rentMonths (0/1/2/3) to the £ deposit per the lease.
+// 0 = "paid monthly from trading cash" (default — deposit doesn't claim Day-1 raise).
+// 1/2/3 = optional ring-fence from the raise at the inc-VAT figure.
 function rentAmountForMonths(months) {
   const snap = USE_OF_FUNDS_RANGES.rent.snaps.find(s => s.months === months)
-  return snap ? snap.amount : USE_OF_FUNDS_RANGES.rent.snaps[2].amount
+  return snap ? snap.amount : USE_OF_FUNDS_RANGES.rent.snaps[0].amount
 }
 
 export default function UseOfFunds() {
@@ -196,7 +198,7 @@ export default function UseOfFunds() {
           return (
             <div key={key} style={{ marginBottom: 10 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: 'var(--cream)' }}>{meta.item}{key === 'rent' ? ` (${display.rentMonths} ${display.rentMonths === 1 ? 'month' : 'months'})` : ''}</span>
+                <span style={{ fontSize: 13, color: 'var(--cream)' }}>{meta.item}{key === 'rent' ? (display.rentMonths === 0 ? ' (paid monthly)' : ` (${display.rentMonths} ${display.rentMonths === 1 ? 'month' : 'months'})`) : ''}</span>
                 <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmt(amount)} <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}>· {(pct * 100).toFixed(1)}%</span></span>
               </div>
               <div style={{ height: 4, background: 'rgba(201,168,76,0.08)', borderRadius: 2 }}>
@@ -290,7 +292,7 @@ function ContinuousSlider({ meta, range, value, onChange, disabled }) {
 
 function RentSnapSlider({ meta, months, onChange, disabled }) {
   const snaps = USE_OF_FUNDS_RANGES.rent.snaps
-  const current = snaps.find(s => s.months === months) || snaps[2]
+  const current = snaps.find(s => s.months === months) || snaps[0]
   return (
     <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:18 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>

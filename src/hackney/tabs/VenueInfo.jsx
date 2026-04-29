@@ -572,13 +572,13 @@ function TabDevelopment() {
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#4FC3F7" /><span>{item}</span></div>)}
           </div>
           <div style={card('#A78BFA')}>
-            <div style={{ display:'inline-block', fontSize:11, color:'#A78BFA', border:'1px solid #A78BFA', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>£16,250 net</div>
+            <div style={{ display:'inline-block', fontSize:11, color:'#A78BFA', border:'1px solid #A78BFA', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>£19,500 inc VAT · paid monthly</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Landlord Rent Deposit (3 months)</h3>
             {[
-              'Held by The Arch Company per the lease — refundable on exit',
-              'Pre-trade cash protection — does not consume working capital',
+              'Held by the landlord per the lease — refundable on exit',
+              'Paid in 3 monthly instalments of £6,500 inc VAT during the 4-month rent-free start',
+              'Funded from operating cash flow — does not consume the £100k Day-1 raise',
               'Establishes rent compliance footing with the freeholder from Day 1',
-              'No development consent required',
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#A78BFA" /><span>{item}</span></div>)}
           </div>
         </div>

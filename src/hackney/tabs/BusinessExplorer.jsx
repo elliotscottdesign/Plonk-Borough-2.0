@@ -327,7 +327,9 @@ function WageModelBreakdown() {
 //                        4-month rent-free start. Y1 = 8 paying months ×
 //                        £65k/12 = £43,333. Y2 steady = £65,000.
 //                        Y3+ compounds at +3% annual lease uplift.
-//                        3-month deposit on signing (Use of Funds slider).
+//                        Deposit £19,500 inc VAT (3 mo × £6,500), paid in
+//                        3 monthly instalments from operating cash during
+//                        the rent-free period — does NOT consume the raise.
 //   • Business rates:    £16,830 (2025 × 1.10) — Hackney Council confirm.
 //   • Wages:             driven by the wage calculator (default = PL_WAGE_BASE).
 const FORECAST_RULES = {
@@ -546,7 +548,7 @@ function ForecastRulesPanel({ f }) {
         </div>
       ))}
       <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        <strong style={{ color:'var(--teal)' }}>Lease headline:</strong> the new £65,000 + VAT per annum lease (with 4-month rent-free start) means Year 1 pays 8 months × £5,417 = £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving vs 2025's £{rentBase.toLocaleString('en-GB')}. Steady-state Y2 runs at the £65,000 headline (~£29k/yr saving vs the historic figure), then compounds at +3% per annum per the lease uplift clause. 3-month deposit on signing.
+        <strong style={{ color:'var(--teal)' }}>Lease headline:</strong> the new £65,000 + VAT per annum lease (with 4-month rent-free start) means Year 1 pays 8 months × £5,417 = £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving vs 2025's £{rentBase.toLocaleString('en-GB')}. Steady-state Y2 runs at the £65,000 headline (~£29k/yr saving vs the historic figure), then compounds at +3% per annum per the lease uplift clause. Deposit £19,500 inc VAT, paid in 3 monthly instalments during the rent-free period (funded from trading cash, not the raise).
       </div>
     </div>
   )

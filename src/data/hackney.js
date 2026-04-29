@@ -181,7 +181,10 @@ export const HACKNEY_FIXED_COSTS_2026 = {
   rentSteady:       65000,              // Y2 full year
   rentUplift:       0.03,               // 3% annual uplift on rent (Y3+ compounds)
   rentFreeMonths:   4,                  // May–Aug 2026
-  depositMonths:    3,                  // 3-month deposit on lease signing
+  depositMonths:    3,                  // 3-month deposit
+  depositInc:       19500,              // 3 × £6,500 inc VAT — paid monthly during rent-free
+  depositPaidMonthly: true,             // £6,500/mo across the first 3 trading months,
+                                        // overlaps with rent-free start so does not consume Day-1 raise
   rates:            16830,
   otherUplift:      0.10,               // applied to non-rent, non-rates lines
 }
@@ -461,7 +464,7 @@ export const HACKNEY_RAISE_TARGET = 100000
 // "headline" values for each line; founder drags to reallocate.
 export const USE_OF_FUNDS = [
   { key: 'stock',     item: 'Stock Purchase — Liquidators',     amount: 24000, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
-  { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 16250, vat: null,      note: 'Lease deposit — refundable on exit. 3 months × £65,000/12 net rent. Slider snaps to 1, 2 or 3 months.' },
+  { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount:     0, vat: null,      note: 'Lease deposit £19,500 inc VAT (3 mo × £6,500). Paid monthly from trading cash during the 4-month rent-free period — does NOT consume Day-1 raise. Slider lets the founder elect to ring-fence the deposit upfront instead (1 / 2 / 3 months at the inc-VAT figure).' },
   { key: 'garden',    item: 'Garden Refurbishment',             amount: 12000, vat: 'inc VAT', note: 'Outdoor trading area refurb — soundproofing investment is the priority spend.' },
   { key: 'interior',  item: 'Interior Completion & Signage',    amount: 10000, vat: 'inc VAT', note: 'Fit-out completion, signage, internal acoustic treatment.' },
   { key: 'marketing', item: 'Marketing — Pre-launch & Year 1',  amount:  3000, vat: 'inc VAT', note: 'Organic / local listings / events — no paid Google Ads spend.' },
@@ -476,9 +479,10 @@ export const USE_OF_FUNDS = [
 export const USE_OF_FUNDS_RANGES = {
   stock:     { min: 0,    max: 24000, step: 500, label: 'Stock Purchase — Liquidators' },
   rent:      { snaps: [
-    { months: 1, amount:  5417, label: '1 month' },
-    { months: 2, amount: 10833, label: '2 months' },
-    { months: 3, amount: 16250, label: '3 months' },
+    { months: 0, amount:     0, label: 'Paid monthly' },
+    { months: 1, amount:  6500, label: '1 month' },
+    { months: 2, amount: 13000, label: '2 months' },
+    { months: 3, amount: 19500, label: '3 months' },
   ], label: 'Landlord — Rent Deposit' },
   garden:    { min: 1000, max: 12000, step: 500, label: 'Garden Refurbishment' },
   interior:  { min: 1000, max: 12000, step: 500, label: 'Interior Completion & Signage' },
