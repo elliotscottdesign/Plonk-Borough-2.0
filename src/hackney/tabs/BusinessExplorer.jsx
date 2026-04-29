@@ -305,13 +305,15 @@ const FORECAST_RULES = {
 // Merged sub-line breakdowns. Fixed costs are computed from the explicit
 // 2025 sub-line breakdown (HACKNEY_FIXED_COSTS_2025) so we can replace
 // rent and rates with the new figures while uplifting the rest by +10%.
-function buildForecast() {
+function buildForecast(wagesOverride) {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
   const f = 1 + FORECAST_RULES.fixedUplift
 
   const revenue = ACTUALS_2025.revenue * r
-  const wages   = PL_WAGE_BASE
+  // Wages: locked wage-calculator total cascades in here when present;
+  // otherwise fall back to PL_WAGE_BASE (2025 verified actual).
+  const wages   = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
   const stockCats = ['Drinks & Gas', 'Food']
   const otherVarCats = ['Cleaning', 'DJs', 'Arcades']
   const stock = COST_CATEGORIES.filter(c => stockCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
@@ -342,7 +344,7 @@ function buildForecast() {
 // rates are split out and allocated separately: rent is £0 for the first
 // 4 months (rent-free per lease) then £65k/12 ≈ £5,417/mo thereafter;
 // rates split evenly month-to-month.
-function buildForecastMonthly() {
+function buildForecastMonthly(wagesOverride) {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
   const f = 1 + FORECAST_RULES.fixedUplift
@@ -355,6 +357,12 @@ function buildForecastMonthly() {
     .reduce((s, l) => s + l.amount, 0)
   const monthlyFixedTotal2025 = MONTHLY_COSTS.reduce((s, m) => s + m.fixed, 0)
   // Each month's non-rent, non-rates share = mc.fixed × (otherFixed2025Total / monthlyFixedTotal2025) × 1.10
+
+  // When the wage calculator is locked at a different annual total, scale
+  // the per-month 2025 wage shares proportionally so the seasonality is
+  // preserved but the totals match the locked calculator figure.
+  const targetWageAnnual = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
+  const wageScale = PL_WAGE_BASE > 0 ? targetWageAnnual / PL_WAGE_BASE : 1
 
   return MONTHLY_INCOME.map((row, i) => {
     const mc = MONTHLY_COSTS[i]
@@ -372,7 +380,7 @@ function buildForecastMonthly() {
     // 4-month rent-free start.)
     const monthlyRentAvg = FORECAST_RULES.rentY1 / 12
     const fixed = otherFixedShare + monthlyRentAvg + monthlyRates
-    const wages = mc.wages
+    const wages = mc.wages * wageScale
     const totalCost = variable + fixed + wages
     const income = row.amount * r
 
@@ -411,8 +419,12 @@ function buildForecastCosts(fixedNew) {
 }
 
 function Tab2026() {
-  const f = buildForecast()
-  const monthly = buildForecastMonthly()
+  // Locked wage calculator total cascades into the forecast wage line.
+  // When unlocked, buildForecast falls back to PL_WAGE_BASE.
+  const { isWageLocked, wageEffective } = useLockedUseOfFunds()
+  const wagesOverride = isWageLocked ? wageEffective.loadedAnnual : null
+  const f = buildForecast(wagesOverride)
+  const monthly = buildForecastMonthly(wagesOverride)
   const fcIncome = buildForecastIncome()
   const fcCosts = buildForecastCosts(f.fixed)
   // Re-pct fcCosts after individual scaling
@@ -473,6 +485,7 @@ function ForecastTopLineCards({ f }) {
 
 // ─── 2026 — Cost model rules panel ────────────────────────────────────
 function ForecastRulesPanel({ f }) {
+  const { isWageLocked } = useLockedUseOfFunds()
   const rentBase  = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rent').amount
   const ratesBase = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rates').amount
   const otherFixedBase = HACKNEY_FIXED_COSTS_2025
@@ -481,7 +494,7 @@ function ForecastRulesPanel({ f }) {
 
   const rules = [
     { label: 'Revenue growth',         value: '+15%',                           base: ACTUALS_2025.revenue,       forecast: f.revenue,            colour: '#4FC3F7' },
-    { label: 'Wages',                  value: 'calculator',                     base: PL_WAGE_BASE,               forecast: f.wages,              colour: '#E67E22' },
+    { label: 'Wages',                  value: isWageLocked ? '🔒 calculator (locked)' : 'calculator', base: PL_WAGE_BASE, forecast: f.wages, colour: '#E67E22', highlight: isWageLocked },
     { label: 'Stock + variable',       value: '+10%',                           base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar, colour: '#A78BFA' },
     { label: 'Rent (NEW lease)',       value: '£65k+VAT pa · 4-mo free · +3% pa',  base: rentBase,                   forecast: f.rent,               colour: '#F87171', highlight: true },
     { label: 'Business rates',         value: '+10% · TBC w/ council',          base: ratesBase,                  forecast: f.rates,              colour: '#F87171' },
@@ -738,32 +751,62 @@ function CashflowChart() {
 }
 
 // ─── Wage Calculator (2026 Performance) ───────────────────────────────
-// Per-role rate slider + hours input. Live total recomputes against the
-// 2025 rota baseline (PL_WAGE_BASE = £179,872). Differs from Borough's
-// model because Hackney holds 2026 wages flat at 2025 actuals — no
-// inflation assumption baked in. Founder can drag rates / hours to
-// stress-test the wage budget against a different staffing mix.
+// Per-role rate + hours sliders. Loaded annual = gross × WAGE_OVERHEAD_MULT
+// (covers NIC + pension + holiday). Compares to 2025 rota baseline
+// (PL_WAGE_BASE = £179,872). Founder can drag to stress-test a different
+// staffing mix, then Lock — the locked loaded annual flows into
+// buildForecast() as the wages line for the 2026 forecast (replaces
+// PL_WAGE_BASE). Locked snapshot persists via LockedUseOfFundsContext
+// so the figure waterfalls across reloads and to non-founder viewers.
 function WageCalculator() {
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
-  const [rows, setRows] = useState(() =>
-    WAGE_RATES.map(r => ({ ...r }))   // shallow clone so sliders are mutable
-  )
-  const reset = () => setRows(WAGE_RATES.map(r => ({ ...r })))
-  const setField = (idx, key, value) =>
-    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [key]: value } : r))
+  const {
+    wageEffective, isWageLocked, isFounder, canEditWages,
+    setWageRow, lockWages, unlockWages, resetWages,
+    wageSnapshot,
+  } = useLockedUseOfFunds()
 
-  const grossTotal = rows.reduce((s, r) => s + r.rate * r.hours, 0)
-  const loadedTotal = grossTotal * WAGE_OVERHEAD_MULT
+  const rows = wageEffective.rows
+  const grossTotal  = wageEffective.grossAnnual
+  const loadedTotal = wageEffective.loadedAnnual
   const baselineDelta = loadedTotal - PL_WAGE_BASE
   const deltaPct = (baselineDelta / PL_WAGE_BASE) * 100
 
+  const lockedAtLabel = wageSnapshot?.lockedAt
+    ? new Date(wageSnapshot.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
   return (
-    <div className="card" style={{ padding:18 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-        <span style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.5 }}>
-          Drag each role's rate and hours. Loaded total = gross × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday). Compares to 2025 actual {fmt(PL_WAGE_BASE)}.
-        </span>
-        <button onClick={reset} style={{ fontSize:11, padding:'4px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+    <div className="card" style={{ padding:18, border: isWageLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'3px 10px', borderRadius:12,
+            background: isWageLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${isWageLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+            fontSize:10, color: isWageLocked ? '#10B981' : 'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase',
+          }}>
+            <span style={{ fontSize:9 }}>{isWageLocked ? '🔒' : '○'}</span>
+            {isWageLocked ? 'Locked · cascades to 2026 forecast' : 'Live preview'}
+          </span>
+          <span style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.5 }}>
+            Drag each role's rate and hours. Loaded total = gross × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday). 2025 actual {fmt(PL_WAGE_BASE)}.
+          </span>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {isFounder && (
+            <button onClick={resetWages} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+          )}
+          {isFounder && (
+            isWageLocked ? (
+              <button onClick={unlockWages} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+            ) : (
+              <button onClick={lockWages} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+            )
+          )}
+        </div>
       </div>
 
       {rows.map((r, i) => (
@@ -773,11 +816,11 @@ function WageCalculator() {
           </span>
           <div>
             <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Rate · £{r.rate.toFixed(2)}/hr</div>
-            <input type="range" min="10" max="25" step="0.10" value={r.rate} onChange={e => setField(i, 'rate', +e.target.value)} style={{ width:'100%', accentColor:r.color }} />
+            <input type="range" min="10" max="25" step="0.10" value={r.rate} disabled={!canEditWages} onChange={e => setWageRow(i, 'rate', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEditWages ? 'pointer' : 'not-allowed', opacity: canEditWages ? 1 : 0.55 }} />
           </div>
           <div>
             <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Hours · {r.hours.toLocaleString('en-GB')}/yr</div>
-            <input type="range" min="0" max="6000" step="50" value={r.hours} onChange={e => setField(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color }} />
+            <input type="range" min="0" max="6000" step="50" value={r.hours} disabled={!canEditWages} onChange={e => setWageRow(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEditWages ? 'pointer' : 'not-allowed', opacity: canEditWages ? 1 : 0.55 }} />
           </div>
           <span style={{ color:r.color, textAlign:'right', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
         </div>
@@ -790,7 +833,7 @@ function WageCalculator() {
         </div>
         <div>
           <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Loaded / yr</div>
-          <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(loadedTotal)}</div>
+          <div className="serif" style={{ fontSize:18, color: isWageLocked ? '#10B981' : 'var(--gold)' }}>{fmt(loadedTotal)}</div>
         </div>
         <div>
           <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>vs 2025 Actual</div>
@@ -800,6 +843,12 @@ function WageCalculator() {
           <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%</div>
         </div>
       </div>
+
+      {isWageLocked && (
+        <div style={{ marginTop:12, padding:'8px 12px', background:'rgba(16,185,129,0.06)', borderRadius:6, fontSize:11, color:'#10B981' }}>
+          ✓ Locked{lockedAtLabel ? ` · ${lockedAtLabel}` : ''} — {fmt(loadedTotal)} flows into the 2026 forecast wage line above (replaces the £{PL_WAGE_BASE.toLocaleString('en-GB')} default).
+        </div>
+      )}
     </div>
   )
 }

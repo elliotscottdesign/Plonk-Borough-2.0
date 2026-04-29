@@ -1,5 +1,5 @@
 import React from 'react'
-import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import FundingSlider from '../components/FundingSlider.jsx'
 
@@ -10,7 +10,7 @@ import FundingSlider from '../components/FundingSlider.jsx'
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 export default function Cover() {
-  const { effective } = useLockedUseOfFunds()
+  const { effective, isWageLocked, wageEffective } = useLockedUseOfFunds()
 
   // Build a deal-shape struct — DEAL constants for governance fields
   // (investor/founder equity etc.) overlaid with the live computed
@@ -19,11 +19,11 @@ export default function Cover() {
   const dealLive      = computeDealFromInvestment(fundingAmount)
   const deal          = { ...DEAL, ...dealLive }
 
-  // Year-1 investor return = 50% of operating profit. Fixed in £ terms
-  // regardless of investment size (a smaller raise simply means a higher
-  // % CoC against the same dividend). CoC and payback flex with the
-  // investment.
-  const investorReturn = FORECAST.profit * deal.investorEq
+  // Operating profit cascades from the locked wage calculator (if locked)
+  // through computeForecastProfit. Y1 investor return = 50% × profit.
+  const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
+  const liveProfit     = computeForecastProfit(wagesOverride)
+  const investorReturn = liveProfit * deal.investorEq
   const coc            = fundingAmount > 0 ? investorReturn / fundingAmount : 0
   const payback        = investorReturn > 0 ? fundingAmount / investorReturn : Infinity
 

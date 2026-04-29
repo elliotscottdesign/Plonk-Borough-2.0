@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // InvestmentSummary — Hackney deal summary slide.
@@ -20,11 +20,13 @@ const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 // 2025 actuals. Hackney's equivalent rules are TBD pending a restatement of
 // the bar-only cost lines. Placeholder: scale total costs linearly with the
 // scenario multiplier so the calculator at least responds to inputs.
-function calcReturns(multiplier, deal) {
+function calcReturns(multiplier, deal, baseProfit) {
   const revenue = ACTUALS_2025.revenue * multiplier
-  // TBD: replace with Hackney's 2026 cost model (wages, fixed, variable, VAT).
-  // For now use a flat margin estimate so the calculator renders something.
-  const opProfit = Math.round(FORECAST.profit * (multiplier / 1.15))   // 1.15 = base
+  // baseProfit is the Y1 forecast profit at +15% revenue growth. Scenario
+  // profit scales linearly with the multiplier (× / 1.15) — placeholder
+  // until a per-scenario cost-rule split is wired in. baseProfit already
+  // reflects the locked wage calculator if the founder has locked one.
+  const opProfit = Math.round(baseProfit * (multiplier / 1.15))   // 1.15 = base
   const investorDiv = Math.max(0, opProfit) * deal.investorEq
   const total = investorDiv
   const coc = total / deal.investment
@@ -33,11 +35,14 @@ function calcReturns(multiplier, deal) {
 }
 
 export default function InvestmentSummary() {
-  const { effective: ctxEffective, isLocked } = useLockedUseOfFunds()
+  const { effective: ctxEffective, isLocked, isWageLocked, wageEffective } = useLockedUseOfFunds()
   // Deal terms (investment size, investor/founder equity, post-money)
   // recompute live off the funding-amount slider — locked snapshot
   // when locked, slider preview otherwise.
   const effective = { ...DEAL, ...computeDealFromInvestment(ctxEffective.investment) }
+  // Forecast profit cascades from the locked Wage Calculator when locked.
+  const wagesOverride = isWageLocked ? wageEffective.loadedAnnual : null
+  const liveProfit    = computeForecastProfit(wagesOverride)
 
   const SCENARIOS = {
     conservative: { label: 'Conservative', sub: '+10% on 2025', multiplier: 1.10 },
@@ -54,7 +59,7 @@ export default function InvestmentSummary() {
   const [scenario, setScenario] = useState(isLocked ? 'custom' : 'base')
   const activeKey = SCENARIOS[scenario]?.disabled ? 'base' : scenario
   const s = SCENARIOS[activeKey]
-  const r = calcReturns(s.multiplier, effective)
+  const r = calcReturns(s.multiplier, effective, liveProfit)
 
   const paybackVal = isFinite(r.payback)
     ? `${r.payback.toFixed(1)} years`

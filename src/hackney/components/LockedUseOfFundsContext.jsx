@@ -3,6 +3,9 @@ import {
   USE_OF_FUNDS,
   USE_OF_FUNDS_RANGES,
   HACKNEY_RAISE_TARGET,
+  WAGE_RATES,
+  PL_WAGE_BASE,
+  WAGE_OVERHEAD_MULT,
 } from '../../data/hackney.js'
 
 // ─── Locked Use-of-Funds context (Hackney) ─────────────────────────────
@@ -35,6 +38,8 @@ import {
 
 const LIVE_KEY = 'ndh_live_useoffunds_v1'
 const LOCK_KEY = 'ndh_locked_useoffunds_v1'
+const WAGE_LIVE_KEY = 'ndh_wage_live_v1'
+const WAGE_LOCK_KEY = 'ndh_wage_locked_v1'
 
 // Funding amount slider range. Single source of truth — FundingSlider
 // reads this directly. Consumers should treat values outside the range
@@ -81,6 +86,28 @@ const isValidLocked = (s) =>
 
 const isValidLive = (v) =>
   v && typeof v === 'object' && Number.isFinite(v.investment) && v.investment > 0
+
+// ─── Wage calculator state — separate lock cycle from funding ─────────
+// 4-role rota basis from data/hackney.js. Founder edits rate + hours
+// per role; loadedAnnual = grossAnnual × WAGE_OVERHEAD_MULT (covers
+// 21.4% NIC + pension + holiday). When the founder locks the wage
+// calculator, loadedAnnual flows into buildForecast as the wages line
+// instead of the static PL_WAGE_BASE.
+function defaultWageRows() {
+  return WAGE_RATES.map(r => ({ role: r.role, rate: r.rate, hours: r.hours, color: r.color }))
+}
+function deriveWageSnapshot(rows) {
+  const grossAnnual  = rows.reduce((s, r) => s + r.rate * r.hours, 0)
+  const loadedAnnual = grossAnnual * WAGE_OVERHEAD_MULT
+  return { rows, grossAnnual, loadedAnnual }
+}
+
+const isValidWageLock = (s) =>
+  s && typeof s === 'object' && Number.isFinite(s.loadedAnnual) && s.loadedAnnual > 0
+
+const isValidWageLive = (rows) =>
+  Array.isArray(rows) && rows.length === WAGE_RATES.length &&
+  rows.every(r => Number.isFinite(r.rate) && Number.isFinite(r.hours))
 
 const readPersisted = (key, validator) => {
   try {
@@ -142,15 +169,32 @@ export function LockedUseOfFundsProvider({ children }) {
     return buildDefaults()
   })
 
+  // ─── Wage calculator state ───────────────────────────────────────
+  const [wageSnapshot, setWageSnapshot] = useState(() => readPersisted(WAGE_LOCK_KEY, isValidWageLock))
+  const [wageRows, setWageRowsState] = useState(() => {
+    const persisted = readPersisted(WAGE_LIVE_KEY, isValidWageLive)
+    if (persisted) return persisted
+    const lock = readPersisted(WAGE_LOCK_KEY, isValidWageLock)
+    if (lock?.rows && isValidWageLive(lock.rows)) return lock.rows
+    return defaultWageRows()
+  })
+
   const isFounder = readIsFounder()
   const isLocked = snapshot !== null
   const canEdit = isFounder && !isLocked
+  const isWageLocked = wageSnapshot !== null
+  const canEditWages = isFounder && !isWageLocked
 
   // Persist live values (founder only) so editing progress survives reload.
   useEffect(() => {
     if (!isFounder) return
     try { localStorage.setItem(LIVE_KEY, JSON.stringify(values)) } catch {}
   }, [values, isFounder])
+
+  useEffect(() => {
+    if (!isFounder) return
+    try { localStorage.setItem(WAGE_LIVE_KEY, JSON.stringify(wageRows)) } catch {}
+  }, [wageRows, isFounder])
 
   // The "effective" surface — locked snapshot if locked, else live derived.
   // Every consumer slide reads from this so values cascade live.
@@ -192,6 +236,39 @@ export function LockedUseOfFundsProvider({ children }) {
     setValues(buildDefaults())
   }, [snapshot, isFounder])
 
+  // ─── Wage calculator — derived view + setters ─────────────────────
+  const wageEffective = useMemo(
+    () => (isWageLocked ? wageSnapshot : deriveWageSnapshot(wageRows)),
+    [isWageLocked, wageSnapshot, wageRows],
+  )
+
+  const setWageRow = useCallback((idx, key, val) => {
+    if (!canEditWages) return
+    setWageRowsState(prev => prev.map((r, i) => i === idx ? { ...r, [key]: val } : r))
+  }, [canEditWages])
+
+  const lockWages = useCallback(() => {
+    if (!isFounder) return
+    const stamped = { ...deriveWageSnapshot(wageRows), lockedAt: new Date().toISOString() }
+    setWageSnapshot(stamped)
+    try { localStorage.setItem(WAGE_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+  }, [wageRows, isFounder])
+
+  const unlockWages = useCallback(() => {
+    if (!isFounder) return
+    setWageSnapshot(null)
+    try { localStorage.removeItem(WAGE_LOCK_KEY) } catch {}
+  }, [isFounder])
+
+  const resetWages = useCallback(() => {
+    if (!isFounder) return
+    if (wageSnapshot) {
+      setWageSnapshot(null)
+      try { localStorage.removeItem(WAGE_LOCK_KEY) } catch {}
+    }
+    setWageRowsState(defaultWageRows())
+  }, [wageSnapshot, isFounder])
+
   const ctx = {
     values,
     snapshot,
@@ -203,6 +280,16 @@ export function LockedUseOfFundsProvider({ children }) {
     lock,
     unlock,
     reset,
+    // Wage calculator surface
+    wageRows,
+    wageSnapshot,
+    wageEffective,
+    isWageLocked,
+    canEditWages,
+    setWageRow,
+    lockWages,
+    unlockWages,
+    resetWages,
   }
 
   return (

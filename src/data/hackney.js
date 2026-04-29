@@ -510,6 +510,17 @@ export const USE_OF_FUNDS_RANGES = {
 // founder gives up the same 50%, just on a smaller pie. Logic checks out
 // when the raise is sized to "minimum-viable to get safe and reopen" —
 // further rounds price off live trading, not the seed pre-money.
+// Live forecast operating profit — accepts an optional wages override
+// (e.g. the locked Wage Calculator total). Wages reduce profit 1:1 (every
+// other line in FORECAST is independent of wages), so we compute as a
+// delta against PL_WAGE_BASE rather than re-deriving the full P&L. When
+// no override is provided, returns the static FORECAST.profit.
+export function computeForecastProfit(wagesOverride) {
+  const wages = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
+  const wageDelta = wages - PL_WAGE_BASE
+  return FORECAST.profit - wageDelta
+}
+
 export function computeDealFromInvestment(investment) {
   const preMoney      = investment
   const postMoney     = investment * 2

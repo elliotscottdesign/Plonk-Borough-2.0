@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment } from '../../data/hackney.js'
+import { DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, PL_WAGE_BASE } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // WaterfallReturns — clones Borough's structure: 4-button scenario selector +
@@ -46,7 +46,7 @@ function computeIRR(flows, guess = 0.5) {
 }
 
 export default function WaterfallReturns() {
-  const { effective: ctxEffective, isLocked } = useLockedUseOfFunds()
+  const { effective: ctxEffective, isLocked, isWageLocked, wageEffective } = useLockedUseOfFunds()
   // Build a deal-shape struct from the live context investment — DEAL
   // governance fields (investor/founder equity etc.) overlaid with
   // pre/post-money + implied multiple computed from the slider value.
@@ -56,18 +56,19 @@ export default function WaterfallReturns() {
   // £65k+VAT pa lease (Y1 rent £43,333 net, 8 paying months; rates
   // £16,830; +10% on other fixed and stock). Revenue, variable and VAT
   // scale together; wages, other fixed and director are held flat
-  // across scenarios.
-  //   Conservative (+10%): rev £591,899 → profit  £74,412
-  //   Base (+15%):         rev £618,804 → profit  £90,598
-  //   Optimistic (+20%):   rev £645,708 → profit £106,790
+  // across scenarios. Default profits below assume PL_WAGE_BASE wages;
+  // if the founder has locked the Wage Calculator at a different total,
+  // every scenario shifts down by that wage delta (wages reduce profit
+  // 1:1 since they're a flat line per scenario).
+  const wageDelta = isWageLocked ? wageEffective.loadedAnnual - PL_WAGE_BASE : 0
   const SCENARIOS = {
-    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  74412,       color: '#E53935' },
-    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  90598,       color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 106790,       color: '#2DD4BF' },
+    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  74412 - wageDelta,       color: '#E53935' },
+    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  90598 - wageDelta,       color: '#C9A84C' },
+    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 106790 - wageDelta,       color: '#2DD4BF' },
     custom: {
       label:    'Custom',
       badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:    90598,
+      profit:    90598 - wageDelta,
       color:    'var(--gold)',
       disabled: !isLocked,
     },
