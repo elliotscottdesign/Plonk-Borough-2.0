@@ -12,6 +12,7 @@ import {
   MONTHLY_COSTS,
   HACKNEY_CASHFLOW,
   HACKNEY_CASH,
+  HACKNEY_FIXED_COSTS_2025,
   USE_OF_FUNDS,
   WAGE_RATES,
   PL_WAGE_BASE,
@@ -317,58 +318,107 @@ function WageModelBreakdown() {
   )
 }
 
-// ─── 2026 cost-model rules (user-defined) ─────────────────────────────
+// ─── 2026 cost-model rules (user-defined, April 2026) ─────────────────
 // Per user direction:
 //   • Revenue growth:    +15% (base case)
 //   • Stock / variable:  +10% on every variable line (drinks, food, cleaning, djs, arcades)
-//   • Fixed costs:       +8%
-//   • Wages:             driven by the wage calculator (default sums to PL_WAGE_BASE)
+//   • Fixed costs:       +10% on the non-rent, non-rates lines
+//   • Rent:              NEW lease — £1,833/mo with 4-mo rent-free start.
+//                        Y1 = 8 paying months × £1,833 = £14,664.
+//   • Business rates:    £16,830 (2025 × 1.10) — Hackney Council confirm.
+//   • Wages:             driven by the wage calculator (default = PL_WAGE_BASE).
 const FORECAST_RULES = {
   revenueGrowth:   0.15,
   variableUplift:  0.10,
-  fixedUplift:     0.08,
+  fixedUplift:     0.10,    // applied to non-rent, non-rates fixed lines
+  rentY1:          14664,   // 8 months × £1,833 (4 months rent-free per lease)
+  rates:           16830,   // 2025 actual £15,300 × 1.10 — pending council confirm
 }
 
-// Build forecast figures by applying the rules to 2025 actuals + Weekly Merged
-// category breakdowns. Variable-cost categories are the 2025 splits; fixed
-// costs come from the Monthly Summary annual line; wages from PL_WAGE_BASE.
+// Build forecast figures by applying the rules to 2025 actuals + Weekly
+// Merged sub-line breakdowns. Fixed costs are computed from the explicit
+// 2025 sub-line breakdown (HACKNEY_FIXED_COSTS_2025) so we can replace
+// rent and rates with the new figures while uplifting the rest by +10%.
 function buildForecast() {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
   const f = 1 + FORECAST_RULES.fixedUplift
 
   const revenue = ACTUALS_2025.revenue * r
-  const wages   = PL_WAGE_BASE                                 // calculator-driven; default = 2025 baseline
+  const wages   = PL_WAGE_BASE
   const stockCats = ['Drinks & Gas', 'Food']
   const otherVarCats = ['Cleaning', 'DJs', 'Arcades']
   const stock = COST_CATEGORIES.filter(c => stockCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
   const otherVar = COST_CATEGORIES.filter(c => otherVarCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
-  const fixed = ACTUALS_2025.fixedCosts * f                    // Monthly Summary fixed line × 1.08
-  const vatNet = ACTUALS_2025.vatNet * r                       // VAT scales with revenue
-  const opCosts = wages + stock + otherVar + fixed + vatNet
+
+  // New fixed cost build:
+  //   rent (Y1):  £14,664 (replaces 2025 £94,146)
+  //   rates:      £16,830 (2025 £15,300 × 1.10)
+  //   other:      sum of other fixed lines × 1.10
+  const otherFixed2025 = HACKNEY_FIXED_COSTS_2025
+    .filter(l => l.key !== 'rent' && l.key !== 'rates')
+    .reduce((s, l) => s + l.amount, 0)
+  const rent  = FORECAST_RULES.rentY1
+  const rates = FORECAST_RULES.rates
+  const otherFixed = otherFixed2025 * f
+  const fixed = rent + rates + otherFixed
+
+  const vatNet = ACTUALS_2025.vatNet * r
+  const director = 15885
+  const opCosts = wages + stock + otherVar + fixed + vatNet + director
   const opProfit = revenue - opCosts
   const margin = revenue ? opProfit / revenue : 0
-  return { revenue, wages, stock, otherVar, fixed, vatNet, opCosts, opProfit, margin, r, v, f }
+  return { revenue, wages, stock, otherVar, rent, rates, otherFixed, fixed, vatNet, director, opCosts, opProfit, margin, r, v, f }
 }
 
 // Forecast monthly arrays — apply growth to 2025 monthly income + uplifts
-// to monthly costs (preserving 2025 month-to-month seasonality).
+// to monthly costs (preserving 2025 month-to-month seasonality). Rent +
+// rates are split out and allocated separately: rent is £0 for the first
+// 4 months (rent-free per lease) then £1,833/mo, rates split evenly.
 function buildForecastMonthly() {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
   const f = 1 + FORECAST_RULES.fixedUplift
+  const monthlyRent  = 1833                                        // £1,833/mo from Sep 2026 onwards
+  const monthlyRates = FORECAST_RULES.rates / 12                   // £16,830 / 12 ≈ £1,402
+
+  // Other fixed (excl. rent + rates) — derive monthly share from 2025 split.
+  // Approximation: distribute the 2025 monthly fixed line proportionally.
+  const otherFixed2025Total = HACKNEY_FIXED_COSTS_2025
+    .filter(l => l.key !== 'rent' && l.key !== 'rates')
+    .reduce((s, l) => s + l.amount, 0)
+  const monthlyFixedTotal2025 = MONTHLY_COSTS.reduce((s, m) => s + m.fixed, 0)
+  // Each month's non-rent, non-rates share = mc.fixed × (otherFixed2025Total / monthlyFixedTotal2025) × 1.10
+
   return MONTHLY_INCOME.map((row, i) => {
     const mc = MONTHLY_COSTS[i]
     const variable = (mc.drinks + mc.cleaning + mc.djs + mc.arcades + mc.food) * v
-    const fixed    = mc.fixed * f
-    const wages    = mc.wages              // calculator-driven; mirror 2025 monthly distribution
+
+    // Fixed split: replace 2025 monthly fixed with new components.
+    const otherFixedShare = monthlyFixedTotal2025 > 0
+      ? mc.fixed * (otherFixed2025Total / monthlyFixedTotal2025) * f
+      : 0
+    // Rent: forecast year is May 2026 → Apr 2027. The user's monthly array
+    // uses Jan–Dec calendar months from 2025 actuals. For the visualisation,
+    // apply the rent-free policy to the first 4 calendar months that fall
+    // in the trading start window — but since we're showing a generic
+    // "12 months of forecast" projection on calendar months, distribute
+    // rent evenly: 8 months × £1,833 / 12 ≈ £1,222 average. (Cash Flow
+    // Forecast tab handles the May-Apr trading-year detail accurately.)
+    const monthlyRentAvg = FORECAST_RULES.rentY1 / 12
+    const fixed = otherFixedShare + monthlyRentAvg + monthlyRates
+    const wages = mc.wages
     const totalCost = variable + fixed + wages
     const income = row.amount * r
+
     return {
       month: row.month,
       income,
       profit: income - totalCost,
-      wages, fixed, drinks: mc.drinks * v, cleaning: mc.cleaning * v,
+      wages, fixed,
+      rent: monthlyRentAvg,
+      rates: monthlyRates,
+      drinks: mc.drinks * v, cleaning: mc.cleaning * v,
       djs: mc.djs * v, arcades: mc.arcades * v, food: mc.food * v,
     }
   })
@@ -381,16 +431,17 @@ function buildForecastIncome() {
   return INCOME_SOURCES.map(c => ({ ...c, amount: (c.amount || 0) * r, pct: total ? (c.amount * r / total * 100) : 0 }))
 }
 
-// Build forecasted cost-by-category list with rule-based uplifts per category.
-function buildForecastCosts() {
+// Build forecasted cost-by-category list with rule-based uplifts. Fixed
+// Costs is replaced with the rebuilt total (new rent + rates + other × 1.10),
+// not a flat × 1.10 on the 2025 line — the lease change drops it materially.
+function buildForecastCosts(fixedNew) {
   const v = 1 + FORECAST_RULES.variableUplift
-  const f = 1 + FORECAST_RULES.fixedUplift
   const isFixed = (n) => n === 'Fixed Costs'
   const isWages = (n) => n === 'Wages'
   return COST_CATEGORIES.map(c => {
-    const mult = isWages(c.name) ? 1 : (isFixed(c.name) ? f : v)
-    const newAmount = c.amount * mult
-    return { ...c, amount: newAmount }
+    if (isWages(c.name)) return { ...c }                      // wages: calculator-driven
+    if (isFixed(c.name)) return { ...c, amount: fixedNew }   // replace with rebuilt total
+    return { ...c, amount: c.amount * v }                    // variable / stock: × 1.10
   })
 }
 
@@ -398,7 +449,7 @@ function Tab2026() {
   const f = buildForecast()
   const monthly = buildForecastMonthly()
   const fcIncome = buildForecastIncome()
-  const fcCosts = buildForecastCosts()
+  const fcCosts = buildForecastCosts(f.fixed)
   // Re-pct fcCosts after individual scaling
   const fcCostsTotal = fcCosts.reduce((s, c) => s + c.amount, 0)
   const fcCostsPctd = fcCosts.map(c => ({ ...c, pct: fcCostsTotal ? (c.amount / fcCostsTotal * 100) : 0 }))
@@ -435,12 +486,12 @@ function Tab2026() {
 // ─── 2026 — Top-line forecast cards ───────────────────────────────────
 function ForecastTopLineCards({ f }) {
   const cards = [
-    { label: 'Revenue (forecast)',  value: f.revenue,  colour: '#4FC3F7' },
-    { label: 'Wages (calculator)',  value: f.wages,    colour: '#E67E22' },
-    { label: 'Variable +10%',       value: f.stock + f.otherVar, colour: '#A78BFA' },
-    { label: 'Fixed +8%',           value: f.fixed,    colour: '#F87171' },
-    { label: 'VAT (Net)',           value: f.vatNet,   colour: '#9CA3AF' },
-    { label: 'Operating Profit',    value: f.opProfit, colour: f.opProfit >= 0 ? '#10B981' : '#E53935' },
+    { label: 'Revenue (forecast)',     value: f.revenue,             colour: '#4FC3F7' },
+    { label: 'Wages (calculator)',     value: f.wages,               colour: '#E67E22' },
+    { label: 'Variable +10%',          value: f.stock + f.otherVar,  colour: '#A78BFA' },
+    { label: 'Fixed (new lease)',      value: f.fixed,               colour: '#F87171', sub: `Rent ${fmtMoney(f.rent)} · Rates ${fmtMoney(f.rates)}` },
+    { label: 'VAT (Net) + Director',   value: f.vatNet + f.director, colour: '#9CA3AF' },
+    { label: 'Operating Profit',       value: f.opProfit,            colour: f.opProfit >= 0 ? '#10B981' : '#E53935', sub: `${(f.margin*100).toFixed(1)}% margin` },
   ]
   return (
     <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
@@ -448,6 +499,7 @@ function ForecastTopLineCards({ f }) {
         <div key={c.label} className="card" style={{ padding:14 }}>
           <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{c.label}</div>
           <div className="serif" style={{ fontSize:'clamp(1.2rem, 2.2vw, 1.6rem)', color: c.colour, lineHeight:1 }}>{fmtMoney(c.value)}</div>
+          {c.sub && <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:6 }}>{c.sub}</div>}
         </div>
       ))}
     </div>
@@ -456,31 +508,40 @@ function ForecastTopLineCards({ f }) {
 
 // ─── 2026 — Cost model rules panel ────────────────────────────────────
 function ForecastRulesPanel({ f }) {
+  const rentBase  = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rent').amount
+  const ratesBase = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rates').amount
+  const otherFixedBase = HACKNEY_FIXED_COSTS_2025
+    .filter(l => l.key !== 'rent' && l.key !== 'rates')
+    .reduce((s, l) => s + l.amount, 0)
+
   const rules = [
-    { label: 'Revenue growth',  value: '+15%',  base: ACTUALS_2025.revenue,    forecast: f.revenue,            colour: '#4FC3F7' },
-    { label: 'Wages',           value: 'calculator',  base: PL_WAGE_BASE,      forecast: f.wages,              colour: '#E67E22' },
-    { label: 'Stock (variable)',value: '+10%',  base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar,colour: '#A78BFA' },
-    { label: 'Fixed costs',     value: '+8%',   base: ACTUALS_2025.fixedCosts, forecast: f.fixed,              colour: '#F87171' },
-    { label: 'VAT (Net)',       value: 'scaled with revenue', base: ACTUALS_2025.vatNet, forecast: f.vatNet,    colour: '#9CA3AF' },
+    { label: 'Revenue growth',         value: '+15%',                           base: ACTUALS_2025.revenue,       forecast: f.revenue,            colour: '#4FC3F7' },
+    { label: 'Wages',                  value: 'calculator',                     base: PL_WAGE_BASE,               forecast: f.wages,              colour: '#E67E22' },
+    { label: 'Stock + variable',       value: '+10%',                           base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar, colour: '#A78BFA' },
+    { label: 'Rent (NEW lease)',       value: '£1,833/mo · 4-mo free',          base: rentBase,                   forecast: f.rent,               colour: '#F87171', highlight: true },
+    { label: 'Business rates',         value: '+10% · TBC w/ council',          base: ratesBase,                  forecast: f.rates,              colour: '#F87171' },
+    { label: 'Other fixed',            value: '+10%',                           base: otherFixedBase,             forecast: f.otherFixed,         colour: '#F87171' },
+    { label: 'VAT (Net)',              value: 'scaled with revenue',            base: ACTUALS_2025.vatNet,        forecast: f.vatNet,             colour: '#9CA3AF' },
+    { label: 'Director salary',        value: 'fixed',                          base: f.director,                 forecast: f.director,           colour: '#9CA3AF' },
   ]
   return (
     <div className="card" style={{ padding: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,0.2)', fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1fr 1fr', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,0.2)', fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
         <span>Line</span>
         <span style={{ textAlign: 'right' }}>Rule</span>
         <span style={{ textAlign: 'right' }}>2025 base</span>
         <span style={{ textAlign: 'right' }}>2026 forecast</span>
       </div>
       {rules.map(r => (
-        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13, fontVariantNumeric: 'tabular-nums', background: r.highlight ? 'rgba(248,113,113,0.04)' : 'transparent' }}>
           <span style={{ color: r.colour }}>{r.label}</span>
           <span style={{ color: 'var(--cream-dim)', textAlign: 'right', fontStyle: 'italic' }}>{r.value}</span>
           <span style={{ color: 'var(--cream-dim)', textAlign: 'right' }}>{fmtMoney(r.base)}</span>
           <span style={{ color: r.colour, textAlign: 'right' }}>{fmtMoney(r.forecast)}</span>
         </div>
       ))}
-      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        Variable cost categories (Drinks &amp; Gas, Cleaning, DJs, Arcades, Food) all uplift by +10%. Fixed costs uplift by +8%. Wages tracked separately via the Wage Calculator below — drag rates and hours, the forecast tile updates live.
+      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+        <strong style={{ color:'var(--teal)' }}>Lease saving headline:</strong> the new £1,833/mo lease (with 4-mo rent-free start) drops Year-1 rent from 2025's £{rentBase.toLocaleString('en-GB')} to £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving that flows straight to operating profit.
       </div>
     </div>
   )

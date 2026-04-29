@@ -27,18 +27,20 @@ export default function WaterfallReturns() {
     ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
     : DEAL
 
-  // TBD: replace these scenario profit figures with Hackney's calibrated
-  // Conservative/Base/Optimistic numbers once the bar-only cost model is
-  // restated for 2026/27. Current values from Excel Scenario Planning rows
-  // 110-111 (profit after director salary).
+  // Scenario profit figures use the new 2026 cost model (rent £14,664, rates
+  // £16,830, +10% on other fixed and stock). VAT scales with revenue; wages
+  // and other costs held flat at the +10% uplifted figure across scenarios.
+  //   Conservative (+10%): rev £591,899 → profit £94,612
+  //   Base (+15%):         rev £618,804 → profit £119,267
+  //   Optimistic (+20%):   rev £645,708 → profit £143,921
   const SCENARIOS = {
-    bear:   { label: 'Conservative −10%', badge: 'Conservative scenario',                                          profit: 30345,        color: '#E53935' },
-    base:   { label: 'Base Case +15%',     badge: 'Base case scenario',                                              profit: 45632,        color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',    badge: 'Optimistic scenario',                                             profit: 63512,        color: '#2DD4BF' },
+    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  94612,       color: '#E53935' },
+    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit: 119267,       color: '#C9A84C' },
+    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 143921,       color: '#2DD4BF' },
     custom: {
       label:    'Custom',
       badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:   45632,
+      profit:   119267,
       color:    'var(--gold)',
       disabled: !isLocked,
     },
