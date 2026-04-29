@@ -187,6 +187,10 @@
   .eagle-final.complete .eagle-final-eagle { filter: none; opacity: 1; }
   .eagle-final-text { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--cream-dim); font-size: 16px; letter-spacing: 0.08em; }
   .eagle-final.complete .eagle-final-text { color: var(--gold); font-size: 22px; }
+  .eagle-reveal { display: none; margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--gold-dim); font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--gold); font-size: 16px; line-height: 1.5; letter-spacing: 0.04em; font-style: italic; }
+  .eagle-reveal strong { font-style: normal; color: var(--cream); display: block; margin-top: 4px; letter-spacing: 0.02em; }
+  .eagle-final.complete .eagle-reveal { display: block; animation: revealFade 0.9s ease forwards; }
+  @keyframes revealFade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
   .eagle-setup { color: var(--cream); padding: 18px 20px; background: #2a1a0a; border: 1px solid var(--gold-dim); border-radius: 10px; font-size: 14px; max-width: 600px; margin: 0 auto; }
 
   footer .footer-motto { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; font-size: 26px; color: var(--gold); letter-spacing: 0.04em; margin-bottom: 6px; line-height: 1.2; text-transform: none; }
@@ -300,6 +304,10 @@
     <div class="eagle-final" id="eagle-final">
       <div class="eagle-final-eagle">🦅</div>
       <div class="eagle-final-text" id="eagle-final-text">Aquila Perdita · The Eagle is Lost</div>
+      <div class="eagle-reveal">
+        Behold — the legion's reward is loosed at last.
+        <strong>The Marching Powder of Marcus Vettius Medicus is released.</strong>
+      </div>
     </div>
   </div>
 </section>
