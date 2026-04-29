@@ -167,13 +167,27 @@
   .roster-name { color: var(--cream); font-size: 15px; font-style: italic; }
   .roster-name.unfilled { color: var(--cream-dim); opacity: 0.55; }
 
-  .quest-list { display: grid; gap: 10px; max-width: 600px; margin: 0 auto; }
-  .quest-item { display: flex; align-items: center; gap: 14px; padding: 14px 18px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; transition: border-color 0.15s ease, background 0.15s ease; }
-  .quest-item:hover { border-color: var(--gold-dim); }
-  .quest-item input[type="checkbox"] { width: 22px; height: 22px; accent-color: var(--gold); cursor: pointer; flex-shrink: 0; }
-  .quest-item-text { color: var(--cream); font-size: 16px; line-height: 1.4; }
-  .quest-item.is-complete { background: rgba(212,175,55,0.06); border-color: var(--gold-dim); }
-  .quest-item.is-complete .quest-item-text { color: var(--cream-dim); text-decoration: line-through; }
+  /* Eagle treasure hunt */
+  .eagle-section { text-align: center; }
+  .eagle-lead { color: var(--cream-dim); font-size: 16px; line-height: 1.6; max-width: 640px; margin: 0 auto 24px; }
+  .eagle-progress { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--gold); font-size: 18px; letter-spacing: 0.18em; text-transform: uppercase; margin: 0 auto 26px; padding: 8px 18px; display: inline-block; border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(212,175,55,0.05); }
+  .eagle-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 14px; max-width: 980px; margin: 0 auto; }
+  .eagle-piece { padding: 22px 14px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; cursor: pointer; transition: transform 0.2s ease, border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease; text-align: center; user-select: none; }
+  .eagle-piece:hover { border-color: var(--gold-dim); transform: translateY(-2px); }
+  .eagle-piece.found { border-color: var(--gold); background: rgba(212,175,55,0.08); box-shadow: 0 6px 24px rgba(212,175,55,0.18); }
+  .eagle-piece-icon { font-size: 40px; line-height: 1; margin-bottom: 10px; filter: grayscale(0.7) brightness(0.85); transition: filter 0.3s ease; }
+  .eagle-piece.found .eagle-piece-icon { filter: none; }
+  .eagle-piece-name { font-family: 'Gideon Roman', 'Cinzel', 'DM Serif Display', Georgia, serif; font-size: 17px; color: var(--cream); margin-bottom: 4px; line-height: 1.2; }
+  .eagle-piece-loc { color: var(--cream-dim); font-size: 12px; line-height: 1.45; min-height: 32px; }
+  .eagle-piece-status { margin-top: 12px; padding-top: 10px; border-top: 1px dashed var(--line); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold-dim); font-weight: 600; }
+  .eagle-piece.found .eagle-piece-status { color: var(--gold); }
+  .eagle-final { margin: 36px auto 0; max-width: 600px; padding: 28px 24px; border: 1px solid var(--line); border-radius: 14px; background: var(--bg-2); transition: all 0.4s ease; }
+  .eagle-final.complete { border-color: var(--gold); background: linear-gradient(135deg, rgba(212,175,55,0.1), rgba(212,175,55,0.02)); box-shadow: 0 8px 32px rgba(212,175,55,0.18); }
+  .eagle-final-eagle { font-size: 56px; line-height: 1; margin-bottom: 10px; filter: grayscale(0.7) brightness(0.5); opacity: 0.5; transition: all 0.6s ease; }
+  .eagle-final.complete .eagle-final-eagle { filter: none; opacity: 1; }
+  .eagle-final-text { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--cream-dim); font-size: 16px; letter-spacing: 0.08em; }
+  .eagle-final.complete .eagle-final-text { color: var(--gold); font-size: 22px; }
+  .eagle-setup { color: var(--cream); padding: 18px 20px; background: #2a1a0a; border: 1px solid var(--gold-dim); border-radius: 10px; font-size: 14px; max-width: 600px; margin: 0 auto; }
 
   footer .footer-motto { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; font-size: 26px; color: var(--gold); letter-spacing: 0.04em; margin-bottom: 6px; line-height: 1.2; text-transform: none; }
   footer .footer-translation { color: var(--cream-dim); font-size: 13px; font-style: italic; margin-bottom: 18px; letter-spacing: 0.05em; text-transform: none; }
@@ -284,25 +298,16 @@
   </div>
 </section>
 
-<section>
+<section class="eagle-section" id="eagle">
   <div class="wrap">
-    <div class="section-title">The Quest</div>
-    <h2 class="serif section-heading">Mission objectives.</h2>
-    <p class="footnote" style="margin: 0 0 24px;">Tap to mark each victory as it falls. Progress saves to your device.</p>
-    <div class="quest-list" id="quest-list">
-      <label class="quest-item"><input type="checkbox" data-quest="helmet"><span class="quest-item-text">Helmet secured upon the Centurion's head</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="firstpint"><span class="quest-item-text">First pint taken at the muster</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="trial"><span class="quest-item-text">Gladiatorial trial survived (Clays)</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="amphitheatre"><span class="quest-item-text">Amphitheatre of Blood walked</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="wall"><span class="quest-item-text">Roman wall marched in full</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="meat"><span class="quest-item-text">Meat consumed at the feast</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="rites"><span class="quest-item-text">Rites observed at Saint Leonard's gate</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="forum"><span class="quest-item-text">Mortadella claimed at the Forum</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="temptation"><span class="quest-item-text">Centurion withstood the Temptation</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="fires"><span class="quest-item-text">Fires of Victory lit (Brazilian Bangers)</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="taverns"><span class="quest-item-text">Taverns of Temptation conquered</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="eagle"><span class="quest-item-text">The Eagle recovered</span></label>
-      <label class="quest-item"><input type="checkbox" data-quest="standing"><span class="quest-item-text">Centurion still standing at sunrise</span></label>
+    <div class="section-title">The Lost Eagle</div>
+    <h2 class="serif section-heading">Recover the Aquila.</h2>
+    <p class="eagle-lead">Five sacred fragments of the Eagle lie scattered across Londinium — one at each daytime stop. Tap a piece when found. Your fellow legionaries see the Aquila restore in real time.</p>
+    <div class="eagle-progress" id="eagle-progress">0 of V fragments recovered</div>
+    <div id="eagle-grid" class="eagle-grid"></div>
+    <div class="eagle-final" id="eagle-final">
+      <div class="eagle-final-eagle">🦅</div>
+      <div class="eagle-final-text" id="eagle-final-text">Aquila Perdita · The Eagle is Lost</div>
     </div>
   </div>
 </section>
@@ -685,25 +690,110 @@
     }
   }
 
-  function wireQuest() {
-    const KEY = 'stag_quest_v1'
-    const saved = (() => { try { return JSON.parse(localStorage.getItem(KEY) || '{}') } catch (e) { return {} } })()
-    document.querySelectorAll('.quest-item input[type="checkbox"]').forEach(cb => {
-      const id = cb.dataset.quest
-      const item = cb.closest('.quest-item')
-      if (saved[id]) { cb.checked = true; item.classList.add('is-complete') }
-      cb.addEventListener('change', () => {
-        item.classList.toggle('is-complete', cb.checked)
-        saved[id] = cb.checked
-        try { localStorage.setItem(KEY, JSON.stringify(saved)) } catch (e) {}
-      })
+  // ── The Lost Eagle (Pantry-backed treasure hunt) ─────────────────────
+  const EAGLE_PIECES = [
+    { id: 'wreath', name: 'The Wreath of Laurel', icon: '🌿', loc: "Millie's Lounge · The Ned" },
+    { id: 'wings',  name: 'The Wings',             icon: '🪽', loc: 'Clays · The City' },
+    { id: 'heart',  name: 'The Heart',             icon: '❤️', loc: 'Smokoloko · Spitalfields' },
+    { id: 'talons', name: 'The Talons',            icon: '🔥', loc: "Mikkeller · St Leonard's" },
+    { id: 'eye',    name: 'The All-Seeing Eye',    icon: '👁️', loc: 'Netil Market · Broadway' },
+  ]
+  const EAGLE_BASKET = 'stag-eagle'
+  let eagleFound = {}
+  let eaglePollTimer = null
+
+  function eagleUrl() {
+    return `https://getpantry.cloud/apiv1/pantry/${encodeURIComponent(PANTRY_ID)}/basket/${encodeURIComponent(EAGLE_BASKET)}`
+  }
+
+  async function fetchEagle() {
+    if (!PANTRY_ID) return
+    try {
+      const res = await fetch(eagleUrl(), { method: 'GET' })
+      if (res.status === 400 || res.status === 404) {
+        eagleFound = {}
+      } else if (res.ok) {
+        const data = await res.json()
+        eagleFound = (data && data.found) || {}
+      }
+      renderEagle()
+    } catch (e) { console.warn('Eagle fetch failed', e) }
+  }
+
+  async function saveEagle() {
+    if (!PANTRY_ID) return
+    const res = await fetch(eagleUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ found: eagleFound }),
     })
+    if (!res.ok) throw new Error('save failed')
+  }
+
+  async function togglePiece(pieceId) {
+    const wasFound = !!eagleFound[pieceId]
+    if (wasFound) delete eagleFound[pieceId]; else eagleFound[pieceId] = true
+    renderEagle()
+    try { await saveEagle() }
+    catch (e) {
+      if (wasFound) eagleFound[pieceId] = true; else delete eagleFound[pieceId]
+      renderEagle()
+      alert('Could not save — try again.')
+    }
+  }
+
+  function renderEagle() {
+    const grid = document.getElementById('eagle-grid')
+    if (!grid) return
+    if (!PANTRY_ID) {
+      grid.innerHTML = `<div class="eagle-setup">Eagle hunt setup pending — Pantry ID needed.</div>`
+      return
+    }
+    const foundCount = EAGLE_PIECES.filter(p => eagleFound[p.id]).length
+    const total = EAGLE_PIECES.length
+    const roman = ['0','I','II','III','IV','V'][foundCount] || foundCount
+    grid.innerHTML = EAGLE_PIECES.map(p => {
+      const found = !!eagleFound[p.id]
+      return `<div class="eagle-piece ${found ? 'found' : ''}" data-piece="${p.id}">
+        <div class="eagle-piece-icon">${p.icon}</div>
+        <div class="eagle-piece-name">${escapeHtml(p.name)}</div>
+        <div class="eagle-piece-loc">${escapeHtml(p.loc)}</div>
+        <div class="eagle-piece-status">${found ? '✓ Recovered' : 'Yet to find'}</div>
+      </div>`
+    }).join('')
+    grid.querySelectorAll('[data-piece]').forEach(el => {
+      el.addEventListener('click', () => togglePiece(el.dataset.piece))
+    })
+    const progressEl = document.getElementById('eagle-progress')
+    if (progressEl) progressEl.textContent = `${roman} of V fragments recovered`
+    const final = document.getElementById('eagle-final')
+    const finalText = document.getElementById('eagle-final-text')
+    const complete = foundCount === total
+    if (final) final.classList.toggle('complete', complete)
+    if (finalText) finalText.textContent = complete
+      ? 'Aquila Reperta · The Eagle is Restored'
+      : (foundCount === 0 ? 'Aquila Perdita · The Eagle is Lost' : `${roman} of V fragments recovered`)
+  }
+
+  function startEaglePolling() {
+    if (eaglePollTimer) clearInterval(eaglePollTimer)
+    eaglePollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchEagle()
+    }, 12000)
+  }
+
+  function bootEagle() {
+    renderEagle()
+    if (PANTRY_ID) {
+      fetchEagle()
+      startEaglePolling()
+    }
   }
 
   renderTimeline()
   wireRsvp()
   bootRoster()
-  wireQuest()
+  bootEagle()
 </script>
 </body>
 </html>
