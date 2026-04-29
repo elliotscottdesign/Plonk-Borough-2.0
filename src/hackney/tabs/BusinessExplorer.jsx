@@ -18,7 +18,6 @@ import {
   PL_WAGE_BASE,
   ROTA_TOTAL,
   WAGE_OVERHEAD_MULT,
-  HACKNEY_WAGE_MODEL,
   computeDealFromInvestment,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
@@ -72,9 +71,6 @@ function Tab2025() {
 
       <STitle>Wages — 2025 Rota Reference (4-role bar-only)</STitle>
       <WageRotaReference />
-
-      <STitle>Wages — Modelled Full Build-Out (12 roles)</STitle>
-      <WageModelBreakdown />
     </div>
   )
 }
@@ -279,48 +275,6 @@ function WageRotaReference() {
   )
 }
 
-// ─── Wages — modelled full build-out (5 groups, 12 roles) ─────────────
-function WageModelBreakdown() {
-  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
-  const m = HACKNEY_WAGE_MODEL
-  return (
-    <div className="card" style={{ padding:18 }}>
-      <div style={{ fontSize:11, color:'var(--cream-dim)', marginBottom:14, lineHeight:1.5 }}>
-        Modelled staffing for the venue at full operational capacity — what wages would cost if every role is filled. Differs from 2025 actuals ({fmt(PL_WAGE_BASE)}) because the venue is currently running leaner. Reference only — NOT in the forecast.
-      </div>
-      {m.groups.map(g => (
-        <div key={g.key} style={{ marginBottom:14 }}>
-          <div style={{ display:'flex', justifyContent:'space-between', padding:'6px 0', borderBottom:'1px solid rgba(201,168,76,0.15)', fontSize:12, color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>
-            <span>{g.title}</span><span>{fmt(g.subtotal)}/yr</span>
-          </div>
-          {g.roles.map(r => (
-            <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2.4fr 0.5fr 0.6fr 0.7fr 0.8fr', gap:8, padding:'5px 0', fontSize:12, color:'var(--cream-dim)' }}>
-              <span style={{ color:'var(--cream)' }}>{r.role}</span>
-              <span style={{ textAlign:'right' }}>×{r.headcount}</span>
-              <span style={{ textAlign:'right' }}>{r.hours === 'salary' ? 'salary' : `${r.hours}h/wk`}</span>
-              <span style={{ textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.rate ? `£${r.rate.toFixed(2)}` : '—'}</span>
-              <span style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(r.annual)}</span>
-            </div>
-          ))}
-        </div>
-      ))}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:10, marginTop:14, paddingTop:12, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
-        <div>
-          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross weekly</div>
-          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(m.totals.grossWeekly)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross annual</div>
-          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(m.totals.grossAnnual)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Fully-loaded annual</div>
-          <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(m.totals.loadedAnnual)}</div>
-        </div>
-      </div>
-    </div>
-  )
-}
 
 // ─── 2026 cost-model rules (user-defined, April 2026) ─────────────────
 // Per user direction:
