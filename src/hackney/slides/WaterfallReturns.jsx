@@ -27,20 +27,21 @@ export default function WaterfallReturns() {
     ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
     : DEAL
 
-  // Scenario profit figures use the new 2026 cost model (rent £14,664, rates
-  // £16,830, +10% on other fixed and stock). VAT scales with revenue; wages
-  // and other costs held flat at the +10% uplifted figure across scenarios.
-  //   Conservative (+10%): rev £591,899 → profit £94,612
-  //   Base (+15%):         rev £618,804 → profit £119,267
-  //   Optimistic (+20%):   rev £645,708 → profit £143,921
+  // Scenario profit figures use the new 2026 cost model with the WEEKLY
+  // £1,833 lease (Y1 rent £64,155, 35 paying weeks; rates £16,830; +10%
+  // on other fixed and stock). Revenue, variable and VAT scale together;
+  // wages, other fixed and director are held flat across scenarios.
+  //   Conservative (+10%): rev £591,899 → profit  £53,586
+  //   Base (+15%):         rev £618,804 → profit  £69,776
+  //   Optimistic (+20%):   rev £645,708 → profit  £85,965
   const SCENARIOS = {
-    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  94612,       color: '#E53935' },
-    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit: 119267,       color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 143921,       color: '#2DD4BF' },
+    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  53586,       color: '#E53935' },
+    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  69776,       color: '#C9A84C' },
+    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit:  85965,       color: '#2DD4BF' },
     custom: {
       label:    'Custom',
       badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:   119267,
+      profit:    69776,
       color:    'var(--gold)',
       disabled: !isLocked,
     },
