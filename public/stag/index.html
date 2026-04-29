@@ -59,6 +59,31 @@
   .theme-lead strong { color: var(--gold); font-weight: 500; }
   .theme-lead + .theme-lead { margin-top: 16px; }
 
+  /* Roster */
+  .roster-lead { color: var(--cream-dim); font-size: 16px; line-height: 1.6; max-width: 640px; margin: 0 0 28px; }
+  .roster-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 14px; }
+  .role-card { padding: 18px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 10px; transition: border-color 0.15s; display: flex; flex-direction: column; }
+  .role-card.role-claimed { border-color: var(--gold-dim); }
+  .role-card.role-mine { border-color: var(--gold); background: rgba(212, 175, 55, 0.06); }
+  .role-name { font-family: 'Gideon Roman', 'Cinzel', 'DM Serif Display', Georgia, serif; font-size: 19px; color: var(--cream); line-height: 1.2; margin-bottom: 4px; }
+  .role-desc { color: var(--cream-dim); font-size: 13px; line-height: 1.45; margin-bottom: 14px; flex: 1; }
+  .role-by { color: var(--gold); font-size: 13px; padding-top: 10px; border-top: 1px dashed var(--line); display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+  .role-by strong { color: var(--cream); font-weight: 500; }
+  .role-by .you-tag { font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--gold); margin-left: 6px; }
+  .role-input { display: flex; gap: 6px; }
+  .role-input input { flex: 1; min-width: 0; padding: 9px 10px; border-radius: 6px; border: 1px solid var(--line); background: var(--bg-3); color: var(--cream); font: inherit; font-size: 13px; }
+  .role-input input:focus { outline: none; border-color: var(--gold); }
+  .role-btn { padding: 9px 14px; border-radius: 6px; border: 1px solid var(--gold); background: var(--gold); color: #0a0807; font-weight: 700; font: inherit; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; cursor: pointer; white-space: nowrap; }
+  .role-btn:hover:not(:disabled) { background: var(--cream); border-color: var(--cream); }
+  .role-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .role-release { background: transparent; color: var(--gold); border: 1px solid var(--gold-dim); }
+  .role-release:hover { background: var(--bg-3); color: var(--red); border-color: var(--red); }
+  .roster-status { color: var(--cream-dim); font-size: 14px; padding: 24px; text-align: center; border: 1px dashed var(--line); border-radius: 10px; }
+  .roster-setup { background: #2a1a0a; border: 1px solid var(--gold-dim); color: var(--cream); padding: 18px 20px; border-radius: 10px; font-size: 14px; line-height: 1.6; }
+  .roster-setup code { background: rgba(0,0,0,0.4); padding: 2px 6px; border-radius: 4px; color: var(--gold); }
+  .roster-toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-top: 24px; }
+  .roster-toolbar .status-text { color: var(--cream-dim); font-size: 12px; }
+
   .timeline { display: grid; gap: 14px; }
   .stop { background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; transition: border-color .15s ease; overflow: hidden; }
   .stop.day { border-left: 3px solid var(--teal); }
@@ -236,6 +261,21 @@
   </div>
 </section>
 
+<section id="roster">
+  <div class="wrap">
+    <div class="section-title">The Brotherhood</div>
+    <h2 class="serif section-heading">Claim your title.</h2>
+    <p class="roster-lead">Each Centurion needs his cohort. Type your name into a free role and claim it for the campaign — first come, first served. Your fellow legionaries see the roster live.</p>
+    <div id="roster-area">
+      <div class="roster-status">Loading the roster…</div>
+    </div>
+    <div class="roster-toolbar">
+      <button class="btn btn-ghost" id="roster-refresh" type="button">Refresh</button>
+      <span class="status-text" id="roster-updated"></span>
+    </div>
+  </div>
+</section>
+
 <section>
   <div class="wrap">
     <div class="section-title">The Schedule</div>
@@ -306,6 +346,11 @@
   // RSVP FORM LINK — paste your Google Form share link here once you've made it.
   // Example:  const RSVP_URL = 'https://forms.gle/abc123'
   const RSVP_URL = 'https://forms.gle/TjfntCcW1AUnHTNe9'
+
+  // ROSTER BACKEND — paste your Pantry ID here (free at https://getpantry.cloud)
+  // Example:  const PANTRY_ID = 'a1b2c3d4-1234-5678-9abc-def012345678'
+  const PANTRY_ID = ''
+  const PANTRY_BASKET = 'stag-roster'
   // ─────────────────────────────────────────────────────────────────────
 
   const EVENTS = [
@@ -468,6 +513,184 @@
       </details>
     `).join('')
   }
+  // ── Roster (Pantry-backed) ───────────────────────────────────────────
+  const ROLES = [
+    { id: 'aquilifer',             name: 'Aquilifer',                   desc: 'Eagle Bearer · most sacred guardian' },
+    { id: 'praetorian-pints',      name: 'Praetorian of Pints',         desc: "Personal guard of the Centurion's glass" },
+    { id: 'tribune-bad-decisions', name: 'Tribune of Bad Decisions',    desc: 'Senior strategist for terrible ideas' },
+    { id: 'quaestor-cash',         name: 'Quaestor of Cash',            desc: 'Treasurer · settles bills, splits tabs' },
+    { id: 'decanus-drinks',        name: 'Decanus of Drinks',           desc: 'Commands the round at every stop' },
+    { id: 'optio-optimism',        name: 'Optio of Optimism',           desc: 'Second-in-command · morale officer' },
+    { id: 'signifer-shenanigans',  name: 'Signifer of Shenanigans',     desc: 'Standard-bearer of mischief' },
+    { id: 'augur-after-parties',   name: 'Augur of After-Parties',      desc: 'Reads the omens for late-night moves' },
+    { id: 'cornicen-last-calls',   name: 'Cornicen of Last Calls',      desc: 'Sounds the horn at last orders' },
+    { id: 'magister-equitum',      name: 'Magister Equitum',            desc: 'Master of the Horses · Ubers and taxis' },
+    { id: 'chancellor-kebabs',     name: 'Chancellor of Late-Night Kebabs', desc: 'Designates post-OM food' },
+    { id: 'speculator-shots',      name: 'Speculator of Shots',         desc: 'Scout who sources rounds of shots' },
+    { id: 'vexillarius-vodka',     name: 'Vexillarius of Vodka',        desc: 'Standard-bearer of strong spirits' },
+    { id: 'centurions-shield',     name: "Centurion's Shield",          desc: "Julian's personal guardian" },
+    { id: 'hastiliarius-hydration', name: 'Hastiliarius of Hydration',  desc: 'Spear-bearer of water · hangover defence' },
+  ]
+
+  const ROSTER_LS_KEY = 'stag_my_role_v1'
+  let claims = {}            // { roleId: name }
+  let myRoleId = null        // role I claimed in this browser
+  let myName = ''
+  let lastFetchedAt = null
+  let rosterPollTimer = null
+
+  function loadMyRole() {
+    try {
+      const raw = localStorage.getItem(ROSTER_LS_KEY)
+      if (!raw) return
+      const parsed = JSON.parse(raw)
+      myRoleId = parsed.roleId || null
+      myName = parsed.name || ''
+    } catch {}
+  }
+  function saveMyRole(roleId, name) {
+    if (roleId && name) localStorage.setItem(ROSTER_LS_KEY, JSON.stringify({ roleId, name }))
+    else localStorage.removeItem(ROSTER_LS_KEY)
+    myRoleId = roleId
+    myName = name || ''
+  }
+
+  function pantryUrl() {
+    return `https://getpantry.cloud/apiv1/pantry/${encodeURIComponent(PANTRY_ID)}/basket/${encodeURIComponent(PANTRY_BASKET)}`
+  }
+
+  async function fetchClaims() {
+    if (!PANTRY_ID) return
+    try {
+      const res = await fetch(pantryUrl(), { method: 'GET' })
+      if (res.status === 400 || res.status === 404) {
+        // basket not yet created — empty state
+        claims = {}
+      } else if (res.ok) {
+        const data = await res.json()
+        claims = (data && data.claims) || {}
+      }
+      lastFetchedAt = new Date()
+      renderRoster()
+    } catch (e) {
+      console.warn('Roster fetch failed', e)
+    }
+  }
+
+  async function saveClaims() {
+    if (!PANTRY_ID) return
+    const res = await fetch(pantryUrl(), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ claims }),
+    })
+    if (!res.ok) throw new Error('save failed: ' + res.status)
+  }
+
+  async function claimRole(roleId) {
+    const input = document.querySelector(`[data-role-input="${roleId}"]`)
+    const name = (input && input.value || '').trim()
+    if (!name) { input && input.focus(); return }
+    // Refresh first to avoid clobbering recent claims
+    await fetchClaims()
+    if (claims[roleId]) {
+      alert(`That role's already taken by ${claims[roleId]}. Refresh and pick another.`)
+      renderRoster()
+      return
+    }
+    // Release any previous claim by this person/this device
+    Object.keys(claims).forEach(k => {
+      if (claims[k] === name || k === myRoleId) delete claims[k]
+    })
+    claims[roleId] = name
+    try {
+      await saveClaims()
+      saveMyRole(roleId, name)
+      renderRoster()
+    } catch (e) {
+      alert('Could not save — try again in a moment.')
+    }
+  }
+
+  async function releaseRole(roleId) {
+    if (claims[roleId] !== myName) {
+      // not yours, refuse
+      return
+    }
+    delete claims[roleId]
+    try {
+      await saveClaims()
+      saveMyRole(null, '')
+      renderRoster()
+    } catch (e) {
+      alert('Could not save — try again in a moment.')
+    }
+  }
+
+  function renderRoster() {
+    const area = document.getElementById('roster-area')
+    if (!PANTRY_ID) {
+      area.innerHTML = `<div class="roster-setup"><strong>Roster setup pending.</strong> Sign up at <a class="extra-link" href="https://getpantry.cloud" target="_blank" rel="noopener">getpantry.cloud</a> (free, just an email) and send Elliot the Pantry ID — he'll wire it in and the brotherhood goes live.</div>`
+      return
+    }
+    const cards = ROLES.map(r => {
+      const claimed = claims[r.id]
+      const mine = !!claimed && claimed === myName && r.id === myRoleId
+      const claimedByOther = !!claimed && !mine
+      let body = ''
+      if (claimed) {
+        body = `<div class="role-by"><span>Claimed by <strong>${escapeHtml(claimed)}</strong>${mine ? '<span class="you-tag">you</span>' : ''}</span>${mine ? `<button class="role-btn role-release" data-role-release="${r.id}" type="button">Release</button>` : ''}</div>`
+      } else {
+        body = `<div class="role-input"><input type="text" placeholder="Your name…" data-role-input="${r.id}" maxlength="40" value="${escapeHtml(myName || '')}" /><button class="role-btn" data-role-claim="${r.id}" type="button">Claim</button></div>`
+      }
+      return `<div class="role-card ${claimed ? 'role-claimed' : ''} ${mine ? 'role-mine' : ''}">
+        <div class="role-name">${escapeHtml(r.name)}</div>
+        <div class="role-desc">${escapeHtml(r.desc)}</div>
+        ${body}
+      </div>`
+    }).join('')
+    area.innerHTML = `<div class="roster-grid">${cards}</div>`
+
+    area.querySelectorAll('[data-role-claim]').forEach(b => {
+      b.addEventListener('click', () => claimRole(b.dataset.roleClaim))
+    })
+    area.querySelectorAll('[data-role-release]').forEach(b => {
+      b.addEventListener('click', () => releaseRole(b.dataset.roleRelease))
+    })
+    area.querySelectorAll('[data-role-input]').forEach(input => {
+      input.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          const roleId = input.dataset.roleInput
+          claimRole(roleId)
+        }
+      })
+    })
+
+    if (lastFetchedAt) {
+      const t = lastFetchedAt
+      document.getElementById('roster-updated').textContent =
+        'Last refreshed ' + t.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    }
+  }
+
+  function startRosterPolling() {
+    if (rosterPollTimer) clearInterval(rosterPollTimer)
+    rosterPollTimer = setInterval(() => {
+      if (document.visibilityState === 'visible') fetchClaims()
+    }, 12000)
+  }
+
+  function bootRoster() {
+    loadMyRole()
+    renderRoster() // initial render (handles setup-pending state)
+    if (PANTRY_ID) {
+      fetchClaims()
+      startRosterPolling()
+    }
+    const refreshBtn = document.getElementById('roster-refresh')
+    if (refreshBtn) refreshBtn.addEventListener('click', () => fetchClaims())
+  }
+
   function wireRsvp() {
     const url = (RSVP_URL || '').trim()
     const btn = document.getElementById('rsvp-btn')
@@ -497,6 +720,7 @@
 
   renderTimeline()
   wireRsvp()
+  bootRoster()
   wireQuest()
 </script>
 </body>
