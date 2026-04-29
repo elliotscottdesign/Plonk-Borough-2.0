@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React from 'react'
 import {
   HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
   HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
@@ -17,21 +17,10 @@ import {
 // This tab gives investors a transparent view of what the golf side looked
 // like in 2025 and what changes for No Dice under the new structure.
 
-const TABS = ['Golf Operations', 'IP & Licensing', 'Digital Marketing', 'SEO Marketing']
-
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 function STitle({ children }) {
   return <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{children}</div>
-}
-
-function Tbd({ children }) {
-  return (
-    <div style={{ padding:'14px 18px', borderRadius:10, background:'rgba(201,168,76,0.06)', border:'1px dashed rgba(201,168,76,0.35)', color:'var(--cream-dim)', fontSize:12, lineHeight:1.6 }}>
-      <span style={{ color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginRight:8, fontWeight:600 }}>TBD</span>
-      {children}
-    </div>
-  )
 }
 
 // ─── Golf Operations — 2025 actuals + go-forward structure ────────────
@@ -221,7 +210,7 @@ function GolfHostSeasonality() {
     <div>
       <STitle>Golf Host Shifts · 2025 Seasonality (Operational)</STitle>
       <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:8 }}>
-        Source: live rota Google Sheet, filtered to <strong style={{ color:'var(--cream)' }}>Role = Golf host</strong> for 1 Jan – 31 Dec 2025. <strong style={{ color:'var(--cream)' }}>Operational data only</strong> — when a dedicated host was scheduled, hours rota'd, peak / dark months. The £ figures shown are the rota's own Cost column (rate × hours) for sanity context only; <strong style={{ color:'var(--cream)' }}>Weekly Merged 2024-2026 is the financial source of truth</strong> for all wage figures and does not break out a Golf Host line. Any role-level £ attribution is therefore an estimate.
+        Source: live rota Google Sheet, filtered to <strong style={{ color:'var(--cream)' }}>Role = Golf host</strong> for 1 Jan – 31 Dec 2025. <strong style={{ color:'var(--cream)' }}>Operational data only</strong> — shifts scheduled, hours rota'd, peak / dark months. No £ figures attributed at the rota level; the financial-truth wage line lives on Weekly Merged 2024-2026, which does not break out a Golf Host line.
       </p>
       <p style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14, padding:'6px 0' }}>
         Course was always <strong style={{ color:'var(--cream)' }}>OPEN</strong> regardless — bar staff and supervisors covered the host role outside dedicated host shifts. The pattern below shows the seasonal shape of the dedicated-host cover, not when golf was available to play.
@@ -229,23 +218,21 @@ function GolfHostSeasonality() {
 
       <div className="card" style={{ padding:18, marginBottom:14 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Host hours + rota Cost column (£)</span>
-          <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Peak: {peakMo.month} · {peakMo.hours} hrs · {fmt(peakMo.costGross)}</span>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Host hours per month</span>
+          <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Peak: {peakMo.month} · {peakMo.hours} hrs</span>
         </div>
         <div style={{ height: 240 }}>
           <ResponsiveContainer>
             <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
               <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
               <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-              <YAxis yAxisId="hours" stroke="#4FC3F7" fontSize={10} tickFormatter={v => `${v}h`} width={48} />
-              <YAxis yAxisId="cost"  orientation="right" stroke="#C9A84C" fontSize={10} tickFormatter={v => '£' + v} width={56} />
+              <YAxis stroke="#4FC3F7" fontSize={10} tickFormatter={v => `${v}h`} width={48} />
               <Tooltip
-                cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+                cursor={{ fill: 'rgba(79,195,247,0.06)' }}
                 contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
-                formatter={(v, n) => n === 'Hours' ? [`${v} hrs`, n] : [fmt(v), n]}
+                formatter={(v) => [`${v} hrs`, 'Hours']}
               />
-              <Bar  yAxisId="hours" dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
-              <Line yAxisId="cost"  dataKey="costGross" name="Gross cost" stroke="#C9A84C" strokeWidth={2.5} dot={{ fill:'#C9A84C', r:4 }} />
+              <Bar  dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
@@ -254,11 +241,10 @@ function GolfHostSeasonality() {
         </div>
       </div>
 
-      {/* Compact host-side totals strip — operational only, no financial truth */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:14 }}>
+      {/* Compact host-side totals strip — operational hours only */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:14 }}>
         <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Dedicated Golf Host shifts" />
         <SeasonTile label="Total hours"         value={totals.hours.toFixed(1) + ' hrs'} sub={`Avg ${(totals.hours / totals.shifts).toFixed(1)} hrs/shift`} />
-        <SeasonTile label="Rota Cost column"    value={fmt(totals.costGross)}            sub="@ £13.15/hr · operational ref only" />
         <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Months host was rota'd / not" />
       </div>
 
@@ -494,54 +480,11 @@ function PnlTotal({ label, value, colour, hasTbd }) {
   )
 }
 
-function IPLicensing() {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>IP & Licensing</STitle>
-      <Tbd>Hackney 2025 SKU + monthly DMN data now lives on the <strong>Golf Operations</strong> tab (Online + Office breakdown plus a token-economics callout: 100% of token revenue stays with No Dice; the operator takes no share of token value). This sub-tab is reserved for the formal IP &amp; Licensing arrangement with the new golf operator entity — commission rate, booking-fee handling, online-portal license terms — TBD pending operator incorporation.</Tbd>
-    </div>
-  )
-}
-
-function DigitalMarketing() {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>Digital Marketing</STitle>
-      <Tbd>Borough's Digital Marketing tab models Google Ads, SEO and ticket-uplift forecasts. Hackney runs zero paid Google Ads — populate with Hackney's organic / local listings / events split or remove if not used.</Tbd>
-    </div>
-  )
-}
-
-function SeoMarketing() {
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>SEO Marketing</STitle>
-      <Tbd>Borough's SEO tab covers organic search recovery (the 32% drop from the Plonk→No Dice rebrand). Hackney equivalent: GA4 baseline + local-search ranking plan + 301 redirect strategy. TBD.</Tbd>
-    </div>
-  )
-}
-
 export default function Plonk() {
-  const [tab, setTab] = useState('Golf Operations')
-  const tabComponents = {
-    'Golf Operations':    <GolfOperations />,
-    'IP & Licensing':     <IPLicensing />,
-    'Digital Marketing':  <DigitalMarketing />,
-    'SEO Marketing':      <SeoMarketing />,
-  }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
-      <div style={{ padding:'20px 32px 0', borderBottom:'1px solid rgba(201,168,76,0.12)' }}>
-        <div style={{ display:'flex', gap:0, overflowX:'auto' }}>
-          {TABS.map(t => (
-            <button key={t} onClick={()=>setTab(t)} style={{ padding:'8px 16px', fontSize:11, cursor:'pointer', border:'none', background:'transparent', letterSpacing:'0.06em', textTransform:'uppercase', borderBottom:`2px solid ${tab===t?'var(--gold)':'transparent'}`, color:tab===t?'var(--gold)':'var(--cream-dim)', transition:'all 0.15s', whiteSpace:'nowrap' }}>{t}</button>
-          ))}
-        </div>
-      </div>
-      <div style={{ padding:'24px 32px 24px', fontSize:13 }}>{tabComponents[tab]}</div>
-      <div style={{ padding:'20px 32px 32px', borderTop:'1px solid rgba(201,168,76,0.12)', marginTop:12 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.15em', textTransform:'uppercase', marginBottom:4 }}>Plonk Golf</div>
-        <div style={{ fontSize:14, color:'var(--cream-dim)' }}>IP &amp; Licensing · Digital Marketing · dev section</div>
+      <div style={{ padding:'24px 32px', fontSize:13 }}>
+        <GolfOperations />
       </div>
     </div>
   )

@@ -69,7 +69,7 @@ function Tab2025() {
       <STitle>Monthly Performance</STitle>
       <MonthlyPerformanceChart />
 
-      <STitle>Wages — 2025 Rota Reference (4-role bar-only)</STitle>
+      <STitle>Hours — 2025 Rota Reference (4-role bar-only)</STitle>
       <WageRotaReference />
     </div>
   )
@@ -238,38 +238,37 @@ function MonthlyPerformanceChart() {
   )
 }
 
-// ─── Wages — 2025 rota reference (bar-only, 4 roles) ──────────────────
+// ─── Hours — 2025 rota reference (bar-only, 4 roles) ──────────────────
+// Operational hours only. Per methodology rule, the rota Google Sheet
+// is the source for HOURS / DATE / TIME / ROLE — no £ figures shown
+// here. The financial-truth wage line (£179,872 / yr) lives on the
+// 2025 top-line cards above, sourced from Weekly Merged 2024-2026
+// (Monthly Summary G15).
 function WageRotaReference() {
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
   const totalHours = WAGE_RATES.reduce((s, r) => s + r.hours, 0)
-  const grossTotal = WAGE_RATES.reduce((s, r) => s + r.rate * r.hours, 0)
-  const loadedTotal = grossTotal * WAGE_OVERHEAD_MULT
   return (
     <div className="card" style={{ padding:18 }}>
-      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, fontSize:11, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
-        <span>Role</span><span style={{ textAlign:'right' }}>Avg rate</span><span style={{ textAlign:'right' }}>Hours (yr)</span><span style={{ textAlign:'right' }}>Gross</span>
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 0.8fr', gap:12, fontSize:11, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
+        <span>Role</span><span style={{ textAlign:'right' }}>Hours (yr)</span><span style={{ textAlign:'right' }}>Share</span>
       </div>
-      {WAGE_RATES.map(r => (
-        <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13 }}>
-          <span style={{ color:'var(--cream)' }}><span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}</span>
-          <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>£{r.rate.toFixed(2)}</span>
-          <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hours.toLocaleString('en-GB')}</span>
-          <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
-        </div>
-      ))}
-      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'10px 0 4px', fontSize:13, fontWeight:600 }}>
-        <span style={{ color:'var(--cream)' }}>Total · gross</span>
-        <span></span>
-        <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{totalHours.toLocaleString('en-GB')}</span>
-        <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(grossTotal)}</span>
+      {WAGE_RATES.map(r => {
+        const share = totalHours > 0 ? r.hours / totalHours : 0
+        return (
+          <div key={r.role} style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 0.8fr', gap:12, padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, alignItems:'baseline' }}>
+            <span style={{ color:'var(--cream)' }}><span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}</span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.hours.toLocaleString('en-GB')}</span>
+            <span style={{ color:'var(--gold-dim)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{(share * 100).toFixed(1)}%</span>
+          </div>
+        )
+      })}
+      <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 0.8fr', gap:12, padding:'12px 0 4px', fontSize:14, fontWeight:600 }}>
+        <span style={{ color:'var(--cream)' }}>Total hours · 2025</span>
+        <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{totalHours.toLocaleString('en-GB')}</span>
+        <span style={{ color:'var(--gold-dim)', textAlign:'right' }}>100.0%</span>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 1fr', gap:8, padding:'2px 0', fontSize:12, color:'var(--cream-dim)' }}>
-        <span>Fully-loaded × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday)</span>
-        <span></span><span></span>
-        <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmt(loadedTotal)}</span>
-      </div>
-      <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:8, lineHeight:1.5 }}>
-        Source: Wages Breakdown · 2025 Rota Reference Rates. Cross-checks to Monthly Summary G15 wage line ({fmt(PL_WAGE_BASE)}). Rota total {fmt(ROTA_TOTAL)} pre-loading.
+      <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:10, lineHeight:1.6 }}>
+        Source: live rota Google Sheet · 2025 bar-only shifts (Bar Staff, Supervisor, Asst. Manager, Manager — Golf Host + Kitchen excluded). <strong style={{ color:'var(--cream)' }}>Operational data only — no £ values attributed at the rota level.</strong> Total bar wage spend for 2025 ({fmt(PL_WAGE_BASE)}) is shown on the top-line cards above; that figure is the financial truth, sourced from Weekly Merged 2024-2026 / Monthly Summary G15.
       </div>
     </div>
   )
