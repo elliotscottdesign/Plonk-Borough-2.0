@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
   HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
+  HACKNEY_GOLF_TILL_2025_MONTHLY,
 } from '../../data/hackney.js'
 import {
   ResponsiveContainer, ComposedChart, Line, Bar,
@@ -75,7 +76,7 @@ function GolfOperations() {
           <div className="card" style={{ padding:20 }}>
             <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Revenue (gross to No Dice in 2025)</div>
             <PnlRow label="Online ticket sales (DMN — tokens)" value={g.revenue.onlineTickets} colour="#4FC3F7" />
-            <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026" />
+            <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026 row 3 · 52 weeks of 2025" />
             <PnlRow label="Tournament entry fees"                value={g.revenue.tournamentEntry} colour="#4FC3F7" />
             <PnlTotal label="Total revenue 2025" value={totalRev2025} colour="#4FC3F7" hasTbd={[g.revenue.tillTickets].includes(TBD)} />
           </div>
@@ -187,18 +188,26 @@ function GolfOperations() {
   )
 }
 
-// ─── Golf Host seasonality — 2025 rota visualisation ──────────────────
-// Pulled from the live rota (Role = "Golf host", calendar 2025).
-// Surfaces the operational pattern: Jan–Apr ran consistently, May–Jun
-// dark, summer pickup Jul–Aug, then dark Sep–Dec. Hours bars + cost
-// line on the same chart so investors can read seasonality and
-// magnitude in one glance.
+// ─── Golf Host seasonality — 2025 rota + till sales overlay ───────────
+// Two charts on this section:
+//   1. Host hours + gross wage cost — pulled from the live rota
+//      (Role = "Golf host"). Shows when staff was actually rota'd.
+//   2. Till ticket revenue — pulled from Weekly Merged 2024-2026 row 3.
+//      Runs every month of 2025, including months when the host role
+//      was dark — meaning bar staff / supervisors were ringing up
+//      walk-in tickets at the till.
 function GolfHostSeasonality() {
   const data    = HACKNEY_GOLF_HOST_2025_MONTHLY
   const totals  = HACKNEY_GOLF_HOST_2025_TOTALS
+  const tillData = HACKNEY_GOLF_TILL_2025_MONTHLY
+  const tillTotal = tillData.reduce((s, m) => s + m.revenue, 0)
   const peakMo  = data.reduce((acc, m) => m.hours > acc.hours ? m : acc, data[0])
   const activeMonthLabels = data.filter(m => m.shifts > 0).map(m => m.month).join(', ')
   const darkMonthLabels   = data.filter(m => m.shifts === 0).map(m => m.month).join(', ')
+  // Months where till sold tickets but host role was dark — the disconnect.
+  const tillByMonth = Object.fromEntries(tillData.map(m => [m.month, m.revenue]))
+  const ghostMonths = data.filter(m => m.shifts === 0 && (tillByMonth[m.month] || 0) > 0).map(m => m.month)
+  const ghostTotal  = ghostMonths.reduce((s, mo) => s + (tillByMonth[mo] || 0), 0)
 
   return (
     <div>
@@ -209,7 +218,7 @@ function GolfHostSeasonality() {
 
       <div className="card" style={{ padding:18, marginBottom:14 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly hours + gross cost</span>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Host hours + gross cost</span>
           <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Peak: {peakMo.month} · {peakMo.hours} hrs · {fmt(peakMo.costGross)}</span>
         </div>
         <div style={{ height: 240 }}>
@@ -224,7 +233,6 @@ function GolfHostSeasonality() {
                 contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
                 formatter={(v, n) => n === 'Hours' ? [`${v} hrs`, n] : [fmt(v), n]}
               />
-              {/* Highlight dark months with a faint reference band — done via 0-bar styling */}
               <Bar  yAxisId="hours" dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
               <Line yAxisId="cost"  dataKey="costGross" name="Gross cost" stroke="#C9A84C" strokeWidth={2.5} dot={{ fill:'#C9A84C', r:4 }} />
             </ComposedChart>
@@ -235,13 +243,54 @@ function GolfHostSeasonality() {
         </div>
       </div>
 
-      {/* Compact totals strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:10 }}>
+      {/* Compact host-side totals strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:10, marginBottom:14 }}>
         <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Across 2025" />
         <SeasonTile label="Total hours"         value={totals.hours.toFixed(1) + ' hrs'} sub={`Avg ${(totals.hours / totals.shifts).toFixed(1)} hrs/shift`} />
         <SeasonTile label="Gross cost"          value={fmt(totals.costGross)}            sub={`@ £13.15/hr (rota rate)`} />
         <SeasonTile label="Fully-loaded cost"   value={fmt(totals.costLoaded)}           sub="× 1.355 (NIC + pension + holiday)" colour="#10B981" />
         <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Active months / dark months" />
+      </div>
+
+      {/* Walk-in (till) golf ticket revenue — separate chart */}
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14, marginTop:24 }}>
+        Source: Weekly Merged 2024-2026 sheet, row 3 (<strong style={{ color:'var(--cream)' }}>Total Walk In Golf Tickets</strong>), 52 weeks of 2025 aggregated. Total <strong style={{ color:'var(--gold)' }}>{fmt(tillTotal)}</strong>. Note: till sales ran every month — even when the rota had zero Golf Host shifts. Walk-in tickets were being rung up by bar staff / supervisors at the bar till regardless of whether a dedicated host was scheduled.
+      </p>
+
+      <div className="card" style={{ padding:18, marginBottom:14 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Walk-in (till) golf ticket revenue</span>
+          <span style={{ fontSize:11, color:'var(--cream-dim)' }}>52 weeks of 2025 · {tillData.length} months</span>
+        </div>
+        <div style={{ height: 220 }}>
+          <ResponsiveContainer>
+            <ComposedChart data={tillData} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+              <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+              <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+              <YAxis stroke="#2DD4BF" fontSize={10} tickFormatter={v => '£' + v} width={56} />
+              <Tooltip
+                cursor={{ fill: 'rgba(45,212,191,0.06)' }}
+                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+                formatter={(v) => [fmt(v), 'Till revenue']}
+              />
+              <Bar  dataKey="revenue" name="Revenue" fill="#2DD4BF" radius={[3,3,0,0]} maxBarSize={36} />
+              <Line dataKey="revenue" stroke="#2DD4BF" strokeWidth={2} dot={{ fill:'#2DD4BF', r:3 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        {ghostMonths.length > 0 && (
+          <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(234,179,8,0.04)', borderLeft:'3px solid #EAB308', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+            <strong style={{ color:'#EAB308' }}>Disconnect:</strong> till sold <strong style={{ color:'var(--cream)' }}>{fmt(ghostTotal)}</strong> of golf tickets across <strong style={{ color:'var(--cream)' }}>{ghostMonths.join(', ')}</strong> — months where zero Golf Host shifts were rota'd. That's bar staff / supervisors absorbing the host role on top of their bar duties. Under the new structure the golf company picks this up, freeing No Dice's bar team to focus on bar trade.
+          </div>
+        )}
+      </div>
+
+      {/* Till-side totals strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10 }}>
+        <SeasonTile label="Total walk-in revenue 2025" value={fmt(tillTotal)}                                                            sub="52 weeks · all months active" colour="#2DD4BF" />
+        <SeasonTile label="Avg per month"               value={fmt(tillTotal / 12)}                                                       sub="Across 12 months" />
+        <SeasonTile label="Peak month"                  value={(() => { const p = tillData.reduce((a, m) => m.revenue > a.revenue ? m : a, tillData[0]); return `${p.month} · ${fmt(p.revenue)}` })()} sub="Highest till take" />
+        <SeasonTile label="Quiet month"                 value={(() => { const p = tillData.reduce((a, m) => m.revenue < a.revenue ? m : a, tillData[0]); return `${p.month} · ${fmt(p.revenue)}` })()} sub="Lowest till take" />
       </div>
     </div>
   )

@@ -778,7 +778,9 @@ export const HACKNEY_GOLF_2025 = {
   // Revenue lines (what came IN to No Dice as the operating venue in 2025)
   revenue: {
     onlineTickets:    39288,    // £ — online ticket sales redeemed as bar tokens
-    tillTickets:        TBD,    // £ — direct ticket sales at venue till (Weekly Merged)
+    tillTickets:      25503,    // £ — direct ticket sales at venue till. Source: Weekly
+                                //     Merged 2024-2026 row 3 ("Total Walk In Golf
+                                //     Tickets"), 52 weeks of 2025 summed (£25,502.77)
     tournamentEntry:   3570,    // £ — included in old golf P&L (separate tournament events)
   },
   // Costs attributable to running the golf course in 2025
@@ -826,6 +828,31 @@ export const HACKNEY_GOLF_HOST_2025_TOTALS = {
   activeMonths: 6,       // Jan, Feb, Mar, Apr, Jul, Aug
   darkMonths:  6,        // May, Jun, Sep, Oct, Nov, Dec
 }
+
+// === WALK-IN GOLF TILL TICKETS — 2025 MONTHLY =========================
+// Pulled from Weekly Merged 2024-2026 row 3 ("Total Walk In Golf
+// Tickets"). 52 weeks of 2025 aggregated by week-start month. Total
+// 2025 = £25,502.77 (rounded to £25,503 in HACKNEY_GOLF_2025.revenue.
+// tillTickets above). Note: till sales ran every month of 2025 — even
+// in May / Jun / Sep / Oct / Nov / Dec when the rota had ZERO Golf
+// Host shifts — meaning bar staff and supervisors were ringing up
+// walk-in tickets at the till even when the dedicated host role wasn't
+// rota'd. That's part of the investor narrative for why the course
+// was a hidden cost-of-distraction on the bar P&L.
+export const HACKNEY_GOLF_TILL_2025_MONTHLY = [
+  { month: 'Jan', weeks: 4, revenue:  1048 },
+  { month: 'Feb', weeks: 4, revenue:  1611 },
+  { month: 'Mar', weeks: 5, revenue:  2954 },
+  { month: 'Apr', weeks: 4, revenue:  2435 },
+  { month: 'May', weeks: 4, revenue:  2446 },
+  { month: 'Jun', weeks: 5, revenue:  2627 },
+  { month: 'Jul', weeks: 4, revenue:  2628 },
+  { month: 'Aug', weeks: 3, revenue:  2588 },
+  { month: 'Sep', weeks: 6, revenue:  2554 },
+  { month: 'Oct', weeks: 4, revenue:  2002 },
+  { month: 'Nov', weeks: 4, revenue:  1353 },
+  { month: 'Dec', weeks: 5, revenue:  1260 },
+]
 
 // Go-forward (2026+) revenue split between the new golf company and No Dice.
 // Each line records what NO DICE retains under the new structure. Anything
