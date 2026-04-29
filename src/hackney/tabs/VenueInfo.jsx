@@ -476,7 +476,7 @@ function TabDevelopment() {
   const raiseTotal = effective?.investment ?? HACKNEY_RAISE_TARGET
   const raiseLabel = fmtRaise(raiseTotal)
   const Arr = ({c}) => <span style={{ color:c, flexShrink:0 }}>→</span>
-  const Tag = ({label,color}) => <span style={{ fontSize:11, border:`1px solid ${color}`, color, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase', marginRight:8, display:'inline-block', marginBottom:6 }}>{label}</span>
+  const Tag = ({label,color}) => <span style={{ fontSize:11, border:`1px solid ${color}`, color, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase' }}>{label}</span>
   const Bar = ({label,pct,val,color}) => (
     <div style={{ marginBottom:12 }}>
       <div style={{ display:'flex', justifyContent:'space-between', fontSize:13, marginBottom:4 }}>
@@ -667,10 +667,12 @@ function TabDevelopment() {
 
         <div style={{ background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)', borderLeft:'4px solid #6366F1', borderRadius:8, padding:'16px 20px', marginBottom:16 }}>
           <p style={{ fontSize:13, color:'#9CA3AF', fontStyle:'italic', marginBottom:12 }}>Recommended sequencing — in priority order:</p>
-          <Tag label="C26 + C30 (paired) — bar-only critical" color="#2DD4BF" />
-          <Tag label="C14 (post-soundproofing)" color="#C9A84C" />
-          <Tag label="Hours: Fri–Sat 00:00 ✓ granted" color="#10B981" />
-          <Tag label="Engage LBH Licensing pre-application" color="#9CA3AF" />
+          <div style={{ display:'flex', flexWrap:'wrap', gap:8 }}>
+            <Tag label="C26 + C30 (paired) — bar-only critical" color="#2DD4BF" />
+            <Tag label="C14 (post-soundproofing)" color="#C9A84C" />
+            <Tag label="Hours: Fri–Sat 00:00 ✓ granted" color="#10B981" />
+            <Tag label="Engage LBH Licensing pre-application" color="#9CA3AF" />
+          </div>
         </div>
         <p style={{ fontSize:12, color:'#6B7280', fontStyle:'italic', textAlign:'center' }}>Likelihood ranges are management estimates. Engage a Hackney-specialist licensing solicitor before any submission.</p>
       </div>
