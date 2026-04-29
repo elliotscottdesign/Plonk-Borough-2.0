@@ -89,7 +89,7 @@ function GolfOperations() {
           {/* Costs card */}
           <div className="card" style={{ padding:20 }}>
             <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
-            <PnlRow label="Golf host wages (loaded)" value={g.costs.hostWages}    colour="#F87171" sourceNote="Live rota · 248 hrs × £13.15 × 1.355 (NIC + pension)" />
+            <PnlRow label="Golf host wages (financial)" value={g.costs.hostWages}    colour="#F87171" sourceNote="Weekly Merged 2024-2026 — no Golf Host line in financials; founder estimate or payroll re-cut needed" />
             <PnlRow label="Course rent share"          value={g.costs.rentShare}    colour="#F87171" sourceNote="Lease apportioned to course site" />
             <PnlRow label="Maintenance"                 value={g.costs.maintenance}  colour="#F87171" sourceNote="Founder approximation" />
             <PnlRow label="Upgrades"                    value={g.costs.upgrade}      colour="#F87171" sourceNote="Founder approximation" />
@@ -220,14 +220,17 @@ function GolfHostSeasonality() {
 
   return (
     <div>
-      <STitle>Golf Host Wages · 2025 Seasonality</STitle>
-      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
-        Source: live rota Google Sheet, filtered to <strong style={{ color:'var(--cream)' }}>Role = Golf host</strong> for 1 Jan – 31 Dec 2025. Bars show monthly hours; the gold line shows monthly gross wage cost. The pattern below is exactly why the golf course was hard to justify as a No Dice cost line — half the year ran zero hours.
+      <STitle>Golf Host Shifts · 2025 Seasonality (Operational)</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:8 }}>
+        Source: live rota Google Sheet, filtered to <strong style={{ color:'var(--cream)' }}>Role = Golf host</strong> for 1 Jan – 31 Dec 2025. <strong style={{ color:'var(--cream)' }}>Operational data only</strong> — when a dedicated host was scheduled, hours rota'd, peak / dark months. The £ figures shown are the rota's own Cost column (rate × hours) for sanity context only; <strong style={{ color:'var(--cream)' }}>Weekly Merged 2024-2026 is the financial source of truth</strong> for all wage figures and does not break out a Golf Host line. Any role-level £ attribution is therefore an estimate.
+      </p>
+      <p style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14, padding:'6px 0' }}>
+        Course was always <strong style={{ color:'var(--cream)' }}>OPEN</strong> regardless — bar staff and supervisors covered the host role outside dedicated host shifts. The pattern below shows the seasonal shape of the dedicated-host cover, not when golf was available to play.
       </p>
 
       <div className="card" style={{ padding:18, marginBottom:14 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Host hours + gross cost</span>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Host hours + rota Cost column (£)</span>
           <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Peak: {peakMo.month} · {peakMo.hours} hrs · {fmt(peakMo.costGross)}</span>
         </div>
         <div style={{ height: 240 }}>
@@ -252,13 +255,12 @@ function GolfHostSeasonality() {
         </div>
       </div>
 
-      {/* Compact host-side totals strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:10, marginBottom:14 }}>
-        <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Across 2025" />
+      {/* Compact host-side totals strip — operational only, no financial truth */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:14 }}>
+        <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Dedicated Golf Host shifts" />
         <SeasonTile label="Total hours"         value={totals.hours.toFixed(1) + ' hrs'} sub={`Avg ${(totals.hours / totals.shifts).toFixed(1)} hrs/shift`} />
-        <SeasonTile label="Gross cost"          value={fmt(totals.costGross)}            sub={`@ £13.15/hr (rota rate)`} />
-        <SeasonTile label="Fully-loaded cost"   value={fmt(totals.costLoaded)}           sub="× 1.355 (NIC + pension + holiday)" colour="#10B981" />
-        <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Active months / dark months" />
+        <SeasonTile label="Rota Cost column"    value={fmt(totals.costGross)}            sub="@ £13.15/hr · operational ref only" />
+        <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Months host was rota'd / not" />
       </div>
 
       {/* Walk-in (till) golf ticket revenue — separate chart */}
@@ -289,7 +291,7 @@ function GolfHostSeasonality() {
         </div>
         {ghostMonths.length > 0 && (
           <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(234,179,8,0.04)', borderLeft:'3px solid #EAB308', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-            <strong style={{ color:'#EAB308' }}>Disconnect:</strong> till sold <strong style={{ color:'var(--cream)' }}>{fmt(ghostTotal)}</strong> of golf tickets across <strong style={{ color:'var(--cream)' }}>{ghostMonths.join(', ')}</strong> — months where zero Golf Host shifts were rota'd. That's bar staff / supervisors absorbing the host role on top of their bar duties. Under the new structure the golf company picks this up, freeing No Dice's bar team to focus on bar trade.
+            <strong style={{ color:'#EAB308' }}>Bar-staff cover:</strong> till sold <strong style={{ color:'var(--cream)' }}>{fmt(ghostTotal)}</strong> of golf tickets across <strong style={{ color:'var(--cream)' }}>{ghostMonths.join(', ')}</strong> — months where no dedicated Golf Host was rota'd. The course stayed open; bar staff and supervisors absorbed the host role on top of their bar duties. Under the new structure the operator picks this up, freeing No Dice's bar team to focus on bar trade.
           </div>
         )}
       </div>

@@ -305,9 +305,18 @@ export const WAGE_RATES = [
   { role: 'Manager',       rate: 18.26, hours: 1375.1, color: '#0D9488' },
 ]
 
-export const PL_WAGE_BASE = 179872            // 2025 verified P&L wage line — Monthly Summary!G15
-export const ROTA_TOTAL   = 132725            // 2025 gross rota cost — live rota aggregate (validated, dated shifts only)
-export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.355 — covers NIC + pension + holiday plus shift-level overtime/holiday rates
+// === WAGE FINANCIAL TRUTH — Weekly Merged 2024-2026 ==================
+// Methodology rule for the Hackney deck: the only true financial wage
+// data for 2025 comes from Weekly Merged 2024-2026 (which is what
+// Monthly Summary G15 aggregates). The live rota Google Sheet is for
+// HOURS / DATE / TIME / ROLE allocation only — never for £ figures.
+// Weekly Merged splits wages by COMPONENT (gross pay, NIC, pension,
+// holiday, sick, freelance) — NOT by ROLE — so any role-level £
+// attribution (e.g. Golf Host, Bar Staff) is an estimate derived
+// from rota hours × rate, not financial truth.
+export const PL_WAGE_BASE = 179872            // 2025 financial-truth wage line — Monthly Summary G15 (= Weekly Merged 2024-2026 wage rows aggregated)
+export const ROTA_TOTAL   = 132725            // 2025 rota gross — operational allocation reference, NOT a financial figure
+export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.355 — empirical multiplier reconciling rota gross to financial-truth payroll (NIC + pension + holiday + overtime). Derived, not contractual.
 
 // === MODELLED STAFFING — full 12-role build-out ===
 // Source: Wages Breakdown sheet, modelled staffing block (rows 10–40).
@@ -802,9 +811,26 @@ export const HACKNEY_GOLF_2025 = {
     tournamentEntry:   3570,    // £ — kept for legacy parity (subsumed inside DMN
                                 //     Doubles + Singles Pool Tournament SKUs above)
   },
-  // Costs attributable to running the golf course in 2025
+  // Costs attributable to running the golf course in 2025.
+  //
+  // METHODOLOGY NOTE — wages: Weekly Merged 2024-2026 (rows 14-24) is
+  // the only true financial source for 2025 wage spend, but it splits
+  // wages by COMPONENT (gross pay, NIC, pension, holiday, sick,
+  // freelance) — NOT by ROLE. There is no "Golf Host" line in the
+  // financials. The rota Google Sheet is the only place Golf Host
+  // appears separately, but it tracks SCHEDULED HOURS / DATE / TIME
+  // / ROLE — not financial truth. We therefore mark hostWages as TBD
+  // here pending either (a) a founder-supplied financial estimate or
+  // (b) a payroll re-cut that allocates a £ figure to the role. The
+  // operational view (shift count, hours, seasonality) is preserved
+  // on the Plonk page from rota — flagged clearly as operational, not
+  // financial, attribution.
   costs: {
-    hostWages:         4423,    // £ — 248.2 hrs × £13.15/hr gross = £3,264.55, × WAGE_OVERHEAD_MULT (1.355) ≈ £4,423 fully-loaded (NIC + pension + holiday)
+    hostWages:          TBD,    // £ — no Golf-Host line in Weekly Merged.
+                                //     Rota shows 248.2 hrs × £13.15 base
+                                //     (= £3,265 gross), but that's an
+                                //     operational allocation, not the
+                                //     financial truth. Founder to confirm.
     rentShare:          TBD,    // £ — share of rent attributable to the course site
     maintenance:        TBD,    // £ — founder to approximate
     upgrade:            TBD,    // £ — founder to approximate
@@ -814,16 +840,20 @@ export const HACKNEY_GOLF_2025 = {
 }
 
 // === GOLF HOST — 2025 MONTHLY ROTA AGGREGATE ==========================
+// OPERATIONAL DATA ONLY — hours scheduled per role per month.
 // Pulled from the live rota Google Sheet (Role = "Golf host", date in
-// calendar-year 2025). Surfaces the seasonal pattern of golf operations
-// — Jan–Apr ran consistently, May–Jun dark, summer pickup Jul–Aug,
-// then dark Sep–Dec onwards. Drives the Golf Operations seasonality
-// chart on the Plonk tab.
+// calendar-year 2025). Surfaces the seasonal pattern of when a
+// dedicated host was rota'd: Jan–Apr ran consistently, May–Jun dark,
+// summer pickup Jul–Aug, then dark Sep–Dec onwards. (Note: course
+// was always OPEN regardless — bar staff / supervisors covered the
+// host role outside dedicated host shifts.)
 //
-// Cost shown is GROSS hourly cost (Cost column from the rota). The
-// fully-loaded host-wage figure used in HACKNEY_GOLF_2025.costs.hostWages
-// applies WAGE_OVERHEAD_MULT (≈1.355) on top to cover NIC + pension +
-// holiday — same loading basis as PL_WAGE_BASE.
+// `costGross` shown below is the rota's own Cost column (hours ×
+// rota hourly rate) — included for operational reference only. It
+// is NOT the financial wage attribution. Weekly Merged 2024-2026
+// is the financial source of truth for wages and does not break
+// out a Golf Host line, so any £ attribution to this role is an
+// estimate, not a P&L figure.
 export const HACKNEY_GOLF_HOST_2025_MONTHLY = [
   { month: 'Jan', shifts: 6, hours: 41.5, costGross:  546 },
   { month: 'Feb', shifts: 7, hours: 38.5, costGross:  506 },
@@ -840,10 +870,14 @@ export const HACKNEY_GOLF_HOST_2025_MONTHLY = [
 ]
 
 export const HACKNEY_GOLF_HOST_2025_TOTALS = {
+  // Operational rota data only. costGross is the rota Cost column
+  // (rota rate × hours) — useful for "would the £ be material?"
+  // sanity but not a financial-truth wage figure.
   shifts:     33,        // total 2025 shifts
   hours:     248.2,      // total 2025 hours
-  costGross: 3265,       // £3,264.55 rounded — gross cost per rota
-  costLoaded: 4423,      // × WAGE_OVERHEAD_MULT
+  costGross: 3265,       // £3,264.55 rounded — rota Cost column. OPERATIONAL ONLY
+                         // (Weekly Merged 2024-2026 is the financial source of
+                         // truth; it does not break out Golf Host as a line)
   activeMonths: 6,       // Jan, Feb, Mar, Apr, Jul, Aug
   darkMonths:  6,        // May, Jun, Sep, Oct, Nov, Dec
 }
