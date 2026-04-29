@@ -68,33 +68,35 @@ export default function InvestmentSummary() {
   const investorEqPct = (effective.investorEq * 100).toFixed(1)
 
   return (
-    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
+      <h2 className="serif" style={{ fontSize: 'clamp(2.2rem, 4.4vw, 3.2rem)', color: 'var(--cream)', marginBottom: 10 }}>
         Investment Summary
       </h2>
-      <p style={{ color: 'var(--cream-dim)', marginBottom: 28, fontSize: 14 }}>
+      <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 16, lineHeight: 1.5 }}>
         At-a-glance deal structure, returns and financials.
       </p>
 
       {/* Scenario selector */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 28, flexWrap: 'wrap' }}>
         {Object.entries(SCENARIOS).map(([key, sc]) => (
           <button key={key} onClick={() => { if (!sc.disabled) setScenario(key) }} disabled={sc.disabled} style={{
-            padding: '7px 18px', fontSize: 11, borderRadius: 6, cursor: sc.disabled ? 'not-allowed' : 'pointer',
+            padding: '10px 22px', fontSize: 13, borderRadius: 8, cursor: sc.disabled ? 'not-allowed' : 'pointer',
             background: activeKey === key ? 'rgba(201,168,76,0.15)' : 'transparent',
             border: `1px solid ${activeKey === key ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
             color: activeKey === key ? 'var(--gold)' : 'var(--cream-dim)',
             transition: 'all 0.15s',
             opacity: sc.disabled ? 0.45 : 1,
+            fontWeight: activeKey === key ? 600 : 400,
+            letterSpacing: '0.02em',
           }} title={sc.disabled ? sc.sub : undefined}>
             {sc.label}
-            {sc.sub && <span style={{ fontSize:9, color:'var(--cream-dim)', display:'block', marginTop:2 }}>{sc.sub}</span>}
+            {sc.sub && <span style={{ fontSize:11, color:'var(--cream-dim)', display:'block', marginTop:3 }}>{sc.sub}</span>}
           </button>
         ))}
       </div>
 
       {/* 3-section snapshot grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, marginBottom: 36 }}>
         <Section title={`🏢 Deal Structure${isLocked ? ' · LOCKED' : ''}`} items={[
           ['Investment Sought',   fmt(effective.investment), isLocked],
           ['Investor Equity',    `${(effective.investorEq*100).toFixed(0)}%`],
@@ -120,18 +122,18 @@ export default function InvestmentSummary() {
       </div>
 
       {/* Top 3 highlights */}
-      <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+      <div style={{ fontSize: 13, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 18, fontWeight: 600 }}>
         Top 3 Investment Highlights
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36 }}>
         {[
           `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
           'All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)',
         ].map((text, i) => (
-          <div key={i} className="card" style={{ display: 'flex', gap: 16, padding: '14px 18px', alignItems: 'flex-start' }}>
-            <span className="serif" style={{ fontSize: 18, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
-            <span style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{text}</span>
+          <div key={i} className="card" style={{ display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' }}>
+            <span className="serif" style={{ fontSize: 28, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
+            <span style={{ fontSize: 15, color: 'var(--cream)', lineHeight: 1.65 }}>{text}</span>
           </div>
         ))}
       </div>
@@ -142,13 +144,13 @@ export default function InvestmentSummary() {
 
 function Section({ title, items }) {
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 14, fontWeight: 500 }}>{title}</div>
+    <div className="card" style={{ padding: 24 }}>
+      <div style={{ fontSize: 14, color: 'var(--gold)', marginBottom: 18, fontWeight: 600, letterSpacing: '0.02em' }}>{title}</div>
       {items.map(([label, value, gold]) => (
-        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0',
-          borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 11 }}>
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', padding: '10px 0',
+          borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 14, gap: 12 }}>
           <span style={{ color: 'var(--cream-dim)' }}>{label}</span>
-          <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
+          <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)', fontWeight: gold ? 600 : 400, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
         </div>
       ))}
     </div>
