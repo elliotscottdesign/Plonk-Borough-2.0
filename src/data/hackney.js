@@ -764,15 +764,12 @@ export const STOCK_SETUP_DETAIL = [
 //       - 100% of food revenue (unchanged)
 //       - 100% of party / private hire revenue (unchanged)
 //       - 100% of arcade token revenue — both online ticket-bundled
-//         tokens AND tokens sold at the bar till. No Dice settles
-//         with the new golf operator at £0.35 per token (NO VAT) —
-//         operator's share of the token value sold inside their
-//         golf SKUs. Net token margin to No Dice = sale price minus
-//         £0.35.
+//         tokens AND tokens sold at the bar till. The operator
+//         takes NO share of token value; tokens are entirely a
+//         No Dice revenue line.
 //   • Golf operator keeps:
 //       - 100% of till ticket sales (was No Dice's)
 //       - The £-ticket portion of online sales (golf round component)
-//       - £0.35 per token settlement from No Dice on bundled tokens
 //
 // Cost structure for the golf side in 2025 (per founder):
 //   • Rent — yes (course site is a separate lease)
@@ -915,13 +912,12 @@ export const HACKNEY_GOLF_GOING_FORWARD = {
     operator:   'Separate company (newly incorporated)',
     host:       'No Dice — continues to host + operate the course on site',
     cashflow:   'Settled monthly between the two entities',
-    tokenRate:  '£0.35 per token (NO VAT) — operator settlement on bundled tokens',
   },
   noDiceRetains: [
     { line: 'Bar revenue',                pct: 1.00, note: 'Unchanged — 100% to No Dice' },
     { line: 'Food revenue',               pct: 1.00, note: 'Unchanged — 100% to No Dice' },
     { line: 'Party / private hire',       pct: 1.00, note: 'Unchanged — 100% to No Dice' },
-    { line: 'Arcade token revenue',       pct: 1.00, note: '100% to No Dice — operator settled at £0.35 per token (NO VAT) as a cost line, not a share' },
+    { line: 'Arcade token revenue',       pct: 1.00, note: '100% to No Dice — operator takes no share of token value' },
     { line: 'Online ticket — golf round', pct: 0.00, note: 'Operator keeps the £-ticket portion (it is their core business)' },
     { line: 'Till ticket sales',          pct: 0.00, note: 'Operator keeps it (it is their core business)' },
     { line: 'Tournament entry',           pct: TBD,  note: 'TBD — founder to confirm with operator entity' },
@@ -929,13 +925,12 @@ export const HACKNEY_GOLF_GOING_FORWARD = {
   noDiceTakesOver: [
     'Course hosting + operations on site (course was always open in 2025; bar staff covered the host role outside dedicated host shifts)',
     'Customer-facing presence — bar / food / party / token spend continues to land with No Dice',
-    'Token sales — both bundled inside online tickets and walk-up at the bar till',
+    'Token sales — both bundled inside online tickets and walk-up at the bar till; 100% revenue retained',
   ],
   golfCompanyTakesOver: [
     '100% of till ticket sales (formerly No Dice revenue)',
     'The £-ticket portion of online sales (golf round component)',
     'Golf course cost base — rent, maintenance, upgrades, dedicated host wages',
-    '£0.35 per token settlement from No Dice on every token bundled into a sold SKU',
   ],
 }
 
@@ -957,11 +952,9 @@ export const HACKNEY_GOLF_GOING_FORWARD = {
 //
 // GO-FORWARD ECONOMICS (2026+):
 // Tokens continue to be sold by No Dice — both bundled inside
-// online tickets AND at the bar till — and ALL token revenue stays
-// with No Dice. No Dice settles with the new golf operator at
-// £0.35 per token (NO VAT) as the operator's fixed share of the
-// token value. Net token margin to No Dice = sale value − £0.35.
-export const HACKNEY_DMN_TOKEN_VALUE = 0.35   // £ per arcade token, no VAT — operator settlement rate
+// online tickets AND at the bar till — and 100% of token revenue
+// stays with No Dice. The operator takes NO share of token value;
+// tokens are entirely a No Dice revenue line.
 
 // 2025 Hackney SKUs sold ONLINE (status = complete on the DMN sheet).
 // Aggregated by archetype (time-of-day slot suffix stripped). Revenue
@@ -1027,11 +1020,10 @@ export const HACKNEY_DMN_GRAND_2025 = {
   onlineQty:  5424, onlineRev: 44812.35,                 // status=complete
   officeQty:  1567, officeRev: 13099.48,                 // status=external, imputed
   totalQty:   6991, totalRev:  57911.83,                 // combined Hackney 2025 DMN volume
-  // Token analytics — what flows to No Dice on token side
+  // Token analytics — 100% No Dice revenue, no operator share
   tokensOnline:    15098,                                // 4-token SKUs × qty + Add-Five × qty
   tokensOffice:     4385,                                // same calc for external SKUs
   tokensTotal:     19483,                                // bundled into Hackney DMN tickets in 2025
-  operatorSettlement: 6819,                              // 19,483 × £0.35 (NO VAT) = operator share
 }
 
 // === IP & LICENSING — NOT APPLICABLE TO HACKNEY ===

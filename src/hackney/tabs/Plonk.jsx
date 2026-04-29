@@ -5,7 +5,6 @@ import {
   HACKNEY_GOLF_TILL_2025_MONTHLY,
   HACKNEY_DMN_SKUS_ONLINE_2025, HACKNEY_DMN_SKUS_OFFICE_2025,
   HACKNEY_DMN_MONTHLY_2025, HACKNEY_DMN_GRAND_2025,
-  HACKNEY_DMN_TOKEN_VALUE,
 } from '../../data/hackney.js'
 import {
   ResponsiveContainer, ComposedChart, Line, Bar,
@@ -69,7 +68,7 @@ function GolfOperations() {
             <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> the golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong>. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
           </p>
           <p>
-            What this means in plain terms: <strong style={{ color:'var(--gold)' }}>bar / food / party revenue stays 100% with No Dice</strong> (unchanged). <strong style={{ color:'var(--gold)' }}>Token revenue stays 100% with No Dice</strong> — both bundled inside online tickets AND sold at the bar — with No Dice paying the operator <strong style={{ color:'var(--cream)' }}>£0.35 per token (NO VAT)</strong> as the operator's settlement share. <strong style={{ color:'var(--gold)' }}>The golf-round portion of ticket sales</strong> (online and till) <strong style={{ color:'var(--gold)' }}>moves to the operator</strong>. The course's cost base — rent, host wages, maintenance, upgrades — also moves to the operator.
+            What this means in plain terms: <strong style={{ color:'var(--gold)' }}>bar / food / party revenue stays 100% with No Dice</strong> (unchanged). <strong style={{ color:'var(--gold)' }}>Token revenue stays 100% with No Dice</strong> — both bundled inside online tickets AND sold at the bar. The operator takes <strong style={{ color:'var(--cream)' }}>no share of token value</strong>; tokens are entirely a No Dice line. <strong style={{ color:'var(--gold)' }}>The golf-round portion of ticket sales</strong> (online and till) <strong style={{ color:'var(--gold)' }}>moves to the operator</strong>, along with the course's cost base — rent, host wages, maintenance, upgrades.
           </p>
         </div>
       </div>
@@ -308,24 +307,22 @@ function GolfHostSeasonality() {
 }
 
 // ─── DMN SKU breakdown — Hackney 2025 online ticket economics ─────────
-// Mirrors the Borough IP & Licensing tab structure. Three cards:
+// Mirrors the Borough IP & Licensing tab structure. Three sections:
 //   1. Online SKUs (status=complete) — sold + revenue per archetype
 //   2. Office / external SKUs (status=external, revenue imputed at
 //      avg online unit price) — same shape
-//   3. Per-month online vs office split + headline totals + token
-//      economics (£0.35 operator settlement on bundled tokens)
+//   3. Per-month online vs office split + headline totals + a token
+//      callout reinforcing 100% No Dice retention (no operator share)
 function DmnSkuBreakdown() {
   const online  = HACKNEY_DMN_SKUS_ONLINE_2025
   const office  = HACKNEY_DMN_SKUS_OFFICE_2025
   const grand   = HACKNEY_DMN_GRAND_2025
   const monthly = HACKNEY_DMN_MONTHLY_2025
-  // Token economics for the deck:
-  //   • Operator settlement = tokensTotal × £0.35 (NO VAT) — outflow from
-  //     No Dice (a cost line, not a share of revenue).
-  //   • The token "sale value" is built into each SKU's £ price; we don't
-  //     break out a per-token sale £ in the data, so the deck shows the
-  //     bundled-token count + the operator-cost line side-by-side rather
-  //     than a per-token margin figure.
+  // Token economics: 100% of token revenue stays with No Dice — both
+  // bundled-into-SKU tokens AND tokens bought at the bar till.
+  // The operator takes NO share of token value. The deck surfaces
+  // the bundled-token count for context but does not deduct any
+  // operator settlement.
 
   return (
     <div>
@@ -339,7 +336,7 @@ function DmnSkuBreakdown() {
         <SeasonTile label="Online tickets · 2025"    value={fmt(grand.onlineRev)}   sub={`${grand.onlineQty.toLocaleString('en-GB')} sold (status=complete)`} colour="#4FC3F7" />
         <SeasonTile label="Office tickets · 2025"    value={fmt(grand.officeRev)}   sub={`${grand.officeQty.toLocaleString('en-GB')} sold · imputed @ avg online price`} colour="#A78BFA" />
         <SeasonTile label="Combined DMN volume"      value={fmt(grand.totalRev)}    sub={`${grand.totalQty.toLocaleString('en-GB')} tickets across both channels`} colour="#10B981" />
-        <SeasonTile label="Tokens bundled"           value={grand.tokensTotal.toLocaleString('en-GB')} sub={`Operator settlement ${fmt(grand.operatorSettlement)} @ £${HACKNEY_DMN_TOKEN_VALUE.toFixed(2)}/token`} colour="#EAB308" />
+        <SeasonTile label="Tokens bundled"           value={grand.tokensTotal.toLocaleString('en-GB')} sub="100% to No Dice · no operator share" colour="#EAB308" />
       </div>
 
       {/* Online SKUs table */}
@@ -388,9 +385,9 @@ function DmnSkuBreakdown() {
         </div>
       </div>
 
-      {/* Token economics callout */}
-      <div className="card" style={{ padding:18, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.3)', borderLeft:'4px solid #EAB308' }}>
-        <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>Token Economics · Going Forward</div>
+      {/* Token economics callout — 100% No Dice retention */}
+      <div className="card" style={{ padding:18, background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.3)', borderLeft:'4px solid #2DD4BF' }}>
+        <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>Token Economics · 100% No Dice</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
           <div>
             <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Tokens bundled in 2025</div>
@@ -398,18 +395,18 @@ function DmnSkuBreakdown() {
             <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>{grand.tokensOnline.toLocaleString('en-GB')} online + {grand.tokensOffice.toLocaleString('en-GB')} office</div>
           </div>
           <div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator settlement rate</div>
-            <div className="serif" style={{ fontSize:22, color:'var(--cream)' }}>£{HACKNEY_DMN_TOKEN_VALUE.toFixed(2)}<span style={{ fontSize:14, color:'var(--cream-dim)', fontFamily:"'DM Sans',sans-serif" }}> / token</span></div>
-            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>NO VAT · paid to new operator on bundled tokens</div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>No Dice retention</div>
+            <div className="serif" style={{ fontSize:22, color:'#10B981' }}>100%</div>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>Of all token revenue — bundled and bar till</div>
           </div>
           <div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator cost to No Dice</div>
-            <div className="serif" style={{ fontSize:22, color:'#F87171' }}>{fmt(grand.operatorSettlement)}</div>
-            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>If 2025 token volume repeated in 2026</div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator share</div>
+            <div className="serif" style={{ fontSize:22, color:'#F87171' }}>£0</div>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>No share of token value goes to the operator</div>
           </div>
         </div>
-        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, paddingTop:12, borderTop:'1px solid rgba(234,179,8,0.2)' }}>
-          <strong style={{ color:'var(--cream)' }}>The mechanic:</strong> No Dice keeps 100% of token revenue (sale value built into the SKU price + tokens bought at the bar till), and pays the operator £0.35 per token as a flat settlement — booked as a cost line, not a revenue share. So token income remains a No Dice line; what changes is a small operator-cost deduction against it. Net token contribution to No Dice = sale value − £0.35 per token sold.
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, paddingTop:12, borderTop:'1px solid rgba(45,212,191,0.2)' }}>
+          <strong style={{ color:'var(--cream)' }}>The mechanic:</strong> token revenue is entirely a No Dice line. Customers pay for tokens (either bundled inside an online ticket SKU or directly at the bar till) and use them in the venue's arcade machines. The new golf operator runs the course but takes no share of any token value sold inside SKUs or at the bar — token income flows wholly to the No Dice bar entity.
         </div>
       </div>
     </div>
@@ -498,7 +495,7 @@ function IPLicensing() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>IP & Licensing</STitle>
-      <Tbd>Hackney 2025 SKU + monthly DMN data now lives on the <strong>Golf Operations</strong> tab (Online + Office breakdown, token economics, operator settlement at £0.35/token). This sub-tab is reserved for the formal IP &amp; Licensing arrangement with the new golf operator entity — commission rate, booking-fee handling, online-portal license terms — TBD pending operator incorporation.</Tbd>
+      <Tbd>Hackney 2025 SKU + monthly DMN data now lives on the <strong>Golf Operations</strong> tab (Online + Office breakdown plus a token-economics callout: 100% of token revenue stays with No Dice; the operator takes no share of token value). This sub-tab is reserved for the formal IP &amp; Licensing arrangement with the new golf operator entity — commission rate, booking-fee handling, online-portal license terms — TBD pending operator incorporation.</Tbd>
     </div>
   )
 }
