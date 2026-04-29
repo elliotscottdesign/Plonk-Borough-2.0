@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DEAL, computeDealFromInvestment } from '../../data/hackney.js'
+import { DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // WaterfallReturns — clones Borough's structure: 4-button scenario selector +
@@ -27,18 +27,20 @@ export default function WaterfallReturns() {
     ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
     : DEAL
 
-  // TBD: replace these scenario profit figures with Hackney's calibrated
-  // Conservative/Base/Optimistic numbers once the bar-only cost model is
-  // restated for 2026/27. Current values from Excel Scenario Planning rows
-  // 110-111 (profit after director salary).
+  // Scenario profit figures use the new 2026 cost model (rent £14,664, rates
+  // £16,830, +10% on other fixed and stock). VAT scales with revenue; wages
+  // and other costs held flat at the +10% uplifted figure across scenarios.
+  //   Conservative (+10%): rev £591,899 → profit £94,612
+  //   Base (+15%):         rev £618,804 → profit £119,267
+  //   Optimistic (+20%):   rev £645,708 → profit £143,921
   const SCENARIOS = {
-    bear:   { label: 'Conservative −10%', badge: 'Conservative scenario',                                          profit: 30345,        color: '#E53935' },
-    base:   { label: 'Base Case +15%',     badge: 'Base case scenario',                                              profit: 45632,        color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',    badge: 'Optimistic scenario',                                             profit: 63512,        color: '#2DD4BF' },
+    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  94612,       color: '#E53935' },
+    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit: 119267,       color: '#C9A84C' },
+    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 143921,       color: '#2DD4BF' },
     custom: {
       label:    'Custom',
       badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:   45632,
+      profit:   119267,
       color:    'var(--gold)',
       disabled: !isLocked,
     },
@@ -58,7 +60,7 @@ export default function WaterfallReturns() {
   ]
 
   return (
-    <div style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div style={{ maxWidth: 1100, margin: '0 auto' }}>
       <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
         Investor Returns
       </h2>
@@ -146,6 +148,91 @@ export default function WaterfallReturns() {
           </div>
         </div>
       </div>
+
+      {/* 5-Year Share Payout Breakdown */}
+      <FiveYearPayoutBreakdown />
+    </div>
+  )
+}
+
+// ─── 5-Year share payout schedule + cumulative tracker ────────────────
+// Shows year-by-year how the £100k investor stake gets paid back via
+// pro-rata dividends + Year 5 exit. Mirrors Borough's payout-schedule
+// presentation: per-year revenue, profit, investor + founder share, and
+// cumulative-back-to-investor tracker. Total returned, MoM, IRR at the
+// bottom for the headline summary.
+function FiveYearPayoutBreakdown() {
+  const r = HACKNEY_INVESTOR_RETURNS
+  const investment = 100000
+  let cumInv = 0
+  return (
+    <div style={{ marginTop: 40 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
+        5-Year Share Payout Schedule
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
+        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. Each year's profit splits 50/50 with the founder. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend. No preferred return, no priority tiers — investor and founder track exactly together.
+      </p>
+
+      <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: '1px solid rgba(201,168,76,0.3)', fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span>Year</span>
+          <span style={{ textAlign:'right' }}>Revenue</span>
+          <span style={{ textAlign:'right' }}>Profit</span>
+          <span style={{ textAlign:'right' }}>Investor 50%</span>
+          <span style={{ textAlign:'right' }}>Founder 50%</span>
+          <span style={{ textAlign:'right' }}>Cumulative paid</span>
+        </div>
+        {r.fiveYear.map(y => {
+          cumInv += y.investorShare
+          return (
+            <div key={y.year} style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+              <span style={{ color: 'var(--cream)' }}>{y.year}</span>
+              <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(y.revenue)}</span>
+              <span style={{ color: 'var(--cream)', textAlign:'right' }}>{fmt(y.profit)}</span>
+              <span style={{ color: 'var(--gold)', textAlign:'right' }}>{fmt(y.investorShare)}</span>
+              <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(y.founderShare)}</span>
+              <span style={{ color: 'var(--gold)', textAlign:'right' }}>{fmt(cumInv)}</span>
+            </div>
+          )
+        })}
+        {/* Year 5 exit row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: '1px solid rgba(201,168,76,0.3)', fontSize: 13, fontVariantNumeric: 'tabular-nums', background: 'rgba(45,212,191,0.04)' }}>
+          <span style={{ color: 'var(--cream)' }}>Y5 Exit (4× EBITDA)</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>—</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(r.exit.businessValue)}</span>
+          <span style={{ color: '#2DD4BF', textAlign:'right' }}>{fmt(r.exit.investorProceeds)}</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(r.exit.founderProceeds)}</span>
+          <span style={{ color: '#2DD4BF', textAlign:'right' }}>{fmt(cumInv + r.exit.investorProceeds)}</span>
+        </div>
+        {/* Total row */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 1fr 1fr 1fr 1fr 1fr', padding: '14px 16px', fontSize: 14, fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ color: 'var(--cream)' }}>Total returned</span>
+          <span></span>
+          <span></span>
+          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{fmt(r.totalReturned)}</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign:'right' }}>{fmt(r.cumulativeDividends + r.exit.founderProceeds)}</span>
+          <span className="serif" style={{ color: 'var(--gold)', fontSize: 18, textAlign:'right' }}>{r.multipleOfMoney.toFixed(2)}× MoM</span>
+        </div>
+      </div>
+
+      {/* Headline summary cards under the table */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
+        <SummaryTile label="Cumulative dividends Y1–Y5"  value={fmt(r.cumulativeDividends)}    sub="Pure pro-rata, paid annually" />
+        <SummaryTile label="Y5 exit proceeds"             value={fmt(r.exit.investorProceeds)} sub={`50% of £${(r.exit.businessValue/1000).toFixed(0)}k business value`} />
+        <SummaryTile label="Total returned · MoM"          value={`${r.multipleOfMoney.toFixed(2)}×`}             sub={`${fmt(r.totalReturned)} on £100,000`} colour="#10B981" />
+        <SummaryTile label="IRR"                            value={`${(r.irr*100).toFixed(1)}%`} sub="5-year internal rate of return" colour="#10B981" />
+      </div>
+    </div>
+  )
+}
+
+function SummaryTile({ label, value, sub, colour }) {
+  return (
+    <div className="card" style={{ padding: 16 }}>
+      <div style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{label}</div>
+      <div className="serif" style={{ fontSize: 'clamp(1.3rem, 2vw, 1.6rem)', color: colour || 'var(--gold)', lineHeight: 1, marginBottom: 6 }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{sub}</div>
     </div>
   )
 }

@@ -27,7 +27,7 @@ export default function MarketContext() {
     { icon:'📊', color:'#C9A84C', title: 'Proven Revenue Base',     text: '£538,091 verified 2025 actuals (bar-only restated). Not a projection — real trading history with mini golf operations excluded.' },
     { icon:'📍', color:'#C9A84C', title: 'Established East London', text: 'London Fields location — established late-night destination with built-in footfall. Organic acquisition figures TBD pending GA4 baseline.' },
     { icon:'🎮', color:'#2DD4BF', title: 'Experience-Led Format',   text: 'DJ & events programme, pool tables, arcades, garden, board games. Directly aligned with fastest-growing hospitality sub-sector.' },
-    { icon:'💰', color:'#C9A84C', title: 'Multiple Revenue Streams',text: 'Bar takings + bookings + events + private hires + service charge. Less dependent on drink-only margins. (Source split TBD.)' },
+    { icon:'💰', color:'#C9A84C', title: 'Multiple Revenue Streams',text: 'Bar takings dominate at ~87% of 2025 income; office bookings, online golf, tournament entry and pool tickets fill out the mix. Less dependent on drink-only margins.' },
     { icon:'⭐', color:'#9CA3AF', title: 'Brand IP Retained',       text: 'Trading name, customer data and goodwill carry across the relaunch. Not starting from zero.' },
     { icon:'🌐', color:'#2DD4BF', title: 'Digital Acquisition',     text: 'Organic / local listings / events & partnerships only — zero paid Google Ads dependency. Detailed channel performance TBD.' },
   ]

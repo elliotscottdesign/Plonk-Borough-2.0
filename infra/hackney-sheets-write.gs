@@ -48,8 +48,17 @@
  *   { secret, action: "clearRange", tab, range }
  *   { secret, action: "replaceTab", tab, values: [[...], ...] }
  *     // Clears the entire tab and writes values starting at A1.
+ *   { secret, action: "createTab",  tab, values?: [[...], ...] }
+ *     // Creates a new sheet (errors if name already exists). Optional values
+ *     // are written starting at A1 in the new tab.
+ *   { secret, action: "copyFormat", tab, sourceRange, destRange }
+ *     // Copies cell formatting (font, fill, border, alignment, number format)
+ *     // from sourceRange to destRange. Values are not changed.
  *   { secret, action: "appendRow",  tab, values: [...] }
  *   { secret, action: "listTabs" }
+ *   { secret, action: "readFormulas", tab, range }
+ *     // Returns the formulas (not values) in the given range, useful for
+ *     // diagnosing what's actually in cells before broadcasting.
  *
  * GET — read-only verification (no secret required for reads):
  *   ?action=readRange&tab=Wages%20Breakdown&range=A41:E46
@@ -121,6 +130,29 @@ function _replaceTab({ tab, values }) {
   return { ok: true, wrote: values.length + 'x' + values[0].length }
 }
 
+function _copyFormat({ tab, sourceRange, destRange }) {
+  const sh = _tab(tab)
+  const src = sh.getRange(sourceRange)
+  const dst = sh.getRange(destRange)
+  src.copyTo(dst, { formatOnly: true })
+  return { ok: true, copied: 'format ' + sourceRange + ' → ' + destRange }
+}
+
+function _readFormulas({ tab, range }) {
+  return { ok: true, formulas: _tab(tab).getRange(range).getFormulas() }
+}
+
+function _createTab({ tab, values }) {
+  const ss = _ss()
+  if (ss.getSheetByName(tab)) throw new Error('Tab already exists: ' + tab)
+  const sh = ss.insertSheet(tab)
+  if (Array.isArray(values) && Array.isArray(values[0])) {
+    sh.getRange(1, 1, values.length, values[0].length).setValues(values)
+    return { ok: true, created: tab, wrote: values.length + 'x' + values[0].length }
+  }
+  return { ok: true, created: tab }
+}
+
 function _appendRow({ tab, values }) {
   _tab(tab).appendRow(values)
   return { ok: true, appended: values.length + ' cols' }
@@ -145,6 +177,9 @@ function doPost(e) {
       case 'writeCell':   return _json(_writeCell(body))
       case 'clearRange':  return _json(_clearRange(body))
       case 'replaceTab':  return _json(_replaceTab(body))
+      case 'createTab':   return _json(_createTab(body))
+      case 'copyFormat':  return _json(_copyFormat(body))
+      case 'readFormulas':return _json(_readFormulas(body))
       case 'appendRow':   return _json(_appendRow(body))
       case 'listTabs':    return _json(_listTabs())
       case 'readRange':   return _json(_readRange(body))

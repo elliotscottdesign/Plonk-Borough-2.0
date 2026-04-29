@@ -8,7 +8,6 @@ import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthRisks from './slides/GrowthRisks.jsx'
-import InvestmentCase from './slides/InvestmentCase.jsx'
 import { LockedUseOfFundsProvider } from './components/LockedUseOfFundsContext.jsx'
 import { WORKBOOK_URL } from '../data/hackney.js'
 
@@ -32,7 +31,6 @@ const SLIDE_DEFS = [
   { id:'market',     label:'Market Context',     Component: MarketContext },
   { id:'waterfall',  label:'Investor Returns',   Component: WaterfallReturns },
   { id:'growth',     label:'Growth & Risks',     Component: GrowthRisks },
-  { id:'case',       label:'Investment Case',    Component: InvestmentCase },
 ]
 
 const TOP_TABS = [

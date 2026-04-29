@@ -2,24 +2,32 @@ import React, { useState, useEffect } from 'react'
 import {
   USE_OF_FUNDS,
   USE_OF_FUNDS_RANGES,
+  HACKNEY_RAISE_TARGET,
   computeDealFromInvestment,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
-// UseOfFunds — minimum-viable-raise calculator for No Dice Hackney.
-// Six sliders (5 continuous + rent snap). Founder (888999) edits and Locks.
-// Locked snapshot persists per browser via LockedUseOfFundsContext and flows
-// downstream into Investment Summary, Waterfall Returns and the Cashflow
-// Forecast sub-tab.
-//
-// Default starting values come from USE_OF_FUNDS — these are the conservative
-// "max ask" for each line. Drag down to find the floor that still gets the
-// venue safe and reopen-ready. When trading begins, run further rounds.
+// UseOfFunds — Hackney use-of-funds allocator.
+// Total raise is fixed at HACKNEY_RAISE_TARGET (£100k). Six explicit sliders
+// allocate spend across stock / rent / garden / interior / marketing / legals;
+// Working Capital is the 7th line — derived as RAISE_TARGET minus the sum of
+// the six, displayed full-width below as a disabled slider so the residual is
+// visible at a glance. Drag stock down → working capital up. Founder (888999)
+// edits and Locks. Locked snapshot persists via LockedUseOfFundsContext and
+// flows into Investment Summary, Waterfall Returns and the Cashflow Forecast.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 // Slider order on the slide. `key` matches USE_OF_FUNDS_RANGES + USE_OF_FUNDS.
 const ORDER = ['stock', 'rent', 'garden', 'interior', 'marketing', 'legals']
+
+// Working capital is the residual of the fixed total minus the six explicit
+// slider allocations. Returns a positive number; negative would indicate the
+// founder has over-allocated, which we cap at zero (and surface visually).
+function computeWorkingCapital(snap) {
+  const allocated = snap.stock + snap.rent + snap.garden + snap.interior + snap.marketing + snap.legals
+  return Math.max(0, HACKNEY_RAISE_TARGET - allocated)
+}
 
 // Build a map of defaults from the static USE_OF_FUNDS list. Rent default is
 // 3 months (the original spec); others use their static `amount`.
@@ -36,8 +44,10 @@ function defaultValues() {
   }
 }
 
-// Build the snapshot shape from a values map.
+// Build the snapshot shape from a values map. Total raise is fixed at the
+// raise target; working capital absorbs the residual.
 function snapshotOf(v) {
+  const allocated = v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals
   return {
     stock: v.stock,
     rentMonths: v.rentMonths,
@@ -46,7 +56,9 @@ function snapshotOf(v) {
     interior: v.interior,
     marketing: v.marketing,
     legals: v.legals,
-    total: v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals,
+    workingCapital: Math.max(0, HACKNEY_RAISE_TARGET - allocated),
+    total: HACKNEY_RAISE_TARGET,
+    allocated,                  // sum of explicit slider amounts (excl. working capital)
   }
 }
 
@@ -102,19 +114,19 @@ export default function UseOfFunds() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12, color: '#4FC3F7', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Use of Investment Funds</div>
         <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
-          {fmt(display.total)} · Minimum Viable Raise
+          {fmt(display.total)} Investment · 50/50 Equity Split
         </h2>
         <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
-          Drag each slider to find how little we need to raise to get the venue safe and reopen-ready. The 50/50 split is fixed (pure pro-rata, single share class) — pre-money flexes to equal the investment so the equity outcome holds, and the implied EBITDA multiple is the derived result. When trading begins we run further rounds priced off live performance, not this seed pre-money.
+          The total raise is fixed at {fmt(HACKNEY_RAISE_TARGET)}. Drag the six sliders to allocate spend across stock, rent, garden, interior, marketing, and legals — Working Capital absorbs whatever's left, sitting as float for early trading. The 50/50 equity split is fixed (pure pro-rata, single share class); pre-money equals the investment, so the implied EBITDA multiple is the derived result. Further rounds price off live trading, not this seed pre-money.
         </p>
       </div>
 
-      {/* Headline cards — total raise, fixed 50/50 split, implied multiple, post-money */}
+      {/* Headline cards — total raise, fixed 50/50 split, allocated vs working capital, post-money */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         <HeadlineCard label="TOTAL RAISE"        value={fmt(display.total)}                          colour={isLocked ? '#10B981' : '#C9A84C'} sub={isLocked ? 'Locked snapshot' : 'Live preview'} />
-        <HeadlineCard label="50/50 SPLIT"        value="LOCKED"                                       colour="#A78BFA"                          sub="Pure pro-rata · single share class" />
-        <HeadlineCard label="IMPLIED MULTIPLE"   value={`${deal.impliedMult.toFixed(2)}×`}            colour="#4FC3F7"                          sub="Pre-money ÷ 2025 EBITDA" />
-        <HeadlineCard label="POST-MONEY"          value={fmt(deal.postMoney)}                          colour="#2DD4BF"                          sub={`Pre-money ${fmt(deal.preMoney)} + raise`} />
+        <HeadlineCard label="ALLOCATED"          value={fmt(display.allocated)}                       colour="#4FC3F7"                          sub={`${((display.allocated/display.total)*100).toFixed(1)}% of raise · 6 sliders`} />
+        <HeadlineCard label="WORKING CAPITAL"     value={fmt(display.workingCapital)}                  colour="#2DD4BF"                          sub={`${((display.workingCapital/display.total)*100).toFixed(1)}% of raise · residual float`} />
+        <HeadlineCard label="50/50 SPLIT"         value={`${deal.impliedMult.toFixed(2)}× EBITDA`}     colour="#A78BFA"                          sub={`Post-money ${fmt(deal.postMoney)}`} />
       </div>
 
       {/* Lock / Reset / Founder gate */}
@@ -142,7 +154,7 @@ export default function UseOfFunds() {
         </div>
       </div>
 
-      {/* Sliders */}
+      {/* Sliders — 6 explicit allocations in a 2-column grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {ORDER.map(key => {
           const meta = USE_OF_FUNDS.find(u => u.key === key)
@@ -171,6 +183,9 @@ export default function UseOfFunds() {
         })}
       </div>
 
+      {/* Working Capital — full-width residual slider, always disabled */}
+      <WorkingCapitalSlider amount={display.workingCapital} target={HACKNEY_RAISE_TARGET} allocated={display.allocated} />
+
       {/* Per-line summary table */}
       <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: 20, marginTop: 20 }}>
         <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Allocation summary</div>
@@ -190,10 +205,50 @@ export default function UseOfFunds() {
             </div>
           )
         })}
+        {/* Working Capital row — derived */}
+        {(() => {
+          const amount = display.workingCapital
+          const pct = display.total > 0 ? amount / display.total : 0
+          return (
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
+                <span style={{ fontSize: 13, color: 'var(--teal)' }}>Working Capital <span style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>· residual</span></span>
+                <span style={{ fontSize: 13, color: 'var(--teal)', fontVariantNumeric: 'tabular-nums' }}>{fmt(amount)} <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}>· {(pct * 100).toFixed(1)}%</span></span>
+              </div>
+              <div style={{ height: 4, background: 'rgba(45,212,191,0.08)', borderRadius: 2 }}>
+                <div style={{ width: `${pct * 100}%`, height: '100%', background: 'var(--teal)', borderRadius: 2 }} />
+              </div>
+            </div>
+          )
+        })()}
         <div style={{ borderTop: '1px solid rgba(201,168,76,0.2)', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
           <span style={{ fontSize: 13, color: 'var(--cream)', fontWeight: 600 }}>Total raise</span>
           <span className="serif" style={{ fontSize: 18, color: isLocked ? '#10B981' : 'var(--gold)' }}>{fmt(display.total)}</span>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Working Capital — full-width disabled slider (residual display) ──
+function WorkingCapitalSlider({ amount, target, allocated }) {
+  const pct = target > 0 ? Math.min(1, amount / target) : 0
+  return (
+    <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(45,212,191,0.25)', borderRadius: 10, padding: 18, marginTop: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+        <span style={{ fontSize: 13, color: 'var(--teal)', fontWeight: 500 }}>
+          Working Capital <span style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginLeft: 8 }}>residual · auto-filled</span>
+        </span>
+        <span style={{ fontSize: 18, color: 'var(--teal)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmt(amount)}</span>
+      </div>
+      {/* Visual track — read-only, teal-coloured to distinguish from gold input sliders */}
+      <div style={{ height: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 4, overflow: 'hidden', cursor: 'not-allowed' }}>
+        <div style={{ height: '100%', width: `${pct * 100}%`, background: 'linear-gradient(90deg, var(--teal), rgba(45,212,191,0.6))', borderRadius: 4, transition: 'width 0.2s' }} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--cream-dim)', marginTop: 6 }}>
+        <span>£0</span>
+        <span style={{ fontStyle: 'italic' }}>= {fmt(target)} target − {fmt(allocated)} allocated across the 6 sliders above</span>
+        <span>{fmt(target)}</span>
       </div>
     </div>
   )

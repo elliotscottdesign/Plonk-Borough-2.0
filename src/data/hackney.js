@@ -87,33 +87,106 @@ export const ACTUALS_2025 = {
 }
 
 // === 2026/27 FORECAST (Base Case +15%) ===
-// Excel: Base Case Forecast!N6 (revenue) and N17 (profit after dir salary).
-// Forecast period: May 2026 → Apr 2027.
+// Forecast period: May 2026 → Apr 2027. Rebuilt April 2026 with the new
+// rent + rates rules per user direction (see HACKNEY_FIXED_COSTS_2026).
+//
+// Build:
+//   Revenue        538,090.57 × 1.15  =     618,804.17
+//   Wages           179,872 (PL_WAGE_BASE — calculator default)
+//   Variable +10%   2025 stock + variable cats × 1.10
+//                   = (134,123 + 7,887 + 16,492 + 10,300 + 8,202) × 1.10
+//                   = 176,094 × 1.10 = 193,704            (rounded 194,704 in code)
+//   Fixed +10%      Other fixed (£23,490) × 1.10 = £25,839
+//                   + new rent £14,664 (Y1 with 4-mo rent-free)
+//                   + rates £16,830 (2025 × 1.10, pending Hackney confirm)
+//                   = £57,333
+//   VAT             44,994 × 1.15 = £51,743 (scales with revenue)
+//   Director         15,885 (separate line)
+//   Op profit (after director) ≈ £119,267 → margin ≈ 19.3%
+//
+// The big delta vs the prior £45,632 forecast is the new lease — rent
+// drops from 2025's £94,146 (old Plonk arrangement) to £14,664 in Y1.
+// That ~£80k saving flows straight to the bottom line.
 export const FORECAST = {
-  revenue: 618804.17,
-  profit: 45631.82,
-  margin: 0.0737,
+  revenue:    618804.17,
+  wages:      179872,
+  variable:   194704,           // sum of stock + operational variable, all × 1.10
+  fixed:       57333,           // rent £14,664 + rates £16,830 + other fixed × 1.10
+  vatNet:      51743,           // 2025 VAT × 1.15 (scales with revenue)
+  director:    15885,           // separate line (inc £885 employer NI)
+  rent:        14664,           // Y1 with 4-mo rent-free; £1,833/mo × 8
+  rates:       16830,           // 2025 × 1.10 — Hackney Council confirmation pending
+  profit:     119267,           // revenue − wages − variable − fixed − VAT − director
+  margin:      0.1928,          // profit / revenue
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
 // TBD: Hackney's bar-only revenue isn't yet split by source in the workbook.
-// Likely categories: Bar takings, Pool tickets, Bookings, Private hires,
-// Service charge, Events. Confirm splits before populating.
+// Source: Weekly Merged 2024-2026 tab, Jan–Dec 2025 columns aggregated.
+// Total = £557,861 (£19.8k higher than Monthly Summary's £538,091; the
+// Weekly Merged tab is gross of categorisation differences and includes
+// some pre-restatement items). The deck uses Monthly Summary's £538k as
+// the headline annual revenue; this breakdown represents the relative
+// shares of each income source.
 export const INCOME_SOURCES = [
-  { name: 'Bar takings',        amount: TBD, pct: TBD, color: '#0D1F4C' },
-  { name: 'Bookings & events',  amount: TBD, pct: TBD, color: '#1565C0' },
-  { name: 'Pool tickets',       amount: TBD, pct: TBD, color: '#1976D2' },
-  { name: 'Private hires',      amount: TBD, pct: TBD, color: '#1E88E5' },
-  { name: 'Service charge',     amount: TBD, pct: TBD, color: '#039BE5' },
+  { name: 'Bar takings',                amount: 484684, pct: 86.9, color: '#0D1F4C' },
+  { name: 'Online golf (DMN)',          amount:  39288, pct:  7.0, color: '#1565C0' },
+  { name: 'Office bookings / hires',    amount:  28120, pct:  5.0, color: '#1976D2' },
+  { name: 'Tournament entry',           amount:   3570, pct:  0.6, color: '#1E88E5' },
+  { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
+  { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
 ]
 
+// === FIXED COSTS — 2025 SUB-LINE BREAKDOWN ===
+// Source: Weekly Merged 2024-2026 tab, fixed-cost rows aggregated for 2025.
+// Used to drive the 2026 forecast: rent and rates are replaced with the new
+// lease + Hackney Council figures; the rest of the fixed-cost base uplifts
+// by +10%.
+export const HACKNEY_FIXED_COSTS_2025 = [
+  { key: 'rent',        label: 'Rent',          amount: 94146 },
+  { key: 'rates',       label: 'Business Rates',amount: 15300 },
+  { key: 'electricity', label: 'Electricity',   amount: 12750 },
+  { key: 'water',       label: 'Water',         amount:  2550 },
+  { key: 'insurance',   label: 'Insurance',     amount:  2754 },
+  { key: 'license',     label: 'License',       amount:  1275 },
+  { key: 'prsPpl',      label: 'PRS / PPL',     amount:  1530 },
+  { key: 'internet',    label: 'Internet',      amount:  1445 },
+  { key: 'lightspeed',  label: 'Lightspeed',    amount:   931 },
+  { key: 'tvLicense',   label: 'TV License',    amount:   255 },
+]
+
+// === FIXED COSTS — 2026 FORECAST RULES ===
+// Per user direction (April 2026):
+//   • Rent: NEW lease — £1,833/month with 4-month rent-free start
+//     (May–Aug 2026). Year 1 = 8 paying months × £1,833 = £14,664.
+//     Steady state (Y2+) = 12 × £1,833 = £21,996.
+//   • Business Rates: 2025 actual × 1.10 = £16,830. Subject to Hackney
+//     Council assessment with the relief change (75% → 40% in 2025/26)
+//     so this is a placeholder pending confirmation.
+//   • All other fixed lines (electricity, water, insurance, license,
+//     PRS/PPL, internet, lightspeed, TV license): +10% on 2025 actuals.
+export const HACKNEY_FIXED_COSTS_2026 = {
+  rentY1:         14664,
+  rentSteady:     21996,
+  rates:          16830,
+  otherUplift:    0.10,                 // applied to non-rent, non-rates lines
+}
+
 // === COSTS BY CATEGORY (Jan–Dec 2025) ===
-// Hackney workbook gives the four totals below. Sub-category breakdown TBD.
+// Source: Weekly Merged 2024-2026 tab. Category-header rows aggregate the
+// sub-line items below them (verified: sum of category headers = sheet's
+// row 79 "Costs TOTAL inc VAT" = £485,470). Total runs £23k higher than
+// Monthly Summary's £462,201 due to categorisation differences (some
+// items in Weekly Merged are pre-restatement). Monthly Summary remains
+// the canonical totals; this table shows the cost-mix shares.
 export const COST_CATEGORIES = [
-  { name: 'Wages',         amount: 179872, pct: 38.9, color: '#4A0000' },
-  { name: 'Variable costs',amount: 167449, pct: 36.2, color: '#7B0000' },
-  { name: 'Fixed costs',   amount: 114880, pct: 24.9, color: '#B71C1C' },
-  { name: 'VAT (Net)',     amount:  44994, pct: 9.7,  color: '#C62828' },
+  { name: 'Wages',          amount: 175531, pct: 36.2, color: '#4A0000' },
+  { name: 'Drinks & Gas',   amount: 134123, pct: 27.6, color: '#7B0000' },
+  { name: 'Fixed Costs',    amount: 132936, pct: 27.4, color: '#B71C1C' },
+  { name: 'Cleaning',       amount:  16492, pct:  3.4, color: '#C62828' },
+  { name: 'DJs',            amount:  10300, pct:  2.1, color: '#E53935' },
+  { name: 'Arcades',        amount:   8202, pct:  1.7, color: '#D84315' },
+  { name: 'Food',           amount:   7887, pct:  1.6, color: '#EF6C00' },
 ]
 
 // === MONTHLY DATA (Jan–Dec 2025) ===
@@ -134,12 +207,26 @@ export const MONTHLY_INCOME = [
   { month: 'Dec', amount: 36295.14 },
 ]
 
-// TBD: per-month cost split (drinks, cleaning, arcades, food, etc.). Workbook
-// currently gives only the four monthly totals (wages/variable/fixed/VAT).
-export const MONTHLY_COSTS = MONTHLY_INCOME.map(({ month }) => ({
-  month, wages: TBD, fixed: TBD, drinks: TBD, vat: TBD,
-  cleaning: TBD, arcades: TBD, food: TBD, google: 0, card: TBD,
-}))
+// Per-month cost split by category. Source: Weekly Merged 2024-2026 tab,
+// 2025 columns aggregated by week-end month. Each row is gross-of-VAT per
+// the Weekly Merged convention. Annual sums match COST_CATEGORIES totals.
+// VAT, card-charges, Google-Ads not separately tracked in Weekly Merged
+// (Google Ads = £0 anyway for Hackney; VAT recorded as a single annual
+// difference in Monthly Summary).
+export const MONTHLY_COSTS = [
+  { month:'Jan', wages:  6116, fixed:  7770, drinks:  3753, cleaning:  567, arcades:  637, food:  738, djs:  600 },
+  { month:'Feb', wages: 12740, fixed: 10360, drinks:  8993, cleaning: 1239, arcades:  310, food: 1003, djs:  800 },
+  { month:'Mar', wages: 14164, fixed: 12950, drinks:  9777, cleaning: 1829, arcades: 1227, food:  375, djs: 1000 },
+  { month:'Apr', wages: 13603, fixed: 10360, drinks: 13596, cleaning:  993, arcades:  374, food:  372, djs:  800 },
+  { month:'May', wages: 14503, fixed: 10360, drinks: 13960, cleaning: 1110, arcades:  763, food:  591, djs:  800 },
+  { month:'Jun', wages: 19250, fixed: 12950, drinks: 15369, cleaning: 1642, arcades:  868, food: 1024, djs: 1000 },
+  { month:'Jul', wages: 14058, fixed: 10360, drinks: 11045, cleaning: 1718, arcades:  430, food:  690, djs:  800 },
+  { month:'Aug', wages: 18243, fixed: 12950, drinks: 16718, cleaning: 1173, arcades: 1090, food:  655, djs: 1200 },
+  { month:'Sep', wages: 16931, fixed: 10559, drinks:  9679, cleaning: 1181, arcades:  654, food:  910, djs:  800 },
+  { month:'Oct', wages: 13157, fixed: 10559, drinks:  8873, cleaning: 2234, arcades:  330, food:  360, djs:  800 },
+  { month:'Nov', wages: 19314, fixed: 13199, drinks: 11945, cleaning: 1603, arcades:  733, food:  659, djs: 1000 },
+  { month:'Dec', wages: 13453, fixed: 10559, drinks: 10414, cleaning: 1203, arcades:  785, food:  510, djs:  700 },
+]
 
 export const MONTHLY_PROFIT = [
   { month: 'Jan', income: 26867,    profit:   703.39 },
@@ -155,6 +242,31 @@ export const MONTHLY_PROFIT = [
   { month: 'Nov', income: 48740.74, profit: -1928.63 },
   { month: 'Dec', income: 36295.14, profit: -2970.25 },
 ]
+
+// === 2026/27 CASH FLOW FORECAST (May 2026 – Apr 2027) ===
+// Excel: Cash Flow Forecast!B30:M31 (net flow + cumulative cash).
+// Peak £82,337 (Aug), low £39,250 (Feb), year-end £72,462 (Apr).
+export const HACKNEY_CASHFLOW = [
+  { month: 'May 26', net:  19889.52, closing: 19889.52 },
+  { month: 'Jun 26', net:  33900.15, closing: 53789.67 },
+  { month: 'Jul 26', net:   9146.58, closing: 62936.25 },
+  { month: 'Aug 26', net:  19400.92, closing: 82337.17 },
+  { month: 'Sep 26', net:  -4703.39, closing: 77633.78 },
+  { month: 'Oct 26', net:     94.91, closing: 77728.69 },
+  { month: 'Nov 26', net:  -9186.49, closing: 68542.20 },
+  { month: 'Dec 26', net:  -5509.88, closing: 63032.32 },
+  { month: 'Jan 27', net:  -8369.97, closing: 54662.35 },
+  { month: 'Feb 27', net: -15412.44, closing: 39249.91 },
+  { month: 'Mar 27', net:  20129.18, closing: 59379.09 },
+  { month: 'Apr 27', net:  13083.32, closing: 72462.41 },
+]
+
+export const HACKNEY_CASH = {
+  peak: 82337,        // Aug 2026
+  low: 39250,         // Feb 2027
+  yearEnd: 72462,     // Apr 2027
+  safetyFloor: 25000, // user-set floor; Feb low stays £14k above
+}
 
 // === WAGES — 2025 ROTA REFERENCE (4-role calculator basis) ===
 // Source: live rota Google Sheets (sheet 1NgIp2TcNPcf9pWcD5CVELexarlmnxe9jeC61aTCZKy0)
@@ -255,6 +367,45 @@ export const WATERFALL = {
   totalFounder: 22816,
 }
 
+// === 5-YEAR INVESTOR RETURNS ===
+// Pure pro-rata 50/50, no preferred return. Year-1 profit £119,267 from
+// the new 2026 cost model (lower rent under the new lease + 10% uplifts);
+// Y2–Y5 grow at 7.5% YoY. Investor share = 50% × profit each year.
+// Powers the multi-year payout schedule on the WaterfallReturns slide.
+//
+// The dramatic improvement vs the old £45,632 base is driven by the new
+// lease — annual rent drops from 2025's £94,146 (old Plonk arrangement)
+// to £14,664 in Y1 (£1,833/mo with 4-mo rent-free start). That ~£80k
+// saving flows straight through to operating profit and compounds over
+// the 5-year exit assumption.
+export const HACKNEY_INVESTOR_RETURNS = {
+  year1: {
+    profit:          119267,
+    investorEq:      0.5,
+    investorReturn:   59633.50,
+    coc:              0.5963,
+    paybackYears:     1.68,
+  },
+  fiveYear: [
+    { year: 'Y1 2026/27', revenue: 618804.17, profit: 119267.00, investorShare: 59633.50, founderShare: 59633.50 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit: 128212.03, investorShare: 64106.01, founderShare: 64106.02 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 137827.93, investorShare: 68913.96, founderShare: 68913.97 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 148165.02, investorShare: 74082.51, founderShare: 74082.51 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 159277.40, investorShare: 79638.70, founderShare: 79638.70 },
+  ],
+  cumulativeDividends: 346374.69,    // Sum of investor shares Y1–Y5
+  exit: {
+    y5Ebitda:         159277.40,
+    multiple:         4,
+    businessValue:    637109.59,
+    investorProceeds: 318554.80,
+    founderProceeds:  318554.80,
+  },
+  totalReturned:      664929.48,
+  multipleOfMoney:    6.6493,
+  irr:                0.7502,         // IRR on flows: -100k, +59634, +64106, +68914, +74083, +398193
+}
+
 // === GOVERNANCE ===
 // Mirrors Borough's reserved-matters list — confirm any Hackney-specific
 // additions (e.g. landlord consents) before sign-off.
@@ -276,26 +427,34 @@ export const GOVERNANCE = {
   ],
 }
 
+// === RAISE TARGET ===
+// Fixed total investment ask. The slider tool allocates this across explicit
+// use-of-funds buckets; whatever's left after the 6 explicit sliders becomes
+// Working Capital (a derived residual line, displayed but not user-editable).
+// Drag stock down → working capital up. Drag everything to minimum → working
+// capital is the bulk of the raise. The total raised stays at this target;
+// only the allocation between explicit spend and working-capital float varies.
+export const HACKNEY_RAISE_TARGET = 100000
+
 // === USE OF FUNDS ===
-// Six categories, all variable via the slider tool on the Use of Funds slide.
-// User-set ranges (April 2026): explicit minimum-viable-raise framing — see
-// USE_OF_FUNDS_RANGES below. Defaults below are the "max ask" values that
-// the slider starts at; the founder drags down to find the floor.
+// Six EXPLICIT slider categories (stock, rent, garden, interior, marketing,
+// legals + restart). Working Capital is the 7th line, derived as
+// HACKNEY_RAISE_TARGET minus the sum of the six. Defaults below are the
+// "headline" values for each line; founder drags to reallocate.
 export const USE_OF_FUNDS = [
   { key: 'stock',     item: 'Stock Purchase — Liquidators',     amount: 24000, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
   { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 26750, vat: 'inc VAT', note: 'Lease deposit — refundable on exit. Slider snaps to 1, 2 or 3 months.' },
   { key: 'garden',    item: 'Garden Refurbishment',             amount: 12000, vat: 'inc VAT', note: 'Outdoor trading area refurb — soundproofing investment is the priority spend.' },
   { key: 'interior',  item: 'Interior Completion & Signage',    amount: 10000, vat: 'inc VAT', note: 'Fit-out completion, signage, internal acoustic treatment.' },
   { key: 'marketing', item: 'Marketing — Pre-launch & Year 1',  amount:  3000, vat: 'inc VAT', note: 'Organic / local listings / events — no paid Google Ads spend.' },
-  { key: 'legals',    item: 'Legals, Restart & Working Capital',amount:  2000, vat: null,     note: 'Solicitor fees, share registry, staged trading runway.' },
+  { key: 'legals',    item: 'Legals & Restart',                 amount:  2000, vat: null,      note: 'Solicitor fees, share registry, restart admin.' },
 ]
 
 // === USE OF FUNDS — slider ranges ===
 // Drives the calculator on the Use of Funds slide. Rent is a snap slider
 // (1 / 2 / 3 months). Everything else is continuous within min/max with a
-// £500 step. Maxes mirror the user-set spec for the minimum-viable-raise
-// tool; the founder locks a snapshot which then flows into the Investment
-// Summary, Waterfall Returns and Cash Flow Forecast downstream.
+// £500 step. Founder locks a snapshot which then flows into Investment
+// Summary, Waterfall Returns, and Cash Flow Forecast downstream.
 export const USE_OF_FUNDS_RANGES = {
   stock:     { min: 0,    max: 24000, step: 500, label: 'Stock Purchase — Liquidators' },
   rent:      { snaps: [
@@ -306,7 +465,7 @@ export const USE_OF_FUNDS_RANGES = {
   garden:    { min: 1000, max: 12000, step: 500, label: 'Garden Refurbishment' },
   interior:  { min: 1000, max: 12000, step: 500, label: 'Interior Completion & Signage' },
   marketing: { min: 1000, max:  6000, step: 500, label: 'Marketing — Pre-launch & Year 1' },
-  legals:    { min: 1000, max:  3000, step: 500, label: 'Legals, Restart & Working Capital' },
+  legals:    { min: 1000, max:  3000, step: 500, label: 'Legals & Restart' },
 }
 
 // 50/50 split is the fixed structural decision (pure pro-rata, single share
