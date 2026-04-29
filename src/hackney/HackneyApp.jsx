@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
@@ -45,6 +45,16 @@ export default function HackneyApp() {
   const [slideIdx, setSlideIdx] = useState(0)
   const { Component } = SLIDE_DEFS[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
+
+  // Override the static <title> from index.html (which says "No Dice
+  // Borough — Investor Presentation") so the browser tab reads
+  // "No Dice Hackney" while on /hackney. Reverts naturally on full
+  // navigation back to the Borough route.
+  useEffect(() => {
+    const prev = document.title
+    document.title = 'No Dice Hackney — Investor Presentation'
+    return () => { document.title = prev }
+  }, [])
 
   return (
     <LockedUseOfFundsProvider>
