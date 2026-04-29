@@ -572,7 +572,7 @@ function TabDevelopment() {
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#4FC3F7" /><span>{item}</span></div>)}
           </div>
           <div style={card('#A78BFA')}>
-            <div style={{ display:'inline-block', fontSize:11, color:'#A78BFA', border:'1px solid #A78BFA', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>£26,750 inc VAT</div>
+            <div style={{ display:'inline-block', fontSize:11, color:'#A78BFA', border:'1px solid #A78BFA', borderRadius:4, padding:'3px 10px', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>£16,250 net</div>
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Landlord Rent Deposit (3 months)</h3>
             {[
               'Held by The Arch Company per the lease — refundable on exit',

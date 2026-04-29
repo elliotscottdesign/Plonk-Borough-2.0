@@ -323,18 +323,21 @@ function WageModelBreakdown() {
 //   • Revenue growth:    +15% (base case)
 //   • Stock / variable:  +10% on every variable line (drinks, food, cleaning, djs, arcades)
 //   • Fixed costs:       +10% on the non-rent, non-rates lines
-//   • Rent:              NEW lease — £1,833 INC VAT per WEEK with 4-mo
-//                        rent-free start. Y1 = 35 paying weeks × £1,833 = £64,155.
-//                        Steady state Y2+ = 52 weeks × £1,833 = £95,316.
+//   • Rent:              NEW lease — £65,000 + VAT per annum (net in P&L).
+//                        4-month rent-free start. Y1 = 8 paying months ×
+//                        £65k/12 = £43,333. Y2 steady = £65,000.
+//                        Y3+ compounds at +3% annual lease uplift.
+//                        3-month deposit on signing (Use of Funds slider).
 //   • Business rates:    £16,830 (2025 × 1.10) — Hackney Council confirm.
 //   • Wages:             driven by the wage calculator (default = PL_WAGE_BASE).
 const FORECAST_RULES = {
   revenueGrowth:   0.15,
   variableUplift:  0.10,
   fixedUplift:     0.10,    // applied to non-rent, non-rates fixed lines
-  rentWeekly:      1833,    // £1,833 INC VAT / week
-  rentY1:          64155,   // 35 paying weeks × £1,833 (4 months rent-free per lease)
-  rentSteady:      95316,   // 52 weeks × £1,833 (Y2+)
+  rentAnnualNet:   65000,   // £65,000 + VAT pa (net in P&L)
+  rentY1:          43333,   // 8 paying months × £65k/12 (4 months rent-free per lease)
+  rentSteady:      65000,   // Y2 full year
+  rentUplift:      0.03,    // 3% annual uplift on rent (Y3+ compounds)
   rates:           16830,   // 2025 actual £15,300 × 1.10 — pending council confirm
 }
 
@@ -377,8 +380,8 @@ function buildForecast() {
 // Forecast monthly arrays — apply growth to 2025 monthly income + uplifts
 // to monthly costs (preserving 2025 month-to-month seasonality). Rent +
 // rates are split out and allocated separately: rent is £0 for the first
-// 4 months (rent-free per lease) then £1,833/wk thereafter; rates split
-// evenly month-to-month.
+// 4 months (rent-free per lease) then £65k/12 ≈ £5,417/mo thereafter;
+// rates split evenly month-to-month.
 function buildForecastMonthly() {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
@@ -403,8 +406,8 @@ function buildForecastMonthly() {
       : 0
     // Rent: forecast year is May 2026 → Apr 2027. The user's monthly array
     // uses Jan–Dec calendar months from 2025 actuals. For the visualisation,
-    // we distribute the Y1 weekly-rent figure (35 paying weeks × £1,833 =
-    // £64,155) evenly across 12 months ≈ £5,346 / mo average. (Cash Flow
+    // we distribute the Y1 rent figure (8 paying months × £65k/12 =
+    // £43,333) evenly across 12 months ≈ £3,611 / mo average. (Cash Flow
     // Forecast tab handles the May–Apr trading-year detail with the actual
     // 4-month rent-free start.)
     const monthlyRentAvg = FORECAST_RULES.rentY1 / 12
@@ -491,7 +494,7 @@ function ForecastTopLineCards({ f }) {
     { label: 'Revenue (forecast)',     value: f.revenue,             colour: '#4FC3F7' },
     { label: 'Wages (calculator)',     value: f.wages,               colour: '#E67E22' },
     { label: 'Variable +10%',          value: f.stock + f.otherVar,  colour: '#A78BFA' },
-    { label: 'Fixed (new lease)',      value: f.fixed,               colour: '#F87171', sub: `Rent ${fmtMoney(f.rent)} (Y1, 35 wks) · Rates ${fmtMoney(f.rates)}` },
+    { label: 'Fixed (new lease)',      value: f.fixed,               colour: '#F87171', sub: `Rent ${fmtMoney(f.rent)} (Y1, 8 mo) · Rates ${fmtMoney(f.rates)}` },
     { label: 'VAT (Net) + Director',   value: f.vatNet + f.director, colour: '#9CA3AF' },
     { label: 'Operating Profit',       value: f.opProfit,            colour: f.opProfit >= 0 ? '#10B981' : '#E53935', sub: `${(f.margin*100).toFixed(1)}% margin` },
   ]
@@ -520,7 +523,7 @@ function ForecastRulesPanel({ f }) {
     { label: 'Revenue growth',         value: '+15%',                           base: ACTUALS_2025.revenue,       forecast: f.revenue,            colour: '#4FC3F7' },
     { label: 'Wages',                  value: 'calculator',                     base: PL_WAGE_BASE,               forecast: f.wages,              colour: '#E67E22' },
     { label: 'Stock + variable',       value: '+10%',                           base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar, colour: '#A78BFA' },
-    { label: 'Rent (NEW lease)',       value: '£1,833/wk INC VAT · 4-mo free',  base: rentBase,                   forecast: f.rent,               colour: '#F87171', highlight: true },
+    { label: 'Rent (NEW lease)',       value: '£65k+VAT pa · 4-mo free · +3% pa',  base: rentBase,                   forecast: f.rent,               colour: '#F87171', highlight: true },
     { label: 'Business rates',         value: '+10% · TBC w/ council',          base: ratesBase,                  forecast: f.rates,              colour: '#F87171' },
     { label: 'Other fixed',            value: '+10%',                           base: otherFixedBase,             forecast: f.otherFixed,         colour: '#F87171' },
     { label: 'VAT (Net)',              value: 'scaled with revenue',            base: ACTUALS_2025.vatNet,        forecast: f.vatNet,             colour: '#9CA3AF' },
@@ -543,7 +546,7 @@ function ForecastRulesPanel({ f }) {
         </div>
       ))}
       <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        <strong style={{ color:'var(--teal)' }}>Lease headline:</strong> the new £1,833/week INC VAT lease (with 4-month rent-free start) means Year 1 pays 35 weeks × £1,833 = £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving vs 2025's £{rentBase.toLocaleString('en-GB')}. Steady-state Y2+ runs 52 weeks × £1,833 = £95,316 (broadly in line with the historic figure).
+        <strong style={{ color:'var(--teal)' }}>Lease headline:</strong> the new £65,000 + VAT per annum lease (with 4-month rent-free start) means Year 1 pays 8 months × £5,417 = £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving vs 2025's £{rentBase.toLocaleString('en-GB')}. Steady-state Y2 runs at the £65,000 headline (~£29k/yr saving vs the historic figure), then compounds at +3% per annum per the lease uplift clause. 3-month deposit on signing.
       </div>
     </div>
   )
@@ -738,7 +741,7 @@ function TabCashflow() {
       </div>
 
       <STitle>Monthly Operating Outflows</STitle>
-      <Tbd>Wages, director salary, fixed overheads, accountancy, variable costs, rent (£0 for first 4 months, then £1,833/week INC VAT), VAT output (quarterly).</Tbd>
+      <Tbd>Wages, director salary, fixed overheads, accountancy, variable costs, rent (£0 for first 4 months, then £65k/12 ≈ £5,417/mo net), VAT output (quarterly).</Tbd>
 
       <STitle>Net Position & Safety Floor</STitle>
       <CashflowChart />

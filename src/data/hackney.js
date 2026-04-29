@@ -88,7 +88,8 @@ export const ACTUALS_2025 = {
 
 // === 2026/27 FORECAST (Base Case +15%) ===
 // Forecast period: May 2026 → Apr 2027. Rebuilt April 2026 with the new
-// WEEKLY rent + rates rules per user direction (see HACKNEY_FIXED_COSTS_2026).
+// lease terms per user direction (see HACKNEY_FIXED_COSTS_2026):
+// £65,000 + VAT per annum, 3-month deposit, 3% annual uplift.
 //
 // Build:
 //   Revenue        538,090.57 × 1.15  =     618,804.17
@@ -97,31 +98,31 @@ export const ACTUALS_2025 = {
 //                   = (134,123 + 7,887 + 16,492 + 10,300 + 8,202) × 1.10
 //                   = 177,004 × 1.10 ≈ 194,704
 //   Fixed Y1:       Other fixed (£23,490) × 1.10 = £25,839
-//                   + new rent £64,155 (35 paying weeks × £1,833 INC VAT)
+//                   + new rent £43,333 (8 paying months × £65k/12; 4-mo rent-free)
 //                   + rates £16,830 (2025 × 1.10, pending Hackney confirm)
-//                   = £106,824
+//                   = £86,002
 //   VAT             44,994 × 1.15 = £51,743 (scales with revenue)
 //   Director         15,885 (separate line)
-//   Op profit (after director) ≈ £69,776 → margin ≈ 11.3%
+//   Op profit (after director) ≈ £90,598 → margin ≈ 14.6%
 //
-// Lease economics: NEW lease is £1,833 INC VAT per WEEK (not per month
-// — the user corrected this April 2026). Forecast year May 2026 → Apr
-// 2027 has 4 months rent-free at the start (May–Aug), then 35 paying
-// weeks × £1,833 = £64,155. Steady state Y2+ = 52 × £1,833 = £95,316.
-// Old Plonk arrangement was £94,146 a year — Y1 still saves ~£30k from
-// the rent-free start, but Y2 onwards is approximately on par with the
-// historic figure.
+// Lease economics: £65,000 + VAT per annum (NET in P&L — VAT-registered
+// bar recovers input VAT). Forecast year May 2026 → Apr 2027 has 4
+// months rent-free at the start (May–Aug 2026), then 8 paying months
+// at £65k/12 = £43,333. Steady state Y2 = £65,000 net. Y3 onwards
+// grows at +3% pa (lease uplift clause). Old Plonk arrangement was
+// £94,146/yr — the new lease saves ~£29k/yr at steady state, plus an
+// additional ~£21,667 in Y1 from the rent-free start.
 export const FORECAST = {
   revenue:    618804.17,
   wages:      179872,
   variable:   194704,           // sum of stock + operational variable, all × 1.10
-  fixed:      106824,           // rent £64,155 + rates £16,830 + other fixed × 1.10
+  fixed:       86002,           // rent £43,333 + rates £16,830 + other fixed × 1.10
   vatNet:      51743,           // 2025 VAT × 1.15 (scales with revenue)
   director:    15885,           // separate line (inc £885 employer NI)
-  rent:        64155,           // Y1 with 4-mo rent-free; £1,833/wk × 35 paying weeks
+  rent:        43333,           // Y1 with 4-mo rent-free; £65,000 / 12 × 8 paying months (net)
   rates:       16830,           // 2025 × 1.10 — Hackney Council confirmation pending
-  profit:      69776,           // revenue − wages − variable − fixed − VAT − director
-  margin:       0.1128,         // profit / revenue
+  profit:      90598,           // revenue − wages − variable − fixed − VAT − director
+  margin:       0.1464,         // profit / revenue
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
@@ -161,21 +162,28 @@ export const HACKNEY_FIXED_COSTS_2025 = [
 
 // === FIXED COSTS — 2026 FORECAST RULES ===
 // Per user direction (April 2026):
-//   • Rent: NEW lease — £1,833 INC VAT per WEEK with 4-month rent-free
-//     start (May–Aug 2026). Year 1 = 35 paying weeks × £1,833 = £64,155.
-//     Steady state (Y2+) = 52 × £1,833 = £95,316.
+//   • Rent: NEW lease — £65,000 + VAT per annum (net in P&L). 4-month
+//     rent-free start (May–Aug 2026). 3-month deposit on signing.
+//     3% annual uplift on rent.
+//       Y1 = 8 paying months × (£65k/12) = £43,333
+//       Y2 = £65,000 (full year, headline)
+//       Y3 = £65,000 × 1.03  = £66,950
+//       Y4 = £65,000 × 1.03² = £68,959
+//       Y5 = £65,000 × 1.03³ = £71,027
 //   • Business Rates: 2025 actual × 1.10 = £16,830. Subject to Hackney
 //     Council assessment with the relief change (75% → 40% in 2025/26)
 //     so this is a placeholder pending confirmation.
 //   • All other fixed lines (electricity, water, insurance, license,
 //     PRS/PPL, internet, lightspeed, TV license): +10% on 2025 actuals.
 export const HACKNEY_FIXED_COSTS_2026 = {
-  rentY1:         64155,                // 35 paying weeks × £1,833 (4 months rent-free)
-  rentSteady:     95316,                // 52 weeks × £1,833 (Y2+)
-  rentWeekly:     1833,                 // £1,833 INC VAT / week
-  rentFreeMonths: 4,
-  rates:          16830,
-  otherUplift:    0.10,                 // applied to non-rent, non-rates lines
+  rentAnnualNet:    65000,              // £65,000 + VAT pa (net in P&L)
+  rentY1:           43333,              // 8 paying months × £65k/12 (4 months rent-free)
+  rentSteady:       65000,              // Y2 full year
+  rentUplift:       0.03,               // 3% annual uplift on rent (Y3+ compounds)
+  rentFreeMonths:   4,                  // May–Aug 2026
+  depositMonths:    3,                  // 3-month deposit on lease signing
+  rates:            16830,
+  otherUplift:      0.10,               // applied to non-rent, non-rates lines
 }
 
 // === COSTS BY CATEGORY (Jan–Dec 2025) ===
@@ -374,45 +382,46 @@ export const WATERFALL = {
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// Pure pro-rata 50/50, no preferred return. Year-1 profit £69,776 from
-// the new 2026 cost model (£1,833/wk lease with 4-mo rent-free Y1 start
-// + 10% uplift on stock and other fixed lines). Y2 onwards rent steps up
-// to £95,316/yr (full 52 weeks at £1,833). Revenue and variable costs
-// grow at 7.5% YoY; wages, fixed (other), rates and director are held
-// flat. Investor share = 50% × profit each year. Powers the multi-year
-// payout schedule on the WaterfallReturns slide.
+// Pure pro-rata 50/50, no preferred return. Year-1 profit £90,598 from
+// the new 2026 cost model (£65k+VAT pa lease with 4-mo rent-free Y1
+// start + 10% uplift on stock and other fixed lines). Y2 onwards rent
+// steps up to the £65,000 headline; Y3+ grows at +3% pa per the lease
+// uplift clause. Revenue and variable costs grow at 7.5% YoY; wages,
+// fixed (other), rates and director are held flat. Investor share =
+// 50% × profit each year. Powers the multi-year payout schedule on the
+// WaterfallReturns slide.
 //
 // vs the old £45,632 forecast (which assumed the legacy Plonk rent of
-// £94,146): Y1 still benefits from the 4-month rent-free start (saves
-// ~£30k vs steady state), but Y2 onwards the new lease is in line with
-// the historic figure. The improvement comes from the +15% revenue
-// assumption flowing through, not from the lease per se.
+// £94,146): the new £65k lease saves ~£29k/yr at steady state, plus
+// another ~£21,667 in Y1 from the 4-month rent-free start. Combined
+// with the +15% revenue assumption, that flows straight through to
+// operating profit and compounds over the 5-year exit.
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
-    profit:          69776,
+    profit:          90598,
     investorEq:      0.5,
-    investorReturn:  34888,
-    coc:              0.3489,
-    paybackYears:     2.87,
+    investorReturn:  45299,
+    coc:              0.4530,
+    paybackYears:     2.21,
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  69776.00, investorShare: 34888.00, founderShare: 34888.00 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  66541.95, investorShare: 33270.97, founderShare: 33270.98 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit:  96563.25, investorShare: 48281.62, founderShare: 48281.63 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 128836.15, investorShare: 64418.07, founderShare: 64418.08 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 163529.52, investorShare: 81764.76, founderShare: 81764.76 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  90598.41, investorShare: 45299.20, founderShare: 45299.21 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 48428.42, founderShare: 48428.43 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 62464.32, founderShare: 62464.33 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 77596.48, founderShare: 77596.49 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 93909.13, founderShare: 93909.14 },
   ],
-  cumulativeDividends: 262623.42,     // Sum of investor shares Y1–Y5
+  cumulativeDividends: 327697.55,     // Sum of investor shares Y1–Y5
   exit: {
-    y5Ebitda:         163529.52,
+    y5Ebitda:         187818.27,
     multiple:         4,
-    businessValue:    654118.08,
-    investorProceeds: 327059.04,
-    founderProceeds:  327059.04,
+    businessValue:    751273.08,
+    investorProceeds: 375636.54,
+    founderProceeds:  375636.54,
   },
-  totalReturned:      589682.46,
-  multipleOfMoney:    5.8968,
-  irr:                0.5777,         // IRR on flows: -100k, +34888, +33271, +48282, +64418, +408824
+  totalReturned:      703334.09,
+  multipleOfMoney:    7.0333,
+  irr:                0.6915,         // IRR on flows: -100k, +45299, +48428, +62464, +77596, +469546
 }
 
 // === GOVERNANCE ===
@@ -452,7 +461,7 @@ export const HACKNEY_RAISE_TARGET = 100000
 // "headline" values for each line; founder drags to reallocate.
 export const USE_OF_FUNDS = [
   { key: 'stock',     item: 'Stock Purchase — Liquidators',     amount: 24000, vat: 'inc VAT', note: 'Bar & kitchen equipment from liquidators — operational from Day 1.' },
-  { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 26750, vat: 'inc VAT', note: 'Lease deposit — refundable on exit. Slider snaps to 1, 2 or 3 months.' },
+  { key: 'rent',      item: 'Landlord — Rent Deposit (3 mo)',   amount: 16250, vat: null,      note: 'Lease deposit — refundable on exit. 3 months × £65,000/12 net rent. Slider snaps to 1, 2 or 3 months.' },
   { key: 'garden',    item: 'Garden Refurbishment',             amount: 12000, vat: 'inc VAT', note: 'Outdoor trading area refurb — soundproofing investment is the priority spend.' },
   { key: 'interior',  item: 'Interior Completion & Signage',    amount: 10000, vat: 'inc VAT', note: 'Fit-out completion, signage, internal acoustic treatment.' },
   { key: 'marketing', item: 'Marketing — Pre-launch & Year 1',  amount:  3000, vat: 'inc VAT', note: 'Organic / local listings / events — no paid Google Ads spend.' },
@@ -467,9 +476,9 @@ export const USE_OF_FUNDS = [
 export const USE_OF_FUNDS_RANGES = {
   stock:     { min: 0,    max: 24000, step: 500, label: 'Stock Purchase — Liquidators' },
   rent:      { snaps: [
-    { months: 1, amount:  8917, label: '1 month' },
-    { months: 2, amount: 17833, label: '2 months' },
-    { months: 3, amount: 26750, label: '3 months' },
+    { months: 1, amount:  5417, label: '1 month' },
+    { months: 2, amount: 10833, label: '2 months' },
+    { months: 3, amount: 16250, label: '3 months' },
   ], label: 'Landlord — Rent Deposit' },
   garden:    { min: 1000, max: 12000, step: 500, label: 'Garden Refurbishment' },
   interior:  { min: 1000, max: 12000, step: 500, label: 'Interior Completion & Signage' },

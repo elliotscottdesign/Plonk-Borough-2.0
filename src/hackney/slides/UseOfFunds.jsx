@@ -36,7 +36,7 @@ function defaultValues() {
   return {
     stock:     byKey.stock.amount,      // £24,000
     rentMonths: 3,                      // snap-slider position
-    rent:      byKey.rent.amount,       // £26,750
+    rent:      byKey.rent.amount,       // £16,250 (3 mo × £65k/12 net)
     garden:    byKey.garden.amount,     // £12,000
     interior:  byKey.interior.amount,   // £10,000
     marketing: byKey.marketing.amount,  // £3,000
