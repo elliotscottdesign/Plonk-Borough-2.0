@@ -28,14 +28,13 @@ const TABS = [
   { key: 'development',   label: 'Development' },
 ]
 
-const VENUE_IMGS = Array.from({ length: 12 }, (_, i) => ({
-  src: `/hackney/venue/Interior_${i + 1}.jpg`,
-  caption: 'No Dice Hackney — interior',
-}))
-const COURSE_IMGS  = []
-const GARDEN_IMGS  = []
-const DRINKS_IMGS  = []
-const GAMES_IMGS   = []
+const range = (n, fn) => Array.from({ length: n }, (_, i) => fn(i + 1))
+
+const VENUE_IMGS  = range(16, n => ({ src: `/hackney/venue/Interior_${n}.jpg`, caption: 'No Dice Hackney — interior' }))
+const COURSE_IMGS = range(10, n => ({ src: `/hackney/course/Course_${n}.jpg`,  caption: 'No Dice Hackney — mini-golf course' }))
+const GARDEN_IMGS = range(8,  n => ({ src: `/hackney/garden/Garden_${n}.jpg`,  caption: 'No Dice Hackney — garden / outdoor terrace' }))
+const DRINKS_IMGS = range(15, n => ({ src: `/hackney/drinks/Drinks_${n}.jpg`,  caption: 'No Dice Hackney — bar & drinks' }))
+const GAMES_IMGS  = range(21, n => ({ src: `/hackney/games/Games_${n}.jpg`,    caption: 'No Dice Hackney — games & arcade' }))
 
 function Gallery({ images }) {
   const [active, setActive] = useState(0)
