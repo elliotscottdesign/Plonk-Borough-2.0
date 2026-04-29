@@ -814,23 +814,20 @@ export const HACKNEY_GOLF_2025 = {
   // the only true financial source for 2025 wage spend, but it splits
   // wages by COMPONENT (gross pay, NIC, pension, holiday, sick,
   // freelance) — NOT by ROLE. There is no "Golf Host" line in the
-  // financials. The rota Google Sheet is the only place Golf Host
-  // appears separately, but it tracks SCHEDULED HOURS / DATE / TIME
-  // / ROLE — not financial truth. We therefore mark hostWages as TBD
-  // here pending either (a) a founder-supplied financial estimate or
-  // (b) a payroll re-cut that allocates a £ figure to the role. The
-  // operational view (shift count, hours, seasonality) is preserved
-  // on the Plonk page from rota — flagged clearly as operational, not
-  // financial, attribution.
+  // financials. The hostWages figure below is therefore a rota-derived
+  // operational allocation, not financial truth: 248.2 hrs × £13.15
+  // rota rate × WAGE_OVERHEAD_MULT (≈1.355 for NIC + pension + holiday)
+  // ≈ £4,423 fully-loaded. Use it as the founder's working estimate;
+  // refine via payroll re-cut if a hard P&L attribution is ever needed.
   costs: {
-    hostWages:          TBD,    // £ — no Golf-Host line in Weekly Merged.
-                                //     Rota shows 248.2 hrs × £13.15 base
-                                //     (= £3,265 gross), but that's an
-                                //     operational allocation, not the
-                                //     financial truth. Founder to confirm.
-    rentShare:          TBD,    // £ — share of rent attributable to the course site
-    maintenance:        TBD,    // £ — founder to approximate
-    upgrade:            TBD,    // £ — founder to approximate
+    hostWages:         4423,    // £ — rota-derived estimate (248.2 hrs ×
+                                //     £13.15 × 1.355). Operational
+                                //     allocation, not Weekly Merged truth.
+    rentShare:        24000,    // £ — separate course-site lease, £24,000/yr inc VAT (founder)
+    maintenance:       3000,    // £ — founder approximation, 2025
+    upgrade:          20000,    // £ — founder approximation, 2025: new holes
+                                //     installed, new paint job, new theming
+                                //     extending from the bar side
     utilities:            0,    // £ — no bills paid for the course
     businessRates:        0,    // £ — no rates paid on the course site
   },

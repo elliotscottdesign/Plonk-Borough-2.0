@@ -88,10 +88,10 @@ function GolfOperations() {
           {/* Costs card */}
           <div className="card" style={{ padding:20 }}>
             <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
-            <PnlRow label="Golf host wages (financial)" value={g.costs.hostWages}    colour="#F87171" sourceNote="Weekly Merged 2024-2026 — no Golf Host line in financials; founder estimate or payroll re-cut needed" />
-            <PnlRow label="Course rent share"          value={g.costs.rentShare}    colour="#F87171" sourceNote="Lease apportioned to course site" />
-            <PnlRow label="Maintenance"                 value={g.costs.maintenance}  colour="#F87171" sourceNote="Founder approximation" />
-            <PnlRow label="Upgrades"                    value={g.costs.upgrade}      colour="#F87171" sourceNote="Founder approximation" />
+            <PnlRow label="Golf host wages (rota-derived)" value={g.costs.hostWages} colour="#F87171" sourceNote="Live rota · 248.2 hrs × £13.15 × 1.355 (NIC + pension + holiday). Operational estimate — Weekly Merged has no Golf Host line" />
+            <PnlRow label="Course rent share"           value={g.costs.rentShare}   colour="#F87171" sourceNote="Separate course-site lease · £24,000 / yr inc VAT (founder)" />
+            <PnlRow label="Maintenance"                  value={g.costs.maintenance} colour="#F87171" sourceNote="Founder approximation · 2025" />
+            <PnlRow label="Upgrades"                     value={g.costs.upgrade}     colour="#F87171" sourceNote="Founder approximation · new holes + paint job + theming extending from the bar side" />
             <PnlRow label="Utilities / bills"           value={g.costs.utilities}    colour="#9CA3AF" zeroNote="No bills paid for course" />
             <PnlRow label="Business rates"               value={g.costs.businessRates} colour="#9CA3AF" zeroNote="No rates paid on course site" />
             <PnlTotal label="Total cost 2025" value={totalCost2025} colour="#F87171" hasTbd={[g.costs.hostWages, g.costs.rentShare, g.costs.maintenance, g.costs.upgrade].some(v => v === TBD)} />
