@@ -2,20 +2,19 @@ import React, { useState } from 'react'
 import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
-// InvestmentSummary — clones Borough's structure exactly:
+// InvestmentSummary — Hackney deal summary slide.
 //   • Title + subtitle
 //   • 4-button scenario selector (Conservative · Base · Optimistic · Custom)
 //   • 3-card snapshot grid (Deal Structure · Financial · Returns)
 //   • Top 3 investment highlights
-//   • Interactive return calculator (slider + 3 result tiles)
 //
-// When the Use of Funds slider tool is locked, the deal terms here recompute
-// off the locked total — investment, investor equity, post-money all flex
-// with the minimum-viable raise. When unlocked, the static DEAL constants
-// from data/hackney.js carry the defaults.
+// All deal-side figures (investment, equity %, pre/post-money, implied
+// multiple) read from LockedUseOfFundsContext.effective so they cascade
+// from the FundingSlider on Cover. Per-investor "Explore Your Return"
+// calculator removed — the funding slider on Cover is the single
+// raise-sizing control.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
-const pct = (n) => (n * 100).toFixed(1) + '%'
 
 // Borough's calc model uses a per-line cost rule applied to a multiplier on
 // 2025 actuals. Hackney's equivalent rules are TBD pending a restatement of
@@ -56,16 +55,6 @@ export default function InvestmentSummary() {
   const activeKey = SCENARIOS[scenario]?.disabled ? 'base' : scenario
   const s = SCENARIOS[activeKey]
   const r = calcReturns(s.multiplier, effective)
-
-  const [amount, setAmount] = useState(effective.investment)
-  const equity = amount / effective.postMoney
-  const isAShare = equity >= 0.05
-
-  // Calculator dividend = base operating profit × equity slider.
-  const OPERATING_PROFIT_BASE = FORECAST.profit
-  const divCalc = OPERATING_PROFIT_BASE * equity
-  const totalCalc = divCalc
-  const cocCalc = totalCalc / amount
 
   const paybackVal = isFinite(r.payback)
     ? `${r.payback.toFixed(1)} years`
@@ -142,54 +131,6 @@ export default function InvestmentSummary() {
         ))}
       </div>
 
-      {/* Interactive return calculator */}
-      <div className="card" style={{ padding: 28 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
-          Explore Your Return
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
-            <span style={{ color: 'var(--cream-dim)' }}>Investment Amount</span>
-            <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
-          </div>
-          <input
-            type="range" min={5000} max={effective.investment} step={2500}
-            value={Math.min(amount, effective.investment)} onChange={e => setAmount(+e.target.value)}
-            style={{ width: '100%', accentColor: 'var(--gold)' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
-            <span>£5,000</span>
-            <span>{fmt(effective.investment)} · 50% equity cap</span>
-          </div>
-        </div>
-
-        {/* Share class badge */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 20,
-          padding: '6px 14px', borderRadius: 20,
-          background: isAShare ? 'rgba(45,212,191,0.1)' : 'rgba(201,168,76,0.1)',
-          border: `1px solid ${isAShare ? 'rgba(45,212,191,0.4)' : 'rgba(201,168,76,0.4)'}`,
-          fontSize: 12, color: isAShare ? 'var(--teal)' : 'var(--gold)',
-        }}>
-          <span>{isAShare ? '✓' : '○'}</span>
-          {isAShare ? 'A Shares · Full Voting Rights' : 'B Shares · Economic Rights Only'}
-          <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>
-            {pct(equity)} equity
-          </span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          <CalcResult label="Ownership" value={pct(equity)} />
-          <CalcResult label="Equity Dividend" value={fmt(divCalc)} />
-          <CalcResult label="Total Year 1" value={fmt(totalCalc)} gold />
-        </div>
-
-        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
-          Cash-on-Cash: {(cocCalc * 100).toFixed(1)}% · Payback: {(amount / totalCalc).toFixed(2)} years · Minimum for A shares: £{DEAL.aShareThreshold.toLocaleString('en-GB')}
-          {isLocked && <span style={{ display:'block', color:'#10B981', marginTop:6 }}>✓ Live from locked Use of Funds — investment {fmt(effective.investment)} · 50/50 split · implied {effective.impliedMult.toFixed(2)}× EBITDA</span>}
-        </div>
-      </div>
     </div>
   )
 }
@@ -209,11 +150,3 @@ function Section({ title, items }) {
   )
 }
 
-function CalcResult({ label, value, gold }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 10, color: 'var(--cream-dim)', marginBottom: 6, letterSpacing: '0.05em' }}>{label}</div>
-      <div className="serif" style={{ fontSize: 20, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</div>
-    </div>
-  )
-}
