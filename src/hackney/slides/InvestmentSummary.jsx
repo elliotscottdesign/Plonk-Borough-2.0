@@ -103,7 +103,7 @@ export default function InvestmentSummary() {
           ['Forecast Revenue',     fmt(r.revenue)],
           ['Revenue Growth',       `+${Math.round((s.multiplier-1)*100)}%`],
           ['Forecast Op Profit',   fmt(r.opProfit)],
-          ['2025 EBITDA',          fmt(ACTUALS_2025.ebitda)],
+          ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
         <Section title="💰 Investor Returns" items={[
           ['Distribution Model', 'Pro-rata · no tiers', true],
