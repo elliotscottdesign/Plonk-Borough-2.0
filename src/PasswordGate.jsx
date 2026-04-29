@@ -12,20 +12,22 @@ import { useTranslation } from 'react-i18next'
 //               sees the ticket slider locked even though everything
 //               else is read-only by default for non-founders too)
 //
-// Plonk is now PRIVATE — only 888999 (founder), VALEX and JOHN1 see it.
-// TEST1 and BRAZIL get the standard 3-tab investor view. Brazilian
+// Plonk is now PRIVATE — only 888999 (founder) and VALEX see it.
+// TEST1, BRAZIL and JOHN1 get the standard 3-tab investor view
+// (Investor Deck · Venue Info · Business Explorer). Brazilian
 // Portuguese remains an in-app EN | PT toggle (no code).
 //
-// JOHN1 is an "observer-founder" tier — same slider + lock access as the
-// real founder (can drag every slider, lock every value, see every
-// page) but the role tag is 'observer' so any external-sheet-write or
-// document-edit flow that ever ships should gate against it. The deck
-// itself doesn't currently push to external sheets from the UI, so in
-// practice JOHN1 ≡ 888999 inside the app today.
+// JOHN1 is an "observer-founder" tier on the standard view — same
+// slider + lock access as the real founder (can drag every slider,
+// lock every value) but Plonk top-tab is hidden, and the role tag
+// is 'observer' so any external-sheet-write or document-edit flow
+// that ever ships gates against it. The deck itself doesn't currently
+// push to external sheets from the UI, so JOHN1's permissions inside
+// the standard 3-tab view are functionally equivalent to 888999.
 // ───────────────────────────────────────────────────────────────────────
 const ACCESS_CODES = {
   '888999': { plonk: true,  founder: true,  role: 'founder'  },
-  'JOHN1':  { plonk: true,  founder: true,  role: 'observer' },
+  'JOHN1':  { plonk: false, founder: true,  role: 'observer' },
   'VALEX':  { plonk: true,  founder: false, role: 'valex'    },
   'TEST1':  { plonk: false, founder: false, role: 'test'     },
   'BRAZIL': { plonk: false, founder: false, role: 'brazil'   },
