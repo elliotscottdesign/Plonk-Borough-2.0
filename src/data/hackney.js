@@ -292,17 +292,26 @@ export const HACKNEY_CASH = {
 // Aggregated 2025 bar-only shifts. Filters applied:
 //   • Roles kept: Bar Staff, Supervisor, Assistant Manager, Manager
 //   • Roles excluded: Golf Host (mini-golf), Kitchen, blank-role rows
-//   • Date validation: dropped rows with empty / unparseable dates (these
-//     are summary/spacer rows in the source — without this filter Bar Staff
-//     was over-counted by ~1,400 hrs)
+//   • Date validation: dropped rows with empty / unparseable dates
 //   • Day-of-week validation: zero mismatches in the source
-// Total 8,894.1 hrs / £132,725.49 gross. Used as the calculator basis on
-// Business Explorer 2026 Performance.
+// Hourly rotaed totals from the source: Bar Staff 4,506.3 · Supervisor
+// 1,216.5 · Asst. Manager 1,796.2 · Manager 1,375.1.
+//
+// Manual correction — Manager + Asst. Manager set to 2,080 hrs (40 ×
+// 52, full-time salaried basis). The rota cloud under-records these
+// two salaried roles because it only logs on-floor scheduled shifts
+// — it does not capture management / admin / supplier / HR time
+// that's part of their salaried scope. The financial truth
+// (PL_WAGE_BASE £179,872 from Weekly Merged G15) already pays both
+// roles for full-time work, so 2,080 hrs is the correct hours basis
+// for any £-derivation. Bar Staff and Supervisor stay at the
+// rota-recorded figures (these are paid hourly and the rota is the
+// truth for those).
 export const WAGE_RATES = [
   { role: 'Bar Staff',     rate: 13.82, hours: 4506.3, color: '#E67E22' },
   { role: 'Supervisor',    rate: 15.12, hours: 1216.5, color: '#D4A843' },
-  { role: 'Asst. Manager', rate: 16.46, hours: 1796.2, color: '#94A3B8' },
-  { role: 'Manager',       rate: 18.26, hours: 1375.1, color: '#0D9488' },
+  { role: 'Asst. Manager', rate: 16.46, hours: 2080,   color: '#94A3B8' },  // 40 × 52 (salaried)
+  { role: 'Manager',       rate: 18.26, hours: 2080,   color: '#0D9488' },  // 40 × 52 (salaried)
 ]
 
 // === WAGE FINANCIAL TRUTH — Weekly Merged 2024-2026 ==================
@@ -315,8 +324,15 @@ export const WAGE_RATES = [
 // attribution (e.g. Golf Host, Bar Staff) is an estimate derived
 // from rota hours × rate, not financial truth.
 export const PL_WAGE_BASE = 179872            // 2025 financial-truth wage line — Monthly Summary G15 (= Weekly Merged 2024-2026 wage rows aggregated)
-export const ROTA_TOTAL   = 132725            // 2025 rota gross — operational allocation reference, NOT a financial figure
-export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // ≈ 1.355 — empirical multiplier reconciling rota gross to financial-truth payroll (NIC + pension + holiday + overtime). Derived, not contractual.
+// ROTA_TOTAL derives from WAGE_RATES so any hours/rate correction
+// (e.g. Manager + Asst. Manager set to 2,080 full-time-salaried
+// basis) keeps the multiplier in sync. With the corrected salaried
+// hours, ROTA_TOTAL ≈ £152,888 and WAGE_OVERHEAD_MULT ≈ 1.176 —
+// closer to the true ~17–21% NIC + pension + holiday loading than
+// the old empirical 1.355 figure (which was inflated because the
+// rota under-counted salaried hours).
+export const ROTA_TOTAL = WAGE_RATES.reduce((s, r) => s + r.rate * r.hours, 0)
+export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL   // empirical multiplier reconciling rota gross to financial-truth payroll · derived, not contractual
 
 // === MODELLED STAFFING — full 12-role build-out ===
 // Source: Wages Breakdown sheet, modelled staffing block (rows 10–40).
