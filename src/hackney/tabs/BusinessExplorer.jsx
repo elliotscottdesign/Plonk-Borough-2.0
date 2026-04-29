@@ -317,14 +317,108 @@ function WageModelBreakdown() {
   )
 }
 
+// ─── 2026 cost-model rules (user-defined) ─────────────────────────────
+// Per user direction:
+//   • Revenue growth:    +15% (base case)
+//   • Stock / variable:  +10% on every variable line (drinks, food, cleaning, djs, arcades)
+//   • Fixed costs:       +8%
+//   • Wages:             driven by the wage calculator (default sums to PL_WAGE_BASE)
+const FORECAST_RULES = {
+  revenueGrowth:   0.15,
+  variableUplift:  0.10,
+  fixedUplift:     0.08,
+}
+
+// Build forecast figures by applying the rules to 2025 actuals + Weekly Merged
+// category breakdowns. Variable-cost categories are the 2025 splits; fixed
+// costs come from the Monthly Summary annual line; wages from PL_WAGE_BASE.
+function buildForecast() {
+  const r = 1 + FORECAST_RULES.revenueGrowth
+  const v = 1 + FORECAST_RULES.variableUplift
+  const f = 1 + FORECAST_RULES.fixedUplift
+
+  const revenue = ACTUALS_2025.revenue * r
+  const wages   = PL_WAGE_BASE                                 // calculator-driven; default = 2025 baseline
+  const stockCats = ['Drinks & Gas', 'Food']
+  const otherVarCats = ['Cleaning', 'DJs', 'Arcades']
+  const stock = COST_CATEGORIES.filter(c => stockCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
+  const otherVar = COST_CATEGORIES.filter(c => otherVarCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
+  const fixed = ACTUALS_2025.fixedCosts * f                    // Monthly Summary fixed line × 1.08
+  const vatNet = ACTUALS_2025.vatNet * r                       // VAT scales with revenue
+  const opCosts = wages + stock + otherVar + fixed + vatNet
+  const opProfit = revenue - opCosts
+  const margin = revenue ? opProfit / revenue : 0
+  return { revenue, wages, stock, otherVar, fixed, vatNet, opCosts, opProfit, margin, r, v, f }
+}
+
+// Forecast monthly arrays — apply growth to 2025 monthly income + uplifts
+// to monthly costs (preserving 2025 month-to-month seasonality).
+function buildForecastMonthly() {
+  const r = 1 + FORECAST_RULES.revenueGrowth
+  const v = 1 + FORECAST_RULES.variableUplift
+  const f = 1 + FORECAST_RULES.fixedUplift
+  return MONTHLY_INCOME.map((row, i) => {
+    const mc = MONTHLY_COSTS[i]
+    const variable = (mc.drinks + mc.cleaning + mc.djs + mc.arcades + mc.food) * v
+    const fixed    = mc.fixed * f
+    const wages    = mc.wages              // calculator-driven; mirror 2025 monthly distribution
+    const totalCost = variable + fixed + wages
+    const income = row.amount * r
+    return {
+      month: row.month,
+      income,
+      profit: income - totalCost,
+      wages, fixed, drinks: mc.drinks * v, cleaning: mc.cleaning * v,
+      djs: mc.djs * v, arcades: mc.arcades * v, food: mc.food * v,
+    }
+  })
+}
+
+// Build forecasted income-by-source list (2025 sources × revenue growth).
+function buildForecastIncome() {
+  const r = 1 + FORECAST_RULES.revenueGrowth
+  const total = INCOME_SOURCES.reduce((s, c) => s + (c.amount || 0), 0) * r
+  return INCOME_SOURCES.map(c => ({ ...c, amount: (c.amount || 0) * r, pct: total ? (c.amount * r / total * 100) : 0 }))
+}
+
+// Build forecasted cost-by-category list with rule-based uplifts per category.
+function buildForecastCosts() {
+  const v = 1 + FORECAST_RULES.variableUplift
+  const f = 1 + FORECAST_RULES.fixedUplift
+  const isFixed = (n) => n === 'Fixed Costs'
+  const isWages = (n) => n === 'Wages'
+  return COST_CATEGORIES.map(c => {
+    const mult = isWages(c.name) ? 1 : (isFixed(c.name) ? f : v)
+    const newAmount = c.amount * mult
+    return { ...c, amount: newAmount }
+  })
+}
+
 function Tab2026() {
+  const f = buildForecast()
+  const monthly = buildForecastMonthly()
+  const fcIncome = buildForecastIncome()
+  const fcCosts = buildForecastCosts()
+  // Re-pct fcCosts after individual scaling
+  const fcCostsTotal = fcCosts.reduce((s, c) => s + c.amount, 0)
+  const fcCostsPctd = fcCosts.map(c => ({ ...c, pct: fcCostsTotal ? (c.amount / fcCostsTotal * 100) : 0 }))
+
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>2026 Forecast — Base Case +15%</STitle>
-      <Tbd>Top-line forecast cards (Revenue · Profit · Margin) + the editable founder-only inputs (wages, fixed cost uplift, drinks ratio, rent rule, scenario selector).</Tbd>
+      <ForecastTopLineCards f={f} />
 
       <STitle>Cost Model — 2026 Rules</STitle>
-      <Tbd>Borough uses a per-line rule set (wages +10%, non-rent fixed +10%, drinks 30% of bar, rent 15% of turnover, etc.). Hackney's equivalent rule set is TBD pending the bar-only restated cost model.</Tbd>
+      <ForecastRulesPanel f={f} />
+
+      <STitle>Income by Source — Forecast</STitle>
+      <ForecastIncomeChart sources={fcIncome} />
+
+      <STitle>Costs by Category — Forecast</STitle>
+      <ForecastCostsChart cats={fcCostsPctd} />
+
+      <STitle>Monthly Performance — Forecast</STitle>
+      <ForecastMonthlyChart data={monthly} />
 
       <STitle>Locked Snapshot — Founder Edit / Investor View</STitle>
       <Tbd>Borough's LockedForecastContext lets the founder edit values then click Lock — the snapshot becomes the Custom scenario in Investment Summary and Waterfall Returns. Wire the same provider into HackneyApp once the underlying inputs are finalised.</Tbd>
@@ -334,6 +428,188 @@ function Tab2026() {
 
       <STitle>Income Levers — Scenario Builder</STitle>
       <Tbd>Per-source revenue lever (bar uplift, bookings uplift, private hires, etc.) feeding the Custom scenario. Borough has 6 levers; Hackney's lever list TBD pending the income-source split.</Tbd>
+    </div>
+  )
+}
+
+// ─── 2026 — Top-line forecast cards ───────────────────────────────────
+function ForecastTopLineCards({ f }) {
+  const cards = [
+    { label: 'Revenue (forecast)',  value: f.revenue,  colour: '#4FC3F7' },
+    { label: 'Wages (calculator)',  value: f.wages,    colour: '#E67E22' },
+    { label: 'Variable +10%',       value: f.stock + f.otherVar, colour: '#A78BFA' },
+    { label: 'Fixed +8%',           value: f.fixed,    colour: '#F87171' },
+    { label: 'VAT (Net)',           value: f.vatNet,   colour: '#9CA3AF' },
+    { label: 'Operating Profit',    value: f.opProfit, colour: f.opProfit >= 0 ? '#10B981' : '#E53935' },
+  ]
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
+      {cards.map(c => (
+        <div key={c.label} className="card" style={{ padding:14 }}>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{c.label}</div>
+          <div className="serif" style={{ fontSize:'clamp(1.2rem, 2.2vw, 1.6rem)', color: c.colour, lineHeight:1 }}>{fmtMoney(c.value)}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ─── 2026 — Cost model rules panel ────────────────────────────────────
+function ForecastRulesPanel({ f }) {
+  const rules = [
+    { label: 'Revenue growth',  value: '+15%',  base: ACTUALS_2025.revenue,    forecast: f.revenue,            colour: '#4FC3F7' },
+    { label: 'Wages',           value: 'calculator',  base: PL_WAGE_BASE,      forecast: f.wages,              colour: '#E67E22' },
+    { label: 'Stock (variable)',value: '+10%',  base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar,colour: '#A78BFA' },
+    { label: 'Fixed costs',     value: '+8%',   base: ACTUALS_2025.fixedCosts, forecast: f.fixed,              colour: '#F87171' },
+    { label: 'VAT (Net)',       value: 'scaled with revenue', base: ACTUALS_2025.vatNet, forecast: f.vatNet,    colour: '#9CA3AF' },
+  ]
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,0.2)', fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+        <span>Line</span>
+        <span style={{ textAlign: 'right' }}>Rule</span>
+        <span style={{ textAlign: 'right' }}>2025 base</span>
+        <span style={{ textAlign: 'right' }}>2026 forecast</span>
+      </div>
+      {rules.map(r => (
+        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13, fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ color: r.colour }}>{r.label}</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign: 'right', fontStyle: 'italic' }}>{r.value}</span>
+          <span style={{ color: 'var(--cream-dim)', textAlign: 'right' }}>{fmtMoney(r.base)}</span>
+          <span style={{ color: r.colour, textAlign: 'right' }}>{fmtMoney(r.forecast)}</span>
+        </div>
+      ))}
+      <div style={{ marginTop: 12, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+        Variable cost categories (Drinks &amp; Gas, Cleaning, DJs, Arcades, Food) all uplift by +10%. Fixed costs uplift by +8%. Wages tracked separately via the Wage Calculator below — drag rates and hours, the forecast tile updates live.
+      </div>
+    </div>
+  )
+}
+
+// ─── 2026 — Income by Source forecast (mirrors 2025 layout) ───────────
+function ForecastIncomeChart({ sources }) {
+  const total = sources.reduce((s, r) => s + (r.amount || 0), 0)
+  const data = sources.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <span style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{sources.length} sources · 2025 split × +15% revenue growth</span>
+        <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(total)} forecast</span>
+      </div>
+      <div style={{ height: 230 }}>
+        <ResponsiveContainer>
+          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
+            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
+            <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Bar dataKey="amount" radius={[0,4,4,0]}>
+              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        {data.map(r => (
+          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
+            <span style={{ color:'var(--cream)' }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
+            </span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
+            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 2026 — Costs by Category forecast ────────────────────────────────
+function ForecastCostsChart({ cats }) {
+  const total = cats.reduce((s, r) => s + r.amount, 0)
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+        <span style={{ fontSize: 11, color: 'var(--cream-dim)' }}>2026 cost split · variable +10% · fixed +8% · wages from calculator</span>
+        <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(total)} forecast</span>
+      </div>
+      <div style={{ height: 240 }}>
+        <ResponsiveContainer>
+          <BarChart data={cats} layout="vertical" margin={{ left: 8, right: 12 }}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
+            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
+            <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Bar dataKey="amount" radius={[0,4,4,0]}>
+              {cats.map((d, i) => <Cell key={i} fill={d.color} />)}
+            </Bar>
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
+      <div style={{ marginTop: 8 }}>
+        {cats.map(r => (
+          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
+            <span style={{ color:'var(--cream)' }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
+            </span>
+            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
+            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.pct.toFixed(1)}%</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 2026 — Monthly performance forecast ──────────────────────────────
+function ForecastMonthlyChart({ data }) {
+  return (
+    <div className="card" style={{ padding: 18 }}>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', marginBottom:12 }}>
+        Monthly bars = forecast revenue (2025 actuals × +15%) · line = forecast operating profit (after variable +10%, fixed +8%, wages baseline).
+      </div>
+      <div style={{ height: 260 }}>
+        <ResponsiveContainer>
+          <ComposedChart data={data}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
+            <Bar dataKey="income" name="Forecast income"  fill="var(--gold)" radius={[3,3,0,0]} />
+            <Line type="monotone" dataKey="profit" name="Forecast profit" stroke="var(--teal)" strokeWidth={2} dot={{ r:3, fill:'var(--teal)' }} />
+            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
+
+      <div style={{ fontSize:11, color:'var(--cream-dim)', margin:'18px 0 8px' }}>Monthly cost stack — forecast (2025 actuals × uplift rules):</div>
+      <div style={{ height: 220 }}>
+        <ResponsiveContainer>
+          <BarChart data={data}>
+            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              formatter={(v) => fmtMoney(v)} />
+            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
+            <Bar dataKey="wages"        name="Wages"        stackId="a" fill="#4A0000" />
+            <Bar dataKey="drinks"       name="Drinks & Gas (+10%)" stackId="a" fill="#7B0000" />
+            <Bar dataKey="fixed"        name="Fixed Costs (+8%)"   stackId="a" fill="#B71C1C" />
+            <Bar dataKey="cleaning"     name="Cleaning (+10%)"     stackId="a" fill="#C62828" />
+            <Bar dataKey="djs"          name="DJs (+10%)"          stackId="a" fill="#E53935" />
+            <Bar dataKey="arcades"      name="Arcades (+10%)"      stackId="a" fill="#D84315" />
+            <Bar dataKey="food"         name="Food (+10%)"         stackId="a" fill="#EF6C00" radius={[3,3,0,0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   )
 }
