@@ -735,11 +735,16 @@ export const STOCK_SETUP_DETAIL = [
 // === GOLF OPERATIONS — 2025 ACTUALS + GO-FORWARD STRUCTURE ===========
 // Pre-liquidation, the mini-golf course operated next door (Mentmore
 // Terrace adjacent site). Customers bought tickets two ways:
-//   1. Online via the website — paid in £, redeemed AT THE BAR as
-//      tokens (effectively bar revenue once spent on drinks/food)
-//   2. At the till — direct cash/card sale at the venue
-// Either way they came in, played, then carried tokens or cash into
-// the bar for spend.
+//   1. Online via Design My Night (DMN) — £-priced ticket SKUs.
+//      Some SKUs include arcade-token bundles (e.g. "Golf + 4 Tokens"
+//      includes 4 tokens used in the venue's arcade machines). Tokens
+//      are NOT a redemption mechanic for the £ ticket value — the
+//      ticket pays for the round of golf, the tokens are an arcade
+//      add-on bundled into certain SKUs.
+//   2. At the till — direct cash/card sale at the venue (golf round
+//      only, no token bundle).
+// Customers played golf and (with tokens) used the arcades. Bar / food
+// / party spend was incremental on top.
 //
 // Going forward (2026+), the golf course is being separated:
 //   • Golf operated by a SEPARATE company (own entity, own books)
@@ -749,39 +754,53 @@ export const STOCK_SETUP_DETAIL = [
 //       - 100% of bar revenue (unchanged)
 //       - 100% of food revenue (unchanged)
 //       - 100% of party / private hire revenue (unchanged)
-//       - 50% of online token income (was 100%) — golf company
-//         takes the other 50% as their share of online sales
-//   • Golf company keeps:
+//       - 100% of arcade token revenue — both online ticket-bundled
+//         tokens AND tokens sold at the bar till. No Dice settles
+//         with the new golf operator at £0.35 per token (NO VAT) —
+//         operator's share of the token value sold inside their
+//         golf SKUs. Net token margin to No Dice = sale price minus
+//         £0.35.
+//   • Golf operator keeps:
 //       - 100% of till ticket sales (was No Dice's)
-//       - 50% of online token income
+//       - The £-ticket portion of online sales (golf round component)
+//       - £0.35 per token settlement from No Dice on bundled tokens
 //
 // Cost structure for the golf side in 2025 (per founder):
 //   • Rent — yes (course site is a separate lease)
-//   • Some host wages — yes
+//   • Some host wages — yes (busy times only — course was always
+//     OPEN regardless of whether a dedicated host was rota'd; bar
+//     staff and supervisors covered the host role outside busy times)
 //   • Maintenance — yes (founder to approximate)
 //   • Upgrade — yes (founder to approximate)
 //   • Bills — NONE (no utilities billed against the course)
 //   • Business rates — NONE (no rates paid on the course site)
 //
 // Sources for figures below:
-//   • onlineTickets   — INCOME_SOURCES "Online golf (DMN)" line
+//   • onlineTickets   — Design My Night sales export, Hackney venue,
+//                        1.1.2025 – 31.12.2025 (TBD — see
+//                        HACKNEY_GOLF_DMN_2025 below once populated).
+//                        Headline £39,288 placeholder from prior
+//                        INCOME_SOURCES "Online golf (DMN)" line until
+//                        the per-SKU breakdown lands.
 //   • tournamentEntry — INCOME_SOURCES "Tournament entry" line
-//   • tillTickets     — Weekly Merged 2024-2026, till sales of golf
-//                        tickets (1.1.2025 – 31.12.2025). TBD until
-//                        the founder pulls the figure from the sheet.
-//   • hostWages       — live rota Google Sheet, "Golf Host" role
-//                        rows. TBD until extracted (currently filtered
-//                        out of the bar-only WAGE_RATES rota dataset).
-//   • rentShare       — TBD (lease apportioned to course site only).
-//   • maintenance / upgrade — founder approximations, TBD.
+//   • tillTickets     — Weekly Merged 2024-2026 row 3, walk-in
+//                        ticket sales for 1.1.2025 – 31.12.2025
+//   • hostWages       — live rota Google Sheet, "Golf host" role
+//                        rows (course always open; host scheduled
+//                        for busy periods only)
+//   • rentShare       — TBD (lease apportioned to course site only)
+//   • maintenance / upgrade — founder approximations, TBD
 export const HACKNEY_GOLF_2025 = {
   // Revenue lines (what came IN to No Dice as the operating venue in 2025)
   revenue: {
-    onlineTickets:    39288,    // £ — online ticket sales redeemed as bar tokens
+    onlineTickets:    44812,    // £ — Hackney DMN online ticket sales (status=complete).
+                                //     Source: Design My Night sales export aggregated
+                                //     from HACKNEY_DMN_SKUS_ONLINE_2025 (£44,812.35)
     tillTickets:      25503,    // £ — direct ticket sales at venue till. Source: Weekly
                                 //     Merged 2024-2026 row 3 ("Total Walk In Golf
                                 //     Tickets"), 52 weeks of 2025 summed (£25,502.77)
-    tournamentEntry:   3570,    // £ — included in old golf P&L (separate tournament events)
+    tournamentEntry:   3570,    // £ — kept for legacy parity (subsumed inside DMN
+                                //     Doubles + Singles Pool Tournament SKUs above)
   },
   // Costs attributable to running the golf course in 2025
   costs: {
@@ -854,33 +873,131 @@ export const HACKNEY_GOLF_TILL_2025_MONTHLY = [
   { month: 'Dec', weeks: 5, revenue:  1260 },
 ]
 
-// Go-forward (2026+) revenue split between the new golf company and No Dice.
+// Go-forward (2026+) revenue split between the new golf operator and No Dice.
 // Each line records what NO DICE retains under the new structure. Anything
-// the golf company takes as their share is the complement (1 - retained).
+// the operator takes as their share is the complement (1 - retained).
 export const HACKNEY_GOLF_GOING_FORWARD = {
   structure: {
     operator:   'Separate company (newly incorporated)',
     host:       'No Dice — continues to host + operate the course on site',
     cashflow:   'Settled monthly between the two entities',
+    tokenRate:  '£0.35 per token (NO VAT) — operator settlement on bundled tokens',
   },
   noDiceRetains: [
     { line: 'Bar revenue',                pct: 1.00, note: 'Unchanged — 100% to No Dice' },
     { line: 'Food revenue',               pct: 1.00, note: 'Unchanged — 100% to No Dice' },
     { line: 'Party / private hire',       pct: 1.00, note: 'Unchanged — 100% to No Dice' },
-    { line: 'Online token income',        pct: 0.50, note: 'Was 100% — golf company now takes the other 50%' },
-    { line: 'Till ticket sales',          pct: 0.00, note: 'Was 100% — golf company keeps it (it is their core business)' },
-    { line: 'Tournament entry',           pct: TBD,  note: 'TBD — founder to confirm with golf company entity' },
+    { line: 'Arcade token revenue',       pct: 1.00, note: '100% to No Dice — operator settled at £0.35 per token (NO VAT) as a cost line, not a share' },
+    { line: 'Online ticket — golf round', pct: 0.00, note: 'Operator keeps the £-ticket portion (it is their core business)' },
+    { line: 'Till ticket sales',          pct: 0.00, note: 'Operator keeps it (it is their core business)' },
+    { line: 'Tournament entry',           pct: TBD,  note: 'TBD — founder to confirm with operator entity' },
   ],
   noDiceTakesOver: [
-    'Course hosting + operations on site',
-    'Customer-facing presence (tokens redeemed at the bar)',
-    'Bar / food / party revenue captured directly from golf footfall',
+    'Course hosting + operations on site (course was always open in 2025; bar staff covered the host role outside dedicated host shifts)',
+    'Customer-facing presence — bar / food / party / token spend continues to land with No Dice',
+    'Token sales — both bundled inside online tickets and walk-up at the bar till',
   ],
   golfCompanyTakesOver: [
     '100% of till ticket sales (formerly No Dice revenue)',
-    '50% of online token sales (formerly 100% to No Dice as bar tokens)',
-    'Golf course cost base — rent, maintenance, upgrades, host wages',
+    'The £-ticket portion of online sales (golf round component)',
+    'Golf course cost base — rent, maintenance, upgrades, dedicated host wages',
+    '£0.35 per token settlement from No Dice on every token bundled into a sold SKU',
   ],
+}
+
+// === HACKNEY DMN ONLINE TICKETS — 2025 ACTUALS =======================
+// Source: Design My Night sales export (Hackney sheet, gid=1525692404)
+// Filtered: Venue = "Plonk Golf - Hackney", Event Date in 2025.
+//   • Status "complete"  → online portal revenue (£ recorded on sheet)
+//   • Status "external"  → in-venue / office sales (sheet records £0;
+//                          imputed below at average online unit price
+//                          per archetype, identical method to Borough)
+//   • Status "rejected"  → excluded
+//
+// IMPORTANT — TOKEN MODEL (correcting earlier deck copy):
+// Tickets are NOT redeemed for tokens at the bar. Some SKUs (e.g.
+// "Adult — Golf + 4 Tokens") BUNDLE arcade tokens into the ticket
+// price; the customer uses those tokens in the venue's arcade
+// machines. Tokens are an arcade add-on inside the SKU, not a £
+// redemption mechanic.
+//
+// GO-FORWARD ECONOMICS (2026+):
+// Tokens continue to be sold by No Dice — both bundled inside
+// online tickets AND at the bar till — and ALL token revenue stays
+// with No Dice. No Dice settles with the new golf operator at
+// £0.35 per token (NO VAT) as the operator's fixed share of the
+// token value. Net token margin to No Dice = sale value − £0.35.
+export const HACKNEY_DMN_TOKEN_VALUE = 0.35   // £ per arcade token, no VAT — operator settlement rate
+
+// 2025 Hackney SKUs sold ONLINE (status = complete on the DMN sheet).
+// Aggregated by archetype (time-of-day slot suffix stripped). Revenue
+// is the actual sum of "Total Item Price" rows. `tokens` is the
+// number of arcade tokens bundled per SKU; `rounds` is the number
+// of golf rounds. price = average unit price observed in 2025 (some
+// SKUs vary across the day — peak / off-peak — so this is the
+// blended figure, not a single list price).
+export const HACKNEY_DMN_SKUS_ONLINE_2025 = [
+  { sku: 'Adult — Golf + 4 Tokens',                 rounds: 1, tokens: 4, price:  8.94, sold: 3429, revenue: 30622.20 },
+  { sku: 'Under 18s — Round of Golf',                rounds: 1, tokens: 0, price:  5.43, sold:  472, revenue:  2558.00 },
+  { sku: 'Adult — Round of Golf',                    rounds: 1, tokens: 0, price:  5.54, sold:  378, revenue:  2109.00 },
+  { sku: 'Pool Table Reservation — 30 Mins',         rounds: 0, tokens: 0, price:  5.00, sold:  383, revenue:  1913.00 },
+  { sku: 'Adult — Game & Drink',                     rounds: 1, tokens: 3, price: 10.00, sold:  176, revenue:  1760.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',              rounds: 1, tokens: 4, price:  8.93, sold:  166, revenue:  1477.15 },
+  { sku: 'Doubles Pool Tournament Team Entry',       rounds: 0, tokens: 0, price:  9.96, sold:  129, revenue:  1285.00 },
+  { sku: 'Plonk Bottomless Brunch',                  rounds: 0, tokens: 0, price: 35.00, sold:   25, revenue:   875.00 },
+  { sku: "Add a Jug of Plonker's Punch",             rounds: 0, tokens: 0, price: 25.00, sold:   24, revenue:   600.00 },
+  { sku: 'Singles Pool Tournament Entry',            rounds: 0, tokens: 0, price:  5.00, sold:  113, revenue:   565.00 },
+  { sku: 'Add a Bucket of Beers',                    rounds: 0, tokens: 0, price: 25.00, sold:   17, revenue:   425.00 },
+  { sku: 'Pool Table Reservation — One Hour',        rounds: 0, tokens: 0, price:  5.00, sold:   41, revenue:   205.00 },
+  { sku: 'Add a Tray of Shots',                      rounds: 0, tokens: 0, price: 18.00, sold:    9, revenue:   162.00 },
+  { sku: 'Add Five Arcade Tokens (add-on)',          rounds: 0, tokens: 5, price:  3.36, sold:   38, revenue:   130.00 },
+  { sku: 'Pumpkin Carving',                          rounds: 0, tokens: 0, price:  5.00, sold:   18, revenue:    90.00 },
+  { sku: 'Round of Golf (legacy SKU)',               rounds: 1, tokens: 0, price:  6.00, sold:    6, revenue:    36.00 },
+]
+
+// 2025 Hackney SKUs sold OFFICE / EXTERNAL (status = external; payment
+// at venue till, sheet records £0). Revenue imputed at the average
+// online unit price per archetype × quantity sold — same method as
+// Borough. Gives a complete picture of total venue volume.
+export const HACKNEY_DMN_SKUS_OFFICE_2025 = [
+  { sku: 'Adult — Golf + 4 Tokens',                 rounds: 1, tokens: 4, price: 8.94, sold: 1041, revenue:  9310.92 },
+  { sku: 'Under 18s — Round of Golf',                rounds: 1, tokens: 0, price: 5.43, sold:  147, revenue:   798.91 },
+  { sku: 'Singles Pool Tournament Entry',            rounds: 0, tokens: 0, price: 5.00, sold:   90, revenue:   450.00 },
+  { sku: 'Adult — Round of Golf',                    rounds: 1, tokens: 0, price: 5.54, sold:   88, revenue:   487.84 },
+  { sku: 'Doubles Pool Tournament Team Entry',       rounds: 0, tokens: 0, price: 9.96, sold:   84, revenue:   836.44 },
+  { sku: 'Pool Table Reservation — 30 Mins',         rounds: 0, tokens: 0, price: 5.00, sold:   41, revenue:   205.00 },
+  { sku: 'Under 18s — Golf + 4 Tokens',              rounds: 1, tokens: 4, price: 8.93, sold:   37, revenue:   330.36 },
+  { sku: 'Plonk Bottomless Brunch',                  rounds: 0, tokens: 0, price:35.00, sold:   16, revenue:   560.00 },
+  { sku: 'Adult — Game & Drink',                     rounds: 1, tokens: 3, price:10.00, sold:   11, revenue:   110.00 },
+  { sku: 'Pool Table Reservation — One Hour',        rounds: 0, tokens: 0, price: 5.00, sold:    2, revenue:    10.00 },
+]
+
+// Per-month split: online (actual portal revenue) vs office (imputed).
+export const HACKNEY_DMN_MONTHLY_2025 = [
+  { month: 'Jan', onlineQty: 362, onlineRev: 2656.50, officeQty:  14, officeRev:   94.79 },
+  { month: 'Feb', onlineQty: 325, onlineRev: 2586.30, officeQty:  94, officeRev:  775.15 },
+  { month: 'Mar', onlineQty: 420, onlineRev: 3218.00, officeQty: 144, officeRev: 1036.44 },
+  { month: 'Apr', onlineQty: 565, onlineRev: 4618.15, officeQty: 173, officeRev: 1893.40 },
+  { month: 'May', onlineQty: 586, onlineRev: 4635.70, officeQty:  74, officeRev:  588.71 },
+  { month: 'Jun', onlineQty: 540, onlineRev: 4072.70, officeQty: 132, officeRev: 1017.14 },
+  { month: 'Jul', onlineQty: 496, onlineRev: 4543.00, officeQty: 159, officeRev: 1229.56 },
+  { month: 'Aug', onlineQty: 623, onlineRev: 5527.90, officeQty:  97, officeRev:  820.24 },
+  { month: 'Sep', onlineQty: 417, onlineRev: 3643.40, officeQty: 154, officeRev: 1273.14 },
+  { month: 'Oct', onlineQty: 430, onlineRev: 3591.20, officeQty:  93, officeRev:  745.41 },
+  { month: 'Nov', onlineQty: 381, onlineRev: 3111.50, officeQty: 127, officeRev:  966.90 },
+  { month: 'Dec', onlineQty: 279, onlineRev: 2608.00, officeQty: 306, officeRev: 2658.59 },
+]
+
+// Grand totals — online actual revenue + office imputed revenue.
+export const HACKNEY_DMN_GRAND_2025 = {
+  onlineQty:  5424, onlineRev: 44812.35,                 // status=complete
+  officeQty:  1567, officeRev: 13099.48,                 // status=external, imputed
+  totalQty:   6991, totalRev:  57911.83,                 // combined Hackney 2025 DMN volume
+  // Token analytics — what flows to No Dice on token side
+  tokensOnline:    15098,                                // 4-token SKUs × qty + Add-Five × qty
+  tokensOffice:     4385,                                // same calc for external SKUs
+  tokensTotal:     19483,                                // bundled into Hackney DMN tickets in 2025
+  operatorSettlement: 6819,                              // 19,483 × £0.35 (NO VAT) = operator share
 }
 
 // === IP & LICENSING — NOT APPLICABLE TO HACKNEY ===

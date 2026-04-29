@@ -3,6 +3,9 @@ import {
   HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
   HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
   HACKNEY_GOLF_TILL_2025_MONTHLY,
+  HACKNEY_DMN_SKUS_ONLINE_2025, HACKNEY_DMN_SKUS_OFFICE_2025,
+  HACKNEY_DMN_MONTHLY_2025, HACKNEY_DMN_GRAND_2025,
+  HACKNEY_DMN_TOKEN_VALUE,
 } from '../../data/hackney.js'
 import {
   ResponsiveContainer, ComposedChart, Line, Bar,
@@ -57,13 +60,16 @@ function GolfOperations() {
         <STitle>Golf Operations · Transparency for Investors</STitle>
         <div className="card" style={{ padding:20, lineHeight:1.7, fontSize:13, color:'var(--cream-dim)' }}>
           <p style={{ marginBottom:12 }}>
-            <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> No Dice ran a mini-golf course on the adjacent site (next door, on the same road). Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via the website (paid in £, redeemed at the bar as <strong style={{ color:'var(--gold)' }}>tokens</strong>) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Either route, players ended up at the bar — drinks, food, party spend.
+            <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> No Dice ran a mini-golf course on the adjacent site (next door, on the same road). Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via Design My Night (£-priced ticket SKUs, some bundling <strong style={{ color:'var(--gold)' }}>arcade tokens</strong> as an add-on) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Players took their golf round, used any bundled tokens in the venue's arcade machines, then spent at the bar.
+          </p>
+          <p style={{ marginBottom:12, padding:'8px 12px', background:'rgba(234,179,8,0.06)', borderLeft:'3px solid #EAB308', borderRadius:4 }}>
+            <strong style={{ color:'#EAB308' }}>Token mechanic — clarification.</strong> Tickets are <em>not</em> redeemed for tokens at the bar. Some online SKUs (e.g. <em>"Adult — Golf + 4 Tokens"</em>) <strong style={{ color:'var(--cream)' }}>bundle</strong> tokens into the ticket price; the customer uses those tokens in the arcade machines. Tokens are an arcade add-on inside the SKU, not a £-redemption mechanic at the bar.
           </p>
           <p style={{ marginBottom:12 }}>
-            <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> the golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent company</strong>. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role — but the golf business is on its own books. Cashflow between the two entities is settled monthly.
+            <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> the golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong>. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
           </p>
           <p>
-            What this means in plain terms: <strong style={{ color:'var(--gold)' }}>bar / food / party revenue stays 100% with No Dice</strong> (unchanged). <strong style={{ color:'var(--gold)' }}>Online token income drops to 50%</strong> (golf company takes the other half). <strong style={{ color:'var(--gold)' }}>Till ticket sales go to the golf company</strong> (was 100% No Dice). The course's cost base — rent, host wages, maintenance, upgrades — also moves to the golf company.
+            What this means in plain terms: <strong style={{ color:'var(--gold)' }}>bar / food / party revenue stays 100% with No Dice</strong> (unchanged). <strong style={{ color:'var(--gold)' }}>Token revenue stays 100% with No Dice</strong> — both bundled inside online tickets AND sold at the bar — with No Dice paying the operator <strong style={{ color:'var(--cream)' }}>£0.35 per token (NO VAT)</strong> as the operator's settlement share. <strong style={{ color:'var(--gold)' }}>The golf-round portion of ticket sales</strong> (online and till) <strong style={{ color:'var(--gold)' }}>moves to the operator</strong>. The course's cost base — rent, host wages, maintenance, upgrades — also moves to the operator.
           </p>
         </div>
       </div>
@@ -113,6 +119,9 @@ function GolfOperations() {
 
       {/* Golf Host Seasonality — line + bar chart from 2025 rota */}
       <GolfHostSeasonality />
+
+      {/* DMN ticket breakdown — per-SKU + per-month + token economics */}
+      <DmnSkuBreakdown />
 
       {/* Old vs New structure — revenue split */}
       <div>
@@ -296,6 +305,146 @@ function GolfHostSeasonality() {
   )
 }
 
+// ─── DMN SKU breakdown — Hackney 2025 online ticket economics ─────────
+// Mirrors the Borough IP & Licensing tab structure. Three cards:
+//   1. Online SKUs (status=complete) — sold + revenue per archetype
+//   2. Office / external SKUs (status=external, revenue imputed at
+//      avg online unit price) — same shape
+//   3. Per-month online vs office split + headline totals + token
+//      economics (£0.35 operator settlement on bundled tokens)
+function DmnSkuBreakdown() {
+  const online  = HACKNEY_DMN_SKUS_ONLINE_2025
+  const office  = HACKNEY_DMN_SKUS_OFFICE_2025
+  const grand   = HACKNEY_DMN_GRAND_2025
+  const monthly = HACKNEY_DMN_MONTHLY_2025
+  // Token economics for the deck:
+  //   • Operator settlement = tokensTotal × £0.35 (NO VAT) — outflow from
+  //     No Dice (a cost line, not a share of revenue).
+  //   • The token "sale value" is built into each SKU's £ price; we don't
+  //     break out a per-token sale £ in the data, so the deck shows the
+  //     bundled-token count + the operator-cost line side-by-side rather
+  //     than a per-token margin figure.
+
+  return (
+    <div>
+      <STitle>Online Ticket Sales · DMN 2025 Breakdown</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Source: Design My Night sales export (Hackney venue, calendar 2025). <strong style={{ color:'var(--cream)' }}>Online</strong> = status <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>complete</code> (paid via DMN portal, £ recorded). <strong style={{ color:'var(--cream)' }}>Office</strong> = status <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>external</code> (booked via DMN, paid at the venue till — DMN records £0; revenue imputed at average online unit price per SKU, same method as Borough).
+      </p>
+
+      {/* Headline numbers strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:14 }}>
+        <SeasonTile label="Online tickets · 2025"    value={fmt(grand.onlineRev)}   sub={`${grand.onlineQty.toLocaleString('en-GB')} sold (status=complete)`} colour="#4FC3F7" />
+        <SeasonTile label="Office tickets · 2025"    value={fmt(grand.officeRev)}   sub={`${grand.officeQty.toLocaleString('en-GB')} sold · imputed @ avg online price`} colour="#A78BFA" />
+        <SeasonTile label="Combined DMN volume"      value={fmt(grand.totalRev)}    sub={`${grand.totalQty.toLocaleString('en-GB')} tickets across both channels`} colour="#10B981" />
+        <SeasonTile label="Tokens bundled"           value={grand.tokensTotal.toLocaleString('en-GB')} sub={`Operator settlement ${fmt(grand.operatorSettlement)} @ £${HACKNEY_DMN_TOKEN_VALUE.toFixed(2)}/token`} colour="#EAB308" />
+      </div>
+
+      {/* Online SKUs table */}
+      <div className="card" style={{ padding:0, overflow:'hidden', marginBottom:14 }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', fontSize:11, color:'#4FC3F7', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+          Online SKUs · status = complete · {online.length} archetypes
+        </div>
+        <SkuTable rows={online} />
+      </div>
+
+      {/* Office SKUs table */}
+      <div className="card" style={{ padding:0, overflow:'hidden', marginBottom:14 }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(167,139,250,0.3)', fontSize:11, color:'#A78BFA', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+          Office / External SKUs · status = external · revenue imputed
+        </div>
+        <SkuTable rows={office} />
+      </div>
+
+      {/* Monthly split */}
+      <div className="card" style={{ padding:0, overflow:'hidden', marginBottom:14 }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', fontSize:11, color:'var(--gold)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+          Monthly split · online (actual) vs office (imputed)
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span>Month</span>
+          <span style={{ textAlign:'right' }}>Online qty</span>
+          <span style={{ textAlign:'right' }}>Online £</span>
+          <span style={{ textAlign:'right' }}>Office qty</span>
+          <span style={{ textAlign:'right' }}>Office £ (imputed)</span>
+        </div>
+        {monthly.map(m => (
+          <div key={m.month} style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'8px 16px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12, fontVariantNumeric:'tabular-nums' }}>
+            <span style={{ color:'var(--cream)' }}>{m.month}</span>
+            <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{m.onlineQty.toLocaleString('en-GB')}</span>
+            <span style={{ textAlign:'right', color:'#4FC3F7' }}>{fmt(m.onlineRev)}</span>
+            <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{m.officeQty.toLocaleString('en-GB')}</span>
+            <span style={{ textAlign:'right', color:'#A78BFA' }}>{fmt(m.officeRev)}</span>
+          </div>
+        ))}
+        <div style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'10px 16px', fontSize:13, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
+          <span style={{ color:'var(--cream)' }}>2025</span>
+          <span style={{ textAlign:'right', color:'var(--cream)' }}>{grand.onlineQty.toLocaleString('en-GB')}</span>
+          <span className="serif" style={{ textAlign:'right', color:'#4FC3F7', fontSize:15 }}>{fmt(grand.onlineRev)}</span>
+          <span style={{ textAlign:'right', color:'var(--cream)' }}>{grand.officeQty.toLocaleString('en-GB')}</span>
+          <span className="serif" style={{ textAlign:'right', color:'#A78BFA', fontSize:15 }}>{fmt(grand.officeRev)}</span>
+        </div>
+      </div>
+
+      {/* Token economics callout */}
+      <div className="card" style={{ padding:18, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.3)', borderLeft:'4px solid #EAB308' }}>
+        <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>Token Economics · Going Forward</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:14 }}>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Tokens bundled in 2025</div>
+            <div className="serif" style={{ fontSize:22, color:'var(--gold)' }}>{grand.tokensTotal.toLocaleString('en-GB')}</div>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>{grand.tokensOnline.toLocaleString('en-GB')} online + {grand.tokensOffice.toLocaleString('en-GB')} office</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator settlement rate</div>
+            <div className="serif" style={{ fontSize:22, color:'var(--cream)' }}>£{HACKNEY_DMN_TOKEN_VALUE.toFixed(2)}<span style={{ fontSize:14, color:'var(--cream-dim)', fontFamily:"'DM Sans',sans-serif" }}> / token</span></div>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>NO VAT · paid to new operator on bundled tokens</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator cost to No Dice</div>
+            <div className="serif" style={{ fontSize:22, color:'#F87171' }}>{fmt(grand.operatorSettlement)}</div>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>If 2025 token volume repeated in 2026</div>
+          </div>
+        </div>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, paddingTop:12, borderTop:'1px solid rgba(234,179,8,0.2)' }}>
+          <strong style={{ color:'var(--cream)' }}>The mechanic:</strong> No Dice keeps 100% of token revenue (sale value built into the SKU price + tokens bought at the bar till), and pays the operator £0.35 per token as a flat settlement — booked as a cost line, not a revenue share. So token income remains a No Dice line; what changes is a small operator-cost deduction against it. Net token contribution to No Dice = sale value − £0.35 per token sold.
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SkuTable({ rows }) {
+  return (
+    <>
+      <div style={{ display:'grid', gridTemplateColumns:'2.6fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+        <span>SKU</span>
+        <span style={{ textAlign:'right' }}>Rounds</span>
+        <span style={{ textAlign:'right' }}>Tokens</span>
+        <span style={{ textAlign:'right' }}>Avg £</span>
+        <span style={{ textAlign:'right' }}>Sold</span>
+        <span style={{ textAlign:'right' }}>Revenue</span>
+      </div>
+      {rows.map(r => (
+        <div key={r.sku} style={{ display:'grid', gridTemplateColumns:'2.6fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr', padding:'8px 16px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12, fontVariantNumeric:'tabular-nums', alignItems:'baseline' }}>
+          <span style={{ color:'var(--cream)' }}>{r.sku}</span>
+          <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{r.rounds || '—'}</span>
+          <span style={{ textAlign:'right', color: r.tokens > 0 ? '#EAB308' : 'var(--cream-dim)' }}>{r.tokens || '—'}</span>
+          <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>£{r.price.toFixed(2)}</span>
+          <span style={{ textAlign:'right', color:'var(--cream)' }}>{r.sold.toLocaleString('en-GB')}</span>
+          <span style={{ textAlign:'right', color:'var(--gold)', fontWeight:500 }}>{fmt(r.revenue)}</span>
+        </div>
+      ))}
+      <div style={{ display:'grid', gridTemplateColumns:'2.6fr 0.7fr 0.7fr 0.7fr 0.7fr 1fr', padding:'10px 16px', fontSize:13, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
+        <span style={{ color:'var(--cream)' }}>Total</span>
+        <span></span><span></span><span></span>
+        <span style={{ textAlign:'right', color:'var(--cream)' }}>{rows.reduce((s, r) => s + r.sold, 0).toLocaleString('en-GB')}</span>
+        <span className="serif" style={{ textAlign:'right', color:'var(--gold)', fontSize:15 }}>{fmt(rows.reduce((s, r) => s + r.revenue, 0))}</span>
+      </div>
+    </>
+  )
+}
+
 function SeasonTile({ label, value, sub, colour }) {
   return (
     <div className="card" style={{ padding:14 }}>
@@ -347,7 +496,7 @@ function IPLicensing() {
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
       <STitle>IP & Licensing</STitle>
-      <Tbd>Borough's IP & Licensing tab shows the SKU-by-SKU online vs office split, monthly volumes, commission economics, and the new model's commission/booking-fee structure. Hackney bar-only doesn't run mini golf so the SKU set is N/A — empty stubs are kept in <code>data/hackney.js</code> so the import doesn't break.</Tbd>
+      <Tbd>Hackney 2025 SKU + monthly DMN data now lives on the <strong>Golf Operations</strong> tab (Online + Office breakdown, token economics, operator settlement at £0.35/token). This sub-tab is reserved for the formal IP &amp; Licensing arrangement with the new golf operator entity — commission rate, booking-fee handling, online-portal license terms — TBD pending operator incorporation.</Tbd>
     </div>
   )
 }
