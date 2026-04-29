@@ -1,5 +1,8 @@
 import React, { useState } from 'react'
-import { DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, PL_WAGE_BASE } from '../../data/hackney.js'
+import {
+  DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, PL_WAGE_BASE,
+  computeDistributionCalendar, HACKNEY_WORKING_CAPITAL_RESERVE,
+} from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // WaterfallReturns — clones Borough's structure: 4-button scenario selector +
@@ -177,8 +180,231 @@ export default function WaterfallReturns() {
         </div>
       </div>
 
+      {/* Distribution Process — working-capital-first model */}
+      <DistributionProcess />
+
+      {/* 12-month Distribution Calendar — quarterly dividends */}
+      <DistributionCalendar
+        wagesOverride={isWageLocked ? wageEffective.loadedAnnual : null}
+        investment={effective.investment}
+        investorEq={effective.investorEq}
+        founderEq={effective.founderEq}
+        isWageLocked={isWageLocked}
+      />
+
       {/* 5-Year Share Payout Breakdown */}
       <FiveYearPayoutBreakdown investment={effective.investment} isLocked={isLocked} />
+    </div>
+  )
+}
+
+// ─── Distribution Process — explanatory waterfall flow ────────────────
+// Shows the 4-step rule book in plain language so an investor
+// understands the priority order: trading profit → £30k reserve refill
+// → quarterly dividend pool → 50/50 pro-rata split. Mirrors the visual
+// language of the Borough deck's waterfall but tailored to Hackney's
+// reserve-first model.
+function DistributionProcess() {
+  const steps = [
+    {
+      n: '1',
+      title: 'Operating Profit',
+      sub: 'After wages, costs, VAT, director salary',
+      detail: 'Each month\'s trading profit is the source of all distributions. Calculated from the locked 2026 forecast (revenue × 1.15, costs by rule).',
+      colour: '#1565C0',
+    },
+    {
+      n: '2',
+      title: `Working Capital Reserve · £${HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')}`,
+      sub: 'First call on profit',
+      detail: `Profit refills the working-capital reserve up to a £${HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')} float before any dividend pays out. This protects winter cashflow and absorbs single-month dips without distress.`,
+      colour: '#2DD4BF',
+    },
+    {
+      n: '3',
+      title: 'Quarterly Dividend Pool',
+      sub: 'Surplus accrues for 3 months',
+      detail: 'Once the reserve is full, every £ of monthly surplus accrues into the next quarterly dividend pool. End of Mar / Jun / Sep / Dec triggers payout.',
+      colour: '#C9A84C',
+    },
+    {
+      n: '4',
+      title: '50 / 50 Pro-Rata Distribution',
+      sub: 'No preferred return · single share class',
+      detail: 'Investor and founder receive their equity-share of the quarterly pool simultaneously. Pure pro-rata — no priority tier, no hurdle, no clawback.',
+      colour: '#A78BFA',
+    },
+  ]
+  return (
+    <div style={{ marginTop: 48 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
+        Distribution Process — Working-Capital-First
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 20 }}>
+        How operating profit becomes a dividend cheque, in priority order. The £{HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')} reserve gets first call on profit; only the surplus above it accrues for distribution. Dividends pay out four times a year — calendar quarter-ends.
+      </p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        {steps.map((s, i) => (
+          <div key={s.n} style={{
+            position: 'relative',
+            background: 'var(--ink-2)',
+            border: `1px solid ${s.colour}40`,
+            borderLeft: `3px solid ${s.colour}`,
+            borderRadius: 8, padding: '16px 14px',
+          }}>
+            <div style={{
+              position: 'absolute', top: -10, right: 14,
+              width: 22, height: 22, borderRadius: '50%',
+              background: s.colour, color: 'var(--ink)',
+              fontSize: 11, fontWeight: 700, lineHeight: '22px',
+              textAlign: 'center', letterSpacing: '0',
+            }}>{s.n}</div>
+            <div style={{ fontSize: 13, color: s.colour, fontWeight: 600, marginBottom: 4 }}>{s.title}</div>
+            <div style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{s.sub}</div>
+            <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>{s.detail}</div>
+            {i < steps.length - 1 && (
+              <div style={{
+                position: 'absolute', right: -10, top: '50%',
+                transform: 'translateY(-50%)',
+                fontSize: 18, color: 'var(--gold-dim)', zIndex: 1,
+              }}>→</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── 12-Month Distribution Calendar — quarterly dividends ─────────────
+// Per-month visualisation: operating profit → reserve fill → surplus
+// → quarter-end dividend payout. Reads the same buildForecastMonthly
+// logic that powers the 2026 Performance tab, so monthly figures are
+// consistent end-to-end. Surfaces the reserve build timeline + four
+// quarter cards so investors see exactly when each dividend lands.
+function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq, isWageLocked }) {
+  const dist = computeDistributionCalendar(wagesOverride, { investorEq, founderEq })
+  const { calendar, quarterly, summary } = dist
+  const investorAnnualPct = investment > 0 ? (summary.totalInvestor / investment) * 100 : 0
+
+  return (
+    <div style={{ marginTop: 40 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>
+          12-Month Distribution Calendar · Y1 2026/27
+        </div>
+        <div style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+          Driven by 2026 Performance monthly forecast{isWageLocked ? ' · 🔒 wages locked' : ''}
+        </div>
+      </div>
+      <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
+        Each month's operating profit refills the £{summary.reserveTarget.toLocaleString('en-GB')} working-capital reserve first. Once the reserve is full, surplus profit accrues for three months and pays out at the end of the calendar quarter. Reserve hit full in <strong style={{ color: 'var(--cream)' }}>{summary.reserveFullMonth}</strong>.
+      </p>
+
+      {/* Reserve build-up bar — shows month-by-month fill */}
+      <div className="card" style={{ padding: 18, marginBottom: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
+          <span style={{ fontSize: 11, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>Reserve fill — £{summary.reserveTarget.toLocaleString('en-GB')} target</span>
+          <span style={{ fontSize: 12, color: 'var(--teal)', fontVariantNumeric: 'tabular-nums' }}>Year-end balance: {fmt(summary.yearEndReserve)}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 4 }}>
+          {calendar.map((m, i) => (
+            <div key={m.month} style={{ position: 'relative' }}>
+              <div style={{ fontSize: 9, color: 'var(--cream-dim)', textTransform: 'uppercase', textAlign: 'center', marginBottom: 4, letterSpacing: '0.04em' }}>{m.month}</div>
+              <div style={{ height: 56, background: 'rgba(255,255,255,0.04)', borderRadius: 4, overflow: 'hidden', position: 'relative' }}>
+                <div style={{
+                  position: 'absolute', bottom: 0, left: 0, right: 0,
+                  height: `${m.reservePct * 100}%`,
+                  background: m.reservePct >= 1 ? 'linear-gradient(180deg, #10B981, rgba(16,185,129,0.6))' : 'linear-gradient(180deg, var(--teal), rgba(45,212,191,0.5))',
+                  transition: 'height 0.2s',
+                }} />
+                {m.isQuarterEnd && (
+                  <div style={{
+                    position: 'absolute', top: 2, left: 2, right: 2,
+                    fontSize: 8, color: 'var(--gold)',
+                    background: 'rgba(201,168,76,0.18)',
+                    borderRadius: 2, padding: '1px 0',
+                    textAlign: 'center', letterSpacing: '0.06em', fontWeight: 600,
+                  }}>{`Q${Math.floor(i / 3) + 1}`}</div>
+                )}
+              </div>
+              <div style={{ fontSize: 9, color: 'var(--cream-dim)', textAlign: 'center', marginTop: 3, fontVariantNumeric: 'tabular-nums' }}>
+                {Math.round(m.reservePct * 100)}%
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Per-month detail table */}
+      <div className="card" style={{ padding: 0, overflow: 'hidden', marginBottom: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '0.6fr 1fr 1fr 1fr 1fr 1fr', padding: '12px 16px', borderBottom: '1px solid rgba(201,168,76,0.3)', fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+          <span>Month</span>
+          <span style={{ textAlign:'right' }}>Op Profit</span>
+          <span style={{ textAlign:'right' }}>Reserve Δ</span>
+          <span style={{ textAlign:'right' }}>Reserve Bal.</span>
+          <span style={{ textAlign:'right' }}>Surplus</span>
+          <span style={{ textAlign:'right' }}>Dividend (Q-end)</span>
+        </div>
+        {calendar.map(m => (
+          <div key={m.month} style={{
+            display: 'grid', gridTemplateColumns: '0.6fr 1fr 1fr 1fr 1fr 1fr',
+            padding: '10px 16px',
+            borderBottom: '1px solid rgba(255,255,255,0.05)',
+            fontSize: 12, fontVariantNumeric: 'tabular-nums',
+            background: m.isQuarterEnd ? 'rgba(201,168,76,0.06)' : 'transparent',
+          }}>
+            <span style={{ color: m.isQuarterEnd ? 'var(--gold)' : 'var(--cream)', fontWeight: m.isQuarterEnd ? 600 : 400 }}>
+              {m.month}{m.isQuarterEnd ? ' ●' : ''}
+            </span>
+            <span style={{ textAlign: 'right', color: m.profit >= 0 ? 'var(--cream)' : '#E53935' }}>
+              {m.profit >= 0 ? '' : '−'}{fmt(Math.abs(m.profit))}
+            </span>
+            <span style={{ textAlign: 'right', color: m.reserveAdd >= 0 ? 'var(--teal)' : '#F87171' }}>
+              {m.reserveAdd >= 0 ? '+' : '−'}{fmt(Math.abs(m.reserveAdd))}
+            </span>
+            <span style={{ textAlign: 'right', color: 'var(--cream-dim)' }}>{fmt(m.reserveBalance)}</span>
+            <span style={{ textAlign: 'right', color: m.surplus >= 0 ? 'var(--gold-dim)' : '#F87171' }}>
+              {m.surplus >= 0 ? '' : '−'}{fmt(Math.abs(m.surplus))}
+            </span>
+            <span style={{ textAlign: 'right', color: m.dividendPaid > 0 ? 'var(--gold)' : 'var(--ink-3)', fontWeight: m.dividendPaid > 0 ? 600 : 400 }}>
+              {m.dividendPaid > 0 ? fmt(m.dividendPaid) : '—'}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Four quarter summary cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 16 }}>
+        {quarterly.map((q, i) => (
+          <div key={q.quarter} style={{
+            background: q.dividend > 0 ? 'rgba(201,168,76,0.06)' : 'var(--ink-2)',
+            border: `1px solid ${q.dividend > 0 ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 10, padding: 16,
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 8 }}>
+              <span style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.08em', textTransform: 'uppercase', fontWeight: 600 }}>{q.quarter}</span>
+              <span style={{ fontSize: 10, color: 'var(--cream-dim)' }}>End of {q.endMonth}</span>
+            </div>
+            <div className="serif" style={{ fontSize: 22, color: q.dividend > 0 ? 'var(--gold)' : 'var(--cream-dim)', marginBottom: 4 }}>
+              {q.dividend > 0 ? fmt(q.dividend) : '—'}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+              {q.dividend > 0
+                ? <>Investor <strong style={{ color: 'var(--gold)' }}>{fmt(q.investorShare)}</strong> · Founder {fmt(q.founderShare)}</>
+                : 'No surplus this quarter'}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Annual summary tiles */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+        <SummaryTile label="Annual operating profit" value={fmt(summary.annualProfit)} sub="Sum of 12 monthly forecasts" />
+        <SummaryTile label="Total Y1 dividends" value={fmt(summary.totalDividends)} sub="After £30k reserve refill" />
+        <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)}`} colour="#10B981" />
+        <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid alongside investor" />
+      </div>
     </div>
   )
 }

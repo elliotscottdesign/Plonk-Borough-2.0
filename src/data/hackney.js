@@ -521,6 +521,179 @@ export function computeForecastProfit(wagesOverride) {
   return FORECAST.profit - wageDelta
 }
 
+// === FORECAST RULES (2026 Performance) ==============================
+// Single source of truth for the cost-uplift assumptions. Consumed by
+// BusinessExplorer's 2026 tab AND the WaterfallReturns distribution
+// calendar (so monthly profit numbers stay consistent across slides).
+export const FORECAST_RULES = {
+  revenueGrowth:   0.15,                // base case
+  variableUplift:  0.10,                // stock + variable cats
+  fixedUplift:     0.10,                // non-rent, non-rates fixed lines
+  rentAnnualNet:   65000,
+  rentY1:          43333,               // 8 paying months × £65k/12 (4-mo rent-free)
+  rentSteady:      65000,
+  rentUplift:      0.03,
+  rates:           16830,               // 2025 × 1.10
+}
+
+// Monthly forecast — 12 rows, May 2026 → Apr 2027 trading year (presented
+// in calendar Jan-Dec order using the 2025 monthly seasonality scaled to
+// 2026 rules). Output rows: { month, income, profit, wages, fixed, ... }.
+// `wagesOverride` cascades the locked Wage Calculator into per-month
+// wages by scaling proportionally so seasonality is preserved.
+export function computeForecastMonthly(wagesOverride) {
+  const r = 1 + FORECAST_RULES.revenueGrowth
+  const v = 1 + FORECAST_RULES.variableUplift
+  const f = 1 + FORECAST_RULES.fixedUplift
+  const monthlyRates = FORECAST_RULES.rates / 12
+  const otherFixed2025Total = HACKNEY_FIXED_COSTS_2025
+    .filter(l => l.key !== 'rent' && l.key !== 'rates')
+    .reduce((s, l) => s + l.amount, 0)
+  const monthlyFixedTotal2025 = MONTHLY_COSTS.reduce((s, m) => s + m.fixed, 0)
+  const targetWageAnnual = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
+  const wageScale = PL_WAGE_BASE > 0 ? targetWageAnnual / PL_WAGE_BASE : 1
+  const monthlyRentAvg = FORECAST_RULES.rentY1 / 12
+
+  return MONTHLY_INCOME.map((row, i) => {
+    const mc = MONTHLY_COSTS[i]
+    const variable = (mc.drinks + mc.cleaning + mc.djs + mc.arcades + mc.food) * v
+    const otherFixedShare = monthlyFixedTotal2025 > 0
+      ? mc.fixed * (otherFixed2025Total / monthlyFixedTotal2025) * f
+      : 0
+    const fixed = otherFixedShare + monthlyRentAvg + monthlyRates
+    const wages = mc.wages * wageScale
+    const income = row.amount * r
+    const totalCost = variable + fixed + wages
+    return {
+      month: row.month,
+      income,
+      profit: income - totalCost,
+      wages, fixed,
+      rent: monthlyRentAvg,
+      rates: monthlyRates,
+      drinks: mc.drinks * v, cleaning: mc.cleaning * v,
+      djs: mc.djs * v, arcades: mc.arcades * v, food: mc.food * v,
+    }
+  })
+}
+
+// === DISTRIBUTION CALENDAR (12-month, quarterly dividends) ============
+// Working-capital-first model: every month's operating profit refills
+// the £30k working-capital reserve before any distribution. Once the
+// reserve is full, surplus profit accrues into a quarterly dividend
+// pool. At the end of each calendar quarter (Mar / Jun / Sep / Dec)
+// the accrued surplus pays out — investor takes 50%, founder 50%
+// (pure pro-rata, single share class). Months that run a loss are
+// netted against the reserve before any subsequent dividend.
+//
+// Output:
+//   calendar    — 12 rows, one per month, with reserveBalance,
+//                  reserveAdd, surplus, cumulativeAccrual,
+//                  isQuarterEnd, dividendPaid, investorShare,
+//                  founderShare.
+//   quarterly   — 4 rows (Q1–Q4) summarising each payout.
+//   summary     — { totalDividends, totalInvestor, totalFounder,
+//                    reserveFullMonth, annualProfit }.
+export const HACKNEY_WORKING_CAPITAL_RESERVE = 30000
+
+export function computeDistributionCalendar(wagesOverride, opts = {}) {
+  const reserveTarget = opts.reserveTarget ?? HACKNEY_WORKING_CAPITAL_RESERVE
+  const investorEq    = opts.investorEq    ?? 0.5
+  const founderEq     = opts.founderEq     ?? (1 - investorEq)
+  const monthly       = computeForecastMonthly(wagesOverride)
+
+  let reserveBalance  = 0
+  let cumulativeAccrual = 0   // surplus accrued since last dividend payout
+  let reserveFullMonth = null
+
+  // Quarter-end indices using calendar months (Mar, Jun, Sep, Dec → indices 2, 5, 8, 11)
+  const QUARTER_END_IDX = new Set([2, 5, 8, 11])
+
+  const calendar = monthly.map((row, i) => {
+    const monthlyProfit = row.profit
+    let reserveAdd = 0
+    let surplus    = 0
+
+    if (monthlyProfit >= 0) {
+      // Refill reserve first, then any leftover becomes surplus.
+      const room = Math.max(0, reserveTarget - reserveBalance)
+      reserveAdd = Math.min(monthlyProfit, room)
+      reserveBalance += reserveAdd
+      surplus = monthlyProfit - reserveAdd
+    } else {
+      // A loss eats into the reserve before it eats into accrued surplus.
+      const loss = -monthlyProfit
+      const fromReserve = Math.min(reserveBalance, loss)
+      reserveBalance -= fromReserve
+      reserveAdd = -fromReserve
+      const remainder = loss - fromReserve
+      surplus = -remainder
+    }
+
+    cumulativeAccrual += surplus
+    if (reserveBalance >= reserveTarget && !reserveFullMonth) reserveFullMonth = row.month
+
+    const isQuarterEnd = QUARTER_END_IDX.has(i)
+    let dividendPaid  = 0
+    let investorShare = 0
+    let founderShare  = 0
+    if (isQuarterEnd) {
+      // Only positive cumulative accrual pays out; if Q ran a net loss
+      // the deficit carries into the next quarter (no clawback).
+      dividendPaid  = Math.max(0, cumulativeAccrual)
+      investorShare = dividendPaid * investorEq
+      founderShare  = dividendPaid * founderEq
+      cumulativeAccrual -= dividendPaid
+    }
+
+    return {
+      month: row.month,
+      profit: monthlyProfit,
+      reserveAdd,
+      reserveBalance,
+      surplus,
+      cumulativeAccrual,
+      isQuarterEnd,
+      dividendPaid,
+      investorShare,
+      founderShare,
+      reservePct: Math.min(1, reserveBalance / reserveTarget),
+    }
+  })
+
+  const quarterly = calendar
+    .filter(c => c.isQuarterEnd)
+    .map((q, i) => ({
+      quarter: `Q${i + 1}`,
+      endMonth: q.month,
+      dividend: q.dividendPaid,
+      investorShare: q.investorShare,
+      founderShare: q.founderShare,
+    }))
+
+  const totalDividends = quarterly.reduce((s, q) => s + q.dividend, 0)
+  const totalInvestor  = quarterly.reduce((s, q) => s + q.investorShare, 0)
+  const totalFounder   = quarterly.reduce((s, q) => s + q.founderShare, 0)
+  const annualProfit   = monthly.reduce((s, m) => s + m.profit, 0)
+
+  return {
+    calendar,
+    quarterly,
+    summary: {
+      reserveTarget,
+      reserveFullMonth: reserveFullMonth ?? 'not reached in Y1',
+      annualProfit,
+      totalDividends,
+      totalInvestor,
+      totalFounder,
+      // Surplus that's still accrued at year-end (didn't pay out as a
+      // quarterly dividend — usually £0 if Dec is a quarter-end).
+      yearEndAccrual: cumulativeAccrual,
+      yearEndReserve: reserveBalance,
+    },
+  }
+}
+
 export function computeDealFromInvestment(investment) {
   const preMoney      = investment
   const postMoney     = investment * 2
