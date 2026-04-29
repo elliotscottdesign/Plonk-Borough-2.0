@@ -1,5 +1,12 @@
 import React, { useState } from 'react'
-import { HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD } from '../../data/hackney.js'
+import {
+  HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
+  HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
+} from '../../data/hackney.js'
+import {
+  ResponsiveContainer, ComposedChart, Line, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
+} from 'recharts'
 
 // Plonk — Hackney's Plonk tab. The pre-liquidation golf course operated
 // next door to the bar; going forward it becomes a separately-incorporated
@@ -75,7 +82,7 @@ function GolfOperations() {
           {/* Costs card */}
           <div className="card" style={{ padding:20 }}>
             <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
-            <PnlRow label="Golf host wages (loaded)" value={g.costs.hostWages}    colour="#F87171" sourceNote="Live rota · Golf Host role" />
+            <PnlRow label="Golf host wages (loaded)" value={g.costs.hostWages}    colour="#F87171" sourceNote="Live rota · 248 hrs × £13.15 × 1.355 (NIC + pension)" />
             <PnlRow label="Course rent share"          value={g.costs.rentShare}    colour="#F87171" sourceNote="Lease apportioned to course site" />
             <PnlRow label="Maintenance"                 value={g.costs.maintenance}  colour="#F87171" sourceNote="Founder approximation" />
             <PnlRow label="Upgrades"                    value={g.costs.upgrade}      colour="#F87171" sourceNote="Founder approximation" />
@@ -102,6 +109,9 @@ function GolfOperations() {
           )}
         </div>
       </div>
+
+      {/* Golf Host Seasonality — line + bar chart from 2025 rota */}
+      <GolfHostSeasonality />
 
       {/* Old vs New structure — revenue split */}
       <div>
@@ -177,16 +187,92 @@ function GolfOperations() {
   )
 }
 
+// ─── Golf Host seasonality — 2025 rota visualisation ──────────────────
+// Pulled from the live rota (Role = "Golf host", calendar 2025).
+// Surfaces the operational pattern: Jan–Apr ran consistently, May–Jun
+// dark, summer pickup Jul–Aug, then dark Sep–Dec. Hours bars + cost
+// line on the same chart so investors can read seasonality and
+// magnitude in one glance.
+function GolfHostSeasonality() {
+  const data    = HACKNEY_GOLF_HOST_2025_MONTHLY
+  const totals  = HACKNEY_GOLF_HOST_2025_TOTALS
+  const peakMo  = data.reduce((acc, m) => m.hours > acc.hours ? m : acc, data[0])
+  const activeMonthLabels = data.filter(m => m.shifts > 0).map(m => m.month).join(', ')
+  const darkMonthLabels   = data.filter(m => m.shifts === 0).map(m => m.month).join(', ')
+
+  return (
+    <div>
+      <STitle>Golf Host Wages · 2025 Seasonality</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Source: live rota Google Sheet, filtered to <strong style={{ color:'var(--cream)' }}>Role = Golf host</strong> for 1 Jan – 31 Dec 2025. Bars show monthly hours; the gold line shows monthly gross wage cost. The pattern below is exactly why the golf course was hard to justify as a No Dice cost line — half the year ran zero hours.
+      </p>
+
+      <div className="card" style={{ padding:18, marginBottom:14 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly hours + gross cost</span>
+          <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Peak: {peakMo.month} · {peakMo.hours} hrs · {fmt(peakMo.costGross)}</span>
+        </div>
+        <div style={{ height: 240 }}>
+          <ResponsiveContainer>
+            <ComposedChart data={data} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+              <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+              <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+              <YAxis yAxisId="hours" stroke="#4FC3F7" fontSize={10} tickFormatter={v => `${v}h`} width={48} />
+              <YAxis yAxisId="cost"  orientation="right" stroke="#C9A84C" fontSize={10} tickFormatter={v => '£' + v} width={56} />
+              <Tooltip
+                cursor={{ fill: 'rgba(201,168,76,0.06)' }}
+                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+                formatter={(v, n) => n === 'Hours' ? [`${v} hrs`, n] : [fmt(v), n]}
+              />
+              {/* Highlight dark months with a faint reference band — done via 0-bar styling */}
+              <Bar  yAxisId="hours" dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
+              <Line yAxisId="cost"  dataKey="costGross" name="Gross cost" stroke="#C9A84C" strokeWidth={2.5} dot={{ fill:'#C9A84C', r:4 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(229,57,53,0.04)', borderLeft:'3px solid #F87171', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          <strong style={{ color:'#F87171' }}>Seasonal pattern:</strong> active in <strong style={{ color:'var(--cream)' }}>{activeMonthLabels}</strong> (6 months), dark in <strong style={{ color:'var(--cream)' }}>{darkMonthLabels}</strong> (6 months). The course shut over the summer-tail and didn't reopen for autumn / winter — half the calendar year ran zero golf hours while the bar continued to trade.
+        </div>
+      </div>
+
+      {/* Compact totals strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:10 }}>
+        <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Across 2025" />
+        <SeasonTile label="Total hours"         value={totals.hours.toFixed(1) + ' hrs'} sub={`Avg ${(totals.hours / totals.shifts).toFixed(1)} hrs/shift`} />
+        <SeasonTile label="Gross cost"          value={fmt(totals.costGross)}            sub={`@ £13.15/hr (rota rate)`} />
+        <SeasonTile label="Fully-loaded cost"   value={fmt(totals.costLoaded)}           sub="× 1.355 (NIC + pension + holiday)" colour="#10B981" />
+        <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Active months / dark months" />
+      </div>
+    </div>
+  )
+}
+
+function SeasonTile({ label, value, sub, colour }) {
+  return (
+    <div className="card" style={{ padding:14 }}>
+      <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{label}</div>
+      <div className="serif" style={{ fontSize:'clamp(1.1rem, 1.8vw, 1.4rem)', color: colour || 'var(--gold)', lineHeight:1, marginBottom:6 }}>{value}</div>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>{sub}</div>
+    </div>
+  )
+}
+
 // ─── Helpers used by the Golf Operations P&L cards ────────────────────
 function PnlRow({ label, value, colour, sourceNote, zeroNote }) {
   const isTbd = value === TBD
   const display = isTbd ? 'TBD' : (value === 0 ? '£0' : fmt(value))
+  // Footnote: zero → zeroNote; TBD → "Source: <where to find it>";
+  // numeric → "Source: <provenance>" so investors see where it came from.
+  let footnote = ''
+  if (value === 0) footnote = zeroNote || ''
+  else if (isTbd) footnote = sourceNote ? `Source: ${sourceNote}` : ''
+  else if (sourceNote) footnote = `Source: ${sourceNote}`
   return (
     <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', gap:12 }}>
       <div style={{ flex:1 }}>
         <div style={{ fontSize:13, color:'var(--cream)' }}>{label}</div>
-        {(sourceNote || zeroNote) && (
-          <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{isTbd && sourceNote ? `Source: ${sourceNote}` : (zeroNote || '')}</div>
+        {footnote && (
+          <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{footnote}</div>
         )}
       </div>
       <div style={{ fontSize:14, color: isTbd ? '#EAB308' : (value === 0 ? 'var(--cream-dim)' : colour), fontVariantNumeric:'tabular-nums', fontWeight: isTbd ? 600 : 400, letterSpacing: isTbd ? '0.06em' : '0', textTransform: isTbd ? 'uppercase' : 'none' }}>

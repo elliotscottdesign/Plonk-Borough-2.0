@@ -783,13 +783,48 @@ export const HACKNEY_GOLF_2025 = {
   },
   // Costs attributable to running the golf course in 2025
   costs: {
-    hostWages:          TBD,    // £ — Golf Host role hours × rate, fully-loaded
+    hostWages:         4423,    // £ — 248.2 hrs × £13.15/hr gross = £3,264.55, × WAGE_OVERHEAD_MULT (1.355) ≈ £4,423 fully-loaded (NIC + pension + holiday)
     rentShare:          TBD,    // £ — share of rent attributable to the course site
     maintenance:        TBD,    // £ — founder to approximate
     upgrade:            TBD,    // £ — founder to approximate
     utilities:            0,    // £ — no bills paid for the course
     businessRates:        0,    // £ — no rates paid on the course site
   },
+}
+
+// === GOLF HOST — 2025 MONTHLY ROTA AGGREGATE ==========================
+// Pulled from the live rota Google Sheet (Role = "Golf host", date in
+// calendar-year 2025). Surfaces the seasonal pattern of golf operations
+// — Jan–Apr ran consistently, May–Jun dark, summer pickup Jul–Aug,
+// then dark Sep–Dec onwards. Drives the Golf Operations seasonality
+// chart on the Plonk tab.
+//
+// Cost shown is GROSS hourly cost (Cost column from the rota). The
+// fully-loaded host-wage figure used in HACKNEY_GOLF_2025.costs.hostWages
+// applies WAGE_OVERHEAD_MULT (≈1.355) on top to cover NIC + pension +
+// holiday — same loading basis as PL_WAGE_BASE.
+export const HACKNEY_GOLF_HOST_2025_MONTHLY = [
+  { month: 'Jan', shifts: 6, hours: 41.5, costGross:  546 },
+  { month: 'Feb', shifts: 7, hours: 38.5, costGross:  506 },
+  { month: 'Mar', shifts: 5, hours: 34.0, costGross:  447 },
+  { month: 'Apr', shifts: 7, hours: 48.2, costGross:  634 },
+  { month: 'May', shifts: 0, hours:  0.0, costGross:    0 },
+  { month: 'Jun', shifts: 0, hours:  0.0, costGross:    0 },
+  { month: 'Jul', shifts: 2, hours: 21.5, costGross:  283 },
+  { month: 'Aug', shifts: 6, hours: 64.5, costGross:  848 },
+  { month: 'Sep', shifts: 0, hours:  0.0, costGross:    0 },
+  { month: 'Oct', shifts: 0, hours:  0.0, costGross:    0 },
+  { month: 'Nov', shifts: 0, hours:  0.0, costGross:    0 },
+  { month: 'Dec', shifts: 0, hours:  0.0, costGross:    0 },
+]
+
+export const HACKNEY_GOLF_HOST_2025_TOTALS = {
+  shifts:     33,        // total 2025 shifts
+  hours:     248.2,      // total 2025 hours
+  costGross: 3265,       // £3,264.55 rounded — gross cost per rota
+  costLoaded: 4423,      // × WAGE_OVERHEAD_MULT
+  activeMonths: 6,       // Jan, Feb, Mar, Apr, Jul, Aug
+  darkMonths:  6,        // May, Jun, Sep, Oct, Nov, Dec
 }
 
 // Go-forward (2026+) revenue split between the new golf company and No Dice.
