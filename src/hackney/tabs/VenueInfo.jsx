@@ -19,28 +19,23 @@ const TABS = [
   { key: 'catchment',     label: 'Catchment' },
   { key: 'location',      label: 'Location' },
   { key: 'floorPlan',     label: 'Floor Plan' },
-  { key: 'venueGallery',  label: 'Venue Gallery' },
-  { key: 'courseGallery', label: 'Games & Activities' },   // repurposed for bar-only
-  { key: 'drinksGallery', label: 'Drinks Gallery' },
+  { key: 'courseGallery', label: 'Course' },
+  { key: 'venueGallery',  label: 'Venue' },
+  { key: 'gardenGallery', label: 'Garden' },
+  { key: 'drinksGallery', label: 'Drinks' },
+  { key: 'gamesGallery',  label: 'Games' },
   { key: 'licence',       label: 'Licence' },
   { key: 'development',   label: 'Development' },
 ]
 
-const VENUE_IMGS = [
-  { src: '/hackney/garden/g3.jpg',     caption: 'London Fields venue exterior — under the railway arches, London Fields signage' },
-  { src: '/hackney/garden/g1.jpg',     caption: 'Garden — outdoor trading area, plane trees overhead' },
-  { src: '/hackney/garden/g4.jpg',     caption: 'Garden — afternoon trade' },
-  { src: '/hackney/cocktails/c1.jpg',  caption: 'Bar — cocktail service' },
-  { src: '/hackney/pool/p1.jpg',       caption: 'Pool nights' },
-  { src: '/hackney/tacos/t1.jpg',      caption: 'Events — El Caravana taco residency' },
-  { src: '/hackney/garden/g6.jpg',     caption: 'Garden — late afternoon' },
-]
-const DRINKS_IMGS = [
-  { src: '/hackney/cocktails/c1.jpg', caption: 'Rotating seasonal cocktails — Tiki-styled bar' },
-  { src: '/hackney/cocktails/c2.jpg', caption: 'Two cocktails for £12 weekday until 7pm' },
-  { src: '/hackney/cocktails/c3.jpg', caption: 'Local craft draught beer + wines, mocktails, low-alcohol' },
-  { src: '/hackney/cocktails/c4.jpg', caption: 'Bar service' },
-]
+const VENUE_IMGS = Array.from({ length: 12 }, (_, i) => ({
+  src: `/hackney/venue/Interior_${i + 1}.jpg`,
+  caption: 'No Dice Hackney — interior',
+}))
+const COURSE_IMGS  = []
+const GARDEN_IMGS  = []
+const DRINKS_IMGS  = []
+const GAMES_IMGS   = []
 
 function Gallery({ images }) {
   const [active, setActive] = useState(0)
@@ -632,9 +627,11 @@ export default function VenueInfo() {
     catchment:     <TabCatchment />,
     location:      <TabLocation />,
     floorPlan:     <TabFloorPlan />,
+    courseGallery: <Gallery images={COURSE_IMGS} />,
     venueGallery:  <Gallery images={VENUE_IMGS} />,
-    courseGallery: <Gallery images={VENUE_IMGS.slice(0, 3)} />,   // games/activities placeholder using venue subset until dedicated set lands
+    gardenGallery: <Gallery images={GARDEN_IMGS} />,
     drinksGallery: <Gallery images={DRINKS_IMGS} />,
+    gamesGallery:  <Gallery images={GAMES_IMGS} />,
     licence:       <TabLicence />,
     development:   <TabDevelopment />,
   }
