@@ -88,36 +88,40 @@ export const ACTUALS_2025 = {
 
 // === 2026/27 FORECAST (Base Case +15%) ===
 // Forecast period: May 2026 → Apr 2027. Rebuilt April 2026 with the new
-// rent + rates rules per user direction (see HACKNEY_FIXED_COSTS_2026).
+// WEEKLY rent + rates rules per user direction (see HACKNEY_FIXED_COSTS_2026).
 //
 // Build:
 //   Revenue        538,090.57 × 1.15  =     618,804.17
 //   Wages           179,872 (PL_WAGE_BASE — calculator default)
 //   Variable +10%   2025 stock + variable cats × 1.10
 //                   = (134,123 + 7,887 + 16,492 + 10,300 + 8,202) × 1.10
-//                   = 176,094 × 1.10 = 193,704            (rounded 194,704 in code)
-//   Fixed +10%      Other fixed (£23,490) × 1.10 = £25,839
-//                   + new rent £14,664 (Y1 with 4-mo rent-free)
+//                   = 177,004 × 1.10 ≈ 194,704
+//   Fixed Y1:       Other fixed (£23,490) × 1.10 = £25,839
+//                   + new rent £64,155 (35 paying weeks × £1,833 INC VAT)
 //                   + rates £16,830 (2025 × 1.10, pending Hackney confirm)
-//                   = £57,333
+//                   = £106,824
 //   VAT             44,994 × 1.15 = £51,743 (scales with revenue)
 //   Director         15,885 (separate line)
-//   Op profit (after director) ≈ £119,267 → margin ≈ 19.3%
+//   Op profit (after director) ≈ £69,776 → margin ≈ 11.3%
 //
-// The big delta vs the prior £45,632 forecast is the new lease — rent
-// drops from 2025's £94,146 (old Plonk arrangement) to £14,664 in Y1.
-// That ~£80k saving flows straight to the bottom line.
+// Lease economics: NEW lease is £1,833 INC VAT per WEEK (not per month
+// — the user corrected this April 2026). Forecast year May 2026 → Apr
+// 2027 has 4 months rent-free at the start (May–Aug), then 35 paying
+// weeks × £1,833 = £64,155. Steady state Y2+ = 52 × £1,833 = £95,316.
+// Old Plonk arrangement was £94,146 a year — Y1 still saves ~£30k from
+// the rent-free start, but Y2 onwards is approximately on par with the
+// historic figure.
 export const FORECAST = {
   revenue:    618804.17,
   wages:      179872,
   variable:   194704,           // sum of stock + operational variable, all × 1.10
-  fixed:       57333,           // rent £14,664 + rates £16,830 + other fixed × 1.10
+  fixed:      106824,           // rent £64,155 + rates £16,830 + other fixed × 1.10
   vatNet:      51743,           // 2025 VAT × 1.15 (scales with revenue)
   director:    15885,           // separate line (inc £885 employer NI)
-  rent:        14664,           // Y1 with 4-mo rent-free; £1,833/mo × 8
+  rent:        64155,           // Y1 with 4-mo rent-free; £1,833/wk × 35 paying weeks
   rates:       16830,           // 2025 × 1.10 — Hackney Council confirmation pending
-  profit:     119267,           // revenue − wages − variable − fixed − VAT − director
-  margin:      0.1928,          // profit / revenue
+  profit:      69776,           // revenue − wages − variable − fixed − VAT − director
+  margin:       0.1128,         // profit / revenue
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
@@ -157,17 +161,19 @@ export const HACKNEY_FIXED_COSTS_2025 = [
 
 // === FIXED COSTS — 2026 FORECAST RULES ===
 // Per user direction (April 2026):
-//   • Rent: NEW lease — £1,833/month with 4-month rent-free start
-//     (May–Aug 2026). Year 1 = 8 paying months × £1,833 = £14,664.
-//     Steady state (Y2+) = 12 × £1,833 = £21,996.
+//   • Rent: NEW lease — £1,833 INC VAT per WEEK with 4-month rent-free
+//     start (May–Aug 2026). Year 1 = 35 paying weeks × £1,833 = £64,155.
+//     Steady state (Y2+) = 52 × £1,833 = £95,316.
 //   • Business Rates: 2025 actual × 1.10 = £16,830. Subject to Hackney
 //     Council assessment with the relief change (75% → 40% in 2025/26)
 //     so this is a placeholder pending confirmation.
 //   • All other fixed lines (electricity, water, insurance, license,
 //     PRS/PPL, internet, lightspeed, TV license): +10% on 2025 actuals.
 export const HACKNEY_FIXED_COSTS_2026 = {
-  rentY1:         14664,
-  rentSteady:     21996,
+  rentY1:         64155,                // 35 paying weeks × £1,833 (4 months rent-free)
+  rentSteady:     95316,                // 52 weeks × £1,833 (Y2+)
+  rentWeekly:     1833,                 // £1,833 INC VAT / week
+  rentFreeMonths: 4,
   rates:          16830,
   otherUplift:    0.10,                 // applied to non-rent, non-rates lines
 }
@@ -368,42 +374,45 @@ export const WATERFALL = {
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// Pure pro-rata 50/50, no preferred return. Year-1 profit £119,267 from
-// the new 2026 cost model (lower rent under the new lease + 10% uplifts);
-// Y2–Y5 grow at 7.5% YoY. Investor share = 50% × profit each year.
-// Powers the multi-year payout schedule on the WaterfallReturns slide.
+// Pure pro-rata 50/50, no preferred return. Year-1 profit £69,776 from
+// the new 2026 cost model (£1,833/wk lease with 4-mo rent-free Y1 start
+// + 10% uplift on stock and other fixed lines). Y2 onwards rent steps up
+// to £95,316/yr (full 52 weeks at £1,833). Revenue and variable costs
+// grow at 7.5% YoY; wages, fixed (other), rates and director are held
+// flat. Investor share = 50% × profit each year. Powers the multi-year
+// payout schedule on the WaterfallReturns slide.
 //
-// The dramatic improvement vs the old £45,632 base is driven by the new
-// lease — annual rent drops from 2025's £94,146 (old Plonk arrangement)
-// to £14,664 in Y1 (£1,833/mo with 4-mo rent-free start). That ~£80k
-// saving flows straight through to operating profit and compounds over
-// the 5-year exit assumption.
+// vs the old £45,632 forecast (which assumed the legacy Plonk rent of
+// £94,146): Y1 still benefits from the 4-month rent-free start (saves
+// ~£30k vs steady state), but Y2 onwards the new lease is in line with
+// the historic figure. The improvement comes from the +15% revenue
+// assumption flowing through, not from the lease per se.
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
-    profit:          119267,
+    profit:          69776,
     investorEq:      0.5,
-    investorReturn:   59633.50,
-    coc:              0.5963,
-    paybackYears:     1.68,
+    investorReturn:  34888,
+    coc:              0.3489,
+    paybackYears:     2.87,
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit: 119267.00, investorShare: 59633.50, founderShare: 59633.50 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit: 128212.03, investorShare: 64106.01, founderShare: 64106.02 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 137827.93, investorShare: 68913.96, founderShare: 68913.97 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 148165.02, investorShare: 74082.51, founderShare: 74082.51 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 159277.40, investorShare: 79638.70, founderShare: 79638.70 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  69776.00, investorShare: 34888.00, founderShare: 34888.00 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  66541.95, investorShare: 33270.97, founderShare: 33270.98 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit:  96563.25, investorShare: 48281.62, founderShare: 48281.63 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 128836.15, investorShare: 64418.07, founderShare: 64418.08 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 163529.52, investorShare: 81764.76, founderShare: 81764.76 },
   ],
-  cumulativeDividends: 346374.69,    // Sum of investor shares Y1–Y5
+  cumulativeDividends: 262623.42,     // Sum of investor shares Y1–Y5
   exit: {
-    y5Ebitda:         159277.40,
+    y5Ebitda:         163529.52,
     multiple:         4,
-    businessValue:    637109.59,
-    investorProceeds: 318554.80,
-    founderProceeds:  318554.80,
+    businessValue:    654118.08,
+    investorProceeds: 327059.04,
+    founderProceeds:  327059.04,
   },
-  totalReturned:      664929.48,
-  multipleOfMoney:    6.6493,
-  irr:                0.7502,         // IRR on flows: -100k, +59634, +64106, +68914, +74083, +398193
+  totalReturned:      589682.46,
+  multipleOfMoney:    5.8968,
+  irr:                0.5777,         // IRR on flows: -100k, +34888, +33271, +48282, +64418, +408824
 }
 
 // === GOVERNANCE ===
