@@ -34,14 +34,11 @@ function calcReturns(multiplier, deal) {
 }
 
 export default function InvestmentSummary() {
-  const { snapshot, isLocked } = useLockedUseOfFunds()
-
-  // When the founder has locked the Use of Funds slider tool, deal terms
-  // (investment size, investor/founder equity, post-money) recompute off
-  // the locked total. Otherwise fall back to the static DEAL defaults.
-  const effective = isLocked && snapshot
-    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
-    : DEAL
+  const { effective: ctxEffective, isLocked } = useLockedUseOfFunds()
+  // Deal terms (investment size, investor/founder equity, post-money)
+  // recompute live off the funding-amount slider — locked snapshot
+  // when locked, slider preview otherwise.
+  const effective = { ...DEAL, ...computeDealFromInvestment(ctxEffective.investment) }
 
   const SCENARIOS = {
     conservative: { label: 'Conservative', sub: '+10% on 2025', multiplier: 1.10 },

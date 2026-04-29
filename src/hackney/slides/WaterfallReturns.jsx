@@ -46,10 +46,11 @@ function computeIRR(flows, guess = 0.5) {
 }
 
 export default function WaterfallReturns() {
-  const { snapshot, isLocked } = useLockedUseOfFunds()
-  const effective = isLocked && snapshot
-    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
-    : DEAL
+  const { effective: ctxEffective, isLocked } = useLockedUseOfFunds()
+  // Build a deal-shape struct from the live context investment — DEAL
+  // governance fields (investor/founder equity etc.) overlaid with
+  // pre/post-money + implied multiple computed from the slider value.
+  const effective = { ...DEAL, ...computeDealFromInvestment(ctxEffective.investment) }
 
   // Scenario profit figures use the new 2026 cost model with the
   // £65k+VAT pa lease (Y1 rent £43,333 net, 8 paying months; rates

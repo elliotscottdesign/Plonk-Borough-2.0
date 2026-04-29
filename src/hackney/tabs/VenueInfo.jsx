@@ -469,8 +469,11 @@ function TabLicence() {
 // DEVELOPMENT — Hackney-specific strategies, residential context considered
 // =============================================================================
 function TabDevelopment() {
-  const { snapshot, isLocked } = useLockedUseOfFunds()
-  const raiseTotal = isLocked && snapshot ? snapshot.total : HACKNEY_RAISE_TARGET
+  const { effective } = useLockedUseOfFunds()
+  // Always reflect the live funding amount (slider preview when not
+  // locked, snapshot when locked). HACKNEY_RAISE_TARGET stays imported
+  // as the static fallback default for non-providered renders.
+  const raiseTotal = effective?.investment ?? HACKNEY_RAISE_TARGET
   const raiseLabel = fmtRaise(raiseTotal)
   const Arr = ({c}) => <span style={{ color:c, flexShrink:0 }}>→</span>
   const Tag = ({label,color}) => <span style={{ fontSize:11, border:`1px solid ${color}`, color, borderRadius:4, padding:'3px 10px', letterSpacing:'0.08em', textTransform:'uppercase', marginRight:8, display:'inline-block', marginBottom:6 }}>{label}</span>

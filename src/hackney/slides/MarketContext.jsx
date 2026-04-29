@@ -10,11 +10,11 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 // market-positioning narrative stays consistent with the slider.
 
 export default function MarketContext() {
-  const { snapshot, isLocked } = useLockedUseOfFunds()
-  const effective = isLocked && snapshot
-    ? { ...DEAL, ...computeDealFromInvestment(snapshot.total) }
-    : DEAL
-  const dealMultiple = effective.impliedMult ?? DEAL.multiple
+  const { effective } = useLockedUseOfFunds()
+  // Live whether locked or not — effective.investment is the slider
+  // value during preview, the locked value when locked.
+  const deal = { ...DEAL, ...computeDealFromInvestment(effective.investment) }
+  const dealMultiple = deal.impliedMult ?? DEAL.multiple
 
   const benchmarks = [
     { multiple: '~5.3×',                          label: 'UK Mid-Market Average (EBITDA multiple)',     tag: 'Above this deal',           highlight: false },

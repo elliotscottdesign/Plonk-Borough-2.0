@@ -1,127 +1,41 @@
-import React, { useState, useEffect } from 'react'
+import React from 'react'
 import {
   USE_OF_FUNDS,
   USE_OF_FUNDS_RANGES,
-  HACKNEY_RAISE_TARGET,
   computeDealFromInvestment,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // UseOfFunds — Hackney use-of-funds allocator.
-// Total raise is the investor-set "Investment Amount" slider (default
-// HACKNEY_RAISE_TARGET = £100k). The 50/50 equity split is fixed (pure
-// pro-rata, single share class) — pre-money equals the investment, so
-// dragging the investment slider down lowers the implied EBITDA multiple
-// proportionally; the founder still gives up exactly 50%, just on a
-// smaller pie. Six explicit sliders allocate spend across stock / rent /
-// garden / interior / marketing / legals; Working Capital is the 7th
-// line — derived as investment minus the sum of the six, displayed
-// full-width below. Drag stock down → working capital up. Founder
-// (888999) edits and Locks. Locked snapshot persists via
-// LockedUseOfFundsContext and flows into Investment Summary, Waterfall
-// Returns and the Cashflow Forecast.
+// The funding amount itself is set by the FundingSlider on the Cover
+// slide — this slide picks it up via LockedUseOfFundsContext and shows
+// how that amount breaks down across 7 spend lines.
+//
+// Six explicit sliders allocate spend across stock / rent / garden /
+// interior / marketing / legals. Working Capital is the 7th line —
+// derived as funding minus the sum of the six, displayed full-width
+// below as a disabled slider so the residual is visible at a glance.
+// Drag stock down → working capital up.
+//
+// Founder (888999) edits + locks via the Cover FundingSlider; this
+// slide's lock UI bar mirrors the same lock state and lets the founder
+// trigger lock/unlock from here too without navigating away.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 // Slider order on the slide. `key` matches USE_OF_FUNDS_RANGES + USE_OF_FUNDS.
 const ORDER = ['stock', 'rent', 'garden', 'interior', 'marketing', 'legals']
 
-// Investment-amount slider range. The 50/50 split holds across the whole
-// range; what flexes is the implied EBITDA multiple (pre-money / £30,896).
-//   £25k → 0.81×, £100k → 3.24×, £200k → 6.47×
-const INVESTMENT_RANGE = { min: 25000, max: 200000, step: 5000 }
-
-// Build a map of defaults from the static USE_OF_FUNDS list.
-function defaultValues() {
-  const byKey = Object.fromEntries(USE_OF_FUNDS.map(u => [u.key, u]))
-  return {
-    investment: HACKNEY_RAISE_TARGET,   // £100k headline ask — slider can flex it
-    stock:     byKey.stock.amount,      // £24,000
-    rentMonths: 0,                      // snap-slider position — default = paid monthly from cash
-    rent:      byKey.rent.amount,       // £0 — deposit paid from trading cash during rent-free period
-    garden:    byKey.garden.amount,     // £12,000
-    interior:  byKey.interior.amount,   // £10,000
-    marketing: byKey.marketing.amount,  // £3,000
-    legals:    byKey.legals.amount,     // £2,000
-  }
-}
-
-// Build the snapshot shape from a values map. Total raise = investment
-// slider; working capital absorbs the residual after the 6 explicit
-// allocations. `overAllocated` flags when allocations exceed the
-// investment so the UI can warn (negative WC would otherwise be hidden
-// by the Math.max clamp).
-function snapshotOf(v) {
-  const total = v.investment
-  const allocated = v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals
-  return {
-    investment: total,
-    stock: v.stock,
-    rentMonths: v.rentMonths,
-    rent: v.rent,
-    garden: v.garden,
-    interior: v.interior,
-    marketing: v.marketing,
-    legals: v.legals,
-    workingCapital: Math.max(0, total - allocated),
-    total,                       // kept as alias for downstream consumers reading `snapshot.total`
-    allocated,                   // sum of explicit slider amounts (excl. working capital)
-    overAllocated: Math.max(0, allocated - total),
-  }
-}
-
-// Map from rentMonths (0/1/2/3) to the £ deposit per the lease.
-// 0 = "paid monthly from trading cash" (default — deposit doesn't claim Day-1 raise).
-// 1/2/3 = optional ring-fence from the raise at the inc-VAT figure.
-function rentAmountForMonths(months) {
-  const snap = USE_OF_FUNDS_RANGES.rent.snaps.find(s => s.months === months)
-  return snap ? snap.amount : USE_OF_FUNDS_RANGES.rent.snaps[0].amount
-}
-
 export default function UseOfFunds() {
-  const { snapshot, isLocked, isFounder, canEdit, lock, unlock } = useLockedUseOfFunds()
+  const {
+    effective, snapshot, isLocked, isFounder, canEdit,
+    setValue, lock, unlock, reset,
+  } = useLockedUseOfFunds()
 
-  // Live slider state — seeded from locked snapshot (if any) or defaults.
-  // `investment` falls back to `total` for snapshots locked before the
-  // investment slider existed (where total was always £100k).
-  const [values, setValues] = useState(() =>
-    snapshot
-      ? { investment: snapshot.investment ?? snapshot.total ?? HACKNEY_RAISE_TARGET,
-          stock: snapshot.stock, rentMonths: snapshot.rentMonths, rent: snapshot.rent,
-          garden: snapshot.garden, interior: snapshot.interior, marketing: snapshot.marketing,
-          legals: snapshot.legals }
-      : defaultValues()
-  )
-
-  // If the snapshot changes externally (e.g. founder unlocks elsewhere),
-  // re-sync the slider positions.
-  useEffect(() => {
-    if (snapshot) {
-      setValues({
-        investment: snapshot.investment ?? snapshot.total ?? HACKNEY_RAISE_TARGET,
-        stock: snapshot.stock, rentMonths: snapshot.rentMonths, rent: snapshot.rent,
-        garden: snapshot.garden, interior: snapshot.interior, marketing: snapshot.marketing,
-        legals: snapshot.legals,
-      })
-    }
-  }, [snapshot])
-
-  // What the slide currently shows: locked snapshot wins, else live sliders.
-  const display = isLocked ? snapshot : snapshotOf(values)
-  const deal = computeDealFromInvestment(display.total)
-
-  const set = (k, v) => setValues(prev => {
-    const next = { ...prev, [k]: v }
-    if (k === 'rentMonths') next.rent = rentAmountForMonths(v)
-    return next
-  })
-
-  const handleLock = () => lock(snapshotOf(values))
-  const handleReset = () => {
-    if (!isFounder) return
-    if (isLocked) unlock()
-    setValues(defaultValues())
-  }
+  // Display surface = effective (locked snapshot when locked, else live
+  // derived). Single source of truth — no local state, no defaultValues.
+  const display = effective
+  const deal    = computeDealFromInvestment(display.total)
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -131,27 +45,41 @@ export default function UseOfFunds() {
           {fmt(display.total)} Investment · 50/50 Equity Split
         </h2>
         <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
-          Drag the <strong style={{ color: 'var(--cream)' }}>Investment Amount</strong> slider to size the raise — whatever the investor puts in, the founder matches with 50% equity (pure pro-rata, single share class). Pre-money equals the investment, so the implied EBITDA multiple flexes with the slider. Then drag the six allocation sliders to break the spend down across stock, rent, garden, interior, marketing, and legals — Working Capital absorbs whatever's left, sitting as float for early trading. Further rounds price off live trading, not this seed pre-money.
+          The funding amount is set by the slider on the <strong style={{ color: 'var(--cream)' }}>Cover slide</strong> — drag it there to size the raise. This page breaks the spend down across stock, rent, garden, interior, marketing, and legals; Working Capital absorbs whatever's left, sitting as float for early trading. Whatever the investor puts in, the founder matches with 50% equity (pure pro-rata, single share class).
         </p>
       </div>
 
-      {/* Investment Amount — full-width slider that drives the total raise */}
-      <InvestmentSlider
-        value={isLocked ? snapshot.total : values.investment}
-        onChange={(v) => set('investment', v)}
-        disabled={!canEdit}
-        deal={deal}
-      />
-
-      {/* Headline cards — total raise, fixed 50/50 split, allocated vs working capital, post-money */}
+      {/* Headline cards — total raise, allocated vs working capital, 50/50 split */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
-        <HeadlineCard label="TOTAL RAISE"        value={fmt(display.total)}                          colour={isLocked ? '#10B981' : '#C9A84C'} sub={isLocked ? 'Locked snapshot' : 'Live preview · slider above'} />
-        <HeadlineCard label="ALLOCATED"          value={fmt(display.allocated)}                       colour="#4FC3F7"                          sub={`${display.total > 0 ? ((display.allocated/display.total)*100).toFixed(1) : '0.0'}% of raise · 6 sliders`} />
-        <HeadlineCard label="WORKING CAPITAL"     value={fmt(display.workingCapital)}                  colour={display.overAllocated > 0 ? '#E53935' : '#2DD4BF'} sub={display.overAllocated > 0 ? `Over-allocated by ${fmt(display.overAllocated)}` : `${display.total > 0 ? ((display.workingCapital/display.total)*100).toFixed(1) : '0.0'}% of raise · residual float`} />
-        <HeadlineCard label="50/50 SPLIT"         value={`${deal.impliedMult.toFixed(2)}× EBITDA`}     colour="#A78BFA"                          sub={`Post-money ${fmt(deal.postMoney)}`} />
+        <HeadlineCard
+          label="TOTAL RAISE"
+          value={fmt(display.total)}
+          colour={isLocked ? '#10B981' : '#C9A84C'}
+          sub={isLocked ? 'Locked snapshot · from Cover slider' : 'Live · drag the slider on Cover'}
+        />
+        <HeadlineCard
+          label="ALLOCATED"
+          value={fmt(display.allocated)}
+          colour="#4FC3F7"
+          sub={`${display.total > 0 ? ((display.allocated/display.total)*100).toFixed(1) : '0.0'}% of raise · 6 sliders below`}
+        />
+        <HeadlineCard
+          label="WORKING CAPITAL"
+          value={fmt(display.workingCapital)}
+          colour={display.overAllocated > 0 ? '#E53935' : '#2DD4BF'}
+          sub={display.overAllocated > 0
+            ? `Over-allocated by ${fmt(display.overAllocated)}`
+            : `${display.total > 0 ? ((display.workingCapital/display.total)*100).toFixed(1) : '0.0'}% of raise · residual float`}
+        />
+        <HeadlineCard
+          label="50/50 SPLIT"
+          value={`${deal.impliedMult.toFixed(2)}× EBITDA`}
+          colour="#A78BFA"
+          sub={`Post-money ${fmt(deal.postMoney)}`}
+        />
       </div>
 
-      {/* Lock / Reset / Founder gate */}
+      {/* Lock / Reset / Founder gate — shared lock state with the Cover FundingSlider */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'14px 18px', marginBottom: 20, background:'var(--ink-2)', border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`, borderRadius: 10 }}>
         <div style={{ display:'flex', alignItems:'center', gap:12 }}>
           <div style={{ width: 10, height: 10, borderRadius: '50%', background: isLocked ? '#10B981' : 'var(--gold-dim)' }} />
@@ -162,16 +90,16 @@ export default function UseOfFunds() {
                 : isFounder ? 'Editable — drag the sliders, then Lock to save' : 'Read-only · only the founder (888999) can edit'}
             </div>
             <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 2 }}>
-              Locked values flow into Investment Summary · Waterfall Returns · Cashflow Forecast.
+              Locked values flow into Cover · Investment Summary · Waterfall Returns · Cashflow Forecast.
             </div>
           </div>
         </div>
         <div style={{ display:'flex', gap: 8 }}>
-          <button onClick={handleReset} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, ghost: true })}>Reset</button>
+          <button onClick={reset} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, ghost: true })}>Reset</button>
           {isLocked ? (
-            <button onClick={() => unlock()} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, gold: true })}>Unlock</button>
+            <button onClick={unlock} disabled={!isFounder} style={btnStyle({ disabled: !isFounder, gold: true })}>Unlock</button>
           ) : (
-            <button onClick={handleLock} disabled={!canEdit} style={btnStyle({ disabled: !canEdit, gold: true })}>Lock</button>
+            <button onClick={lock} disabled={!canEdit} style={btnStyle({ disabled: !canEdit, gold: true })}>Lock</button>
           )}
         </div>
       </div>
@@ -185,8 +113,8 @@ export default function UseOfFunds() {
               <RentSnapSlider
                 key={key}
                 meta={meta}
-                months={isLocked ? snapshot.rentMonths : values.rentMonths}
-                onChange={(m) => set('rentMonths', m)}
+                months={display.rentMonths}
+                onChange={(m) => setValue('rentMonths', m)}
                 disabled={!canEdit}
               />
             )
@@ -197,8 +125,8 @@ export default function UseOfFunds() {
               key={key}
               meta={meta}
               range={range}
-              value={isLocked ? snapshot[key] : values[key]}
-              onChange={(v) => set(key, v)}
+              value={display[key]}
+              onChange={(v) => setValue(key, v)}
               disabled={!canEdit}
             />
           )
@@ -252,52 +180,6 @@ export default function UseOfFunds() {
   )
 }
 
-// ─── Investment Amount — full-width slider that drives the total raise ─
-// Whatever the investor puts in, the founder matches it with 50% equity.
-// Pre-money equals the investment, so dragging this slider down shrinks
-// the implied EBITDA multiple proportionally — the founder still gives
-// up exactly 50%, just on a smaller pie. Snapshot's `total` always
-// equals this slider value.
-function InvestmentSlider({ value, onChange, disabled, deal }) {
-  const range = INVESTMENT_RANGE
-  const pct = range.max > range.min ? (value - range.min) / (range.max - range.min) : 0
-  return (
-    <div style={{ background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(167,139,250,0.06))', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 10 }}>
-        <span style={{ fontSize: 12, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>Investment Amount</span>
-        <span className="serif" style={{ fontSize: 26, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums', lineHeight: 1 }}>{fmt(value)}</span>
-      </div>
-      <input
-        type="range"
-        min={range.min} max={range.max} step={range.step}
-        value={value}
-        onChange={e => onChange(+e.target.value)}
-        disabled={disabled}
-        style={{ width: '100%', accentColor: 'var(--gold)', cursor: disabled ? 'not-allowed' : 'pointer', opacity: disabled ? 0.5 : 1 }}
-      />
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 6 }}>
-        <span>{fmt(range.min)}</span>
-        <span style={{ color: 'var(--cream-dim)', fontStyle: 'italic' }}>50/50 split fixed · pre-money = investment · multiple flexes</span>
-        <span>{fmt(range.max)}</span>
-      </div>
-      <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(201,168,76,0.15)', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-        <div>
-          <div style={{ fontSize: 9, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Pre-money</div>
-          <div className="serif" style={{ fontSize: 16, color: 'var(--cream)', fontVariantNumeric: 'tabular-nums' }}>{fmt(deal.preMoney)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 9, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Post-money</div>
-          <div className="serif" style={{ fontSize: 16, color: 'var(--cream)', fontVariantNumeric: 'tabular-nums' }}>{fmt(deal.postMoney)}</div>
-        </div>
-        <div>
-          <div style={{ fontSize: 9, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>Implied EBITDA Multiple</div>
-          <div className="serif" style={{ fontSize: 16, color: '#A78BFA', fontVariantNumeric: 'tabular-nums' }}>{deal.impliedMult.toFixed(2)}×</div>
-        </div>
-      </div>
-    </div>
-  )
-}
-
 // ─── Working Capital — full-width disabled slider (residual display) ──
 function WorkingCapitalSlider({ amount, target, allocated }) {
   const pct = target > 0 ? Math.min(1, amount / target) : 0
@@ -310,7 +192,6 @@ function WorkingCapitalSlider({ amount, target, allocated }) {
         </span>
         <span style={{ fontSize: 18, color: overAllocated > 0 ? '#E53935' : 'var(--teal)', fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>{fmt(amount)}</span>
       </div>
-      {/* Visual track — read-only, teal-coloured to distinguish from gold input sliders */}
       <div style={{ height: 8, background: 'rgba(255,255,255,0.04)', borderRadius: 4, overflow: 'hidden', cursor: 'not-allowed' }}>
         <div style={{ height: '100%', width: `${pct * 100}%`, background: overAllocated > 0 ? 'linear-gradient(90deg, #E53935, rgba(229,57,53,0.6))' : 'linear-gradient(90deg, var(--teal), rgba(45,212,191,0.6))', borderRadius: 4, transition: 'width 0.2s' }} />
       </div>
@@ -318,8 +199,8 @@ function WorkingCapitalSlider({ amount, target, allocated }) {
         <span>£0</span>
         <span style={{ fontStyle: 'italic', color: overAllocated > 0 ? '#E53935' : 'var(--cream-dim)' }}>
           {overAllocated > 0
-            ? `Over-allocated by ${fmt(overAllocated)} — drag a slider down or raise the investment amount`
-            : `= ${fmt(target)} investment − ${fmt(allocated)} allocated across the 6 sliders above`}
+            ? `Over-allocated by ${fmt(overAllocated)} — drag a slider down or raise the funding amount on Cover`
+            : `= ${fmt(target)} funding − ${fmt(allocated)} allocated across the 6 sliders above`}
         </span>
         <span>{fmt(target)}</span>
       </div>

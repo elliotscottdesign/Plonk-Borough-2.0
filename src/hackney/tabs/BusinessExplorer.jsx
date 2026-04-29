@@ -14,7 +14,6 @@ import {
   HACKNEY_CASH,
   HACKNEY_FIXED_COSTS_2025,
   USE_OF_FUNDS,
-  HACKNEY_RAISE_TARGET,
   WAGE_RATES,
   PL_WAGE_BASE,
   ROTA_TOTAL,
@@ -684,28 +683,24 @@ function ForecastMonthlyChart({ data }) {
 }
 
 function TabCashflow() {
-  const { snapshot, isLocked } = useLockedUseOfFunds()
+  const { effective, isLocked, snapshot } = useLockedUseOfFunds()
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-  // Day-1 startup-cost rows: locked snapshot if present, else the static
-  // USE_OF_FUNDS defaults. Total raise is fixed; Working Capital is the
-  // residual that absorbs whatever's left after the six explicit allocations.
-  const day1 = isLocked && snapshot
-    ? [
-        { label: 'Stock Purchase — Liquidators',     amount: snapshot.stock },
-        { label: `Landlord — Rent Deposit (${snapshot.rentMonths} ${snapshot.rentMonths === 1 ? 'month' : 'months'})`, amount: snapshot.rent },
-        { label: 'Garden Refurbishment',             amount: snapshot.garden },
-        { label: 'Interior Completion & Signage',    amount: snapshot.interior },
-        { label: 'Marketing — Pre-launch & Year 1',  amount: snapshot.marketing },
-        { label: 'Legals & Restart',                 amount: snapshot.legals },
-        { label: 'Working Capital (residual)',       amount: snapshot.workingCapital ?? 0, residual: true },
-      ]
-    : (() => {
-        const explicit = USE_OF_FUNDS.map(u => ({ label: u.item, amount: u.amount }))
-        const allocated = explicit.reduce((s, r) => s + r.amount, 0)
-        const wc = Math.max(0, HACKNEY_RAISE_TARGET - allocated)
-        return [...explicit, { label: 'Working Capital (residual)', amount: wc, residual: true }]
-      })()
+  // Day-1 startup-cost rows always reflect the live context — slider
+  // preview when not locked, snapshot when locked. Working Capital is
+  // the residual the context already computes for us.
+  const rentLabel = effective.rentMonths === 0
+    ? 'Landlord — Rent Deposit (paid monthly)'
+    : `Landlord — Rent Deposit (${effective.rentMonths} ${effective.rentMonths === 1 ? 'month' : 'months'})`
+  const day1 = [
+    { label: 'Stock Purchase — Liquidators',     amount: effective.stock },
+    { label: rentLabel,                           amount: effective.rent },
+    { label: 'Garden Refurbishment',             amount: effective.garden },
+    { label: 'Interior Completion & Signage',    amount: effective.interior },
+    { label: 'Marketing — Pre-launch & Year 1',  amount: effective.marketing },
+    { label: 'Legals & Restart',                 amount: effective.legals },
+    { label: 'Working Capital (residual)',       amount: effective.workingCapital ?? 0, residual: true },
+  ]
   const day1Total = day1.reduce((s, r) => s + r.amount, 0)
   const deal = computeDealFromInvestment(day1Total)
 
