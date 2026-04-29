@@ -87,12 +87,37 @@ export const ACTUALS_2025 = {
 }
 
 // === 2026/27 FORECAST (Base Case +15%) ===
-// Excel: Base Case Forecast!N6 (revenue) and N17 (profit after dir salary).
-// Forecast period: May 2026 → Apr 2027.
+// Forecast period: May 2026 → Apr 2027. Rebuilt April 2026 with the new
+// rent + rates rules per user direction (see HACKNEY_FIXED_COSTS_2026).
+//
+// Build:
+//   Revenue        538,090.57 × 1.15  =     618,804.17
+//   Wages           179,872 (PL_WAGE_BASE — calculator default)
+//   Variable +10%   2025 stock + variable cats × 1.10
+//                   = (134,123 + 7,887 + 16,492 + 10,300 + 8,202) × 1.10
+//                   = 176,094 × 1.10 = 193,704            (rounded 194,704 in code)
+//   Fixed +10%      Other fixed (£23,490) × 1.10 = £25,839
+//                   + new rent £14,664 (Y1 with 4-mo rent-free)
+//                   + rates £16,830 (2025 × 1.10, pending Hackney confirm)
+//                   = £57,333
+//   VAT             44,994 × 1.15 = £51,743 (scales with revenue)
+//   Director         15,885 (separate line)
+//   Op profit (after director) ≈ £119,267 → margin ≈ 19.3%
+//
+// The big delta vs the prior £45,632 forecast is the new lease — rent
+// drops from 2025's £94,146 (old Plonk arrangement) to £14,664 in Y1.
+// That ~£80k saving flows straight to the bottom line.
 export const FORECAST = {
-  revenue: 618804.17,
-  profit: 45631.82,
-  margin: 0.0737,
+  revenue:    618804.17,
+  wages:      179872,
+  variable:   194704,           // sum of stock + operational variable, all × 1.10
+  fixed:       57333,           // rent £14,664 + rates £16,830 + other fixed × 1.10
+  vatNet:      51743,           // 2025 VAT × 1.15 (scales with revenue)
+  director:    15885,           // separate line (inc £885 employer NI)
+  rent:        14664,           // Y1 with 4-mo rent-free; £1,833/mo × 8
+  rates:       16830,           // 2025 × 1.10 — Hackney Council confirmation pending
+  profit:     119267,           // revenue − wages − variable − fixed − VAT − director
+  margin:      0.1928,          // profit / revenue
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025) ===
@@ -111,6 +136,41 @@ export const INCOME_SOURCES = [
   { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
   { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
 ]
+
+// === FIXED COSTS — 2025 SUB-LINE BREAKDOWN ===
+// Source: Weekly Merged 2024-2026 tab, fixed-cost rows aggregated for 2025.
+// Used to drive the 2026 forecast: rent and rates are replaced with the new
+// lease + Hackney Council figures; the rest of the fixed-cost base uplifts
+// by +10%.
+export const HACKNEY_FIXED_COSTS_2025 = [
+  { key: 'rent',        label: 'Rent',          amount: 94146 },
+  { key: 'rates',       label: 'Business Rates',amount: 15300 },
+  { key: 'electricity', label: 'Electricity',   amount: 12750 },
+  { key: 'water',       label: 'Water',         amount:  2550 },
+  { key: 'insurance',   label: 'Insurance',     amount:  2754 },
+  { key: 'license',     label: 'License',       amount:  1275 },
+  { key: 'prsPpl',      label: 'PRS / PPL',     amount:  1530 },
+  { key: 'internet',    label: 'Internet',      amount:  1445 },
+  { key: 'lightspeed',  label: 'Lightspeed',    amount:   931 },
+  { key: 'tvLicense',   label: 'TV License',    amount:   255 },
+]
+
+// === FIXED COSTS — 2026 FORECAST RULES ===
+// Per user direction (April 2026):
+//   • Rent: NEW lease — £1,833/month with 4-month rent-free start
+//     (May–Aug 2026). Year 1 = 8 paying months × £1,833 = £14,664.
+//     Steady state (Y2+) = 12 × £1,833 = £21,996.
+//   • Business Rates: 2025 actual × 1.10 = £16,830. Subject to Hackney
+//     Council assessment with the relief change (75% → 40% in 2025/26)
+//     so this is a placeholder pending confirmation.
+//   • All other fixed lines (electricity, water, insurance, license,
+//     PRS/PPL, internet, lightspeed, TV license): +10% on 2025 actuals.
+export const HACKNEY_FIXED_COSTS_2026 = {
+  rentY1:         14664,
+  rentSteady:     21996,
+  rates:          16830,
+  otherUplift:    0.10,                 // applied to non-rent, non-rates lines
+}
 
 // === COSTS BY CATEGORY (Jan–Dec 2025) ===
 // Source: Weekly Merged 2024-2026 tab. Category-header rows aggregate the
@@ -308,36 +368,42 @@ export const WATERFALL = {
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// Pure pro-rata 50/50, no preferred return. Revenue and pre-share profit
-// from Excel: Investor Returns!B19:F22 (Y2–Y5 growth held at 7.5%).
-// Investor share = 50% × profit each year. Powers the multi-year payout
-// schedule on the WaterfallReturns slide.
+// Pure pro-rata 50/50, no preferred return. Year-1 profit £119,267 from
+// the new 2026 cost model (lower rent under the new lease + 10% uplifts);
+// Y2–Y5 grow at 7.5% YoY. Investor share = 50% × profit each year.
+// Powers the multi-year payout schedule on the WaterfallReturns slide.
+//
+// The dramatic improvement vs the old £45,632 base is driven by the new
+// lease — annual rent drops from 2025's £94,146 (old Plonk arrangement)
+// to £14,664 in Y1 (£1,833/mo with 4-mo rent-free start). That ~£80k
+// saving flows straight through to operating profit and compounds over
+// the 5-year exit assumption.
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
-    profit: 45631.82,
-    investorEq: 0.5,
-    investorReturn: 22815.91,
-    coc: 0.2282,
-    paybackYears: 4.38,
+    profit:          119267,
+    investorEq:      0.5,
+    investorReturn:   59633.50,
+    coc:              0.5963,
+    paybackYears:     1.68,
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit: 45631.82, investorShare: 22815.91, founderShare: 22815.91 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit: 49054.21, investorShare: 24527.10, founderShare: 24527.11 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 52733.28, investorShare: 26366.64, founderShare: 26366.64 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 56688.28, investorShare: 28344.14, founderShare: 28344.14 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 60939.90, investorShare: 30469.95, founderShare: 30469.95 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit: 119267.00, investorShare: 59633.50, founderShare: 59633.50 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit: 128212.03, investorShare: 64106.01, founderShare: 64106.02 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 137827.93, investorShare: 68913.96, founderShare: 68913.97 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 148165.02, investorShare: 74082.51, founderShare: 74082.51 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 159277.40, investorShare: 79638.70, founderShare: 79638.70 },
   ],
-  cumulativeDividends: 132523.74,    // Sum of investor shares Y1–Y5
+  cumulativeDividends: 346374.69,    // Sum of investor shares Y1–Y5
   exit: {
-    y5Ebitda:        60939.90,
-    multiple:        4,                // Sector-average exit multiple
-    businessValue:   243759.60,        // Y5 EBITDA × multiple
-    investorProceeds:121879.80,        // 50% × business value
-    founderProceeds: 121879.80,
+    y5Ebitda:         159277.40,
+    multiple:         4,
+    businessValue:    637109.59,
+    investorProceeds: 318554.80,
+    founderProceeds:  318554.80,
   },
-  totalReturned:     254403.54,        // Cumulative dividends + investor exit
-  multipleOfMoney:   2.5440,           // £254,404 / £100,000
-  irr:               0.2810,           // IRR on flows: -100k, +22816, +24527, +26367, +28344, +152350
+  totalReturned:      664929.48,
+  multipleOfMoney:    6.6493,
+  irr:                0.7502,         // IRR on flows: -100k, +59634, +64106, +68914, +74083, +398193
 }
 
 // === GOVERNANCE ===
