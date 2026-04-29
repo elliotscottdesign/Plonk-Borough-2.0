@@ -732,6 +732,95 @@ export const STOCK_SETUP_DETAIL = [
   { item: 'Alcohol licence change (DPS)',      amount: TBD, type: 'oneOff',     vatExempt: true,  note: 'Designated Premises Supervisor change fee — Hackney Licensing' },
 ]
 
+// === GOLF OPERATIONS — 2025 ACTUALS + GO-FORWARD STRUCTURE ===========
+// Pre-liquidation, the mini-golf course operated next door (Mentmore
+// Terrace adjacent site). Customers bought tickets two ways:
+//   1. Online via the website — paid in £, redeemed AT THE BAR as
+//      tokens (effectively bar revenue once spent on drinks/food)
+//   2. At the till — direct cash/card sale at the venue
+// Either way they came in, played, then carried tokens or cash into
+// the bar for spend.
+//
+// Going forward (2026+), the golf course is being separated:
+//   • Golf operated by a SEPARATE company (own entity, own books)
+//   • No Dice continues to HOST + OPERATE the course (still the
+//     customer-facing operator on site)
+//   • No Dice keeps:
+//       - 100% of bar revenue (unchanged)
+//       - 100% of food revenue (unchanged)
+//       - 100% of party / private hire revenue (unchanged)
+//       - 50% of online token income (was 100%) — golf company
+//         takes the other 50% as their share of online sales
+//   • Golf company keeps:
+//       - 100% of till ticket sales (was No Dice's)
+//       - 50% of online token income
+//
+// Cost structure for the golf side in 2025 (per founder):
+//   • Rent — yes (course site is a separate lease)
+//   • Some host wages — yes
+//   • Maintenance — yes (founder to approximate)
+//   • Upgrade — yes (founder to approximate)
+//   • Bills — NONE (no utilities billed against the course)
+//   • Business rates — NONE (no rates paid on the course site)
+//
+// Sources for figures below:
+//   • onlineTickets   — INCOME_SOURCES "Online golf (DMN)" line
+//   • tournamentEntry — INCOME_SOURCES "Tournament entry" line
+//   • tillTickets     — Weekly Merged 2024-2026, till sales of golf
+//                        tickets (1.1.2025 – 31.12.2025). TBD until
+//                        the founder pulls the figure from the sheet.
+//   • hostWages       — live rota Google Sheet, "Golf Host" role
+//                        rows. TBD until extracted (currently filtered
+//                        out of the bar-only WAGE_RATES rota dataset).
+//   • rentShare       — TBD (lease apportioned to course site only).
+//   • maintenance / upgrade — founder approximations, TBD.
+export const HACKNEY_GOLF_2025 = {
+  // Revenue lines (what came IN to No Dice as the operating venue in 2025)
+  revenue: {
+    onlineTickets:    39288,    // £ — online ticket sales redeemed as bar tokens
+    tillTickets:        TBD,    // £ — direct ticket sales at venue till (Weekly Merged)
+    tournamentEntry:   3570,    // £ — included in old golf P&L (separate tournament events)
+  },
+  // Costs attributable to running the golf course in 2025
+  costs: {
+    hostWages:          TBD,    // £ — Golf Host role hours × rate, fully-loaded
+    rentShare:          TBD,    // £ — share of rent attributable to the course site
+    maintenance:        TBD,    // £ — founder to approximate
+    upgrade:            TBD,    // £ — founder to approximate
+    utilities:            0,    // £ — no bills paid for the course
+    businessRates:        0,    // £ — no rates paid on the course site
+  },
+}
+
+// Go-forward (2026+) revenue split between the new golf company and No Dice.
+// Each line records what NO DICE retains under the new structure. Anything
+// the golf company takes as their share is the complement (1 - retained).
+export const HACKNEY_GOLF_GOING_FORWARD = {
+  structure: {
+    operator:   'Separate company (newly incorporated)',
+    host:       'No Dice — continues to host + operate the course on site',
+    cashflow:   'Settled monthly between the two entities',
+  },
+  noDiceRetains: [
+    { line: 'Bar revenue',                pct: 1.00, note: 'Unchanged — 100% to No Dice' },
+    { line: 'Food revenue',               pct: 1.00, note: 'Unchanged — 100% to No Dice' },
+    { line: 'Party / private hire',       pct: 1.00, note: 'Unchanged — 100% to No Dice' },
+    { line: 'Online token income',        pct: 0.50, note: 'Was 100% — golf company now takes the other 50%' },
+    { line: 'Till ticket sales',          pct: 0.00, note: 'Was 100% — golf company keeps it (it is their core business)' },
+    { line: 'Tournament entry',           pct: TBD,  note: 'TBD — founder to confirm with golf company entity' },
+  ],
+  noDiceTakesOver: [
+    'Course hosting + operations on site',
+    'Customer-facing presence (tokens redeemed at the bar)',
+    'Bar / food / party revenue captured directly from golf footfall',
+  ],
+  golfCompanyTakesOver: [
+    '100% of till ticket sales (formerly No Dice revenue)',
+    '50% of online token sales (formerly 100% to No Dice as bar tokens)',
+    'Golf course cost base — rent, maintenance, upgrades, host wages',
+  ],
+}
+
 // === IP & LICENSING — NOT APPLICABLE TO HACKNEY ===
 // Plonk Golf IP/licensing model is Borough-specific (the franchise dev area).
 // Stubs kept so the cloned Plonk tab can render without import errors —
