@@ -158,6 +158,18 @@
   .character-eyebrow { color: var(--gold); letter-spacing: 0.3em; text-transform: uppercase; font-size: 12px; margin-bottom: 10px; font-weight: 600; }
   .character-name { font-size: clamp(26px, 4.2vw, 40px); margin: 0 0 16px; color: var(--cream); line-height: 1.15; }
   .character-tagline { color: var(--cream-dim); font-size: 16px; line-height: 1.65; margin: 0 auto; max-width: 520px; font-style: italic; }
+  .codex { margin-top: 26px; text-align: center; }
+  .codex summary { display: inline-flex; align-items: center; gap: 8px; padding: 9px 18px; font-size: 11px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--gold); font-weight: 700; border: 1px solid var(--gold-dim); border-radius: 999px; background: rgba(212,175,55,0.06); cursor: pointer; list-style: none; font-family: 'DM Sans', sans-serif; user-select: none; }
+  .codex summary::-webkit-details-marker { display: none; }
+  .codex summary::marker { display: none; }
+  .codex[open] summary { background: rgba(212,175,55,0.18); border-color: var(--gold); }
+  .codex .stop-toggle-icon { transition: transform 0.2s ease; font-size: 12px; line-height: 1; }
+  .codex[open] .stop-toggle-icon { transform: rotate(180deg); }
+  .codex-body { margin-top: 22px; padding: 28px 26px; background: var(--bg-3); border: 1px solid var(--line); border-radius: 14px; text-align: left; }
+  .codex-body p { color: var(--cream-dim); font-size: 15px; line-height: 1.75; margin: 0 0 14px; }
+  .codex-body p:last-child { margin-bottom: 0; }
+  .codex-body p:first-child::first-letter { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; font-size: 42px; color: var(--gold); float: left; line-height: 0.95; padding: 4px 8px 0 0; }
+  .codex-body strong { color: var(--gold); font-weight: 500; }
 
   .stop-chapter { color: var(--red); font-size: 10px; letter-spacing: 0.22em; text-transform: uppercase; font-weight: 700; margin-bottom: 8px; opacity: 0.92; }
 
@@ -268,6 +280,19 @@
       <div class="character-eyebrow">The Stag · Centurion Julianus</div>
       <h3 class="serif character-name">of Legio IX · Polonia Victrix</h3>
       <p class="character-tagline">Commander of morale. Slayer of sobriety. Reclaimer of Eagles.</p>
+      <details class="codex">
+        <summary>Codex <span class="stop-toggle-icon">▾</span></summary>
+        <div class="codex-body">
+          <p>In the final years of Roman Britannia, when Londinium still stood proud behind its walls and the roads of empire stretched like veins across the island, there marched a legion unlike any other.</p>
+          <p>They were known as <strong>Legio IX Polonia Victrix</strong> — the Ninth Polish Legion. Warriors from the eastern frontiers of the Empire, hardened by winter, battle, and terrible drink. They were sent across the known world to Britannia, where mist covered the hills and the locals spoke in riddles.</p>
+          <p>Their commander was a mighty centurion: Julianus of Londinium, broad of shoulder, mighty of thirst, and blessed with the patience of a saint. He wore a helm of iron, a cloak of crimson, and carried the sacred standard of the legion — <strong>The Golden Eagle of Destiny</strong>.</p>
+          <p>But disaster struck in the wild north. Beyond the city's walls, amidst fog, rain, and poor mobile reception, the legion vanished. Their eagle was lost. Some said taken by tribesmen. Others claimed it flew south of its own will, seeking warmer lands and better company.</p>
+          <p>For centuries the fate of the legion remained unknown. Until now.</p>
+          <p>For whispers have reached Londinium that the Eagle yet lives — no longer in the north, but waiting in the lands beyond, where celebration flows like wine and music shakes the stones. She waits to be reclaimed, not as plunder, but as bride.</p>
+          <p>And so, on the Second Day of May, the sacred centurion Julianus shall rise once more. Joined by his chosen brothers — loyal veterans, scoundrels, drinkers, and men of questionable discipline — he shall march the old Roman roads of London, to recover <strong>The Lost Eagle</strong>.</p>
+          <p>They shall visit the ancient amphitheatre where blood once spilled, though today only beer shall flow. They shall walk the old walls of Londinium, retracing the steps of empire. Their goal: to carry the eagle once more through the city streets so all may witness the return of the lost legion.</p>
+        </div>
+      </details>
     </div>
   </div>
 </section>
