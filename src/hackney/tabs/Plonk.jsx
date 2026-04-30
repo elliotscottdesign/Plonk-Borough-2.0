@@ -111,13 +111,39 @@ function GolfOperations() {
       <div>
         <STitle>2025 Golf — Revenue, Costs &amp; Net Contribution</STitle>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          {/* Revenue card */}
+          {/* Revenue card — Net Contribution lives at the bottom of this card,
+              directly under Total Revenue 2025, so the revenue side carries the
+              bottom-line takeaway rather than it sitting as a separate full-width
+              callout below both columns. */}
           <div className="card" style={{ padding:20 }}>
             <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Revenue (gross to No Dice in 2025)</div>
             <PnlRow label="Online ticket sales (DMN — tokens)" value={g.revenue.onlineTickets} colour="#4FC3F7" />
             <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026 row 3 · 52 weeks of 2025" />
             <PnlRow label="Tournament entry fees"                value={g.revenue.tournamentEntry} colour="#4FC3F7" />
             <PnlTotal label="Total revenue 2025" value={totalRev2025} colour="#4FC3F7" hasTbd={[g.revenue.tillTickets].includes(TBD)} />
+
+            {/* Net Contribution — embedded as the final block of the Revenue card */}
+            <div style={{
+              marginTop: 18, paddingTop: 16, paddingLeft: 14, paddingRight: 14, paddingBottom: 14,
+              background: net2025 >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(229,57,53,0.06)',
+              border: `1px solid ${net2025 >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(229,57,53,0.4)'}`,
+              borderRadius: 8,
+            }}>
+              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12 }}>
+                <div style={{ flex:1, minWidth:0 }}>
+                  <div style={{ fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>2025 Net Contribution</div>
+                  <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>Total revenue − total course costs (TBD lines = £0).</div>
+                </div>
+                <div className="serif" style={{ fontSize:24, color: net2025 >= 0 ? '#10B981' : '#E53935', fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap' }}>
+                  {net2025 < 0 ? '−' : ''}{fmt(Math.abs(net2025))}
+                </div>
+              </div>
+              {tbdLines > 0 && (
+                <div style={{ marginTop:8, fontSize:10, color:'#EAB308', lineHeight:1.5 }}>
+                  ⚠ {tbdLines} line{tbdLines === 1 ? '' : 's'} marked TBD — figure firms up once till-sales + Golf-Host wages + maintenance / upgrade approximations land.
+                </div>
+              )}
+            </div>
           </div>
           {/* Costs card */}
           <div className="card" style={{ padding:20 }}>
@@ -130,23 +156,6 @@ function GolfOperations() {
             <PnlRow label="Business rates"               value={g.costs.businessRates} colour="#9CA3AF" zeroNote="No rates paid on course site" />
             <PnlTotal label="Total cost 2025" value={totalCost2025} colour="#F87171" hasTbd={[g.costs.hostWages, g.costs.rentShare, g.costs.maintenance, g.costs.upgrade].some(v => v === TBD)} />
           </div>
-        </div>
-        {/* Net contribution + TBD warning */}
-        <div className="card" style={{ padding:18, marginTop:14, background: net2025 >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(229,57,53,0.06)', border:`1px solid ${net2025 >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(229,57,53,0.4)'}` }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', flexWrap:'wrap', gap:12 }}>
-            <div>
-              <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>2025 Net Contribution to No Dice</div>
-              <div style={{ fontSize:11, color:'var(--cream-dim)' }}>Total revenue minus total course costs (TBD lines treated as £0 for now).</div>
-            </div>
-            <div className="serif" style={{ fontSize:32, color: net2025 >= 0 ? '#10B981' : '#E53935', fontVariantNumeric:'tabular-nums' }}>
-              {net2025 < 0 ? '−' : ''}{fmt(Math.abs(net2025))}
-            </div>
-          </div>
-          {tbdLines > 0 && (
-            <div style={{ marginTop:10, fontSize:11, color:'#EAB308', lineHeight:1.6 }}>
-              ⚠ {tbdLines} line{tbdLines === 1 ? '' : 's'} marked TBD — net contribution will firm up once the founder pulls the till-sales figure (Weekly Merged tab) and Golf-Host wage figure (rota), and approximates maintenance + upgrade.
-            </div>
-          )}
         </div>
       </div>
 
