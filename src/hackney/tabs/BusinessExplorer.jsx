@@ -1935,6 +1935,7 @@ function TabTillSales2025() {
 // canonical revenue figure.
 function TabPrevTillSales() {
   const [year, setYear] = useState(2024)   // default to most recent full year
+  const [showMinor, setShowMinor] = useState(false)
   const cats = HACKNEY_PREV_TILL_SALES[year] || []
   const summary = HACKNEY_PREV_TILL_YEAR_TOTALS[year]
   const totals = hackneyTotalsForYear(year)
@@ -2088,9 +2089,10 @@ function TabPrevTillSales() {
             <div style={{ textAlign:'right' }}>% Zero</div>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
-            {sorted.map((c, i) => {
+            {(showMinor ? sorted : top10).map((c, i) => {
               const isGolf = HACKNEY_GOLF_CATEGORIES.includes(c.name)
-              const color = i < top10.length ? PALETTE[i % PALETTE.length] : '#475569'
+              const isMinor = i >= top10.length
+              const color = isMinor ? '#475569' : PALETTE[i % PALETTE.length]
               return (
                 <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 70px 80px 60px', gap:10, alignItems:'center', fontSize:11, padding:'3px 0' }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
@@ -2108,6 +2110,29 @@ function TabPrevTillSales() {
               )
             })}
           </div>
+
+          {/* Show / hide the smaller categories beyond the top 10 */}
+          {rest.length > 0 && (
+            <button
+              onClick={() => setShowMinor(s => !s)}
+              style={{
+                width:'100%', marginTop:10, padding:'8px 10px',
+                background:'rgba(201,168,76,0.06)',
+                border:'1px dashed rgba(201,168,76,0.35)',
+                borderRadius:4,
+                cursor:'pointer',
+                fontSize:10, color:'var(--gold-dim)',
+                letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              }}
+            >
+              <span style={{ transform:showMinor?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+              {showMinor
+                ? `Hide ${rest.length} smaller categories`
+                : `Show ${rest.length} smaller categories (${restTotal.toLocaleString('en-GB')} units combined)`}
+            </button>
+          )}
+
           <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 70px 80px 60px', gap:10, fontSize:11, fontWeight:700 }}>
             <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total</div>
             <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{totals.totalQty.toLocaleString('en-GB')}</div>
