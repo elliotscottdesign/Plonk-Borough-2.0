@@ -5,7 +5,7 @@ import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
-import { HACKNEY_2025_TILL_SALES } from '../data/hackney2025TillSales.js'
+import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS } from '../data/hackney2025TillSales.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
 const TAB_KEYS = ['performance2025','performance2026','cashflow','hackney2025']
@@ -1682,7 +1682,9 @@ const HACKNEY_CAT_PALETTE = [
 ]
 
 function TabHackney2025({ fmt, fmtNum, t }) {
+  const [discOpen, setDiscOpen] = useState(false)
   const data = HACKNEY_2025_TILL_SALES
+  const disc = HACKNEY_2025_DISCOUNTS
   const { categories, months, monthlyTotals, totalRevenue, totalTxns, lastDate } = data
   const avgSpend = totalRevenue / Math.max(1, totalTxns)
 
@@ -1878,6 +1880,110 @@ function TabHackney2025({ fmt, fmtNum, t }) {
             <div style={{ textAlign:'right', color:'#9CA3AF' }}>100%</div>
           </div>
         </div>
+      </div>
+
+      {/* ─── Discounts (collapsible) ──────────────────────────── */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, overflow:'hidden' }}>
+        <button
+          onClick={() => setDiscOpen(o => !o)}
+          style={{
+            width:'100%', padding:'14px 18px', background:'transparent', border:'none',
+            cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between',
+            color:'var(--cream)', textAlign:'left',
+          }}
+        >
+          <div style={{ display:'flex', alignItems:'baseline', gap:14 }}>
+            <span style={{ fontSize:18, color:'var(--gold)', transform:discOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+            <div>
+              <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>
+                {t('hackney2025.disc.header')}
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', marginTop:2 }}>
+                {fmt(Math.round(disc.totalDiscount))} {t('hackney2025.disc.discounted')} · {disc.discountRate.toFixed(2)}% {t('hackney2025.disc.ofGross')} · {fmtNum(disc.discountedOrders)} {t('hackney2025.disc.ordersOf')} {fmtNum(disc.totalOrders)}
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            {discOpen ? t('hackney2025.disc.hide') : t('hackney2025.disc.show')}
+          </span>
+        </button>
+
+        {discOpen && (
+          <div style={{ padding:'4px 18px 20px', borderTop:'1px solid rgba(201,168,76,0.12)' }}>
+            {/* KPI strip */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginTop:14, marginBottom:18 }}>
+              <KpiCard2026 label={t('hackney2025.disc.kpi.total')}     value={fmt(Math.round(disc.totalDiscount))} sub={`${disc.discountRate.toFixed(2)}% ${t('hackney2025.disc.ofGross')}`} color="#F87171" />
+              <KpiCard2026 label={t('hackney2025.disc.kpi.orders')}    value={fmtNum(disc.discountedOrders)}     sub={`${disc.discountedOrderPct}% ${t('hackney2025.disc.ofOrders')}`} color="#FB923C" />
+              <KpiCard2026 label={t('hackney2025.disc.kpi.avg')}       value={fmt(Math.round(disc.avgDiscountPerDiscountedOrder))} sub={t('hackney2025.disc.kpi.avgSub')} color="#FBBF24" />
+              <KpiCard2026 label={t('hackney2025.disc.kpi.peak')}      value="May–Jun"                            sub={t('hackney2025.disc.kpi.peakSub')} color="#A78BFA" />
+            </div>
+
+            {/* Monthly discount-rate strip */}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+                {t('hackney2025.disc.monthlyHeader')}
+              </div>
+              <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:80 }}>
+                {disc.monthly.map((m,i) => {
+                  const maxRate = Math.max(...disc.monthly.map(x=>x.rate))
+                  const h = Math.round((m.rate / maxRate) * 70)
+                  const hot = m.rate >= 8
+                  return (
+                    <div key={m.month} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                      <div style={{ fontSize:9, color:hot?'#FCA5A5':'#9CA3AF', fontWeight:hot?700:400, fontVariantNumeric:'tabular-nums' }}>
+                        {m.rate.toFixed(1)}%
+                      </div>
+                      <div style={{ width:'80%', height:h, background:hot?'#F87171':'rgba(248,113,113,0.35)', borderRadius:'2px 2px 0 0' }} />
+                      <div style={{ fontSize:9, color:'#6B7280', marginTop:2 }}>{m.month}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize:10, color:'#9CA3AF', marginTop:8, fontStyle:'italic' }}>
+                {t('hackney2025.disc.springSpike')}
+              </div>
+            </div>
+
+            {/* Category table */}
+            <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+              {t('hackney2025.disc.tableHeader')}
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', gap:10, fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, paddingBottom:4, borderBottom:'1px solid rgba(201,168,76,0.1)' }}>
+              <div>{t('hackney2025.disc.col.category')}</div>
+              <div style={{ textAlign:'right' }}>{t('hackney2025.disc.col.gross')}</div>
+              <div style={{ textAlign:'right' }}>{t('hackney2025.disc.col.discount')}</div>
+              <div style={{ textAlign:'right' }}>{t('hackney2025.disc.col.rate')}</div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {disc.categories.map((c, i) => {
+                const heat = c.rate >= 15 ? '#F87171' : c.rate >= 8 ? '#FB923C' : c.rate >= 4 ? '#FBBF24' : '#9CA3AF'
+                const flag = c.rate >= 15 ? '🚨' : c.rate >= 8 ? '⚠' : ''
+                return (
+                  <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', gap:10, alignItems:'center', fontSize:11, padding:'4px 0' }}>
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {flag && <span style={{ marginRight:6 }}>{flag}</span>}
+                      {c.name}
+                    </div>
+                    <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{fmt(c.gross)}</div>
+                    <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmt(Math.round(c.discount))}</div>
+                    <div style={{ textAlign:'right', color:heat, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{c.rate.toFixed(1)}%</div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ marginTop:14, padding:'10px 12px', background:'rgba(251,146,60,0.08)', border:'1px solid rgba(251,146,60,0.25)', borderRadius:4, fontSize:11, color:'#FCD34D', lineHeight:1.55 }}>
+              <strong style={{ color:'#FB923C' }}>{t('hackney2025.disc.flagsTitle')}</strong> {t('hackney2025.disc.flagsBody')}
+            </div>
+
+            {/* Reconciliation panel */}
+            <div style={{ marginTop:18, padding:'12px 14px', background:'rgba(34,211,238,0.06)', border:'1px solid rgba(34,211,238,0.25)', borderRadius:4, fontSize:11, color:'#A5F3FC', lineHeight:1.6 }}>
+              <div style={{ fontSize:10, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:700, marginBottom:6 }}>
+                {t('hackney2025.disc.reconHeader')}
+              </div>
+              <div style={{ color:'#CBD5E1' }}>{t('hackney2025.disc.reconBody')}</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Source footnote */}

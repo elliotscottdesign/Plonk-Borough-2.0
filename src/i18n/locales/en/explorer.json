@@ -31,7 +31,32 @@
     "cats": "categories",
     "total": "Total",
     "otherSmall": "Other (<1% lines combined)",
-    "source": "Source · data/hackney_2025_till_sales.csv (cleaned Goodtill export, 89,521 rows · 5,469 previously-blank categories filled per the recategorisation playbook)."
+    "source": "Source · data/hackney_2025_till_sales.csv (cleaned Goodtill export, 89,521 rows · 5,469 previously-blank categories filled per the recategorisation playbook).",
+    "disc": {
+      "header": "Discounts",
+      "discounted": "discounted",
+      "ofGross": "of gross",
+      "ofOrders": "of orders",
+      "ordersOf": "discounted orders of",
+      "show": "Show",
+      "hide": "Hide",
+      "kpi": {
+        "total": "Total discounted",
+        "orders": "Discounted orders",
+        "avg": "Avg per disc. order",
+        "avgSub": "across discounted orders",
+        "peak": "Peak window",
+        "peakSub": "Apr–Jun ran ~9% vs ~5% baseline"
+      },
+      "monthlyHeader": "Discount rate by month (% of gross)",
+      "springSpike": "Apr–Jun spikes to ~9% — looks like a deliberate spring promo run (2-for-£12 doubles, January Deals carry-over). Worth confirming whether intentional vs operator slippage.",
+      "tableHeader": "Discount by category · sorted by £",
+      "col": { "category": "Category", "gross": "Gross", "discount": "Discount £", "rate": "Rate" },
+      "flagsTitle": "Flags:",
+      "flagsBody": "🚨 ≥15% rate — outlier categories (TEQUILA & SHOTS 22.7%, BOTTLED BEER 17.2%, FOOD TACOS 26.2%) are likely promotional SKUs (2-for-£12 doubles, BOGOFs etc). ⚠ 8–15% rate is heavy-but-explainable. Confirm these are intentional rather than till-side errors.",
+      "reconHeader": "Does this help reconcile against the Weekly Merged 2024-2026 dataset?",
+      "reconBody": "Partly. Like-for-like Jan→Aug 2025: Goodtill £595k inc-VAT vs Monthly Summary £383k — gap ~£212k. Discounts (~£39k) account for only ~6% of that. The bulk of the gap is structural: (1) Goodtill totals are gross of VAT (~£99k of the gap is the 20% layer), (2) Monthly Summary is post-restatement / categorisation adjustments (~£20k noted in the Weekly Merged comments), (3) Goodtill captures till-rung golf entries that Weekly Merged splits to a separate Online Golf line, (4) refunds/voids/comps recorded post-COMPLETED. Bottom line: the till data is a clean operational view (real till receipts, real customer payments) but it's NOT a substitute for the P&L. The Weekly Merged dataset stays the canonical revenue figure for investor reporting; this tab is for product-mix and discount analytics."
+    }
   },
   "cashflow": {
     "header": "Cashflow Forecast · May 2026 → Apr 2027",

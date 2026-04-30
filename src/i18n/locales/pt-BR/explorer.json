@@ -31,7 +31,32 @@
     "cats": "categorias",
     "total": "Total",
     "otherSmall": "Outros (<1% combinados)",
-    "source": "Fonte · data/hackney_2025_till_sales.csv (exportação Goodtill limpa, 89.521 linhas · 5.469 categorias previamente em branco preenchidas pelo playbook de recategorização)."
+    "source": "Fonte · data/hackney_2025_till_sales.csv (exportação Goodtill limpa, 89.521 linhas · 5.469 categorias previamente em branco preenchidas pelo playbook de recategorização).",
+    "disc": {
+      "header": "Descontos",
+      "discounted": "em desconto",
+      "ofGross": "do bruto",
+      "ofOrders": "dos pedidos",
+      "ordersOf": "pedidos com desconto de",
+      "show": "Mostrar",
+      "hide": "Ocultar",
+      "kpi": {
+        "total": "Total descontado",
+        "orders": "Pedidos com desconto",
+        "avg": "Médio por pedido c/ desc.",
+        "avgSub": "entre pedidos descontados",
+        "peak": "Janela de pico",
+        "peakSub": "Abr–Jun ~9% vs ~5% base"
+      },
+      "monthlyHeader": "Taxa de desconto por mês (% do bruto)",
+      "springSpike": "Abr–Jun sobe para ~9% — parece campanha primaveril deliberada (2-por-£12 doses, restos de promoções de janeiro). Vale confirmar se intencional ou erro operacional.",
+      "tableHeader": "Desconto por categoria · ordenado por £",
+      "col": { "category": "Categoria", "gross": "Bruto", "discount": "Desconto £", "rate": "Taxa" },
+      "flagsTitle": "Sinalizações:",
+      "flagsBody": "🚨 ≥15% — categorias atípicas (TEQUILA & SHOTS 22,7%, CERVEJA GARRAFA 17,2%, TACOS 26,2%) são prováveis SKUs promocionais (2-por-£12 doses, BOGOFs etc). ⚠ 8–15% é pesado mas explicável. Confirme se são intencionais ou erros de caixa.",
+      "reconHeader": "Isto ajuda a reconciliar com o Weekly Merged 2024-2026?",
+      "reconBody": "Parcialmente. Comparando Jan→Ago 2025: Goodtill £595k com IVA vs Monthly Summary £383k — diferença ~£212k. Descontos (~£39k) explicam apenas ~6%. O grosso da diferença é estrutural: (1) totais Goodtill incluem IVA (~£99k da diferença é a camada de 20%), (2) Monthly Summary é pós-recategorização (~£20k apontados nos comentários do Weekly Merged), (3) Goodtill captura entradas de golf no caixa que o Weekly Merged separa em linha Online Golf, (4) reembolsos/voids/cortesias após COMPLETED. Conclusão: os dados de caixa são uma visão operacional limpa (recibos reais, pagamentos reais) mas NÃO substituem o P&L. O Weekly Merged continua sendo a receita canônica para relatórios a investidores; esta aba é para análise de mix de produtos e descontos."
+    }
   },
   "cashflow": {
     "header": "Projeção de Caixa · Mai 2026 → Abr 2027",
