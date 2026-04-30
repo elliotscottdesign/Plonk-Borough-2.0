@@ -2,6 +2,7 @@
   "header": "Explorador do Negócio · Borough Market SE1",
   "tabs": {
     "performance2025": "Desempenho 2025",
+    "tillsales2025": "Vendas no Caixa 2025",
     "performance2026": "Desempenho 2026",
     "cashflow": "Projeção de Caixa",
     "prevTillSales": "Vendas Históricas (Caixa)"
