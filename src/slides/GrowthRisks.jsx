@@ -2,7 +2,6 @@ import React from 'react'
 import { useTranslation } from 'react-i18next'
 
 const GROWTH_META = [
-  { key:'seo',         impact:'high' },
   { key:'ads',         impact:'medium' },
   { key:'corporate',   impact:'high' },
   { key:'dj',          impact:'medium' },

@@ -13,17 +13,6 @@ const STRENGTH_META = [
   { key:'noExit',     icon:'⚡' },
 ]
 
-const UPSIDE_KEYS = ['seo', 'ads', 'corporate', 'dj', 'repricing']
-
-const RISKS_META = [
-  { key:'timeline', rating:'low' },
-  { key:'revenue',  rating:'low' },
-  { key:'wage',     rating:'medium' },
-  { key:'brand',    rating:'medium' },
-]
-
-const RAG = { low: '#2DD4BF', medium: '#E67E22', high: '#E53935' }
-
 export default function InvestmentCase() {
   const { t, i18n } = useTranslation('case')
   const lang = i18n.language
@@ -82,67 +71,27 @@ export default function InvestmentCase() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
-
-        {/* Upside drivers */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-            {t('upsideHeader')}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {UPSIDE_KEYS.map((key) => (
-              <div key={key} className="card" style={{ padding: 16 }}>
-                <div style={{ fontSize: 12, color: 'var(--teal)', marginBottom: 4, fontWeight: 500 }}>▶ {t(`upside.${key}.driver`)}</div>
-                <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{t(`upside.${key}.detail`)}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Risks */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-            {t('risksHeader')}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {RISKS_META.map((r) => (
-              <div key={r.key} className="card" style={{ padding: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
-                  <div style={{
-                    fontSize: 9, padding: '2px 8px', borderRadius: 10, fontWeight: 600,
-                    background: `${RAG[r.rating]}22`, color: RAG[r.rating],
-                    letterSpacing: '0.08em', textTransform: 'uppercase',
-                  }}>{t(`impact.${r.rating}`)}</div>
-                  <div style={{ fontSize: 12, color: 'var(--cream)' }}>{t(`risks.${r.key}.risk`)}</div>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{t(`risks.${r.key}.mitigation`)}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Final call to action */}
-          <div className="card-highlight" style={{ padding: 20, marginTop: 16 }}>
-            <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.7 }}>
-              <Trans
-                ns="case"
-                i18nKey="cta.body"
-                defaults="{{seeking}} <gold>{{investment}} inc VAT</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}"
-                values={{
-                  seeking: t('cta.seeking'),
-                  investment: fmt(fundingAmount),
-                  forWord: t('cta.for'),
-                  equity: t('cta.equity', { pct: investorPct }),
-                  year1: t('cta.year1'),
-                  return: fmt(investorReturn),
-                  coc: t('cta.coc', { coc: cocPct }),
-                  payback: t('cta.payback'),
-                  paybackYears: paybackLabel,
-                  tail: t('cta.tail'),
-                }}
-                components={{ gold: <span style={{ color: 'var(--gold)', fontWeight: 500 }} /> }}
-              />
-            </div>
-          </div>
+      {/* Final call to action */}
+      <div className="card-highlight" style={{ padding: 20 }}>
+        <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.7 }}>
+          <Trans
+            ns="case"
+            i18nKey="cta.body"
+            defaults="{{seeking}} <gold>{{investment}} inc VAT</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}"
+            values={{
+              seeking: t('cta.seeking'),
+              investment: fmt(fundingAmount),
+              forWord: t('cta.for'),
+              equity: t('cta.equity', { pct: investorPct }),
+              year1: t('cta.year1'),
+              return: fmt(investorReturn),
+              coc: t('cta.coc', { coc: cocPct }),
+              payback: t('cta.payback'),
+              paybackYears: paybackLabel,
+              tail: t('cta.tail'),
+            }}
+            components={{ gold: <span style={{ color: 'var(--gold)', fontWeight: 500 }} /> }}
+          />
         </div>
       </div>
     </div>
