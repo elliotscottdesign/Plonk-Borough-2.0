@@ -320,10 +320,13 @@ function GolfHostSeasonality() {
         <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Months host was rota'd / not" />
       </div>
 
-      {/* Walk-in (till) golf ticket revenue — separate chart */}
-      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14, marginTop:24 }}>
-        Source: Weekly Merged 2024-2026 sheet, row 3 (<strong style={{ color:'var(--cream)' }}>Total Walk In Golf Tickets</strong>), 52 weeks of 2025 aggregated. Total <strong style={{ color:'var(--gold)' }}>{fmt(tillTotal)}</strong>. Note: till sales ran every month — even when the rota had zero Golf Host shifts. Walk-in tickets were being rung up by bar staff / supervisors at the bar till regardless of whether a dedicated host was scheduled.
-      </p>
+      {/* Walk-in (till) golf ticket revenue — separate chart with its own section header */}
+      <div style={{ marginTop:32, marginBottom:14 }}>
+        <STitle>Walk-In (Till) Golf Ticket Revenue · 2025</STitle>
+        <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:0 }}>
+          Source: Weekly Merged 2024-2026 sheet, row 3 (<strong style={{ color:'var(--cream)' }}>Total Walk In Golf Tickets</strong>), 52 weeks of 2025 aggregated. Total <strong style={{ color:'var(--gold)' }}>{fmt(tillTotal)}</strong>. Note: till sales ran every month — even when the rota had zero Golf Host shifts. Walk-in tickets were being rung up by bar staff / supervisors at the bar till regardless of whether a dedicated host was scheduled.
+        </p>
+      </div>
 
       <div className="card" style={{ padding:18, marginBottom:14 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
