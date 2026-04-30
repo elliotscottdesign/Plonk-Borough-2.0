@@ -37,3 +37,19 @@ Column 21 (`Category Source`) records the provenance of each row's Category:
 - `auto · product lookup` — filled from the Product Name → Category mapping
 - `auto · MISC by order context` — filled by inferring the dominant category of the rest of the order
 - (blank) — non-COMPLETED-non-VOIDED row left untouched
+
+## `hackney_2025_till_sales.csv`
+
+Hackney-labelled copy of the same cleaned dataset, packaged for import as a new tab in the **Hackney** workbook.
+
+| | |
+|---|---|
+| Venue | No Dice Hackney · London Fields, E8 (only venue on Goodtill) |
+| Source | Goodtill `Sales Items` export — 1 Jan 2025 → 23 Sep 2025 |
+| Rows | 89,521 total · 86,822 COMPLETED |
+| Gross revenue (COMPLETED) | £628,227.04 |
+| Recategorised | 5,469 rows (per the cleanup playbook above) |
+
+Identical schema and contents to `goodtill_2025_categorised.csv`; the only difference is the note block at the top (rows 1–9) which labels the file as Hackney-specific and flags the **24 Sep 2025 → onwards data gap** (till migration to Lightspeed). Headers in row 10, data from row 11.
+
+This is the dataset that powers the forthcoming Hackney 2025 sales slide in the React deck.
