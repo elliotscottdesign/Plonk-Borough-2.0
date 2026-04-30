@@ -92,7 +92,7 @@ export default function GrowthRisks() {
 
         {/* Growth drivers */}
         <div>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>
+          <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:16, lineHeight:1.25 }}>
             Upside Drivers (not in base case)
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -114,7 +114,7 @@ export default function GrowthRisks() {
 
         {/* Risk register */}
         <div>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>
+          <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:16, lineHeight:1.25 }}>
             Risk Register
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:10 }}>

@@ -112,8 +112,10 @@ function Gallery({ images }) {
   )
 }
 
+// Section subheading — serif font in cream/white, smaller than the main tab
+// heading. Replaces the original tiny gold uppercase label.
 function STitle({ children }) {
-  return <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{children}</div>
+  return <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:14, lineHeight:1.25 }}>{children}</div>
 }
 
 function Tbd({ children }) {
@@ -169,7 +171,7 @@ function TabCatchment() {
         ))}
       </div>
       <div style={{ border:'1px solid rgba(201,168,76,0.2)', borderRadius:10, padding:24 }}>
-        <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:20 }}>Catchment Strengths</div>
+        <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:20, lineHeight:1.25 }}>Catchment Strengths</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:16 }}>
           {strengths.map(s => (
             <div key={s.title} style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:20 }}>
@@ -224,7 +226,7 @@ function TabLocation() {
       </div>
 
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>Transport Links</div>
+        <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:16, lineHeight:1.25 }}>Transport Links</div>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:10 }}>
           {transport.map((tr,i) => (
             <div key={i} style={{ textAlign:'center' }}>
@@ -246,7 +248,7 @@ function TabLocation() {
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20 }}>
-          <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>Nearby Landmarks</div>
+          <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:16, lineHeight:1.25 }}>Nearby Landmarks</div>
           {landmarks.map((l,i) => (
             <div key={i} style={{ display:'flex', alignItems:'center', gap:12, padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
               <span style={{ fontSize:20 }}>{l.icon}</span>

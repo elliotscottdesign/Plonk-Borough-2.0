@@ -52,8 +52,11 @@ const TABS = [
   { key: 'cashflow',        label: 'Cashflow Forecast' },
 ]
 
+// Section subheading — serif font (matches the main tab headings) at ~18px in
+// cream/white. Replaces the original tiny gold uppercase label which was hard
+// to read against the dark backgrounds.
 function STitle({ children }) {
-  return <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{children}</div>
+  return <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:14, lineHeight:1.25 }}>{children}</div>
 }
 
 function Tbd({ children }) {
@@ -367,7 +370,7 @@ function WageReconciliation() {
       </div>
 
       {/* Block 1: Raw rota */}
-      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8, fontWeight:600 }}>1 · Rota cloud — as recorded in 2025</div>
+      <div className="serif" style={{ fontSize:18, color:'var(--cream)', marginBottom:10, lineHeight:1.25 }}>1 · Rota cloud — as recorded in 2025</div>
       <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1.5fr', gap:12, fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
         <span>Role</span><span style={{ textAlign:'right' }}>Hours (raw)</span><span style={{ textAlign:'right' }}>Note</span>
       </div>
@@ -389,7 +392,7 @@ function WageReconciliation() {
       </div>
 
       {/* Block 2: Manual salaried correction */}
-      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', margin:'24px 0 8px', fontWeight:600 }}>2 · Manual correction — salaried roles to 40 × 52</div>
+      <div className="serif" style={{ fontSize:18, color:'var(--cream)', margin:'24px 0 10px', lineHeight:1.25 }}>2 · Manual correction — salaried roles to 40 × 52</div>
       <div style={{ display:'grid', gridTemplateColumns:'2.4fr 1fr 1fr 0.8fr', gap:12, fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', paddingBottom:8, borderBottom:'1px solid rgba(201,168,76,0.15)' }}>
         <span>Role</span><span style={{ textAlign:'right' }}>Raw</span><span style={{ textAlign:'right' }}>Adjusted</span><span style={{ textAlign:'right' }}>Δ</span>
       </div>
@@ -413,7 +416,7 @@ function WageReconciliation() {
       </div>
 
       {/* Block 3: Adjusted basis + reconciliation to financial truth */}
-      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', margin:'24px 0 8px', fontWeight:600 }}>3 · Adjusted basis · reconciliation to financial truth</div>
+      <div className="serif" style={{ fontSize:18, color:'var(--cream)', margin:'24px 0 10px', lineHeight:1.25 }}>3 · Adjusted basis · reconciliation to financial truth</div>
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14 }}>
         <ReconTile label="Adjusted hours total"  value={`${totalAdjusted.toLocaleString('en-GB', { maximumFractionDigits: 1 })} hrs`} sub="Used in calculator + 2025 reference" colour="var(--gold)" />
         <ReconTile label="Adjusted gross (rate × hours)" value={fmt(adjustedGross)} sub="Sum of role-by-role rota basis" colour="var(--cream)" />
@@ -1482,12 +1485,12 @@ function TabTillSales2025() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-      {/* Eyebrow + slide title (matches Tab2026 styling) */}
-      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
-        <span style={{ width:32, height:32, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'rgba(201,168,76,0.12)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:8, fontSize:16 }}>🧾</span>
+      {/* Slide title — serif, white, mixed-case (matches the new STitle treatment) */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:4 }}>
+        <span style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'rgba(201,168,76,0.12)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:8, fontSize:18 }}>🧾</span>
         <div>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Hackney 2025 · Till Sales by Category</div>
-          <div style={{ fontSize:12, color:'#9CA3AF' }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025</div>
+          <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2025 · Till Sales by Category</div>
+          <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025</div>
         </div>
       </div>
 

@@ -19,8 +19,10 @@ import {
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
+// Section subheading — serif font in cream/white, smaller than the main tab
+// heading. Replaces the original tiny gold uppercase label.
 function STitle({ children }) {
-  return <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:12 }}>{children}</div>
+  return <div className="serif" style={{ fontSize:20, color:'var(--cream)', marginBottom:14, lineHeight:1.25 }}>{children}</div>
 }
 
 // ─── Golf Operations — 2025 actuals + go-forward structure ────────────
