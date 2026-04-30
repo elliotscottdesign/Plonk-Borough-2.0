@@ -50,10 +50,30 @@ export default function HackneyApp() {
   // Borough — Investor Presentation") so the browser tab reads
   // "No Dice Hackney" while on /hackney. Reverts naturally on full
   // navigation back to the Borough route.
+  //
+  // Also swap the favicon — Borough uses a 🏙️ cityscape (set in
+  // index.html), Hackney uses a 🌴 palm tree to differentiate browser
+  // tabs at a glance when both decks are open.
   useEffect(() => {
     const prev = document.title
     document.title = 'No Dice Hackney — Investor Presentation'
-    return () => { document.title = prev }
+
+    const PALM_FAVICON = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8C%B4%3C/text%3E%3C/svg%3E"
+    const link = document.querySelector("link[rel='icon']") || document.createElement('link')
+    const prevHref = link.getAttribute('href')
+    const prevType = link.getAttribute('type')
+    if (!link.parentNode) {
+      link.setAttribute('rel', 'icon')
+      document.head.appendChild(link)
+    }
+    link.setAttribute('type', 'image/svg+xml')
+    link.setAttribute('href', PALM_FAVICON)
+
+    return () => {
+      document.title = prev
+      if (prevHref) link.setAttribute('href', prevHref)
+      if (prevType) link.setAttribute('type', prevType)
+    }
   }, [])
 
   return (
