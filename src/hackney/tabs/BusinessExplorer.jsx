@@ -1460,6 +1460,8 @@ const TILL_CAT_PALETTE = [
 function TabTillSales2025() {
   const [discOpen, setDiscOpen] = useState(false)
   const [showMinor, setShowMinor] = useState(false)
+  const [tillNoteOpen, setTillNoteOpen] = useState(false)
+  const [gapNoteOpen, setGapNoteOpen] = useState(false)
   const data = HACKNEY_2025_TILL_SALES
   const disc = HACKNEY_2025_DISCOUNTS
   const codes = HACKNEY_2025_DISCOUNT_CODES
@@ -1510,55 +1512,56 @@ function TabTillSales2025() {
         </div>
       </div>
 
-      {/* TILL ≠ FINANCIALS warning — this is the single most important thing on the slide */}
-      <div style={{
-        padding:'14px 18px',
-        background:'rgba(251,191,36,0.06)',
-        border:'1px solid rgba(251,191,36,0.4)',
-        borderRadius:6,
-        display:'flex',
-        gap:14,
-        alignItems:'flex-start',
-      }}>
-        <div style={{ fontSize:18, lineHeight:'18px', color:'#FBBF24' }}>ⓘ</div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCD34D', marginBottom:4 }}>
-            These are till figures, not financial figures
+      {/* Two compact alert bars — headline + one-line summary visible at all
+          times; full explanation expands on click. Keeps the top of the page
+          scannable while preserving the detail for anyone who wants it. */}
+
+      {/* TILL ≠ FINANCIALS — the single most important caveat on the slide */}
+      <div style={{ background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.4)', borderRadius:6, overflow:'hidden' }}>
+        <button
+          onClick={() => setTillNoteOpen(o => !o)}
+          style={{ width:'100%', padding:'12px 16px', background:'transparent', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:14, textAlign:'left' }}
+        >
+          <div style={{ fontSize:18, color:'#FBBF24', flexShrink:0 }}>ⓘ</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCD34D' }}>
+              Till figures, not P&amp;L revenue
+            </div>
+            <div style={{ fontSize:12, color:'#FDE68A', marginTop:2 }}>
+              Useful for product mix · canonical revenue lives in the 2025 Performance tab
+            </div>
           </div>
-          <div style={{ fontSize:13, color:'#FDE68A', lineHeight:1.55 }}>
-            Numbers below are gross customer payments through the till (inclusive of VAT, after
-            discounts at the till, before any subsequent refund / comp / accounting restatement).
-            They are useful for understanding <strong>what we sold</strong> and <strong>category
-            mix</strong> — they are <strong>not</strong> the canonical revenue figure. For
-            audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab, which is
-            sourced from the Weekly Merge 2024–2026 sheet. Expect the till total here to read
-            higher than the Weekly Merge figure (VAT layer, restatements, refunds, golf-line
-            split — see the Discounts section below for the full reconciliation).
+          <span style={{ fontSize:18, color:'#FCD34D', transform:tillNoteOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', flexShrink:0 }}>›</span>
+        </button>
+        {tillNoteOpen && (
+          <div style={{ padding:'0 18px 14px 48px', fontSize:12, color:'#FDE68A', lineHeight:1.6 }}>
+            Numbers below are gross customer payments through the till — inclusive of VAT, after discounts at the till, before any subsequent refund / comp / accounting restatement. For audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab (sourced from Weekly Merge 2024–2026). Expect the till total here to read higher than the Weekly Merge figure (VAT layer + restatements + refunds + golf-line split — full reconciliation in the Discounts section below).
           </div>
-        </div>
+        )}
       </div>
 
-      {/* Data gap callout */}
-      <div style={{
-        padding:'14px 18px',
-        background:'rgba(239,68,68,0.08)',
-        border:'1px solid rgba(239,68,68,0.35)',
-        borderRadius:6,
-        display:'flex',
-        gap:14,
-        alignItems:'flex-start',
-      }}>
-        <div style={{ fontSize:18, lineHeight:'18px', color:'#F87171' }}>⚠</div>
-        <div style={{ flex:1 }}>
-          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5', marginBottom:4 }}>
-            Data gap · Till migration to Lightspeed on 23 Sep 2025
+      {/* Data gap · 23 Sep 2025 till migration */}
+      <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.35)', borderRadius:6, overflow:'hidden' }}>
+        <button
+          onClick={() => setGapNoteOpen(o => !o)}
+          style={{ width:'100%', padding:'12px 16px', background:'transparent', border:'none', cursor:'pointer', display:'flex', alignItems:'center', gap:14, textAlign:'left' }}
+        >
+          <div style={{ fontSize:18, color:'#F87171', flexShrink:0 }}>⚠</div>
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5' }}>
+              Data ends 23 Sep 2025 · Till migration to Lightspeed
+            </div>
+            <div style={{ fontSize:12, color:'#FECACA', marginTop:2 }}>
+              September bar is partial · Q4 lives in Lightspeed, not here
+            </div>
           </div>
-          <div style={{ fontSize:13, color:'#FECACA', lineHeight:1.55 }}>
-            No till data is available from 24 Sep 2025 onwards. Hackney migrated off Goodtill to
-            Lightspeed on this date — Q4 2025 figures live in Lightspeed reports, not in this
-            dataset. The September bar below is partial (1–23 Sep only).
+          <span style={{ fontSize:18, color:'#FCA5A5', transform:gapNoteOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', flexShrink:0 }}>›</span>
+        </button>
+        {gapNoteOpen && (
+          <div style={{ padding:'0 18px 14px 48px', fontSize:12, color:'#FECACA', lineHeight:1.6 }}>
+            No till data is available from 24 Sep 2025 onwards. Hackney migrated off Goodtill to Lightspeed on that date — Q4 2025 figures live in Lightspeed reports, not in this dataset. The September bar in any monthly chart is partial (1–23 Sep only).
           </div>
-        </div>
+        )}
       </div>
 
       {/* KPI strip */}
