@@ -27,6 +27,7 @@ import {
   HACKNEY_FIXED_COST_ITEMS,
   HACKNEY_FIXED_COSTS_2026_DEFAULTS,
   sumHackneyFixedCostsAnnual,
+  HACKNEY_DMN_SKUS_ONLINE_2025,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
@@ -866,6 +867,85 @@ function ScenarioLeversCard() {
   )
 }
 
+// ─── TicketsSection · non-golf DMN SKU breakdown ─────────────────────
+// Filters HACKNEY_DMN_SKUS_ONLINE_2025 to rounds === 0 — only the
+// SKUs that stay with No Dice under the new operator structure
+// (pool reservations, pool tournaments, bottomless brunch, drink
+// add-ons, arcade tokens, seasonal events). Golf SKUs (Adult / Under
+// 18s rounds, golf-+-tokens bundles, Game & Drink) move to the
+// operator's books and are listed separately for transparency.
+//
+// Projection driver: the Office growth lever (these SKUs are
+// effectively bookings revenue). Per-SKU price/volume overrides
+// could be added later via forecast.pricing — for Phase 8 we ship
+// the read-side first; founder can iterate the editor controls in
+// a follow-up.
+function TicketsSection() {
+  const { forecastEffective } = useLockedUseOfFunds()
+  const officeGrowth = forecastEffective.growth?.office ?? 15
+
+  const allSkus = (typeof HACKNEY_DMN_SKUS_ONLINE_2025 !== 'undefined' ? HACKNEY_DMN_SKUS_ONLINE_2025 : [])
+  const nonGolf = allSkus.filter(s => s.rounds === 0)
+  const golf    = allSkus.filter(s => s.rounds > 0)
+
+  const total2025 = nonGolf.reduce((s, x) => s + x.revenue, 0)
+  const total2026 = total2025 * (1 + officeGrowth / 100)
+  const totalGolf2025 = golf.reduce((s, x) => s + x.revenue, 0)
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
+      {/* Operator-handover banner */}
+      <div className="card" style={{ padding:14, background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.3)', borderLeft:'4px solid #F87171' }}>
+        <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:6 }}>Golf SKUs · Moved to operator</div>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          <strong style={{ color:'var(--cream)' }}>{golf.length}</strong> golf SKUs — Adult / Under 18s rounds, Golf + Tokens bundles, Game &amp; Drink — totalled <strong style={{ color:'var(--cream)' }}>{fmtMoney(totalGolf2025)}</strong> in 2025 online sales. Under the new structure these belong to the golf operator entity. <strong style={{ color:'var(--cream)' }}>No Dice keeps 100% of token revenue inside any sold SKU</strong> — the SKU itself moves but the bundled-token value continues to land with No Dice (per the Plonk Golf Operations page).
+        </div>
+      </div>
+
+      {/* Non-golf SKU table — these stay with No Dice */}
+      <div className="card" style={{ padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Non-Golf Tickets · No Dice retains</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)' }}>{nonGolf.length} SKUs · projected at office lever +{officeGrowth}%</div>
+        </div>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+          Pool reservations, pool tournaments, seasonal events (Pumpkin Carving, Valentine's deals, etc.), drink add-ons and arcade tokens. All retained 100% under the new operator structure. 2026 column scales 2025 sold quantities by the Office growth lever — drag that slider in the Income section to project.
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'10px 0', borderBottom:'1px solid rgba(201,168,76,0.2)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+          <span>SKU</span>
+          <span style={{ textAlign:'right' }}>Tokens</span>
+          <span style={{ textAlign:'right' }}>£/unit</span>
+          <span style={{ textAlign:'right' }}>2025 sold</span>
+          <span style={{ textAlign:'right' }}>2025 £</span>
+          <span style={{ textAlign:'right' }}>2026 £ (proj)</span>
+        </div>
+
+        {nonGolf.sort((a, b) => b.revenue - a.revenue).map(sku => {
+          const proj2026 = sku.revenue * (1 + officeGrowth / 100)
+          return (
+            <div key={sku.sku} style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, fontVariantNumeric:'tabular-nums', alignItems:'baseline' }}>
+              <span style={{ color:'var(--cream)' }}>{sku.sku}</span>
+              <span style={{ textAlign:'right', color: sku.tokens > 0 ? '#EAB308' : 'var(--cream-dim)' }}>{sku.tokens > 0 ? sku.tokens : '—'}</span>
+              <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>£{sku.price.toFixed(2)}</span>
+              <span style={{ textAlign:'right', color:'var(--cream)' }}>{sku.sold.toLocaleString('en-GB')}</span>
+              <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{fmtMoney(sku.revenue)}</span>
+              <span style={{ textAlign:'right', color:'#22D3EE' }}>{fmtMoney(proj2026)}</span>
+            </div>
+          )
+        })}
+
+        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'12px 0 4px', fontSize:14, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
+          <span style={{ color:'var(--cream)' }}>Non-golf total</span>
+          <span></span><span></span><span></span>
+          <span className="serif" style={{ textAlign:'right', color:'var(--cream)', fontSize:16 }}>{fmtMoney(total2025)}</span>
+          <span className="serif" style={{ textAlign:'right', color:'#22D3EE', fontSize:16 }}>{fmtMoney(total2026)}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── OfficeCostsSection · 8-row annual £ editor ──────────────────────
 // Apps + AI + Accounting + Director comp. Sliders use per-line step
 // sized to the line's magnitude (Xero £25 step, Director £500 step) so
@@ -1125,7 +1205,7 @@ function Tab2026() {
           {activeSection === 'fixed'   && <FixedCostsSection />}
           {activeSection === 'wages'   && <WagesSection />}
           {activeSection === 'office'  && <OfficeCostsSection />}
-          {activeSection === 'tickets' && <SectionPlaceholder title="Tickets · DMN SKU pricing" phase={8}>Per-SKU pricing matrix + master volume slider — Phase 8.</SectionPlaceholder>}
+          {activeSection === 'tickets' && <TicketsSection />}
         </div>
       </div>
     </div>
