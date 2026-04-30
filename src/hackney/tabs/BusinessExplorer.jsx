@@ -801,16 +801,19 @@ function Stacked2026({ monthly, kind = 'income' }) {
           {kind === 'income' ? (
             <Bar dataKey="income" name="Revenue" fill="#22D3EE" radius={[3,3,0,0]} maxBarSize={36} />
           ) : (
+            // Stacked cost bars · maxBarSize must match across every segment
+            // (otherwise the segment with the smaller cap renders narrower
+            // and you get a visible "leg" sticking out below the stack).
             <>
               <Bar dataKey="wages"    name="Wages"        stackId="a" fill={COST_2026_COLORS[0]} maxBarSize={36} />
-              <Bar dataKey="fixed"    name="Fixed Costs"  stackId="a" fill={COST_2026_COLORS[1]} />
-              <Bar dataKey="office"   name="Office Costs" stackId="a" fill={COST_2026_COLORS[2]} />
-              <Bar dataKey="drinks"   name="Drinks & Gas" stackId="a" fill={COST_2026_COLORS[3]} />
-              <Bar dataKey="vat"      name="VAT (Net)"    stackId="a" fill={COST_2026_COLORS[4]} />
-              <Bar dataKey="cleaning" name="Cleaning"     stackId="a" fill={COST_2026_COLORS[5]} />
-              <Bar dataKey="arcades"  name="Arcades"      stackId="a" fill={COST_2026_COLORS[6]} />
-              <Bar dataKey="djs"      name="DJs"          stackId="a" fill={COST_2026_COLORS[7]} />
-              <Bar dataKey="food"     name="Food"         stackId="a" fill={COST_2026_COLORS[8]} radius={[3,3,0,0]} />
+              <Bar dataKey="fixed"    name="Fixed Costs"  stackId="a" fill={COST_2026_COLORS[1]} maxBarSize={36} />
+              <Bar dataKey="office"   name="Office Costs" stackId="a" fill={COST_2026_COLORS[2]} maxBarSize={36} />
+              <Bar dataKey="drinks"   name="Drinks & Gas" stackId="a" fill={COST_2026_COLORS[3]} maxBarSize={36} />
+              <Bar dataKey="vat"      name="VAT (Net)"    stackId="a" fill={COST_2026_COLORS[4]} maxBarSize={36} />
+              <Bar dataKey="cleaning" name="Cleaning"     stackId="a" fill={COST_2026_COLORS[5]} maxBarSize={36} />
+              <Bar dataKey="arcades"  name="Arcades"      stackId="a" fill={COST_2026_COLORS[6]} maxBarSize={36} />
+              <Bar dataKey="djs"      name="DJs"          stackId="a" fill={COST_2026_COLORS[7]} maxBarSize={36} />
+              <Bar dataKey="food"     name="Food"         stackId="a" fill={COST_2026_COLORS[8]} maxBarSize={36} radius={[3,3,0,0]} />
             </>
           )}
         </BarChart>
