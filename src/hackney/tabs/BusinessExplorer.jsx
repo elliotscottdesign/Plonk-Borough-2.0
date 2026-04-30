@@ -1478,9 +1478,6 @@ function TabTillSales2025() {
     }
   })
 
-  const maxMonthly = Math.max(...monthlyTotals)
-  const CHART_H = 180
-
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
       {/* Header */}
@@ -1549,50 +1546,6 @@ function TabTillSales2025() {
         <KpiCard2026 label="Transactions"     value={fmtN(totalTxns)}        sub={`${fmtMoney(Math.round(avgSpend))} avg spend`} color="#22D3EE" />
         <KpiCard2026 label="Peak month"       value={peakMonth}              sub={fmtMoney(peakValue)} color="#A78BFA" />
         <KpiCard2026 label="Coverage"         value="Goodtill only"           sub={`ends ${lastDate}`} color="#F87171" />
-      </div>
-
-      {/* Monthly chart */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'16px 18px' }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly gross · 2025</div>
-          <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.05em' }}>All categories · COMPLETED only</div>
-        </div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:8, height:CHART_H, position:'relative' }}>
-          {months.map((m, i) => {
-            const v = monthlyTotals[i]
-            const h = Math.round((v / maxMonthly) * CHART_H)
-            const isPartial = i === months.length - 1
-            return (
-              <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:CHART_H }}>
-                <div title={`${m} 2025 · ${fmtMoney(v)}${isPartial ? ' · partial (1–23 Sep)' : ''}`}
-                     style={{
-                       width:'100%', height:h,
-                       background: isPartial
-                         ? 'repeating-linear-gradient(45deg, rgba(248,113,113,0.55) 0 6px, rgba(248,113,113,0.25) 6px 12px)'
-                         : 'linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%)',
-                       borderRadius:'2px 2px 0 0',
-                       border: isPartial ? '1px dashed rgba(248,113,113,0.7)' : 'none',
-                     }} />
-                <div style={{ fontSize:10, color:isPartial?'#F87171':'#6B7280', textAlign:'center', marginTop:4, fontWeight:isPartial?600:400 }}>
-                  {m}{isPartial ? '*' : ''}
-                </div>
-                <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', fontVariantNumeric:'tabular-nums' }}>
-                  £{Math.round(v/1000)}k
-                </div>
-              </div>
-            )
-          })}
-          <div style={{ position:'absolute', right:0, top:-6, pointerEvents:'none' }}>
-            <div style={{ fontSize:9, fontWeight:700, color:'#F87171', letterSpacing:'0.06em',
-              background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.4)',
-              borderRadius:3, padding:'2px 5px', whiteSpace:'nowrap', marginRight:-4 }}>
-              ⏹ Till migration · 23 Sep
-            </div>
-          </div>
-        </div>
-        <div style={{ fontSize:10, color:'#9CA3AF', marginTop:10, fontStyle:'italic' }}>
-          * September is partial — only 1–23 Sep captured before the till migration to Lightspeed.
-        </div>
       </div>
 
       {/* Donut + category table */}
