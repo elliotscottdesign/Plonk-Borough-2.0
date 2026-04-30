@@ -1566,10 +1566,14 @@ function TabTillSales2025() {
                 <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/totalRevenue)*100).toFixed(1)}%)`}</title>
               </path>
             ))}
-            <text x="160" y="150" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">TOTAL TILL SALES</text>
-            <text x="160" y="180" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(totalRevenue)}</text>
-            <text x="160" y="202" textAnchor="middle" fontSize="10" fill="#6B7280" letterSpacing="0.08em">Jan → 23 Sep 2025 · inc-VAT</text>
+            {/* Centre label sits well inside the donut hole so it doesn't clip
+                the surrounding arc band. The dating moves below the SVG. */}
+            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">TOTAL TILL SALES</text>
+            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(totalRevenue)}</text>
           </svg>
+          <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF', letterSpacing:'0.04em' }}>
+            Jan → 23 Sep 2025 · inc-VAT
+          </div>
           {/* Top 3 callout strip below donut */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginTop:18 }}>
             {donutCats.slice(0, 3).map((c, i) => (
