@@ -866,6 +866,87 @@ function ScenarioLeversCard() {
   )
 }
 
+// ─── FixedCostsSection · 9-row annual £ editor ───────────────────────
+// One slider per fixed-cost line (rates + 8 utilities). Defaults are
+// 2025 actual × 1.10 inflation. Range 0 → 3× default in £100 steps.
+// Annual total at the bottom + read-only Y1 lease rent block (rent is
+// driven by FORECAST_RULES.rentY1, not editable here per founder
+// direction). Disabled when the forecast is locked.
+function FixedCostsSection() {
+  const { forecastEffective, canEditForecast, setForecastValue } = useLockedUseOfFunds()
+  const overrides = forecastEffective.fixedCosts || {}
+  const editorTotal = sumHackneyFixedCostsAnnual(overrides)
+  const rent = FORECAST_RULES.rentY1
+  const grandTotal = editorTotal + rent
+
+  const setLine = (key, val) => {
+    setForecastValue('fixedCosts', { ...overrides, [key]: val })
+  }
+
+  return (
+    <div className="card" style={{ padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'#FB923C', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Fixed Costs · Editor</div>
+        <div style={{ fontSize:13, color:'#FB923C', fontWeight:600 }}>{fmtMoney(grandTotal)}/yr</div>
+      </div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Drag each annual figure. Defaults are 2025 actuals × 1.10 inflation. Y1 lease rent ({fmtMoney(rent)}) is fixed by the lease schedule and shown as a separate read-only line — not editable here.
+      </div>
+
+      {HACKNEY_FIXED_COST_ITEMS.map(item => {
+        const def = HACKNEY_FIXED_COSTS_2026_DEFAULTS[item.id]
+        const value = overrides[item.id] ?? def
+        const max = Math.max(def * 3, 1000)
+        const monthly = value / 12
+        return (
+          <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <div>
+              <div style={{ fontSize:13, color:'var(--cream)' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{item.note} · default {fmtMoney(def)}</div>
+            </div>
+            <div>
+              <input type="range" min={0} max={max} step={100} value={value}
+                onChange={(e) => setLine(item.id, +e.target.value)}
+                disabled={!canEditForecast}
+                style={{ width:'100%', accentColor:'#FB923C', cursor: canEditForecast ? 'pointer' : 'not-allowed', opacity: canEditForecast ? 1 : 0.55 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+                <span>£0</span>
+                <span>{fmtMoney(def)}</span>
+                <span>{fmtMoney(max)}</span>
+              </div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div className="serif" style={{ fontSize:16, color: value === def ? 'var(--cream)' : (value > def ? '#F87171' : '#10B981'), fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                {fmtMoney(value)}
+              </div>
+              <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(monthly).toLocaleString('en-GB')}/mo</div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Read-only Y1 lease rent line */}
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'12px 0 4px', background:'rgba(248,113,113,0.04)', borderRadius:6, marginTop:8 }}>
+        <div>
+          <div style={{ fontSize:13, color:'var(--cream)', fontWeight:500 }}>Rent (Y1, lease schedule)</div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)' }}>£65k+VAT pa · 4-mo rent-free Y1 · 8 paying months × £65k/12</div>
+        </div>
+        <div style={{ fontSize:11, color:'var(--cream-dim)', fontStyle:'italic' }}>Not editable · lease-driven</div>
+        <div style={{ textAlign:'right' }}>
+          <div className="serif" style={{ fontSize:16, color:'#F87171', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{fmtMoney(rent)}</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(rent/12).toLocaleString('en-GB')}/mo avg</div>
+        </div>
+      </div>
+
+      {/* Grand total */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'12px 0 4px', borderTop:'2px solid rgba(248,113,113,0.3)', marginTop:10, fontWeight:600 }}>
+        <span style={{ fontSize:12, color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Fixed Costs · 2026</span>
+        <span className="serif" style={{ fontSize:18, color:'#FB923C' }}>{fmtMoney(grandTotal)}</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── OpCostsSection · 9-line cost donut + monthly stacked bar ────────
 function OpCostsSection({ sc, monthly }) {
   return (
@@ -973,7 +1054,7 @@ function Tab2026() {
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           {activeSection === 'income'  && <IncomeSection sc={sc} monthly={monthly} />}
           {activeSection === 'opcosts' && <OpCostsSection sc={sc} monthly={monthly} />}
-          {activeSection === 'fixed'   && <SectionPlaceholder title="Fixed Costs" phase={6}>9-row matrix with monthly £ sliders + auto Y1 lease rent — Phase 6.</SectionPlaceholder>}
+          {activeSection === 'fixed'   && <FixedCostsSection />}
           {activeSection === 'wages'   && <WagesSection />}
           {activeSection === 'office'  && <SectionPlaceholder title="Office Costs" phase={7}>8-row matrix with annual £ sliders (Apps + AI + Accounting + Director) — Phase 7.</SectionPlaceholder>}
           {activeSection === 'tickets' && <SectionPlaceholder title="Tickets · DMN SKU pricing" phase={8}>Per-SKU pricing matrix + master volume slider — Phase 8.</SectionPlaceholder>}
