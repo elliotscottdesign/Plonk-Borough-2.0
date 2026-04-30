@@ -1480,12 +1480,12 @@ function TabTillSales2025() {
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-      {/* Header */}
-      <div>
-        <STitle>Hackney 2025 · Till Sales by Category</STitle>
-        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.5 }}>
-          No Dice Hackney · London Fields, E8. Goodtill till data, COMPLETED orders only,
-          1 Jan → 23 Sep 2025.
+      {/* Eyebrow + slide title (matches Tab2026 styling) */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+        <span style={{ width:32, height:32, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'rgba(201,168,76,0.12)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:8, fontSize:16 }}>🧾</span>
+        <div>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Hackney 2025 · Till Sales by Category</div>
+          <div style={{ fontSize:12, color:'#9CA3AF' }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025</div>
         </div>
       </div>
 
