@@ -11,13 +11,15 @@
 // Cell mapping (kept narrow for v1 — only the headline numbers that change
 // most often). Values not listed here remain at data.js defaults:
 //
-//   Founder Tools!C5                              → DEAL.multiple
-//   Investment Valuation 1!C7..G7                 → DEAL.preMoney/investment/postMoney/founderEq/investorEq
+//   Investment Valuation 1!F7..G7                 → DEAL.founderEq / DEAL.investorEq
 //   Dividend & Distribution Model!B14             → FORECAST.profit (operating profit override)
-//   Dividend & Distribution Model!B41             → DEAL.investorDividend / totalInvestorReturn
 //   2025 Weekly Categorised Costs!BB78..BB88      → ACTUALS_2025 (9 cost lines + revenue)
 //
-// CoC and payback are computed from the fetched investment + investor return.
+// As of 2026-04-30 funding-amount + use-of-funds + multiple + CoC + payback
+// + A-share threshold all flex live from the FundingSlider on Cover via
+// LockedDeckContext, NOT from the workbook. The bootstrap therefore only
+// hydrates the equity split (which is structural, not slider-driven) and
+// the operating profit / cost reference data.
 
 import { DEAL, FORECAST, ACTUALS_2025, LOCK_SYNC_URL } from './data.js'
 
@@ -60,14 +62,12 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
 
   try {
     const fetches = Promise.all([
-      fetchGviz('Founder Tools', 'C5'),
-      fetchGviz('Investment Valuation 1', 'C7:G7'),
+      fetchGviz('Investment Valuation 1', 'F7:G7'),
       fetchGviz('Dividend & Distribution Model', 'B14'),
-      fetchGviz('Dividend & Distribution Model', 'B41'),
       fetchGviz('2025 Weekly Categorised Costs', 'BB78:BB88'),
     ])
 
-    const [ftC5, iv7, ddmB14, ddmB41, wkBB] = await Promise.race([fetches, timeoutP])
+    const [iv7, ddmB14, wkBB] = await Promise.race([fetches, timeoutP])
 
     let appliedCount = 0
     const apply = (obj, key, val) => {
@@ -77,25 +77,15 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
       }
     }
 
-    // ─── Founder Tools!C5 → DEAL.multiple ────────────────────────────────
-    apply(DEAL, 'multiple', ftC5?.[0]?.[0])
-
-    // ─── Investment Valuation 1!C7..G7 → DEAL fields ─────────────────────
+    // ─── Investment Valuation 1!F7..G7 → DEAL.founderEq / investorEq ─────
     if (iv7?.[0]) {
-      const [preMoney, investment, postMoney, founderEq, investorEq] = iv7[0]
-      apply(DEAL, 'preMoney',   preMoney)
-      apply(DEAL, 'investment', investment)
-      apply(DEAL, 'postMoney',  postMoney)
+      const [founderEq, investorEq] = iv7[0]
       apply(DEAL, 'founderEq',  founderEq)
       apply(DEAL, 'investorEq', investorEq)
     }
 
     // ─── Dividend & Distribution Model!B14 → FORECAST.profit ─────────────
     apply(FORECAST, 'profit', ddmB14?.[0]?.[0])
-
-    // ─── Dividend & Distribution Model!B41 → DEAL.investorDividend ───────
-    apply(DEAL, 'investorDividend',     ddmB41?.[0]?.[0])
-    apply(DEAL, 'totalInvestorReturn',  ddmB41?.[0]?.[0])
 
     // ─── 2025 Weekly Categorised Costs!BB78..BB88 → ACTUALS_2025 ─────────
     // Row offsets in wkBB[]:  78→0  79→1  80→2  81→3  82→4  83→5  84→6
@@ -114,10 +104,6 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
     }
 
     // ─── Derived metrics ─────────────────────────────────────────────────
-    if (DEAL.investment > 0 && DEAL.investorDividend > 0) {
-      DEAL.coc     = DEAL.investorDividend / DEAL.investment
-      DEAL.payback = DEAL.investment / DEAL.investorDividend
-    }
     // FORECAST.revenue = 2026 base case revenue (ACTUALS × 1.15) — derived
     // here so it reflects whatever ACTUALS_2025.revenue resolves to from the
     // Sheet. Same derivation used by InvestmentSummary's calcReturns.

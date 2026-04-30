@@ -1,16 +1,21 @@
 import React from 'react'
 import { useTranslation, Trans } from 'react-i18next'
-import { DEAL } from '../data.js'
+import { computeDealFromInvestment } from '../data.js'
+import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
 export default function MarketContext() {
   const { t } = useTranslation('market')
+
+  // The "this deal" multiple flexes with the locked Cover funding amount.
+  const { effective: funding } = useLockedFunding()
+  const deal = computeDealFromInvestment(funding.investment)
 
   const benchmarks = [
     { multiple: '~5.3×',                          labelKey: 'midMarket',   tagKey: 'above',       highlight: false },
     { multiple: '~4.1×',                          labelKey: 'hospitality', tagKey: 'inline',      highlight: false },
     { multiple: '~2–4×',                          labelKey: 'smallSites',  tagKey: 'inRange',     highlight: false },
     { multiple: '~2–3×',                          labelKey: 'distressed',  tagKey: 'abovePriced', highlight: false },
-    { multiple: `${DEAL.multiple.toFixed(2)}×`,   labelKey: 'thisDeal',    tagKey: 'entry',       highlight: true  },
+    { multiple: `${deal.impliedMult.toFixed(2)}×`, labelKey: 'thisDeal',   tagKey: 'entry',       highlight: true  },
   ]
 
   const sectorKeys = ['nics','nmw','rates','closures','consumer','pe']
@@ -58,8 +63,8 @@ export default function MarketContext() {
               i18nKey="oneLine.body"
               defaults="A proven Borough Market experience venue, acquired at distressed pricing (<gold>{{multiple}}</gold>), distributing via <orange>{{proRata}}</orange> (all shareholders paid at the same time by equity %), with payback driven by <teal>{{cashFlow}}</teal>."
               values={{
-                // multiple is dynamic from DEAL — formatted as "0.86× EBITDA"
-                multiple: `${DEAL.multiple.toFixed(2)}× EBITDA`,
+                // Multiple flexes with the locked Cover slider — pre-money / 2025 EBITDA.
+                multiple: `${deal.impliedMult.toFixed(2)}× EBITDA`,
                 proRata: t('oneLine.proRata'),
                 cashFlow: t('oneLine.cashFlow'),
               }}

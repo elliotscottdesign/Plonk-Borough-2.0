@@ -1,7 +1,8 @@
 import React from 'react'
 import { useTranslation, Trans } from 'react-i18next'
-import { DEAL, ACTUALS_2025, FORECAST } from '../data.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../data.js'
 import { formatCurrency } from '../i18n/format.js'
+import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
 const STRENGTH_META = [
   { key:'proven',     icon:'📊' },
@@ -28,25 +29,35 @@ export default function InvestmentCase() {
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
 
-  const cocPct = (DEAL.coc * 100).toFixed(1)
-  const investorPct = (DEAL.investorEq * 100).toFixed(1)
+  // All deal economics derive from the live / locked funding amount on
+  // the Cover slide — no more hardcoded DEAL.coc / DEAL.payback /
+  // DEAL.multiple / DEAL.totalInvestorReturn references.
+  const { effective: funding } = useLockedFunding()
+  const fundingAmount    = funding.investment
+  const deal             = computeDealFromInvestment(fundingAmount)
+  const investorReturn   = FORECAST.profit * deal.investorEq      // Year-1 dividend
+  const coc              = fundingAmount > 0 ? investorReturn / fundingAmount : 0
+  const payback          = investorReturn > 0 ? fundingAmount / investorReturn : Infinity
+  const cocPct           = (coc * 100).toFixed(1)
+  const investorPct      = (deal.investorEq * 100).toFixed(1)
+  const paybackText      = isFinite(payback) ? payback.toFixed(2) : 'N/A'
 
   const strengthBody = (key) => {
     switch (key) {
       case 'proven':
         return t('strengths.proven.body', { revenue: fmt(ACTUALS_2025.revenue) })
       case 'distressed':
-        return t('strengths.distressed.body', { multiple: DEAL.multiple.toFixed(2) })
+        return t('strengths.distressed.body', { multiple: deal.impliedMult.toFixed(2) })
       case 'noExit':
-        return t('strengths.noExit.body', { coc: cocPct, payback: DEAL.payback })
+        return t('strengths.noExit.body', { coc: cocPct, payback: paybackText })
       default:
         return t(`strengths.${key}.body`)
     }
   }
 
-  const paybackLabel = Number(DEAL.payback) === 1
-    ? t('cta.year', { n: DEAL.payback })
-    : t('cta.years', { n: DEAL.payback })
+  const paybackLabel = paybackText === '1' || paybackText === '1.00'
+    ? t('cta.year', { n: paybackText })
+    : t('cta.years', { n: paybackText })
 
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
@@ -118,11 +129,11 @@ export default function InvestmentCase() {
                 defaults="{{seeking}} <gold>{{investment}} inc VAT</gold> {{forWord}} <gold>{{equity}}</gold>. {{year1}} <gold>{{return}}</gold> {{coc}}. {{payback}} <gold>{{paybackYears}}</gold>. {{tail}}"
                 values={{
                   seeking: t('cta.seeking'),
-                  investment: fmt(DEAL.investment),
+                  investment: fmt(fundingAmount),
                   forWord: t('cta.for'),
                   equity: t('cta.equity', { pct: investorPct }),
                   year1: t('cta.year1'),
-                  return: fmt(DEAL.totalInvestorReturn),
+                  return: fmt(investorReturn),
                   coc: t('cta.coc', { coc: cocPct }),
                   payback: t('cta.payback'),
                   paybackYears: paybackLabel,

@@ -1371,10 +1371,14 @@ const CASHFLOW_SEASONAL = [0.90, 0.85, 1.00, 1.05, 1.05, 1.10, 1.20, 1.40, 0.85,
 // months 3 (Aug, covers Aug-Oct), 6 (Nov, covers Nov-Jan), 9 (Feb, covers Feb-Apr).
 const RENT_QUARTER_MAP = { 3: [3,4,5], 6: [6,7,8], 9: [9,10,11] }
 
-const RENT_3MO_RESERVE  = 27078
-// INVESTOR_CAPITAL is now per-render: pulled from the LockedFundingContext
-// inside TabCashflow so the "investor capital recovered" line on the chart
-// follows the locked total raise from the Cover slider.
+// RENT_3MO_RESERVE and INVESTOR_CAPITAL are now per-render: pulled from
+// the LockedFundingContext inside TabCashflow.
+//   reserveTarget    = funding.rent          (the rent prepay the founder
+//                                             chose on Use of Funds — 1, 2,
+//                                             or 3 months of contractual
+//                                             rent, £9k / £18k / £27k)
+//   investorCapital  = funding.investment    (locked total raise)
+// Both follow the Cover slider + Use of Funds rent snap live.
 
 function buildCashflow({ revenue, totalCosts }) {
   const annualRent     = revenue * 0.15
@@ -1403,7 +1407,8 @@ function TabCashflow({ growth }) {
   const { fmt, fmtK } = useFmt()
   const { snapshot, isLocked } = useLockedForecast()
   const { effective: funding } = useLockedFunding()
-  const INVESTOR_CAPITAL = funding.investment   // tracks the locked Cover slider
+  const INVESTOR_CAPITAL  = funding.investment    // tracks the locked Cover slider
+  const RENT_3MO_RESERVE  = funding.rent          // tracks the Use of Funds rent snap
 
   // Scenario set — uses the same mult logic as InvestmentSummary.calcReturns
   // for Conservative/Base/Optimistic; Custom reads the locked snapshot.

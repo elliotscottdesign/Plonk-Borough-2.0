@@ -47,8 +47,8 @@ No test runner, linter, or typechecker is configured — don't assume `npm test`
 
 Both are plain constants in the component — trivially bypassable by viewing source; treat as a speed bump, not security. Unlock state persists in `sessionStorage` under `ndb_unlocked` (any unlock) and `ndb_plonk` (Plonk-tier flag). Both clear when the tab closes.
 
-### Orphaned components
-Not currently imported anywhere; leave alone unless the user asks you to wire one up or delete it: [src/slides/Financials.jsx](src/slides/Financials.jsx), [src/slides/Governance.jsx](src/slides/Governance.jsx), [src/slides/WageCalculator.jsx](src/slides/WageCalculator.jsx), [src/slides/InvestmentSnapshot.jsx](src/slides/InvestmentSnapshot.jsx) (merged into InvestmentSummary).
+### Lockable funding & forecast state
+[src/components/LockedDeckContext.jsx](src/components/LockedDeckContext.jsx) hosts both lockable surfaces — the funding / use-of-funds slider state (driven by `<FundingSlider />` on Cover and the Use of Funds slide) and the 2026 Performance forecast snapshot. Two backward-compatible hooks: `useLockedFunding()` and `useLockedForecast()`. `LockedDeckProvider` mounted once in [src/App.jsx](src/App.jsx). The two earlier files [src/components/LockedFundingContext.jsx](src/components/LockedFundingContext.jsx) and [src/components/LockedForecastContext.jsx](src/components/LockedForecastContext.jsx) are kept as compatibility shims — they re-export from `LockedDeckContext.jsx`. Funding lock persists to `localStorage` (`ndb_funding_locked_v1`); forecast lock persists to `localStorage` AND optionally posts to `LOCK_SYNC_URL` for cross-device sync.
 
 ## Deploy
 

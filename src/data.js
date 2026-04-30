@@ -50,20 +50,20 @@ export const LOCK_SYNC_SECRET = ''
 //
 // DISTRIBUTION MODEL: pure pro-rata — all shareholders paid at the same time by equity %.
 // No preferred return, no A-share priority. Full operating profit flows through the split.
+// 50/50 pro-rata equity split — single share class. The investor and the
+// founder both hold 50% of the post-money equity. Every other deal figure
+// (pre-money, post-money, multiple, A-share floor, investor dividend, CoC,
+// payback) flexes with the locked Cover funding amount and is computed live
+// via computeDealFromInvestment(investment).
+//
+// Historical fields (DEAL.investment, DEAL.preMoney, DEAL.postMoney,
+// DEAL.multiple, DEAL.investorDividend, DEAL.totalInvestorReturn, DEAL.coc,
+// DEAL.payback, DEAL.aShareThreshold, DEAL.preferred, DEAL.aSharePriority)
+// were stripped on 2026-04-30 — no consumer reads them anymore. Use
+// computeDealFromInvestment(funding.investment) instead.
 export const DEAL = {
-  investment: 79000,
   founderEq: 0.50,
   investorEq: 0.50,
-  multiple: 0.8592,
-  preMoney: 79000,
-  postMoney: 158000,
-  preferred: 0,              // removed — pure pro-rata, no preferred tier
-  aSharePriority: 0,         // removed — pure pro-rata, no founder priority slice
-  investorDividend: 62000,   // 50% × £124,000 base-case operating profit
-  totalInvestorReturn: 62000,// equals dividend (no preferred top-up)
-  coc: 0.7848,               // 78.5% on £79k invested
-  payback: 1.27,             // years
-  aShareThreshold: 7900,     // 5% of post-money — governance floor for A-share voting rights
 }
 
 // === 2025 ACTUALS ===
@@ -292,12 +292,12 @@ export const BOROUGH_RAISE_TARGET = 79000
 
 // === A-SHARE THRESHOLD ===
 // Minimum investor cheque to qualify as A-share (full voting rights).
-// Set as 24% of post-money so it scales with the locked raise:
-//   £79k raise  → £37,920 A-share floor
-//   £100k raise → £48,000 A-share floor
-//   £50k raise  → £24,000 A-share floor
+// Set as 5% of post-money so it scales with the locked raise:
+//   £79k raise  → £7,900 A-share floor
+//   £100k raise → £10,000 A-share floor
+//   £50k raise  → £5,000 A-share floor
 // Cheques below this threshold receive B-shares (limited voting).
-export const A_SHARE_THRESHOLD_PCT = 0.24
+export const A_SHARE_THRESHOLD_PCT = 0.05
 
 // === computeDealFromInvestment ===
 // Single source of truth for valuation maths. Every consumer slide
