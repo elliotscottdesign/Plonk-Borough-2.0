@@ -3,7 +3,8 @@
   "tabs": {
     "performance2025": "Desempenho 2025",
     "performance2026": "Desempenho 2026",
-    "cashflow": "Projeção de Caixa"
+    "cashflow": "Projeção de Caixa",
+    "prevTillSales": "Vendas Históricas (Caixa)"
   },
   "cashflow": {
     "header": "Projeção de Caixa · Mai 2026 → Abr 2027",

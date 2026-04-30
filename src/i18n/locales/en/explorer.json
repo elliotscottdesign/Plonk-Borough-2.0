@@ -3,7 +3,8 @@
   "tabs": {
     "performance2025": "2025 Performance",
     "performance2026": "2026 Performance",
-    "cashflow": "Cashflow Forecast"
+    "cashflow": "Cashflow Forecast",
+    "prevTillSales": "Previous Till Sales"
   },
   "cashflow": {
     "header": "Cashflow Forecast · May 2026 → Apr 2027",
