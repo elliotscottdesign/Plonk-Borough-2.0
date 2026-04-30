@@ -124,15 +124,15 @@ export default function InvestmentSummary() {
       <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
         {t('title')}
       </h2>
-      <p style={{ color: 'var(--cream-dim)', marginBottom: 28, fontSize: 14 }}>
+      <p style={{ color: 'var(--cream-dim)', marginBottom: 28, fontSize: 16 }}>
         {t('subtitle')}
       </p>
 
       {/* Scenario selector */}
-      <div style={{ display: 'flex', gap: 6, marginBottom: 24 }}>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 24 }}>
         {Object.entries(SCENARIOS).map(([key, sc]) => (
           <button key={key} onClick={() => { if (!sc.disabled) setScenario(key) }} disabled={sc.disabled} style={{
-            padding: '7px 18px', fontSize: 11, borderRadius: 6, cursor: sc.disabled ? 'not-allowed' : 'pointer',
+            padding: '10px 22px', fontSize: 13, borderRadius: 6, cursor: sc.disabled ? 'not-allowed' : 'pointer',
             background: activeKey === key ? 'rgba(201,168,76,0.15)' : 'transparent',
             border: `1px solid ${activeKey === key ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
             color: activeKey === key ? 'var(--gold)' : 'var(--cream-dim)',
@@ -140,7 +140,7 @@ export default function InvestmentSummary() {
             opacity: sc.disabled ? 0.45 : 1,
           }} title={sc.disabled ? sc.sub : undefined}>
             {sc.label}
-            {sc.sub && <span style={{ fontSize:9, color:'var(--cream-dim)', display:'block', marginTop:2 }}>{sc.sub}</span>}
+            {sc.sub && <span style={{ fontSize:11, color:'var(--cream-dim)', display:'block', marginTop:3 }}>{sc.sub}</span>}
           </button>
         ))}
       </div>
@@ -171,7 +171,7 @@ export default function InvestmentSummary() {
       </div>
 
       {/* Top 3 highlights */}
-      <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
+      <div style={{ fontSize: 13, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
         {t('highlights.header')}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
@@ -180,24 +180,24 @@ export default function InvestmentSummary() {
           t('highlights.second', { revenue: fmt(ACTUALS_2025.revenue) }),
           t('highlights.third'),
         ].map((text, i) => (
-          <div key={i} className="card" style={{ display: 'flex', gap: 16, padding: '14px 18px', alignItems: 'flex-start' }}>
-            <span className="serif" style={{ fontSize: 18, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
-            <span style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{text}</span>
+          <div key={i} className="card" style={{ display: 'flex', gap: 18, padding: '16px 22px', alignItems: 'flex-start' }}>
+            <span className="serif" style={{ fontSize: 22, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
+            <span style={{ fontSize: 14, color: 'var(--cream-dim)', lineHeight: 1.55 }}>{text}</span>
           </div>
         ))}
       </div>
 
       {/* Interactive return calculator */}
       <div className="card" style={{ padding: 28 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
+        <div style={{ fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
           {t('calculator.title')}
         </div>
 
         <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, fontSize: 13 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 15 }}>
             <span style={{ color: 'var(--cream-dim)' }}>{t('calculator.amount')}</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-              <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ color: 'var(--gold)', fontSize: 16, fontWeight: 600 }}>{fmt(amount)}</span>
               <ResetBtn onClick={() => setAmount(investorMaxCheque)} />
             </span>
           </div>
@@ -206,7 +206,7 @@ export default function InvestmentSummary() {
             value={Math.min(amount, investorMaxCheque)} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--gold-dim)', marginTop: 6 }}>
             <span>£5,000</span>
             <span>{t('calculator.capNote', { investment: fmt(investorMaxCheque) })}</span>
           </div>
@@ -214,11 +214,11 @@ export default function InvestmentSummary() {
 
         {/* Share class badge */}
         <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 8, marginBottom: 20,
-          padding: '6px 14px', borderRadius: 20,
+          display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 20,
+          padding: '8px 16px', borderRadius: 20,
           background: isAShare ? 'rgba(45,212,191,0.1)' : 'rgba(201,168,76,0.1)',
           border: `1px solid ${isAShare ? 'rgba(45,212,191,0.4)' : 'rgba(201,168,76,0.4)'}`,
-          fontSize: 12, color: isAShare ? 'var(--teal)' : 'var(--gold)',
+          fontSize: 14, color: isAShare ? 'var(--teal)' : 'var(--gold)',
         }}>
           <span>{isAShare ? '✓' : '○'}</span>
           {isAShare ? t('calculator.aShares') : t('calculator.bShares')}
@@ -233,7 +233,7 @@ export default function InvestmentSummary() {
           <CalcResult label={t('calculator.totalYear1')} value={fmt(totalCalc)} gold />
         </div>
 
-        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
+        <div style={{ marginTop: 18, fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
           {t('calculator.footnote', {
             coc: (cocCalc * 100).toFixed(1),
             payback: totalCalc > 0 ? (amount / totalCalc).toFixed(2) : 'N/A',
@@ -246,11 +246,11 @@ export default function InvestmentSummary() {
             to the raise — so smaller cheque = same dividend pool slice in
             absolute £ at the cap (50% equity), but the personal CoC ratio
             improves at smaller cheque sizes for the same equity %. */}
-        <details style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)' }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em' }}>
+        <details style={{ marginTop: 16, fontSize: 13, color: 'var(--cream-dim)' }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em', fontSize: 13 }}>
             ⓘ Why does CoC change as I move the slider?
           </summary>
-          <div style={{ marginTop: 8, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.6 }}>
+          <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.65, fontSize: 13 }}>
             Year-1 dividend = your equity share × <strong style={{ color: 'var(--cream)' }}>operating profit</strong> (£124k base case),
             NOT × your cheque. Equity share = your cheque ÷ post-money. So a smaller cheque buys
             less equity and earns a smaller dividend in £, but the dividend-to-cheque <em>ratio</em>
@@ -268,13 +268,13 @@ export default function InvestmentSummary() {
 
 function Section({ title, items }) {
   return (
-    <div className="card" style={{ padding: 20 }}>
-      <div style={{ fontSize: 11, color: 'var(--gold)', marginBottom: 14, fontWeight: 500 }}>{title}</div>
+    <div className="card" style={{ padding: 22 }}>
+      <div style={{ fontSize: 13, color: 'var(--gold)', marginBottom: 16, fontWeight: 600, letterSpacing: '0.02em' }}>{title}</div>
       {items.map(([label, value, gold]) => (
-        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0',
-          borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 11 }}>
+        <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0',
+          borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 13 }}>
           <span style={{ color: 'var(--cream-dim)' }}>{label}</span>
-          <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
+          <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)', fontWeight: gold ? 600 : 400 }}>{value}</span>
         </div>
       ))}
     </div>
@@ -284,8 +284,8 @@ function Section({ title, items }) {
 function CalcResult({ label, value, gold }) {
   return (
     <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 10, color: 'var(--cream-dim)', marginBottom: 6, letterSpacing: '0.05em' }}>{label}</div>
-      <div className="serif" style={{ fontSize: 20, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</div>
+      <div style={{ fontSize: 12, color: 'var(--cream-dim)', marginBottom: 8, letterSpacing: '0.05em' }}>{label}</div>
+      <div className="serif" style={{ fontSize: 24, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</div>
     </div>
   )
 }
