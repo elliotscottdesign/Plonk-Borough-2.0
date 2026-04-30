@@ -1665,13 +1665,13 @@ function TabTillSales2025() {
           }}
         >
           <div style={{ display:'flex', alignItems:'baseline', gap:14 }}>
-            <span style={{ fontSize:18, color:'var(--gold)', transform:discOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+            <span style={{ fontSize:22, color:'var(--gold)', transform:discOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
             <div>
-              <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>
-                Discounts · cost against drink sales
+              <div className="serif" style={{ fontSize:22, color:'var(--cream)', lineHeight:1.2 }}>
+                Discounts
               </div>
-              <div style={{ fontSize:11, color:'#9CA3AF', marginTop:2 }}>
-                {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
+              <div style={{ fontSize:12, color:'#9CA3AF', marginTop:4 }}>
+                Cost against drink sales · {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
               </div>
             </div>
           </div>
