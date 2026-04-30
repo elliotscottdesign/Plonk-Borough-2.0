@@ -3,13 +3,14 @@ import { useTranslation } from 'react-i18next'
 import { WATERFALL, DEAL } from '../data.js'
 import { formatCurrency } from '../i18n/format.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
+import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
-function calcWaterfall(profit) {
+function calcWaterfall(profit, totalRaise) {
   // Pure pro-rata — operating profit splits directly by equity %. No preferred, no A-share priority.
-  const investorDiv = profit * DEAL.investorEq   // 36.05%
-  const founderDiv = profit * DEAL.founderEq     // 63.95%
+  const investorDiv = profit * DEAL.investorEq
+  const founderDiv = profit * DEAL.founderEq
   const totalInvestor = investorDiv
-  const coc = totalInvestor / DEAL.investment
+  const coc = totalRaise > 0 ? totalInvestor / totalRaise : 0
   return { investorDiv, founderDiv, totalInvestor, coc }
 }
 
@@ -18,6 +19,8 @@ export default function WaterfallReturns() {
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
   const { snapshot, isLocked } = useLockedForecast()
+  const { effective: funding } = useLockedFunding()
+  const fundingAmount = funding.investment
 
   // Custom scenario reads from the locked snapshot. When the 2026
   // Performance tab is locked, snapshot.opProfit (= profitAfterVat)
@@ -40,7 +43,7 @@ export default function WaterfallReturns() {
 
   const [scenario, setScenario] = useState('base')
   const s = SCENARIOS[scenario]
-  const w = calcWaterfall(s.profit)
+  const w = calcWaterfall(s.profit, fundingAmount)
 
   const investorPct = (DEAL.investorEq * 100).toFixed(1)
   const founderPct = (DEAL.founderEq * 100).toFixed(1)
@@ -122,8 +125,8 @@ export default function WaterfallReturns() {
 
           <div className="card" style={{ padding: 20 }}>
             <Row label={t('summary.cashOnCash')} value={`${(w.coc * 100).toFixed(1)}%`} gold />
-            <Row label={t('summary.paybackPeriod')} value={t('summary.paybackYears', { n: (DEAL.investment / w.totalInvestor).toFixed(2) })} />
-            <Row label={t('summary.onInvested', { amount: fmt(DEAL.investment) })} value={fmt(DEAL.investment)} />
+            <Row label={t('summary.paybackPeriod')} value={t('summary.paybackYears', { n: w.totalInvestor > 0 ? (fundingAmount / w.totalInvestor).toFixed(2) : 'N/A' })} />
+            <Row label={t('summary.onInvested', { amount: fmt(fundingAmount) })} value={fmt(fundingAmount)} />
             <Row label={t('summary.equityDividend', { pct: investorPct })} value={fmt(w.investorDiv)} gold />
             <Row label={t('summary.distributionTiming')} value={t('summary.sameAsFounder')} />
           </div>

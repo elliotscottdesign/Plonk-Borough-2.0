@@ -13,6 +13,7 @@ import GrowthRisks from './slides/GrowthRisks.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import { LockedForecastProvider } from './components/LockedForecastContext.jsx'
+import { LockedFundingProvider } from './components/LockedFundingContext.jsx'
 import { WORKBOOK_URL } from './data.js'
 
 // Path-based deck dispatch. /hackney (and any nested path under it) renders
@@ -81,6 +82,7 @@ export default function App() {
 
   return (
     <LockedForecastProvider>
+    <LockedFundingProvider>
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>{t('shell.brand')}</div>
@@ -133,6 +135,7 @@ export default function App() {
         {topTab === 'plonk' && plonkAccess && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
       </div>
     </div>
+    </LockedFundingProvider>
     </LockedForecastProvider>
   )
 }

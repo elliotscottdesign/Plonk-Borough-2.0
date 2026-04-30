@@ -8,6 +8,7 @@ import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
+import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -643,9 +644,11 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK } = useFmt()
   const { isLocked, canEdit } = useLockedForecast()
+  const { effective: funding } = useLockedFunding()
+  const fundingAmount = funding.investment
 
-  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, officeCostsTotal })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct, officeCostsTotal })
+  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, officeCostsTotal, fundingAmount })
+  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct, officeCostsTotal, fundingAmount })
   const presets = [
     { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
     { labelKey:'base',         pct: 15, ...buildPreset(15)  },
@@ -1369,7 +1372,9 @@ const CASHFLOW_SEASONAL = [0.90, 0.85, 1.00, 1.05, 1.05, 1.10, 1.20, 1.40, 0.85,
 const RENT_QUARTER_MAP = { 3: [3,4,5], 6: [6,7,8], 9: [9,10,11] }
 
 const RENT_3MO_RESERVE  = 27078
-const INVESTOR_CAPITAL  = 79000
+// INVESTOR_CAPITAL is now per-render: pulled from the LockedFundingContext
+// inside TabCashflow so the "investor capital recovered" line on the chart
+// follows the locked total raise from the Cover slider.
 
 function buildCashflow({ revenue, totalCosts }) {
   const annualRent     = revenue * 0.15
@@ -1397,6 +1402,8 @@ function TabCashflow({ growth }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtK } = useFmt()
   const { snapshot, isLocked } = useLockedForecast()
+  const { effective: funding } = useLockedFunding()
+  const INVESTOR_CAPITAL = funding.investment   // tracks the locked Cover slider
 
   // Scenario set — uses the same mult logic as InvestmentSummary.calcReturns
   // for Conservative/Base/Optimistic; Custom reads the locked snapshot.
@@ -1637,7 +1644,7 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   )
 }
 
-function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal = 0 }) {
+function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal = 0, fundingAmount = 79000 }) {
   // Service Charge is the only derived line — it scales by the average of
   // the 5 commercial levers since it tracks aggregate covers.
   const avg = (barG + golfG + eventsG + hiresG + poolG) / 5
@@ -1666,7 +1673,7 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal
 
   const profit = revenue - costs
   const investorReturn = Math.max(0, profit) * 0.50
-  const coc = investorReturn / 79000 * 100
+  const coc = fundingAmount > 0 ? (investorReturn / fundingAmount) * 100 : 0
   return { revenue, profit, investorReturn, coc }
 }
 

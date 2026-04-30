@@ -251,12 +251,70 @@ export const GOVERNANCE = {
 // (£1,800, VAT-exempt) and alcohol licence change (£100, VAT-exempt). Working Capital
 // reduced by £1,900 in lockstep — total raise unchanged at £79,000.
 export const USE_OF_FUNDS = [
-  { item: 'Rent in Advance (3 months)',  amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months rent paid up front — covers May, Jun, Jul 2026 at the contractual 15% of 2025 turnover rate. NO deposit required. From August 2026 rent reverts to 15% of actual quarterly turnover (variable rent, scales with trading).' },
-  { item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
-  { item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'One-off licensing fee paid to No Dice Bars LTD — grants indefinite use of the Plonk name. No Dice Bars LTD also runs online sales campaigns and platform maintenance under an ongoing commission, replacing the old Design My Night bookings provider' },
-  { item: 'Stock & Operational Setup',   amount:  4900, pct:  6.2, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart, business rates (first month) + alcohol licence change' },
-  { item: 'Working Capital',             amount: 11022, pct: 14.0, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
+  { key: 'rent',     item: 'Rent in Advance (3 months)',  amount: 27078, pct: 34.3, vat: 'inc VAT', note: '3 months rent paid up front — covers May, Jun, Jul 2026 at the contractual 15% of 2025 turnover rate. NO deposit required. From August 2026 rent reverts to 15% of actual quarterly turnover (variable rent, scales with trading).' },
+  { key: 'hardware', item: 'Hardware from Liquidators',   amount: 24000, pct: 30.4, vat: 'inc VAT', note: 'Bar & kitchen equipment (£20,000 + VAT) — operational from Day 1' },
+  { key: 'ip',       item: 'IP License Fee',              amount: 12000, pct: 15.2, vat: 'inc VAT', note: 'One-off licensing fee paid to No Dice Bars LTD — grants indefinite use of the Plonk name. No Dice Bars LTD also runs online sales campaigns and platform maintenance under an ongoing commission, replacing the old Design My Night bookings provider' },
+  { key: 'stock',    item: 'Stock & Operational Setup',   amount:  4900, pct:  6.2, vat: 'inc VAT', note: 'Itemised: opening alcohol stock, software subs (Xero/Rota Cloud/Google), internet, cleaning restart, business rates (first month) + alcohol licence change' },
+  { key: 'working',  item: 'Working Capital',             amount: 11022, pct: 14.0, vat: null,      note: 'Staged into business per cash flow forecast — covers early trading runway' },
 ]
+
+// === USE OF FUNDS — slider ranges ===
+// Per-line slider config consumed by the lockable Use of Funds tool. Rent
+// is a 1/2/3-month snap (lease cadence — no half-months). Hardware tops
+// out at the £24k-inc-VAT liquidator quote (you can buy less, never more).
+// IP is fixed (one-off contract, not a slider). Stock & Setup is a small
+// continuous range around the £4,900 default. Working Capital is the
+// derived residual (funding − allocated) and never has its own slider.
+export const USE_OF_FUNDS_RANGES = {
+  // Rent in Advance — three contractual snap points only.
+  rent: {
+    snaps: [
+      { months: 1, amount:  9026, label: '1 mo' },
+      { months: 2, amount: 18052, label: '2 mo' },
+      { months: 3, amount: 27078, label: '3 mo' },
+    ],
+  },
+  // Hardware from Liquidators — continuous, capped at £24k inc VAT.
+  hardware: { min: 0,    max: 24000, step: 1000 },
+  // Stock & Operational Setup — narrow flex band around the £4.9k default.
+  stock:    { min: 3000, max: 8000,  step: 100  },
+  // IP License Fee — fixed contractual amount, no slider.
+  ip:       { fixed: 12000 },
+}
+
+// === FUNDING SLIDER RANGE ===
+// Min / max / step for the FundingSlider on the Cover slide. £79k is the
+// default raise but the founder can lock at any value in this band. Min
+// chosen so even a 1-month-rent + £0-hardware + £12k-IP + £3k-stock
+// configuration leaves headroom for working capital.
+export const FUNDING_RANGE = { min: 50000, max: 100000, step: 5000 }
+export const BOROUGH_RAISE_TARGET = 79000
+
+// === A-SHARE THRESHOLD ===
+// Minimum investor cheque to qualify as A-share (full voting rights).
+// Set as 24% of post-money so it scales with the locked raise:
+//   £79k raise  → £37,920 A-share floor
+//   £100k raise → £48,000 A-share floor
+//   £50k raise  → £24,000 A-share floor
+// Cheques below this threshold receive B-shares (limited voting).
+export const A_SHARE_THRESHOLD_PCT = 0.24
+
+// === computeDealFromInvestment ===
+// Single source of truth for valuation maths. Every consumer slide
+// (Cover stat cards, MarketContext multiple, InvestmentSummary, Waterfall
+// per-investor returns, VenueInfo) calls this with the locked / live
+// funding amount and reads back pre-money / post-money / multiple /
+// A-share threshold. Mirrors Hackney's helper of the same name.
+export function computeDealFromInvestment(investment) {
+  const preMoney      = investment
+  const postMoney     = investment * 2
+  const investorEq    = 0.5
+  const founderEq     = 0.5
+  const ebitda        = 91950        // = ACTUALS_2025.ebitda — basis for the headline multiple
+  const impliedMult   = ebitda > 0 ? preMoney / ebitda : 0
+  const aShareFloor   = Math.round(postMoney * A_SHARE_THRESHOLD_PCT)
+  return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult, aShareFloor }
+}
 
 // === HARDWARE FROM LIQUIDATORS — itemised £20,000 ex VAT breakdown ===
 // Detail behind the £24,000 inc VAT "Hardware from Liquidators" line.

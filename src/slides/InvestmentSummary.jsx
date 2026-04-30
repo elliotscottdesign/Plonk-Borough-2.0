@@ -1,9 +1,10 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DEAL, ACTUALS_2025 } from '../data.js'
+import { DEAL, ACTUALS_2025, computeDealFromInvestment } from '../data.js'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
+import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
 const pct = (n) => (n * 100).toFixed(1) + '%'
 
@@ -18,7 +19,7 @@ const pct = (n) => (n * 100).toFixed(1) + '%'
 const HISTORICAL_NON_RENT_FIXED_2025 = 54400
 const RENT_PCT_OF_TURNOVER           = 0.15
 
-function calcReturns(multiplier) {
+function calcReturns(multiplier, totalRaise) {
   const revenue = ACTUALS_2025.revenue * multiplier
   const bar = 362836 * multiplier
   const costs =
@@ -35,20 +36,20 @@ function calcReturns(multiplier) {
   const opProfit = revenue - costs
   const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
   const total = investorDiv
-  const coc = total / DEAL.investment
-  const payback = total > 0 ? DEAL.investment / total : Infinity
+  const coc = totalRaise > 0 ? total / totalRaise : 0
+  const payback = total > 0 ? totalRaise / total : Infinity
   return { revenue, opProfit, investorDiv, total, coc, payback }
 }
 
 // Custom scenario uses the locked snapshot directly — no multiplier
 // approximation, because the snapshot already reflects user edits to
 // price, tokens, fixed costs, wages, office costs, etc.
-function calcReturnsFromSnapshot(snapshot) {
+function calcReturnsFromSnapshot(snapshot, totalRaise) {
   const opProfit = snapshot.opProfit
   const investorDiv = Math.max(0, opProfit) * DEAL.investorEq
   const total = investorDiv
-  const coc = total / DEAL.investment
-  const payback = total > 0 ? DEAL.investment / total : Infinity
+  const coc = totalRaise > 0 ? total / totalRaise : 0
+  const payback = total > 0 ? totalRaise / total : Infinity
   return { revenue: snapshot.revenue, opProfit, investorDiv, total, coc, payback }
 }
 
@@ -57,6 +58,15 @@ export default function InvestmentSummary() {
   const lang = i18n.language
   const fmt = (n) => formatCurrency(n, lang)
   const { snapshot, isLocked } = useLockedForecast()
+  const { effective: funding } = useLockedFunding()
+
+  // Single source of truth for the deal — derived from the live / locked
+  // funding amount on the Cover slide. As that slider drags, every figure
+  // on this slide updates: pre-money, post-money, multiple, A-share floor,
+  // calculator slider max, all CoC + payback rows.
+  const fundingAmount = funding.investment
+  const deal          = computeDealFromInvestment(fundingAmount)
+  const investorMaxCheque = deal.postMoney * deal.investorEq   // = fundingAmount
 
   const SCENARIOS = {
     conservative: { label: t('scenarios.conservative.label'), sub: t('scenarios.conservative.sub'), multiplier: 1.10 },
@@ -75,18 +85,28 @@ export default function InvestmentSummary() {
   const activeKey = SCENARIOS[scenario]?.disabled ? 'base' : scenario
   const s = SCENARIOS[activeKey]
   const r = activeKey === 'custom' && snapshot
-    ? calcReturnsFromSnapshot(snapshot)
-    : calcReturns(s.multiplier)
+    ? calcReturnsFromSnapshot(snapshot, fundingAmount)
+    : calcReturns(s.multiplier, fundingAmount)
 
-  const [amount, setAmount] = useState(DEAL.investment)
+  // Calculator slider — investor's personal cheque size within the locked
+  // total raise. Capped at 50% × post-money = total raise (founder retains
+  // the other 50%). When the Cover slider drops the total raise below the
+  // user's last calculator pick, clamp down so the slider can't exceed
+  // its new max.
+  const [amount, setAmount] = useState(fundingAmount)
+  useEffect(() => {
+    if (amount > investorMaxCheque) setAmount(investorMaxCheque)
+    else if (amount < 5000)         setAmount(Math.min(fundingAmount, 5000))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [investorMaxCheque])
 
-  // Pure pro-rata distribution — no preferred, no A-share priority.
-  // Investor's dividend = operating profit × their equity share.
-  // Base operating profit figure is the realistic 2026 base case (£124k) under the new
-  // cost rules (wages +10%, non-rent fixed +10%, drinks 30% of bar, rent 15% of turnover, etc.) — was £190k.
+  // Pure pro-rata — investor's dividend = operating profit × equity %.
+  // Base operating profit = 2026 base case (£124k) under the new cost
+  // rules (wages +10%, non-rent fixed +10%, drinks 30% of bar, rent 15%
+  // of turnover, etc.).
   const OPERATING_PROFIT_BASE = 124000
-  const equity = amount / DEAL.postMoney
-  const isAShare = equity >= 0.05
+  const equity = amount / deal.postMoney
+  const isAShare = amount >= deal.aShareFloor
 
   // Recalculate based on slider (uses base-case operating profit for the calculator)
   const divCalc = OPERATING_PROFIT_BASE * equity
@@ -128,11 +148,11 @@ export default function InvestmentSummary() {
       {/* 3-section snapshot grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 20, marginBottom: 28 }}>
         <Section title={t('sections.deal')} items={[
-          [t('rows.investorEquity'), `${(DEAL.investorEq*100).toFixed(2)}%`],
-          [t('rows.founderEquity'),  `${(DEAL.founderEq*100).toFixed(2)}%`],
-          [t('rows.preMoney'),       fmt(DEAL.preMoney)],
-          [t('rows.postMoney'),      fmt(DEAL.postMoney)],
-          [t('rows.valuationMultiple'), `${DEAL.multiple.toFixed(2)}× EBITDA`],
+          [t('rows.investorEquity'), `${(deal.investorEq*100).toFixed(2)}%`],
+          [t('rows.founderEquity'),  `${(deal.founderEq*100).toFixed(2)}%`],
+          [t('rows.preMoney'),       fmt(deal.preMoney)],
+          [t('rows.postMoney'),      fmt(deal.postMoney)],
+          [t('rows.valuationMultiple'), `${deal.impliedMult.toFixed(2)}× EBITDA`],
         ]} />
         <Section title={t('sections.financial')} items={[
           [t('rows.actualRevenue'),    fmt(ACTUALS_2025.revenue)],
@@ -156,7 +176,7 @@ export default function InvestmentSummary() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
         {[
-          t('highlights.first',  { total: fmt(r.total), coc: (r.coc*100).toFixed(1), investment: fmt(DEAL.investment) }),
+          t('highlights.first',  { total: fmt(r.total), coc: (r.coc*100).toFixed(1), investment: fmt(fundingAmount) }),
           t('highlights.second', { revenue: fmt(ACTUALS_2025.revenue) }),
           t('highlights.third'),
         ].map((text, i) => (
@@ -178,17 +198,17 @@ export default function InvestmentSummary() {
             <span style={{ color: 'var(--cream-dim)' }}>{t('calculator.amount')}</span>
             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
               <span style={{ color: 'var(--gold)' }}>{fmt(amount)}</span>
-              <ResetBtn onClick={() => setAmount(DEAL.investment)} />
+              <ResetBtn onClick={() => setAmount(investorMaxCheque)} />
             </span>
           </div>
           <input
-            type="range" min={5000} max={DEAL.investment} step={2500}
-            value={amount} onChange={e => setAmount(+e.target.value)}
+            type="range" min={5000} max={investorMaxCheque} step={2500}
+            value={Math.min(amount, investorMaxCheque)} onChange={e => setAmount(+e.target.value)}
             style={{ width: '100%', accentColor: 'var(--gold)' }}
           />
           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--gold-dim)', marginTop: 4 }}>
             <span>£5,000</span>
-            <span>{t('calculator.capNote', { investment: fmt(DEAL.investment) })}</span>
+            <span>{t('calculator.capNote', { investment: fmt(investorMaxCheque) })}</span>
           </div>
         </div>
 
@@ -216,10 +236,31 @@ export default function InvestmentSummary() {
         <div style={{ marginTop: 16, fontSize: 11, color: 'var(--cream-dim)' }}>
           {t('calculator.footnote', {
             coc: (cocCalc * 100).toFixed(1),
-            payback: (amount / totalCalc).toFixed(2),
-            threshold: formatNumber(DEAL.aShareThreshold, lang),
+            payback: totalCalc > 0 ? (amount / totalCalc).toFixed(2) : 'N/A',
+            threshold: formatNumber(deal.aShareFloor, lang),
           })}
         </div>
+
+        {/* Why does CoC go up if I write a smaller cheque? — investor-facing
+            explainer requested by user. Anchored to operating profit, not
+            to the raise — so smaller cheque = same dividend pool slice in
+            absolute £ at the cap (50% equity), but the personal CoC ratio
+            improves at smaller cheque sizes for the same equity %. */}
+        <details style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)' }}>
+          <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em' }}>
+            ⓘ Why does CoC change as I move the slider?
+          </summary>
+          <div style={{ marginTop: 8, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.6 }}>
+            Year-1 dividend = your equity share × <strong style={{ color: 'var(--cream)' }}>operating profit</strong> (£124k base case),
+            NOT × your cheque. Equity share = your cheque ÷ post-money. So a smaller cheque buys
+            less equity and earns a smaller dividend in £, but the dividend-to-cheque <em>ratio</em>
+            (cash-on-cash) is the same as anyone else's at the same total raise. Where CoC
+            <em> does </em> shift is when the founder drags the <strong style={{ color: 'var(--cream)' }}>raise on Cover</strong> up or down — because
+            the dividend pool is fixed (50% × £124k), so dropping the raise size lifts everyone's
+            CoC in lockstep, and raising it dilutes everyone in lockstep. Cap on personal cheque
+            stays {fmt(investorMaxCheque)} (= 50% of post-money — founder's half).
+          </div>
+        </details>
       </div>
     </div>
   )
