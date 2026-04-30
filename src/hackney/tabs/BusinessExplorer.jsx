@@ -1141,11 +1141,66 @@ function OpCostsSection({ sc, monthly }) {
   )
 }
 
+// ─── BarPriceUpliftCalculator ────────────────────────────────────────
+// The only price-side growth driver. Sized here against 2025 verified
+// bar takings (£484,684 from Weekly Merge); the resulting % uplift
+// surfaces read-only on the Growth Drivers slide and contributes to
+// the Custom scenario when locked.
+function BarPriceUpliftCalculator() {
+  const ctx = useLockedUseOfFunds()
+  const pct = ctx.forecastEffective.barPriceUplift || 0
+  // 2025 bar takings — Weekly Merge income source aggregate, bar-only line.
+  const BAR_2025 = 484684
+  const annualUplift = BAR_2025 * (pct / 100)
+  const canEdit = ctx.canEditForecast
+
+  return (
+    <div className="card" style={{ padding: 22 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4 }}>
+        <span style={{ fontSize:11, color:'#FBBF24', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>
+          Bar Price Uplift Calculator
+        </span>
+        <span style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.06em' }}>
+          Feeds the Growth Drivers slide
+        </span>
+      </div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        How much would a price uplift on bar SKUs lift annual revenue, applied to the 2025 bar baseline of <strong style={{ color:'var(--cream)' }}>{fmtMoney(BAR_2025)}</strong>? This is the only price-side lever in the growth model — every other driver lifts volume.
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:18 }}>
+        <KpiCard2026 label="Price Uplift"          value={`+${pct.toFixed(1)}%`}              sub="Drag the slider below" color="#FBBF24" />
+        <KpiCard2026 label="2025 Bar Baseline"     value={fmtMoney(BAR_2025)}                  sub="Verified — Weekly Merge"  color="#9CA3AF" />
+        <KpiCard2026 label="Annual £ Uplift (Y1)"  value={fmtMoney(Math.round(annualUplift))}  sub="At unchanged volume"      color="#10B981" />
+      </div>
+
+      <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+        <span style={{ fontSize:10, color:'var(--cream-dim)' }}>0%</span>
+        <input
+          type="range" min={0} max={15} step={0.5}
+          value={pct} disabled={!canEdit}
+          onChange={(e) => ctx.setBarPriceUplift(+e.target.value)}
+          style={{
+            flex:1, accentColor:'#FBBF24',
+            cursor: canEdit ? 'pointer' : 'not-allowed',
+            opacity: canEdit ? 1 : 0.5,
+          }}
+        />
+        <span style={{ fontSize:10, color:'var(--cream-dim)' }}>+15%</span>
+      </div>
+      <div style={{ marginTop:10, fontSize:11, color:'var(--cream-dim)', lineHeight:1.55 }}>
+        Typical hospitality price reviews land 3–6% per cycle without measurable elasticity impact. Above 8% starts to test customer tolerance — model it but stress-test against repeat-rate metrics.
+      </div>
+    </div>
+  )
+}
+
 // ─── IncomeSection ────────────────────────────────────────────────────
 function IncomeSection({ sc, monthly }) {
   return (
     <>
       <ScenarioLeversCard />
+      <BarPriceUpliftCalculator />
       <div className="card" style={{ padding:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
           <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Income · 2026</div>

@@ -47,9 +47,25 @@ const FORECAST_LOCK_KEY = 'ndh_forecast_locked_v1'
 // line, plus matrices for ticket pricing, fixed-cost line edits and
 // office-cost line edits. Borough's tab uses 5 levers; Hackney drops
 // the golf lever (golf moving to operator) so 4 levers remain.
+//
+// growthDrivers: per-strategy contribution to overall annual uplift
+// (sums to roughly 15% in the Base case). Each value is the percentage
+// points that driver contributes to the headline growth target.
+// barPriceUplift: separate price-driven contribution sized via the
+// Bar Price Uplift Calculator on the 2026 Performance tab. Locked
+// from there — the Growth Drivers slide reads this read-only.
 function defaultForecast() {
   return {
     growth:  { bar: 15, office: 15, tournament: 15, pool: 15 },
+    growthDrivers: {
+      seo:        3,    // SEO Rebuild from Day 1
+      organic:    2,    // Organic & Local Listings
+      corporate:  4,    // Corporate Events Pipeline
+      dj:         3,    // DJ & Events Programme
+      repricing:  1,    // Pool & Gaming Repricing (volume side; price is barPriceUplift)
+      garden:     2,    // Garden & Capacity Uplift
+    },
+    barPriceUplift: 0,   // % uplift on bar prices (sized via 2026 Performance calculator)
     pricing:    {},   // SKU → { price?: number, tokens?: number } overrides
     fixedCosts: {},   // line key → £ override
     officeCosts: {},  // line key → £ override
@@ -333,6 +349,28 @@ export function LockedUseOfFundsProvider({ children }) {
     }))
   }, [canEditForecast])
 
+  // Per-driver contribution to overall annual uplift. Each driver is a %
+  // points slice; sum across drivers + bar price uplift = the Custom
+  // scenario's total growth %.
+  const setGrowthDriver = useCallback((driverKey, pct) => {
+    if (!canEditForecast) return
+    setForecastValuesState(prev => {
+      const next = {
+        ...prev,
+        growthDrivers: { ...(prev.growthDrivers || {}), [driverKey]: pct },
+      }
+      return next
+    })
+  }, [canEditForecast])
+
+  // Bar price uplift % — sourced from the Bar Price Uplift Calculator on
+  // the 2026 Performance tab. Locked from there; the Growth Drivers slide
+  // shows it read-only.
+  const setBarPriceUplift = useCallback((pct) => {
+    if (!canEditForecast) return
+    setForecastValuesState(prev => ({ ...prev, barPriceUplift: pct }))
+  }, [canEditForecast])
+
   const lockForecast = useCallback(() => {
     if (!isFounder) return
     const stamped = { ...forecastValues, lockedAt: new Date().toISOString() }
@@ -385,6 +423,8 @@ export function LockedUseOfFundsProvider({ children }) {
     setForecastValue,
     setGrowth,
     setGrowthAll,
+    setGrowthDriver,
+    setBarPriceUplift,
     lockForecast,
     unlockForecast,
     resetForecast,
