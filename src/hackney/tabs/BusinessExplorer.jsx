@@ -866,6 +866,42 @@ function ScenarioLeversCard() {
   )
 }
 
+// ─── OpCostsSection · 9-line cost donut + monthly stacked bar ────────
+function OpCostsSection({ sc, monthly }) {
+  return (
+    <div className="card" style={{ padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'#A78BFA', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Operating Costs · 2026</div>
+        <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmtMoney(sc.totalCosts)}</div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:24, alignItems:'center', marginBottom:8 }}>
+        <DonutChart data={sc.costs2026} total={sc.totalCosts} size={210} label="Annual costs" />
+        <div>
+          {sc.costs2026.map(c => (
+            <div key={c.key} style={{ padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+              <div style={{ display:'flex', alignItems:'center', gap:10, fontSize:13 }}>
+                <span style={{ width:10, height:10, borderRadius:2, background:c.color, flexShrink:0 }} />
+                <span style={{ flex:1, color:'var(--cream)' }}>{c.label}</span>
+                <span style={{ color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(c.value)}</span>
+                <span style={{ color:'var(--cream-dim)', fontSize:11, width:50, textAlign:'right' }}>{c.pct.toFixed(1)}%</span>
+              </div>
+              {c.note && <div style={{ fontSize:10, color:'var(--cream-dim)', paddingLeft:20, marginTop:2 }}>{c.note}</div>}
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px', fontSize:13, fontWeight:600 }}>
+            <span style={{ color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em', fontSize:11 }}>Total costs</span>
+            <span className="serif" style={{ color:'#A78BFA', fontSize:16 }}>{fmtMoney(sc.totalCosts)}</span>
+          </div>
+        </div>
+      </div>
+      <div style={{ marginTop:16 }}>
+        <div style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly costs · 2026 · stacked</div>
+        <Stacked2026 monthly={monthly} kind="costs" />
+      </div>
+    </div>
+  )
+}
+
 // ─── IncomeSection ────────────────────────────────────────────────────
 function IncomeSection({ sc, monthly }) {
   return (
@@ -936,7 +972,7 @@ function Tab2026() {
         <SidebarTOC active={activeSection} onChange={setActiveSection} />
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
           {activeSection === 'income'  && <IncomeSection sc={sc} monthly={monthly} />}
-          {activeSection === 'opcosts' && <SectionPlaceholder title="Operating Costs" phase={4}>9-line cost donut + monthly stacked bar — Phase 4.</SectionPlaceholder>}
+          {activeSection === 'opcosts' && <OpCostsSection sc={sc} monthly={monthly} />}
           {activeSection === 'fixed'   && <SectionPlaceholder title="Fixed Costs" phase={6}>9-row matrix with monthly £ sliders + auto Y1 lease rent — Phase 6.</SectionPlaceholder>}
           {activeSection === 'wages'   && <WagesSection />}
           {activeSection === 'office'  && <SectionPlaceholder title="Office Costs" phase={7}>8-row matrix with annual £ sliders (Apps + AI + Accounting + Director) — Phase 7.</SectionPlaceholder>}
