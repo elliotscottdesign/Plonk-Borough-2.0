@@ -565,6 +565,86 @@ export function computeForecastProfit(wagesOverride) {
   return FORECAST.profit - wageDelta
 }
 
+// === 2026 PERFORMANCE — TAB CONSTANTS ================================
+// Mirrors Borough's BusinessExplorer 2026 tab structure but adapted to
+// Hackney's bar-only post-restructure shape:
+//   • Golf is moving to a separate operator entity, so the golf
+//     growth lever is dropped (4 levers, not 5)
+//   • Rent is the £65k+VAT lease (Y1 £43,333 with 4-mo rent-free,
+//     Y2+ £65,000 with 3% annual uplift) — NOT 15% of turnover
+//   • Office Costs structure is copied from Borough (same line items,
+//     same defaults — per founder direction)
+
+// Donut palette for the 2026 Income breakdown (cyan family). Borough
+// uses #0E7490..#A5F3FC; we use the same for visual consistency.
+export const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E8F9','#A5F3FC']
+
+// Custom Scenario levers — one per commercial revenue line. Keys map
+// to the forecast.growth state shape ({ bar, office, tournament, pool }).
+// Service Charge is intentionally excluded (derived passive line).
+// Golf is intentionally excluded (moving to operator entity).
+// Bases pulled from INCOME_SOURCES (= 2025 actuals).
+export const HACKNEY_SCENARIO_LEVERS = [
+  { key: 'bar',        labelKey: 'Bar',                    incomeKey: 'Bar takings',             color: INCOME_2026_COLORS[0], base: 484684 },
+  { key: 'office',     labelKey: 'Office bookings / hires', incomeKey: 'Office bookings / hires', color: INCOME_2026_COLORS[2], base:  28120 },
+  { key: 'tournament', labelKey: 'Tournament entry',        incomeKey: 'Tournament entry',         color: INCOME_2026_COLORS[3], base:   3570 },
+  { key: 'pool',       labelKey: 'Pool tickets (DMN)',      incomeKey: 'Pool tickets (DMN)',       color: INCOME_2026_COLORS[5], base:   2200 },
+]
+
+// Office Costs — annual £ defaults per line. Same line items + values
+// as Borough (founder confirmed the data is shared).
+export const HACKNEY_OFFICE_COST_ITEMS = [
+  { id: 'xero',         label: 'Xero accounting',            note: '£25/mo × 12' },
+  { id: 'rotacloud',    label: 'RotaCloud',                  note: '~£40/mo for 10 users × 12' },
+  { id: 'claude',       label: 'Claude Pro',                 note: '£20/mo × 12' },
+  { id: 'google',       label: 'Google Workspace',           note: '£25/mo × 12' },
+  { id: 'webhosting',   label: 'Web hosting',                note: 'Annual prepay (~£42/mo equiv.)' },
+  { id: 'amazonPrime',  label: 'Amazon Prime',               note: '£8.99/mo × 12 — venue stock + supplies' },
+  { id: 'accounting',   label: 'Accounting fees',            note: 'Annual fees' },
+  { id: 'director',     label: "Directors' compensation",    note: 'Total director comp budget' },
+]
+export const HACKNEY_OFFICE_COSTS_2026_DEFAULTS = {
+  xero:         300,
+  rotacloud:    480,
+  claude:       240,
+  google:       300,
+  webhosting:   500,
+  amazonPrime:  108,
+  accounting:  3000,
+  director:   30000,
+}
+export const sumHackneyOfficeCosts = (state = {}) =>
+  HACKNEY_OFFICE_COST_ITEMS.reduce(
+    (sum, item) => sum + (state[item.id] ?? HACKNEY_OFFICE_COSTS_2026_DEFAULTS[item.id]),
+    0,
+  )
+
+// Fixed Cost editor — line items match HACKNEY_FIXED_COSTS_2025 minus
+// rent (rent is driven by FORECAST_RULES.rentY1, not the editor) and
+// minus rates (which is the council line and gets its own toggle).
+// Defaults are 2025 actuals × 1.10 inflation, per the FORECAST_RULES
+// fixedUplift rule.
+export const HACKNEY_FIXED_COST_ITEMS = [
+  { id: 'rates',       label: 'Business Rates',  ref2025: 15300, note: 'Hackney Council · 2025 × 1.10' },
+  { id: 'electricity', label: 'Electricity',     ref2025: 12750, note: '2025 × 1.10' },
+  { id: 'water',       label: 'Water',           ref2025:  2550, note: '2025 × 1.10' },
+  { id: 'insurance',   label: 'Insurance',       ref2025:  2754, note: '2025 × 1.10' },
+  { id: 'license',     label: 'License',         ref2025:  1275, note: '2025 × 1.10' },
+  { id: 'prsPpl',      label: 'PRS / PPL',       ref2025:  1530, note: '2025 × 1.10' },
+  { id: 'internet',    label: 'Internet',        ref2025:  1445, note: '2025 × 1.10' },
+  { id: 'lightspeed',  label: 'Lightspeed',      ref2025:   931, note: '2025 × 1.10' },
+  { id: 'tvLicense',   label: 'TV License',      ref2025:   255, note: '2025 × 1.10' },
+]
+export const HACKNEY_FIXED_COSTS_2026_DEFAULTS = HACKNEY_FIXED_COST_ITEMS.reduce(
+  (acc, it) => { acc[it.id] = Math.round(it.ref2025 * 1.10); return acc },
+  {},
+)
+export const sumHackneyFixedCostsAnnual = (state = {}) =>
+  HACKNEY_FIXED_COST_ITEMS.reduce(
+    (sum, it) => sum + (state[it.id] ?? HACKNEY_FIXED_COSTS_2026_DEFAULTS[it.id]),
+    0,
+  )
+
 // === FORECAST RULES (2026 Performance) ==============================
 // Single source of truth for the cost-uplift assumptions. Consumed by
 // BusinessExplorer's 2026 tab AND the WaterfallReturns distribution

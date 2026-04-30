@@ -40,6 +40,25 @@ const LIVE_KEY = 'ndh_live_useoffunds_v1'
 const LOCK_KEY = 'ndh_locked_useoffunds_v1'
 const WAGE_LIVE_KEY = 'ndh_wage_live_v1'
 const WAGE_LOCK_KEY = 'ndh_wage_locked_v1'
+const FORECAST_LIVE_KEY = 'ndh_forecast_live_v1'
+const FORECAST_LOCK_KEY = 'ndh_forecast_locked_v1'
+
+// Default 2026 Performance forecast state — growth levers per income
+// line, plus matrices for ticket pricing, fixed-cost line edits and
+// office-cost line edits. Borough's tab uses 5 levers; Hackney drops
+// the golf lever (golf moving to operator) so 4 levers remain.
+function defaultForecast() {
+  return {
+    growth:  { bar: 15, office: 15, tournament: 15, pool: 15 },
+    pricing:    {},   // SKU → { price?: number, tokens?: number } overrides
+    fixedCosts: {},   // line key → £ override
+    officeCosts: {},  // line key → £ override
+  }
+}
+
+const isValidForecast = (v) =>
+  v && typeof v === 'object' && v.growth && typeof v.growth === 'object' &&
+  Number.isFinite(v.growth.bar)
 
 // Funding amount slider range. Single source of truth — FundingSlider
 // reads this directly. Consumers should treat values outside the range
@@ -179,11 +198,23 @@ export function LockedUseOfFundsProvider({ children }) {
     return defaultWageRows()
   })
 
+  // ─── Forecast (2026 Performance) state ───────────────────────────
+  const [forecastSnapshot, setForecastSnapshot] = useState(() => readPersisted(FORECAST_LOCK_KEY, isValidForecast))
+  const [forecastValues, setForecastValuesState] = useState(() => {
+    const persisted = readPersisted(FORECAST_LIVE_KEY, isValidForecast)
+    if (persisted) return { ...defaultForecast(), ...persisted, growth: { ...defaultForecast().growth, ...(persisted.growth || {}) } }
+    const lock = readPersisted(FORECAST_LOCK_KEY, isValidForecast)
+    if (lock) return { ...defaultForecast(), ...lock, growth: { ...defaultForecast().growth, ...(lock.growth || {}) } }
+    return defaultForecast()
+  })
+
   const isFounder = readIsFounder()
   const isLocked = snapshot !== null
   const canEdit = isFounder && !isLocked
   const isWageLocked = wageSnapshot !== null
   const canEditWages = isFounder && !isWageLocked
+  const isForecastLocked = forecastSnapshot !== null
+  const canEditForecast = isFounder && !isForecastLocked
 
   // Persist live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -195,6 +226,11 @@ export function LockedUseOfFundsProvider({ children }) {
     if (!isFounder) return
     try { localStorage.setItem(WAGE_LIVE_KEY, JSON.stringify(wageRows)) } catch {}
   }, [wageRows, isFounder])
+
+  useEffect(() => {
+    if (!isFounder) return
+    try { localStorage.setItem(FORECAST_LIVE_KEY, JSON.stringify(forecastValues)) } catch {}
+  }, [forecastValues, isFounder])
 
   // The "effective" surface — locked snapshot if locked, else live derived.
   // Every consumer slide reads from this so values cascade live.
@@ -269,6 +305,56 @@ export function LockedUseOfFundsProvider({ children }) {
     setWageRowsState(defaultWageRows())
   }, [wageSnapshot, isFounder])
 
+  // ─── Forecast — derived view + setters ────────────────────────────
+  const forecastEffective = useMemo(
+    () => (isForecastLocked ? forecastSnapshot : forecastValues),
+    [isForecastLocked, forecastSnapshot, forecastValues],
+  )
+
+  // Generic top-level setter — caller passes a key + new value, OR
+  // a key + (subKey, val) for nested updates (growth/pricing/fixed/office).
+  const setForecastValue = useCallback((key, val) => {
+    if (!canEditForecast) return
+    setForecastValuesState(prev => ({ ...prev, [key]: val }))
+  }, [canEditForecast])
+
+  // Convenience: set a single growth lever (e.g. setGrowth('bar', 18))
+  const setGrowth = useCallback((leverKey, pct) => {
+    if (!canEditForecast) return
+    setForecastValuesState(prev => ({ ...prev, growth: { ...prev.growth, [leverKey]: pct } }))
+  }, [canEditForecast])
+
+  // Convenience: set ALL growth levers at once (used by scenario presets)
+  const setGrowthAll = useCallback((pct) => {
+    if (!canEditForecast) return
+    setForecastValuesState(prev => ({
+      ...prev,
+      growth: Object.fromEntries(Object.keys(prev.growth).map(k => [k, pct])),
+    }))
+  }, [canEditForecast])
+
+  const lockForecast = useCallback(() => {
+    if (!isFounder) return
+    const stamped = { ...forecastValues, lockedAt: new Date().toISOString() }
+    setForecastSnapshot(stamped)
+    try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+  }, [forecastValues, isFounder])
+
+  const unlockForecast = useCallback(() => {
+    if (!isFounder) return
+    setForecastSnapshot(null)
+    try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
+  }, [isFounder])
+
+  const resetForecast = useCallback(() => {
+    if (!isFounder) return
+    if (forecastSnapshot) {
+      setForecastSnapshot(null)
+      try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
+    }
+    setForecastValuesState(defaultForecast())
+  }, [forecastSnapshot, isFounder])
+
   const ctx = {
     values,
     snapshot,
@@ -290,6 +376,18 @@ export function LockedUseOfFundsProvider({ children }) {
     lockWages,
     unlockWages,
     resetWages,
+    // Forecast (2026 Performance) surface
+    forecastValues,
+    forecastSnapshot,
+    forecastEffective,
+    isForecastLocked,
+    canEditForecast,
+    setForecastValue,
+    setGrowth,
+    setGrowthAll,
+    lockForecast,
+    unlockForecast,
+    resetForecast,
   }
 
   return (

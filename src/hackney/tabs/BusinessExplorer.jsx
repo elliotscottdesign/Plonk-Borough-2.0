@@ -20,6 +20,13 @@ import {
   ROTA_TOTAL,
   WAGE_OVERHEAD_MULT,
   computeDealFromInvestment,
+  HACKNEY_SCENARIO_LEVERS,
+  HACKNEY_OFFICE_COST_ITEMS,
+  HACKNEY_OFFICE_COSTS_2026_DEFAULTS,
+  sumHackneyOfficeCosts,
+  HACKNEY_FIXED_COST_ITEMS,
+  HACKNEY_FIXED_COSTS_2026_DEFAULTS,
+  sumHackneyFixedCostsAnnual,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
@@ -456,10 +463,148 @@ const FORECAST_RULES = {
   rates:           16830,   // 2025 actual £15,300 × 1.10 — pending council confirm
 }
 
-// Build forecast figures by applying the rules to 2025 actuals + Weekly
-// Merged sub-line breakdowns. Fixed costs are computed from the explicit
-// 2025 sub-line breakdown (HACKNEY_FIXED_COSTS_2025) so we can replace
-// rent and rates with the new figures while uplifting the rest by +10%.
+// ─── 2026 Performance · Section keys for left-side TOC ────────────────
+const PERF_SECTIONS = [
+  { id: 'income',   label: 'Income',          icon: '💰' },
+  { id: 'opcosts',  label: 'Operating Costs', icon: '💸' },
+  { id: 'fixed',    label: 'Fixed Costs',     icon: '🏠' },
+  { id: 'wages',    label: 'Wages',           icon: '👥' },
+  { id: 'office',   label: 'Office Costs',    icon: '🏢' },
+  { id: 'tickets',  label: 'Tickets',         icon: '🎟' },
+]
+
+// 2026 cost donut palette — high-contrast, readable on dark background.
+const COST_2026_COLORS = ['#F87171','#FB923C','#C084FC','#F472B6','#9CA3AF','#FCA5A5','#FDBA74','#FBBF24','#A78BFA']
+
+// ─── compute2026Scenario · canonical 2026 P&L from the forecast state ─
+// Single source of truth for the 2026 numbers — feeds the KPI cards,
+// the income & cost donuts, and the monthly chart. Reads:
+//   • forecast.growth     — 4 levers (bar / office / tournament / pool)
+//   • forecast.fixedCosts — line-by-line fixed-cost overrides
+//   • forecast.officeCosts — line-by-line office-cost overrides
+//   • wagesOverride       — locked Wage Calculator total (or null)
+function compute2026Scenario(forecastValues, wagesOverride) {
+  const growth = forecastValues?.growth ?? {}
+
+  const incomeLines = HACKNEY_SCENARIO_LEVERS.map(l => {
+    const g = growth[l.key] ?? 0
+    return {
+      key: l.key,
+      label: l.labelKey,
+      color: l.color,
+      base: l.base,
+      growth: g,
+      value: Math.round(l.base * (1 + g / 100)),
+    }
+  })
+  const totalIncome     = incomeLines.reduce((s, l) => s + l.value, 0)
+  const baseTotalIncome = HACKNEY_SCENARIO_LEVERS.reduce((s, l) => s + l.base, 0)
+  const aggGrowth       = baseTotalIncome > 0 ? ((totalIncome - baseTotalIncome) / baseTotalIncome) * 100 : 0
+  const mult            = baseTotalIncome > 0 ? totalIncome / baseTotalIncome : 1
+  const incomeWithPct   = incomeLines.map(l => ({ ...l, pct: totalIncome > 0 ? +(l.value / totalIncome * 100).toFixed(1) : 0 }))
+
+  // Wages — locked calculator if present, else PL_WAGE_BASE.
+  const wages = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
+
+  // Fixed costs — editor matrix annual total + Y1 lease rent (£43,333).
+  const fixedFromMatrix = sumHackneyFixedCostsAnnual(forecastValues?.fixedCosts ?? {})
+  const rent            = FORECAST_RULES.rentY1
+  const fixedLine       = fixedFromMatrix + rent
+
+  // Office costs — editor matrix annual total.
+  const officeCostsTotal = sumHackneyOfficeCosts(forecastValues?.officeCosts ?? {})
+
+  // Variable lines scale with revenue mult.
+  const baseDrinks   = COST_CATEGORIES.find(c => c.name === 'Drinks & Gas')?.amount ?? 134123
+  const baseCleaning = COST_CATEGORIES.find(c => c.name === 'Cleaning')?.amount     ?? 16492
+  const baseDjs      = COST_CATEGORIES.find(c => c.name === 'DJs')?.amount          ?? 10300
+  const baseArcades  = COST_CATEGORIES.find(c => c.name === 'Arcades')?.amount      ?? 8202
+  const baseFood     = COST_CATEGORIES.find(c => c.name === 'Food')?.amount         ?? 7887
+  const drinksLine   = Math.round(baseDrinks   * mult)
+  const cleaningLine = Math.round(baseCleaning * mult)
+  const djsLine      = Math.round(baseDjs      * mult)
+  const arcadesLine  = Math.round(baseArcades  * mult)
+  const foodLine     = Math.round(baseFood     * mult)
+
+  // Net VAT — Output VAT (revenue × 1/6) minus Input VAT (vatable costs × 1/6).
+  // Vatable costs: fixed + drinks + cleaning. Zero-rated: wages, food, arcades.
+  const VAT_FRACTION = 1 / 6
+  const vatableCosts = fixedLine + drinksLine + cleaningLine
+  const outputVat    = totalIncome * VAT_FRACTION
+  const inputVat     = vatableCosts * VAT_FRACTION
+  const netVat       = Math.round(outputVat - inputVat)
+
+  const costsRaw = [
+    { key: 'wages',    label: 'Wages',         value: wages,            note: 'Calculator-driven · PL_WAGE_BASE if unlocked' },
+    { key: 'fixed',    label: 'Fixed Costs',   value: fixedLine,        note: `Editor matrix + £${rent.toLocaleString('en-GB')} Y1 lease rent` },
+    { key: 'office',   label: 'Office Costs',  value: officeCostsTotal, note: 'Apps + AI + Accounting + Director matrix' },
+    { key: 'drinks',   label: 'Drinks & Gas',  value: drinksLine,       note: 'Scales with revenue' },
+    { key: 'vat',      label: 'VAT (Net)',     value: netVat,           note: 'Output VAT − Input VAT (1/6 each)' },
+    { key: 'cleaning', label: 'Cleaning',      value: cleaningLine,     note: 'Scales with revenue' },
+    { key: 'arcades',  label: 'Arcades',       value: arcadesLine,      note: 'Scales with revenue' },
+    { key: 'djs',      label: 'DJs',           value: djsLine,          note: 'Scales with revenue' },
+    { key: 'food',     label: 'Food',          value: foodLine,         note: 'Scales with revenue' },
+  ]
+  const totalCosts   = costsRaw.reduce((s, c) => s + c.value, 0)
+  const costs2026    = costsRaw.map((c, i) => ({
+    ...c,
+    color: COST_2026_COLORS[i] || '#9CA3AF',
+    pct: totalCosts > 0 ? +(c.value / totalCosts * 100).toFixed(1) : 0,
+  }))
+
+  // EBITDA excludes net VAT (operating measure); profit-after-VAT is the
+  // bottom line. Both shown as KPI tiles.
+  const ebitda              = totalIncome - (totalCosts - netVat)
+  const profitAfterVat      = totalIncome - totalCosts
+  const margin              = totalIncome > 0 ? ebitda / totalIncome : 0
+  const profitAfterVatMargin = totalIncome > 0 ? profitAfterVat / totalIncome : 0
+
+  return {
+    incomeLines: incomeWithPct,
+    totalIncome, baseTotalIncome, aggGrowth, mult,
+    costs2026, totalCosts, netVat,
+    rent, fixedLine, fixedFromMatrix, officeCostsTotal, wages,
+    ebitda, profitAfterVat, margin, profitAfterVatMargin,
+  }
+}
+
+// ─── compute2026Monthly · 12 months scaled by mult ────────────────────
+// Preserves 2025 month-to-month seasonality and applies the scenario
+// revenue multiplier. Wages scale by their own override factor so the
+// locked Wage Calculator cascades. Fixed / office / VAT distributed
+// evenly across the year for the chart visualisation.
+function compute2026Monthly(forecastValues, wagesOverride) {
+  const sc = compute2026Scenario(forecastValues, wagesOverride)
+  const mult = sc.mult
+  const targetWageAnnual = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
+  const wageScale = PL_WAGE_BASE > 0 ? targetWageAnnual / PL_WAGE_BASE : 1
+  const fixedShare  = sc.fixedLine / 12
+  const officeShare = sc.officeCostsTotal / 12
+  const vatShare    = sc.netVat / 12
+
+  return MONTHLY_INCOME.map((row, i) => {
+    const mc = MONTHLY_COSTS[i]
+    const income     = row.amount * mult
+    const wages      = mc.wages * wageScale
+    const drinks     = mc.drinks * mult
+    const cleaning   = mc.cleaning * mult
+    const djs        = mc.djs * mult
+    const arcades    = mc.arcades * mult
+    const food       = mc.food * mult
+    const totalCost  = wages + drinks + cleaning + djs + arcades + food + fixedShare + officeShare + vatShare
+    return {
+      month: row.month,
+      income,
+      profit: income - totalCost,
+      wages, fixed: fixedShare, office: officeShare, vat: vatShare,
+      drinks, cleaning, djs, arcades, food,
+    }
+  })
+}
+
+// Legacy compatibility — these names are still imported by tests and
+// other tabs. Both delegate to the new compute2026* helpers using the
+// default forecast (no growth overrides, no matrix edits).
 function buildForecast(wagesOverride) {
   const r = 1 + FORECAST_RULES.revenueGrowth
   const v = 1 + FORECAST_RULES.variableUplift
