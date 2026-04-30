@@ -602,364 +602,189 @@ function compute2026Monthly(forecastValues, wagesOverride) {
   })
 }
 
-// Legacy compatibility — these names are still imported by tests and
-// other tabs. Both delegate to the new compute2026* helpers using the
-// default forecast (no growth overrides, no matrix edits).
-function buildForecast(wagesOverride) {
-  const r = 1 + FORECAST_RULES.revenueGrowth
-  const v = 1 + FORECAST_RULES.variableUplift
-  const f = 1 + FORECAST_RULES.fixedUplift
-
-  const revenue = ACTUALS_2025.revenue * r
-  // Wages: locked wage-calculator total cascades in here when present;
-  // otherwise fall back to PL_WAGE_BASE (2025 verified actual).
-  const wages   = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
-  const stockCats = ['Drinks & Gas', 'Food']
-  const otherVarCats = ['Cleaning', 'DJs', 'Arcades']
-  const stock = COST_CATEGORIES.filter(c => stockCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
-  const otherVar = COST_CATEGORIES.filter(c => otherVarCats.includes(c.name)).reduce((s,c) => s + c.amount, 0) * v
-
-  // New fixed cost build:
-  //   rent (Y1):  £14,664 (replaces 2025 £94,146)
-  //   rates:      £16,830 (2025 £15,300 × 1.10)
-  //   other:      sum of other fixed lines × 1.10
-  const otherFixed2025 = HACKNEY_FIXED_COSTS_2025
-    .filter(l => l.key !== 'rent' && l.key !== 'rates')
-    .reduce((s, l) => s + l.amount, 0)
-  const rent  = FORECAST_RULES.rentY1
-  const rates = FORECAST_RULES.rates
-  const otherFixed = otherFixed2025 * f
-  const fixed = rent + rates + otherFixed
-
-  const vatNet = ACTUALS_2025.vatNet * r
-  const director = 15885
-  const opCosts = wages + stock + otherVar + fixed + vatNet + director
-  const opProfit = revenue - opCosts
-  const margin = revenue ? opProfit / revenue : 0
-  return { revenue, wages, stock, otherVar, rent, rates, otherFixed, fixed, vatNet, director, opCosts, opProfit, margin, r, v, f }
+// ─── KpiCard2026 ──────────────────────────────────────────────────────
+function KpiCard2026({ label, value, sub, color }) {
+  return (
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${color}33`, borderTop:`3px solid ${color}`, borderRadius:10, padding:16 }}>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8 }}>{label}</div>
+      <div className="serif" style={{ fontSize:'clamp(1.3rem, 2.4vw, 1.7rem)', color, lineHeight:1, marginBottom:6, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      {sub && <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.4 }}>{sub}</div>}
+    </div>
+  )
 }
 
-// Forecast monthly arrays — apply growth to 2025 monthly income + uplifts
-// to monthly costs (preserving 2025 month-to-month seasonality). Rent +
-// rates are split out and allocated separately: rent is £0 for the first
-// 4 months (rent-free per lease) then £65k/12 ≈ £5,417/mo thereafter;
-// rates split evenly month-to-month.
-function buildForecastMonthly(wagesOverride) {
-  const r = 1 + FORECAST_RULES.revenueGrowth
-  const v = 1 + FORECAST_RULES.variableUplift
-  const f = 1 + FORECAST_RULES.fixedUplift
-  const monthlyRates = FORECAST_RULES.rates / 12                   // £16,830 / 12 ≈ £1,402
+// ─── ForecastLockBar ──────────────────────────────────────────────────
+// Header strip — scenario preset buttons (Bear / Base / Bull / Custom)
+// + Lock / Unlock + Reset for the 2026 forecast cycle. All gated on the
+// founder flag from sessionStorage.
+function ForecastLockBar() {
+  const {
+    forecastValues, forecastSnapshot, isForecastLocked, isFounder, canEditForecast,
+    setGrowthAll, lockForecast, unlockForecast, resetForecast,
+  } = useLockedUseOfFunds()
+  const PRESETS = [
+    { key:'bear',   label:'Conservative', sub:'+10% on 2025', pct:10, colour:'#F87171' },
+    { key:'base',   label:'Base Case',    sub:'+15% on 2025', pct:15, colour:'#C9A84C' },
+    { key:'bull',   label:'Optimistic',   sub:'+20% on 2025', pct:20, colour:'#2DD4BF' },
+    { key:'custom', label:'Custom',       sub:'Drag levers',  pct:null, colour:'var(--gold)' },
+  ]
+  const allEqualPct = (() => {
+    const vals = Object.values(forecastValues.growth || {})
+    if (!vals.length) return null
+    const first = vals[0]
+    return vals.every(v => v === first) ? first : null
+  })()
+  const activeKey = allEqualPct === 10 ? 'bear' : allEqualPct === 15 ? 'base' : allEqualPct === 20 ? 'bull' : 'custom'
+  const lockedAt = forecastSnapshot?.lockedAt
+    ? new Date(forecastSnapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })
+    : null
 
-  // Other fixed (excl. rent + rates) — derive monthly share from 2025 split.
-  // Approximation: distribute the 2025 monthly fixed line proportionally.
-  const otherFixed2025Total = HACKNEY_FIXED_COSTS_2025
-    .filter(l => l.key !== 'rent' && l.key !== 'rates')
-    .reduce((s, l) => s + l.amount, 0)
-  const monthlyFixedTotal2025 = MONTHLY_COSTS.reduce((s, m) => s + m.fixed, 0)
-  // Each month's non-rent, non-rates share = mc.fixed × (otherFixed2025Total / monthlyFixedTotal2025) × 1.10
-
-  // When the wage calculator is locked at a different annual total, scale
-  // the per-month 2025 wage shares proportionally so the seasonality is
-  // preserved but the totals match the locked calculator figure.
-  const targetWageAnnual = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
-  const wageScale = PL_WAGE_BASE > 0 ? targetWageAnnual / PL_WAGE_BASE : 1
-
-  return MONTHLY_INCOME.map((row, i) => {
-    const mc = MONTHLY_COSTS[i]
-    const variable = (mc.drinks + mc.cleaning + mc.djs + mc.arcades + mc.food) * v
-
-    // Fixed split: replace 2025 monthly fixed with new components.
-    const otherFixedShare = monthlyFixedTotal2025 > 0
-      ? mc.fixed * (otherFixed2025Total / monthlyFixedTotal2025) * f
-      : 0
-    // Rent: forecast year is May 2026 → Apr 2027. The user's monthly array
-    // uses Jan–Dec calendar months from 2025 actuals. For the visualisation,
-    // we distribute the Y1 rent figure (8 paying months × £65k/12 =
-    // £43,333) evenly across 12 months ≈ £3,611 / mo average. (Cash Flow
-    // Forecast tab handles the May–Apr trading-year detail with the actual
-    // 4-month rent-free start.)
-    const monthlyRentAvg = FORECAST_RULES.rentY1 / 12
-    const fixed = otherFixedShare + monthlyRentAvg + monthlyRates
-    const wages = mc.wages * wageScale
-    const totalCost = variable + fixed + wages
-    const income = row.amount * r
-
-    return {
-      month: row.month,
-      income,
-      profit: income - totalCost,
-      wages, fixed,
-      rent: monthlyRentAvg,
-      rates: monthlyRates,
-      drinks: mc.drinks * v, cleaning: mc.cleaning * v,
-      djs: mc.djs * v, arcades: mc.arcades * v, food: mc.food * v,
-    }
-  })
+  return (
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${isForecastLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`, borderRadius:10, padding:16, display:'flex', alignItems:'center', gap:14, flexWrap:'wrap' }}>
+      <div style={{ display:'flex', alignItems:'center', gap:14, flex:1, minWidth:280 }}>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:12, background: isForecastLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)', border:`1px solid ${isForecastLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`, fontSize:10, color: isForecastLocked ? '#10B981' : 'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span style={{ fontSize:9 }}>{isForecastLocked ? '🔒' : '○'}</span>
+          {isForecastLocked ? 'Locked · forecast frozen' : 'Live preview'}
+        </span>
+        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+          {PRESETS.map(p => (
+            <button
+              key={p.key}
+              onClick={() => { if (canEditForecast && p.pct !== null) setGrowthAll(p.pct) }}
+              disabled={!canEditForecast || p.pct === null}
+              style={{
+                padding:'6px 14px', borderRadius:6, fontSize:11,
+                border:`1px solid ${activeKey === p.key ? p.colour : 'rgba(201,168,76,0.25)'}`,
+                background: activeKey === p.key ? `${p.colour}22` : 'transparent',
+                color: activeKey === p.key ? p.colour : 'var(--cream-dim)',
+                cursor: (canEditForecast && p.pct !== null) ? 'pointer' : 'not-allowed',
+                opacity: (canEditForecast && p.pct !== null) ? 1 : 0.5,
+                fontWeight: activeKey === p.key ? 600 : 400, transition:'all 0.15s', textAlign:'center',
+              }}
+            >
+              {p.label}
+              <span style={{ display:'block', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>{p.sub}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ display:'flex', gap:6 }}>
+        {isFounder && <button onClick={resetForecast} style={btnSmall(false)}>Reset</button>}
+        {isFounder && (isForecastLocked
+          ? <button onClick={unlockForecast} style={btnSmall(true, true)}>🔓 Unlock</button>
+          : <button onClick={lockForecast} style={btnSmall(true, false)}>🔒 Lock</button>
+        )}
+      </div>
+      {isForecastLocked && lockedAt && (
+        <div style={{ width:'100%', fontSize:10, color:'#10B981', marginTop:4 }}>✓ Locked {lockedAt}</div>
+      )}
+    </div>
+  )
 }
 
-// Build forecasted income-by-source list (2025 sources × revenue growth).
-function buildForecastIncome() {
-  const r = 1 + FORECAST_RULES.revenueGrowth
-  const total = INCOME_SOURCES.reduce((s, c) => s + (c.amount || 0), 0) * r
-  return INCOME_SOURCES.map(c => ({ ...c, amount: (c.amount || 0) * r, pct: total ? (c.amount * r / total * 100) : 0 }))
+function btnSmall(prominent = false, isUnlock = false) {
+  return {
+    padding:'6px 14px', borderRadius:6, fontSize:11, fontWeight:600, cursor:'pointer',
+    letterSpacing:'0.06em', textTransform:'uppercase', transition:'all 0.15s',
+    background: prominent && !isUnlock ? 'var(--gold)' : 'transparent',
+    color:      prominent && !isUnlock ? 'var(--ink)' : 'var(--gold)',
+    border:    `1px solid ${prominent ? 'var(--gold)' : 'rgba(201,168,76,0.3)'}`,
+  }
 }
 
-// Build forecasted cost-by-category list with rule-based uplifts. Fixed
-// Costs is replaced with the rebuilt total (new rent + rates + other × 1.10),
-// not a flat × 1.10 on the 2025 line — the lease change drops it materially.
-function buildForecastCosts(fixedNew) {
-  const v = 1 + FORECAST_RULES.variableUplift
-  const isFixed = (n) => n === 'Fixed Costs'
-  const isWages = (n) => n === 'Wages'
-  return COST_CATEGORIES.map(c => {
-    if (isWages(c.name)) return { ...c }                      // wages: calculator-driven
-    if (isFixed(c.name)) return { ...c, amount: fixedNew }   // replace with rebuilt total
-    return { ...c, amount: c.amount * v }                    // variable / stock: × 1.10
-  })
+// ─── SidebarTOC ───────────────────────────────────────────────────────
+function SidebarTOC({ active, onChange }) {
+  return (
+    <div style={{ position:'sticky', top:16, background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:8 }}>
+      <div style={{ fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.1em', padding:'6px 8px 10px' }}>2026 Performance · Index</div>
+      {PERF_SECTIONS.map(s => {
+        const isActive = active === s.id
+        return (
+          <button
+            key={s.id}
+            onClick={() => onChange(s.id)}
+            style={{
+              display:'flex', alignItems:'center', gap:10, width:'100%',
+              padding:'10px 12px', marginBottom:4,
+              background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+              border: isActive ? '1px solid rgba(201,168,76,0.35)' : '1px solid transparent',
+              borderRadius:6,
+              color: isActive ? 'var(--gold)' : 'var(--cream)',
+              fontSize:12, fontWeight: isActive ? 700 : 500,
+              cursor:'pointer', textAlign:'left',
+              letterSpacing:'0.04em', transition:'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize:14, opacity:0.85 }}>{s.icon}</span>
+            <span style={{ flex:1 }}>{s.label}</span>
+            {isActive && <span style={{ color:'var(--gold)', fontSize:10 }}>●</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
 }
 
+// ─── Section placeholders (Phase 3+ will fill these in) ───────────────
+function SectionPlaceholder({ title, phase, children }) {
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px dashed rgba(201,168,76,0.35)', borderRadius:10, padding:24 }}>
+      <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>{title}</div>
+      <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6 }}>
+        {children || <>This section ships in Phase {phase}. Layout shell + KPIs + scenario controls + lock cycle are live now.</>}
+      </div>
+    </div>
+  )
+}
+
+function WagesSection() {
+  return <WageCalculator />
+}
+
+// ─── Tab2026 ──────────────────────────────────────────────────────────
 function Tab2026() {
-  // Locked wage calculator total cascades into the forecast wage line.
-  // When unlocked, buildForecast falls back to PL_WAGE_BASE.
-  const { isWageLocked, wageEffective } = useLockedUseOfFunds()
-  const wagesOverride = isWageLocked ? wageEffective.loadedAnnual : null
-  const f = buildForecast(wagesOverride)
-  const monthly = buildForecastMonthly(wagesOverride)
-  const fcIncome = buildForecastIncome()
-  const fcCosts = buildForecastCosts(f.fixed)
-  // Re-pct fcCosts after individual scaling
-  const fcCostsTotal = fcCosts.reduce((s, c) => s + c.amount, 0)
-  const fcCostsPctd = fcCosts.map(c => ({ ...c, pct: fcCostsTotal ? (c.amount / fcCostsTotal * 100) : 0 }))
+  const ctx = useLockedUseOfFunds()
+  const [activeSection, setActiveSection] = useState('income')
+  const wagesOverride = ctx.isWageLocked ? ctx.wageEffective.loadedAnnual : null
+  const sc = compute2026Scenario(ctx.forecastEffective, wagesOverride)
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>2026 Forecast — Base Case +15%</STitle>
-      <ForecastTopLineCards f={f} />
-
-      <STitle>Cost Model — 2026 Rules</STitle>
-      <ForecastRulesPanel f={f} />
-
-      <STitle>Income by Source — Forecast</STitle>
-      <ForecastIncomeChart sources={fcIncome} />
-
-      <STitle>Costs by Category — Forecast</STitle>
-      <ForecastCostsChart cats={fcCostsPctd} />
-
-      <STitle>Monthly Performance — Forecast</STitle>
-      <ForecastMonthlyChart data={monthly} />
-
-      <STitle>Locked Snapshot — Founder Edit / Investor View</STitle>
-      <Tbd>Borough's LockedForecastContext lets the founder edit values then click Lock — the snapshot becomes the Custom scenario in Investment Summary and Waterfall Returns. Wire the same provider into HackneyApp once the underlying inputs are finalised.</Tbd>
-
-      <STitle>Wage Calculator</STitle>
-      <WageCalculator />
-
-      <STitle>Income Levers — Scenario Builder</STitle>
-      <Tbd>Per-source revenue lever (bar uplift, bookings uplift, private hires, etc.) feeding the Custom scenario. Borough has 6 levers; Hackney's lever list TBD pending the income-source split.</Tbd>
-    </div>
-  )
-}
-
-// ─── 2026 — Top-line forecast cards ───────────────────────────────────
-function ForecastTopLineCards({ f }) {
-  const cards = [
-    { label: 'Revenue (forecast)',     value: f.revenue,             colour: '#4FC3F7' },
-    { label: 'Wages (calculator)',     value: f.wages,               colour: '#E67E22' },
-    { label: 'Variable +10%',          value: f.stock + f.otherVar,  colour: '#A78BFA' },
-    { label: 'Fixed (new lease)',      value: f.fixed,               colour: '#F87171', sub: `Rent ${fmtMoney(f.rent)} (Y1, 8 mo) · Rates ${fmtMoney(f.rates)}` },
-    { label: 'VAT (Net) + Director',   value: f.vatNet + f.director, colour: '#9CA3AF' },
-    { label: 'Operating Profit',       value: f.opProfit,            colour: f.opProfit >= 0 ? '#10B981' : '#E53935', sub: `${(f.margin*100).toFixed(1)}% margin` },
-  ]
-  return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
-      {cards.map(c => (
-        <div key={c.label} className="card" style={{ padding:14 }}>
-          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{c.label}</div>
-          <div className="serif" style={{ fontSize:'clamp(1.2rem, 2.2vw, 1.6rem)', color: c.colour, lineHeight:1 }}>{fmtMoney(c.value)}</div>
-          {c.sub && <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:6 }}>{c.sub}</div>}
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      {/* Eyebrow + slide title */}
+      <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:4 }}>
+        <span style={{ width:32, height:32, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'rgba(34,211,238,0.12)', border:'1px solid rgba(34,211,238,0.3)', borderRadius:8, fontSize:16 }}>📊</span>
+        <div>
+          <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Forecast Calculator</div>
+          <div style={{ fontSize:12, color:'#9CA3AF' }}>Drag the levers (or pick a preset) — every figure across the deck cascades live until the founder locks the snapshot.</div>
         </div>
-      ))}
-    </div>
-  )
-}
-
-// ─── 2026 — Cost model rules panel ────────────────────────────────────
-function ForecastRulesPanel({ f }) {
-  const { isWageLocked } = useLockedUseOfFunds()
-  const rentBase  = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rent').amount
-  const ratesBase = HACKNEY_FIXED_COSTS_2025.find(l => l.key === 'rates').amount
-  const otherFixedBase = HACKNEY_FIXED_COSTS_2025
-    .filter(l => l.key !== 'rent' && l.key !== 'rates')
-    .reduce((s, l) => s + l.amount, 0)
-
-  const rules = [
-    { label: 'Revenue growth',         value: '+15%',                           base: ACTUALS_2025.revenue,       forecast: f.revenue,            colour: '#4FC3F7' },
-    { label: 'Wages',                  value: isWageLocked ? '🔒 calculator (locked)' : 'calculator', base: PL_WAGE_BASE, forecast: f.wages, colour: '#E67E22', highlight: isWageLocked },
-    { label: 'Stock + variable',       value: '+10%',                           base: ACTUALS_2025.variableCosts, forecast: f.stock + f.otherVar, colour: '#A78BFA' },
-    { label: 'Rent (NEW lease)',       value: '£65k+VAT pa · 4-mo free · +3% pa',  base: rentBase,                   forecast: f.rent,               colour: '#F87171', highlight: true },
-    { label: 'Business rates',         value: '+10% · TBC w/ council',          base: ratesBase,                  forecast: f.rates,              colour: '#F87171' },
-    { label: 'Other fixed',            value: '+10%',                           base: otherFixedBase,             forecast: f.otherFixed,         colour: '#F87171' },
-    { label: 'VAT (Net)',              value: 'scaled with revenue',            base: ACTUALS_2025.vatNet,        forecast: f.vatNet,             colour: '#9CA3AF' },
-    { label: 'Director salary',        value: 'fixed',                          base: f.director,                 forecast: f.director,           colour: '#9CA3AF' },
-  ]
-  return (
-    <div className="card" style={{ padding: 18 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1fr 1fr', gap: 12, padding: '8px 0', borderBottom: '1px solid rgba(201,168,76,0.2)', fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-        <span>Line</span>
-        <span style={{ textAlign: 'right' }}>Rule</span>
-        <span style={{ textAlign: 'right' }}>2025 base</span>
-        <span style={{ textAlign: 'right' }}>2026 forecast</span>
       </div>
-      {rules.map(r => (
-        <div key={r.label} style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.3fr 1fr 1fr', gap: 12, padding: '10px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 13, fontVariantNumeric: 'tabular-nums', background: r.highlight ? 'rgba(248,113,113,0.04)' : 'transparent' }}>
-          <span style={{ color: r.colour }}>{r.label}</span>
-          <span style={{ color: 'var(--cream-dim)', textAlign: 'right', fontStyle: 'italic' }}>{r.value}</span>
-          <span style={{ color: 'var(--cream-dim)', textAlign: 'right' }}>{fmtMoney(r.base)}</span>
-          <span style={{ color: r.colour, textAlign: 'right' }}>{fmtMoney(r.forecast)}</span>
+
+      {/* KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
+        <KpiCard2026 label="Adjusted Revenue"    value={fmtMoney(sc.totalIncome)}    sub={`Aggregate growth ${sc.aggGrowth >= 0 ? '+' : ''}${sc.aggGrowth.toFixed(1)}%`} color="#22D3EE" />
+        <KpiCard2026 label="Adjusted EBITDA"     value={fmtMoney(sc.ebitda)}         sub={`${(sc.margin*100).toFixed(1)}% margin`} color={sc.ebitda > 0 ? '#A78BFA' : '#EF4444'} />
+        <KpiCard2026 label="Profit After VAT"    value={fmtMoney(sc.profitAfterVat)} sub={`${(sc.profitAfterVatMargin*100).toFixed(1)}% margin · Net VAT ${fmtMoney(sc.netVat)}`} color={sc.profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'} />
+      </div>
+
+      {/* Scenario presets + lock */}
+      <ForecastLockBar />
+
+      {/* Sidebar + content */}
+      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
+        <SidebarTOC active={activeSection} onChange={setActiveSection} />
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+          {activeSection === 'income'  && <SectionPlaceholder title="Income" phase={3}>4-lever scenario sliders + income donut + monthly stacked bar — Phase 3.</SectionPlaceholder>}
+          {activeSection === 'opcosts' && <SectionPlaceholder title="Operating Costs" phase={4}>9-line cost donut + monthly stacked bar — Phase 4.</SectionPlaceholder>}
+          {activeSection === 'fixed'   && <SectionPlaceholder title="Fixed Costs" phase={6}>9-row matrix with monthly £ sliders + auto Y1 lease rent — Phase 6.</SectionPlaceholder>}
+          {activeSection === 'wages'   && <WagesSection />}
+          {activeSection === 'office'  && <SectionPlaceholder title="Office Costs" phase={7}>8-row matrix with annual £ sliders (Apps + AI + Accounting + Director) — Phase 7.</SectionPlaceholder>}
+          {activeSection === 'tickets' && <SectionPlaceholder title="Tickets · DMN SKU pricing" phase={8}>Per-SKU pricing matrix + master volume slider — Phase 8.</SectionPlaceholder>}
         </div>
-      ))}
-      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.2)', borderRadius: 8, fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        <strong style={{ color:'var(--teal)' }}>Lease headline:</strong> the new £65,000 + VAT per annum lease (with 4-month rent-free start) means Year 1 pays 8 months × £5,417 = £{f.rent.toLocaleString('en-GB')} — a {fmtMoney(rentBase - f.rent)} saving vs 2025's £{rentBase.toLocaleString('en-GB')}. Steady-state Y2 runs at the £65,000 headline (~£29k/yr saving vs the historic figure), then compounds at +3% per annum per the lease uplift clause. Deposit £19,500 inc VAT, paid in 3 monthly instalments during the rent-free period (funded from trading cash, not the raise).
       </div>
     </div>
   )
 }
 
-// ─── 2026 — Income by Source forecast (mirrors 2025 layout) ───────────
-function ForecastIncomeChart({ sources }) {
-  const total = sources.reduce((s, r) => s + (r.amount || 0), 0)
-  const data = sources.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
-  return (
-    <div className="card" style={{ padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{sources.length} sources · 2025 split × +15% revenue growth</span>
-        <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(total)} forecast</span>
-      </div>
-      <div style={{ height: 230 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
-            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
-            <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <Bar dataKey="amount" radius={[0,4,4,0]}>
-              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        {data.map(r => (
-          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
-            <span style={{ color:'var(--cream)' }}>
-              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
-            </span>
-            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
-            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── 2026 — Costs by Category forecast ────────────────────────────────
-function ForecastCostsChart({ cats }) {
-  const total = cats.reduce((s, r) => s + r.amount, 0)
-  return (
-    <div className="card" style={{ padding: 18 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
-        <span style={{ fontSize: 11, color: 'var(--cream-dim)' }}>2026 cost split · variable +10% · fixed +8% · wages from calculator</span>
-        <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmtMoney(total)} forecast</span>
-      </div>
-      <div style={{ height: 240 }}>
-        <ResponsiveContainer>
-          <BarChart data={cats} layout="vertical" margin={{ left: 8, right: 12 }}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
-            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
-            <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <Bar dataKey="amount" radius={[0,4,4,0]}>
-              {cats.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        {cats.map(r => (
-          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
-            <span style={{ color:'var(--cream)' }}>
-              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
-            </span>
-            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
-            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.pct.toFixed(1)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ─── 2026 — Monthly performance forecast ──────────────────────────────
-function ForecastMonthlyChart({ data }) {
-  return (
-    <div className="card" style={{ padding: 18 }}>
-      <div style={{ fontSize:11, color:'var(--cream-dim)', marginBottom:12 }}>
-        Monthly bars = forecast revenue (2025 actuals × +15%) · line = forecast operating profit (after variable +10%, fixed +8%, wages baseline).
-      </div>
-      <div style={{ height: 260 }}>
-        <ResponsiveContainer>
-          <ComposedChart data={data}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
-            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
-            <Bar dataKey="income" name="Forecast income"  fill="var(--gold)" radius={[3,3,0,0]} />
-            <Line type="monotone" dataKey="profit" name="Forecast profit" stroke="var(--teal)" strokeWidth={2} dot={{ r:3, fill:'var(--teal)' }} />
-            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
-          </ComposedChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div style={{ fontSize:11, color:'var(--cream-dim)', margin:'18px 0 8px' }}>Monthly cost stack — forecast (2025 actuals × uplift rules):</div>
-      <div style={{ height: 220 }}>
-        <ResponsiveContainer>
-          <BarChart data={data}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
-            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
-            <Bar dataKey="wages"        name="Wages"        stackId="a" fill="#4A0000" />
-            <Bar dataKey="drinks"       name="Drinks & Gas (+10%)" stackId="a" fill="#7B0000" />
-            <Bar dataKey="fixed"        name="Fixed Costs (+8%)"   stackId="a" fill="#B71C1C" />
-            <Bar dataKey="cleaning"     name="Cleaning (+10%)"     stackId="a" fill="#C62828" />
-            <Bar dataKey="djs"          name="DJs (+10%)"          stackId="a" fill="#E53935" />
-            <Bar dataKey="arcades"      name="Arcades (+10%)"      stackId="a" fill="#D84315" />
-            <Bar dataKey="food"         name="Food (+10%)"         stackId="a" fill="#EF6C00" radius={[3,3,0,0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </div>
-  )
-}
 
 function TabCashflow() {
   const { effective, isLocked, snapshot } = useLockedUseOfFunds()
