@@ -1441,6 +1441,7 @@ const TILL_CAT_PALETTE = [
 
 function TabTillSales2025() {
   const [discOpen, setDiscOpen] = useState(false)
+  const [showMinor, setShowMinor] = useState(false)
   const data = HACKNEY_2025_TILL_SALES
   const disc = HACKNEY_2025_DISCOUNTS
   const { categories, months, monthlyTotals, totalRevenue, totalTxns, lastDate } = data
@@ -1459,7 +1460,8 @@ function TabTillSales2025() {
     ? [...major, { name: 'Other (<1% combined)', total: minorTotal, qty: minor.reduce((s,c)=>s+c.qty,0) }]
     : major
   const donutTotal = donutCats.reduce((s, c) => s + c.total, 0)
-  const R_OUT = 90, R_IN = 56, CX = 110, CY = 110
+  // Donut promoted to the hero visual — bigger radius, more breathing room
+  const R_OUT = 140, R_IN = 86, CX = 160, CY = 160
   let cumAngle = -Math.PI / 2
   const arcs = donutCats.map((c, i) => {
     const frac = c.total / donutTotal
@@ -1548,35 +1550,57 @@ function TabTillSales2025() {
         <KpiCard2026 label="Coverage"         value="Goodtill only"           sub={`ends ${lastDate}`} color="#F87171" />
       </div>
 
-      {/* Donut + category table */}
-      <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:24, alignItems:'flex-start' }}>
-        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:16 }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6, textAlign:'center' }}>
+      {/* Donut hero + category table — donut promoted as the main visual */}
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(360px, 480px) 1fr', gap:32, alignItems:'flex-start' }}>
+        {/* Hero donut */}
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'24px 20px' }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:14, textAlign:'center', fontWeight:600 }}>
             Category mix
           </div>
-          <svg viewBox="0 0 220 220" style={{ width:'100%', height:'auto' }}>
+          <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
             {arcs.map((a, i) => (
-              <path key={i} d={a.d} fill={a.color}>
+              <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
                 <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/totalRevenue)*100).toFixed(1)}%)`}</title>
               </path>
             ))}
-            <text x="110" y="105" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.08em">Total</text>
-            <text x="110" y="124" textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{fmtMoney(totalRevenue)}</text>
+            <text x="160" y="150" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">TOTAL TILL SALES</text>
+            <text x="160" y="180" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(totalRevenue)}</text>
+            <text x="160" y="202" textAnchor="middle" fontSize="10" fill="#6B7280" letterSpacing="0.08em">Jan → 23 Sep 2025 · inc-VAT</text>
           </svg>
+          {/* Top 3 callout strip below donut */}
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginTop:18 }}>
+            {donutCats.slice(0, 3).map((c, i) => (
+              <div key={c.name} style={{ padding:'8px 10px', background:'rgba(255,255,255,0.02)', borderLeft:`3px solid ${TILL_CAT_PALETTE[i]}`, borderRadius:'3px 6px 6px 3px' }}>
+                <div style={{ fontSize:9, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                  {c.name}
+                </div>
+                <div style={{ fontSize:13, color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums', marginTop:2 }}>
+                  {fmtMoney(c.total)}
+                </div>
+                <div style={{ fontSize:10, color:TILL_CAT_PALETTE[i], fontVariantNumeric:'tabular-nums' }}>
+                  {((c.total/totalRevenue)*100).toFixed(1)}%
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
 
+        {/* Category table — only major rows by default */}
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>By category · descending</div>
-            <div style={{ fontSize:10, color:'#6B7280' }}>{categories.length} categories</div>
+            <div style={{ fontSize:10, color:'#6B7280' }}>
+              {showMinor ? `${categories.length} categories` : `${major.length} of ${categories.length} · over 1% only`}
+            </div>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-            {categories.map((c, i) => {
+            {(showMinor ? categories : major).map((c, i) => {
               const pct = (c.total / totalRevenue) * 100
               const barW = (c.total / categories[0].total) * 100
-              const color = i < (donutCats.length - (minorTotal > 0 ? 1 : 0))
-                ? TILL_CAT_PALETTE[i % TILL_CAT_PALETTE.length]
-                : '#475569'
+              const isMinor = c.total < threshold
+              const color = isMinor
+                ? '#475569'
+                : TILL_CAT_PALETTE[major.indexOf(c) % TILL_CAT_PALETTE.length]
               return (
                 <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, alignItems:'center', fontSize:11 }}>
                   <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
@@ -1592,6 +1616,28 @@ function TabTillSales2025() {
               )
             })}
           </div>
+
+          {/* Show / hide the long tail of <1% categories */}
+          {minor.length > 0 && (
+            <button
+              onClick={() => setShowMinor(s => !s)}
+              style={{
+                width:'100%', marginTop:10, padding:'8px 10px',
+                background:'rgba(201,168,76,0.06)',
+                border:'1px dashed rgba(201,168,76,0.35)',
+                borderRadius:4,
+                cursor:'pointer',
+                fontSize:10, color:'var(--gold-dim)',
+                letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+                display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+              }}
+            >
+              <span style={{ transform:showMinor?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+              {showMinor
+                ? `Hide ${minor.length} smaller categories`
+                : `Show ${minor.length} smaller categories (under 1% — ${fmtMoney(minorTotal)} combined)`}
+            </button>
+          )}
           <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, fontSize:11, fontWeight:700 }}>
             <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total</div>
             <div />
