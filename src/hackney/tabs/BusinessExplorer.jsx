@@ -866,6 +866,74 @@ function ScenarioLeversCard() {
   )
 }
 
+// ─── OfficeCostsSection · 8-row annual £ editor ──────────────────────
+// Apps + AI + Accounting + Director comp. Sliders use per-line step
+// sized to the line's magnitude (Xero £25 step, Director £500 step) so
+// every slider feels precise without being laggy.
+function OfficeCostsSection() {
+  const { forecastEffective, canEditForecast, setForecastValue } = useLockedUseOfFunds()
+  const overrides = forecastEffective.officeCosts || {}
+  const annualTotal = sumHackneyOfficeCosts(overrides)
+  const monthlyTotal = annualTotal / 12
+
+  const setLine = (key, val) => {
+    setForecastValue('officeCosts', { ...overrides, [key]: val })
+  }
+
+  return (
+    <div className="card" style={{ padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'#C084FC', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office Costs · Editor</div>
+        <div style={{ fontSize:13, color:'#C084FC', fontWeight:600 }}>{fmtMoney(annualTotal)}/yr</div>
+      </div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Subscriptions, AI, accounting, and director compensation. Defaults reflect current spend ranges. Annual £ sliders below; total flows into the Op Costs donut as a single Office Costs line.
+      </div>
+
+      {HACKNEY_OFFICE_COST_ITEMS.map(item => {
+        const def = HACKNEY_OFFICE_COSTS_2026_DEFAULTS[item.id]
+        const value = overrides[item.id] ?? def
+        const max = Math.max(def * 3, 500)
+        const step = Math.max(10, Math.round(def / 40 / 5) * 5) || 25
+        const monthly = value / 12
+        return (
+          <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <div>
+              <div style={{ fontSize:13, color:'var(--cream)' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{item.note} · default {fmtMoney(def)}</div>
+            </div>
+            <div>
+              <input type="range" min={0} max={max} step={step} value={value}
+                onChange={(e) => setLine(item.id, +e.target.value)}
+                disabled={!canEditForecast}
+                style={{ width:'100%', accentColor:'#C084FC', cursor: canEditForecast ? 'pointer' : 'not-allowed', opacity: canEditForecast ? 1 : 0.55 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+                <span>£0</span>
+                <span>{fmtMoney(def)}</span>
+                <span>{fmtMoney(max)}</span>
+              </div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div className="serif" style={{ fontSize:16, color: value === def ? 'var(--cream)' : (value > def ? '#F87171' : '#10B981'), fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                {fmtMoney(value)}
+              </div>
+              <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(monthly).toLocaleString('en-GB')}/mo</div>
+            </div>
+          </div>
+        )
+      })}
+
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'12px 0 4px', borderTop:'2px solid rgba(192,132,252,0.3)', marginTop:10, fontWeight:600 }}>
+        <div>
+          <div style={{ fontSize:12, color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Office Costs · 2026</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:2 }}>£{Math.round(monthlyTotal).toLocaleString('en-GB')} per month</div>
+        </div>
+        <span className="serif" style={{ fontSize:18, color:'#C084FC' }}>{fmtMoney(annualTotal)}</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── FixedCostsSection · 9-row annual £ editor ───────────────────────
 // One slider per fixed-cost line (rates + 8 utilities). Defaults are
 // 2025 actual × 1.10 inflation. Range 0 → 3× default in £100 steps.
@@ -1056,7 +1124,7 @@ function Tab2026() {
           {activeSection === 'opcosts' && <OpCostsSection sc={sc} monthly={monthly} />}
           {activeSection === 'fixed'   && <FixedCostsSection />}
           {activeSection === 'wages'   && <WagesSection />}
-          {activeSection === 'office'  && <SectionPlaceholder title="Office Costs" phase={7}>8-row matrix with annual £ sliders (Apps + AI + Accounting + Director) — Phase 7.</SectionPlaceholder>}
+          {activeSection === 'office'  && <OfficeCostsSection />}
           {activeSection === 'tickets' && <SectionPlaceholder title="Tickets · DMN SKU pricing" phase={8}>Per-SKU pricing matrix + master volume slider — Phase 8.</SectionPlaceholder>}
         </div>
       </div>
