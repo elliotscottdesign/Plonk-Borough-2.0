@@ -741,12 +741,174 @@ function WagesSection() {
   return <WageCalculator />
 }
 
+// ─── DonutChart · custom SVG ──────────────────────────────────────────
+function DonutChart({ data, total, size = 220, label = '2026 Forecast' }) {
+  const cx = size / 2, cy = size / 2
+  const ro = size / 2 - 6
+  const ri = ro * 0.58
+  const fmtCentre = (n) => {
+    const v = Math.abs(n)
+    if (v >= 1000000) return '£' + (n / 1000000).toFixed(2) + 'M'
+    if (v >= 1000)    return '£' + Math.round(n / 1000) + 'k'
+    return '£' + Math.round(n).toLocaleString('en-GB')
+  }
+  const toRad = (a) => (a * Math.PI) / 180
+  let cum = -90
+  const slices = (data || []).filter(d => d.value > 0).map(d => {
+    const sweep = total > 0 ? (d.value / total) * 360 : 0
+    const start = cum
+    const end = cum + sweep
+    cum = end
+    return { ...d, start, end }
+  })
+  const arcD = (start, end) => {
+    if (end - start >= 359.999) {
+      const mid = (start + end) / 2
+      return arcD(start, mid) + arcD(mid, end)
+    }
+    const sx1 = cx + ro * Math.cos(toRad(start)), sy1 = cy + ro * Math.sin(toRad(start))
+    const sx2 = cx + ro * Math.cos(toRad(end)),   sy2 = cy + ro * Math.sin(toRad(end))
+    const sx3 = cx + ri * Math.cos(toRad(end)),   sy3 = cy + ri * Math.sin(toRad(end))
+    const sx4 = cx + ri * Math.cos(toRad(start)), sy4 = cy + ri * Math.sin(toRad(start))
+    const large = (end - start) > 180 ? 1 : 0
+    return `M ${sx1} ${sy1} A ${ro} ${ro} 0 ${large} 1 ${sx2} ${sy2} L ${sx3} ${sy3} A ${ri} ${ri} 0 ${large} 0 ${sx4} ${sy4} Z`
+  }
+  return (
+    <svg width={size} height={size} role="img" aria-label="forecast donut chart" style={{ display:'block' }}>
+      {slices.map((s, i) => <path key={i} d={arcD(s.start, s.end)} fill={s.color} stroke="var(--ink)" strokeWidth={1} />)}
+      <text x={cx} y={cy - 4} textAnchor="middle" fill="var(--cream)" style={{ fontFamily:"'DM Serif Display',serif", fontSize:20 }}>{fmtCentre(total)}</text>
+      <text x={cx} y={cy + 16} textAnchor="middle" fill="var(--cream-dim)" style={{ fontSize:10, letterSpacing:'0.08em', textTransform:'uppercase' }}>{label}</text>
+    </svg>
+  )
+}
+
+// ─── Stacked2026 · monthly stacked / single-bar chart ─────────────────
+function Stacked2026({ monthly, kind = 'income' }) {
+  const tip = {
+    contentStyle: { background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' },
+    labelStyle:   { color:'var(--cream)', fontWeight:600, marginBottom:4 },
+    itemStyle:    { color:'var(--cream)' },
+  }
+  return (
+    <div style={{ height: 220 }}>
+      <ResponsiveContainer>
+        <BarChart data={monthly} margin={{ top: 8, right: 12, bottom: 0, left: 8 }}>
+          <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+          <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={10} tickLine={false} />
+          <YAxis stroke="var(--cream-dim)" fontSize={10} tickFormatter={(v) => '£' + Math.round(v/1000) + 'k'} width={48} />
+          <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }} {...tip} formatter={(v, n) => [fmtMoney(v), n]} />
+          {kind === 'income' ? (
+            <Bar dataKey="income" name="Revenue" fill="#22D3EE" radius={[3,3,0,0]} maxBarSize={36} />
+          ) : (
+            <>
+              <Bar dataKey="wages"    name="Wages"        stackId="a" fill={COST_2026_COLORS[0]} maxBarSize={36} />
+              <Bar dataKey="fixed"    name="Fixed Costs"  stackId="a" fill={COST_2026_COLORS[1]} />
+              <Bar dataKey="office"   name="Office Costs" stackId="a" fill={COST_2026_COLORS[2]} />
+              <Bar dataKey="drinks"   name="Drinks & Gas" stackId="a" fill={COST_2026_COLORS[3]} />
+              <Bar dataKey="vat"      name="VAT (Net)"    stackId="a" fill={COST_2026_COLORS[4]} />
+              <Bar dataKey="cleaning" name="Cleaning"     stackId="a" fill={COST_2026_COLORS[5]} />
+              <Bar dataKey="arcades"  name="Arcades"      stackId="a" fill={COST_2026_COLORS[6]} />
+              <Bar dataKey="djs"      name="DJs"          stackId="a" fill={COST_2026_COLORS[7]} />
+              <Bar dataKey="food"     name="Food"         stackId="a" fill={COST_2026_COLORS[8]} radius={[3,3,0,0]} />
+            </>
+          )}
+        </BarChart>
+      </ResponsiveContainer>
+    </div>
+  )
+}
+
+// ─── ScenarioLeversCard · 4 income-lever sliders ──────────────────────
+function ScenarioLeversCard() {
+  const { forecastEffective, canEditForecast, setGrowth } = useLockedUseOfFunds()
+  const growth = forecastEffective.growth || {}
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Custom scenario · 4 levers</span>
+        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>Drag each line · matches a preset when all four are equal</span>
+      </div>
+      {HACKNEY_SCENARIO_LEVERS.map(l => {
+        const pct = growth[l.key] ?? 0
+        const projected = Math.round(l.base * (1 + pct / 100))
+        const delta = projected - l.base
+        return (
+          <div key={l.key} style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:l.color, flexShrink:0 }} />
+              <div>
+                <div style={{ fontSize:13, color:'var(--cream)' }}>{l.labelKey}</div>
+                <div style={{ fontSize:10, color:'var(--cream-dim)' }}>2025 base · {fmtMoney(l.base)}</div>
+              </div>
+            </div>
+            <div>
+              <input type="range" min={-30} max={50} step={1} value={pct}
+                onChange={(e) => setGrowth(l.key, +e.target.value)}
+                disabled={!canEditForecast}
+                style={{ width:'100%', accentColor:l.color, cursor: canEditForecast ? 'pointer' : 'not-allowed', opacity: canEditForecast ? 1 : 0.55 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+                <span>−30%</span><span>0%</span><span>+50%</span>
+              </div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div className="serif" style={{ fontSize:16, color:l.color, fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                {pct >= 0 ? '+' : ''}{pct}%
+              </div>
+              <div style={{ fontSize:11, color:'var(--cream)', fontVariantNumeric:'tabular-nums', marginTop:4 }}>{fmtMoney(projected)}</div>
+              <div style={{ fontSize:10, color: delta >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums' }}>
+                {delta >= 0 ? '+' : ''}{fmtMoney(Math.abs(delta) * (delta >= 0 ? 1 : -1))}
+              </div>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── IncomeSection ────────────────────────────────────────────────────
+function IncomeSection({ sc, monthly }) {
+  return (
+    <>
+      <ScenarioLeversCard />
+      <div className="card" style={{ padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Income · 2026</div>
+          <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmtMoney(sc.totalIncome)}</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:24, alignItems:'center', marginBottom:8 }}>
+          <DonutChart data={sc.incomeLines} total={sc.totalIncome} size={210} label="Annual revenue" />
+          <div>
+            {sc.incomeLines.map(l => (
+              <div key={l.key} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13 }}>
+                <span style={{ width:10, height:10, borderRadius:2, background:l.color, flexShrink:0 }} />
+                <span style={{ flex:1, color:'var(--cream)' }}>{l.label}</span>
+                <span style={{ color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(l.value)}</span>
+                <span style={{ color:'var(--cream-dim)', fontSize:11, width:50, textAlign:'right' }}>{l.pct.toFixed(1)}%</span>
+              </div>
+            ))}
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px', fontSize:13, fontWeight:600 }}>
+              <span style={{ color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em', fontSize:11 }}>Total revenue</span>
+              <span className="serif" style={{ color:'#22D3EE', fontSize:16 }}>{fmtMoney(sc.totalIncome)}</span>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop:16 }}>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly revenue · 2026</div>
+          <Stacked2026 monthly={monthly} kind="income" />
+        </div>
+      </div>
+    </>
+  )
+}
+
 // ─── Tab2026 ──────────────────────────────────────────────────────────
 function Tab2026() {
   const ctx = useLockedUseOfFunds()
   const [activeSection, setActiveSection] = useState('income')
   const wagesOverride = ctx.isWageLocked ? ctx.wageEffective.loadedAnnual : null
   const sc = compute2026Scenario(ctx.forecastEffective, wagesOverride)
+  const monthly = compute2026Monthly(ctx.forecastEffective, wagesOverride)
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
@@ -773,7 +935,7 @@ function Tab2026() {
       <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
         <SidebarTOC active={activeSection} onChange={setActiveSection} />
         <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-          {activeSection === 'income'  && <SectionPlaceholder title="Income" phase={3}>4-lever scenario sliders + income donut + monthly stacked bar — Phase 3.</SectionPlaceholder>}
+          {activeSection === 'income'  && <IncomeSection sc={sc} monthly={monthly} />}
           {activeSection === 'opcosts' && <SectionPlaceholder title="Operating Costs" phase={4}>9-line cost donut + monthly stacked bar — Phase 4.</SectionPlaceholder>}
           {activeSection === 'fixed'   && <SectionPlaceholder title="Fixed Costs" phase={6}>9-row matrix with monthly £ sliders + auto Y1 lease rent — Phase 6.</SectionPlaceholder>}
           {activeSection === 'wages'   && <WagesSection />}
