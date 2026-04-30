@@ -29,7 +29,7 @@ import {
   sumHackneyFixedCostsAnnual,
   HACKNEY_DMN_SKUS_ONLINE_2025,
 } from '../../data/hackney.js'
-import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS } from '../../data/hackney2025TillSales.js'
+import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS, HACKNEY_2025_DISCOUNT_CODES } from '../../data/hackney2025TillSales.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
@@ -1447,6 +1447,7 @@ function TabTillSales2025() {
   const [showMinor, setShowMinor] = useState(false)
   const data = HACKNEY_2025_TILL_SALES
   const disc = HACKNEY_2025_DISCOUNTS
+  const codes = HACKNEY_2025_DISCOUNT_CODES
   const { categories, months, monthlyTotals, totalRevenue, totalTxns, lastDate } = data
   const avgSpend = totalRevenue / Math.max(1, totalTxns)
   const peakIdx = monthlyTotals.reduce((bi, v, i, arr) => v > arr[bi] ? i : bi, 0)
@@ -1750,6 +1751,89 @@ function TabTillSales2025() {
               🚨 ≥15% rate — outlier categories (TEQUILA & SHOTS 22.7%, BOTTLED BEER 17.2%, FOOD TACOS 26.2%)
               are likely promotional SKUs (2-for-£12 doubles, BOGOFs etc).
               ⚠ 8–15% rate is heavy-but-explainable. Confirm these are intentional rather than till-side errors.
+            </div>
+
+            {/* ─── What discount codes were used? ──────────────── */}
+            <div style={{ marginTop:24, paddingTop:20, borderTop:'1px solid rgba(201,168,76,0.12)' }}>
+              <div className="serif" style={{ fontSize:18, color:'var(--cream)', marginBottom:8, lineHeight:1.25 }}>
+                What discount codes were used?
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.55, marginBottom:14 }}>
+                {codes.note}
+              </div>
+
+              {/* Magnitude — most discounts are 50–100% off (BOGOF) */}
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:18 }}>
+                {codes.magnitudeBuckets.map(b => {
+                  const pctOfTotal = (b.value / disc.totalDiscount) * 100
+                  const isHero = b.bucket.includes('BOGOF')
+                  return (
+                    <div key={b.bucket} style={{ padding:'10px 12px', background:isHero?'rgba(248,113,113,0.08)':'rgba(255,255,255,0.02)', border:`1px solid ${isHero?'rgba(248,113,113,0.3)':'rgba(255,255,255,0.06)'}`, borderRadius:6 }}>
+                      <div style={{ fontSize:10, color:isHero?'#FCA5A5':'#9CA3AF', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:4 }}>
+                        {b.bucket}
+                      </div>
+                      <div className="serif" style={{ fontSize:18, color:'var(--cream)', lineHeight:1, fontVariantNumeric:'tabular-nums' }}>
+                        {fmtMoney(b.value)}
+                      </div>
+                      <div style={{ fontSize:10, color:'#9CA3AF', marginTop:4, fontVariantNumeric:'tabular-nums' }}>
+                        {b.rows.toLocaleString('en-GB')} rows · {pctOfTotal.toFixed(0)}% of all discount £
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              {/* Promotion column */}
+              <div className="serif" style={{ fontSize:14, color:'var(--cream)', marginTop:18, marginBottom:8 }}>
+                Promotion column · the £ tags applied
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', marginBottom:8 }}>
+                The Goodtill <code style={{ background:'rgba(255,255,255,0.05)', padding:'1px 5px', borderRadius:3, color:'#A5F3FC' }}>Promotion</code> column captures the £ off, not a campaign name.
+                Only used on {codes.promotionColumn.reduce((s,p)=>s+p.rows,0)} rows out of 89,521.
+              </div>
+              <div style={{ display:'flex', flexWrap:'wrap', gap:6 }}>
+                {codes.promotionColumn.map(p => (
+                  <div key={p.value} style={{ padding:'4px 10px', background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.25)', borderRadius:14, fontSize:11, color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>
+                    −£{p.value.replace('-','')} <span style={{ color:'#9CA3AF' }}>· {p.rows}×</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* Free / BOGOF items — what staff rang at £0 */}
+              <div className="serif" style={{ fontSize:14, color:'var(--cream)', marginTop:20, marginBottom:8 }}>
+                Free items / 2-for-1 patterns · staff rang at £0
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', marginBottom:10 }}>
+                Top recurring zero-priced items in staff Item Notes — typically the BOGOF half of a happy-hour
+                deal (free second cocktail) or a free mixer with a spirit.
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                {codes.freeMixers.map(x => (
+                  <div key={x.name} style={{ display:'grid', gridTemplateColumns:'1fr 60px 60px', gap:8, padding:'4px 8px', background:'rgba(248,113,113,0.04)', borderLeft:'2px solid rgba(248,113,113,0.4)', borderRadius:'2px 4px 4px 2px', fontSize:11 }}>
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{x.name}</div>
+                    <div style={{ textAlign:'right', color:'#FCA5A5', fontVariantNumeric:'tabular-nums' }}>{x.rows}×</div>
+                    <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{x.units} units</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* £1 mixers */}
+              <div className="serif" style={{ fontSize:14, color:'var(--cream)', marginTop:20, marginBottom:8 }}>
+                £1 mixer special · the G&amp;T deal
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', marginBottom:10 }}>
+                Mixers rung at £1 — looks like a recurring "spirit + £1 mixer" combo. Tonic Water leads
+                ({codes.onePoundMixers[0].rows} times), suggesting a gin-and-tonic promo line.
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:6 }}>
+                {codes.onePoundMixers.map(x => (
+                  <div key={x.name} style={{ display:'grid', gridTemplateColumns:'1fr 60px 60px', gap:8, padding:'4px 8px', background:'rgba(251,191,36,0.04)', borderLeft:'2px solid rgba(251,191,36,0.4)', borderRadius:'2px 4px 4px 2px', fontSize:11 }}>
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{x.name}</div>
+                    <div style={{ textAlign:'right', color:'#FCD34D', fontVariantNumeric:'tabular-nums' }}>{x.rows}×</div>
+                    <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{x.units} units</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Reconciliation panel — answers "why doesn't this match Weekly Merge 2024-2026?" */}
