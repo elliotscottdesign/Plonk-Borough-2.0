@@ -30,6 +30,7 @@ import {
   HACKNEY_DMN_SKUS_ONLINE_2025,
 } from '../../data/hackney.js'
 import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS, HACKNEY_2025_DISCOUNT_CODES } from '../../data/hackney2025TillSales.js'
+import { HACKNEY_PREV_TILL_SALES, HACKNEY_PREV_TILL_YEAR_TOTALS, HACKNEY_PREV_TILL_YEARS, HACKNEY_GOLF_CATEGORIES, hackneyTotalsForYear } from '../../data/hackneyPrevTillSales.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
@@ -48,6 +49,7 @@ const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 const TABS = [
   { key: 'performance2025', label: '2025 Performance' },
   { key: 'tillsales2025',   label: '2025 Till Sales' },
+  { key: 'prevtillsales',   label: 'Till Sales 2020–2024' },
   { key: 'performance2026', label: '2026 Performance' },
   { key: 'cashflow',        label: 'Cashflow Forecast' },
 ]
@@ -1922,11 +1924,212 @@ function TabTillSales2025() {
   )
 }
 
+// ─── Till Sales 2020–2024 — historical aggregates ────────────────────
+// Five-year category-level breakdown built from the Goodtill yearly
+// exports. Year selector at the top lets investors flip between 2020
+// (partial / COVID) → 2024 (most recent full year). Same till-vs-P&L
+// caveat as the 2025 tab: this is operational volume data, not the
+// canonical revenue figure.
+function TabPrevTillSales() {
+  const [year, setYear] = useState(2024)   // default to most recent full year
+  const cats = HACKNEY_PREV_TILL_SALES[year] || []
+  const summary = HACKNEY_PREV_TILL_YEAR_TOTALS[year]
+  const totals = hackneyTotalsForYear(year)
+
+  // Sort by qty desc; pick a colour palette aligned with the 2025 tab.
+  const PALETTE = TILL_CAT_PALETTE
+  const sorted = [...cats].sort((a, b) => b.qty - a.qty)
+  const top10 = sorted.slice(0, 10)
+  const rest = sorted.slice(10)
+  const restTotal = rest.reduce((s, r) => s + r.qty, 0)
+
+  // Donut by qty
+  const donutCats = restTotal > 0
+    ? [...top10, { name: `Other (${rest.length} smaller cats)`, qty: restTotal, total: rest.reduce((s,r)=>s+r.total,0) }]
+    : top10
+  const donutTotal = donutCats.reduce((s, c) => s + c.qty, 0)
+  const R_OUT = 140, R_IN = 86, CX = 160, CY = 160
+  let cumAngle = -Math.PI / 2
+  const arcs = donutCats.map((c, i) => {
+    const frac = c.qty / Math.max(1, donutTotal)
+    const start = cumAngle, end = cumAngle + frac * Math.PI * 2
+    cumAngle = end
+    const large = end - start > Math.PI ? 1 : 0
+    const sx = CX + R_OUT * Math.cos(start), sy = CY + R_OUT * Math.sin(start)
+    const ex = CX + R_OUT * Math.cos(end),   ey = CY + R_OUT * Math.sin(end)
+    const sxi = CX + R_IN * Math.cos(end),   syi = CY + R_IN * Math.sin(end)
+    const exi = CX + R_IN * Math.cos(start), eyi = CY + R_IN * Math.sin(start)
+    return {
+      d: `M ${sx} ${sy} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${R_IN} ${R_IN} 0 ${large} 0 ${exi} ${eyi} Z`,
+      color: PALETTE[i % PALETTE.length],
+      cat: c,
+    }
+  })
+
+  // Year-over-year revenue trajectory for the trend strip
+  const trajectory = HACKNEY_PREV_TILL_YEARS.map(y => ({
+    year: y,
+    revenue: HACKNEY_PREV_TILL_YEAR_TOTALS[y].revenue,
+    orders: HACKNEY_PREV_TILL_YEAR_TOTALS[y].orders,
+    isSelected: y === year,
+  }))
+  const maxRev = Math.max(...trajectory.map(t => t.revenue))
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      {/* Slide title */}
+      <div style={{ display:'flex', alignItems:'center', gap:12, marginBottom:4 }}>
+        <span style={{ width:36, height:36, display:'inline-flex', alignItems:'center', justifyContent:'center', background:'rgba(34,211,238,0.12)', border:'1px solid rgba(34,211,238,0.3)', borderRadius:8, fontSize:18 }}>📈</span>
+        <div>
+          <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2020–2024 · Till Sales History</div>
+          <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>Five-year Goodtill category-level breakdown · click a year below to drill in</div>
+        </div>
+      </div>
+
+      {/* Till ≠ financial figures reminder */}
+      <div style={{ padding:'14px 18px', background:'rgba(251,191,36,0.06)', border:'1px solid rgba(251,191,36,0.4)', borderRadius:6, display:'flex', gap:14, alignItems:'flex-start' }}>
+        <div style={{ fontSize:18, lineHeight:'18px', color:'#FBBF24' }}>ⓘ</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCD34D', marginBottom:4 }}>
+            These are till figures, not financial figures
+          </div>
+          <div style={{ fontSize:13, color:'#FDE68A', lineHeight:1.55 }}>
+            Numbers below show what was rung through the till — useful for understanding <strong>what we sold</strong> and <strong>category mix</strong>, not as canonical revenue. Till totals are inc-VAT, post-discount, pre-refund. For audited revenue see the Weekly Merge 2024–2026 sheet.
+          </div>
+        </div>
+      </div>
+
+      {/* Year-over-year revenue trajectory */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'18px 20px' }}>
+        <div className="serif" style={{ fontSize:18, color:'var(--cream)', marginBottom:14, lineHeight:1.25 }}>
+          Five-year revenue trajectory
+        </div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:14, height:160 }}>
+          {trajectory.map((t, i) => {
+            const h = Math.round((t.revenue / maxRev) * 130)
+            const isSel = t.isSelected
+            const prev = i > 0 ? trajectory[i-1].revenue : null
+            const yoy = prev ? ((t.revenue / prev - 1) * 100) : null
+            return (
+              <button key={t.year} onClick={() => setYear(t.year)} style={{
+                flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4,
+                background:'transparent', border:'none', cursor:'pointer', padding:0, height:160, justifyContent:'flex-end',
+              }}>
+                {yoy !== null && (
+                  <div style={{ fontSize:10, color: yoy >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
+                    {yoy >= 0 ? '+' : ''}{yoy.toFixed(0)}%
+                  </div>
+                )}
+                {yoy === null && <div style={{ fontSize:10, height:14 }}>&nbsp;</div>}
+                <div style={{ fontSize:11, color: isSel ? 'var(--gold)' : 'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>
+                  £{Math.round(t.revenue/1000)}k
+                </div>
+                <div style={{
+                  width:'80%', height:h,
+                  background: isSel
+                    ? 'linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%)'
+                    : 'linear-gradient(180deg, rgba(34,211,238,0.5) 0%, rgba(34,211,238,0.3) 100%)',
+                  border: isSel ? '1px solid var(--gold)' : '1px solid rgba(34,211,238,0.4)',
+                  borderRadius:'3px 3px 0 0',
+                  transition:'all 0.15s',
+                }} />
+                <div style={{ fontSize:11, color: isSel ? 'var(--gold)' : 'var(--cream-dim)', marginTop:4, fontWeight: isSel ? 700 : 400 }}>{t.year}</div>
+                <div style={{ fontSize:9, color:'#6B7280', fontVariantNumeric:'tabular-nums' }}>{t.orders.toLocaleString('en-GB')} orders</div>
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ fontSize:11, color:'#9CA3AF', marginTop:12, fontStyle:'italic' }}>
+          {summary.note} · Click any bar to switch the breakdown below.
+        </div>
+      </div>
+
+      {/* KPI strip for the selected year */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <KpiCard2026 label={`${year} · Revenue`}      value={fmtMoney(summary.revenue)} sub="inc-VAT · COMPLETED only" color="var(--gold)" />
+        <KpiCard2026 label={`${year} · Orders`}       value={summary.orders.toLocaleString('en-GB')} sub={`${(summary.revenue/summary.orders).toFixed(2)} avg spend`} color="#22D3EE" />
+        <KpiCard2026 label={`${year} · Units sold`}   value={totals.totalQty.toLocaleString('en-GB')} sub={`${cats.length} categories`} color="#A78BFA" />
+        <KpiCard2026 label={`${year} · Zero-priced`}  value={`${totals.pctZero.toFixed(1)}%`} sub={`${totals.totalZeroLines.toLocaleString('en-GB')} of ${totals.totalLines.toLocaleString('en-GB')} lines`} color="#F87171" />
+      </div>
+
+      {/* Donut hero + category table */}
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(360px, 480px) 1fr', gap:32, alignItems:'flex-start' }}>
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'24px 20px' }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:14, textAlign:'center', fontWeight:600 }}>
+            {year} · Top categories by units
+          </div>
+          <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
+            {arcs.map((a, i) => (
+              <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
+                <title>{`${a.cat.name} · ${a.cat.qty.toLocaleString('en-GB')} units`}</title>
+              </path>
+            ))}
+            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">UNITS SOLD</text>
+            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{totals.totalQty.toLocaleString('en-GB')}</text>
+          </svg>
+          <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF' }}>
+            {year} · COMPLETED orders only
+          </div>
+        </div>
+
+        {/* Category table — all rows */}
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{year} · By category · descending</div>
+            <div style={{ fontSize:10, color:'#6B7280' }}>{cats.length} categories</div>
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 70px 80px 60px', gap:10, fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, paddingBottom:4, borderBottom:'1px solid rgba(201,168,76,0.1)' }}>
+            <div>Category</div>
+            <div style={{ textAlign:'right' }}>Units</div>
+            <div style={{ textAlign:'right' }}>Total inc-VAT</div>
+            <div style={{ textAlign:'right' }}>% Zero</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:5 }}>
+            {sorted.map((c, i) => {
+              const isGolf = HACKNEY_GOLF_CATEGORIES.includes(c.name)
+              const color = i < top10.length ? PALETTE[i % PALETTE.length] : '#475569'
+              return (
+                <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 70px 80px 60px', gap:10, alignItems:'center', fontSize:11, padding:'3px 0' }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                    <div style={{ width:8, height:8, background:color, borderRadius:2, flexShrink:0 }} />
+                    <div style={{ color: isGolf ? '#FCD34D' : 'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis', fontWeight: isGolf ? 600 : 400 }}>
+                      {isGolf ? '⛳ ' : ''}{c.name}
+                    </div>
+                  </div>
+                  <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{c.qty.toLocaleString('en-GB')}</div>
+                  <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>£{Math.round(c.total).toLocaleString('en-GB')}</div>
+                  <div style={{ textAlign:'right', color: c.pctZero >= 25 ? '#F87171' : c.pctZero >= 10 ? '#FBBF24' : '#9CA3AF', fontVariantNumeric:'tabular-nums' }}>
+                    {c.pctZero.toFixed(1)}%
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 70px 80px 60px', gap:10, fontSize:11, fontWeight:700 }}>
+            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total</div>
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{totals.totalQty.toLocaleString('en-GB')}</div>
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>£{Math.round(totals.totalGross).toLocaleString('en-GB')}</div>
+            <div style={{ textAlign:'right', color:'#9CA3AF' }}>{totals.pctZero.toFixed(1)}%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Source footnote */}
+      <div style={{ fontSize:10, color:'#6B7280', lineHeight:1.6 }}>
+        Source · 5 yearly Goodtill workbooks merged into the project workbook via Apps Script,
+        then aggregated into the Category Aggregates tab. Units / lines / zero-priced counts
+        from COMPLETED orders only. Single-venue till instance — Hackney / London Fields E8.
+      </div>
+    </div>
+  )
+}
+
 export default function BusinessExplorer() {
   const [tab, setTab] = useState('performance2025')
   const tabComponents = {
     performance2025: <Tab2025 />,
     tillsales2025:   <TabTillSales2025 />,
+    prevtillsales:   <TabPrevTillSales />,
     performance2026: <Tab2026 />,
     cashflow:        <TabCashflow />,
   }
