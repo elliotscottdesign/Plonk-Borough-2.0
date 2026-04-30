@@ -1762,6 +1762,48 @@ function TabTillSales2025() {
                 {codes.note}
               </div>
 
+              {/* Findings note — the takeaway in one read */}
+              <div style={{
+                padding:'12px 14px',
+                background:'rgba(34,211,238,0.06)',
+                border:'1px solid rgba(34,211,238,0.25)',
+                borderRadius:6,
+                fontSize:12, color:'#A5F3FC', lineHeight:1.65,
+                marginBottom:18,
+              }}>
+                <div style={{ fontSize:10, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:700, marginBottom:6 }}>
+                  Findings
+                </div>
+                <ul style={{ margin:0, paddingLeft:18 }}>
+                  <li style={{ marginBottom:4 }}>
+                    <strong style={{ color:'var(--cream)' }}>~89% of discount £ is 2-for-1 / BOGOF</strong> —
+                    £34,842 of the £39k total comes from rings where the discount is 50–100% of the line
+                    price (i.e. the second item is free).
+                  </li>
+                  <li style={{ marginBottom:4 }}>
+                    <strong style={{ color:'var(--cream)' }}>Cocktail BOGOFs lead</strong> — Tommys Margarita
+                    rung free 253× (505 units), Mango Mojito 165× (328 units), spicy cucumber marg 120× (238 units).
+                    These look like a happy-hour 2-for-1 menu.
+                  </li>
+                  <li style={{ marginBottom:4 }}>
+                    <strong style={{ color:'var(--cream)' }}>Recurring £1 mixer deal</strong> — Tonic Water at
+                    £1 rung 778× (vs Coke 554×). Tonic out in front by 220+ rings strongly implies a "spirit + £1
+                    mixer = G&amp;T" promo line ran for most of 2025.
+                  </li>
+                  <li style={{ marginBottom:4 }}>
+                    <strong style={{ color:'var(--cream)' }}>Free mixers / soft drinks comp generously</strong> —
+                    Soda Water rung free 861× (870 units), Coke 696× (730 units). Some of these will be "mixer
+                    with the spirit" comps; others may be staff drinks or comp-for-complaint situations.
+                  </li>
+                  <li>
+                    <strong style={{ color:'var(--cream)' }}>The formal Promotion column is barely used</strong>
+                    — only 87 rows out of 89,521 carry a Promotion tag, almost all "−£5". The vast majority of
+                    discounts flow through the Sale Discount column (£38,937) or item-level free rings, not
+                    through a named campaign.
+                  </li>
+                </ul>
+              </div>
+
               {/* Magnitude — most discounts are 50–100% off (BOGOF) */}
               <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:18 }}>
                 {codes.magnitudeBuckets.map(b => {
