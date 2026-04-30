@@ -41,27 +41,70 @@ function GolfOperations() {
   const totalCost2025 = Object.values(g.costs).reduce((s, v) => s + num(v), 0)
   const net2025       = totalRev2025 - totalCost2025
   const tbdLines      = [...Object.values(g.revenue), ...Object.values(g.costs)].filter(v => v === TBD).length
+  const [openCtx, setOpenCtx] = React.useState(false)
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:28 }}>
 
-      {/* Context */}
+      {/* Context — KPI-card layout matching the rest of the deck.
+          Three top-line cards summarise the new structure at a glance;
+          the historical detail (pre-liquidation flow, token mechanic
+          clarification, plain-English summary) collapses behind a
+          "Show details" toggle so investors aren't drowned in text. */}
       <div>
         <STitle>Golf Operations · Transparency for Investors</STitle>
-        <div className="card" style={{ padding:20, lineHeight:1.7, fontSize:13, color:'var(--cream-dim)' }}>
-          <p style={{ marginBottom:12 }}>
-            <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> No Dice ran a mini-golf course on the adjacent site (next door, on the same road). Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via Design My Night (£-priced ticket SKUs, some bundling <strong style={{ color:'var(--gold)' }}>arcade tokens</strong> as an add-on) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Players took their golf round, used any bundled tokens in the venue's arcade machines, then spent at the bar.
-          </p>
-          <p style={{ marginBottom:12, padding:'8px 12px', background:'rgba(234,179,8,0.06)', borderLeft:'3px solid #EAB308', borderRadius:4 }}>
-            <strong style={{ color:'#EAB308' }}>Token mechanic — clarification.</strong> Tickets are <em>not</em> redeemed for tokens at the bar. Some online SKUs (e.g. <em>"Adult — Golf + 4 Tokens"</em>) <strong style={{ color:'var(--cream)' }}>bundle</strong> tokens into the ticket price; the customer uses those tokens in the arcade machines. Tokens are an arcade add-on inside the SKU, not a £-redemption mechanic at the bar.
-          </p>
-          <p style={{ marginBottom:12 }}>
-            <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> the golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong>. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
-          </p>
-          <p>
-            What this means in plain terms: <strong style={{ color:'var(--gold)' }}>bar / food / party revenue stays 100% with No Dice</strong> (unchanged). <strong style={{ color:'var(--gold)' }}>Token revenue stays 100% with No Dice</strong> — both bundled inside online tickets AND sold at the bar. The operator takes <strong style={{ color:'var(--cream)' }}>no share of token value</strong>; tokens are entirely a No Dice line. <strong style={{ color:'var(--gold)' }}>The golf-round portion of ticket sales</strong> (online and till) <strong style={{ color:'var(--gold)' }}>moves to the operator</strong>, along with the course's cost base — rent, host wages, maintenance, upgrades.
-          </p>
+
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, marginBottom:14 }}>
+          <GolfHeroCard
+            color="var(--gold)"
+            label="Stays 100% with No Dice"
+            value="Bar · Food · Parties · Tokens"
+            sub="Bar takings, F&B, party hires and ALL token revenue (bundled in online SKUs AND sold at the bar) remain a No Dice line. Operator takes no share."
+          />
+          <GolfHeroCard
+            color="#A78BFA"
+            label="Moves to new operator"
+            value="Golf-round ticket portion + course costs"
+            sub="The golf-round share of ticket sales (online + till) moves to the operator, along with the course cost base — rent, host wages, maintenance, upgrades."
+          />
+          <GolfHeroCard
+            color="#22D3EE"
+            label="The new structure"
+            value="Independent operator · No Dice still hosts"
+            sub="A newly-incorporated operator owns the course P&L. No Dice continues to host and operate on-site — same customer-facing role. Cashflow settled monthly between entities."
+          />
         </div>
+
+        <button
+          onClick={() => setOpenCtx(o => !o)}
+          style={{
+            width:'100%', padding:'10px 14px',
+            background:'rgba(201,168,76,0.06)',
+            border:'1px dashed rgba(201,168,76,0.3)',
+            borderRadius:6,
+            cursor:'pointer',
+            fontSize:11, color:'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+          }}
+        >
+          <span style={{ transform:openCtx?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+          {openCtx ? 'Hide background detail' : 'Show how golf used to work + the token mechanic'}
+        </button>
+
+        {openCtx && (
+          <div className="card" style={{ padding:20, lineHeight:1.7, fontSize:13, color:'var(--cream-dim)', marginTop:10 }}>
+            <p style={{ marginBottom:12 }}>
+              <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> No Dice ran a mini-golf course on the adjacent site (next door, on the same road). Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via Design My Night (£-priced ticket SKUs, some bundling <strong style={{ color:'var(--gold)' }}>arcade tokens</strong> as an add-on) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Players took their golf round, used any bundled tokens in the venue's arcade machines, then spent at the bar.
+            </p>
+            <p style={{ marginBottom:12, padding:'8px 12px', background:'rgba(234,179,8,0.06)', borderLeft:'3px solid #EAB308', borderRadius:4 }}>
+              <strong style={{ color:'#EAB308' }}>Token mechanic — clarification.</strong> Tickets are <em>not</em> redeemed for tokens at the bar. Some online SKUs (e.g. <em>"Adult — Golf + 4 Tokens"</em>) <strong style={{ color:'var(--cream)' }}>bundle</strong> tokens into the ticket price; the customer uses those tokens in the arcade machines. Tokens are an arcade add-on inside the SKU, not a £-redemption mechanic at the bar.
+            </p>
+            <p style={{ marginBottom:0 }}>
+              <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> the golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong>. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* 2025 Golf P&L */}
@@ -183,6 +226,31 @@ function GolfOperations() {
         </div>
       </div>
 
+    </div>
+  )
+}
+
+// Small KPI-style hero card with optional rollover tooltip for the
+// long-form sub copy. Title + value behave like the BusinessExplorer
+// KpiCard2026; sub-line is dimmer and constrained to 2-3 lines.
+function GolfHeroCard({ color, label, value, sub }) {
+  return (
+    <div title={sub} style={{
+      background:'var(--ink-2)',
+      border:`1px solid ${color}33`,
+      borderTop:`3px solid ${color}`,
+      borderRadius:10, padding:18,
+      display:'flex', flexDirection:'column', gap:8,
+    }}>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em' }}>
+        {label}
+      </div>
+      <div className="serif" style={{ fontSize:18, color, lineHeight:1.2 }}>
+        {value}
+      </div>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.55 }}>
+        {sub}
+      </div>
     </div>
   )
 }
