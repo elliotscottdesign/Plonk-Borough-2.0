@@ -4,10 +4,88 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import FundingSlider from '../components/FundingSlider.jsx'
 
 // Cover slide — eyebrow + title + lede + FundingSlider (the single root
-// raise control for the deck) + 6 stat cards + address footer. Every
-// stat card reads from the LockedUseOfFundsContext via the slider's
-// shared state, so the figures cascade live as the slider is dragged.
+// raise control for the deck) + investor return readout + 6 stat cards
+// + address footer. Every figure reads from the LockedUseOfFundsContext
+// via the slider's shared state, so the figures cascade live as the
+// slider is dragged.
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+
+// ─── InvestorReturnsCard ─────────────────────────────────────────────
+// Per-investor return summary that sits directly below the funding
+// slider. Mirrors the layout used on the Borough InvestmentSummary
+// calculator: share class pill (A vs B), three primary stats
+// (Ownership · Equity Dividend · Total Year 1), followed by a footer
+// line with CoC + Payback + Min A-share threshold and an expandable
+// explainer for why CoC moves with the slider.
+function InvestorReturnsCard({ investment, investorEq, investorReturn, coc, payback, aShareThreshold, liveProfit }) {
+  const isAShare = investment >= (aShareThreshold || 0)
+  const equityPct = (investorEq * 100).toFixed(1)
+  const cocPct = (coc * 100).toFixed(1)
+  const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
+  const operatingProfitFmt = fmt(liveProfit || 0)
+
+  return (
+    <div style={{
+      background: 'var(--ink-2)',
+      border: '1px solid rgba(201,168,76,0.18)',
+      borderRadius: 12,
+      padding: 24,
+      marginBottom: 32,
+    }}>
+      {/* Share-class pill */}
+      <div style={{
+        display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 22,
+        padding: '6px 14px', borderRadius: 20,
+        background: isAShare ? 'rgba(45,212,191,0.1)' : 'rgba(201,168,76,0.1)',
+        border: `1px solid ${isAShare ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.45)'}`,
+        fontSize: 12, color: isAShare ? '#2DD4BF' : 'var(--gold)',
+        letterSpacing: '0.04em',
+      }}>
+        <span>{isAShare ? '✓' : '○'}</span>
+        {isAShare ? 'A Shares · Full Voting Rights' : 'B Shares · Limited Voting'}
+        <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>{equityPct}% equity</span>
+      </div>
+
+      {/* Three primary stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 18 }}>
+        <ReturnStat label="Ownership" value={`${equityPct}%`} />
+        <ReturnStat label="Equity Dividend" value={fmt(investorReturn)} />
+        <ReturnStat label="Total Year 1" value={fmt(investorReturn)} gold />
+      </div>
+
+      {/* Footer line */}
+      <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+        Cash-on-Cash: <strong style={{ color: 'var(--cream)' }}>{cocPct}%</strong>
+        {' · '}Payback: <strong style={{ color: 'var(--cream)' }}>{paybackText} years</strong>
+        {' · '}Minimum for A shares: <strong style={{ color: 'var(--cream)' }}>{fmt(aShareThreshold)}</strong>
+      </div>
+
+      {/* Why does CoC change? — investor-facing explainer */}
+      <details style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)' }}>
+        <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em' }}>
+          ⓘ Why does CoC change as I move the slider?
+        </summary>
+        <div style={{ marginTop: 8, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.6 }}>
+          Year-1 dividend = your equity share × <strong style={{ color: 'var(--cream)' }}>operating profit</strong> ({operatingProfitFmt} base case),
+          NOT × your cheque. Because the dividend pool is fixed, dropping the raise size lifts everyone's CoC in
+          lockstep, and raising it dilutes everyone in lockstep. Your equity stake stays at {equityPct}% throughout
+          — the slider above sizes the total raise, not your personal allocation.
+        </div>
+      </details>
+    </div>
+  )
+}
+
+function ReturnStat({ label, value, gold }) {
+  return (
+    <div style={{ background: 'rgba(255,255,255,0.02)', borderRadius: 8, padding: '14px 16px', textAlign: 'center' }}>
+      <div style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
+      <div className="serif" style={{ fontSize: 24, color: gold ? 'var(--gold)' : 'var(--cream)', lineHeight: 1, fontVariantNumeric: 'tabular-nums' }}>
+        {value}
+      </div>
+    </div>
+  )
+}
 
 export default function Cover() {
   const { effective, isWageLocked, wageEffective } = useLockedUseOfFunds()
@@ -58,6 +136,21 @@ export default function Cover() {
       {/* Funding slider — single root control. Cascades to every slide
           via LockedUseOfFundsContext. */}
       <FundingSlider />
+
+      {/* Investor return readout — surfaces the relevant per-investor info
+          right below the slider (share class, ownership, equity dividend,
+          Year 1 return, CoC + payback). Mirrors the calculator card on the
+          Borough investor summary so investors see "what do I get?" at a
+          glance on the landing page. */}
+      <InvestorReturnsCard
+        investment={fundingAmount}
+        investorEq={deal.investorEq}
+        investorReturn={investorReturn}
+        coc={coc}
+        payback={payback}
+        aShareThreshold={deal.aShareThreshold}
+        liveProfit={liveProfit}
+      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
         {stats.map(s => (
