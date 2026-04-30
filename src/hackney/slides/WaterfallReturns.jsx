@@ -97,7 +97,7 @@ export default function WaterfallReturns() {
         Investor Returns
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        Pure pro-rata 50/50 — investor and founder paid at the same time. No preferred return, no priority tiers, single share class.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
+        Pure pro-rata 50/50 between the founder side and the investor pool. <strong style={{ color: 'var(--cream)' }}>Within the investor pool, two share classes</strong> — A-shares (≥ £10k cheques · full voting · paid first) and B-shares (&lt; £10k cheques · limited voting · paid after the A-share allocation completes). Founder draws their 50% pro-rata share each quarter regardless.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
 
       {/* Scenario selector */}

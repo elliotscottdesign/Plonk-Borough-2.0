@@ -295,9 +295,15 @@ export const BOROUGH_RAISE_TARGET = 79000
 // Set as 5% of post-money so it scales with the locked raise:
 //   £79k raise  → £7,900 A-share floor
 //   £100k raise → £10,000 A-share floor
-//   £50k raise  → £5,000 A-share floor
+//   £50k raise  → £5,000 A-share floor (legacy formula — superseded)
 // Cheques below this threshold receive B-shares (limited voting).
-export const A_SHARE_THRESHOLD_PCT = 0.05
+//
+// NEW (April 2026): the threshold is now a flat £10,000 across both
+// venues — confirmed with the user. Cheques ≥ £10k = A-shares (full
+// voting + first claim on dividends). Cheques < £10k = B-shares
+// (limited voting + paid AFTER A-shares are paid in full).
+export const A_SHARE_THRESHOLD_PCT = 0.05    // legacy — kept for backward compat
+export const A_SHARE_FLOOR         = 10000   // canonical flat floor
 
 // === computeDealFromInvestment ===
 // Single source of truth for valuation maths. Every consumer slide
@@ -312,8 +318,11 @@ export function computeDealFromInvestment(investment) {
   const founderEq     = 0.5
   const ebitda        = 91950        // = ACTUALS_2025.ebitda — basis for the headline multiple
   const impliedMult   = ebitda > 0 ? preMoney / ebitda : 0
-  const aShareFloor   = Math.round(postMoney * A_SHARE_THRESHOLD_PCT)
-  return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult, aShareFloor }
+  // Flat £10k floor (canonical). The legacy 5%-of-post-money formula is
+  // preserved as `aShareFloorLegacy` for any consumer that still wants it.
+  const aShareFloor       = A_SHARE_FLOOR
+  const aShareFloorLegacy = Math.round(postMoney * A_SHARE_THRESHOLD_PCT)
+  return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult, aShareFloor, aShareFloorLegacy }
 }
 
 // === HARDWARE FROM LIQUIDATORS — itemised £20,000 ex VAT breakdown ===

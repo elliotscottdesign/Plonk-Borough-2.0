@@ -45,7 +45,7 @@ export default function UseOfFunds() {
           {fmt(display.total)} Investment · 50/50 Equity Split
         </h2>
         <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
-          The funding amount is set by the slider on the <strong style={{ color: 'var(--cream)' }}>Cover slide</strong> — drag it there to size the raise. This page breaks the spend down across stock, rent, garden, interior, marketing, and legals; Working Capital absorbs whatever's left, sitting as float for early trading. Whatever the investor puts in, the founder matches with 50% equity (pure pro-rata, single share class).
+          The funding amount is set by the slider on the <strong style={{ color: 'var(--cream)' }}>Cover slide</strong> — drag it there to size the raise. This page breaks the spend down across stock, rent, garden, interior, marketing, and legals; Working Capital absorbs whatever's left, sitting as float for early trading. Whatever the investor puts in, the founder matches with 50% equity. Pure pro-rata between founder and investor side; within the investor pool, <strong style={{ color: 'var(--cream)' }}>A-shares (≥ £10k cheques) are paid first</strong> and <strong style={{ color: 'var(--cream)' }}>B-shares (&lt; £10k cheques) are paid after</strong> the A-share allocation is complete.
         </p>
       </div>
 

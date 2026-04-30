@@ -42,7 +42,7 @@ function InvestorReturnsCard({ investment, investorEq, investorReturn, coc, payb
         letterSpacing: '0.04em',
       }}>
         <span>{isAShare ? '✓' : '○'}</span>
-        {isAShare ? 'A Shares · Full Voting Rights' : 'B Shares · Limited Voting'}
+        {isAShare ? 'A Shares · Full Voting · Paid First' : 'B Shares · Limited Voting · Paid After A'}
         <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>{equityPct}% equity</span>
       </div>
 
