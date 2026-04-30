@@ -286,11 +286,26 @@ export const HACKNEY_CASHFLOW = [
   { month: 'Apr 27', net:  13083.32, closing: 72462.41 },
 ]
 
+// Working-capital safety zone — the bank balance the company commits to
+// keeping at all times once the reserve is built.
+//   • FLOOR  £30,000 — three months' rent equivalent. Operational red line;
+//                      we never let the bank balance fall below this.
+//   • TARGET £45,000 — floor + £15k cushion for VAT bills, supplier swings
+//                      and one-off equipment / repairs. Once we're here we
+//                      consider the working-capital pot fully built.
+// Investor dividends are gated on the reserve sitting AT OR ABOVE the FLOOR.
+// The founder draws their quarterly share regardless, since they cannot
+// wait for the pot to build. Investor's deferred quarters get caught up
+// later, once the reserve is fully built (≥ TARGET).
+export const HACKNEY_WORKING_CAPITAL_FLOOR  = 30000
+export const HACKNEY_WORKING_CAPITAL_TARGET = 45000
+
 export const HACKNEY_CASH = {
   peak: 82337,        // Aug 2026
   low: 39250,         // Feb 2027
   yearEnd: 72462,     // Apr 2027
-  safetyFloor: 25000, // user-set floor; Feb low stays £14k above
+  safetyFloor:  HACKNEY_WORKING_CAPITAL_FLOOR,   // £30k red line
+  safetyTarget: HACKNEY_WORKING_CAPITAL_TARGET,  // £45k fully-funded target
 }
 
 // === WAGES — 2025 ROTA REFERENCE (4-role calculator basis) ===

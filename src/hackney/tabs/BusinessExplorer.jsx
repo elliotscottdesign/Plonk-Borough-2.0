@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   ResponsiveContainer, BarChart, Bar, ComposedChart, LineChart, Line,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ReferenceLine, ReferenceArea, Cell,
 } from 'recharts'
 import {
   ACTUALS_2025,
@@ -1286,16 +1286,22 @@ function TabCashflow() {
   )
 }
 
-// ─── Cashflow chart — closing balance per month + safety floor ────────
+// ─── Cashflow chart — closing balance per month + working-capital band ───
+// The shaded green band shows the £30k–£45k working-capital safety zone:
+// floor at £30k (3 months rent — operational red line), target at £45k
+// (floor + £15k cushion for VAT bills + cost swings). Investor dividends
+// are gated on the closing balance sitting at or above the floor.
 function CashflowChart() {
+  const FLOOR  = HACKNEY_CASH.safetyFloor    // £30k
+  const TARGET = HACKNEY_CASH.safetyTarget   // £45k
   return (
     <div className="card" style={{ padding:18 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12, flexWrap:'wrap', gap:8 }}>
         <span style={{ fontSize:11, color:'var(--cream-dim)' }}>
           Peak {fmtMoney(HACKNEY_CASH.peak)} (Aug 26) · Low {fmtMoney(HACKNEY_CASH.low)} (Feb 27) · Year-end {fmtMoney(HACKNEY_CASH.yearEnd)}
         </span>
-        <span style={{ fontSize:11, color:'#F87171' }}>
-          Safety floor {fmtMoney(HACKNEY_CASH.safetyFloor)}
+        <span style={{ fontSize:11, color:'#10B981', fontVariantNumeric:'tabular-nums' }}>
+          Working-capital safe zone {fmtMoney(FLOOR)} – {fmtMoney(TARGET)}
         </span>
       </div>
       <div style={{ height: 260 }}>
@@ -1309,12 +1315,19 @@ function CashflowChart() {
               labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
               itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
-            <ReferenceLine y={HACKNEY_CASH.safetyFloor} stroke="#F87171" strokeDasharray="4 4" label={{ value:'Safety floor', position:'right', fill:'#F87171', fontSize:10 }} />
+            {/* Working-capital safe-zone band: floor £30k → target £45k */}
+            <ReferenceArea y1={FLOOR} y2={TARGET} fill="#10B981" fillOpacity={0.10} stroke="rgba(16,185,129,0.25)" strokeDasharray="2 4" label={{ value:`Safe zone · £${FLOOR/1000}k–£${TARGET/1000}k`, position:'insideTopRight', fill:'#10B981', fontSize:10 }} />
+            {/* Floor line — never drop below */}
+            <ReferenceLine y={FLOOR} stroke="#F87171" strokeDasharray="4 4" label={{ value:`Floor £${FLOOR/1000}k`, position:'right', fill:'#F87171', fontSize:10 }} />
             <Line type="monotone" dataKey="closing" name="Closing balance" stroke="var(--gold)" strokeWidth={2} dot={{ r:3, fill:'var(--gold)' }} />
             <Line type="monotone" dataKey="net" name="Net flow" stroke="var(--teal)" strokeWidth={1.5} dot={{ r:2, fill:'var(--teal)' }} />
             <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
           </LineChart>
         </ResponsiveContainer>
+      </div>
+      <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.55, marginTop:14, padding:'10px 12px', background:'rgba(16,185,129,0.05)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:6 }}>
+        <strong style={{ color:'#10B981' }}>How this gates dividends · </strong>
+        Director salary and operating costs are paid from each month's revenue first. Founder draws their pro-rata share every quarter. Investor's pro-rata share is held back until the closing balance enters this green band (≥ {fmtMoney(FLOOR)}). Once the bank balance is fully built (≥ {fmtMoney(TARGET)}), missed investor quarters are caught up.
       </div>
     </div>
   )

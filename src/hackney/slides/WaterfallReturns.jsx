@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import {
   DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, PL_WAGE_BASE,
   computeDistributionCalendar, HACKNEY_WORKING_CAPITAL_RESERVE,
+  HACKNEY_WORKING_CAPITAL_FLOOR, HACKNEY_WORKING_CAPITAL_TARGET,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
@@ -180,6 +181,9 @@ export default function WaterfallReturns() {
         </div>
       </div>
 
+      {/* Priority rules callout — what comes out of profit, in what order */}
+      <DistributionPriorityNote />
+
       {/* Distribution Process — working-capital-first model */}
       <DistributionProcess />
 
@@ -199,51 +203,106 @@ export default function WaterfallReturns() {
 }
 
 // ─── Distribution Process — explanatory waterfall flow ────────────────
-// Shows the 4-step rule book in plain language so an investor
-// understands the priority order: trading profit → £30k reserve refill
-// → quarterly dividend pool → 50/50 pro-rata split. Mirrors the visual
-// language of the Borough deck's waterfall but tailored to Hackney's
-// reserve-first model.
+// Shows the 5-step rule book in plain language so an investor understands
+// the priority order:
+//   1) Director salary       → already inside the cost base; paid first
+//   2) Working-capital pot   → refilled to a £30k–£45k safe-zone band
+//   3) Founder quarterly draw → founder takes their share every quarter
+//                                regardless (cannot wait for the pot to
+//                                build)
+//   4) Investor quarterly draw → only paid once the pot is at or above
+//                                the £30k floor; otherwise the investor's
+//                                share for that quarter is deferred
+//   5) Investor catch-up      → once the pot reaches £45k target, the
+//                                deferred quarters are paid down so
+//                                long-run pro-rata equality is preserved
+const FLOOR  = HACKNEY_WORKING_CAPITAL_FLOOR    // £30,000
+const TARGET = HACKNEY_WORKING_CAPITAL_TARGET   // £45,000
+const fmtK   = (n) => '£' + Math.round(n / 1000) + 'k'
+
+function DistributionPriorityNote() {
+  return (
+    <div style={{
+      marginTop: 32, padding: '16px 18px',
+      background: 'rgba(34,211,238,0.06)',
+      border: '1px solid rgba(34,211,238,0.3)',
+      borderRadius: 8,
+      fontSize: 13, color: '#A5F3FC', lineHeight: 1.65,
+    }}>
+      <div style={{ fontSize: 10, color: '#22D3EE', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+        Distribution priority · how money leaves the business each quarter
+      </div>
+      <ol style={{ margin: 0, paddingLeft: 22 }}>
+        <li style={{ marginBottom: 6 }}>
+          <strong style={{ color: 'var(--cream)' }}>Director salary first</strong> — budgeted inside the cost base. This is a budget for whichever director the business needs, not specifically the founder. Paid before any dividend.
+        </li>
+        <li style={{ marginBottom: 6 }}>
+          <strong style={{ color: 'var(--cream)' }}>Working-capital reserve</strong> — bank balance must reach the {fmtK(FLOOR)}–{fmtK(TARGET)} safe zone before investor dividends start. {fmtK(FLOOR)} ≈ three months' rent; {fmtK(TARGET)} adds a {fmtK(TARGET-FLOOR)} cushion for VAT bills and supplier swings.
+        </li>
+        <li style={{ marginBottom: 6 }}>
+          <strong style={{ color: 'var(--cream)' }}>Founder draws every quarter regardless</strong> — the founder cannot wait for the reserve to build. Their pro-rata share is paid each calendar quarter from positive trading profit.
+        </li>
+        <li style={{ marginBottom: 6 }}>
+          <strong style={{ color: 'var(--cream)' }}>Investor draws once the reserve hits the floor</strong> — quarters where the closing balance is below {fmtK(FLOOR)} have the investor's share <em>deferred</em> rather than paid out. No clawback from the founder.
+        </li>
+        <li>
+          <strong style={{ color: 'var(--cream)' }}>Catch-up once the reserve is fully built</strong> — once the bank balance is at or above {fmtK(TARGET)}, the deferred investor balance is paid down on top of the normal quarterly share, so long-run pro-rata equality is preserved.
+        </li>
+      </ol>
+      <div style={{ fontSize: 11, color: '#22D3EE', marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(34,211,238,0.2)' }}>
+        See the <strong>Business Explorer · Cashflow Forecast</strong> tab for the month-by-month closing-balance projection — the green band on that chart shows the {fmtK(FLOOR)}–{fmtK(TARGET)} safe zone and indicates when the reserve builds up enough to release investor dividends.
+      </div>
+    </div>
+  )
+}
+
 function DistributionProcess() {
   const steps = [
     {
       n: '1',
-      title: 'Operating Profit',
-      sub: 'After wages, costs, VAT, director salary',
-      detail: 'Each month\'s trading profit is the source of all distributions. Calculated from the locked 2026 forecast (revenue × 1.15, costs by rule).',
-      colour: '#1565C0',
+      title: 'Director Salary',
+      sub: 'Inside the cost base · paid first',
+      detail: 'Budget for whichever director the business needs (not specifically the founder). Already deducted before "Operating Profit" is calculated.',
+      colour: '#94A3B8',
     },
     {
       n: '2',
-      title: `Working Capital Reserve · £${HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')}`,
-      sub: 'First call on profit',
-      detail: `Profit refills the working-capital reserve up to a £${HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')} float before any dividend pays out. This protects winter cashflow and absorbs single-month dips without distress.`,
-      colour: '#2DD4BF',
+      title: `Working Capital · ${fmtK(FLOOR)}–${fmtK(TARGET)}`,
+      sub: 'Safe-zone reserve',
+      detail: `${fmtK(FLOOR)} floor (≈ 3 months' rent) and ${fmtK(TARGET)} target (floor + ${fmtK(TARGET-FLOOR)} cushion for VAT bills, supplier swings, repairs). The bank balance refills toward this band before any investor dividend pays out.`,
+      colour: '#10B981',
     },
     {
       n: '3',
-      title: 'Quarterly Dividend Pool',
-      sub: 'Surplus accrues for 3 months',
-      detail: 'Once the reserve is full, every £ of monthly surplus accrues into the next quarterly dividend pool. End of Mar / Jun / Sep / Dec triggers payout.',
-      colour: '#C9A84C',
+      title: 'Founder Quarterly Draw',
+      sub: 'Every quarter · regardless of reserve',
+      detail: 'The founder draws their pro-rata share every calendar quarter from positive trading profit. They cannot wait for the working-capital pot to build.',
+      colour: '#A78BFA',
     },
     {
       n: '4',
-      title: '50 / 50 Pro-Rata Distribution',
-      sub: 'No preferred return · single share class',
-      detail: 'Investor and founder receive their equity-share of the quarterly pool simultaneously. Pure pro-rata — no priority tier, no hurdle, no clawback.',
-      colour: '#A78BFA',
+      title: 'Investor Quarterly Draw',
+      sub: `Only once balance ≥ ${fmtK(FLOOR)}`,
+      detail: `Investor's pro-rata share pays out only when the closing balance is at or above the ${fmtK(FLOOR)} floor. Quarters below the floor are deferred (not lost — see step 5).`,
+      colour: '#C9A84C',
+    },
+    {
+      n: '5',
+      title: 'Investor Catch-Up',
+      sub: `Once balance ≥ ${fmtK(TARGET)}`,
+      detail: `Once the reserve is fully built (${fmtK(TARGET)}), missed investor quarters are paid down on top of the normal quarterly share. Long-run pro-rata equality is preserved.`,
+      colour: '#22D3EE',
     },
   ]
   return (
-    <div style={{ marginTop: 48 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
-        Distribution Process — Working-Capital-First
-      </div>
+    <div style={{ marginTop: 24 }}>
+      <h3 className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 8, lineHeight: 1.25 }}>
+        Distribution Process · Priority Order
+      </h3>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 20 }}>
-        How operating profit becomes a dividend cheque, in priority order. The £{HACKNEY_WORKING_CAPITAL_RESERVE.toLocaleString('en-GB')} reserve gets first call on profit; only the surplus above it accrues for distribution. Dividends pay out four times a year — calendar quarter-ends.
+        How operating profit becomes a dividend cheque. Director salary first, then the {fmtK(FLOOR)}–{fmtK(TARGET)} working-capital reserve, then quarterly distributions — founder paid every quarter, investor paid once the reserve hits the floor with deferred quarters caught up later.
       </p>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         {steps.map((s, i) => (
           <div key={s.n} style={{
             position: 'relative',
