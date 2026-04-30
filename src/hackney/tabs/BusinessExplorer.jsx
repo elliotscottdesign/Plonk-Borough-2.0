@@ -73,7 +73,6 @@ function Tab2025() {
       <STitle>Hours — 2025 Rota Reference (4-role bar-only)</STitle>
       <WageRotaReference />
 
-      <STitle>Wage Reconciliation — Investor Fact-Check</STitle>
       <WageReconciliation />
     </div>
   )
@@ -286,17 +285,14 @@ function WageRotaReference() {
   )
 }
 
-// ─── Wage Reconciliation — investor fact-check panel ──────────────────
-// Surfaces the discrepancy between what an investor will see if they pull
-// the live rota Google Sheet directly vs the figures used elsewhere on
-// the deck. Three blocks: (1) raw rota as recorded, (2) manual salaried
-// correction applied for Manager + Asst. Manager (the rota cloud only
-// logs on-floor scheduled shifts and under-counts both salaried roles),
-// (3) reconciliation to financial truth from Weekly Merged 2024-2026.
-//
-// Any investor doing forensic fact-checking can see exactly which
-// figures move, by how much, and why.
+// ─── Wage Reconciliation — collapsible investor fact-check panel ──────
+// Closed by default — most investors won't need this level of detail,
+// but it sits ready for anyone doing forensic fact-checking. Clicking
+// the header expands to reveal the full reconciliation: raw rota →
+// manual salaried correction → financial truth from Weekly Merged
+// 2024-2026.
 function WageReconciliation() {
+  const [open, setOpen] = useState(false)
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
   const rows = WAGE_RATES_ROTA_RAW_2025
   const totalRaw      = rows.reduce((s, r) => s + r.hoursRaw, 0)
@@ -307,7 +303,54 @@ function WageReconciliation() {
   const correctedRows = rows.filter(r => r.salaried)
 
   return (
-    <div className="card" style={{ padding:18 }}>
+    <div style={{
+      background: 'var(--ink-2)',
+      border: '1px solid rgba(201,168,76,0.18)',
+      borderRadius: 12,
+      overflow: 'hidden',
+    }}>
+      {/* Mid-sized title — clickable header that expands the panel */}
+      <button
+        onClick={() => setOpen(o => !o)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          padding: '16px 22px',
+          background: 'transparent',
+          border: 'none',
+          borderBottom: open ? '1px solid rgba(201,168,76,0.18)' : 'none',
+          cursor: 'pointer',
+          transition: 'background 0.15s',
+          textAlign: 'left',
+        }}
+        onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(201,168,76,0.04)' }}
+        onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent' }}
+      >
+        <div>
+          <div className="serif" style={{ fontSize: 18, color: 'var(--cream)', lineHeight: 1.2, marginBottom: 4 }}>
+            Wage Reconciliation
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.04em' }}>
+            For investor fact-check · click to {open ? 'hide' : 'show'} the rota cloud → financial truth chain
+          </div>
+        </div>
+        <span style={{
+          fontSize: 18,
+          color: 'var(--gold)',
+          transform: open ? 'rotate(180deg)' : 'rotate(0deg)',
+          transition: 'transform 0.2s',
+          flexShrink: 0,
+          marginLeft: 16,
+        }}>▾</span>
+      </button>
+
+      {/* Collapsed by default. Body only renders when open so investors
+          who don't expand the panel never see the detail. */}
+      {!open && null}
+      {open && (
+    <div style={{ padding:'18px 22px' }}>
       {/* Lead disclaimer */}
       <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:16, padding:'10px 14px', background:'rgba(234,179,8,0.06)', borderLeft:'3px solid #EAB308', borderRadius:4 }}>
         <strong style={{ color:'#EAB308' }}>For investor fact-check.</strong> If you pull the live rota Google Sheet directly you will see fewer hours than the Hours Rota Reference card above. The two numbers reconcile here: <strong style={{ color:'var(--cream)' }}>Manager + Asst. Manager are salaried</strong>, and the rota cloud only logs their on-floor scheduled shifts — not management / admin / supplier / HR time. Their salaries already cover full-time work and the financial wage line on Weekly Merged reflects that, so we set both roles to <strong style={{ color:'var(--cream)' }}>40 × 52 = 2,080 hrs</strong> as the contracted basis. Hourly-paid roles (Bar Staff, Supervisor) stay at the rota-recorded figure.
@@ -371,6 +414,8 @@ function WageReconciliation() {
       <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.04)', borderLeft:'3px solid #2DD4BF', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
         <strong style={{ color:'#2DD4BF' }}>Bottom line:</strong> the rota cloud's <strong style={{ color:'var(--cream)' }}>{totalRaw.toLocaleString('en-GB')}</strong> raw hours and the deck's <strong style={{ color:'var(--cream)' }}>{totalAdjusted.toLocaleString('en-GB', { maximumFractionDigits:1 })}</strong> adjusted hours both ladder to the same {fmt(PL_WAGE_BASE)} financial-truth wage line on the 2025 P&L. The +{netAdd.toLocaleString('en-GB', { maximumFractionDigits:1 })} hrs adjustment isn't a number we've invented — it's the salaried element of management pay that the rota tool simply doesn't track. Investor verification path: Weekly Merged 2024-2026 (rows 14–24) sums to £179,872 regardless of which view you take of the rota.
       </div>
+    </div>
+      )}
     </div>
   )
 }
