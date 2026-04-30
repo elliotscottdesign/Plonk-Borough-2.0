@@ -15,11 +15,19 @@
 //   • Zero-priced lines are common (pre-paid online packages, comps, mixers
 //     bundled with spirits). pctZero captures this.
 //   • For audited revenue see the Weekly Merged 2024-2026 sheet.
+//
+// (Uncategorised) → OTHER - MISC: rows where the till had a blank Category
+// in the source were originally aggregated under "(Uncategorised)". They've
+// been folded into the "OTHER - MISC" bucket here so every line falls into
+// a real category. The product-level signal needed for a finer split is
+// no longer available because the historical Sales Items tab was deleted
+// from the project workbook (cell limit) — the source workbooks remain if
+// a future re-run with proper Product Name → Category mapping is needed.
 // ───────────────────────────────────────────────────────────────────────
 
 export const HACKNEY_PREV_TILL_SALES = {
   2020: [
-    { name: "(Uncategorised)"                         , qty:  7062, net:   25803.36, total:   30476.03, lines:  6767, zeroLines:  390, pctZero:   5.8 },
+    { name: "OTHER - MISC"                            , qty:  7062, net:   25803.36, total:   30476.03, lines:  6767, zeroLines:  390, pctZero:   5.8 },
     { name: "BEER - DRAUGHT"                          , qty:  3405, net:   14506.79, total:   17415.39, lines:  3271, zeroLines:   77, pctZero:   2.4 },
     { name: "BEER & CIDER - BOTTLED"                  , qty:   883, net:    2972.90, total:    3568.78, lines:   839, zeroLines:   61, pctZero:   7.3 },
     { name: "OTHER - GOLF & GAMES"                    , qty:   699, net:    5689.19, total:    5751.40, lines:   662, zeroLines:    0, pctZero:   0.0 },
@@ -37,7 +45,7 @@ export const HACKNEY_PREV_TILL_SALES = {
   ],
   2021: [
     { name: "COCKTAILS - HOUSE"                       , qty:  7386, net:   54075.92, total:   64879.41, lines:  6307, zeroLines:  317, pctZero:   5.0 },
-    { name: "(Uncategorised)"                         , qty:  6044, net:   16985.58, total:   19366.95, lines:  5115, zeroLines:  315, pctZero:   6.2 },
+    { name: "OTHER - MISC"                            , qty:  6044, net:   16985.58, total:   19366.95, lines:  5115, zeroLines:  315, pctZero:   6.2 },
     { name: "BEER - DRAUGHT"                          , qty:  4896, net:   20806.28, total:   24975.76, lines:  3594, zeroLines:  168, pctZero:   4.7 },
     { name: "BEER & CIDER - BOTTLED"                  , qty:  2236, net:    7971.13, total:    9559.48, lines:  1745, zeroLines:  115, pctZero:   6.6 },
     { name: "FOOD - HOT DOGS"                         , qty:  1906, net:   11694.09, total:   12483.26, lines:  1687, zeroLines:  107, pctZero:   6.3 },
@@ -65,7 +73,7 @@ export const HACKNEY_PREV_TILL_SALES = {
     { name: "BEER - DRAUGHT"                          , qty:  6674, net:   28145.92, total:   33782.53, lines:  5383, zeroLines:  514, pctZero:   9.5 },
     { name: "COCKTAILS - HOUSE"                       , qty:  4113, net:   31802.70, total:   38153.19, lines:  3606, zeroLines:  538, pctZero:  14.9 },
     { name: "BEER & CIDER - BOTTLED"                  , qty:  3096, net:   11316.81, total:   13562.18, lines:  2811, zeroLines:  341, pctZero:  12.1 },
-    { name: "(Uncategorised)"                         , qty:  2923, net:    4131.51, total:    4682.76, lines:  2780, zeroLines:  127, pctZero:   4.6 },
+    { name: "OTHER - MISC"                            , qty:  2923, net:    4131.51, total:    4682.76, lines:  2780, zeroLines:  127, pctZero:   4.6 },
     { name: "OTHER - GOLF & GAMES"                    , qty:  2461, net:   17422.44, total:   20706.04, lines:  2253, zeroLines:   37, pctZero:   1.6 },
     { name: "COCKTAILS - CLASSIC"                     , qty:  1774, net:   12555.98, total:   15067.59, lines:  1542, zeroLines:  201, pctZero:  13.0 },
     { name: "SPIRITS - TEQUILA & SHOTS"               , qty:  1657, net:    4465.15, total:    5358.13, lines:  1101, zeroLines:  239, pctZero:  21.7 },
@@ -92,7 +100,7 @@ export const HACKNEY_PREV_TILL_SALES = {
     { name: "OTHER - GOLF & GAMES"                    , qty:  7118, net:   32381.15, total:   38840.71, lines:  6709, zeroLines:   43, pctZero:   0.6 },
     { name: "COCKTAILS - HOUSE"                       , qty:  4322, net:   38073.46, total:   45677.47, lines:  3835, zeroLines:  283, pctZero:   7.4 },
     { name: "BEER & CIDER - BOTTLED"                  , qty:  4079, net:   15478.96, total:   18573.34, lines:  3781, zeroLines:  289, pctZero:   7.6 },
-    { name: "(Uncategorised)"                         , qty:  3947, net:    1053.15, total:    1179.74, lines:  3748, zeroLines:  182, pctZero:   4.9 },
+    { name: "OTHER - MISC"                            , qty:  3947, net:    1053.15, total:    1179.74, lines:  3748, zeroLines:  182, pctZero:   4.9 },
     { name: "SPIRITS - GIN & VODKA"                   , qty:  1831, net:    9842.24, total:   11811.42, lines:  1595, zeroLines:  156, pctZero:   9.8 },
     { name: "SPIRITS - TEQUILA & SHOTS"               , qty:  1662, net:    5446.88, total:    6535.08, lines:  1026, zeroLines:  272, pctZero:  26.5 },
     { name: "FOOD - HOT DOGS"                         , qty:  1610, net:   10450.77, total:   12543.02, lines:  1395, zeroLines:  103, pctZero:   7.4 },
@@ -119,7 +127,7 @@ export const HACKNEY_PREV_TILL_SALES = {
   2024: [
     { name: "BEER - DRAUGHT"                          , qty: 16406, net:   80071.11, total:   96070.97, lines: 14349, zeroLines:  514, pctZero:   3.6 },
     { name: "OTHER - GOLF & GAMES"                    , qty:  8142, net:   36028.80, total:   43215.90, lines:  7767, zeroLines:   63, pctZero:   0.8 },
-    { name: "(Uncategorised)"                         , qty:  4327, net:   19733.90, total:   23538.26, lines:  4085, zeroLines:  250, pctZero:   6.1 },
+    { name: "OTHER - MISC"                            , qty:  4327, net:   19733.90, total:   23538.26, lines:  4085, zeroLines:  250, pctZero:   6.1 },
     { name: "BEER & CIDER - BOTTLED"                  , qty:  4287, net:   16656.71, total:   19987.91, lines:  4090, zeroLines:  390, pctZero:   9.5 },
     { name: "COCKTAILS - CLASSIC"                     , qty:  2348, net:   21189.39, total:   25423.13, lines:  2220, zeroLines:  102, pctZero:   4.6 },
     { name: "COCKTAILS - HOUSE"                       , qty:  2178, net:   18478.22, total:   22167.49, lines:  2022, zeroLines:  190, pctZero:   9.4 },
