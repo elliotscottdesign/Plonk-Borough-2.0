@@ -29,6 +29,7 @@ import {
   sumHackneyFixedCostsAnnual,
   HACKNEY_DMN_SKUS_ONLINE_2025,
 } from '../../data/hackney.js'
+import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS } from '../../data/hackney2025TillSales.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
@@ -46,6 +47,7 @@ const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 
 const TABS = [
   { key: 'performance2025', label: '2025 Performance' },
+  { key: 'tillsales2025',   label: '2025 Till Sales' },
   { key: 'performance2026', label: '2026 Performance' },
   { key: 'cashflow',        label: 'Cashflow Forecast' },
 ]
@@ -1418,10 +1420,368 @@ function WageCalculator() {
   )
 }
 
+// ─── 2025 Till Sales — Hackney / London Fields only ──────────────────
+// Read-only summary of the cleaned Goodtill till export
+// (data/hackney_2025_till_sales.csv). Hackney's only till from
+// 1 Jan → 23 Sep 2025 was Goodtill — single-venue export, no other
+// venue mixed in. From 24 Sep 2025 the venue migrated to Lightspeed
+// so the dataset stops on that date.
+//
+// IMPORTANT: this is a TILL view, NOT a financial view. Numbers are
+// gross customer payments through the till (inc-VAT, post-discount,
+// pre any subsequent refund/comp/restatement). For the canonical
+// financial figures use the Weekly Merge 2024-2026 sheet — these
+// drive the 2025 Performance tab and the published P&L.
+const TILL_CAT_PALETTE = [
+  '#C9A84C','#D4B86E','#22D3EE','#0EA5E9','#7DD3FC','#A78BFA','#C4B5FD',
+  '#F472B6','#FB7185','#FDA4AF','#FCD34D','#FBBF24','#34D399','#6EE7B7',
+  '#A3E635','#FACC15','#FB923C','#F87171','#94A3B8','#CBD5E1',
+  '#E2E8F0','#FCA5A5','#67E8F9','#86EFAC','#A5F3FC','#DDD6FE','#F5D0FE','#FEF3C7',
+]
+
+function TabTillSales2025() {
+  const [discOpen, setDiscOpen] = useState(false)
+  const data = HACKNEY_2025_TILL_SALES
+  const disc = HACKNEY_2025_DISCOUNTS
+  const { categories, months, monthlyTotals, totalRevenue, totalTxns, lastDate } = data
+  const avgSpend = totalRevenue / Math.max(1, totalTxns)
+  const peakIdx = monthlyTotals.reduce((bi, v, i, arr) => v > arr[bi] ? i : bi, 0)
+  const peakMonth = months[peakIdx]
+  const peakValue = monthlyTotals[peakIdx]
+  const fmtN = (n) => n.toLocaleString('en-GB')
+
+  // Donut: small categories (<1%) folded into "Other"
+  const threshold = totalRevenue * 0.01
+  const major = categories.filter(c => c.total >= threshold)
+  const minor = categories.filter(c => c.total < threshold)
+  const minorTotal = minor.reduce((s, c) => s + c.total, 0)
+  const donutCats = minorTotal > 0
+    ? [...major, { name: 'Other (<1% combined)', total: minorTotal, qty: minor.reduce((s,c)=>s+c.qty,0) }]
+    : major
+  const donutTotal = donutCats.reduce((s, c) => s + c.total, 0)
+  const R_OUT = 90, R_IN = 56, CX = 110, CY = 110
+  let cumAngle = -Math.PI / 2
+  const arcs = donutCats.map((c, i) => {
+    const frac = c.total / donutTotal
+    const start = cumAngle
+    const end = cumAngle + frac * Math.PI * 2
+    cumAngle = end
+    const large = end - start > Math.PI ? 1 : 0
+    const sx = CX + R_OUT * Math.cos(start), sy = CY + R_OUT * Math.sin(start)
+    const ex = CX + R_OUT * Math.cos(end),   ey = CY + R_OUT * Math.sin(end)
+    const sxi = CX + R_IN * Math.cos(end),   syi = CY + R_IN * Math.sin(end)
+    const exi = CX + R_IN * Math.cos(start), eyi = CY + R_IN * Math.sin(start)
+    return {
+      d: `M ${sx} ${sy} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${R_IN} ${R_IN} 0 ${large} 0 ${exi} ${eyi} Z`,
+      color: TILL_CAT_PALETTE[i % TILL_CAT_PALETTE.length],
+      cat: c,
+    }
+  })
+
+  const maxMonthly = Math.max(...monthlyTotals)
+  const CHART_H = 180
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      {/* Header */}
+      <div>
+        <STitle>Hackney 2025 · Till Sales by Category</STitle>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.5 }}>
+          No Dice Hackney · London Fields, E8. Goodtill till data, COMPLETED orders only,
+          1 Jan → 23 Sep 2025.
+        </div>
+      </div>
+
+      {/* TILL ≠ FINANCIALS warning — this is the single most important thing on the slide */}
+      <div style={{
+        padding:'14px 18px',
+        background:'rgba(251,191,36,0.06)',
+        border:'1px solid rgba(251,191,36,0.4)',
+        borderRadius:6,
+        display:'flex',
+        gap:14,
+        alignItems:'flex-start',
+      }}>
+        <div style={{ fontSize:18, lineHeight:'18px', color:'#FBBF24' }}>ⓘ</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCD34D', marginBottom:4 }}>
+            These are till figures, not financial figures
+          </div>
+          <div style={{ fontSize:13, color:'#FDE68A', lineHeight:1.55 }}>
+            Numbers below are gross customer payments through the till (inclusive of VAT, after
+            discounts at the till, before any subsequent refund / comp / accounting restatement).
+            They are useful for understanding <strong>what we sold</strong> and <strong>category
+            mix</strong> — they are <strong>not</strong> the canonical revenue figure. For
+            audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab, which is
+            sourced from the Weekly Merge 2024–2026 sheet. Expect the till total here to read
+            higher than the Weekly Merge figure (VAT layer, restatements, refunds, golf-line
+            split — see the Discounts section below for the full reconciliation).
+          </div>
+        </div>
+      </div>
+
+      {/* Data gap callout */}
+      <div style={{
+        padding:'14px 18px',
+        background:'rgba(239,68,68,0.08)',
+        border:'1px solid rgba(239,68,68,0.35)',
+        borderRadius:6,
+        display:'flex',
+        gap:14,
+        alignItems:'flex-start',
+      }}>
+        <div style={{ fontSize:18, lineHeight:'18px', color:'#F87171' }}>⚠</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5', marginBottom:4 }}>
+            Data gap · Till migration to Lightspeed on 23 Sep 2025
+          </div>
+          <div style={{ fontSize:13, color:'#FECACA', lineHeight:1.55 }}>
+            No till data is available from 24 Sep 2025 onwards. Hackney migrated off Goodtill to
+            Lightspeed on this date — Q4 2025 figures live in Lightspeed reports, not in this
+            dataset. The September bar below is partial (1–23 Sep only).
+          </div>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <KpiCard2026 label="Gross till sales" value={fmtMoney(totalRevenue)} sub="Jan → 23 Sep 2025 · inc-VAT" color="var(--gold)" />
+        <KpiCard2026 label="Transactions"     value={fmtN(totalTxns)}        sub={`${fmtMoney(Math.round(avgSpend))} avg spend`} color="#22D3EE" />
+        <KpiCard2026 label="Peak month"       value={peakMonth}              sub={fmtMoney(peakValue)} color="#A78BFA" />
+        <KpiCard2026 label="Coverage"         value="Goodtill only"           sub={`ends ${lastDate}`} color="#F87171" />
+      </div>
+
+      {/* Monthly chart */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'16px 18px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>Monthly gross · 2025</div>
+          <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.05em' }}>All categories · COMPLETED only</div>
+        </div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:8, height:CHART_H, position:'relative' }}>
+          {months.map((m, i) => {
+            const v = monthlyTotals[i]
+            const h = Math.round((v / maxMonthly) * CHART_H)
+            const isPartial = i === months.length - 1
+            return (
+              <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:CHART_H }}>
+                <div title={`${m} 2025 · ${fmtMoney(v)}${isPartial ? ' · partial (1–23 Sep)' : ''}`}
+                     style={{
+                       width:'100%', height:h,
+                       background: isPartial
+                         ? 'repeating-linear-gradient(45deg, rgba(248,113,113,0.55) 0 6px, rgba(248,113,113,0.25) 6px 12px)'
+                         : 'linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%)',
+                       borderRadius:'2px 2px 0 0',
+                       border: isPartial ? '1px dashed rgba(248,113,113,0.7)' : 'none',
+                     }} />
+                <div style={{ fontSize:10, color:isPartial?'#F87171':'#6B7280', textAlign:'center', marginTop:4, fontWeight:isPartial?600:400 }}>
+                  {m}{isPartial ? '*' : ''}
+                </div>
+                <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', fontVariantNumeric:'tabular-nums' }}>
+                  £{Math.round(v/1000)}k
+                </div>
+              </div>
+            )
+          })}
+          <div style={{ position:'absolute', right:0, top:-6, pointerEvents:'none' }}>
+            <div style={{ fontSize:9, fontWeight:700, color:'#F87171', letterSpacing:'0.06em',
+              background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.4)',
+              borderRadius:3, padding:'2px 5px', whiteSpace:'nowrap', marginRight:-4 }}>
+              ⏹ Till migration · 23 Sep
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize:10, color:'#9CA3AF', marginTop:10, fontStyle:'italic' }}>
+          * September is partial — only 1–23 Sep captured before the till migration to Lightspeed.
+        </div>
+      </div>
+
+      {/* Donut + category table */}
+      <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:24, alignItems:'flex-start' }}>
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:16 }}>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6, textAlign:'center' }}>
+            Category mix
+          </div>
+          <svg viewBox="0 0 220 220" style={{ width:'100%', height:'auto' }}>
+            {arcs.map((a, i) => (
+              <path key={i} d={a.d} fill={a.color}>
+                <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/totalRevenue)*100).toFixed(1)}%)`}</title>
+              </path>
+            ))}
+            <text x="110" y="105" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.08em">Total</text>
+            <text x="110" y="124" textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">{fmtMoney(totalRevenue)}</text>
+          </svg>
+        </div>
+
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>By category · descending</div>
+            <div style={{ fontSize:10, color:'#6B7280' }}>{categories.length} categories</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {categories.map((c, i) => {
+              const pct = (c.total / totalRevenue) * 100
+              const barW = (c.total / categories[0].total) * 100
+              const color = i < (donutCats.length - (minorTotal > 0 ? 1 : 0))
+                ? TILL_CAT_PALETTE[i % TILL_CAT_PALETTE.length]
+                : '#475569'
+              return (
+                <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, alignItems:'center', fontSize:11 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                    <div style={{ width:8, height:8, background:color, borderRadius:2, flexShrink:0 }} />
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</div>
+                  </div>
+                  <div style={{ height:6, background:'rgba(255,255,255,0.04)', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ width:`${barW}%`, height:'100%', background:color }} />
+                  </div>
+                  <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmtMoney(c.total)}</div>
+                  <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{pct.toFixed(1)}%</div>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, fontSize:11, fontWeight:700 }}>
+            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total</div>
+            <div />
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(totalRevenue)}</div>
+            <div style={{ textAlign:'right', color:'#9CA3AF' }}>100%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* ─── Discounts (collapsible) ──────────────────────────── */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, overflow:'hidden' }}>
+        <button
+          onClick={() => setDiscOpen(o => !o)}
+          style={{
+            width:'100%', padding:'14px 18px', background:'transparent', border:'none',
+            cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'space-between',
+            color:'var(--cream)', textAlign:'left',
+          }}
+        >
+          <div style={{ display:'flex', alignItems:'baseline', gap:14 }}>
+            <span style={{ fontSize:18, color:'var(--gold)', transform:discOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+            <div>
+              <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>
+                Discounts · cost against drink sales
+              </div>
+              <div style={{ fontSize:11, color:'#9CA3AF', marginTop:2 }}>
+                {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+            {discOpen ? 'Hide' : 'Show'}
+          </span>
+        </button>
+
+        {discOpen && (
+          <div style={{ padding:'4px 18px 20px', borderTop:'1px solid rgba(201,168,76,0.12)' }}>
+            {/* KPI strip */}
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginTop:14, marginBottom:18 }}>
+              <KpiCard2026 label="Total discounted"    value={fmtMoney(Math.round(disc.totalDiscount))} sub={`${disc.discountRate.toFixed(2)}% of gross`} color="#F87171" />
+              <KpiCard2026 label="Discounted orders"   value={fmtN(disc.discountedOrders)}              sub={`${disc.discountedOrderPct}% of orders`} color="#FB923C" />
+              <KpiCard2026 label="Avg per disc. order" value={fmtMoney(Math.round(disc.avgDiscountPerDiscountedOrder))} sub="across discounted orders" color="#FBBF24" />
+              <KpiCard2026 label="Peak window"         value="Apr–Jun" sub="~9% vs ~5% baseline" color="#A78BFA" />
+            </div>
+
+            {/* Monthly discount-rate strip */}
+            <div style={{ marginBottom:20 }}>
+              <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+                Discount rate by month (% of gross)
+              </div>
+              <div style={{ display:'flex', alignItems:'flex-end', gap:6, height:80 }}>
+                {disc.monthly.map((m,i) => {
+                  const maxRate = Math.max(...disc.monthly.map(x=>x.rate))
+                  const h = Math.round((m.rate / maxRate) * 70)
+                  const hot = m.rate >= 8
+                  return (
+                    <div key={m.month} style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:2 }}>
+                      <div style={{ fontSize:9, color:hot?'#FCA5A5':'#9CA3AF', fontWeight:hot?700:400, fontVariantNumeric:'tabular-nums' }}>
+                        {m.rate.toFixed(1)}%
+                      </div>
+                      <div style={{ width:'80%', height:h, background:hot?'#F87171':'rgba(248,113,113,0.35)', borderRadius:'2px 2px 0 0' }} />
+                      <div style={{ fontSize:9, color:'#6B7280', marginTop:2 }}>{m.month}</div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div style={{ fontSize:10, color:'#9CA3AF', marginTop:8, fontStyle:'italic' }}>
+                Apr–Jun spikes to ~9% — looks like a deliberate spring promo run
+                (2-for-£12 doubles, January Deals carry-over). Worth confirming whether
+                intentional vs operator slippage.
+              </div>
+            </div>
+
+            {/* Category table */}
+            <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:8 }}>
+              Discount by category · sorted by £
+            </div>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', gap:10, fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:6, paddingBottom:4, borderBottom:'1px solid rgba(201,168,76,0.1)' }}>
+              <div>Category</div>
+              <div style={{ textAlign:'right' }}>Gross</div>
+              <div style={{ textAlign:'right' }}>Discount £</div>
+              <div style={{ textAlign:'right' }}>Rate</div>
+            </div>
+            <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
+              {disc.categories.map((c, i) => {
+                const heat = c.rate >= 15 ? '#F87171' : c.rate >= 8 ? '#FB923C' : c.rate >= 4 ? '#FBBF24' : '#9CA3AF'
+                const flag = c.rate >= 15 ? '🚨' : c.rate >= 8 ? '⚠' : ''
+                return (
+                  <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 100px 100px 80px', gap:10, alignItems:'center', fontSize:11, padding:'4px 0' }}>
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {flag && <span style={{ marginRight:6 }}>{flag}</span>}
+                      {c.name}
+                    </div>
+                    <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(c.gross)}</div>
+                    <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmtMoney(Math.round(c.discount))}</div>
+                    <div style={{ textAlign:'right', color:heat, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{c.rate.toFixed(1)}%</div>
+                  </div>
+                )
+              })}
+            </div>
+            <div style={{ marginTop:14, padding:'10px 12px', background:'rgba(251,146,60,0.08)', border:'1px solid rgba(251,146,60,0.25)', borderRadius:4, fontSize:11, color:'#FCD34D', lineHeight:1.55 }}>
+              <strong style={{ color:'#FB923C' }}>Flags: </strong>
+              🚨 ≥15% rate — outlier categories (TEQUILA & SHOTS 22.7%, BOTTLED BEER 17.2%, FOOD TACOS 26.2%)
+              are likely promotional SKUs (2-for-£12 doubles, BOGOFs etc).
+              ⚠ 8–15% rate is heavy-but-explainable. Confirm these are intentional rather than till-side errors.
+            </div>
+
+            {/* Reconciliation panel — answers "why doesn't this match Weekly Merge 2024-2026?" */}
+            <div style={{ marginTop:18, padding:'12px 14px', background:'rgba(34,211,238,0.06)', border:'1px solid rgba(34,211,238,0.25)', borderRadius:4, fontSize:11, color:'#A5F3FC', lineHeight:1.6 }}>
+              <div style={{ fontSize:10, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:700, marginBottom:6 }}>
+                Why doesn't this match the Weekly Merge 2024-2026 sheet?
+              </div>
+              <div style={{ color:'#CBD5E1' }}>
+                Like-for-like Jan→Aug 2025: Goodtill till data <strong>£595k inc-VAT</strong> vs Monthly Summary
+                <strong> £383k</strong> — gap ~£212k. Discounts (~£39k) account for only ~6% of the gap. The rest
+                is structural: <strong>(1)</strong> Goodtill totals are gross of VAT (~£99k of the gap is the 20%
+                layer); <strong>(2)</strong> Monthly Summary is post-restatement / re-categorisation; <strong>(3)</strong>
+                Goodtill captures till-rung golf entries that Weekly Merge splits to a separate Online Golf line;
+                <strong> (4)</strong> refunds / voids / comps recorded after COMPLETED. Bottom line: <strong>this
+                till data is for product-mix and discount analytics — not for the P&amp;L</strong>. Weekly Merge
+                2024-2026 stays the canonical revenue figure.
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Source footnote */}
+      <div style={{ fontSize:10, color:'#6B7280', lineHeight:1.6 }}>
+        Source · data/hackney_2025_till_sales.csv (cleaned Goodtill export, 89,521 rows ·
+        5,469 previously-blank categories filled by the recategorisation playbook).
+        Single-venue till instance — Hackney / London Fields E8 only. No Borough or other
+        venue data is mixed in.
+      </div>
+    </div>
+  )
+}
+
 export default function BusinessExplorer() {
   const [tab, setTab] = useState('performance2025')
   const tabComponents = {
     performance2025: <Tab2025 />,
+    tillsales2025:   <TabTillSales2025 />,
     performance2026: <Tab2026 />,
     cashflow:        <TabCashflow />,
   }

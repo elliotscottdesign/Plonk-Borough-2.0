@@ -3,60 +3,7 @@
   "tabs": {
     "performance2025": "Desempenho 2025",
     "performance2026": "Desempenho 2026",
-    "cashflow": "Projeção de Caixa",
-    "hackney2025": "Vendas Hackney 2025"
-  },
-  "hackney2025": {
-    "header": "Hackney 2025 · Vendas por categoria",
-    "note": "Dados do caixa Goodtill, pedidos COMPLETED, 1 jan → 23 set 2025. Exportação de unidade única do No Dice Hackney (London Fields, E8).",
-    "gapTitle": "Lacuna de dados · Migração de caixa para Lightspeed em 23 set 2025",
-    "gapBody": "Não há dados de caixa a partir de 24 set 2025. O Hackney migrou do Goodtill para o Lightspeed nessa data — os números do Q4 2025 estão nos relatórios do Lightspeed, não neste conjunto. Trate setembro como mês parcial (apenas 1–23 set).",
-    "kpi": {
-      "gross": "Vendas brutas",
-      "grossSub": "Jan → 23 set 2025",
-      "txns": "Transações",
-      "avgSpend": "tíquete médio",
-      "peak": "Mês de pico",
-      "coverage": "Cobertura",
-      "coverageValue": "Apenas Goodtill",
-      "lastDate": "termina"
-    },
-    "monthlyHeader": "Bruto mensal · 2025",
-    "monthlySub": "Todas as categorias · apenas COMPLETED",
-    "tillCutoff": "Migração de caixa · 23 set",
-    "partialNote": "* Setembro é parcial — apenas 1–23 set captados antes da migração para Lightspeed.",
-    "donutHeader": "Mix de categorias",
-    "donutCenter": "Total",
-    "tableHeader": "Por categoria · decrescente",
-    "cats": "categorias",
-    "total": "Total",
-    "otherSmall": "Outros (<1% combinados)",
-    "source": "Fonte · data/hackney_2025_till_sales.csv (exportação Goodtill limpa, 89.521 linhas · 5.469 categorias previamente em branco preenchidas pelo playbook de recategorização).",
-    "disc": {
-      "header": "Descontos",
-      "discounted": "em desconto",
-      "ofGross": "do bruto",
-      "ofOrders": "dos pedidos",
-      "ordersOf": "pedidos com desconto de",
-      "show": "Mostrar",
-      "hide": "Ocultar",
-      "kpi": {
-        "total": "Total descontado",
-        "orders": "Pedidos com desconto",
-        "avg": "Médio por pedido c/ desc.",
-        "avgSub": "entre pedidos descontados",
-        "peak": "Janela de pico",
-        "peakSub": "Abr–Jun ~9% vs ~5% base"
-      },
-      "monthlyHeader": "Taxa de desconto por mês (% do bruto)",
-      "springSpike": "Abr–Jun sobe para ~9% — parece campanha primaveril deliberada (2-por-£12 doses, restos de promoções de janeiro). Vale confirmar se intencional ou erro operacional.",
-      "tableHeader": "Desconto por categoria · ordenado por £",
-      "col": { "category": "Categoria", "gross": "Bruto", "discount": "Desconto £", "rate": "Taxa" },
-      "flagsTitle": "Sinalizações:",
-      "flagsBody": "🚨 ≥15% — categorias atípicas (TEQUILA & SHOTS 22,7%, CERVEJA GARRAFA 17,2%, TACOS 26,2%) são prováveis SKUs promocionais (2-por-£12 doses, BOGOFs etc). ⚠ 8–15% é pesado mas explicável. Confirme se são intencionais ou erros de caixa.",
-      "reconHeader": "Isto ajuda a reconciliar com o Weekly Merged 2024-2026?",
-      "reconBody": "Parcialmente. Comparando Jan→Ago 2025: Goodtill £595k com IVA vs Monthly Summary £383k — diferença ~£212k. Descontos (~£39k) explicam apenas ~6%. O grosso da diferença é estrutural: (1) totais Goodtill incluem IVA (~£99k da diferença é a camada de 20%), (2) Monthly Summary é pós-recategorização (~£20k apontados nos comentários do Weekly Merged), (3) Goodtill captura entradas de golf no caixa que o Weekly Merged separa em linha Online Golf, (4) reembolsos/voids/cortesias após COMPLETED. Conclusão: os dados de caixa são uma visão operacional limpa (recibos reais, pagamentos reais) mas NÃO substituem o P&L. O Weekly Merged continua sendo a receita canônica para relatórios a investidores; esta aba é para análise de mix de produtos e descontos."
-    }
+    "cashflow": "Projeção de Caixa"
   },
   "cashflow": {
     "header": "Projeção de Caixa · Mai 2026 → Abr 2027",
