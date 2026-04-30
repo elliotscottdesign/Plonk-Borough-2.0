@@ -198,14 +198,20 @@ export const HACKNEY_FIXED_COSTS_2026 = {
 // Monthly Summary's £462,201 due to categorisation differences (some
 // items in Weekly Merged are pre-restatement). Monthly Summary remains
 // the canonical totals; this table shows the cost-mix shares.
+// Palette designed for dark-background legibility — Tailwind 400-level
+// hues so every category reads cleanly in chart bars / lines AND in
+// tooltip text. Wages and Drinks & Gas (biggest two) take the warmest
+// reds; Fixed Costs steps to purple so it stands out from the warm
+// cost family without breaking the cost-side feel; the smaller
+// categories spread across pink / orange / amber / yellow.
 export const COST_CATEGORIES = [
-  { name: 'Wages',          amount: 175531, pct: 36.2, color: '#4A0000' },
-  { name: 'Drinks & Gas',   amount: 134123, pct: 27.6, color: '#7B0000' },
-  { name: 'Fixed Costs',    amount: 132936, pct: 27.4, color: '#B71C1C' },
-  { name: 'Cleaning',       amount:  16492, pct:  3.4, color: '#C62828' },
-  { name: 'DJs',            amount:  10300, pct:  2.1, color: '#E53935' },
-  { name: 'Arcades',        amount:   8202, pct:  1.7, color: '#D84315' },
-  { name: 'Food',           amount:   7887, pct:  1.6, color: '#EF6C00' },
+  { name: 'Wages',          amount: 175531, pct: 36.2, color: '#F87171' }, // red 400
+  { name: 'Drinks & Gas',   amount: 134123, pct: 27.6, color: '#FB923C' }, // orange 400
+  { name: 'Fixed Costs',    amount: 132936, pct: 27.4, color: '#C084FC' }, // purple 400 — stands out
+  { name: 'Cleaning',       amount:  16492, pct:  3.4, color: '#F472B6' }, // pink 400
+  { name: 'DJs',            amount:  10300, pct:  2.1, color: '#FCA5A5' }, // rose 300
+  { name: 'Arcades',        amount:   8202, pct:  1.7, color: '#FDBA74' }, // orange 300
+  { name: 'Food',           amount:   7887, pct:  1.6, color: '#FBBF24' }, // amber 400
 ]
 
 // === MONTHLY DATA (Jan–Dec 2025) ===

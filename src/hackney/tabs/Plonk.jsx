@@ -229,7 +229,9 @@ function GolfHostSeasonality() {
               <YAxis stroke="#4FC3F7" fontSize={10} tickFormatter={v => `${v}h`} width={48} />
               <Tooltip
                 cursor={{ fill: 'rgba(79,195,247,0.06)' }}
-                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+                labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+                itemStyle={{ color:'var(--cream)' }}
                 formatter={(v) => [`${v} hrs`, 'Hours']}
               />
               <Bar  dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
@@ -266,7 +268,9 @@ function GolfHostSeasonality() {
               <YAxis stroke="#2DD4BF" fontSize={10} tickFormatter={v => '£' + v} width={56} />
               <Tooltip
                 cursor={{ fill: 'rgba(45,212,191,0.06)' }}
-                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+                labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+                itemStyle={{ color:'var(--cream)' }}
                 formatter={(v) => [fmt(v), 'Till revenue']}
               />
               <Bar  dataKey="revenue" name="Revenue" fill="#2DD4BF" radius={[3,3,0,0]} maxBarSize={36} />

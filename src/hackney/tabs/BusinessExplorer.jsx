@@ -122,7 +122,9 @@ function IncomeBySourceChart() {
             <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
             <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Bar dataKey="amount" radius={[0,4,4,0]}>
               {data.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -162,7 +164,9 @@ function CostsByCategoryChart() {
             <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
             <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Bar dataKey="amount" radius={[0,4,4,0]}>
               {data.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -207,7 +211,9 @@ function MonthlyPerformanceChart() {
             <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
             <Bar dataKey="income" name="Income"  fill="var(--gold)" radius={[3,3,0,0]} />
@@ -225,7 +231,9 @@ function MonthlyPerformanceChart() {
             <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
             <Bar dataKey="wages"        name="Wages"        stackId="a" fill="#4A0000" />
@@ -644,7 +652,9 @@ function ForecastIncomeChart({ sources }) {
             <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
             <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Bar dataKey="amount" radius={[0,4,4,0]}>
               {data.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -683,7 +693,9 @@ function ForecastCostsChart({ cats }) {
             <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
             <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Bar dataKey="amount" radius={[0,4,4,0]}>
               {cats.map((d, i) => <Cell key={i} fill={d.color} />)}
@@ -720,7 +732,9 @@ function ForecastMonthlyChart({ data }) {
             <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" />
             <Bar dataKey="income" name="Forecast income"  fill="var(--gold)" radius={[3,3,0,0]} />
@@ -738,7 +752,9 @@ function ForecastMonthlyChart({ data }) {
             <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
             <Bar dataKey="wages"        name="Wages"        stackId="a" fill="#4A0000" />
@@ -839,7 +855,9 @@ function CashflowChart() {
             <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
             <Tooltip cursor={{ stroke: 'rgba(201,168,76,0.2)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8 }}
+              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+              itemStyle={{ color:'var(--cream)' }}
               formatter={(v) => fmtMoney(v)} />
             <ReferenceLine y={HACKNEY_CASH.safetyFloor} stroke="#F87171" strokeDasharray="4 4" label={{ value:'Safety floor', position:'right', fill:'#F87171', fontSize:10 }} />
             <Line type="monotone" dataKey="closing" name="Closing balance" stroke="var(--gold)" strokeWidth={2} dot={{ r:3, fill:'var(--gold)' }} />
