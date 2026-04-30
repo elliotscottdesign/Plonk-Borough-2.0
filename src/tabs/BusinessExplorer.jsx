@@ -5,9 +5,10 @@ import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
+import { HACKNEY_2025_TILL_SALES } from '../data/hackney2025TillSales.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 
-const TAB_KEYS = ['performance2025','performance2026','cashflow']
+const TAB_KEYS = ['performance2025','performance2026','cashflow','hackney2025']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -1668,6 +1669,225 @@ function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal
   return { revenue, profit, investorReturn, coc }
 }
 
+// ─── Hackney 2025 Till Sales ─────────────────────────────────────────
+// Read-only summary of the cleaned Goodtill export (data/hackney_2025_till_sales.csv).
+// Shows category mix + monthly trend with a hard cutoff on 23 Sep 2025
+// where Hackney migrated from Goodtill to Lightspeed. Q4 2025 lives in
+// Lightspeed reports, not here — the gap is called out prominently.
+const HACKNEY_CAT_PALETTE = [
+  '#C9A84C','#D4B86E','#22D3EE','#0EA5E9','#7DD3FC','#A78BFA','#C4B5FD',
+  '#F472B6','#FB7185','#FDA4AF','#FCD34D','#FBBF24','#34D399','#6EE7B7',
+  '#A3E635','#FACC15','#FB923C','#F87171','#94A3B8','#CBD5E1',
+  '#E2E8F0','#FCA5A5','#67E8F9','#86EFAC','#A5F3FC','#DDD6FE','#F5D0FE','#FEF3C7',
+]
+
+function TabHackney2025({ fmt, fmtNum, t }) {
+  const data = HACKNEY_2025_TILL_SALES
+  const { categories, months, monthlyTotals, totalRevenue, totalTxns, lastDate } = data
+  const avgSpend = totalRevenue / Math.max(1, totalTxns)
+
+  // Top-level metric strip
+  const peakIdx = monthlyTotals.reduce((bi, v, i, arr) => v > arr[bi] ? i : bi, 0)
+  const peakMonth = months[peakIdx]
+  const peakValue = monthlyTotals[peakIdx]
+
+  // Group small categories (under 1% of total) into "OTHER" for the donut.
+  const threshold = totalRevenue * 0.01
+  const major = categories.filter(c => c.total >= threshold)
+  const minor = categories.filter(c => c.total < threshold)
+  const minorTotal = minor.reduce((s, c) => s + c.total, 0)
+  const donutCats = minorTotal > 0
+    ? [...major, { name: t('hackney2025.otherSmall'), total: minorTotal, qty: minor.reduce((s,c)=>s+c.qty,0) }]
+    : major
+
+  // Donut geometry — concentric arcs sized by category.total
+  const donutTotal = donutCats.reduce((s, c) => s + c.total, 0)
+  const R_OUT = 90, R_IN = 56, CX = 110, CY = 110
+  let cumAngle = -Math.PI / 2
+  const arcs = donutCats.map((c, i) => {
+    const frac = c.total / donutTotal
+    const start = cumAngle
+    const end = cumAngle + frac * Math.PI * 2
+    cumAngle = end
+    const large = end - start > Math.PI ? 1 : 0
+    const sx = CX + R_OUT * Math.cos(start), sy = CY + R_OUT * Math.sin(start)
+    const ex = CX + R_OUT * Math.cos(end),   ey = CY + R_OUT * Math.sin(end)
+    const sxi = CX + R_IN * Math.cos(end),   syi = CY + R_IN * Math.sin(end)
+    const exi = CX + R_IN * Math.cos(start), eyi = CY + R_IN * Math.sin(start)
+    return {
+      d: `M ${sx} ${sy} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${R_IN} ${R_IN} 0 ${large} 0 ${exi} ${eyi} Z`,
+      color: HACKNEY_CAT_PALETTE[i % HACKNEY_CAT_PALETTE.length],
+      cat: c,
+    }
+  })
+
+  // Monthly bar chart — totals only (cleaner than 28-cat stack)
+  const maxMonthly = Math.max(...monthlyTotals)
+  const CHART_H = 180
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      {/* Header */}
+      <div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>
+          {t('hackney2025.header')}
+        </div>
+        <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('hackney2025.note')}</div>
+      </div>
+
+      {/* Data gap callout — front and centre */}
+      <div style={{
+        padding:'14px 18px',
+        background:'rgba(239,68,68,0.08)',
+        border:'1px solid rgba(239,68,68,0.35)',
+        borderRadius:6,
+        display:'flex',
+        gap:14,
+        alignItems:'flex-start',
+      }}>
+        <div style={{ fontSize:18, lineHeight:'18px', color:'#F87171' }}>⚠</div>
+        <div style={{ flex:1 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5', marginBottom:4 }}>
+            {t('hackney2025.gapTitle')}
+          </div>
+          <div style={{ fontSize:13, color:'#FECACA', lineHeight:1.5 }}>
+            {t('hackney2025.gapBody')}
+          </div>
+        </div>
+      </div>
+
+      {/* KPI strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <KpiCard2026 label={t('hackney2025.kpi.gross')} value={fmt(totalRevenue)} sub={t('hackney2025.kpi.grossSub')} color="var(--gold)" />
+        <KpiCard2026 label={t('hackney2025.kpi.txns')} value={fmtNum(totalTxns)} sub={`${fmt(Math.round(avgSpend))} ${t('hackney2025.kpi.avgSpend')}`} color="#22D3EE" />
+        <KpiCard2026 label={t('hackney2025.kpi.peak')} value={peakMonth} sub={fmt(peakValue)} color="#A78BFA" />
+        <KpiCard2026 label={t('hackney2025.kpi.coverage')} value={t('hackney2025.kpi.coverageValue')} sub={`${t('hackney2025.kpi.lastDate')} ${lastDate}`} color="#F87171" />
+      </div>
+
+      {/* Monthly chart */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'16px 18px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>
+            {t('hackney2025.monthlyHeader')}
+          </div>
+          <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.05em' }}>
+            {t('hackney2025.monthlySub')}
+          </div>
+        </div>
+        <div style={{ display:'flex', alignItems:'flex-end', gap:8, height:CHART_H, position:'relative' }}>
+          {months.map((m, i) => {
+            const v = monthlyTotals[i]
+            const h = Math.round((v / maxMonthly) * CHART_H)
+            const isPartial = i === months.length - 1   // Sep 2025 = partial month
+            return (
+              <div key={m} style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'flex-end', height:CHART_H }}>
+                <div title={`${m} 2025 · ${fmt(v)}${isPartial ? ' · partial (1–23 Sep)' : ''}`}
+                     style={{
+                       width:'100%', height:h,
+                       background: isPartial
+                         ? 'repeating-linear-gradient(45deg, rgba(248,113,113,0.55) 0 6px, rgba(248,113,113,0.25) 6px 12px)'
+                         : 'linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%)',
+                       borderRadius:'2px 2px 0 0',
+                       border: isPartial ? '1px dashed rgba(248,113,113,0.7)' : 'none',
+                     }} />
+                <div style={{ fontSize:10, color:isPartial?'#F87171':'#6B7280', textAlign:'center', marginTop:4, fontWeight:isPartial?600:400 }}>
+                  {m}{isPartial ? '*' : ''}
+                </div>
+                <div style={{ fontSize:9, color:'#6B7280', textAlign:'center', fontVariantNumeric:'tabular-nums' }}>
+                  £{Math.round(v/1000)}k
+                </div>
+              </div>
+            )
+          })}
+          {/* Hard cutoff marker after Sep */}
+          <div style={{
+            position:'absolute', right:0, top:-6, bottom:18,
+            display:'flex', flexDirection:'column', alignItems:'flex-end', justifyContent:'flex-start',
+            pointerEvents:'none',
+          }}>
+            <div style={{
+              fontSize:9, fontWeight:700, color:'#F87171', letterSpacing:'0.06em',
+              background:'rgba(239,68,68,0.12)', border:'1px solid rgba(239,68,68,0.4)',
+              borderRadius:3, padding:'2px 5px', whiteSpace:'nowrap', marginRight:-4,
+            }}>
+              ⏹ {t('hackney2025.tillCutoff')}
+            </div>
+          </div>
+        </div>
+        <div style={{ fontSize:10, color:'#9CA3AF', marginTop:10, fontStyle:'italic' }}>
+          {t('hackney2025.partialNote')}
+        </div>
+      </div>
+
+      {/* Category breakdown — donut + table side-by-side */}
+      <div style={{ display:'grid', gridTemplateColumns:'240px 1fr', gap:24, alignItems:'flex-start' }}>
+        {/* Donut */}
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:16 }}>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6, textAlign:'center' }}>
+            {t('hackney2025.donutHeader')}
+          </div>
+          <svg viewBox="0 0 220 220" style={{ width:'100%', height:'auto' }}>
+            {arcs.map((a, i) => (
+              <path key={i} d={a.d} fill={a.color}>
+                <title>{`${a.cat.name} · ${fmt(a.cat.total)} (${((a.cat.total/totalRevenue)*100).toFixed(1)}%)`}</title>
+              </path>
+            ))}
+            <text x="110" y="105" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.08em">
+              {t('hackney2025.donutCenter')}
+            </text>
+            <text x="110" y="124" textAnchor="middle" fontSize="16" fill="var(--cream)" fontWeight="700">
+              {fmt(totalRevenue)}
+            </text>
+          </svg>
+        </div>
+
+        {/* Category table */}
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>
+              {t('hackney2025.tableHeader')}
+            </div>
+            <div style={{ fontSize:10, color:'#6B7280' }}>{categories.length} {t('hackney2025.cats')}</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {categories.map((c, i) => {
+              const pct = (c.total / totalRevenue) * 100
+              const barW = (c.total / categories[0].total) * 100
+              const color = i < donutCats.length - (minorTotal > 0 ? 1 : 0)
+                ? HACKNEY_CAT_PALETTE[i % HACKNEY_CAT_PALETTE.length]
+                : '#475569'
+              return (
+                <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, alignItems:'center', fontSize:11 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                    <div style={{ width:8, height:8, background:color, borderRadius:2, flexShrink:0 }} />
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</div>
+                  </div>
+                  <div style={{ height:6, background:'rgba(255,255,255,0.04)', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ width:`${barW}%`, height:'100%', background:color }} />
+                  </div>
+                  <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmt(c.total)}</div>
+                  <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{pct.toFixed(1)}%</div>
+                </div>
+              )
+            })}
+          </div>
+          <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, fontSize:11, fontWeight:700 }}>
+            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('hackney2025.total')}</div>
+            <div />
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(totalRevenue)}</div>
+            <div style={{ textAlign:'right', color:'#9CA3AF' }}>100%</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Source footnote */}
+      <div style={{ fontSize:10, color:'#6B7280', lineHeight:1.6 }}>
+        {t('hackney2025.source')}
+      </div>
+    </div>
+  )
+}
+
 export default function BusinessExplorer() {
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
@@ -1721,10 +1941,12 @@ export default function BusinessExplorer() {
     },
   }
 
+  const { fmt: fmtCur, fmtNum: fmtN } = useFmt()
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
+    hackney2025:     <TabHackney2025 fmt={fmtCur} fmtNum={fmtN} t={t} />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>

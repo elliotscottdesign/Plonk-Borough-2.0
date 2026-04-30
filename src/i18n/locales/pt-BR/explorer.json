@@ -3,7 +3,35 @@
   "tabs": {
     "performance2025": "Desempenho 2025",
     "performance2026": "Desempenho 2026",
-    "cashflow": "Projeção de Caixa"
+    "cashflow": "Projeção de Caixa",
+    "hackney2025": "Vendas Hackney 2025"
+  },
+  "hackney2025": {
+    "header": "Hackney 2025 · Vendas por categoria",
+    "note": "Dados do caixa Goodtill, pedidos COMPLETED, 1 jan → 23 set 2025. Exportação de unidade única do No Dice Hackney (London Fields, E8).",
+    "gapTitle": "Lacuna de dados · Migração de caixa para Lightspeed em 23 set 2025",
+    "gapBody": "Não há dados de caixa a partir de 24 set 2025. O Hackney migrou do Goodtill para o Lightspeed nessa data — os números do Q4 2025 estão nos relatórios do Lightspeed, não neste conjunto. Trate setembro como mês parcial (apenas 1–23 set).",
+    "kpi": {
+      "gross": "Vendas brutas",
+      "grossSub": "Jan → 23 set 2025",
+      "txns": "Transações",
+      "avgSpend": "tíquete médio",
+      "peak": "Mês de pico",
+      "coverage": "Cobertura",
+      "coverageValue": "Apenas Goodtill",
+      "lastDate": "termina"
+    },
+    "monthlyHeader": "Bruto mensal · 2025",
+    "monthlySub": "Todas as categorias · apenas COMPLETED",
+    "tillCutoff": "Migração de caixa · 23 set",
+    "partialNote": "* Setembro é parcial — apenas 1–23 set captados antes da migração para Lightspeed.",
+    "donutHeader": "Mix de categorias",
+    "donutCenter": "Total",
+    "tableHeader": "Por categoria · decrescente",
+    "cats": "categorias",
+    "total": "Total",
+    "otherSmall": "Outros (<1% combinados)",
+    "source": "Fonte · data/hackney_2025_till_sales.csv (exportação Goodtill limpa, 89.521 linhas · 5.469 categorias previamente em branco preenchidas pelo playbook de recategorização)."
   },
   "cashflow": {
     "header": "Projeção de Caixa · Mai 2026 → Abr 2027",

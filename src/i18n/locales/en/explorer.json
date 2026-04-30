@@ -3,7 +3,35 @@
   "tabs": {
     "performance2025": "2025 Performance",
     "performance2026": "2026 Performance",
-    "cashflow": "Cashflow Forecast"
+    "cashflow": "Cashflow Forecast",
+    "hackney2025": "Hackney 2025 Sales"
+  },
+  "hackney2025": {
+    "header": "Hackney 2025 · Till sales by category",
+    "note": "Goodtill till data, COMPLETED orders, 1 Jan → 23 Sep 2025. Single-venue export from No Dice Hackney (London Fields, E8).",
+    "gapTitle": "Data gap · Till migration to Lightspeed on 23 Sep 2025",
+    "gapBody": "No till data is available from 24 Sep 2025 onwards. Hackney migrated off Goodtill to Lightspeed on this date — Q4 2025 figures live in Lightspeed reports, not in this dataset. Treat the September bar as a partial month (1–23 Sep only).",
+    "kpi": {
+      "gross": "Gross sales",
+      "grossSub": "Jan → 23 Sep 2025",
+      "txns": "Transactions",
+      "avgSpend": "avg spend",
+      "peak": "Peak month",
+      "coverage": "Coverage",
+      "coverageValue": "Goodtill only",
+      "lastDate": "ends"
+    },
+    "monthlyHeader": "Monthly gross · 2025",
+    "monthlySub": "All categories · COMPLETED only",
+    "tillCutoff": "Till migration · 23 Sep",
+    "partialNote": "* September is partial — only 1–23 Sep captured before the till migration to Lightspeed.",
+    "donutHeader": "Category mix",
+    "donutCenter": "Total",
+    "tableHeader": "By category · descending",
+    "cats": "categories",
+    "total": "Total",
+    "otherSmall": "Other (<1% lines combined)",
+    "source": "Source · data/hackney_2025_till_sales.csv (cleaned Goodtill export, 89,521 rows · 5,469 previously-blank categories filled per the recategorisation playbook)."
   },
   "cashflow": {
     "header": "Cashflow Forecast · May 2026 → Apr 2027",
