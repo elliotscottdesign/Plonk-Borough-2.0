@@ -28,6 +28,7 @@ import {
   HACKNEY_FIXED_COSTS_2026_DEFAULTS,
   sumHackneyFixedCostsAnnual,
   HACKNEY_DMN_SKUS_ONLINE_2025,
+  WORKBOOK_URL,
 } from '../../data/hackney.js'
 import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS, HACKNEY_2025_DISCOUNT_CODES } from '../../data/hackney2025TillSales.js'
 import { HACKNEY_PREV_TILL_SALES, HACKNEY_PREV_TILL_YEAR_TOTALS, HACKNEY_PREV_TILL_YEARS, HACKNEY_GOLF_CATEGORIES, hackneyTotalsForYear } from '../../data/hackneyPrevTillSales.js'
@@ -1292,7 +1293,8 @@ function Tab2026() {
 
 
 function TabCashflow() {
-  const { effective, isLocked, snapshot } = useLockedUseOfFunds()
+  const ctx = useLockedUseOfFunds()
+  const { effective, isLocked, snapshot, forecastEffective, isForecastLocked, forecastSnapshot } = ctx
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
   // Day-1 startup-cost rows always reflect the live context — slider
@@ -1313,13 +1315,125 @@ function TabCashflow() {
   const day1Total = day1.reduce((s, r) => s + r.amount, 0)
   const deal = computeDealFromInvestment(day1Total)
 
-  return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>Cashflow Forecast — May 2026 to Apr 2027</STitle>
-      <Tbd>Month-by-month opening / inflows / outflows / closing balance table. Headline numbers (peak £82,337 Aug 26 · low £39,250 Feb 27 · year-end £72,462 Apr 27) are rendered in the Net Position chart below; per-month per-line tabular detail is the next pass.</Tbd>
+  // Scenario badge — shows what the table is computed against. Locked
+  // forecast wins; otherwise fall back to the headline 15% Base case.
+  const avgGrowth = forecastEffective?.growth
+    ? (Object.values(forecastEffective.growth).reduce((s, v) => s + v, 0) / Object.values(forecastEffective.growth).length)
+    : 15
+  const scenarioLabel = isForecastLocked
+    ? `Locked Custom (${avgGrowth.toFixed(1)}% avg)`
+    : 'Base Case · +15%'
+  const scenarioColor = isForecastLocked ? '#10B981' : 'var(--gold)'
+  const scenarioLockedAt = forecastSnapshot?.lockedAt
+    ? new Date(forecastSnapshot.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
-      <STitle>Cash Inflows — by Source</STitle>
-      <Tbd>Investment receipt ({fmt(day1Total)} May 26), VAT reclaim (£13,458 May 26), monthly trading income. Mirror Borough's cashflow inflow table.</Tbd>
+  // Floor / Target for the safe-zone status pill in the table.
+  const FLOOR  = HACKNEY_CASH.safetyFloor
+  const TARGET = HACKNEY_CASH.safetyTarget
+
+  // Build the monthly table. Opening = previous closing; first month's
+  // opening = day-1 raise less the same month's net flow's pre-trading
+  // contribution (treat the raise as already deployed into Day 1 line
+  // items). Status pill: ✓ in band, ↑ above target, ⚠ below floor.
+  const monthly = HACKNEY_CASHFLOW.map((m, i) => {
+    const opening = i === 0 ? 0 : HACKNEY_CASHFLOW[i - 1].closing
+    const status =
+      m.closing >= TARGET ? { tag: '↑ above target', color: '#22D3EE' } :
+      m.closing >= FLOOR  ? { tag: '✓ in safe zone', color: '#10B981' } :
+                            { tag: '⚠ below floor',  color: '#F87171' }
+    return { ...m, opening, status }
+  })
+
+  const peakMonth = monthly.reduce((p, c) => c.closing > p.closing ? c : p, monthly[0])
+  const lowMonth  = monthly.reduce((p, c) => c.closing < p.closing ? c : p, monthly[0])
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      {/* Header strip — slide title + scenario badge + workbook CTA */}
+      <div style={{
+        display:'grid', gridTemplateColumns:'1fr auto', gap:18, alignItems:'center',
+        padding:'18px 22px', borderRadius:12,
+        background:'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(34,211,238,0.05))',
+        border:'1px solid rgba(201,168,76,0.25)',
+      }}>
+        <div>
+          <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2, marginBottom:4 }}>
+            Cashflow Forecast · May 2026 → Apr 2027
+          </div>
+          <div style={{ fontSize:12, color:'var(--cream-dim)' }}>
+            Mirror of the Cash Flow Forecast tab in the project workbook · scenario:{' '}
+            <strong style={{ color: scenarioColor }}>{scenarioLabel}</strong>
+            {isForecastLocked && scenarioLockedAt ? ` · locked ${scenarioLockedAt}` : ''}
+          </div>
+        </div>
+        <a
+          href={WORKBOOK_URL + '#gid=0'}
+          target="_blank" rel="noopener noreferrer"
+          style={{
+            padding:'12px 22px', borderRadius:8, fontSize:12, fontWeight:600,
+            letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer',
+            background:'var(--gold)', color:'var(--ink)',
+            border:'1px solid var(--gold)',
+            textDecoration:'none', whiteSpace:'nowrap',
+            display:'inline-flex', alignItems:'center', gap:10,
+          }}
+        >
+          🔗 Open in Workbook
+        </a>
+      </div>
+
+      {/* Headline KPIs */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <KpiCard2026 label="Investment / Day-1 raise" value={fmt(day1Total)}        sub={isLocked ? '🔒 Locked' : 'Live preview'}                  color="var(--gold)" />
+        <KpiCard2026 label="Peak cash position"        value={fmt(peakMonth.closing)} sub={peakMonth.month}                                          color="#22D3EE" />
+        <KpiCard2026 label="Low cash position"         value={fmt(lowMonth.closing)}  sub={`${lowMonth.month} · ${lowMonth.closing >= FLOOR ? 'above' : 'below'} floor`} color={lowMonth.closing >= FLOOR ? '#10B981' : '#F87171'} />
+        <KpiCard2026 label="Year-end balance"          value={fmt(monthly[monthly.length - 1].closing)} sub="Apr 2027"                                color="#A78BFA" />
+      </div>
+
+      {/* Monthly cashflow table — mirrors the workbook Cash Flow Forecast tab */}
+      <div className="card" style={{ padding:0, overflow:'hidden' }}>
+        <div style={{ padding:'14px 18px', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>Monthly Cashflow Table</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)' }}>{monthly.length} months · safe zone {fmt(FLOOR)}–{fmt(TARGET)}</div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px', fontSize:11, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', padding:'10px 18px', background:'rgba(255,255,255,0.02)', borderBottom:'1px solid rgba(201,168,76,0.1)' }}>
+          <div>Month</div>
+          <div style={{ textAlign:'right' }}>Opening</div>
+          <div style={{ textAlign:'right' }}>Net Flow</div>
+          <div style={{ textAlign:'right' }}>Closing</div>
+          <div style={{ textAlign:'right' }}>Vs Safe Zone</div>
+        </div>
+        {monthly.map((m, i) => (
+          <div key={m.month} style={{
+            display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px',
+            padding:'10px 18px', fontSize:13,
+            borderBottom: i < monthly.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+            alignItems:'center',
+          }}>
+            <div style={{ color:'var(--cream)', fontWeight:500 }}>{m.month}</div>
+            <div style={{ textAlign:'right', color:'var(--cream-dim)', fontVariantNumeric:'tabular-nums' }}>{fmt(m.opening)}</div>
+            <div style={{ textAlign:'right', color: m.net >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums' }}>
+              {m.net >= 0 ? '+' : '−'}{fmt(Math.abs(m.net))}
+            </div>
+            <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmt(m.closing)}</div>
+            <div style={{ textAlign:'right' }}>
+              <span style={{ fontSize:10, color: m.status.color, padding:'3px 8px', borderRadius:10, background: `${m.status.color}1A`, border: `1px solid ${m.status.color}55`, fontWeight:600, letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
+                {m.status.tag}
+              </span>
+            </div>
+          </div>
+        ))}
+        <div style={{ display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px', padding:'12px 18px', background:'rgba(201,168,76,0.06)', fontSize:13, fontWeight:700 }}>
+          <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em', fontSize:11 }}>Totals</div>
+          <div />
+          <div style={{ textAlign:'right', color: monthly.reduce((s, m) => s + m.net, 0) >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums' }}>
+            {monthly.reduce((s, m) => s + m.net, 0) >= 0 ? '+' : '−'}{fmt(Math.abs(monthly.reduce((s, m) => s + m.net, 0)))}
+          </div>
+          <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(monthly[monthly.length - 1].closing)}</div>
+          <div />
+        </div>
+      </div>
 
       {/* Day-1 startup costs — driven by the Use of Funds slider lock */}
       <div style={{ background:'var(--ink-2)', border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius:10, padding:20 }}>
@@ -1347,11 +1461,25 @@ function TabCashflow() {
         </div>
       </div>
 
-      <STitle>Monthly Operating Outflows</STitle>
-      <Tbd>Wages, director salary, fixed overheads, accountancy, variable costs, rent (£0 for first 4 months, then £65k/12 ≈ £5,417/mo net), VAT output (quarterly).</Tbd>
-
-      <STitle>Net Position & Safety Floor</STitle>
+      <STitle>Net Position &amp; Safety Floor</STitle>
       <CashflowChart />
+
+      {/* Footer CTA — one more workbook link at the bottom of the page */}
+      <a
+        href={WORKBOOK_URL + '#gid=0'}
+        target="_blank" rel="noopener noreferrer"
+        style={{
+          padding:'14px 22px', borderRadius:10,
+          background:'rgba(201,168,76,0.08)',
+          border:'1px dashed rgba(201,168,76,0.4)',
+          textDecoration:'none',
+          display:'flex', alignItems:'center', justifyContent:'center', gap:12,
+          fontSize:13, color:'var(--gold)', fontWeight:600,
+          letterSpacing:'0.06em',
+        }}
+      >
+        🔗 Open the Cash Flow Forecast tab in the project workbook
+      </a>
     </div>
   )
 }
