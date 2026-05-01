@@ -119,87 +119,100 @@ function TopLineCards() {
   )
 }
 
-// ─── 2025 — Income by Source (horizontal bar + table) ─────────────────
-function IncomeBySourceChart() {
-  const total = INCOME_SOURCES.reduce((s, r) => s + (r.amount || 0), 0)
-  const data = INCOME_SOURCES.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
+// ─── DonutWithLegend ──────────────────────────────────────────────────
+// Tight donut chart on the left + per-row legend on the right with
+// name · £ amount · % share. Replaces the two horizontal-bar charts in
+// the 2025 Performance tab (Income by Source + Costs by Category).
+function DonutWithLegend({ rows, total, eyebrow, centreLabel = 'Total' }) {
+  const data = rows.map(r => ({ ...r, share: total ? (r.amount / total) * 100 : 0 }))
+
+  // SVG donut geometry — viewBox 220×220, outer R 90, inner R 56.
+  const R_OUT = 90, R_IN = 56, CX = 110, CY = 110
+  let cumAngle = -Math.PI / 2
+  const arcs = data.map((d) => {
+    const frac = total > 0 ? d.amount / total : 0
+    const start = cumAngle
+    const end = cumAngle + frac * Math.PI * 2
+    cumAngle = end
+    const large = end - start > Math.PI ? 1 : 0
+    const sx = CX + R_OUT * Math.cos(start), sy = CY + R_OUT * Math.sin(start)
+    const ex = CX + R_OUT * Math.cos(end),   ey = CY + R_OUT * Math.sin(end)
+    const sxi = CX + R_IN * Math.cos(end),   syi = CY + R_IN * Math.sin(end)
+    const exi = CX + R_IN * Math.cos(start), eyi = CY + R_IN * Math.sin(start)
+    return {
+      d: `M ${sx} ${sy} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${R_IN} ${R_IN} 0 ${large} 0 ${exi} ${eyi} Z`,
+      color: d.color,
+      row: d,
+    }
+  })
+
   return (
     <div className="card" style={{ padding:18 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>{INCOME_SOURCES.length} sources · 2025 weekly P&amp;L (Weekly Merged tab)</span>
+        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>{eyebrow}</span>
         <span style={{ fontSize:13, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(total)} aggregate</span>
       </div>
-      <div style={{ height: 230 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
-            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
-            <YAxis dataKey="name" type="category" width={170} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(201,168,76,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <Bar dataKey="amount" radius={[0,4,4,0]}>
-              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        {data.map(r => (
-          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
-            <span style={{ color:'var(--cream)' }}>
-              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
-            </span>
-            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
-            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
-          </div>
-        ))}
+
+      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:24, alignItems:'center' }}>
+        {/* Donut */}
+        <svg viewBox="0 0 220 220" style={{ width:'100%', height:'auto' }}>
+          {arcs.map((a, i) => (
+            <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
+              <title>{`${a.row.name} · ${fmtMoney(a.row.amount)} (${a.row.share.toFixed(1)}%)`}</title>
+            </path>
+          ))}
+          <text x="110" y="103" textAnchor="middle" fontSize="10" fill="var(--cream-dim)" letterSpacing="0.1em">
+            {centreLabel.toUpperCase()}
+          </text>
+          <text x="110" y="124" textAnchor="middle" fontSize="18" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">
+            {fmtMoney(total)}
+          </text>
+        </svg>
+
+        {/* Legend / info array */}
+        <div style={{ display:'flex', flexDirection:'column', gap:2 }}>
+          {data.map(r => (
+            <div key={r.name} style={{
+              display:'grid', gridTemplateColumns:'1fr 90px 50px', gap:10, alignItems:'baseline',
+              padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12,
+            }}>
+              <span style={{ color:'var(--cream)', display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, flexShrink:0 }} />
+                <span style={{ whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{r.name}</span>
+              </span>
+              <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
+              <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   )
 }
 
-// ─── 2025 — Costs by Category (horizontal bar) ────────────────────────
+// ─── 2025 — Income by Source (donut + legend) ─────────────────────────
+function IncomeBySourceChart() {
+  const total = INCOME_SOURCES.reduce((s, r) => s + (r.amount || 0), 0)
+  return (
+    <DonutWithLegend
+      rows={INCOME_SOURCES}
+      total={total}
+      eyebrow={`${INCOME_SOURCES.length} sources · 2025 weekly P&L (Weekly Merged tab)`}
+      centreLabel="Income"
+    />
+  )
+}
+
+// ─── 2025 — Costs by Category (donut + legend) ────────────────────────
 function CostsByCategoryChart() {
   const total = COST_CATEGORIES.reduce((s, r) => s + (r.amount || 0), 0)
-  const data = COST_CATEGORIES.map(r => ({ ...r, share: total ? (r.amount/total)*100 : 0 }))
   return (
-    <div className="card" style={{ padding:18 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>{COST_CATEGORIES.length} categories · category-header rows from Weekly Merged</span>
-        <span style={{ fontSize:13, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(total)} aggregate</span>
-      </div>
-      <div style={{ height: 240 }}>
-        <ResponsiveContainer>
-          <BarChart data={data} layout="vertical" margin={{ left: 8, right: 12 }}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" horizontal={false} />
-            <XAxis type="number" tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} />
-            <YAxis dataKey="name" type="category" width={130} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ fill: 'rgba(248,113,113,0.06)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            <Bar dataKey="amount" radius={[0,4,4,0]}>
-              {data.map((d, i) => <Cell key={i} fill={d.color} />)}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ marginTop: 8 }}>
-        {data.map(r => (
-          <div key={r.name} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12 }}>
-            <span style={{ color:'var(--cream)' }}>
-              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.name}
-            </span>
-            <span style={{ color:'var(--cream)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(r.amount)}</span>
-            <span style={{ color:'var(--gold)', textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{r.share.toFixed(1)}%</span>
-          </div>
-        ))}
-      </div>
-    </div>
+    <DonutWithLegend
+      rows={COST_CATEGORIES}
+      total={total}
+      eyebrow={`${COST_CATEGORIES.length} categories · category-header rows from Weekly Merged`}
+      centreLabel="Costs"
+    />
   )
 }
 
