@@ -37,8 +37,8 @@ function Gallery({ images, translateCaption }) {
   const caption = translateCaption(images[active].captionKey)
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-      <div style={{ position:'relative', background:'var(--ink-3)', borderRadius:10, overflow:'hidden', aspectRatio:'16/9' }}>
-        <img src={images[active].src} alt={caption} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+      <div style={{ position:'relative', background:'var(--ink-3)', borderRadius:10, overflow:'hidden', aspectRatio:'16/9', maxHeight:'70vh', margin:'0 auto', width:'100%' }}>
+        <img src={images[active].src} alt={caption} style={{ width:'100%', height:'100%', objectFit:'contain', display:'block' }} />
         <div style={{ position:'absolute', bottom:0, left:0, right:0, padding:'12px 16px', background:'linear-gradient(transparent,rgba(0,0,0,0.7))', color:'#fff', fontSize:13 }}>{caption}</div>
         {active > 0 && <button onClick={()=>setActive(active-1)} style={{ position:'absolute', left:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>&#8249;</button>}
         {active < images.length-1 && <button onClick={()=>setActive(active+1)} style={{ position:'absolute', right:10, top:'50%', transform:'translateY(-50%)', width:36, height:36, borderRadius:'50%', border:'none', background:'rgba(0,0,0,0.5)', color:'#fff', cursor:'pointer', fontSize:18 }}>&#8250;</button>}
