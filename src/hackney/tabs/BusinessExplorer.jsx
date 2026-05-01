@@ -2124,10 +2124,10 @@ function TabPrevTillSales() {
         <KpiCard2026 label={`${year} · Zero-priced`}  value={`${totals.pctZero.toFixed(1)}%`} sub={`${totals.totalZeroLines.toLocaleString('en-GB')} of ${totals.totalLines.toLocaleString('en-GB')} lines`} color="#F87171" />
       </div>
 
-      {/* Donut hero + category table */}
-      <div style={{ display:'grid', gridTemplateColumns:'minmax(360px, 480px) 1fr', gap:32, alignItems:'flex-start' }}>
-        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'24px 20px' }}>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:14, textAlign:'center', fontWeight:600 }}>
+      {/* Donut hero + category table — donut column promoted to equal width */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:32, alignItems:'flex-start' }}>
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'32px 28px' }}>
+          <div style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:18, textAlign:'center', fontWeight:600 }}>
             {year} · Top categories by units
           </div>
           <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
@@ -2136,10 +2136,10 @@ function TabPrevTillSales() {
                 <title>{`${a.cat.name} · ${a.cat.qty.toLocaleString('en-GB')} units`}</title>
               </path>
             ))}
-            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">UNITS SOLD</text>
-            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{totals.totalQty.toLocaleString('en-GB')}</text>
+            <text x="160" y="150" textAnchor="middle" fontSize="12" fill="#9CA3AF" letterSpacing="0.12em">UNITS SOLD</text>
+            <text x="160" y="190" textAnchor="middle" fontSize="36" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{totals.totalQty.toLocaleString('en-GB')}</text>
           </svg>
-          <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF' }}>
+          <div style={{ textAlign:'center', marginTop:14, fontSize:12, color:'#9CA3AF' }}>
             {year} · COMPLETED orders only
           </div>
         </div>
