@@ -8,6 +8,7 @@ import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
+import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
@@ -498,6 +499,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
           {activeSection === 'income' && (
             <>
               <ScenarioLeversCard growth={growth} />
+              <BoroughBarPriceUpliftCalculator />
               <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
                   <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
@@ -584,6 +586,83 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 }
 
 // ───────────────────────────────────────────────────────────────────────
+// ─── BoroughBarPriceUpliftCalculator ─────────────────────────────────
+// Borough's price-side growth lever. Sized against the verified 2025
+// "Spend at Bar" income line (£362,836). The resulting % uplift is
+// surfaced read-only on the Growth Drivers slide and contributes to
+// the Custom scenario when the founder locks it.
+function BoroughBarPriceUpliftCalculator() {
+  const { fmt } = useFmt()
+  const bp = useBarPriceUplift()
+  const annualUplift = bp.baseline * (bp.value / 100)
+
+  return (
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:4 }}>
+        <span style={{ fontSize:11, color:'#FBBF24', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>
+          Bar Price Uplift Calculator
+        </span>
+        <span style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.06em' }}>
+          Feeds the Growth Drivers slide
+          {bp.isLocked ? ' · 🔒 Locked' : ''}
+        </span>
+      </div>
+      <div style={{ fontSize:12, color:'#9CA3AF', lineHeight:1.6, marginBottom:14 }}>
+        How much would a price uplift on bar SKUs lift annual revenue, applied to the 2025 bar baseline of <strong style={{ color:'#F5F0E8' }}>{fmt(bp.baseline)}</strong>? This is the only price-side lever in the growth model — every other driver lifts volume.
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:18 }}>
+        <BarPriceKpi label="Price Uplift"          value={`+${bp.value.toFixed(1)}%`}       sub={bp.canEdit ? 'Drag the slider below' : (bp.isLocked ? 'Founder-locked' : 'Founder edit only')} color="#FBBF24" />
+        <BarPriceKpi label="2025 Bar Baseline"     value={fmt(bp.baseline)}                  sub="Verified — Income Sources"  color="#9CA3AF" />
+        <BarPriceKpi label="Annual £ Uplift (Y1)"  value={fmt(Math.round(annualUplift))}     sub="At unchanged volume"        color="#10B981" />
+      </div>
+
+      <div style={{ display:'flex', alignItems:'center', gap:14 }}>
+        <span style={{ fontSize:10, color:'#9CA3AF' }}>0%</span>
+        <input
+          type="range" min={0} max={15} step={0.5}
+          value={bp.value} disabled={!bp.canEdit}
+          onChange={(e) => bp.setValue(+e.target.value)}
+          style={{
+            flex:1, accentColor:'#FBBF24',
+            cursor: bp.canEdit ? 'pointer' : 'not-allowed',
+            opacity: bp.canEdit ? 1 : 0.5,
+          }}
+        />
+        <span style={{ fontSize:10, color:'#9CA3AF' }}>+15%</span>
+      </div>
+
+      {bp.isFounder && (
+        <div style={{ marginTop:14, display:'flex', gap:10 }}>
+          <button onClick={() => (bp.isLocked ? bp.unlock() : bp.lock())} style={{
+            padding:'8px 16px', borderRadius:6, fontSize:11, fontWeight:600,
+            letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
+            background: bp.isLocked ? 'transparent' : '#FBBF24',
+            color: bp.isLocked ? '#FBBF24' : 'var(--ink)',
+            border: `1px solid ${bp.isLocked ? 'rgba(251,191,36,0.5)' : '#FBBF24'}`,
+          }}>
+            {bp.isLocked ? '🔓 Unlock Bar Price Uplift' : '🔒 Lock Bar Price Uplift'}
+          </button>
+        </div>
+      )}
+
+      <div style={{ marginTop:10, fontSize:11, color:'#9CA3AF', lineHeight:1.55 }}>
+        Typical hospitality price reviews land 3–6% per cycle without measurable elasticity impact. Above 8% starts to test customer tolerance — model it but stress-test against repeat-rate metrics.
+      </div>
+    </div>
+  )
+}
+
+function BarPriceKpi({ label, value, sub, color }) {
+  return (
+    <div style={{ background:'rgba(255,255,255,0.02)', border:`1px solid ${color}33`, borderTop:`3px solid ${color}`, borderRadius:8, padding:14 }}>
+      <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{label}</div>
+      <div className="serif" style={{ fontSize:24, color, lineHeight:1, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      {sub && <div style={{ fontSize:10, color:'#9CA3AF', lineHeight:1.4 }}>{sub}</div>}
+    </div>
+  )
+}
+
 // Build Custom Scenario card — 5 growth levers driving the 2026 forecast.
 // State is lifted in BusinessExplorer parent so the levers, the read-only
 // slider above, and the income/cost donuts all stay in sync.

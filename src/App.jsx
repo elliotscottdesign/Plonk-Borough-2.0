@@ -9,7 +9,7 @@ import InvestmentSummary from './slides/InvestmentSummary.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
-import GrowthRisks from './slides/GrowthRisks.jsx'
+import GrowthDrivers from './slides/GrowthDrivers.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
@@ -29,7 +29,7 @@ const SLIDE_DEFS = [
   { id:'funds',      labelKey:'funds',     Component: UseOfFunds },
   { id:'market',     labelKey:'market',    Component: MarketContext },
   { id:'waterfall',  labelKey:'waterfall', Component: WaterfallReturns },
-  { id:'growth',     labelKey:'growth',    Component: GrowthRisks },
+  { id:'drivers',    labelKey:'drivers',   Component: GrowthDrivers },
   { id:'case',       labelKey:'case',      Component: InvestmentCase },
 ]
 
