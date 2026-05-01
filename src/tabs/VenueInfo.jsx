@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
-const TAB_KEYS = ['catchment','location','floorPlan','venueGallery','courseGallery','drinksGallery','licence','development']
+const TAB_KEYS = ['catchment','location','floorPlan','gallery','licence','development']
 
 const VENUE_IMGS = [
   { src:'/venue_gallery_1.jpg', captionKey:'1' },
@@ -51,6 +51,52 @@ function Gallery({ images, translateCaption }) {
         ))}
       </div>
       <div style={{ fontSize:12, color:'var(--cream-dim)', textAlign:'center' }}>{active+1} / {images.length}</div>
+    </div>
+  )
+}
+
+// Side-index gallery hub — mirrors src/hackney/tabs/VenueInfo.jsx GalleryHub.
+// 200px left rail with the gallery list + image counts; right side renders
+// the active gallery's viewer.
+function GalleryHub({ galleries, headerLabel }) {
+  const [activeKey, setActiveKey] = useState(galleries[0].key)
+  const active = galleries.find(g => g.key === activeKey) || galleries[0]
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:24, alignItems:'start' }}>
+      <div style={{ display:'flex', flexDirection:'column', gap:2, borderRight:'1px solid rgba(201,168,76,0.12)', paddingRight:16 }}>
+        <div style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, padding:'4px 12px 10px' }}>{headerLabel}</div>
+        {galleries.map(g => {
+          const isActive = g.key === activeKey
+          return (
+            <button
+              key={g.key}
+              onClick={() => setActiveKey(g.key)}
+              style={{
+                textAlign:'left',
+                padding:'10px 12px',
+                fontSize:13,
+                cursor:'pointer',
+                border:'none',
+                background: isActive ? 'rgba(201,168,76,0.10)' : 'transparent',
+                color: isActive ? 'var(--gold)' : 'var(--cream-dim)',
+                borderLeft:`2px solid ${isActive ? 'var(--gold)' : 'transparent'}`,
+                borderRadius:'0 6px 6px 0',
+                letterSpacing:'0.04em',
+                fontWeight: isActive ? 600 : 400,
+                display:'flex',
+                justifyContent:'space-between',
+                alignItems:'center',
+                gap:8,
+                transition:'all 0.15s',
+              }}
+            >
+              <span>{g.label}</span>
+              <span style={{ fontSize:11, color: isActive ? 'var(--gold-dim)' : 'rgba(255,255,255,0.3)' }}>{g.images.length}</span>
+            </button>
+          )
+        })}
+      </div>
+      <div><Gallery key={active.key} images={active.images} translateCaption={active.translateCaption} /></div>
     </div>
   )
 }
@@ -482,13 +528,17 @@ export default function VenueInfo() {
 
   const galleryCaption = (section) => (key) => t(`gallery.${section}.${key}`)
 
+  const galleries = [
+    { key:'venue',  label: t('galleryHub.venue'),  images: VENUE_IMGS,  translateCaption: galleryCaption('venue') },
+    { key:'course', label: t('galleryHub.course'), images: COURSE_IMGS, translateCaption: galleryCaption('course') },
+    { key:'drinks', label: t('galleryHub.drinks'), images: DRINKS_IMGS, translateCaption: galleryCaption('drinks') },
+  ]
+
   const tabComponents = {
     catchment: <TabCatchment />,
     location: <TabLocation />,
     floorPlan: <TabFloorPlan />,
-    venueGallery: <Gallery images={VENUE_IMGS} translateCaption={galleryCaption('venue')} />,
-    courseGallery: <Gallery images={COURSE_IMGS} translateCaption={galleryCaption('course')} />,
-    drinksGallery: <Gallery images={DRINKS_IMGS} translateCaption={galleryCaption('drinks')} />,
+    gallery: <GalleryHub galleries={galleries} headerLabel={t('galleryHub.header')} />,
     licence: <TabLicence />,
     development: <TabDevelopment />,
   }

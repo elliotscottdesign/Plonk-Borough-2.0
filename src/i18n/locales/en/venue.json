@@ -6,11 +6,15 @@
     "catchment": "Catchment",
     "location": "Location",
     "floorPlan": "Floor Plan",
-    "venueGallery": "Venue Gallery",
-    "courseGallery": "Course Gallery",
-    "drinksGallery": "Drinks Gallery",
+    "gallery": "Gallery",
     "licence": "Licence",
     "development": "Development"
+  },
+  "galleryHub": {
+    "header": "Galleries",
+    "venue": "Venue",
+    "course": "Course",
+    "drinks": "Drinks"
   },
   "gallery": {
     "venue": {

@@ -6,11 +6,15 @@
     "catchment": "Área de Captação",
     "location": "Localização",
     "floorPlan": "Planta Baixa",
-    "venueGallery": "Galeria do Local",
-    "courseGallery": "Galeria do Circuito",
-    "drinksGallery": "Galeria de Bebidas",
+    "gallery": "Galeria",
     "licence": "Licença",
     "development": "Desenvolvimento"
+  },
+  "galleryHub": {
+    "header": "Galerias",
+    "venue": "Local",
+    "course": "Circuito",
+    "drinks": "Bebidas"
   },
   "gallery": {
     "venue": {
