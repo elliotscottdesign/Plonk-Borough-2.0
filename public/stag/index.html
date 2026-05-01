@@ -265,7 +265,7 @@
     <p class="hero-narrative">Join us on Saturday at any time — just RSVP to what you can be a part of!</p>
     <div class="hero-date">City → Spitalfields → Hoxton → Hackney → Dalston · sunrise pending</div>
     <div class="hero-stats">
-      <div class="hero-stat"><div class="hero-stat-num">IX</div><div class="hero-stat-label">chapters</div></div>
+      <div class="hero-stat"><div class="hero-stat-num">X</div><div class="hero-stat-label">chapters</div></div>
       <div class="hero-stat"><div class="hero-stat-num">XII+</div><div class="hero-stat-label">hours</div></div>
     </div>
     <div class="cta-row">
@@ -404,7 +404,14 @@
       notes: "Mikkeller is a lovely corner pub, sat alongside the grand St Leonard's Church. Part owned by Rick Astley (who Julian loves), this Danish brewhouse offers takeaway craft beers. People can either grab beers from the pub or cans from the shop whilst we chill in the church yard.",
     },
     {
-      id: 'netil', chapter: 'Chapter VI · The Forum of Mortadella', name: 'Market Day', branch: 'Broadway Market',
+      id: 'spread-eagle', chapter: 'Chapter VI · The Spread Eagle', name: 'The Spread Eagle', branch: 'Haggerston · Kingsland Road',
+      sub: 'A pub stop on the way · The Tabula awaits',
+      time: '5:30 PM', short: '5:30 Spread Eagle', price: 0, pkg: 'day', priceNote: 'buy your own', pintPrice: '~£6.50',
+      address: 'The Spread Eagle, 224 Kingsland Road, London E2 8AX',
+      notes: 'A swift pub stop on the march to Broadway. The Tabula of the Lost Legion awaits recovery here — keep your eyes peeled.',
+    },
+    {
+      id: 'netil', chapter: 'Chapter VII · The Forum of Mortadella', name: 'Market Day', branch: 'Broadway Market',
       sub: 'Saturday market vibes · mortadella mates rate at Netil',
       time: '6:00 PM', short: '6pm Market Day', price: 12, pkg: 'day', priceNote: 'mortadella + pint mates rate', pintPrice: '~£6.50',
       address: 'Broadway Market, London E8',
@@ -415,7 +422,7 @@
       notes: "We arrive at Broadway Market, thankfully it's finished, so we head to Netil Market around the corner where we have some mates-rate mortadella and pints.",
     },
     {
-      id: 'strips', chapter: "Chapter VII · The Centurion's Temptation", name: 'Spots & Strips', branch: 'No Dice Clubhouse',
+      id: 'strips', chapter: "Chapter VIII · The Centurion's Temptation", name: 'Spots & Strips', branch: 'No Dice Clubhouse',
       sub: 'Partial nudity · pool · prizes',
       time: '7:00 PM', timeEnd: '7:45 PM', short: '7pm Spots & Strips', price: 0, pkg: 'evening', tba: true,
       address: '15 Mentmore Terrace, London E8 3PN',
@@ -423,7 +430,7 @@
       notes: "Expect partial nudity, pool and prizes. Price TBA. If anyone feels uncomfortable playing pool with women who undress, you can wait it out at Saint Monday Brewery just down the road.",
     },
     {
-      id: 'bbq', chapter: 'Chapter VIII · The Fires of Victory', name: 'BBQ Brazilian Bangers', branch: 'No Dice Clubhouse',
+      id: 'bbq', chapter: 'Chapter IX · The Fires of Victory', name: 'BBQ Brazilian Bangers', branch: 'No Dice Clubhouse',
       sub: 'Sausage party · fire up the BBQ',
       time: '8:00 PM', timeEnd: '10:00 PM', short: '8pm BBQ', price: 5, pkg: 'evening', priceNote: 'sausage contribution at the bar',
       address: '15 Mentmore Terrace, London E8 3PN',
@@ -431,7 +438,7 @@
       notes: "Once the ladies have left we'll fire up the BBQ and get this sausage party really on. Take on fuel, break, smoke, sharpen. Beers and drinks can be bought from the off-license or from Elliot. £5 sausage contribution at the bar.",
     },
     {
-      id: 'crawl', chapter: 'Chapter IX · The Taverns of Temptation & Recovery of the Eagle', name: 'The March of Increasingly Poor Decisions', branch: 'Kingsland Road',
+      id: 'crawl', chapter: 'Chapter X · The Taverns of Temptation & Recovery of the Eagle', name: 'The March of Increasingly Poor Decisions', branch: 'Kingsland Road',
       sub: 'Optional · concentrated crawl, taxi from the BBQ',
       time: '10:00 PM', short: '10pm Poor Decisions', price: 0, pkg: 'evening', priceNote: 'pay what you drink', pintPrice: '~£6 (varies)', extraTag: 'Club entry · £15 / or late-night bar',
       venues: [
@@ -718,7 +725,7 @@
   // ── The Lost Eagle (Pantry-backed treasure hunt) ─────────────────────
   const EAGLE_PIECES = [
     { id: 'staff',        name: 'The Staff',     icon: '🦯', loc: 'Smokoloko · Spitalfields' },
-    { id: 'tabula',       name: 'The Tabula',    icon: '📜', loc: "Mikkeller · St Leonard's" },
+    { id: 'tabula',       name: 'The Tabula',    icon: '📜', loc: 'The Spread Eagle · Haggerston' },
     { id: 'thunderbolts', name: 'Thunderbolts',  icon: '⚡', loc: 'Netil Market · Broadway' },
     { id: 'vexillum',     name: 'Vexillum',      icon: '🚩', loc: 'Spots & Strips · The Clubhouse' },
     { id: 'eagle',        name: 'The Eagle',     icon: '🦅', loc: 'BBQ Brazilian Bangers · The Clubhouse' },
