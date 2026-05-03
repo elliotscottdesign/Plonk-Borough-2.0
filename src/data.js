@@ -325,6 +325,24 @@ export function computeDealFromInvestment(investment) {
   return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult, aShareFloor, aShareFloorLegacy }
 }
 
+// === GROWTH ASSUMPTION — DJ NIGHTS (NOTE for the central workbook) ===
+// DJ programming is the anchor lever in the weekend bar uplift. Founder
+// model May 2026:
+//   • Today — a "good" Saturday rings ~£3,500 inc VAT on the bar.
+//   • Target — a "great" Saturday with a busy DJ room rings ~£5,000.
+//   • DJ-attributable share of the Saturday uplift: ~£1,000/Sat inc VAT.
+//   • Same playbook on Fridays: ~£500/Fri inc VAT incremental.
+//   • £1,500/week × 52 = £78,000/year inc VAT, all incremental to walk-in
+//     trade with zero additional fixed cost.
+//   • £78,000 / £741,644 (ACTUALS_2025.revenue) = 10.5% of total annual
+//     revenue — the DJ slider on the Growth Drivers page now defaults to
+//     +10% to reflect this. Drag it down to model a quieter weekend
+//     programme.
+// ACTION REQUIRED — mirror this assumption in the central Google Sheet
+// (https://docs.google.com/spreadsheets/d/1dtqbmoKK01oRY-0Zi1ZllVh82NiIGk8eS-l8aKJG_8Y)
+// so the workbook scenario rows match what the deck shows. Cannot be
+// written from the codebase.
+
 // === HARDWARE FROM LIQUIDATORS — itemised £20,000 ex VAT breakdown ===
 // Detail behind the £24,000 inc VAT "Hardware from Liquidators" line.
 // All amounts shown EX VAT (£20,000 ex VAT  →  £24,000 inc VAT after 20% VAT).

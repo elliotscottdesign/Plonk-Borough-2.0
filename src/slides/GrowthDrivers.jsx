@@ -20,7 +20,10 @@ import { ACTUALS_2025 } from '../data.js'
 //     others stay editable.
 //   • Bar Price Uplift section — read-only here, sized on 2026 Performance.
 
-const STORAGE_KEY        = 'ndb_growth_drivers_v1'
+// v2 = bumped when DJ default lifted from 2% → 10% to reflect the
+// £1,500/week DJ uplift assumption (Sat £1k + Fri £500). Keeps stale
+// localStorage values from masking the new default.
+const STORAGE_KEY        = 'ndb_growth_drivers_v2'
 const STORAGE_LOCKS_KEY  = 'ndb_growth_drivers_locks_v2'
 const BAR_PRICE_KEY      = 'ndb_bar_price_uplift_v1'
 const BAR_PRICE_LOCK_KEY = 'ndb_bar_price_uplift_locked_v1'
@@ -50,9 +53,9 @@ const DRIVER_DEFS = [
   {
     key: 'dj',
     title: 'DJ Nights Programme',
-    intro: 'Friday and Saturday late events incremental to walk-in trade. High-margin bar revenue with zero additional fixed cost. Borough Market location draws natural late-night footfall — the audience is already in postcode SE1.',
+    intro: 'Anchor lever for the weekend bar. A good Saturday today rings ~£3,500 inc VAT on the bar; a great Saturday with a busy DJ room takes us to £5,000 — DJ programming is worth ~£1,000/Sat of that uplift. Same playbook on Fridays adds ~£500/Fri inc VAT. £1,500/week × 52 = £78k/year inc VAT, all incremental to walk-in trade with zero additional fixed cost. Borough Market location draws natural late-night footfall.',
     color: '#F472B6',
-    defaultPct: 2,
+    defaultPct: 10,
   },
   {
     key: 'repricing',
@@ -385,7 +388,7 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
 
       {/* Slider */}
       <input
-        type="range" min={0} max={10} step={0.5}
+        type="range" min={0} max={12} step={0.5}
         value={value} disabled={dragDisabled}
         onChange={(e) => onChange(+e.target.value)}
         style={{
@@ -395,7 +398,7 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
         }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--cream-dim)' }}>
-        <span>0%</span><span>5%</span><span>10%</span>
+        <span>0%</span><span>3%</span><span>6%</span><span>9%</span><span>12%</span>
       </div>
 
       {/* £ uplift + share-of-total stats */}
