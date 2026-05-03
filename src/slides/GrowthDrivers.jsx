@@ -108,10 +108,10 @@ const clearPersisted = (key) => {
   try { localStorage.removeItem(key) } catch { /* ignore */ }
 }
 
-// Founder gate — borrowed from FundingSlider's pattern. PasswordGate at
-// 888999 sets sessionStorage.ndb_plonk; that's the founder tier here.
+// Founder gate — PasswordGate at 888999 sets sessionStorage.ndb_founder
+// (NOT ndb_plonk — that's a legacy key actively removed at login).
 const isFounderSession = () => {
-  try { return sessionStorage.getItem('ndb_plonk') === '1' } catch { return false }
+  try { return sessionStorage.getItem('ndb_founder') === '1' } catch { return false }
 }
 
 const emptyLocks = () => Object.fromEntries(DRIVER_DEFS.map(d => [d.key, null]))
