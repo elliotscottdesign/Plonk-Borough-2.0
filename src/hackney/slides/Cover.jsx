@@ -119,22 +119,7 @@ export default function Cover() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
-      {/* Funding slider + per-investor readout — promoted to the top of
-          the page so investors land directly on the "what do I get?"
-          calculator. Title block sits below. */}
-      <FundingSlider />
-      <InvestorReturnsCard
-        investment={fundingAmount}
-        investorEq={deal.investorEq}
-        investorReturn={investorReturn}
-        coc={coc}
-        payback={payback}
-        aShareThreshold={deal.aShareThreshold}
-        liveProfit={liveProfit}
-      />
-
-      <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,var(--gold),transparent)', marginBottom: 32 }} />
-
+      {/* Title block — eyebrow + "No Dice Hackney" + lede */}
       <div style={{ marginBottom: 48 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
           Series A · Seed Investment · April 2026
@@ -147,6 +132,7 @@ export default function Cover() {
         </p>
       </div>
 
+      {/* 6-card stat grid */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
         {stats.map(s => (
           <div key={s.label} style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 12, padding: 24 }}>
@@ -156,6 +142,22 @@ export default function Cover() {
           </div>
         ))}
       </div>
+
+      <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,var(--gold),transparent)', margin: '40px 0 32px' }} />
+
+      {/* Funding slider + per-investor readout — sits below the headline
+          stat grid. Slider drives every figure across the deck via
+          LockedUseOfFundsContext. */}
+      <FundingSlider />
+      <InvestorReturnsCard
+        investment={fundingAmount}
+        investorEq={deal.investorEq}
+        investorReturn={investorReturn}
+        coc={coc}
+        payback={payback}
+        aShareThreshold={deal.aShareThreshold}
+        liveProfit={liveProfit}
+      />
 
       <div style={{ marginTop: 40, padding: '16px 24px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10 }}>
         <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
