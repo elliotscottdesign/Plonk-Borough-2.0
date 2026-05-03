@@ -27,9 +27,9 @@ const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
   { id:'summary',    labelKey:'summary',   Component: InvestmentSummary },
   { id:'funds',      labelKey:'funds',     Component: UseOfFunds },
+  { id:'drivers',    labelKey:'drivers',   Component: GrowthDrivers },
   { id:'market',     labelKey:'market',    Component: MarketContext },
   { id:'waterfall',  labelKey:'waterfall', Component: WaterfallReturns },
-  { id:'drivers',    labelKey:'drivers',   Component: GrowthDrivers },
   { id:'case',       labelKey:'case',      Component: InvestmentCase },
 ]
 
