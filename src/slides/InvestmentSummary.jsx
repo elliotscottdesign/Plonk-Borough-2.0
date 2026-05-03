@@ -1,12 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import { DEAL, ACTUALS_2025, computeDealFromInvestment } from '../data.js'
-import { formatCurrency, formatNumber } from '../i18n/format.js'
-import ResetBtn from '../components/ResetBtn.jsx'
+import { formatCurrency } from '../i18n/format.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-
-const pct = (n) => (n * 100).toFixed(1) + '%'
 
 // Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
 // Uses the realistic 2026 cost model: wages +10%, non-rent fixed +10%, drinks = 30% of bar,
@@ -66,7 +63,6 @@ export default function InvestmentSummary() {
   // calculator slider max, all CoC + payback rows.
   const fundingAmount = funding.investment
   const deal          = computeDealFromInvestment(fundingAmount)
-  const investorMaxCheque = deal.postMoney * deal.investorEq   // = fundingAmount
 
   const SCENARIOS = {
     conservative: { label: t('scenarios.conservative.label'), sub: t('scenarios.conservative.sub'), multiplier: 1.10 },
@@ -87,31 +83,6 @@ export default function InvestmentSummary() {
   const r = activeKey === 'custom' && snapshot
     ? calcReturnsFromSnapshot(snapshot, fundingAmount)
     : calcReturns(s.multiplier, fundingAmount)
-
-  // Calculator slider — investor's personal cheque size within the locked
-  // total raise. Capped at 50% × post-money = total raise (founder retains
-  // the other 50%). When the Cover slider drops the total raise below the
-  // user's last calculator pick, clamp down so the slider can't exceed
-  // its new max.
-  const [amount, setAmount] = useState(fundingAmount)
-  useEffect(() => {
-    if (amount > investorMaxCheque) setAmount(investorMaxCheque)
-    else if (amount < 5000)         setAmount(Math.min(fundingAmount, 5000))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [investorMaxCheque])
-
-  // Pure pro-rata — investor's dividend = operating profit × equity %.
-  // Base operating profit = 2026 base case (£124k) under the new cost
-  // rules (wages +10%, non-rent fixed +10%, drinks 30% of bar, rent 15%
-  // of turnover, etc.).
-  const OPERATING_PROFIT_BASE = 124000
-  const equity = amount / deal.postMoney
-  const isAShare = amount >= deal.aShareFloor
-
-  // Recalculate based on slider (uses base-case operating profit for the calculator)
-  const divCalc = OPERATING_PROFIT_BASE * equity
-  const totalCalc = divCalc
-  const cocCalc = totalCalc / amount
 
   const paybackVal = isFinite(r.payback)
     ? t('rows.paybackYears', { n: r.payback.toFixed(1) })
@@ -174,7 +145,7 @@ export default function InvestmentSummary() {
       <div style={{ fontSize: 13, color: 'var(--gold)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 14 }}>
         {t('highlights.header')}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 32 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
         {[
           t('highlights.first',  { total: fmt(r.total), coc: (r.coc*100).toFixed(1), investment: fmt(fundingAmount) }),
           t('highlights.second', { revenue: fmt(ACTUALS_2025.revenue) }),
@@ -185,82 +156,6 @@ export default function InvestmentSummary() {
             <span style={{ fontSize: 14, color: 'var(--cream-dim)', lineHeight: 1.55 }}>{text}</span>
           </div>
         ))}
-      </div>
-
-      {/* Interactive return calculator */}
-      <div className="card" style={{ padding: 28 }}>
-        <div style={{ fontSize: 13, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 20 }}>
-          {t('calculator.title')}
-        </div>
-
-        <div style={{ marginBottom: 24 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, fontSize: 15 }}>
-            <span style={{ color: 'var(--cream-dim)' }}>{t('calculator.amount')}</span>
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ color: 'var(--gold)', fontSize: 16, fontWeight: 600 }}>{fmt(amount)}</span>
-              <ResetBtn onClick={() => setAmount(investorMaxCheque)} />
-            </span>
-          </div>
-          <input
-            type="range" min={5000} max={investorMaxCheque} step={2500}
-            value={Math.min(amount, investorMaxCheque)} onChange={e => setAmount(+e.target.value)}
-            style={{ width: '100%', accentColor: 'var(--gold)' }}
-          />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: 'var(--gold-dim)', marginTop: 6 }}>
-            <span>£5,000</span>
-            <span>{t('calculator.capNote', { investment: fmt(investorMaxCheque) })}</span>
-          </div>
-        </div>
-
-        {/* Share class badge */}
-        <div style={{
-          display: 'inline-flex', alignItems: 'center', gap: 10, marginBottom: 20,
-          padding: '8px 16px', borderRadius: 20,
-          background: isAShare ? 'rgba(45,212,191,0.1)' : 'rgba(201,168,76,0.1)',
-          border: `1px solid ${isAShare ? 'rgba(45,212,191,0.4)' : 'rgba(201,168,76,0.4)'}`,
-          fontSize: 14, color: isAShare ? 'var(--teal)' : 'var(--gold)',
-        }}>
-          <span>{isAShare ? '✓' : '○'}</span>
-          {isAShare ? t('calculator.aShares') : t('calculator.bShares')}
-          <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>
-            {pct(equity)} {t('calculator.equitySuffix')}
-          </span>
-        </div>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
-          <CalcResult label={t('calculator.ownership')} value={pct(equity)} />
-          <CalcResult label={t('calculator.equityDividend')} value={fmt(divCalc)} />
-          <CalcResult label={t('calculator.totalYear1')} value={fmt(totalCalc)} gold />
-        </div>
-
-        <div style={{ marginTop: 18, fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-          {t('calculator.footnote', {
-            coc: (cocCalc * 100).toFixed(1),
-            payback: totalCalc > 0 ? (amount / totalCalc).toFixed(2) : 'N/A',
-            threshold: formatNumber(deal.aShareFloor, lang),
-          })}
-        </div>
-
-        {/* Why does CoC go up if I write a smaller cheque? — investor-facing
-            explainer requested by user. Anchored to operating profit, not
-            to the raise — so smaller cheque = same dividend pool slice in
-            absolute £ at the cap (50% equity), but the personal CoC ratio
-            improves at smaller cheque sizes for the same equity %. */}
-        <details style={{ marginTop: 16, fontSize: 13, color: 'var(--cream-dim)' }}>
-          <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em', fontSize: 13 }}>
-            ⓘ Why does CoC change as I move the slider?
-          </summary>
-          <div style={{ marginTop: 10, padding: '14px 16px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.65, fontSize: 13 }}>
-            Year-1 dividend = your equity share × <strong style={{ color: 'var(--cream)' }}>operating profit</strong> (£124k base case),
-            NOT × your cheque. Equity share = your cheque ÷ post-money. So a smaller cheque buys
-            less equity and earns a smaller dividend in £, but the dividend-to-cheque <em>ratio</em>
-            (cash-on-cash) is the same as anyone else's at the same total raise. Where CoC
-            <em> does </em> shift is when the founder drags the <strong style={{ color: 'var(--cream)' }}>raise on Cover</strong> up or down — because
-            the dividend pool is fixed (50% × £124k), so dropping the raise size lifts everyone's
-            CoC in lockstep, and raising it dilutes everyone in lockstep. Cap on personal cheque
-            stays {fmt(investorMaxCheque)} (= 50% of post-money — founder's half).
-          </div>
-        </details>
       </div>
     </div>
   )
@@ -281,11 +176,3 @@ function Section({ title, items }) {
   )
 }
 
-function CalcResult({ label, value, gold }) {
-  return (
-    <div style={{ textAlign: 'center' }}>
-      <div style={{ fontSize: 12, color: 'var(--cream-dim)', marginBottom: 8, letterSpacing: '0.05em' }}>{label}</div>
-      <div className="serif" style={{ fontSize: 24, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</div>
-    </div>
-  )
-}
