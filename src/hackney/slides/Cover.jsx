@@ -119,6 +119,22 @@ export default function Cover() {
 
   return (
     <div style={{ maxWidth: 900, margin: '0 auto' }}>
+      {/* Funding slider + per-investor readout — promoted to the top of
+          the page so investors land directly on the "what do I get?"
+          calculator. Title block sits below. */}
+      <FundingSlider />
+      <InvestorReturnsCard
+        investment={fundingAmount}
+        investorEq={deal.investorEq}
+        investorReturn={investorReturn}
+        coc={coc}
+        payback={payback}
+        aShareThreshold={deal.aShareThreshold}
+        liveProfit={liveProfit}
+      />
+
+      <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,var(--gold),transparent)', marginBottom: 32 }} />
+
       <div style={{ marginBottom: 48 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.15em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
           Series A · Seed Investment · April 2026
@@ -130,27 +146,6 @@ export default function Cover() {
           A proven London Fields bar — DJ &amp; events, garden, pool, arcades and board games. Generating {fmt(ACTUALS_2025.revenue)} verified 2025 revenue (bar-only restated), mini golf operations excluded.
         </p>
       </div>
-
-      <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,var(--gold),transparent)', marginBottom: 32 }} />
-
-      {/* Funding slider — single root control. Cascades to every slide
-          via LockedUseOfFundsContext. */}
-      <FundingSlider />
-
-      {/* Investor return readout — surfaces the relevant per-investor info
-          right below the slider (share class, ownership, equity dividend,
-          Year 1 return, CoC + payback). Mirrors the calculator card on the
-          Borough investor summary so investors see "what do I get?" at a
-          glance on the landing page. */}
-      <InvestorReturnsCard
-        investment={fundingAmount}
-        investorEq={deal.investorEq}
-        investorReturn={investorReturn}
-        coc={coc}
-        payback={payback}
-        aShareThreshold={deal.aShareThreshold}
-        liveProfit={liveProfit}
-      />
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
         {stats.map(s => (
