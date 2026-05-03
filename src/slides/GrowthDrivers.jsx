@@ -53,9 +53,10 @@ const DRIVER_DEFS = [
   {
     key: 'dj',
     title: 'DJ Nights Programme',
-    intro: 'Anchor lever for the weekend bar. A good Saturday today rings ~£3,500 inc VAT on the bar; a great Saturday with a busy DJ room takes us to £5,000 — DJ programming is worth ~£1,000/Sat of that uplift. Same playbook on Fridays adds ~£500/Fri inc VAT. £1,500/week × 52 = £78k/year inc VAT, all incremental to walk-in trade with zero additional fixed cost. Borough Market location draws natural late-night footfall.',
+    intro: 'Anchor lever for the weekend bar. A good Saturday today rings ~£3,500 inc VAT on the bar; a great Saturday with a busy DJ room takes us to £5,000 — DJ programming is worth ~£1,000/Sat of that uplift. Same playbook on Fridays adds ~£500/Fri inc VAT. £1,500/week × 52 = £78k/year inc VAT — the slider ceiling. All incremental to walk-in trade with zero additional fixed cost; Borough Market location draws natural late-night footfall.',
     color: '#F472B6',
     defaultPct: 10,
+    maxPct: 10.5,   // £78,000 / £741,644 = 10.51% — hard ceiling
   },
   {
     key: 'repricing',
@@ -335,6 +336,10 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
   const contributionGBP = (value / 100) * REVENUE_2025
   const shareOfTotal    = total > 0 ? (value / total) * 100 : 0
   const lockButtonColor = def.color === 'var(--gold)' ? 'var(--gold)' : def.color
+  // Per-driver slider ceiling — DJ is capped at the £78k/yr inc VAT
+  // assumption (10.5% of 2025 revenue); other drivers default to 12%.
+  const sliderMax       = def.maxPct ?? 12
+  const sliderMid       = +(sliderMax / 2).toFixed(1)
 
   return (
     <div style={{
@@ -388,8 +393,8 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
 
       {/* Slider */}
       <input
-        type="range" min={0} max={12} step={0.5}
-        value={value} disabled={dragDisabled}
+        type="range" min={0} max={sliderMax} step={0.5}
+        value={Math.min(value, sliderMax)} disabled={dragDisabled}
         onChange={(e) => onChange(+e.target.value)}
         style={{
           width: '100%', accentColor: def.color,
@@ -398,7 +403,7 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
         }}
       />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9, color: 'var(--cream-dim)' }}>
-        <span>0%</span><span>3%</span><span>6%</span><span>9%</span><span>12%</span>
+        <span>0%</span><span>{sliderMid}%</span><span>{sliderMax}%</span>
       </div>
 
       {/* £ uplift + share-of-total stats */}

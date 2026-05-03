@@ -332,12 +332,13 @@ export function computeDealFromInvestment(investment) {
 //   • Target — a "great" Saturday with a busy DJ room rings ~£5,000.
 //   • DJ-attributable share of the Saturday uplift: ~£1,000/Sat inc VAT.
 //   • Same playbook on Fridays: ~£500/Fri inc VAT incremental.
-//   • £1,500/week × 52 = £78,000/year inc VAT, all incremental to walk-in
-//     trade with zero additional fixed cost.
-//   • £78,000 / £741,644 (ACTUALS_2025.revenue) = 10.5% of total annual
-//     revenue — the DJ slider on the Growth Drivers page now defaults to
-//     +10% to reflect this. Drag it down to model a quieter weekend
-//     programme.
+//   • £1,500/week × 52 = £78,000/year inc VAT — the CEILING for what
+//     DJ programming can credibly deliver in a year. All incremental to
+//     walk-in trade with zero additional fixed cost.
+//   • £78,000 / £741,644 (ACTUALS_2025.revenue) = 10.51% of total annual
+//     revenue — this is the hard upper bound on the DJ slider on the
+//     Growth Drivers page (slider max = 10.5%). Default sits at 10% so
+//     the slider can move both ways from a near-ceiling starting point.
 // ACTION REQUIRED — mirror this assumption in the central Google Sheet
 // (https://docs.google.com/spreadsheets/d/1dtqbmoKK01oRY-0Zi1ZllVh82NiIGk8eS-l8aKJG_8Y)
 // so the workbook scenario rows match what the deck shows. Cannot be
