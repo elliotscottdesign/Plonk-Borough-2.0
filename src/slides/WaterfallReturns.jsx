@@ -180,10 +180,9 @@ export default function WaterfallReturns() {
         {t('summary.footnote')}
       </div>
 
-      {/* Priority rules callout — what comes out of profit, in what order */}
-      <DistributionPriorityNote floor={reserveFloor} target={reserveTarget} />
-
-      {/* Distribution Process — working-capital-first model */}
+      {/* Distribution Process — working-capital-first model. Replaces the
+          old DistributionPriorityNote cyan callout: same 5-rule content,
+          better visual treatment (numbered step cards with arrows). */}
       <DistributionProcess floor={reserveFloor} target={reserveTarget} />
 
       {/* 12-month Distribution Calendar — quarterly dividends */}
@@ -201,48 +200,8 @@ export default function WaterfallReturns() {
   )
 }
 
-// ─── Distribution Priority callout ───────────────────────────────────
-// Plain-language priority order so an investor understands what comes
-// out of profit first, second, third, etc. Mirrors the Hackney pattern;
-// numbers come from the Borough rent-prepay snap + £15k cushion.
-function DistributionPriorityNote({ floor, target }) {
-  return (
-    <div style={{
-      marginTop: 32, padding: '16px 18px',
-      background: 'rgba(34,211,238,0.06)',
-      border: '1px solid rgba(34,211,238,0.3)',
-      borderRadius: 8,
-      fontSize: 13, color: '#A5F3FC', lineHeight: 1.65,
-    }}>
-      <div style={{ fontSize: 10, color: '#22D3EE', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
-        Distribution priority · how money leaves the business each quarter
-      </div>
-      <ol style={{ margin: 0, paddingLeft: 22 }}>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Director salary first</strong> — budgeted inside the cost base. This is a budget for whichever director the business needs, not specifically the founder. Paid before any dividend.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Working-capital reserve</strong> — bank balance must reach the {fmtK(floor)}–{fmtK(target)} safe zone before investor dividends start. {fmtK(floor)} is the locked rent prepay (your Use of Funds choice); {fmtK(target)} adds a {fmtK(target - floor)} cushion for VAT bills and supplier swings.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Founder draws every quarter regardless</strong> — the founder cannot wait for the reserve to build. Their pro-rata share is paid each calendar quarter from positive trading profit.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Investor draws once the reserve hits the floor</strong> — quarters where the closing balance is below {fmtK(floor)} have the investor's share <em>deferred</em> rather than paid out. No clawback from the founder.
-        </li>
-        <li>
-          <strong style={{ color: 'var(--cream)' }}>Catch-up once the reserve is fully built</strong> — once the bank balance is at or above {fmtK(target)}, the deferred investor balance is paid down on top of the normal quarterly share, so long-run pro-rata equality is preserved.
-        </li>
-      </ol>
-      <div style={{ fontSize: 11, color: '#22D3EE', marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(34,211,238,0.2)' }}>
-        See the <strong>Business Explorer · Cashflow Forecast</strong> tab for the month-by-month closing-balance projection — the chart shows when the reserve builds up enough to release investor dividends.
-      </div>
-    </div>
-  )
-}
-
 // ─── Distribution Process — 5-step priority diagram ──────────────────
-// Visual companion to DistributionPriorityNote. Each step is a card
+// Visual 5-step priority diagram — each step is a card
 // with a coloured number bubble, an arrow connecting to the next step.
 function DistributionProcess({ floor, target }) {
   const steps = [
