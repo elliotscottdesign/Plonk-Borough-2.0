@@ -487,7 +487,7 @@ const FORECAST_RULES = {
 
 // ─── 2026 Performance · Section keys for left-side TOC ────────────────
 const PERF_SECTIONS = [
-  { id: 'tickets',  label: 'Tickets',         icon: '🎟' },
+  { id: 'tickets',  label: 'Ticket Price',    icon: '🎟' },
   { id: 'income',   label: 'Income',          icon: '💰' },
   { id: 'opcosts',  label: 'Operating Costs', icon: '💸' },
   { id: 'fixed',    label: 'Fixed Costs',     icon: '🏠' },
