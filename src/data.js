@@ -222,6 +222,161 @@ export const WATERFALL = {
   totalFounder: 62000,
 }
 
+// === WORKING-CAPITAL RESERVE ===
+// Two-zone safety band used by the Distribution Calendar on the Investor
+// Returns slide. The FLOOR comes live from useLockedFunding().effective.rent
+// (the rent-prepay snap chosen on Use of Funds — £9,026 / £18,052 / £27,078
+// for 1 / 2 / 3 months). The TARGET adds a cushion for VAT bills + supplier
+// swings + repairs, mirroring the Hackney deck's £30k/£45k floor/target
+// pattern but anchored to Borough's own rent-prepay constant so the band
+// scales with the locked use-of-funds choice.
+export const BOROUGH_WORKING_CAPITAL_CUSHION = 15000
+
+// === 5-YEAR INVESTOR RETURNS ===
+// Y1 profit = FORECAST.profit (£124,000 base case under the new 2026 cost
+// model). Y2-Y5 compound at +10% YoY — placeholder assumption that should
+// be reviewed against the workbook's multi-year P&L when one is built.
+// Y5 exit pegged at 4× EBITDA (sector standard for hospitality/leisure
+// asset sales — same multiple Hackney uses).
+//
+// Investor / founder shares assume the static 50/50 equity split (DEAL
+// .investorEq, .founderEq). The slide overlays the live locked investment
+// to compute MoM / CoC / IRR — those flex with the funding slider; the
+// underlying profit + revenue series here does not.
+const _byo_5y_compound = (base, rate, years) =>
+  Array.from({ length: years }, (_, i) => Math.round(base * Math.pow(1 + rate, i)))
+const _byo_y_profits   = _byo_5y_compound(124000, 0.10, 5)   // FORECAST.profit
+const _byo_y_revenues  = _byo_5y_compound(852891, 0.10, 5)   // FORECAST.revenue
+const _byo_y5_ebitda   = _byo_y_profits[4]
+const _byo_exit_value  = _byo_y5_ebitda * 4
+
+export const BOROUGH_INVESTOR_RETURNS = {
+  fiveYear: _byo_y_profits.map((profit, i) => ({
+    year:          `Y${i + 1} ${2026 + i}/${(27 + i).toString().padStart(2, '0')}`,
+    revenue:       _byo_y_revenues[i],
+    profit,
+    investorShare: profit * 0.5,
+    founderShare:  profit * 0.5,
+  })),
+  cumulativeDividends: _byo_y_profits.reduce((s, p) => s + p * 0.5, 0),
+  exit: {
+    y5Ebitda:         _byo_y5_ebitda,
+    multiple:         4,
+    businessValue:    _byo_exit_value,
+    investorProceeds: _byo_exit_value * 0.5,
+    founderProceeds:  _byo_exit_value * 0.5,
+  },
+}
+
+// === DISTRIBUTION CALENDAR (12-month, quarterly dividends) ===
+// Working-capital-first model: every month's operating profit refills the
+// reserve (target passed as opts.reserveTarget — caller supplies the live
+// funding.rent floor) before any distribution. Once the reserve is full,
+// surplus profit accrues into a quarterly dividend pool. At quarter-end
+// (Mar / Jun / Sep / Dec) the accrued surplus pays out — split by
+// investorEq / founderEq (defaults to DEAL's 50/50). Loss months net
+// against the reserve before any subsequent dividend.
+//
+// Borough monthly profit series = MONTHLY_PROFIT (2025 actuals) scaled
+// proportionally up to FORECAST.profit (£124k 2026 base case) so seasonality
+// is preserved while the annual total reflects the 2026 forecast.
+//
+// Output shape matches the Hackney equivalent so the slide renders the
+// same way:
+//   calendar  — 12 rows: { month, profit, reserveAdd, reserveBalance,
+//                          surplus, cumulativeAccrual, isQuarterEnd,
+//                          dividendPaid, investorShare, founderShare,
+//                          reservePct }
+//   quarterly — 4 rows: Q1-Q4 dividend payouts.
+//   summary   — { reserveTarget, reserveFullMonth, annualProfit,
+//                 totalDividends, totalInvestor, totalFounder,
+//                 yearEndAccrual, yearEndReserve }.
+export function computeBoroughDistributionCalendar(opts = {}) {
+  const reserveTarget = opts.reserveTarget ?? 27078   // 3-month rent default
+  const investorEq    = opts.investorEq    ?? 0.5
+  const founderEq     = opts.founderEq     ?? (1 - investorEq)
+
+  // Scale the 2025 monthly profit series to the 2026 forecast total so
+  // seasonality is preserved.
+  const baseAnnual = MONTHLY_PROFIT.reduce((s, m) => s + m.profit, 0)
+  const scale      = baseAnnual > 0 ? 124000 / baseAnnual : 1   // FORECAST.profit
+
+  const QUARTER_END_IDX = new Set([2, 5, 8, 11])  // Mar / Jun / Sep / Dec
+  let reserveBalance    = 0
+  let cumulativeAccrual = 0
+  let reserveFullMonth  = null
+
+  const calendar = MONTHLY_PROFIT.map((row, i) => {
+    const monthlyProfit = row.profit * scale
+    let reserveAdd = 0
+    let surplus    = 0
+
+    if (monthlyProfit >= 0) {
+      const room = Math.max(0, reserveTarget - reserveBalance)
+      reserveAdd = Math.min(monthlyProfit, room)
+      reserveBalance += reserveAdd
+      surplus = monthlyProfit - reserveAdd
+    } else {
+      const loss = -monthlyProfit
+      const fromReserve = Math.min(reserveBalance, loss)
+      reserveBalance -= fromReserve
+      reserveAdd = -fromReserve
+      surplus = -(loss - fromReserve)
+    }
+
+    cumulativeAccrual += surplus
+    if (reserveBalance >= reserveTarget && !reserveFullMonth) reserveFullMonth = row.month
+
+    const isQuarterEnd = QUARTER_END_IDX.has(i)
+    let dividendPaid  = 0
+    let investorShare = 0
+    let founderShare  = 0
+    if (isQuarterEnd) {
+      dividendPaid  = Math.max(0, cumulativeAccrual)
+      investorShare = dividendPaid * investorEq
+      founderShare  = dividendPaid * founderEq
+      cumulativeAccrual -= dividendPaid
+    }
+
+    return {
+      month: row.month,
+      profit: monthlyProfit,
+      reserveAdd,
+      reserveBalance,
+      surplus,
+      cumulativeAccrual,
+      isQuarterEnd,
+      dividendPaid,
+      investorShare,
+      founderShare,
+      reservePct: Math.min(1, reserveBalance / reserveTarget),
+    }
+  })
+
+  const quarterly = calendar.filter(c => c.isQuarterEnd).map((q, i) => ({
+    quarter:       `Q${i + 1}`,
+    endMonth:      q.month,
+    dividend:      q.dividendPaid,
+    investorShare: q.investorShare,
+    founderShare:  q.founderShare,
+  }))
+
+  return {
+    calendar,
+    quarterly,
+    summary: {
+      reserveTarget,
+      reserveFullMonth: reserveFullMonth ?? 'not reached in Y1',
+      annualProfit:     calendar.reduce((s, m) => s + m.profit, 0),
+      totalDividends:   quarterly.reduce((s, q) => s + q.dividend, 0),
+      totalInvestor:    quarterly.reduce((s, q) => s + q.investorShare, 0),
+      totalFounder:     quarterly.reduce((s, q) => s + q.founderShare, 0),
+      yearEndAccrual:   cumulativeAccrual,
+      yearEndReserve:   reserveBalance,
+    },
+  }
+}
+
 // === GOVERNANCE ===
 export const GOVERNANCE = {
   ordinaryThreshold: 0.50,
