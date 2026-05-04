@@ -2,10 +2,24 @@
  * No Dice Borough — Lock Sync (Google Apps Script web app)
  * ─────────────────────────────────────────────────────────
  *
- * Stores the founder's "locked 2026 Performance forecast" in a single cell
- * of the existing workbook. The deck (LockedForecastContext + data-bootstrap)
- * GETs from this web app on every page boot and POSTs whenever the founder
- * locks/unlocks.
+ * Stores the founder's locked deck state in a single cell of the existing
+ * workbook. The deck (LockedDeckContext + data-bootstrap) GETs from this
+ * web app on every page boot and POSTs whenever any lock is set or cleared.
+ *
+ * The stored value is a JSON CONTAINER carrying every lockable surface in
+ * one document so each writer can refresh the cell without clobbering the
+ * others. From v2 the shape is:
+ *
+ *   {
+ *     forecast: <2026 forecast snapshot> | null,
+ *     ticketVolume: { value: <number>, lockedAt: <ISO string> } | null
+ *   }
+ *
+ * v1 deployments stored a flat forecast snapshot (with .revenue at top
+ * level). The client auto-detects that legacy shape and adopts it as
+ * { forecast: <legacy>, ticketVolume: null }, so existing servers keep
+ * working without redeployment until the next time the founder locks
+ * anything (which writes the new container shape).
  *
  * SETUP (one-time, ~3 minutes):
  *

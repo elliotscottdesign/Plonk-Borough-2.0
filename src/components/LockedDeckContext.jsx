@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   USE_OF_FUNDS,
   USE_OF_FUNDS_RANGES,
@@ -25,11 +25,16 @@ import {
 // LockedForecastProvider in App.jsx.
 //
 // Persistence:
-//   funding  → localStorage `ndb_funding_locked_v1` (live values cached
-//              in `ndb_funding_live_v1` for founder editing continuity)
-//   forecast → localStorage `ndb_locked_forecast_v1` AND optional cross-
-//              device sync via LOCK_SYNC_URL (Apps Script / Cloudflare
-//              Worker — see infra/)
+//   funding       → localStorage `ndb_funding_locked_v1` (live values cached
+//                   in `ndb_funding_live_v1` for founder editing continuity)
+//   forecast      → localStorage `ndb_locked_forecast_v1`
+//   ticketVolume  → localStorage `ndb_ticket_volume_locked_v1`
+//
+// Forecast + ticketVolume *also* sync cross-device via LOCK_SYNC_URL when
+// configured (Apps Script / Cloudflare Worker — see infra/). Both ride the
+// same endpoint as a merged container { forecast, ticketVolume } so each
+// writer refreshes the cell without clobbering the other surface. Funding
+// is intentionally local-only (founder/investor model the raise privately).
 //
 // Founder access:
 //   sessionStorage.ndb_founder === '1' (set by PasswordGate at 888999)
@@ -89,6 +94,31 @@ const TICKET_VOLUME_LOCK_KEY = 'ndb_ticket_volume_locked_v1'
 const isValidTicketVolumeLock = (v) =>
   v && typeof v === 'object' && Number.isFinite(v.value)
 
+function readPersistedTicketVolumeLock() {
+  // Priority 1: bootstrap fetched it from the server alongside the
+  // forecast lock and stuffed it onto window.__NDB_TICKET_VOLUME_LOCK.
+  if (typeof window !== 'undefined' && window.__NDB_TICKET_VOLUME_LOCK !== undefined) {
+    const fromServer = window.__NDB_TICKET_VOLUME_LOCK
+    try {
+      if (fromServer && isValidTicketVolumeLock(fromServer)) {
+        localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(TICKET_VOLUME_LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidTicketVolumeLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(TICKET_VOLUME_LOCK_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidTicketVolumeLock(parsed) ? parsed : null
+  } catch { return null }
+}
+
 const isValidForecastSnapshot = (s) =>
   s && typeof s === 'object' && Number.isFinite(s.revenue)
 
@@ -116,7 +146,12 @@ function readPersistedForecastSnapshot() {
   } catch { return null }
 }
 
-async function syncForecastToServer(snapshot) {
+// Cross-device lock sync — POSTs the merged container { forecast,
+// ticketVolume } to LOCK_SYNC_URL whenever either lock changes. The
+// server stores a single JSON cell, so callers must pass the full
+// container (the *intended* post-change state of both surfaces) — we
+// can't merge server-side.
+async function syncContainerToServer(container) {
   if (!LOCK_SYNC_URL) return
   try {
     await fetch(LOCK_SYNC_URL, {
@@ -124,11 +159,11 @@ async function syncForecastToServer(snapshot) {
       mode: 'cors',
       cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify({ snapshot, secret: LOCK_SYNC_SECRET || undefined }),
+      body: JSON.stringify({ snapshot: container, secret: LOCK_SYNC_SECRET || undefined }),
     })
   } catch (e) {
     // eslint-disable-next-line no-console
-    console.warn('[lock-sync] forecast POST failed, kept local only:', e.message)
+    console.warn('[lock-sync] container POST failed, kept local only:', e.message)
   }
 }
 
@@ -211,8 +246,14 @@ export function LockedDeckProvider({ children }) {
   const [forecastSnapshot, setForecastSnapshot] = useState(readPersistedForecastSnapshot)
 
   // ─── Ticket-volume state ──────────────────────────────────────────
-  const [ticketVolumeLock, setTicketVolumeLock] = useState(() =>
-    readPersisted(TICKET_VOLUME_LOCK_KEY, isValidTicketVolumeLock))
+  const [ticketVolumeLock, setTicketVolumeLock] = useState(readPersistedTicketVolumeLock)
+
+  // Refs mirror the latest snapshot of EACH lock so the *other* lock's
+  // mutator can include the right value when POSTing the merged container.
+  const forecastRef     = useRef(forecastSnapshot)
+  const ticketVolumeRef = useRef(ticketVolumeLock)
+  useEffect(() => { forecastRef.current = forecastSnapshot }, [forecastSnapshot])
+  useEffect(() => { ticketVolumeRef.current = ticketVolumeLock }, [ticketVolumeLock])
 
   // ─── Shared founder flag ──────────────────────────────────────────
   const isFounder = readIsFounder()
@@ -272,31 +313,35 @@ export function LockedDeckProvider({ children }) {
     if (!data) return
     setForecastSnapshot(data)
     try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(data)) } catch {}
-    syncForecastToServer(data)
+    // POST the merged container — keep the current ticket-volume lock
+    // intact server-side.
+    syncContainerToServer({ forecast: data, ticketVolume: ticketVolumeRef.current })
   }, [])
 
   const unlockForecast = useCallback(() => {
     setForecastSnapshot(null)
     try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
-    syncForecastToServer(null)
+    syncContainerToServer({ forecast: null, ticketVolume: ticketVolumeRef.current })
   }, [])
 
   // ─── Ticket-volume API ────────────────────────────────────────────
   // Founder-only lock for the Master Ticket Volume slider. Persists
-  // across reloads in localStorage. For cross-device "every visitor
-  // sees the founder's locked value" sync, wire up LOCK_SYNC_URL.
+  // across reloads in localStorage AND syncs cross-device via
+  // LOCK_SYNC_URL (when configured) by POSTing the merged container.
   const lockTicketVolume = useCallback((value) => {
     if (!isFounder) return
     if (!Number.isFinite(value)) return
     const stamped = { value, lockedAt: new Date().toISOString() }
     setTicketVolumeLock(stamped)
     try { localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    syncContainerToServer({ forecast: forecastRef.current, ticketVolume: stamped })
   }, [isFounder])
 
   const unlockTicketVolume = useCallback(() => {
     if (!isFounder) return
     setTicketVolumeLock(null)
     try { localStorage.removeItem(TICKET_VOLUME_LOCK_KEY) } catch {}
+    syncContainerToServer({ forecast: forecastRef.current, ticketVolume: null })
   }, [isFounder])
 
   // ─── Context values ───────────────────────────────────────────────

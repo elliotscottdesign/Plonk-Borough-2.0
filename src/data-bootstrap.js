@@ -136,8 +136,16 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
   }
 }
 
-// Fetch the locked-forecast snapshot from LOCK_SYNC_URL (if set) and store
-// it on window.__NDB_LOCK_SNAPSHOT for LockedForecastContext to read at init.
+// Fetch the lock container from LOCK_SYNC_URL (if set) and split into the
+// individual surfaces on window for LockedDeckContext to read at init.
+//
+// Server stores a single JSON value at the configured cell. From v2 the
+// shape is a container:
+//   { forecast: <forecastSnapshot>|null, ticketVolume: <{value,lockedAt}>|null }
+// Older deployments may still hold a flat forecast snapshot (with .revenue
+// at the top level) — we detect and adopt that as { forecast, ticketVolume:null }
+// so existing servers keep working without redeployment.
+//
 // Falls back silently — the provider will use localStorage if this fails.
 async function fetchLockedSnapshot() {
   if (!LOCK_SYNC_URL) return
@@ -150,9 +158,29 @@ async function fetchLockedSnapshot() {
     const data = await res.json()
     if (data && typeof data === 'object') {
       // Server responds with { snapshot: <object>|null }
-      window.__NDB_LOCK_SNAPSHOT = data.snapshot ?? null
+      const raw = data.snapshot ?? null
+
+      let forecast = null
+      let ticketVolume = null
+      if (raw && typeof raw === 'object') {
+        if ('forecast' in raw || 'ticketVolume' in raw) {
+          // New container shape.
+          forecast     = raw.forecast ?? null
+          ticketVolume = raw.ticketVolume ?? null
+        } else if (Number.isFinite(raw.revenue)) {
+          // Legacy flat-forecast shape.
+          forecast = raw
+        }
+      }
+
+      window.__NDB_LOCK_SNAPSHOT      = forecast
+      window.__NDB_TICKET_VOLUME_LOCK = ticketVolume
       // eslint-disable-next-line no-console
-      console.info('[deck-data] ✓ lock snapshot synced from server' + (data.snapshot ? '' : ' (empty)'))
+      console.info(
+        '[deck-data] ✓ locks synced from server' +
+        ` · forecast=${forecast ? 'set' : 'empty'}` +
+        ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}`
+      )
     }
   } catch (e) {
     // eslint-disable-next-line no-console
