@@ -908,8 +908,9 @@ function ScenarioLeversCard() {
 // the read-side first; founder can iterate the editor controls in
 // a follow-up.
 function TicketsSection() {
-  const { forecastEffective } = useLockedUseOfFunds()
+  const { forecastEffective, canEditForecast, setForecastValue } = useLockedUseOfFunds()
   const officeGrowth = forecastEffective.growth?.office ?? 15
+  const pricing      = forecastEffective.pricing || {}
 
   const allSkus = (typeof HACKNEY_DMN_SKUS_ONLINE_2025 !== 'undefined' ? HACKNEY_DMN_SKUS_ONLINE_2025 : [])
   // Game & Drink stays with No Dice despite carrying a round — drink
@@ -917,10 +918,55 @@ function TicketsSection() {
   const isOperatorGolf = (s) => s.rounds > 0 && !/Game & Drink/i.test(s.sku)
   const nonGolf = allSkus.filter(s => !isOperatorGolf(s))
   const golf    = allSkus.filter(isOperatorGolf)
+  const totalGolf2025 = golf.reduce((s, x) => s + x.revenue, 0)
+
+  // Resolve effective tokens / price for an SKU, preferring any override
+  // saved in forecastValues.pricing over the static 2025 default.
+  const eff = (sku) => {
+    const o = pricing[sku.sku] || {}
+    return {
+      tokens: o.tokens ?? sku.tokens,
+      price:  o.price  ?? sku.price,
+    }
+  }
+
+  // Per-row computed shape — historical 2025 stays from data; 2026 uses
+  // the (possibly overridden) price × volume scaled by the Office lever.
+  const rows = nonGolf.map(sku => {
+    const e = eff(sku)
+    const vol2025 = sku.sold
+    const vol2026 = Math.round(vol2025 * (1 + officeGrowth / 100))
+    return {
+      ...sku,
+      tokensEff: e.tokens,
+      priceEff:  e.price,
+      vol2026,
+      rev2026:   vol2026 * e.price,
+    }
+  })
 
   const total2025 = nonGolf.reduce((s, x) => s + x.revenue, 0)
-  const total2026 = total2025 * (1 + officeGrowth / 100)
-  const totalGolf2025 = golf.reduce((s, x) => s + x.revenue, 0)
+  const total2026 = rows.reduce((s, r) => s + r.rev2026, 0)
+
+  // Update one field on one SKU's pricing override. Stays a no-op when
+  // the broader forecast is locked — same gate as the Borough editor.
+  const updateSku = (skuKey, field, value) => {
+    if (!canEditForecast) return
+    const next = { ...pricing, [skuKey]: { ...(pricing[skuKey] || {}), [field]: value } }
+    setForecastValue('pricing', next)
+  }
+
+  // Inline-input style — gold accent box, mirrors the Borough Ticket
+  // Price Maker editable fields.
+  const inputStyle = {
+    width: 64, padding: '3px 6px', textAlign: 'right',
+    background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(201,168,76,0.3)',
+    borderRadius: 4, color: 'var(--gold)', fontWeight: 600, fontSize: 12,
+    fontVariantNumeric: 'tabular-nums',
+    opacity: canEditForecast ? 1 : 0.6,
+    cursor: canEditForecast ? 'text' : 'not-allowed',
+  }
+  const tokensInputStyle = { ...inputStyle, width: 48 }
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:14 }}>
@@ -939,10 +985,10 @@ function TicketsSection() {
           <div style={{ fontSize:11, color:'var(--cream-dim)' }}>{nonGolf.length} SKUs · projected at office lever +{officeGrowth}%</div>
         </div>
         <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
-          Pool reservations, pool tournaments, seasonal events (Pumpkin Carving, Valentine's deals, etc.), drink add-ons and arcade tokens. All retained 100% under the new operator structure. 2026 column scales 2025 sold quantities by the Office growth lever — drag that slider in the Income section to project.
+          Pool reservations, pool tournaments, seasonal events (Pumpkin Carving, Valentine's deals, etc.), drink add-ons and arcade tokens. All retained 100% under the new operator structure. Edit Tokens or £/unit per SKU; 2026 £ recomputes from the new price × Office-scaled volume.
         </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'10px 0', borderBottom:'1px solid rgba(201,168,76,0.2)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.9fr 0.7fr 1fr 1fr', padding:'10px 0', borderBottom:'1px solid rgba(201,168,76,0.2)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.06em', textTransform:'uppercase' }}>
           <span>SKU</span>
           <span style={{ textAlign:'right' }}>Tokens</span>
           <span style={{ textAlign:'right' }}>£/unit</span>
@@ -951,21 +997,34 @@ function TicketsSection() {
           <span style={{ textAlign:'right' }}>2026 £ (proj)</span>
         </div>
 
-        {nonGolf.sort((a, b) => b.revenue - a.revenue).map(sku => {
-          const proj2026 = sku.revenue * (1 + officeGrowth / 100)
-          return (
-            <div key={sku.sku} style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, fontVariantNumeric:'tabular-nums', alignItems:'baseline' }}>
-              <span style={{ color:'var(--cream)' }}>{sku.sku}</span>
-              <span style={{ textAlign:'right', color: sku.tokens > 0 ? '#EAB308' : 'var(--cream-dim)' }}>{sku.tokens > 0 ? sku.tokens : '—'}</span>
-              <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>£{sku.price.toFixed(2)}</span>
-              <span style={{ textAlign:'right', color:'var(--cream)' }}>{sku.sold.toLocaleString('en-GB')}</span>
-              <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{fmtMoney(sku.revenue)}</span>
-              <span style={{ textAlign:'right', color:'#22D3EE' }}>{fmtMoney(proj2026)}</span>
-            </div>
-          )
-        })}
+        {rows.sort((a, b) => b.revenue - a.revenue).map(r => (
+          <div key={r.sku} style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.9fr 0.7fr 1fr 1fr', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13, fontVariantNumeric:'tabular-nums', alignItems:'center' }}>
+            <span style={{ color:'var(--cream)' }}>{r.sku}</span>
+            <span style={{ textAlign:'right' }}>
+              <input
+                type="number" min={0} max={20} step={1}
+                value={r.tokensEff}
+                disabled={!canEditForecast}
+                onChange={e => updateSku(r.sku, 'tokens', Math.max(0, Number(e.target.value) || 0))}
+                style={tokensInputStyle}
+              />
+            </span>
+            <span style={{ textAlign:'right' }}>
+              <input
+                type="number" min={0} max={500} step={0.50}
+                value={r.priceEff}
+                disabled={!canEditForecast}
+                onChange={e => updateSku(r.sku, 'price', Math.max(0, Number(e.target.value) || 0))}
+                style={inputStyle}
+              />
+            </span>
+            <span style={{ textAlign:'right', color:'var(--cream)' }}>{r.sold.toLocaleString('en-GB')}</span>
+            <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{fmtMoney(r.revenue)}</span>
+            <span style={{ textAlign:'right', color:'#22D3EE' }}>{fmtMoney(r.rev2026)}</span>
+          </div>
+        ))}
 
-        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.6fr 0.7fr 1fr 1fr', padding:'12px 0 4px', fontSize:14, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
+        <div style={{ display:'grid', gridTemplateColumns:'2.4fr 0.9fr 0.9fr 0.7fr 1fr 1fr', padding:'12px 0 4px', fontSize:14, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
           <span style={{ color:'var(--cream)' }}>Non-golf total</span>
           <span></span><span></span><span></span>
           <span className="serif" style={{ textAlign:'right', color:'var(--cream)', fontSize:16 }}>{fmtMoney(total2025)}</span>
