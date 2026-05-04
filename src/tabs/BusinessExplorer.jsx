@@ -10,6 +10,7 @@ import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_B
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
+import { useLockedTicketVolume } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -791,7 +792,7 @@ function ScenarioPresetsCard({ growth, officeCostsTotal }) {
 function MasterTicketVolumeSlider({ growth }) {
   const { t } = useTranslation('explorer')
   const { fmtK } = useFmt()
-  const { canEdit } = useLockedForecast()
+  const { canEdit: forecastCanEdit } = useLockedForecast()
   const role = (typeof sessionStorage !== 'undefined' && sessionStorage.getItem('ndb_role')) || ''
   const isBrazil = role === 'brazil'
   const golfBase = SCENARIO_LEVERS.find(l => l.key === 'golf')?.base ?? 210485
@@ -799,9 +800,28 @@ function MasterTicketVolumeSlider({ growth }) {
   const value = growth.golf
   const newRevenue = golfBase * (1 + value / 100)
 
+  // Master-volume lock — independent of the broader forecast lock so the
+  // founder can pin just this slider while the rest of the 2026 levers
+  // stay editable.
+  const tv = growth.ticketVolumeLock || {}
+  const tvIsLocked = !!tv.isLocked
+  const tvIsFounder = !!tv.isFounder
+  const lockedAtLabel = tv.locked?.lockedAt
+    ? new Date(tv.locked.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
+  // Slider is editable when (a) the forecast lock allows it AND (b) the
+  // ticket-volume lock isn't pinned. Brazil role is always read-only on
+  // this slider regardless.
+  const canDrag = forecastCanEdit && !tvIsLocked && !isBrazil
+
   return (
-    <div style={{ background:'rgba(8,145,178,0.06)', border:`1px solid ${golfColor}55`, borderRadius:10, padding:'14px 18px', marginBottom:14 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8 }}>
+    <div style={{
+      background:'rgba(8,145,178,0.06)',
+      border:`1px solid ${tvIsLocked ? 'rgba(16,185,129,0.5)' : `${golfColor}55`}`,
+      borderRadius:10, padding:'14px 18px', marginBottom:14,
+    }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:8, gap:12, flexWrap:'wrap' }}>
         <div>
           <div style={{ fontSize:9.5, color:golfColor, letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700, marginBottom:2 }}>{t('priceMaker.masterHeader')}</div>
           <div style={{ fontSize:12, color:'var(--cream)' }}>
@@ -809,8 +829,17 @@ function MasterTicketVolumeSlider({ growth }) {
             <span style={{ color:'#6B7280', marginLeft:6 }}>(2025: {fmtK(golfBase)})</span>
           </div>
         </div>
-        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-          {isBrazil && (
+        <span style={{ display:'inline-flex', alignItems:'center', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
+          {/* Founder-set lock pill — visible to everyone when active. */}
+          {tvIsLocked && (
+            <span style={{
+              fontSize:9, padding:'2px 8px', borderRadius:10, fontWeight:700,
+              letterSpacing:'0.08em', textTransform:'uppercase',
+              background:'rgba(16,185,129,0.12)', color:'#10B981',
+              border:'1px solid rgba(16,185,129,0.4)',
+            }}>🔒 Locked{lockedAtLabel ? ` · ${lockedAtLabel}` : ''}</span>
+          )}
+          {isBrazil && !tvIsLocked && (
             <span style={{
               fontSize:9, padding:'2px 8px', borderRadius:10, fontWeight:700,
               letterSpacing:'0.08em', textTransform:'uppercase',
@@ -819,13 +848,31 @@ function MasterTicketVolumeSlider({ growth }) {
             }}>🔒 Locked</span>
           )}
           <span style={{ color:golfColor, fontWeight:700, fontSize:16 }}>{value > 0 ? '+' : ''}{value}%</span>
-          <ResetBtn onClick={() => { if (canEdit) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
+          {/* Founder-only Lock / Unlock toggle */}
+          {tvIsFounder && (
+            <button
+              onClick={() => tvIsLocked ? tv.unlock() : tv.lock(value)}
+              style={{
+                padding:'4px 10px', fontSize:10, fontWeight:700,
+                letterSpacing:'0.08em', textTransform:'uppercase',
+                borderRadius:6, cursor:'pointer',
+                background: tvIsLocked ? 'transparent' : `${golfColor}22`,
+                color: tvIsLocked ? '#10B981' : golfColor,
+                border: `1px solid ${tvIsLocked ? 'rgba(16,185,129,0.5)' : `${golfColor}66`}`,
+                whiteSpace:'nowrap', transition:'all 0.15s',
+              }}
+              title={tvIsLocked ? 'Unlock the Master Ticket Volume' : 'Lock this value so every visitor sees it'}
+            >
+              {tvIsLocked ? '🔓 Unlock' : '🔒 Lock'}
+            </button>
+          )}
+          <ResetBtn onClick={() => { if (canDrag) growth.setGolf(15) }} title={t('priceMaker.masterReset')} />
         </span>
       </div>
       <input
-        type="range" disabled={!canEdit} min={-20} max={50} value={value}
-        onChange={e => { if (canEdit) growth.setGolf(Number(e.target.value)) }}
-        style={{ width:'100%', accentColor:golfColor, opacity: canEdit ? 1 : 0.6 }}
+        type="range" disabled={!canDrag} min={-20} max={50} value={value}
+        onChange={e => { if (canDrag) growth.setGolf(Number(e.target.value)) }}
+        style={{ width:'100%', accentColor:golfColor, opacity: canDrag ? 1 : 0.6, cursor: canDrag ? 'pointer' : 'not-allowed' }}
       />
       <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
         <span>−20%</span>
@@ -1768,21 +1815,44 @@ export default function BusinessExplorer() {
   const { t: tc } = useTranslation('common')
   const [tab, setTab] = useState('performance2026')
 
+  // Master ticket-volume lock — when set, pins the golf growth lever for
+  // every visitor (founder-only lock, persists in localStorage). Wins
+  // over local state for the effective `growth.golf` value.
+  const ticketVolume = useLockedTicketVolume()
+  const tvIsLocked   = ticketVolume.isLocked
+  const tvLockedVal  = ticketVolume.locked?.value
+
+  // Initialise golf state from the lock if one exists at first paint, so
+  // a visitor lands directly on the locked value without a flicker.
   const [barGrowth, setBarGrowth]       = useState(15)
-  const [golfGrowth, setGolfGrowth]     = useState(15)
+  const [golfGrowth, setGolfGrowthState] = useState(() => tvIsLocked ? tvLockedVal : 15)
   const [hiresGrowth, setHiresGrowth]   = useState(15)
   const [eventsGrowth, setEventsGrowth] = useState(15)
   const [poolGrowth, setPoolGrowth]     = useState(15)
+
+  // setGolf respects the lock — no-op when locked, regardless of caller.
+  const setGolfGrowth = (v) => { if (!tvIsLocked) setGolfGrowthState(v) }
+
+  // setAll respects the lock for golf only — other levers still snap.
   const setAllGrowth = v => {
-    setBarGrowth(v); setGolfGrowth(v); setHiresGrowth(v); setEventsGrowth(v); setPoolGrowth(v)
+    setBarGrowth(v)
+    if (!tvIsLocked) setGolfGrowthState(v)
+    setHiresGrowth(v); setEventsGrowth(v); setPoolGrowth(v)
   }
+
+  // Effective golf value — locked snapshot wins if present.
+  const effectiveGolf = tvIsLocked ? tvLockedVal : golfGrowth
+
   const growth = {
     bar: barGrowth, setBar: setBarGrowth,
-    golf: golfGrowth, setGolf: setGolfGrowth,
+    golf: effectiveGolf, setGolf: setGolfGrowth,
     hires: hiresGrowth, setHires: setHiresGrowth,
     events: eventsGrowth, setEvents: setEventsGrowth,
     pool: poolGrowth, setPool: setPoolGrowth,
     setAll: setAllGrowth,
+    // Lock surface for the Master Ticket Volume slider. The slider
+    // component reads these; rest of the deck is unaffected.
+    ticketVolumeLock: ticketVolume,
   }
 
   // Per-SKU ticket pricing (price + tokens) for the Ticket Price Maker matrix.

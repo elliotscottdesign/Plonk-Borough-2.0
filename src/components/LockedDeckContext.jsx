@@ -80,6 +80,15 @@ const isValidFundingLive = (v) =>
 // ─── Forecast state — keys + helpers ─────────────────────────────────
 const FORECAST_LOCK_KEY = 'ndb_locked_forecast_v1'
 
+// ─── Ticket-volume lock — single-number lock for the Master Ticket
+// Volume slider on Business Explorer · 2026 Performance · Ticket Price.
+// Independent of the broader forecast lock so the founder can pin just
+// this slider while everything else stays editable.
+const TICKET_VOLUME_LOCK_KEY = 'ndb_ticket_volume_locked_v1'
+
+const isValidTicketVolumeLock = (v) =>
+  v && typeof v === 'object' && Number.isFinite(v.value)
+
 const isValidForecastSnapshot = (s) =>
   s && typeof s === 'object' && Number.isFinite(s.revenue)
 
@@ -167,6 +176,15 @@ const ForecastCtx = createContext({
   unlock: () => {},
 })
 
+const TicketVolumeCtx = createContext({
+  locked: null,        // { value: number, lockedAt: ISO } | null
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  lock: () => {},      // (value: number) => void
+  unlock: () => {},
+})
+
 export function LockedDeckProvider({ children }) {
   // ─── Funding state ────────────────────────────────────────────────
   const [fundingSnapshot, setFundingSnapshot] = useState(() =>
@@ -192,13 +210,19 @@ export function LockedDeckProvider({ children }) {
   // ─── Forecast state ───────────────────────────────────────────────
   const [forecastSnapshot, setForecastSnapshot] = useState(readPersistedForecastSnapshot)
 
+  // ─── Ticket-volume state ──────────────────────────────────────────
+  const [ticketVolumeLock, setTicketVolumeLock] = useState(() =>
+    readPersisted(TICKET_VOLUME_LOCK_KEY, isValidTicketVolumeLock))
+
   // ─── Shared founder flag ──────────────────────────────────────────
   const isFounder = readIsFounder()
 
-  const fundingIsLocked  = fundingSnapshot !== null
-  const fundingCanEdit   = isFounder && !fundingIsLocked
-  const forecastIsLocked = forecastSnapshot !== null
-  const forecastCanEdit  = isFounder && !forecastIsLocked
+  const fundingIsLocked       = fundingSnapshot !== null
+  const fundingCanEdit        = isFounder && !fundingIsLocked
+  const forecastIsLocked      = forecastSnapshot !== null
+  const forecastCanEdit       = isFounder && !forecastIsLocked
+  const ticketVolumeIsLocked  = ticketVolumeLock !== null
+  const ticketVolumeCanEdit   = isFounder && !ticketVolumeIsLocked
 
   // Persist funding live values (founder only).
   useEffect(() => {
@@ -257,6 +281,24 @@ export function LockedDeckProvider({ children }) {
     syncForecastToServer(null)
   }, [])
 
+  // ─── Ticket-volume API ────────────────────────────────────────────
+  // Founder-only lock for the Master Ticket Volume slider. Persists
+  // across reloads in localStorage. For cross-device "every visitor
+  // sees the founder's locked value" sync, wire up LOCK_SYNC_URL.
+  const lockTicketVolume = useCallback((value) => {
+    if (!isFounder) return
+    if (!Number.isFinite(value)) return
+    const stamped = { value, lockedAt: new Date().toISOString() }
+    setTicketVolumeLock(stamped)
+    try { localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+  }, [isFounder])
+
+  const unlockTicketVolume = useCallback(() => {
+    if (!isFounder) return
+    setTicketVolumeLock(null)
+    try { localStorage.removeItem(TICKET_VOLUME_LOCK_KEY) } catch {}
+  }, [isFounder])
+
   // ─── Context values ───────────────────────────────────────────────
   const fundingValue = {
     values: fundingValues,
@@ -280,10 +322,21 @@ export function LockedDeckProvider({ children }) {
     unlock: unlockForecast,
   }
 
+  const ticketVolumeValue = {
+    locked: ticketVolumeLock,
+    isLocked: ticketVolumeIsLocked,
+    isFounder,
+    canEdit: ticketVolumeCanEdit,
+    lock: lockTicketVolume,
+    unlock: unlockTicketVolume,
+  }
+
   return (
     <ForecastCtx.Provider value={forecastValue}>
       <FundingCtx.Provider value={fundingValue}>
-        {children}
+        <TicketVolumeCtx.Provider value={ticketVolumeValue}>
+          {children}
+        </TicketVolumeCtx.Provider>
       </FundingCtx.Provider>
     </ForecastCtx.Provider>
   )
@@ -296,6 +349,10 @@ export function useLockedFunding() {
 
 export function useLockedForecast() {
   return useContext(ForecastCtx)
+}
+
+export function useLockedTicketVolume() {
+  return useContext(TicketVolumeCtx)
 }
 
 // Re-export so consumers don't need a second import
