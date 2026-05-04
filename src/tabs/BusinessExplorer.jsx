@@ -361,33 +361,40 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
     }
   }
 
-  // INCOME · 2026 FORECAST — donut + breakdown + monthly stacked bars.
-  // Defined as a const so the Income sub-section can render it above the
-  // Build Custom Scenario levers without duplicating the JSX.
+  // INCOME · 2026 FORECAST — donut on the left, breakdown list on the right,
+  // monthly bar chart spans the full width beneath. Two-column top half packs
+  // the dense info without the full-width whitespace gap the centered donut
+  // produced.
   const incomeForecastCard = (
     <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
         <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
         <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
       </div>
-      <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
-        <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
-      </div>
-      <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-        {incomeWithPct.map((item, i) => (
-          <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-            <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-            <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
-            <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+
+      {/* Two-column upper half: donut left, breakdown right */}
+      <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:24, alignItems:'center' }}>
+        <div style={{ display:'flex', justifyContent:'center' }}>
+          <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:0, minWidth:0 }}>
+          {incomeWithPct.map((item, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
+              <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
+              <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
+            <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
           </div>
-        ))}
-        <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-          <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
-          <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
         </div>
       </div>
-      <div style={{ marginTop:14 }}>
+
+      {/* Monthly bar chart — full-width beneath the two-column block */}
+      <div style={{ marginTop:18, paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
         <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
         <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
       </div>
