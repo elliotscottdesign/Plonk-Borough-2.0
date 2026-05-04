@@ -20,15 +20,15 @@ import {
 //     read `effective.*` so every figure cascades from one variable
 //
 // Lockable surfaces (independent of each other; mirrors Borough's
-// LockedDeckContext architecture):
-//   1. FUNDING — investor's total raise + 7-line use-of-funds breakdown
-//      (LIVE_KEY / LOCK_KEY · localStorage only)
+// LockedDeckContext architecture). All four sync cross-device:
+//   1. USE-OF-FUNDS — investor's total raise + 7-line use-of-funds
+//      breakdown (LIVE_KEY / LOCK_KEY · syncs cross-device)
 //   2. WAGES — 4-role wage calculator
-//      (WAGE_LIVE_KEY / WAGE_LOCK_KEY · localStorage only)
+//      (WAGE_LIVE_KEY / WAGE_LOCK_KEY · syncs cross-device)
 //   3. FORECAST — 2026 Performance scenario lock (revenue / costs /
-//      growth levers · syncs cross-device via LOCK_SYNC_URL)
-//   4. BAR PRICE — Bar Price Uplift slider (independent founder lock,
-//      pins the bar-price-uplift % for every visitor · syncs cross-device)
+//      growth levers · syncs cross-device)
+//   4. BAR PRICE — Bar Price Uplift single-number lock
+//      (independent founder pin · syncs cross-device)
 //
 // State model per surface:
 //   • values     — live editable state (founder edits these)
@@ -36,13 +36,13 @@ import {
 //   • effective  — locked snapshot if locked, else derived(values)
 //
 // Persistence:
-//   • localStorage on every surface, founder-only for live values
-//   • forecast + barPrice ALSO sync cross-device via LOCK_SYNC_URL when
-//     configured (Apps Script — see infra/lock-sync-apps-script-hackney.gs).
-//     Both ride the same endpoint as a merged container { forecast,
-//     barPrice } so each writer refreshes the cell without clobbering
-//     the other surface. Funding + wages stay local-only — the founder
-//     tunes those privately before locking.
+//   • localStorage caches every surface for snappy first paint
+//   • All four surfaces ALSO sync cross-device via LOCK_SYNC_URL (Apps
+//     Script — see infra/lock-sync-apps-script-hackney.gs). They share
+//     ONE merged container { useOfFunds, wages, forecast, barPrice } so
+//     no writer overwrites another's state on the server. Every
+//     lock/unlock/reset callback routes through buildContainer() which
+//     reads fresh refs for the surfaces it isn't changing.
 //
 // Founder detection:
 //   • sessionStorage.ndb_founder === '1' (set by PasswordGate at 888999)
@@ -170,19 +170,54 @@ const readPersisted = (key, validator) => {
   } catch { return null }
 }
 
-// ─── Bar-price lock validators + server-first readers ────────────────
+// ─── Server-first readers for every cross-device surface ─────────────
+// Each surface prefers the bootstrap-fetched server snapshot (parked on
+// a window global by data-bootstrap.js) and falls back to localStorage
+// when the server fetch hasn't run / failed / isn't configured.
+
 const isValidBarPriceLock = (v) =>
   v && typeof v === 'object' && Number.isFinite(v.value)
 
 // Forecast snapshot — Hackney shape carries growth.bar at top level.
-// Used to read the bootstrap-supplied global at provider init.
 const isValidForecastForServer = (s) =>
   s && typeof s === 'object' && s.growth && Number.isFinite(s.growth.bar)
 
-// Read forecast snapshot, preferring the bootstrap-fetched server value
-// (window.__NDB_HACKNEY_LOCK_SNAPSHOT) over localStorage. Mirrors the
-// Borough LockedDeckContext priority chain so a freshly-loaded page
-// reflects whatever the server holds, even if the local cache disagreed.
+function readPersistedUseOfFundsLock() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK
+    try {
+      if (fromServer && isValidLocked(fromServer)) {
+        localStorage.setItem(LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidLocked(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(LOCK_KEY, isValidLocked)
+}
+
+function readPersistedWageLock() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_WAGE_LOCK !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_WAGE_LOCK
+    try {
+      if (fromServer && isValidWageLock(fromServer)) {
+        localStorage.setItem(WAGE_LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(WAGE_LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidWageLock(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(WAGE_LOCK_KEY, isValidWageLock)
+}
+
 function readPersistedForecastSnapshotHackney() {
   if (typeof window !== 'undefined' && window.__NDB_HACKNEY_LOCK_SNAPSHOT !== undefined) {
     const fromServer = window.__NDB_HACKNEY_LOCK_SNAPSHOT
@@ -268,13 +303,15 @@ const LockedUseOfFundsContext = createContext({
 })
 
 export function LockedUseOfFundsProvider({ children }) {
-  const [snapshot, setSnapshot] = useState(() => readPersisted(LOCK_KEY, isValidLocked))
+  // Use-of-funds lock — server-first init so a freshly-loaded page in any
+  // browser shows the founder's locked raise size right away.
+  const [snapshot, setSnapshot] = useState(readPersistedUseOfFundsLock)
   // Live values seed precedence: persisted live (founder only) → locked snapshot
   // (so unlocking lands the sliders on the locked figures) → defaults.
   const [values, setValues] = useState(() => {
     const persistedLive = readPersisted(LIVE_KEY, isValidLive)
     if (persistedLive) return { ...buildDefaults(), ...persistedLive }
-    const lock = readPersisted(LOCK_KEY, isValidLocked)
+    const lock = readPersistedUseOfFundsLock()
     if (lock) {
       const d = buildDefaults()
       return {
@@ -292,11 +329,13 @@ export function LockedUseOfFundsProvider({ children }) {
   })
 
   // ─── Wage calculator state ───────────────────────────────────────
-  const [wageSnapshot, setWageSnapshot] = useState(() => readPersisted(WAGE_LOCK_KEY, isValidWageLock))
+  // Server-first init — the locked wage figure cascades into every
+  // forecast cost calc, so other browsers must see the same value.
+  const [wageSnapshot, setWageSnapshot] = useState(readPersistedWageLock)
   const [wageRows, setWageRowsState] = useState(() => {
     const persisted = readPersisted(WAGE_LIVE_KEY, isValidWageLive)
     if (persisted) return persisted
-    const lock = readPersisted(WAGE_LOCK_KEY, isValidWageLock)
+    const lock = readPersistedWageLock()
     if (lock?.rows && isValidWageLive(lock.rows)) return lock.rows
     return defaultWageRows()
   })
@@ -317,18 +356,30 @@ export function LockedUseOfFundsProvider({ children }) {
   // ─── Bar-price single-number lock ────────────────────────────────
   // Independent founder-only lock for the Bar Price Uplift slider on
   // 2026 Performance. When set, every visitor sees the locked % and
-  // the slider is disabled. Persists in localStorage AND syncs cross-
-  // device via LOCK_SYNC_URL alongside the forecast lock as a merged
-  // container (see syncContainerToServer).
+  // the slider is disabled.
   const [barPriceLock, setBarPriceLock] = useState(readPersistedBarPriceLock)
 
-  // Refs mirror the latest snapshot of EACH cross-device-synced lock so
-  // the *other* lock's mutator can include the right value when POSTing
-  // the merged container. Mirrors Borough's forecastRef / ticketVolumeRef.
-  const forecastRef = useRef(forecastSnapshot)
-  const barPriceRef = useRef(barPriceLock)
-  useEffect(() => { forecastRef.current = forecastSnapshot }, [forecastSnapshot])
-  useEffect(() => { barPriceRef.current = barPriceLock }, [barPriceLock])
+  // Refs mirror the latest snapshot of EVERY cross-device-synced surface
+  // so any callback can rebuild the full merged container without stale
+  // closures. Mirrors Borough's fundingRef / forecastRef / ticketVolumeRef.
+  const useOfFundsRef = useRef(snapshot)
+  const wagesRef      = useRef(wageSnapshot)
+  const forecastRef   = useRef(forecastSnapshot)
+  const barPriceRef   = useRef(barPriceLock)
+  useEffect(() => { useOfFundsRef.current = snapshot         }, [snapshot])
+  useEffect(() => { wagesRef.current      = wageSnapshot     }, [wageSnapshot])
+  useEffect(() => { forecastRef.current   = forecastSnapshot }, [forecastSnapshot])
+  useEffect(() => { barPriceRef.current   = barPriceLock     }, [barPriceLock])
+
+  // Build the full 4-surface container for cross-device sync. Always
+  // includes the latest of all four so neither writer clobbers the
+  // others on the server. Mirrors Borough's buildContainer().
+  const buildContainer = (overrides = {}) => ({
+    useOfFunds: 'useOfFunds' in overrides ? overrides.useOfFunds : useOfFundsRef.current,
+    wages:      'wages'      in overrides ? overrides.wages      : wagesRef.current,
+    forecast:   'forecast'   in overrides ? overrides.forecast   : forecastRef.current,
+    barPrice:   'barPrice'   in overrides ? overrides.barPrice   : barPriceRef.current,
+  })
 
   const isFounder = readIsFounder()
   const isLocked = snapshot !== null
@@ -379,12 +430,14 @@ export function LockedUseOfFundsProvider({ children }) {
     const stamped = { ...deriveSnapshot(values), lockedAt: new Date().toISOString() }
     setSnapshot(stamped)
     try { localStorage.setItem(LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ useOfFunds: stamped }))
   }, [values, isFounder])
 
   const unlock = useCallback(() => {
     if (!isFounder) return
     setSnapshot(null)
     try { localStorage.removeItem(LOCK_KEY) } catch {}
+    syncContainerToServer(buildContainer({ useOfFunds: null }))
   }, [isFounder])
 
   const reset = useCallback(() => {
@@ -392,6 +445,7 @@ export function LockedUseOfFundsProvider({ children }) {
     if (snapshot) {
       setSnapshot(null)
       try { localStorage.removeItem(LOCK_KEY) } catch {}
+      syncContainerToServer(buildContainer({ useOfFunds: null }))
     }
     setValues(buildDefaults())
   }, [snapshot, isFounder])
@@ -412,12 +466,14 @@ export function LockedUseOfFundsProvider({ children }) {
     const stamped = { ...deriveWageSnapshot(wageRows), lockedAt: new Date().toISOString() }
     setWageSnapshot(stamped)
     try { localStorage.setItem(WAGE_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ wages: stamped }))
   }, [wageRows, isFounder])
 
   const unlockWages = useCallback(() => {
     if (!isFounder) return
     setWageSnapshot(null)
     try { localStorage.removeItem(WAGE_LOCK_KEY) } catch {}
+    syncContainerToServer(buildContainer({ wages: null }))
   }, [isFounder])
 
   const resetWages = useCallback(() => {
@@ -425,6 +481,7 @@ export function LockedUseOfFundsProvider({ children }) {
     if (wageSnapshot) {
       setWageSnapshot(null)
       try { localStorage.removeItem(WAGE_LOCK_KEY) } catch {}
+      syncContainerToServer(buildContainer({ wages: null }))
     }
     setWageRowsState(defaultWageRows())
   }, [wageSnapshot, isFounder])
@@ -492,16 +549,14 @@ export function LockedUseOfFundsProvider({ children }) {
     const stamped = { ...forecastValues, lockedAt: new Date().toISOString() }
     setForecastSnapshot(stamped)
     try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(stamped)) } catch {}
-    // POST the merged container — keep the current bar-price lock intact
-    // server-side.
-    syncContainerToServer({ forecast: stamped, barPrice: barPriceRef.current })
+    syncContainerToServer(buildContainer({ forecast: stamped }))
   }, [forecastValues, isFounder])
 
   const unlockForecast = useCallback(() => {
     if (!isFounder) return
     setForecastSnapshot(null)
     try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
-    syncContainerToServer({ forecast: null, barPrice: barPriceRef.current })
+    syncContainerToServer(buildContainer({ forecast: null }))
   }, [isFounder])
 
   // ─── Bar-price lock API ──────────────────────────────────────────
@@ -514,14 +569,14 @@ export function LockedUseOfFundsProvider({ children }) {
     const stamped = { value, lockedAt: new Date().toISOString() }
     setBarPriceLock(stamped)
     try { localStorage.setItem(BAR_PRICE_LOCK_KEY, JSON.stringify(stamped)) } catch {}
-    syncContainerToServer({ forecast: forecastRef.current, barPrice: stamped })
+    syncContainerToServer(buildContainer({ barPrice: stamped }))
   }, [isFounder])
 
   const unlockBarPrice = useCallback(() => {
     if (!isFounder) return
     setBarPriceLock(null)
     try { localStorage.removeItem(BAR_PRICE_LOCK_KEY) } catch {}
-    syncContainerToServer({ forecast: forecastRef.current, barPrice: null })
+    syncContainerToServer(buildContainer({ barPrice: null }))
   }, [isFounder])
 
   const resetForecast = useCallback(() => {
@@ -529,6 +584,7 @@ export function LockedUseOfFundsProvider({ children }) {
     if (forecastSnapshot) {
       setForecastSnapshot(null)
       try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
+      syncContainerToServer(buildContainer({ forecast: null }))
     }
     setForecastValuesState(defaultForecast())
   }, [forecastSnapshot, isFounder])

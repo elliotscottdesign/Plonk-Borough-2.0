@@ -15,17 +15,27 @@
  *
  * The stored value is a JSON CONTAINER carrying every lockable surface
  * in one document so each writer can refresh the cell without clobbering
- * the others. Shape:
+ * the others. From v3 the shape is a 4-surface container:
  *
  *   {
- *     forecast: <2026 Hackney forecast snapshot> | null,
- *     barPrice: { value: <number>, lockedAt: <ISO string> } | null
+ *     useOfFunds: <funding/use-of-funds snapshot> | null,
+ *     wages:      <4-role wage calculator snapshot> | null,
+ *     forecast:   <2026 forecast snapshot> | null,
+ *     barPrice:   { value, lockedAt } | null
  *   }
  *
- * If a flat forecast snapshot ever lands here (with .growth.bar at the
- * top level), the client auto-detects it and adopts as
- * { forecast: <legacy>, barPrice: null } — same backwards-compat path
- * as Borough.
+ * Backwards-compat:
+ *   • v2 deployments stored { forecast, barPrice } only; v3 clients
+ *     read the same payload and treat useOfFunds + wages as null.
+ *   • Pre-v2 flat-forecast snapshots (with .growth.bar at top level)
+ *     are auto-detected and adopted as { useOfFunds: null, wages: null,
+ *     forecast: <legacy>, barPrice: null }.
+ * Existing servers keep working without redeployment until the next
+ * lock write upgrades the cell to the new 4-surface shape.
+ *
+ * The script itself is a dumb JSON cell store and doesn't introspect the
+ * payload — the container migration is purely client-side. The .gs file
+ * docs are the source of truth for the wire shape.
  *
  * SETUP (one-time, ~3 minutes):
  *

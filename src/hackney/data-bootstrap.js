@@ -11,21 +11,27 @@
 //   • Fall back silently on any error (no URL configured, network down,
 //     malformed payload) — the provider will use localStorage.
 //
-// The Hackney container shape is:
+// The Hackney container shape (4 surfaces, all cross-device):
 //   {
-//     forecast: <Hackney 2026 forecast snapshot> | null,
-//     barPrice: { value: <number>, lockedAt: <ISO> } | null
+//     useOfFunds: <funding/use-of-funds snapshot>      | null,
+//     wages:      <4-role wage calculator snapshot>     | null,
+//     forecast:   <2026 forecast snapshot>              | null,
+//     barPrice:   { value: <number>, lockedAt: <ISO> }  | null
 //   }
 //
-// Legacy detection: if the server still holds a flat forecast snapshot
-// (with .growth.bar at the top level instead of .forecast.growth.bar),
-// adopt as { forecast: <legacy>, barPrice: null }. Same backwards-compat
-// path Borough's bootstrap implements for its v1 → v2 migration.
+// Backwards-compat:
+//   • v2 deployments stored { forecast, barPrice }     → useOfFunds and
+//     wages default to null until the next time those surfaces are
+//     locked, which writes the new 4-surface shape.
+//   • Pre-v2 flat-forecast snapshots (with .growth.bar at the top
+//     level) → adopted as forecast only.
 //
 // Window globals (separate from Borough's __NDB_LOCK_SNAPSHOT and
 // __NDB_TICKET_VOLUME_LOCK so a visitor switching between decks during a
 // session doesn't end up with one deck reading the other's cache):
-//   • window.__NDB_HACKNEY_LOCK_SNAPSHOT     — forecast snapshot
+//   • window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK — funding/use-of-funds lock
+//   • window.__NDB_HACKNEY_WAGE_LOCK         — wage calculator lock
+//   • window.__NDB_HACKNEY_LOCK_SNAPSHOT     — 2026 forecast snapshot
 //   • window.__NDB_HACKNEY_BAR_PRICE_LOCK    — bar-price slider lock
 //
 // Note: Hackney does NOT replicate Borough's gviz Sheet fetch. Hackney's
@@ -34,9 +40,11 @@
 
 import { LOCK_SYNC_URL } from '../data/hackney.js'
 
-// 8s default — Apps Script cold-start can take 3-5s per call (verified
-// empirically). 3s was clipping the fetch and breaking cross-device sync.
-export async function bootstrapHackneyLocks({ timeoutMs = 8000 } = {}) {
+// 10s default — Apps Script cold-start was empirically observed at 7.65s
+// on a fresh GET to the Hackney endpoint. The 8s value Borough uses had
+// only ~350ms of margin against that worst case, which clipped fetches
+// intermittently. 10s gives a safer cushion. Don't shrink below 8s.
+export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
   const start = (typeof performance !== 'undefined' ? performance.now() : Date.now())
   if (!LOCK_SYNC_URL) {
     // eslint-disable-next-line no-console
@@ -53,26 +61,34 @@ export async function bootstrapHackneyLocks({ timeoutMs = 8000 } = {}) {
     if (data && typeof data === 'object') {
       const raw = data.snapshot ?? null
 
-      let forecast = null
-      let barPrice = null
+      let useOfFunds = null
+      let wages      = null
+      let forecast   = null
+      let barPrice   = null
       if (raw && typeof raw === 'object') {
-        if ('forecast' in raw || 'barPrice' in raw) {
+        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw) {
           // Container shape (current).
-          forecast = raw.forecast ?? null
-          barPrice = raw.barPrice ?? null
+          useOfFunds = raw.useOfFunds ?? null
+          wages      = raw.wages      ?? null
+          forecast   = raw.forecast   ?? null
+          barPrice   = raw.barPrice   ?? null
         } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
-          // Legacy flat-forecast shape — adopt as forecast, no bar-price.
+          // Legacy flat-forecast shape — adopt as forecast, others null.
           forecast = raw
         }
       }
 
-      window.__NDB_HACKNEY_LOCK_SNAPSHOT  = forecast
-      window.__NDB_HACKNEY_BAR_PRICE_LOCK = barPrice
+      window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK = useOfFunds
+      window.__NDB_HACKNEY_WAGE_LOCK         = wages
+      window.__NDB_HACKNEY_LOCK_SNAPSHOT     = forecast
+      window.__NDB_HACKNEY_BAR_PRICE_LOCK    = barPrice
 
       const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
       // eslint-disable-next-line no-console
       console.info(
         `[hackney] ✓ locks synced from server · ${ms}ms` +
+        ` · useOfFunds=${useOfFunds ? 'set' : 'empty'}` +
+        ` · wages=${wages ? 'set' : 'empty'}` +
         ` · forecast=${forecast ? 'set' : 'empty'}` +
         ` · barPrice=${barPrice ? 'set' : 'empty'}`
       )
