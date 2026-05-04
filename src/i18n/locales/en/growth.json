@@ -14,7 +14,7 @@
   "drivers": {
     "seo": {
       "driver": "SEO Rebuild from Day 1",
-      "detail": "Organic traffic dropped 32% due to brand change (Plonk→No Dice). Lithos SEO programme restores rankings under No Dice Borough — compounding year-on-year. 301 redirect preserves domain authority."
+      "detail": "Organic traffic dropped 32% — reflects the late-2024 → Nov 2025 paid-search hiatus, not a brand change. Plonk Golf Ltd traded under the same brand throughout 2025. Lithos SEO programme + resumed ads rebuild rankings under No Dice Borough, compounding year-on-year. plonkgolf.co.uk → nodiceborough.co.uk 301 redirects preserve domain authority."
     },
     "ads": {
       "driver": "Google Ads at Scale",
@@ -51,8 +51,8 @@
       "mitigation": "NMW modelled at 2025 actuals. No optimistic wage assumption. Wage calculator models scenarios."
     },
     "brand": {
-      "risk": "Brand transition (Plonk→No Dice)",
-      "mitigation": "SEO redirect preserves domain authority. Existing customer database retained. Location unchanged."
+      "risk": "New-brand awareness (No Dice spin-off)",
+      "mitigation": "Plonk Golf Ltd traded under one brand throughout 2025; No Dice Borough is the new spin-off post-March-2026 liquidation, acquiring assets back from the liquidator. plonkgolf.co.uk → nodiceborough.co.uk 301 redirect preserves domain authority. Existing customer database retained. Location unchanged. Plonk continues as the name of the mini-golf course at No Dice."
     },
     "marketing": {
       "risk": "Marketing variability",

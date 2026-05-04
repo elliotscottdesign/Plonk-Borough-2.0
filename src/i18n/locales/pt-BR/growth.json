@@ -14,7 +14,7 @@
   "drivers": {
     "seo": {
       "driver": "Reconstrução de SEO desde o Dia 1",
-      "detail": "Tráfego orgânico caiu 32% devido à mudança de marca (Plonk→No Dice). O programa de SEO da Lithos restaura o ranqueamento sob No Dice Borough — com ganho composto ano a ano. Redirecionamento 301 preserva a autoridade do domínio."
+      "detail": "Tráfego orgânico caiu 32% — reflete a interrupção da busca paga entre o final de 2024 e nov/2025, não uma mudança de marca. A Plonk Golf Ltd operou sob a mesma marca durante todo 2025. O programa de SEO da Lithos + a retomada das campanhas reconstroem o ranqueamento sob No Dice Borough, com ganho composto ano a ano. Redirecionamentos 301 plonkgolf.co.uk → nodiceborough.co.uk preservam a autoridade do domínio."
     },
     "ads": {
       "driver": "Google Ads em Escala",
@@ -51,8 +51,8 @@
       "mitigation": "NMW (salário mínimo nacional) modelado sobre os números reais de 2025. Sem premissa salarial otimista. Calculadora de salários modela cenários."
     },
     "brand": {
-      "risk": "Transição de marca (Plonk→No Dice)",
-      "mitigation": "Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização inalterada."
+      "risk": "Reconhecimento da nova marca (spin-off No Dice)",
+      "mitigation": "A Plonk Golf Ltd operou sob uma única marca durante todo 2025; No Dice Borough é o novo spin-off após a liquidação de março de 2026, recomprando ativos do liquidatário. Redirecionamento 301 plonkgolf.co.uk → nodiceborough.co.uk preserva a autoridade do domínio. Base de clientes existente mantida. Localização inalterada. Plonk continua como o nome do campo de mini golfe no No Dice."
     },
     "marketing": {
       "risk": "Variabilidade de marketing",

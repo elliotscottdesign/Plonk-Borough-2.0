@@ -30,7 +30,8 @@ export default function MarketingEngine() {
         Organic Search drives <strong style={{ color: 'var(--cream)' }}>50× more traffic</strong> than paid ads —
         77,801 organic sessions in 2025 vs 1,580 from Google Ads (37 active days).
         The SEO programme is the primary acquisition engine. Google Ads are a proven, efficient supplement
-        when conversion tracking is live.
+        when conversion tracking is live. Plonk Golf Ltd traded under the same brand throughout 2025 —
+        the dip below is paid-search-driven, not brand-driven.
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32, marginBottom: 36 }}>
@@ -71,8 +72,8 @@ export default function MarketingEngine() {
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 20 }}>
             {[
-              { year: '2024', sessions: 114228, note: 'Plonk Golf brand active all year', color: '#1565C0' },
-              { year: '2025', sessions: 77801, note: '−32% · brand changing to No Dice Borough', color: '#C9A84C' },
+              { year: '2024', sessions: 114228, note: 'Paid search active Jan–Nov 2024', color: '#1565C0' },
+              { year: '2025', sessions: 77801, note: '−32% · no paid search end-2024 → Nov 2025', color: '#C9A84C' },
             ].map(s => (
               <div key={s.year} className="card" style={{ padding: 16 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
@@ -142,7 +143,8 @@ export default function MarketingEngine() {
 // editable Google Ads + SEO investment levels. Defaults pulled from
 // Windsor.ai-verified GA4 data (37-day Nov–Dec 2025 campaign):
 //   - CPC £0.32, conversion rate 5.7%, avg ticket value £14.
-//   - SEO baseline = 2024 trend (114k organic sessions before brand change).
+//   - SEO baseline = 2024 trend (114k organic sessions during the last full
+//     year of paid search — paid search lapsed at end of 2024).
 // All assumptions editable so investors can stress-test.
 // ───────────────────────────────────────────────────────────────────────
 function MarketingForecastCalculator() {
@@ -284,7 +286,7 @@ function MarketingForecastCalculator() {
         <span style={{ color: '#9CA3AF', fontWeight: 600 }}>Sources: </span>
         Google Ads CPC + conversion rate verified by GA4 (Windsor.ai) over the 5 Nov–11 Dec 2025
         campaign window. SEO baseline uses verified 2025 organic session count (77,801);
-        2024 organic was 114k before brand transition.
+        2024 organic was 114k during the last full year of paid search (paid search lapsed end of 2024).
         Avg ticket value derived from 2025 online ticket revenue ÷ ticket volume.
       </div>
     </div>

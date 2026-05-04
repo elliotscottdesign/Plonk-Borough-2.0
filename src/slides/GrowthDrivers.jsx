@@ -32,7 +32,7 @@ const DRIVER_DEFS = [
   {
     key: 'seo',
     title: 'SEO Rebuild from Day 1',
-    intro: 'Restore organic search rankings under No Dice Borough — Lithos SEO programme rebuilds authority lost in the brand transition. 301 redirects preserve domain authority; structured data + local schema lift visibility for "Borough Market bar", "late-night SE1" and adjacent searches.',
+    intro: 'Restore organic search rankings under No Dice Borough — Lithos SEO programme + resumed paid search rebuild authority lost during the late-2024 → Nov 2025 ad hiatus. Plonk Golf Ltd kept the same brand throughout 2025; the dip is paid-search-driven, not brand-driven. plonkgolf.co.uk → nodiceborough.co.uk 301 redirects preserve domain authority; structured data + local schema lift visibility for "Borough Market bar", "late-night SE1" and adjacent searches.',
     color: '#22D3EE',
     defaultPct: 3,
   },

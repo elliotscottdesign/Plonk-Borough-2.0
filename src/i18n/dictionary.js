@@ -260,8 +260,8 @@ export const PT_BR = {
 
   // Growth drivers
   'SEO Rebuild from Day 1': 'Reconstrução de SEO desde o Dia 1',
-  'Organic traffic dropped 32% due to brand change (Plonk→No Dice). Lithos SEO programme restores rankings under No Dice Borough — compounding year-on-year. 301 redirect preserves domain authority.':
-    'Tráfego orgânico caiu 32% devido à mudança de marca (Plonk→No Dice). O programa de SEO da Lithos restaura o ranqueamento sob No Dice Borough — com ganho composto ano a ano. Redirecionamento 301 preserva a autoridade do domínio.',
+  'Organic traffic dropped 32% — reflects the late-2024 → Nov 2025 paid-search hiatus, not a brand change. Plonk Golf Ltd traded under the same brand throughout 2025. Lithos SEO programme + resumed ads rebuild rankings under No Dice Borough, compounding year-on-year. plonkgolf.co.uk → nodiceborough.co.uk 301 redirects preserve domain authority.':
+    'Tráfego orgânico caiu 32% — reflete a interrupção da busca paga entre o final de 2024 e nov/2025, não uma mudança de marca. A Plonk Golf Ltd operou sob a mesma marca durante todo 2025. O programa de SEO da Lithos + a retomada das campanhas reconstroem o ranqueamento sob No Dice Borough, com ganho composto ano a ano. Redirecionamentos 301 plonkgolf.co.uk → nodiceborough.co.uk preservam a autoridade do domínio.',
   'Google Ads at Scale': 'Google Ads em Escala',
   'Proven £0.32 CPC and 5.7% conversion rate from Nov–Dec 2025 campaign. 105 conversions in 37 days at £580 spend. Scale to £600/mth = ~107 conversions/month with verified unit economics.':
     'CPC comprovado de £0.32 e taxa de conversão de 5,7% na campanha de nov–dez/2025. 105 conversões em 37 dias com £580 investidos. Escalando para £600/mês = ~107 conversões/mês com unit economics verificados.',
@@ -287,9 +287,9 @@ export const PT_BR = {
   'Wage inflation': 'Inflação salarial',
   'NMW modelled at 2025 actuals. No optimistic wage assumption. Wage calculator models scenarios.':
     'NMW (salário mínimo nacional) modelado sobre os números reais de 2025. Sem premissa salarial otimista. Calculadora de salários modela cenários.',
-  'Brand transition (Plonk→No Dice)': 'Transição de marca (Plonk→No Dice)',
-  'SEO redirect preserves domain authority. Existing customer database retained. Location unchanged.':
-    'Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização inalterada.',
+  'New-brand awareness (No Dice spin-off) [growth.json variant]': 'Reconhecimento da nova marca (spin-off No Dice)',
+  'Plonk Golf Ltd traded under one brand throughout 2025; No Dice Borough is the new spin-off post-March-2026 liquidation, acquiring assets back from the liquidator. plonkgolf.co.uk → nodiceborough.co.uk 301 redirect preserves domain authority. Existing customer database retained. Location unchanged. Plonk continues as the name of the mini-golf course at No Dice.':
+    'A Plonk Golf Ltd operou sob uma única marca durante todo 2025; No Dice Borough é o novo spin-off após a liquidação de março de 2026, recomprando ativos do liquidatário. Redirecionamento 301 plonkgolf.co.uk → nodiceborough.co.uk preserva a autoridade do domínio. Base de clientes existente mantida. Localização inalterada. Plonk continua como o nome do campo de mini golfe no No Dice.',
   'Marketing variability': 'Variabilidade de marketing',
   'Google Ads proven at £0.32 CPC with live conversion tracking. SEO programme starts Day 1.':
     'Google Ads comprovado a £0.32 CPC com tracking de conversão ativo. Programa de SEO começa no Dia 1.',
@@ -318,7 +318,7 @@ export const PT_BR = {
     'O cenário base é +15% sobre os números reais verificados de 2025. O dividendo do investidor é pro-rata sobre qualquer lucro operacional que o local produzir.',
   'NMW modelled at 2025 actuals — no optimistic assumption. Wage calculator available for scenario testing.':
     'NMW modelado sobre os números reais de 2025 — sem premissa otimista. Calculadora de salários disponível para teste de cenários.',
-  'Brand transition (Plonk → No Dice)': 'Transição de marca (Plonk → No Dice)',
+  'New-brand awareness (No Dice spin-off)': 'Reconhecimento da nova marca (spin-off No Dice)',
   'SEO redirect preserves domain authority. Existing customer database retained. Borough Market location unchanged.':
     'Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização no Borough Market inalterada.',
   'for': 'por',
@@ -392,9 +392,9 @@ export const PT_BR = {
   'Organic Search — Primary Channel': 'Busca Orgânica — Canal Principal',
   '2024 Organic Sessions': 'Sessões Orgânicas 2024',
   '2025 Organic Sessions': 'Sessões Orgânicas 2025',
-  'Plonk Golf brand active all year': 'Marca Plonk Golf ativa o ano todo',
-  '−32% · brand changing to No Dice Borough':
-    '−32% · marca mudando para No Dice Borough',
+  'Paid search active Jan–Nov 2024': 'Busca paga ativa de jan a nov de 2024',
+  '−32% · no paid search end-2024 → Nov 2025':
+    '−32% · sem busca paga entre o final de 2024 e nov/2025',
   '2026 Digital Marketing Budget': 'Orçamento de Marketing Digital 2026',
   'Website Maintenance': 'Manutenção do Site',
   'SEO + Outreach + Business Listings': 'SEO + Outreach + Listagens de Negócio',

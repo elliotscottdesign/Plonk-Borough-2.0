@@ -41,7 +41,7 @@
     "timeline": { "risk": "Cronograma de reabertura", "mitigation": "Contrato de locação assegurado, hardware adquirido, equipe mantida. Meta: maio de 2026." },
     "revenue": { "risk": "Receita abaixo da projeção", "mitigation": "O cenário base é +15% sobre os números reais verificados de 2025. O dividendo do investidor é pro-rata sobre qualquer lucro operacional que o local produzir." },
     "wage": { "risk": "Inflação salarial", "mitigation": "NMW modelado sobre os números reais de 2025 — sem premissa otimista. Calculadora de salários disponível para teste de cenários." },
-    "brand": { "risk": "Transição de marca (Plonk → No Dice)", "mitigation": "Redirecionamento de SEO preserva a autoridade do domínio. Base de clientes existente mantida. Localização no Borough Market inalterada." }
+    "brand": { "risk": "Reconhecimento da nova marca (spin-off No Dice)", "mitigation": "A Plonk Golf Ltd operou sob uma única marca durante todo 2025; No Dice Borough é o novo spin-off após a liquidação de março de 2026, recomprando ativos do liquidatário. Redirecionamento 301 plonkgolf.co.uk → nodiceborough.co.uk preserva a autoridade do domínio. Base de clientes existente mantida. Localização no Borough Market inalterada. Plonk continua como o nome do campo de mini golfe no No Dice." }
   },
   "impact": {
     "low": "Baixo",

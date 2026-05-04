@@ -31,7 +31,7 @@
     }
   },
   "upside": {
-    "seo": { "driver": "SEO rebuild from Day 1", "detail": "Organic traffic down 32% due to brand change. Lithos SEO programme restores rankings under No Dice Borough — compounding year-on-year." },
+    "seo": { "driver": "SEO rebuild from Day 1", "detail": "Organic traffic down 32% reflects the late-2024 → Nov 2025 paid-search hiatus, not a brand change. Lithos SEO programme + resumed ads rebuild rankings under No Dice Borough — compounding year-on-year." },
     "ads": { "driver": "Google Ads scaling", "detail": "Proven £0.32 CPC and 5.7% conversion rate. Current £600/mth budget delivers ~107 conversions/mth. Scale to £1,200/mth doubles volume with verified unit economics." },
     "corporate": { "driver": "Corporate events pipeline", "detail": "Private hire revenue £44,999 in 2025. Bookings manager focusing on corporate events, team days and exclusive hires — material upside to base case." },
     "dj": { "driver": "DJ Nights programme", "detail": "Fri/Sat late events incremental to walk-in trade. High-margin bar revenue, zero additional fixed cost." },
@@ -41,7 +41,7 @@
     "timeline": { "risk": "Reopening timeline", "mitigation": "Lease secured, hardware acquired, staff retained. Target May 2026." },
     "revenue": { "risk": "Revenue below forecast", "mitigation": "Base case is +15% on verified 2025 actuals. Investor dividend is pro-rata on whatever operating profit the venue produces." },
     "wage": { "risk": "Wage inflation", "mitigation": "NMW modelled at 2025 actuals — no optimistic assumption. Wage calculator available for scenario testing." },
-    "brand": { "risk": "Brand transition (Plonk → No Dice)", "mitigation": "SEO redirect preserves domain authority. Existing customer database retained. Borough Market location unchanged." }
+    "brand": { "risk": "New-brand awareness (No Dice spin-off)", "mitigation": "Plonk Golf Ltd traded under one brand throughout 2025; No Dice Borough is the new spin-off post-March-2026 liquidation, acquiring assets back from the liquidator. plonkgolf.co.uk → nodiceborough.co.uk 301 redirect preserves domain authority. Existing customer database retained. Borough Market location unchanged. Plonk continues as the name of the mini-golf course at No Dice." }
   },
   "impact": {
     "low": "Low",
