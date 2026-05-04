@@ -115,70 +115,70 @@ export default function WaterfallReturns() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32 }}>
-        {/* Waterfall steps */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-            Distribution Waterfall
+      {/* Hero metrics strip — equal-width 4-card row. Mirrors Borough
+          WaterfallReturns. Total Return is the gold highlighted card,
+          the other three carry supporting ratios. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+        <div className="card-highlight" style={{ padding: '20px 22px' }}>
+          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Total Return
           </div>
+          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
+            {fmt(w.totalInvestor)}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+            {investorPct}% pro-rata dividend on operating profit
+          </div>
+        </div>
+
+        <HeroStat
+          label="Cash-on-Cash"
+          value={`${(w.coc * 100).toFixed(1)}%`}
+          sub={`On ${fmt(effective.investment)} invested`}
+          gold
+        />
+        <HeroStat
+          label="Payback Period"
+          value={w.totalInvestor > 0 ? `${(effective.investment / w.totalInvestor).toFixed(2)} years` : 'N/A'}
+          sub="Distribution timing: same as founder"
+        />
+        <HeroStat
+          label={`Founder Position (${founderPct}%)`}
+          value={fmt(w.founderDiv)}
+          sub="Paid alongside investor, pro-rata"
+          muted
+        />
+      </div>
+
+      {/* Distribution Waterfall — 3-card horizontal row showing how
+          operating profit splits. Visually distinct from the hero strip
+          via a coloured left border on each card. */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 14 }}>
+          Distribution Waterfall
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {steps.map((step, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
-            }}>
-              <div style={{ width: 3, height: 36, background: step.color, borderRadius: 2, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: 'var(--cream)', marginBottom: 2 }}>{step.label}</div>
-                <div style={{ fontSize: 10, color: 'var(--cream-dim)' }}>{step.note}</div>
+            <div key={i} className="card" style={{ padding: '18px 20px', borderLeft: `3px solid ${step.color}` }}>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                {step.label}
               </div>
-              <div style={{
-                fontSize: 16, fontFamily: "'DM Serif Display', serif",
+              <div className="serif" style={{
+                fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 8,
                 color: step.amount < 0 ? '#E53935' : step.color,
               }}>
                 {step.amount < 0 ? '−' : ''}{fmt(Math.abs(step.amount))}
               </div>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
+                {step.note}
+              </div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Summary cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 4 }}>
-            Investor Summary
-          </div>
-
-          <div className="card-highlight" style={{ padding: 24 }}>
-            <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Total Investor Return
-            </div>
-            <div className="serif" style={{ fontSize: 36, color: 'var(--gold)', marginBottom: 4 }}>
-              {fmt(w.totalInvestor)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>
-              {investorPct}% pro-rata dividend on operating profit
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <Row label="Cash-on-Cash Return" value={`${(w.coc * 100).toFixed(1)}%`} gold />
-            <Row label="Payback Period" value={`${(effective.investment / w.totalInvestor).toFixed(2)} years`} />
-            <Row label={`On ${fmt(effective.investment)} invested`} value={fmt(effective.investment)} gold={isLocked} />
-            <Row label={`Equity dividend (${investorPct}%)`} value={fmt(w.investorDiv)} gold />
-            <Row label="Distribution timing" value="Same as founder" />
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 11, color: 'var(--gold-dim)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              Founder Position
-            </div>
-            <Row label={`Equity Dividend (${founderPct}%)`} value={fmt(w.founderDiv)} />
-            <Row label="Paid" value="Alongside investor, pro-rata" />
-          </div>
-
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, padding: '4px 0' }}>
-            Cash-flow driven — no exit required for investor to receive full return. Payback from Year 1 trading distributions only.
-          </div>
-        </div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 4 }}>
+        Cash-flow driven — no exit required for investor to receive full return. Payback from Year 1 trading distributions only.
       </div>
 
       {/* Distribution Process — working-capital-first model. Replaces the
@@ -308,17 +308,17 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
   const dist = computeDistributionCalendar(wagesOverride, { investorEq, founderEq })
   const { calendar, quarterly, summary } = dist
   const investorAnnualPct = investment > 0 ? (summary.totalInvestor / investment) * 100 : 0
+  const [open, setOpen] = useState(false)
 
   return (
     <div style={{ marginTop: 40 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-          12-Month Distribution Calendar · Y1 2026/27
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Driven by 2026 Performance monthly forecast{isWageLocked ? ' · 🔒 wages locked' : ''}
-        </div>
-      </div>
+      <CollapsibleHeader
+        open={open}
+        onToggle={() => setOpen(o => !o)}
+        title={<>12-Month Distribution Calendar <span style={{ color: 'var(--gold-dim)' }}>· Y1 2026/27</span></>}
+        meta={`Driven by 2026 Performance monthly forecast${isWageLocked ? ' · 🔒 wages locked' : ''}`}
+      />
+      {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
         Each month's operating profit refills the £{summary.reserveTarget.toLocaleString('en-GB')} working-capital reserve first. Once the reserve is full, surplus profit accrues for three months and pays out at the end of the calendar quarter. Reserve hit full in <strong style={{ color: 'var(--cream)' }}>{summary.reserveFullMonth}</strong>.
       </p>
@@ -427,6 +427,7 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
         <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)}`} colour="#10B981" />
         <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid alongside investor" />
       </div>
+      </>}
     </div>
   )
 }
@@ -449,12 +450,16 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
   const totalReturned   = r.cumulativeDividends + r.exit.investorProceeds
   const multipleOfMoney = investment > 0 ? totalReturned / investment : 0
   const irr             = computeIRR(cashFlows)
+  const [open, setOpen] = useState(false)
   let cumInv = 0
   return (
     <div style={{ marginTop: 40 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-        5-Year Share Payout Schedule{isLocked ? ' · Locked' : ''}
-      </div>
+      <CollapsibleHeader
+        open={open}
+        onToggle={() => setOpen(o => !o)}
+        title={<>5-Year Share Payout Schedule{isLocked ? <span style={{ color: 'var(--gold-dim)' }}> · Locked</span> : null}</>}
+      />
+      {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
         How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. Each year's profit splits 50/50 with the founder. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend. No preferred return, no priority tiers — investor and founder track exactly together.
       </p>
@@ -508,6 +513,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
         <SummaryTile label="Total returned · MoM"          value={`${multipleOfMoney.toFixed(2)}×`}             sub={`${fmt(totalReturned)} on ${fmt(investment)}`} colour="#10B981" />
         <SummaryTile label="IRR"                            value={isFinite(irr) ? `${(irr*100).toFixed(1)}%` : '—'} sub="5-year internal rate of return" colour="#10B981" />
       </div>
+      </>}
     </div>
   )
 }
@@ -522,12 +528,53 @@ function SummaryTile({ label, value, sub, colour }) {
   )
 }
 
-function Row({ label, value, gold }) {
+// Compact hero stat — used in the top-of-page metrics strip alongside
+// the gold Total Return card. Mirrors Borough's HeroStat.
+function HeroStat({ label, value, sub, gold, muted }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <span style={{ fontSize: 12, color: 'var(--cream-dim)' }}>{label}</span>
-      <span style={{ fontSize: 13, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
+    <div className="card" style={{ padding: '18px 20px' }}>
+      <div style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
+      <div className="serif" style={{
+        fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 6,
+        color: gold ? 'var(--gold)' : muted ? 'var(--cream-dim)' : 'var(--cream)',
+      }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{sub}</div>
     </div>
+  )
+}
+
+// Reusable header for collapsible sections — mirrors Borough's
+// CollapsibleHeader. Large rotating arrow on the left, serif h3 title,
+// optional UPPERCASE meta tag on the right. Click anywhere toggles.
+function CollapsibleHeader({ open, onToggle, title, meta }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', gap: 14, marginBottom: 12,
+        background: 'transparent', border: 'none', padding: 0,
+        cursor: 'pointer', textAlign: 'left',
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <span style={{
+          fontSize: 28, color: 'var(--gold)', lineHeight: 1, flexShrink: 0,
+          transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+          transition: 'transform 0.2s ease',
+          display: 'inline-block', width: 24, textAlign: 'center',
+        }}>▾</span>
+        <h3 className="serif" style={{
+          fontSize: 22, color: 'var(--cream)', lineHeight: 1.25, margin: 0,
+        }}>
+          {title}
+        </h3>
+      </span>
+      {meta && (
+        <span style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+          {meta}
+        </span>
+      )}
+    </button>
   )
 }

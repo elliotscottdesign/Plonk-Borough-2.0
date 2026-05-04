@@ -140,15 +140,15 @@ export default function WaterfallReturns() {
         ))}
       </div>
 
-      {/* Hero metrics strip — Total Return takes the lead, key ratios sit
-          alongside. Replaces the old 4-card vertical stack on the right
-          which left the left column with huge dead vertical space. */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
-        <div className="card-highlight" style={{ padding: '18px 22px' }}>
-          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+      {/* Hero metrics strip — equal-width 4-card row. Total Return is the
+          gold highlighted card, the other three carry supporting ratios.
+          Same column width across all four for clean alignment. */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+        <div className="card-highlight" style={{ padding: '20px 22px' }}>
+          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
             {t('summary.totalReturn')}
           </div>
-          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 6 }}>
+          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
             {fmt(w.totalInvestor)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
@@ -175,26 +175,26 @@ export default function WaterfallReturns() {
         />
       </div>
 
-      {/* Distribution Waterfall — flipped from a tall vertical list to a
-          horizontal 3-card row so each step gets equal visual weight and
-          the section fits on one screen alongside the metrics above. */}
-      <div style={{ marginBottom: 12 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
+      {/* Distribution Waterfall — 3-card horizontal row showing how
+          operating profit splits. Visually distinct from the hero strip
+          above via a coloured left border on each card. */}
+      <div style={{ marginBottom: 14 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 14 }}>
           {t('steps.header')}
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {steps.map((step, i) => (
-            <div key={i} className="card" style={{ padding: 16, borderLeft: `3px solid ${step.color}` }}>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+            <div key={i} className="card" style={{ padding: '18px 20px', borderLeft: `3px solid ${step.color}` }}>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
                 {step.label}
               </div>
               <div className="serif" style={{
-                fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 6,
+                fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 8,
                 color: step.amount < 0 ? '#E53935' : step.color,
               }}>
                 {step.amount < 0 ? '−' : ''}{fmt(Math.abs(step.amount))}
               </div>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
                 {step.note}
               </div>
             </div>
