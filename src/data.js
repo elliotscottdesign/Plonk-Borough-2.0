@@ -33,7 +33,7 @@ export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1dtqbmoKK01o
 // Both implementations expect:
 //   GET  → { snapshot: <object>|null }
 //   POST { snapshot: <object>|null } → { ok: true }
-export const LOCK_SYNC_URL = ''
+export const LOCK_SYNC_URL = 'https://script.google.com/macros/s/AKfycbyg5MJVpguI-PfaDZj9R151iCppXScwHEAGXJ7fnDm_luhqbjjF8684XVy4-S1UtjS5/exec'
 // Optional shared secret — sent with POST requests for write authorisation.
 // The server snippets check this before writing. Leave empty if your endpoint
 // is already access-restricted (e.g. Cloudflare Worker behind Access).
