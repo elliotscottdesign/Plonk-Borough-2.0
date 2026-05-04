@@ -252,11 +252,6 @@ function GolfHostSeasonality() {
   const peakMo  = data.reduce((acc, m) => m.hours > acc.hours ? m : acc, data[0])
   const activeMonthLabels = data.filter(m => m.shifts > 0).map(m => m.month).join(', ')
   const darkMonthLabels   = data.filter(m => m.shifts === 0).map(m => m.month).join(', ')
-  // Months where till sold tickets but host role was dark — the disconnect.
-  const tillByMonth = Object.fromEntries(tillData.map(m => [m.month, m.revenue]))
-  const ghostMonths = data.filter(m => m.shifts === 0 && (tillByMonth[m.month] || 0) > 0).map(m => m.month)
-  const ghostTotal  = ghostMonths.reduce((s, mo) => s + (tillByMonth[mo] || 0), 0)
-
   return (
     <div>
       <STitle>Golf Host Shifts · 2025 Seasonality (Operational)</STitle>
@@ -331,11 +326,6 @@ function GolfHostSeasonality() {
             </ComposedChart>
           </ResponsiveContainer>
         </div>
-        {ghostMonths.length > 0 && (
-          <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(234,179,8,0.04)', borderLeft:'3px solid #EAB308', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-            <strong style={{ color:'#EAB308' }}>Bar-staff cover:</strong> till sold <strong style={{ color:'var(--cream)' }}>{fmt(ghostTotal)}</strong> of golf tickets across <strong style={{ color:'var(--cream)' }}>{ghostMonths.join(', ')}</strong> — months where no dedicated Golf Host was rota'd. The course stayed open; bar staff and supervisors absorbed the host role on top of their bar duties. Under the new structure the operator picks this up, freeing No Dice's bar team to focus on bar trade.
-          </div>
-        )}
       </div>
 
       {/* Till-side totals strip */}
