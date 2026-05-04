@@ -908,7 +908,17 @@ function ScenarioLeversCard() {
 // the read-side first; founder can iterate the editor controls in
 // a follow-up.
 function TicketsSection() {
-  const { forecastEffective, canEditForecast, setForecastValue } = useLockedUseOfFunds()
+  const {
+    forecastEffective,
+    setForecastValue,
+    isFounder,
+    isPricingLocked,
+    canEditPricing,
+    pricingLock,
+    lockPricing,
+    unlockPricing,
+    resetPricing,
+  } = useLockedUseOfFunds()
   const officeGrowth = forecastEffective.growth?.office ?? 15
   const pricing      = forecastEffective.pricing || {}
 
@@ -949,12 +959,17 @@ function TicketsSection() {
   const total2026 = rows.reduce((s, r) => s + r.rev2026, 0)
 
   // Update one field on one SKU's pricing override. Stays a no-op when
-  // the broader forecast is locked — same gate as the Borough editor.
+  // the broader forecast OR the per-section pricing lock is engaged —
+  // founder must unlock to edit again.
   const updateSku = (skuKey, field, value) => {
-    if (!canEditForecast) return
+    if (!canEditPricing) return
     const next = { ...pricing, [skuKey]: { ...(pricing[skuKey] || {}), [field]: value } }
     setForecastValue('pricing', next)
   }
+
+  const lockedAtLabel = pricingLock?.lockedAt
+    ? new Date(pricingLock.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
   // Inline-input style — gold accent box, mirrors the Borough Ticket
   // Price Maker editable fields.
@@ -963,8 +978,8 @@ function TicketsSection() {
     background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(201,168,76,0.3)',
     borderRadius: 4, color: 'var(--gold)', fontWeight: 600, fontSize: 12,
     fontVariantNumeric: 'tabular-nums',
-    opacity: canEditForecast ? 1 : 0.6,
-    cursor: canEditForecast ? 'text' : 'not-allowed',
+    opacity: canEditPricing ? 1 : 0.6,
+    cursor: canEditPricing ? 'text' : 'not-allowed',
   }
   const tokensInputStyle = { ...inputStyle, width: 48 }
 
@@ -979,11 +994,41 @@ function TicketsSection() {
       </div>
 
       {/* Non-golf SKU table — these stay with No Dice */}
-      <div className="card" style={{ padding:20 }}>
+      <div className="card" style={{ padding:20, border: isPricingLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
           <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Non-Golf Tickets · No Dice retains</div>
           <div style={{ fontSize:11, color:'var(--cream-dim)' }}>{nonGolf.length} SKUs · projected at office lever +{officeGrowth}%</div>
         </div>
+
+        {/* Lock toolbar — Live preview / Locked pill on the left, Reset / Lock on the right */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'3px 10px', borderRadius:12,
+            background: isPricingLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${isPricingLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+            fontSize:10, color: isPricingLocked ? '#10B981' : 'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase',
+          }}>
+            <span style={{ fontSize:9 }}>{isPricingLocked ? '🔒' : '○'}</span>
+            {isPricingLocked
+              ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to 2026 forecast')
+              : 'Live preview'}
+          </span>
+          <div style={{ display:'flex', gap:6 }}>
+            {isFounder && (
+              <button onClick={resetPricing} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+            )}
+            {isFounder && (
+              isPricingLocked ? (
+                <button onClick={unlockPricing} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+              ) : (
+                <button onClick={lockPricing} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+              )
+            )}
+          </div>
+        </div>
+
         <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
           Pool reservations, pool tournaments, seasonal events (Pumpkin Carving, Valentine's deals, etc.), drink add-ons and arcade tokens. All retained 100% under the new operator structure. Edit Tokens or £/unit per SKU; 2026 £ recomputes from the new price × Office-scaled volume.
         </div>
@@ -1004,7 +1049,7 @@ function TicketsSection() {
               <input
                 type="number" min={0} max={20} step={1}
                 value={r.tokensEff}
-                disabled={!canEditForecast}
+                disabled={!canEditPricing}
                 onChange={e => updateSku(r.sku, 'tokens', Math.max(0, Number(e.target.value) || 0))}
                 style={tokensInputStyle}
               />
@@ -1013,7 +1058,7 @@ function TicketsSection() {
               <input
                 type="number" min={0} max={500} step={0.50}
                 value={r.priceEff}
-                disabled={!canEditForecast}
+                disabled={!canEditPricing}
                 onChange={e => updateSku(r.sku, 'price', Math.max(0, Number(e.target.value) || 0))}
                 style={inputStyle}
               />
