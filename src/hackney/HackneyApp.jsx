@@ -35,8 +35,8 @@ const SLIDE_DEFS = [
 
 const TOP_TABS = [
   { key:'investorDeck',     label:'Investor Deck' },
-  { key:'venueInfo',        label:'Venue Info' },
   { key:'businessExplorer', label:'Business Explorer' },
+  { key:'venueInfo',        label:'Venue Info' },
   { key:'plonk',            label:'Plonk' },
 ]
 
