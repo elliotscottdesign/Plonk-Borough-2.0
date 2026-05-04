@@ -34,7 +34,9 @@
 
 import { LOCK_SYNC_URL } from '../data/hackney.js'
 
-export async function bootstrapHackneyLocks({ timeoutMs = 3000 } = {}) {
+// 8s default — Apps Script cold-start can take 3-5s per call (verified
+// empirically). 3s was clipping the fetch and breaking cross-device sync.
+export async function bootstrapHackneyLocks({ timeoutMs = 8000 } = {}) {
   const start = (typeof performance !== 'undefined' ? performance.now() : Date.now())
   if (!LOCK_SYNC_URL) {
     // eslint-disable-next-line no-console

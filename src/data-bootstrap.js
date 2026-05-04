@@ -52,13 +52,20 @@ async function fetchGviz(sheetName, range) {
   )
 }
 
-export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
+export async function bootstrapDataFromSheet({ timeoutMs = 9000 } = {}) {
   const start = (typeof performance !== 'undefined' ? performance.now() : Date.now())
 
-  // Hard cap so the deck doesn't hang if Google is slow / unreachable
+  // Hard cap so the deck doesn't hang if Google is slow / unreachable.
+  // Bumped from 4s → 9s after Apps Script cold-start latency was clipping
+  // the lock-sync fetch and breaking cross-device lock propagation.
   const timeoutP = new Promise((_, rej) =>
     setTimeout(() => rej(new Error(`bootstrap timeout (${timeoutMs}ms)`)), timeoutMs)
   )
+
+  // Kick off the lock-sync fetch in parallel with the gviz fetches so the
+  // two share the time budget. Captured here so we can `await` it before
+  // returning, regardless of whether the gviz fetches succeed or time out.
+  const lockFetchP = fetchLockedSnapshot()
 
   try {
     const fetches = Promise.all([
@@ -119,19 +126,17 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
     // eslint-disable-next-line no-console
     console.info(`[deck-data] ✓ live from Sheet · ${appliedCount} fields · ${ms}ms`)
 
-    // Best-effort: also pull the locked-forecast snapshot from the sync
-    // endpoint (if configured). Stored on window for LockedForecastContext
-    // to pick up at provider init.
-    await fetchLockedSnapshot()
+    // Wait for the parallel lock fetch (started before the gviz fetches)
+    // to settle so window globals are populated before main.jsx mounts.
+    await lockFetchP
 
     return { source: 'sheet', appliedCount, durationMs: ms }
   } catch (err) {
     const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
     // eslint-disable-next-line no-console
     console.warn(`[deck-data] ✗ Sheet fetch failed (${ms}ms), using data.js defaults: ${err.message}`)
-    // Try the lock snapshot fetch even if the Sheet bootstrap failed —
-    // they are independent endpoints.
-    await fetchLockedSnapshot()
+    // The lock fetch was kicked off in parallel — wait for it regardless.
+    await lockFetchP
     return { source: 'fallback', error: err.message, durationMs: ms }
   }
 }
@@ -156,8 +161,14 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
 async function fetchLockedSnapshot() {
   if (!LOCK_SYNC_URL) return
   try {
+    // 8s timeout — Apps Script cold-start can take 3-5s per call (verified
+    // empirically against the deployed endpoint), and a redirect hop adds
+    // latency on top. 3s was clipping the fetch before it ever resolved,
+    // which silently broke cross-device sync (locks worked within the
+    // same browser via localStorage but never reached Incognito / other
+    // devices because the server payload was thrown away).
     const ctrl = new AbortController()
-    const timeout = setTimeout(() => ctrl.abort(), 3000)
+    const timeout = setTimeout(() => ctrl.abort(), 8000)
     const res = await fetch(LOCK_SYNC_URL, { cache: 'no-store', signal: ctrl.signal })
     clearTimeout(timeout)
     if (!res.ok) throw new Error('HTTP ' + res.status)
