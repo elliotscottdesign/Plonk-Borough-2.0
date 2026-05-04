@@ -40,7 +40,15 @@ const TOP_TAB_KEYS_PLONK = [...TOP_TAB_KEYS_BASE, 'plonk']
 
 export default function App() {
   const { t, i18n } = useTranslation('common')
-  const [unlocked, setUnlocked]       = useState(() => sessionStorage.getItem('ndb_unlocked') === '1')
+  // Treat a session as "unlocked" only when BOTH the unlock flag AND
+  // the access code are present. This re-prompts users whose ndb_unlocked
+  // was set by the pre-per-tenant PasswordGate (which didn't store
+  // ndb_access_code) — without this, their POSTs silently abort because
+  // the client doesn't know which tenant slot to write to.
+  const [unlocked, setUnlocked]       = useState(() =>
+    sessionStorage.getItem('ndb_unlocked') === '1' &&
+    !!sessionStorage.getItem('ndb_access_code')
+  )
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
