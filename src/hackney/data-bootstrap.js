@@ -29,11 +29,12 @@
 // Window globals (separate from Borough's __NDB_LOCK_SNAPSHOT and
 // __NDB_TICKET_VOLUME_LOCK so a visitor switching between decks during a
 // session doesn't end up with one deck reading the other's cache):
-//   • window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK — funding/use-of-funds lock
-//   • window.__NDB_HACKNEY_WAGE_LOCK         — wage calculator lock
-//   • window.__NDB_HACKNEY_LOCK_SNAPSHOT     — 2026 forecast snapshot
-//   • window.__NDB_HACKNEY_BAR_PRICE_LOCK    — bar-price slider lock
-//   • window.__NDB_HACKNEY_FIXED_COSTS_LOCK  — fixed-costs editor lock
+//   • window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK  — funding/use-of-funds lock
+//   • window.__NDB_HACKNEY_WAGE_LOCK          — wage calculator lock
+//   • window.__NDB_HACKNEY_LOCK_SNAPSHOT      — 2026 forecast snapshot
+//   • window.__NDB_HACKNEY_BAR_PRICE_LOCK     — bar-price slider lock
+//   • window.__NDB_HACKNEY_FIXED_COSTS_LOCK   — fixed-costs editor lock
+//   • window.__NDB_HACKNEY_OFFICE_COSTS_LOCK  — office-costs editor lock
 //
 // Note: Hackney does NOT replicate Borough's gviz Sheet fetch. Hackney's
 // data/hackney.js is hand-curated from the workbook; live cell hydration
@@ -71,30 +72,33 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
     if (data && typeof data === 'object') {
       const raw = data.snapshot ?? null
 
-      let useOfFunds = null
-      let wages      = null
-      let forecast   = null
-      let barPrice   = null
-      let fixedCosts = null
+      let useOfFunds  = null
+      let wages       = null
+      let forecast    = null
+      let barPrice    = null
+      let fixedCosts  = null
+      let officeCosts = null
       if (raw && typeof raw === 'object') {
-        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw) {
+        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw || 'officeCosts' in raw) {
           // Container shape (current).
-          useOfFunds = raw.useOfFunds ?? null
-          wages      = raw.wages      ?? null
-          forecast   = raw.forecast   ?? null
-          barPrice   = raw.barPrice   ?? null
-          fixedCosts = raw.fixedCosts ?? null
+          useOfFunds  = raw.useOfFunds  ?? null
+          wages       = raw.wages       ?? null
+          forecast    = raw.forecast    ?? null
+          barPrice    = raw.barPrice    ?? null
+          fixedCosts  = raw.fixedCosts  ?? null
+          officeCosts = raw.officeCosts ?? null
         } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
           // Legacy flat-forecast shape — adopt as forecast, others null.
           forecast = raw
         }
       }
 
-      window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK = useOfFunds
-      window.__NDB_HACKNEY_WAGE_LOCK         = wages
-      window.__NDB_HACKNEY_LOCK_SNAPSHOT     = forecast
-      window.__NDB_HACKNEY_BAR_PRICE_LOCK    = barPrice
-      window.__NDB_HACKNEY_FIXED_COSTS_LOCK  = fixedCosts
+      window.__NDB_HACKNEY_USE_OF_FUNDS_LOCK  = useOfFunds
+      window.__NDB_HACKNEY_WAGE_LOCK          = wages
+      window.__NDB_HACKNEY_LOCK_SNAPSHOT      = forecast
+      window.__NDB_HACKNEY_BAR_PRICE_LOCK     = barPrice
+      window.__NDB_HACKNEY_FIXED_COSTS_LOCK   = fixedCosts
+      window.__NDB_HACKNEY_OFFICE_COSTS_LOCK  = officeCosts
 
       const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
       // eslint-disable-next-line no-console
@@ -104,7 +108,8 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
         ` · wages=${wages ? 'set' : 'empty'}` +
         ` · forecast=${forecast ? 'set' : 'empty'}` +
         ` · barPrice=${barPrice ? 'set' : 'empty'}` +
-        ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}`
+        ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}` +
+        ` · officeCosts=${officeCosts ? 'set' : 'empty'}`
       )
     }
     return { source: 'server' }

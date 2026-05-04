@@ -981,21 +981,66 @@ function TicketsSection() {
 // sized to the line's magnitude (Xero £25 step, Director £500 step) so
 // every slider feels precise without being laggy.
 function OfficeCostsSection() {
-  const { forecastEffective, canEditForecast, setForecastValue } = useLockedUseOfFunds()
+  const {
+    forecastEffective,
+    setForecastValue,
+    isFounder,
+    isOfficeCostsLocked,
+    canEditOfficeCosts,
+    officeCostsLock,
+    lockOfficeCosts,
+    unlockOfficeCosts,
+    resetOfficeCosts,
+  } = useLockedUseOfFunds()
   const overrides = forecastEffective.officeCosts || {}
   const annualTotal = sumHackneyOfficeCosts(overrides)
   const monthlyTotal = annualTotal / 12
 
   const setLine = (key, val) => {
+    if (!canEditOfficeCosts) return
     setForecastValue('officeCosts', { ...overrides, [key]: val })
   }
 
+  const lockedAtLabel = officeCostsLock?.lockedAt
+    ? new Date(officeCostsLock.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
   return (
-    <div className="card" style={{ padding:20 }}>
+    <div className="card" style={{ padding:20, border: isOfficeCostsLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
         <div style={{ fontSize:11, color:'#C084FC', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office Costs · Editor</div>
         <div style={{ fontSize:13, color:'#C084FC', fontWeight:600 }}>{fmtMoney(annualTotal)}/yr</div>
       </div>
+
+      {/* Lock toolbar — Live preview / Locked pill on the left, Reset / Lock on the right */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:6,
+          padding:'3px 10px', borderRadius:12,
+          background: isOfficeCostsLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+          border: `1px solid ${isOfficeCostsLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+          fontSize:10, color: isOfficeCostsLocked ? '#10B981' : 'var(--gold-dim)',
+          letterSpacing:'0.08em', textTransform:'uppercase',
+        }}>
+          <span style={{ fontSize:9 }}>{isOfficeCostsLocked ? '🔒' : '○'}</span>
+          {isOfficeCostsLocked
+            ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to 2026 forecast')
+            : 'Live preview'}
+        </span>
+        <div style={{ display:'flex', gap:6 }}>
+          {isFounder && (
+            <button onClick={resetOfficeCosts} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+          )}
+          {isFounder && (
+            isOfficeCostsLocked ? (
+              <button onClick={unlockOfficeCosts} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+            ) : (
+              <button onClick={lockOfficeCosts} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+            )
+          )}
+        </div>
+      </div>
+
       <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
         Subscriptions, AI, accounting, and director compensation. Defaults reflect current spend ranges. Annual £ sliders below; total flows into the Op Costs donut as a single Office Costs line.
       </div>
@@ -1015,8 +1060,8 @@ function OfficeCostsSection() {
             <div>
               <input type="range" min={0} max={max} step={step} value={value}
                 onChange={(e) => setLine(item.id, +e.target.value)}
-                disabled={!canEditForecast}
-                style={{ width:'100%', accentColor:'#C084FC', cursor: canEditForecast ? 'pointer' : 'not-allowed', opacity: canEditForecast ? 1 : 0.55 }} />
+                disabled={!canEditOfficeCosts}
+                style={{ width:'100%', accentColor:'#C084FC', cursor: canEditOfficeCosts ? 'pointer' : 'not-allowed', opacity: canEditOfficeCosts ? 1 : 0.55 }} />
               <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
                 <span>£0</span>
                 <span>{fmtMoney(def)}</span>
@@ -1464,7 +1509,7 @@ const cfTd = (align, color, weight=400) => ({ padding:'10px 14px', fontSize:12.5
 
 function TabCashflow() {
   const ctx = useLockedUseOfFunds()
-  const { forecastEffective, isForecastLocked, forecastSnapshot, isWageLocked, wageEffective, isFixedCostsLocked, fixedCostsLock } = ctx
+  const { forecastEffective, isForecastLocked, forecastSnapshot, isWageLocked, wageEffective, isFixedCostsLocked, fixedCostsLock, isOfficeCostsLocked, officeCostsLock } = ctx
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
   const fmtKShort = (n) => '£' + Math.round(n / 1000) + 'k'
 
@@ -1487,18 +1532,19 @@ function TabCashflow() {
   // Compute revenue + costs for the selected scenario via the existing
   // canonical compute2026Scenario helper, then bucket it into months
   // with the seasonal weights.
-  // When the founder has independently locked the Fixed Costs editor,
-  // its line overrides cascade into every scenario here too — otherwise
-  // the synthetic per-scenario forecast would compute fixed costs from
-  // defaults and silently disagree with the headline tab.
+  // When the founder has independently locked the Fixed Costs or Office
+  // Costs editor, those line overrides cascade into every scenario here
+  // too — otherwise the synthetic per-scenario forecast would compute
+  // costs from defaults and silently disagree with the headline tab.
   const wagesOverride = isWageLocked ? wageEffective.loadedAnnual : null
-  const fixedCostsOverlay = isFixedCostsLocked && fixedCostsLock?.values ? fixedCostsLock.values : {}
+  const fixedCostsOverlay  = isFixedCostsLocked  && fixedCostsLock?.values  ? fixedCostsLock.values  : {}
+  const officeCostsOverlay = isOfficeCostsLocked && officeCostsLock?.values ? officeCostsLock.values : {}
   const scenarioForecast = (() => {
     if (activeKey === 'custom' && forecastSnapshot) {
       return compute2026Scenario(forecastSnapshot, wagesOverride)
     }
     const uniformGrowth = HACKNEY_SCENARIO_LEVERS.reduce((acc, l) => ({ ...acc, [l.key]: sc.growth }), {})
-    return compute2026Scenario({ growth: uniformGrowth, fixedCosts: fixedCostsOverlay, officeCosts: {} }, wagesOverride)
+    return compute2026Scenario({ growth: uniformGrowth, fixedCosts: fixedCostsOverlay, officeCosts: officeCostsOverlay }, wagesOverride)
   })()
 
   const cf = buildHackneyCashflow({
