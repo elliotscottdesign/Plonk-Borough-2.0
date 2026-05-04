@@ -47,8 +47,8 @@ const DRIVER_DEFS = [
   },
   {
     key: 'garden',
-    title: 'Garden & Capacity Uplift',
-    intro: '£12k garden refurbishment expands outdoor trading area for summer trade and private events. Material capacity uplift inside the existing footprint — see Venue Info → Development.',
+    title: 'Frontage Styling Refresh',
+    intro: '£12k cosmetic refresh of the garden and front exterior — paint, signage, lighting and planters — to lift kerb appeal and convert more passers-by into walk-in trade. No expansion; styling lift inside the existing footprint.',
     color: '#FB923C',
   },
 ]
