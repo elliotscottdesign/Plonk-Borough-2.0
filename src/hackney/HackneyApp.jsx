@@ -28,9 +28,9 @@ const SLIDE_DEFS = [
   { id:'cover',      label:'Cover',              Component: Cover },
   { id:'summary',    label:'Investment Summary', Component: InvestmentSummary },
   { id:'funds',      label:'Use of Funds',       Component: UseOfFunds },
+  { id:'drivers',    label:'Growth Drivers',     Component: GrowthDrivers },
   { id:'market',     label:'Market Context',     Component: MarketContext },
   { id:'waterfall',  label:'Investor Returns',   Component: WaterfallReturns },
-  { id:'drivers',    label:'Growth Drivers',     Component: GrowthDrivers },
 ]
 
 const TOP_TABS = [
