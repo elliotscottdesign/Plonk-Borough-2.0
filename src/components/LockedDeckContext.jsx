@@ -148,6 +148,40 @@ function readPersistedTicketVolumeLock() {
 // 2026 forecast totals via the locked snapshot.
 const FIXED_COSTS_LOCK_KEY = 'ndb_fixed_costs_locked_v1'
 
+// ─── Pricing lock — Ticket Price Maker matrix on Business Explorer ·
+// 2026 Performance · Tickets. Stores per-SKU { tokens, price } so the
+// founder can pin the matrix and the resulting Arcades cost adjustment
+// (matrixTokens × IP_LICENSING_TOKEN_VALUE) cascades into the 2026
+// cost donut. Independent of the broader forecast lock and the master
+// ticket-volume lock so the founder can pin just this surface.
+const PRICING_LOCK_KEY = 'ndb_pricing_locked_v1'
+
+const isValidPricingLock = (v) =>
+  v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+function readPersistedPricingLock() {
+  if (typeof window !== 'undefined' && window.__NDB_PRICING_LOCK !== undefined) {
+    const fromServer = window.__NDB_PRICING_LOCK
+    try {
+      if (fromServer && isValidPricingLock(fromServer)) {
+        localStorage.setItem(namespacedKey(PRICING_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(PRICING_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidPricingLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(namespacedKey(PRICING_LOCK_KEY))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidPricingLock(parsed) ? parsed : null
+  } catch { return null }
+}
+
 // ─── Wages lock — Sliding Wage Rate Calculator on Business Explorer ·
 // 2026 Performance · Wages. Stores per-role rate + hours so the founder
 // can pin the staffing mix and the loaded annual figure (gross ×
@@ -364,6 +398,15 @@ const WagesCtx = createContext({
   reset: () => {},
 })
 
+const PricingCtx = createContext({
+  locked: null,        // { values: { sku → { tokens, price } }, lockedAt: ISO } | null
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  lock: () => {},      // (values: object) => void
+  unlock: () => {},
+})
+
 export function LockedDeckProvider({ children }) {
   // ─── Funding state ────────────────────────────────────────────────
   const [fundingSnapshot, setFundingSnapshot] = useState(readPersistedFundingLock)
@@ -394,6 +437,9 @@ export function LockedDeckProvider({ children }) {
   // ─── Fixed-costs state ────────────────────────────────────────────
   const [fixedCostsLock, setFixedCostsLock] = useState(readPersistedFixedCostsLock)
 
+  // ─── Pricing state ────────────────────────────────────────────────
+  const [pricingLock, setPricingLock] = useState(readPersistedPricingLock)
+
   // ─── Wages state ──────────────────────────────────────────────────
   const [wagesLock, setWagesLock] = useState(readPersistedWagesLock)
   const [wageRows, setWageRowsState] = useState(() => {
@@ -411,11 +457,13 @@ export function LockedDeckProvider({ children }) {
   const ticketVolumeRef = useRef(ticketVolumeLock)
   const fixedCostsRef   = useRef(fixedCostsLock)
   const wagesRef        = useRef(wagesLock)
+  const pricingRef      = useRef(pricingLock)
   useEffect(() => { fundingRef.current      = fundingSnapshot   }, [fundingSnapshot])
   useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
   useEffect(() => { fixedCostsRef.current   = fixedCostsLock    }, [fixedCostsLock])
   useEffect(() => { wagesRef.current        = wagesLock         }, [wagesLock])
+  useEffect(() => { pricingRef.current      = pricingLock       }, [pricingLock])
 
   // ─── Per-tenant re-hydration on mount ─────────────────────────────
   // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
@@ -445,13 +493,15 @@ export function LockedDeckProvider({ children }) {
         let ticketVolume = null
         let fixedCosts = null
         let wages = null
+        let pricing = null
         if (raw && typeof raw === 'object') {
-          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'wages' in raw) {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'wages' in raw || 'pricing' in raw) {
             funding      = raw.funding      ?? null
             forecast     = raw.forecast     ?? null
             ticketVolume = raw.ticketVolume ?? null
             fixedCosts   = raw.fixedCosts   ?? null
             wages        = raw.wages        ?? null
+            pricing      = raw.pricing      ?? null
           } else if (Number.isFinite(raw.revenue)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -463,6 +513,7 @@ export function LockedDeckProvider({ children }) {
         setTicketVolumeLock(isValidTicketVolumeLock(ticketVolume) ? ticketVolume : null)
         setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
         setWagesLock(isValidWageLock(wages) ? wages : null)
+        setPricingLock(isValidPricingLock(pricing) ? pricing : null)
         // Mirror to localStorage (namespaced) so subsequent reloads on
         // this device skip the network round-trip for first paint.
         try {
@@ -491,6 +542,11 @@ export function LockedDeckProvider({ children }) {
           } else {
             localStorage.removeItem(namespacedKey(WAGES_LOCK_KEY))
           }
+          if (isValidPricingLock(pricing)) {
+            localStorage.setItem(namespacedKey(PRICING_LOCK_KEY), JSON.stringify(pricing))
+          } else {
+            localStorage.removeItem(namespacedKey(PRICING_LOCK_KEY))
+          }
         } catch {}
         // eslint-disable-next-line no-console
         console.info(
@@ -499,7 +555,8 @@ export function LockedDeckProvider({ children }) {
           ` · forecast=${forecast ? 'set' : 'empty'}` +
           ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}` +
           ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}` +
-          ` · wages=${wages ? 'set' : 'empty'}`
+          ` · wages=${wages ? 'set' : 'empty'}` +
+          ` · pricing=${pricing ? 'set' : 'empty'}`
         )
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -519,6 +576,7 @@ export function LockedDeckProvider({ children }) {
     ticketVolume: 'ticketVolume' in overrides ? overrides.ticketVolume : ticketVolumeRef.current,
     fixedCosts:   'fixedCosts'   in overrides ? overrides.fixedCosts   : fixedCostsRef.current,
     wages:        'wages'        in overrides ? overrides.wages        : wagesRef.current,
+    pricing:      'pricing'      in overrides ? overrides.pricing      : pricingRef.current,
   })
 
   // ─── Shared founder flag ──────────────────────────────────────────
@@ -534,6 +592,8 @@ export function LockedDeckProvider({ children }) {
   const fixedCostsCanEdit     = isFounder && !fixedCostsIsLocked
   const wagesIsLocked         = wagesLock !== null
   const wagesCanEdit          = isFounder && !wagesIsLocked
+  const pricingIsLocked       = pricingLock !== null
+  const pricingCanEdit        = isFounder && !pricingIsLocked
 
   // Persist wage live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -641,6 +701,26 @@ export function LockedDeckProvider({ children }) {
     syncContainerToServer(buildContainer({ fixedCosts: null }))
   }, [isFounder])
 
+  // ─── Pricing API ──────────────────────────────────────────────────
+  // Founder-only lock for the Ticket Price Maker matrix. Persists
+  // across reloads in localStorage AND syncs cross-device via
+  // LOCK_SYNC_URL (when configured) by POSTing the merged container.
+  const lockPricing = useCallback((values) => {
+    if (!isFounder) return
+    if (!values || typeof values !== 'object') return
+    const stamped = { values: { ...values }, lockedAt: new Date().toISOString() }
+    setPricingLock(stamped)
+    try { localStorage.setItem(namespacedKey(PRICING_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ pricing: stamped }))
+  }, [isFounder])
+
+  const unlockPricing = useCallback(() => {
+    if (!isFounder) return
+    setPricingLock(null)
+    try { localStorage.removeItem(namespacedKey(PRICING_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ pricing: null }))
+  }, [isFounder])
+
   // ─── Wages API ────────────────────────────────────────────────────
   // The "effective" wage view — locked snapshot if locked, else the live
   // edits flowing from the slider card. Every wage-cost surface in the
@@ -736,13 +816,24 @@ export function LockedDeckProvider({ children }) {
     reset: resetWages,
   }
 
+  const pricingValue = {
+    locked: pricingLock,
+    isLocked: pricingIsLocked,
+    isFounder,
+    canEdit: pricingCanEdit,
+    lock: lockPricing,
+    unlock: unlockPricing,
+  }
+
   return (
     <ForecastCtx.Provider value={forecastValue}>
       <FundingCtx.Provider value={fundingValue}>
         <TicketVolumeCtx.Provider value={ticketVolumeValue}>
           <FixedCostsCtx.Provider value={fixedCostsValue}>
             <WagesCtx.Provider value={wagesValue}>
-              {children}
+              <PricingCtx.Provider value={pricingValue}>
+                {children}
+              </PricingCtx.Provider>
             </WagesCtx.Provider>
           </FixedCostsCtx.Provider>
         </TicketVolumeCtx.Provider>
@@ -770,6 +861,10 @@ export function useLockedFixedCosts() {
 
 export function useLockedWages() {
   return useContext(WagesCtx)
+}
+
+export function useLockedPricing() {
+  return useContext(PricingCtx)
 }
 
 // Re-export so consumers don't need a second import

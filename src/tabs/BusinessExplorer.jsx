@@ -10,7 +10,7 @@ import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_B
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages } from '../components/LockedDeckContext.jsx'
+import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages, useLockedPricing } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -893,7 +893,15 @@ function MasterTicketVolumeSlider({ growth }) {
 function TicketPriceMaker({ growth, pricing, setPricing }) {
   const { t } = useTranslation('explorer')
   const { fmt, fmtNum } = useFmt()
-  const { isLocked, canEdit } = useLockedForecast()
+  // Independent founder lock — pinning the matrix is decoupled from the
+  // broader 2026 Performance forecast lock so the founder can pin just
+  // the SKU-level economics while the rest of the page stays editable.
+  const priceLock = useLockedPricing()
+  const isLocked = priceLock.isLocked
+  const canEdit  = priceLock.canEdit
+  const lockedAtLabel = priceLock.locked?.lockedAt
+    ? new Date(priceLock.locked.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
   const golfVolMult = 1 + growth.golf / 100
 
@@ -927,21 +935,49 @@ function TicketPriceMaker({ growth, pricing, setPricing }) {
   const aggregateMarginPct = totalRev2026 > 0 ? (totalMargin2026 / totalRev2026) * 100 : 0
 
   const updateSku = (skuKey, field, value) => {
+    if (!canEdit) return
     setPricing(prev => ({ ...prev, [skuKey]: { ...prev[skuKey], [field]: value } }))
   }
-  const resetAll = () => setPricing(TICKET_PRICING_DEFAULTS)
+  const resetAll = () => { if (canEdit) setPricing(TICKET_PRICING_DEFAULTS) }
 
   // Cell style helpers
   const cellTd = { padding:'8px 6px', fontSize:11.5, borderBottom:'1px solid rgba(255,255,255,0.05)' }
   const headTh = { padding:'10px 6px', fontSize:9.5, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, textAlign:'right', borderBottom:'1px solid rgba(255,255,255,0.1)' }
 
   return (
-    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius:10, padding:20, fontSize:13 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
         <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('priceMaker.header')}</div>
         <ResetBtn onClick={resetAll} title={t('priceMaker.resetAll')} />
       </div>
       <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('priceMaker.note')}</div>
+
+      {/* Lock toolbar — independent of the broader 2026 forecast lock.
+          Live preview / Locked pill on the left, Lock / Unlock on the right. */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:6,
+          padding:'3px 10px', borderRadius:12,
+          background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+          border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+          fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+          letterSpacing:'0.08em', textTransform:'uppercase',
+        }}>
+          <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+          {isLocked
+            ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to 2026 forecast')
+            : 'Live preview'}
+        </span>
+        {priceLock.isFounder && (
+          <div style={{ display:'flex', gap:6 }}>
+            {isLocked ? (
+              <button onClick={priceLock.unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+            ) : (
+              <button onClick={() => priceLock.lock(pricing)} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Master ticket volume slider — drives all SKU 2026 volumes via growth.golf.
           Same state as the income lever (now hidden from ScenarioLeversCard since
@@ -1771,7 +1807,23 @@ export default function BusinessExplorer() {
   // Per-SKU ticket pricing (price + tokens) for the Ticket Price Maker matrix.
   // Defaults seeded from 2025 SKU data; user can edit any SKU in the matrix.
   // Aggregate tokens × volumes drives the Arcades cost line in TabPerformance.
-  const [pricing, setPricing] = useState(TICKET_PRICING_DEFAULTS)
+  // When the founder locks this section, the locked.values pin the matrix
+  // for everyone and feed the 2026 cost donut via the effectivePricing
+  // passed down to TabPerformance.
+  const pricingLock = useLockedPricing()
+  const [pricing, setPricing] = useState(
+    () => pricingLock.locked?.values
+      ? { ...TICKET_PRICING_DEFAULTS, ...pricingLock.locked.values }
+      : TICKET_PRICING_DEFAULTS
+  )
+  useEffect(() => {
+    if (pricingLock.locked?.values) {
+      setPricing(prev => ({ ...prev, ...pricingLock.locked.values }))
+    }
+  }, [pricingLock.locked])
+  const effectivePricing = pricingLock.locked?.values
+    ? { ...TICKET_PRICING_DEFAULTS, ...pricingLock.locked.values }
+    : pricing
 
   // Office costs (Apps + AI + Accounting + Director) — annual £ per item.
   // Total flows to the cost donut as a new "Office & Admin" line.
@@ -1808,7 +1860,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     tillsales2025:   <BoroughTillSales2025 />,
-    performance2026: <TabPerformance growth={growth} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
+    performance2026: <TabPerformance growth={growth} pricing={effectivePricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
     prevTillSales:   <PrevTillSales />,
   }
