@@ -1,10 +1,33 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
-  DEAL,
+  DEAL, ACTUALS_2025,
   BOROUGH_INVESTOR_RETURNS, BOROUGH_WORKING_CAPITAL_CUSHION,
   computeBoroughDistributionCalendar,
 } from '../data.js'
+
+// 2026 cost model constants — duplicated from InvestmentSummary so the
+// scenario profit numbers agree across both slides (single source of
+// truth would be cleaner; not worth the refactor right now).
+const HISTORICAL_NON_RENT_FIXED_2025 = 54400
+const RENT_PCT_OF_TURNOVER           = 0.15
+const BAR_2025                       = 362836
+
+function calcScenarioProfit(multiplier) {
+  const revenue = ACTUALS_2025.revenue * multiplier
+  const bar     = BAR_2025 * multiplier
+  const costs =
+      242370 * 1.10                              // wages +10%
+    + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // non-rent fixed +10%
+    + revenue * RENT_PCT_OF_TURNOVER             // rent = 15% of turnover
+    + bar * 0.30                                  // drinks = 30% of bar
+    + 78851 * multiplier                          // VAT
+    + 22965 * multiplier                          // cleaning
+    + 17152 * multiplier                          // arcades
+    + 9101 * multiplier                           // food
+    + 5443 * multiplier                           // card charges
+  return Math.round(revenue - costs)
+}
 import { formatCurrency } from '../i18n/format.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
@@ -62,12 +85,15 @@ export default function WaterfallReturns() {
   // Performance tab is locked, snapshot.opProfit (= profitAfterVat)
   // populates the Custom card. When unlocked, Custom is greyed out
   // and falls back to base.
-  const customProfit = snapshot?.opProfit ?? 124000
+  const customProfit = snapshot?.opProfit ?? calcScenarioProfit(1.15)
 
+  // Scenario profits are computed dynamically from the same 2026 cost
+  // model Investment Summary uses, so the two slides agree number-for-
+  // number. Multipliers match Investment Summary: 1.10 / 1.15 / 1.25.
   const SCENARIOS = {
-    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: 0,            color: '#E53935' },
-    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: 124000,       color: '#C9A84C' },
-    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: 174000,       color: '#2DD4BF' },
+    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: calcScenarioProfit(1.10), color: '#E53935' },
+    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: calcScenarioProfit(1.15), color: '#C9A84C' },
+    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: calcScenarioProfit(1.25), color: '#2DD4BF' },
     custom: {
       label:  t('scenarios.custom'),
       badge:  forecastIsLocked ? t('scenarioBadges.custom') : t('scenarioBadges.customUnlocked'),
