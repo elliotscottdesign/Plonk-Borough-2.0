@@ -181,10 +181,9 @@ export default function WaterfallReturns() {
         </div>
       </div>
 
-      {/* Priority rules callout — what comes out of profit, in what order */}
-      <DistributionPriorityNote />
-
-      {/* Distribution Process — working-capital-first model */}
+      {/* Distribution Process — working-capital-first model. Replaces the
+          old DistributionPriorityNote cyan callout: same 5-rule content,
+          better visual treatment (numbered step cards with arrows). */}
       <DistributionProcess />
 
       {/* 12-month Distribution Calendar — quarterly dividends */}
@@ -219,42 +218,6 @@ export default function WaterfallReturns() {
 const FLOOR  = HACKNEY_WORKING_CAPITAL_FLOOR    // £30,000
 const TARGET = HACKNEY_WORKING_CAPITAL_TARGET   // £45,000
 const fmtK   = (n) => '£' + Math.round(n / 1000) + 'k'
-
-function DistributionPriorityNote() {
-  return (
-    <div style={{
-      marginTop: 32, padding: '16px 18px',
-      background: 'rgba(34,211,238,0.06)',
-      border: '1px solid rgba(34,211,238,0.3)',
-      borderRadius: 8,
-      fontSize: 13, color: '#A5F3FC', lineHeight: 1.65,
-    }}>
-      <div style={{ fontSize: 10, color: '#22D3EE', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
-        Distribution priority · how money leaves the business each quarter
-      </div>
-      <ol style={{ margin: 0, paddingLeft: 22 }}>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Director salary first</strong> — budgeted inside the cost base. This is a budget for whichever director the business needs, not specifically the founder. Paid before any dividend.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Working-capital reserve</strong> — bank balance must reach the {fmtK(FLOOR)}–{fmtK(TARGET)} safe zone before investor dividends start. {fmtK(FLOOR)} ≈ three months' rent; {fmtK(TARGET)} adds a {fmtK(TARGET-FLOOR)} cushion for VAT bills and supplier swings.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Founder draws every quarter regardless</strong> — the founder cannot wait for the reserve to build. Their pro-rata share is paid each calendar quarter from positive trading profit.
-        </li>
-        <li style={{ marginBottom: 6 }}>
-          <strong style={{ color: 'var(--cream)' }}>Investor draws once the reserve hits the floor</strong> — quarters where the closing balance is below {fmtK(FLOOR)} have the investor's share <em>deferred</em> rather than paid out. No clawback from the founder.
-        </li>
-        <li>
-          <strong style={{ color: 'var(--cream)' }}>Catch-up once the reserve is fully built</strong> — once the bank balance is at or above {fmtK(TARGET)}, the deferred investor balance is paid down on top of the normal quarterly share, so long-run pro-rata equality is preserved.
-        </li>
-      </ol>
-      <div style={{ fontSize: 11, color: '#22D3EE', marginTop: 12, paddingTop: 10, borderTop: '1px solid rgba(34,211,238,0.2)' }}>
-        See the <strong>Business Explorer · Cashflow Forecast</strong> tab for the month-by-month closing-balance projection — the green band on that chart shows the {fmtK(FLOOR)}–{fmtK(TARGET)} safe zone and indicates when the reserve builds up enough to release investor dividends.
-      </div>
-    </div>
-  )
-}
 
 function DistributionProcess() {
   const steps = [
