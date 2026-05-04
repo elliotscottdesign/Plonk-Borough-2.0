@@ -74,7 +74,7 @@ const BAR_PRICE_LOCK_KEY = 'ndh_bar_price_locked_v1'
 // from there — the Growth Drivers slide reads this read-only.
 function defaultForecast() {
   return {
-    growth:  { bar: 15, office: 15, tournament: 15, pool: 15 },
+    growth:  { bar: 15, office: 15, gameDrink: 15, tournament: 15, pool: 15 },
     growthDrivers: {
       seo:        3,    // SEO Rebuild from Day 1
       organic:    2,    // Organic & Local Listings

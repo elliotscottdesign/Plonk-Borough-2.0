@@ -544,10 +544,13 @@ function PnlTotal({ label, value, colour, hasTbd }) {
 //   1. Commission % on online golf sales (default 10%)
 //   2. Commission % on office golf sales (default 10%)
 //   3. Booking fee % on ALL online sales (default 10%)
-// Golf-only filter: any SKU with rounds > 0 is a golf SKU. Pool tables,
+// Golf-only filter: a SKU is commissionable golf if it carries a round
+// AND is NOT a Game & Drink bundle. Game & Drink (golf + venue drink)
+// stays 100% with No Dice, so it's treated as non-golf for both the
+// operator-handover narrative and the commission model. Pool tables,
 // pool tournaments, brunches, drink add-ons and seasonal specials are
 // venue-managed (no commission).
-const isGolfSku = (r) => r.rounds > 0
+const isGolfSku = (r) => r.rounds > 0 && !/Game & Drink/i.test(r.sku)
 function sumGolfRev(rows)    { return rows.filter(isGolfSku).reduce((s, r) => s + r.revenue, 0) }
 function sumNonGolfRev(rows) { return rows.filter(r => !isGolfSku(r)).reduce((s, r) => s + r.revenue, 0) }
 

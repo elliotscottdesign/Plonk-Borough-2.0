@@ -143,6 +143,10 @@ export const INCOME_SOURCES = [
   { name: 'Bar takings',                amount: 484684, pct: 86.9, color: '#0D1F4C' },
   { name: 'Online golf (DMN)',          amount:  39288, pct:  7.0, color: '#1565C0' },
   { name: 'Office bookings / hires',    amount:  28120, pct:  5.0, color: '#1976D2' },
+  // Game & Drink stays 100% with No Dice — the drink component is bar
+  // revenue and the round-of-golf portion is retained per the Plonk
+  // Operations going-forward agreement. Online + office combined.
+  { name: 'Game & Drink',               amount:   4824, pct:  0.9, color: '#F59E0B' },
   { name: 'Pool tournament entries',    amount:   3570, pct:  0.6, color: '#1E88E5' },
   { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
   { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
@@ -606,6 +610,12 @@ export const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E
 export const HACKNEY_SCENARIO_LEVERS = [
   { key: 'bar',        labelKey: 'Bar',                    incomeKey: 'Bar takings',             color: INCOME_2026_COLORS[0], base: 484684 },
   { key: 'office',     labelKey: 'Office bookings / hires', incomeKey: 'Office bookings / hires', color: INCOME_2026_COLORS[2], base:  28120 },
+  // Game & Drink bundles a round of golf with a venue drink. Despite
+  // the round, 100% of the revenue stays with No Dice (per Plonk
+  // Operations going-forward agreement) — the drink component is bar
+  // revenue and dwarfs the golf-round portion. Total 2025 G&D sales
+  // £4,824 = £4,714 online + £110 office (DMN SKUs).
+  { key: 'gameDrink',  labelKey: 'Game & Drink (golf + drink bundle)', incomeKey: 'Game & Drink', color: INCOME_2026_COLORS[1], base: 4824 },
   { key: 'tournament', labelKey: 'Pool tournament entries', incomeKey: 'Pool tournament entries',  color: INCOME_2026_COLORS[3], base:   3570 },
   { key: 'pool',       labelKey: 'Pool tickets (DMN)',      incomeKey: 'Pool tickets (DMN)',       color: INCOME_2026_COLORS[5], base:   2200 },
 ]

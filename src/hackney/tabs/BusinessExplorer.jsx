@@ -892,12 +892,15 @@ function ScenarioLeversCard() {
 }
 
 // ─── TicketsSection · non-golf DMN SKU breakdown ─────────────────────
-// Filters HACKNEY_DMN_SKUS_ONLINE_2025 to rounds === 0 — only the
-// SKUs that stay with No Dice under the new operator structure
-// (pool reservations, pool tournaments, bottomless brunch, drink
-// add-ons, arcade tokens, seasonal events). Golf SKUs (Adult / Under
-// 18s rounds, golf-+-tokens bundles, Game & Drink) move to the
-// operator's books and are listed separately for transparency.
+// Splits HACKNEY_DMN_SKUS_ONLINE_2025 into two buckets:
+//   • No-Dice-retained: pool tables, pool tournaments, brunches, drink
+//     add-ons, arcade-token add-ons, seasonal events, AND Game & Drink
+//     (the bundled drink revenue and the round-of-golf portion both
+//     stay 100% with No Dice per the Plonk Operations agreement).
+//   • Operator-bound: pure golf rounds and Golf + Tokens bundles. The
+//     SKU itself moves to the operator P&L; the bundled-token value
+//     still lands with No Dice (separately accounted on the Plonk
+//     Golf Operations page).
 //
 // Projection driver: the Office growth lever (these SKUs are
 // effectively bookings revenue). Per-SKU price/volume overrides
@@ -909,8 +912,11 @@ function TicketsSection() {
   const officeGrowth = forecastEffective.growth?.office ?? 15
 
   const allSkus = (typeof HACKNEY_DMN_SKUS_ONLINE_2025 !== 'undefined' ? HACKNEY_DMN_SKUS_ONLINE_2025 : [])
-  const nonGolf = allSkus.filter(s => s.rounds === 0)
-  const golf    = allSkus.filter(s => s.rounds > 0)
+  // Game & Drink stays with No Dice despite carrying a round — drink
+  // component is bar revenue, full SKU is venue-retained.
+  const isOperatorGolf = (s) => s.rounds > 0 && !/Game & Drink/i.test(s.sku)
+  const nonGolf = allSkus.filter(s => !isOperatorGolf(s))
+  const golf    = allSkus.filter(isOperatorGolf)
 
   const total2025 = nonGolf.reduce((s, x) => s + x.revenue, 0)
   const total2026 = total2025 * (1 + officeGrowth / 100)
@@ -922,7 +928,7 @@ function TicketsSection() {
       <div className="card" style={{ padding:14, background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.3)', borderLeft:'4px solid #F87171' }}>
         <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:6 }}>Golf SKUs · Moved to operator</div>
         <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          <strong style={{ color:'var(--cream)' }}>{golf.length}</strong> golf SKUs — Adult / Under 18s rounds, Golf + Tokens bundles, Game &amp; Drink — totalled <strong style={{ color:'var(--cream)' }}>{fmtMoney(totalGolf2025)}</strong> in 2025 online sales. Under the new structure these belong to the golf operator entity. <strong style={{ color:'var(--cream)' }}>No Dice keeps 100% of token revenue inside any sold SKU</strong> — the SKU itself moves but the bundled-token value continues to land with No Dice (per the Plonk Golf Operations page).
+          <strong style={{ color:'var(--cream)' }}>{golf.length}</strong> golf SKUs — Adult / Under 18s rounds and Golf + Tokens bundles — totalled <strong style={{ color:'var(--cream)' }}>{fmtMoney(totalGolf2025)}</strong> in 2025 online sales. Under the new structure these belong to the golf operator entity. <strong style={{ color:'var(--cream)' }}>No Dice keeps 100% of token revenue inside any sold SKU</strong> — the SKU itself moves but the bundled-token value continues to land with No Dice (per the Plonk Golf Operations page). <strong style={{ color:'var(--cream)' }}>Game &amp; Drink</strong> bundles stay 100% with No Dice — the venue-drink component dwarfs the golf-round portion, so the whole SKU is retained.
         </div>
       </div>
 
