@@ -1641,6 +1641,12 @@ function WageCalculator() {
 
   return (
     <div className="card" style={{ padding:18, border: isWageLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
+      {/* Section eyebrow + loaded annual total — matches the Fixed Costs editor pattern */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Wages · Editor</div>
+        <div style={{ fontSize:13, color:'var(--gold)', fontWeight:600 }}>{fmt(loadedTotal)}/yr</div>
+      </div>
+
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
         <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
           <span style={{
