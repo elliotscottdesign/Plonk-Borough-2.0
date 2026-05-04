@@ -395,99 +395,150 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
         </div>
       </div>
 
-      {/* Slider card — READ-ONLY indicator. The slider's position is derived from
-          the 5 growth levers + wage sliders below; preset buttons (Bear/2025/Base/Bull)
-          still snap the levers. The user can't drag this slider directly. */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:8 }}>
-          <div>
-            <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:2 }}>{t('performance2026.header')}</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>{t('performance2026.sliderDesc')}</div>
+      {/* ─── FORECAST CALCULATOR ─── 3 KPI tiles + preset chip strip + Reset/Lock.
+          Replaces the old read-only slider card and the four scenario preset
+          summary cards. Visual style mirrors Hackney's ForecastLockBar /
+          KpiCard2026 pattern (colored top border + serif value). */}
+      <div style={{ background:'var(--ink-2)', border:`1px solid ${isLocked ? 'rgba(45,212,191,0.4)' : 'rgba(255,255,255,0.08)'}`, borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', gap:14, marginBottom:18 }}>
+          <div style={{ width:44, height:44, borderRadius:10, background:'rgba(34,211,238,0.08)', border:'1px solid rgba(34,211,238,0.25)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+            <span style={{ fontSize:22 }}>📊</span>
           </div>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <span style={{ fontSize:14, fontWeight:700, color:'#22D3EE', minWidth:48, textAlign:'right' }}>{sliderValue>0?'+':''}{sliderValue}%</span>
-            <ResetBtn onClick={()=>{ if (canEdit) growth.setAll(15) }} title={t('performance2026.resetLevers')} />
-            {isFounder ? (
-              <button
-                onClick={handleLockToggle}
-                title={t(isLocked ? 'performance2026.unlockTitle' : 'performance2026.lockTitle')}
-                style={{
-                  display:'inline-flex', alignItems:'center', gap:6,
-                  padding:'6px 12px', borderRadius:6, fontSize:11, fontWeight:700,
-                  letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
-                  background: isLocked ? 'rgba(45,212,191,0.15)' : 'rgba(201,168,76,0.10)',
-                  border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.35)'}`,
-                  color: isLocked ? '#2DD4BF' : 'var(--gold)',
-                  transition:'all 0.15s',
-                }}
-              >
-                <span>{isLocked ? '🔒' : '🔓'}</span>
-                <span>{t(isLocked ? 'performance2026.locked' : 'performance2026.lock')}</span>
-              </button>
-            ) : (
-              <span style={{
-                display:'inline-flex', alignItems:'center', gap:6,
-                padding:'6px 12px', borderRadius:6, fontSize:11, fontWeight:700,
-                letterSpacing:'0.06em', textTransform:'uppercase',
-                background:'rgba(45,212,191,0.10)',
-                border:'1px solid rgba(45,212,191,0.25)',
-                color:'#2DD4BF',
-              }}>
-                <span>👁</span>
-                <span>{t('performance2026.viewOnly')}</span>
-              </span>
-            )}
+          <div style={{ flex:1, minWidth:0 }}>
+            <div style={{ fontSize:13, color:'#22D3EE', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Forecast Calculator</div>
+            <div style={{ fontSize:13, color:'#9CA3AF', lineHeight:1.5, marginTop:4 }}>
+              Drag the levers (or pick a preset) — every figure across the deck cascades live until the founder locks the snapshot.
+            </div>
           </div>
         </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, marginBottom:14 }}>
+          <KpiCard2026
+            label={t('performance2026.adjustedRevenue')}
+            value={fmt(totalIncome)}
+            sub={`Aggregate growth ${sliderValue >= 0 ? '+' : ''}${sliderValue.toFixed(1)}%`}
+            color="#22D3EE"
+          />
+          <KpiCard2026
+            label={t('performance2026.adjustedEbitda')}
+            value={fmt(ebitda)}
+            sub={`${(margin*100).toFixed(1)}% ${t('performance2026.margin')}`}
+            color={ebitda > 0 ? '#A78BFA' : '#EF4444'}
+          />
+          <KpiCard2026
+            label={t('performance2026.profitAfterVat')}
+            value={fmt(profitAfterVat)}
+            sub={`${(profitAfterVatMargin*100).toFixed(1)}% ${t('performance2026.margin')} · ${t('performance2026.netVatLabel')} ${fmt(netVat)}`}
+            color={profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'}
+          />
+        </div>
+
         {(isLocked || !isFounder) && (
-          <div style={{ marginTop:8, padding:'8px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
+          <div style={{ marginBottom:12, padding:'8px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
             {t(isFounder ? 'performance2026.lockedNote' : 'performance2026.viewOnlyNote')}
           </div>
         )}
-        <div style={{ position:'relative', marginTop:14, padding:'4px 0 26px' }}>
-          <input
-            type="range"
-            min={PERF_GROWTH_MIN} max={PERF_GROWTH_MAX} value={sliderValue}
-            readOnly
-            disabled
-            tabIndex={-1}
-            aria-label={t('performance2026.header')}
-            style={{ width:'100%', accentColor:'#22D3EE', opacity:0.85, pointerEvents:'none', cursor:'default' }}
-          />
-          {perfMarkers.map(mk => (
-            <button key={mk.labelKey} onClick={()=>{ if (canEdit) growth.setAll(mk.value) }} disabled={!canEdit} style={{
-              position:'absolute', left:`calc(${perfGrowthToPct(mk.value)}% - 26px)`, top:28,
-              width:52, padding:'2px 0', borderRadius:3, cursor:'pointer',
-              background: sliderValue === mk.value ? mk.color : 'transparent',
-              border: `1px solid ${mk.color}`,
-              color: sliderValue === mk.value ? '#0A0A0F' : mk.color,
-              fontSize:10, fontWeight:700, letterSpacing:'0.05em', textAlign:'center', transition:'all 0.15s',
-            }}>{t(`performance2026.labels.${mk.labelKey}`)} {mk.value>0?'+':''}{mk.value}%</button>
-          ))}
-          <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'#6B7280', marginTop:2, padding:'0 2px' }}>
-            <span>{PERF_GROWTH_MIN}%</span>
-            <span>+{PERF_GROWTH_MAX}%</span>
-          </div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginTop:20 }}>
-          <KpiCard2026 label={t('performance2026.adjustedRevenue')} value={fmtK(totalIncome)} color="#22D3EE" />
-          <KpiCard2026 label={t('performance2026.adjustedEbitda')} value={fmtK(ebitda)} sub={`${(margin*100).toFixed(1)}% ${t('performance2026.margin')}`} color={ebitda > 0 ? '#A78BFA' : '#EF4444'} />
-          <KpiCard2026 label={t('performance2025.totalCosts')} value={fmtK(totalCosts)} color="#8B5CF6" />
-          <KpiCard2026 label={t('performance2026.profitAfterVat')} value={fmtK(profitAfterVat)} sub={`${(profitAfterVatMargin*100).toFixed(1)}% ${t('performance2026.margin')} · ${t('performance2026.netVatLabel')} ${fmtK(netVat)}`} color={profitAfterVat > 0 ? '#2DD4BF' : '#EF4444'} />
+
+        <div style={{ background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8, padding:'10px 12px', display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6, padding:'4px 10px', borderRadius:12, background: isLocked ? 'rgba(45,212,191,0.12)' : 'rgba(201,168,76,0.08)', border:`1px solid ${isLocked ? 'rgba(45,212,191,0.4)' : 'rgba(201,168,76,0.2)'}`, fontSize:10, color: isLocked ? '#2DD4BF' : 'var(--gold)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+            <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+            {isLocked ? t('performance2026.locked') : 'Live preview'}
+          </span>
+
+          {perfMarkers.filter(mk => mk.labelKey !== 'y2025').map(mk => {
+            const active = sliderValue === mk.value
+            return (
+              <button
+                key={mk.labelKey}
+                onClick={() => { if (canEdit) growth.setAll(mk.value) }}
+                disabled={!canEdit}
+                style={{
+                  display:'inline-flex', flexDirection:'column', alignItems:'center', gap:1,
+                  padding:'6px 14px', borderRadius:6,
+                  background: active ? `${mk.color}1F` : 'transparent',
+                  border: `1px solid ${active ? mk.color : 'rgba(201,168,76,0.25)'}`,
+                  color: active ? mk.color : 'var(--cream-dim)',
+                  cursor: canEdit ? 'pointer' : 'not-allowed',
+                  opacity: canEdit ? 1 : 0.6,
+                  fontWeight: active ? 600 : 500, transition:'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize:11 }}>{t(`performance2026.labels.${mk.labelKey}`)}</span>
+                <span style={{ fontSize:10, opacity:0.85 }}>{mk.value > 0 ? '+' : ''}{mk.value}% on 2025</span>
+              </button>
+            )
+          })}
+          {(() => {
+            const isCustom = !perfMarkers.some(m => m.value === sliderValue && m.labelKey !== 'y2025')
+            return (
+              <span
+                style={{
+                  display:'inline-flex', flexDirection:'column', alignItems:'center', gap:1,
+                  padding:'6px 14px', borderRadius:6,
+                  background: isCustom ? 'rgba(201,168,76,0.12)' : 'transparent',
+                  border: `1px solid ${isCustom ? 'var(--gold)' : 'rgba(201,168,76,0.25)'}`,
+                  color: isCustom ? 'var(--gold)' : 'var(--cream-dim)',
+                  fontWeight: isCustom ? 600 : 500,
+                }}
+              >
+                <span style={{ fontSize:11 }}>Custom</span>
+                <span style={{ fontSize:10, opacity:0.85 }}>Drag levers</span>
+              </span>
+            )
+          })()}
+
+          <div style={{ flex:1 }} />
+
+          {isFounder && (
+            <button
+              onClick={() => { if (canEdit) growth.setAll(15) }}
+              disabled={!canEdit}
+              title={t('performance2026.resetLevers')}
+              style={{ padding:'6px 14px', borderRadius:6, fontSize:11, fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5, background:'transparent', border:'1px solid rgba(201,168,76,0.35)', color:'var(--cream-dim)' }}
+            >Reset</button>
+          )}
+          {isFounder ? (
+            <button
+              onClick={handleLockToggle}
+              title={t(isLocked ? 'performance2026.unlockTitle' : 'performance2026.lockTitle')}
+              style={{
+                display:'inline-flex', alignItems:'center', gap:6,
+                padding:'6px 14px', borderRadius:6, fontSize:11, fontWeight:700,
+                letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
+                background: isLocked ? 'rgba(45,212,191,0.15)' : 'var(--gold)',
+                border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'var(--gold)'}`,
+                color: isLocked ? '#2DD4BF' : 'var(--ink)',
+                transition:'all 0.15s',
+              }}
+            >
+              <span>{isLocked ? '🔒' : '🔓'}</span>
+              <span>{t(isLocked ? 'performance2026.locked' : 'performance2026.lock')}</span>
+            </button>
+          ) : (
+            <span style={{
+              display:'inline-flex', alignItems:'center', gap:6,
+              padding:'6px 14px', borderRadius:6, fontSize:11, fontWeight:700,
+              letterSpacing:'0.06em', textTransform:'uppercase',
+              background:'rgba(45,212,191,0.10)',
+              border:'1px solid rgba(45,212,191,0.25)',
+              color:'#2DD4BF',
+            }}>
+              <span>👁</span>
+              <span>{t('performance2026.viewOnly')}</span>
+            </span>
+          )}
         </div>
       </div>
 
-      {/* ─── SCENARIO PRESETS ─── 4 summary cards, snap-jumps via growth.setAll */}
-      <ScenarioPresetsCard growth={growth} officeCostsTotal={officeCostsTotal} />
+      {/* ─── BUILD CUSTOM SCENARIO ─── income levers (4 sliders), lifted out of
+          the income sub-section so they always sit below the headline KPIs. */}
+      <ScenarioLeversCard growth={growth} />
 
-      {/* ─── SECTION TITLE ─── divides the scenario summary from the editable forecast levers below */}
-      <div style={{ marginTop: 24, marginBottom: 4, paddingBottom: 12, borderBottom: '1px solid rgba(201,168,76,0.25)' }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 6, fontWeight: 600 }}>
-          Build Your Own Scenario
+      {/* ─── SECTION DIVIDER ─── separates the headline summary from the per-section drill-downs */}
+      <div style={{ marginTop: 12, paddingBottom: 12, borderBottom: '1px solid rgba(201,168,76,0.25)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600 }}>
+          Detail Sections
         </div>
-        <h2 className="serif" style={{ fontSize: 'clamp(1.8rem, 3.4vw, 2.6rem)', lineHeight: 1.1, color: 'var(--cream)', margin: 0 }}>
-          Forecast Calculator
-        </h2>
       </div>
 
       {/* ─── INDEX + CONTENT ─── left-side nav, right-side active section */}
@@ -528,12 +579,10 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
             <TicketPriceMaker growth={growth} pricing={pricing} setPricing={setPricing} />
           )}
 
-          {/* INCOME — growth levers; the donut + monthly breakdown is pinned at the top of the tab */}
+          {/* INCOME — bar-price uplift only; the donut + monthly breakdown and
+              the Build Custom Scenario levers are pinned at the top of the tab */}
           {activeSection === 'income' && (
-            <>
-              <ScenarioLeversCard growth={growth} />
-              <BoroughBarPriceUpliftCalculator />
-            </>
+            <BoroughBarPriceUpliftCalculator />
           )}
 
           {/* OPERATING COSTS — full cost donut + monthly */}
@@ -711,62 +760,6 @@ function ScenarioLeversCard({ growth }) {
             </div>
             <input type="range" disabled={!canEdit} min={-20} max={50} value={s.value} onChange={e=>{ if (canEdit) s.set(Number(e.target.value)) }} style={{ width:'100%', accentColor:s.color, opacity: canEdit ? 1 : 0.6 }} />
             <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>{t('scenarios.newLabel')} {fmtK(s.base * (1 + s.value / 100))}</div>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ───────────────────────────────────────────────────────────────────────
-// Scenario presets card — 4 summary cards (Conservative/Base/Optimistic/Custom).
-// Each preset button snaps all 5 levers to the same value via growth.setAll;
-// Custom card mirrors live lever positions. Stand-alone so it can render in
-// either spot of the 2026 Performance tab (currently directly under the slider).
-// ───────────────────────────────────────────────────────────────────────
-function ScenarioPresetsCard({ growth, officeCostsTotal }) {
-  const { t } = useTranslation('explorer')
-  const { t: tc } = useTranslation('common')
-  const { fmt, fmtK } = useFmt()
-  const { isLocked, canEdit } = useLockedForecast()
-  const { effective: funding } = useLockedFunding()
-  const fundingAmount = funding.investment
-
-  const custom = computeScenario({ barG: growth.bar, golfG: growth.golf, eventsG: growth.events, hiresG: growth.hires, poolG: growth.pool, officeCostsTotal, fundingAmount })
-  const buildPreset = pct => computeScenario({ barG: pct, golfG: pct, eventsG: pct, hiresG: pct, poolG: pct, officeCostsTotal, fundingAmount })
-  const presets = [
-    { labelKey:'conservative', pct:-10, ...buildPreset(-10) },
-    { labelKey:'base',         pct: 15, ...buildPreset(15)  },
-    { labelKey:'optimistic',   pct: 25, ...buildPreset(25)  },
-  ]
-
-  const revenueLabel = tc('labels.revenue')
-  const opProfit    = t('scenarios.opProfit')
-  const investorRet = t('scenarios.investorReturn')
-  const cocLabel    = tc('labels.cashOnCash')
-
-  return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, fontSize:13 }}>
-      {presets.map(p => (
-        <button key={p.labelKey} disabled={!canEdit} onClick={()=>{ if (canEdit) growth.setAll(p.pct) }} title={`Apply ${p.pct>0?'+':''}${p.pct}%`} style={{
-          background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:16, cursor: canEdit ? 'pointer' : 'not-allowed', textAlign:'left', transition:'all 0.15s', opacity: canEdit ? 1 : 0.6,
-        }}>
-          <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4, fontWeight:600 }}>{t(`scenarios.cards.${p.labelKey}`)}</div>
-          <div style={{ fontSize:10, color:'#6B7280', marginBottom:10 }}>{p.pct>0?'+':''}{p.pct}%</div>
-          {[[revenueLabel,fmtK(p.revenue)],[opProfit,fmtK(p.profit)],[investorRet,fmt(Math.round(p.investorReturn))],[cocLabel,p.coc.toFixed(1)+'%']].map(([l,v],j) => (
-            <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
-              <span style={{ color:'#9CA3AF' }}>{l}</span>
-              <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
-            </div>
-          ))}
-        </button>
-      ))}
-      <div style={{ background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:16 }}>
-        <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:10, fontWeight:600 }}>{t('scenarios.cards.custom')}</div>
-        {[[revenueLabel,fmtK(custom.revenue)],[opProfit,fmtK(custom.profit)],[investorRet,fmt(Math.round(custom.investorReturn))],[cocLabel,custom.coc.toFixed(1)+'%']].map(([l,v],j) => (
-          <div key={l} style={{ display:'flex', justifyContent:'space-between', padding:'5px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:12 }}>
-            <span style={{ color:'#9CA3AF' }}>{l}</span>
-            <span style={{ color:j===3?'#2DD4BF':'var(--cream)', fontWeight:j===3?700:400 }}>{v}</span>
           </div>
         ))}
       </div>
@@ -1507,10 +1500,10 @@ function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
 
 function KpiCard2026({ label, value, sub, color }) {
   return (
-    <div style={{ background:'rgba(255,255,255,0.02)', border:`1px solid ${color}40`, borderRadius:8, padding:'12px 16px' }}>
-      <div style={{ fontSize:10, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:4 }}>{label}</div>
-      <div style={{ fontSize:22, fontWeight:800, color, lineHeight:1 }}>{value}</div>
-      {sub && <div style={{ fontSize:11, color:'#9CA3AF', marginTop:4 }}>{sub}</div>}
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${color}33`, borderTop:`3px solid ${color}`, borderRadius:10, padding:'16px 18px' }}>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.08em', textTransform:'uppercase', marginBottom:8 }}>{label}</div>
+      <div className="serif" style={{ fontSize:'clamp(1.4rem, 2.6vw, 1.9rem)', color, lineHeight:1, marginBottom:6, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      {sub && <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.4 }}>{sub}</div>}
     </div>
   )
 }
@@ -1831,38 +1824,6 @@ function Stacked2026({ monthly, kind, maxH=120, fmt, t }) {
   )
 }
 
-function computeScenario({ barG, golfG, eventsG, hiresG, poolG, officeCostsTotal = 0, fundingAmount = 79000 }) {
-  // Service Charge is the only derived line — it scales by the average of
-  // the 5 commercial levers since it tracks aggregate covers.
-  const avg = (barG + golfG + eventsG + hiresG + poolG) / 5
-  const bar = 362836 * (1 + barG / 100)
-  const golf = 210485 * (1 + golfG / 100)
-  const events = 106023 * (1 + eventsG / 100)
-  const hires = 44999 * (1 + hiresG / 100)
-  const pool = 2198 * (1 + poolG / 100)
-  const sc = 15102 * (1 + avg / 100)
-  const revenue = bar + golf + events + hires + sc + pool
-  const mult = revenue / 741644
-
-  const costs =
-    242370 * 1.10                                // wages +10%
-    + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // fixed (rates + utilities + insurance + internet + PRS + maintenance + misc) +10%
-    + revenue * RENT_PCT_OF_TURNOVER             // rent — 15% of turnover (NO inflation)
-    + officeCostsTotal                            // office (Apps + AI + Accounting + Director)
-    + bar * 0.30                                  // drinks (30% of bar)
-    + 78851 * mult                                // VAT (scaled — proper formula in TabPerformance)
-    + 22965 * mult                                // cleaning
-    + 17152 * mult                                // arcades (token-driven detail in TabPerformance)
-    + 9101 * mult                                 // food
-    + 5443 * mult                                 // card charges
-    // hosting (Lithos) removed — under new IP & Licensing model SEO/Ads
-    // sit with Plonk Golf, not the venue.
-
-  const profit = revenue - costs
-  const investorReturn = Math.max(0, profit) * 0.50
-  const coc = fundingAmount > 0 ? (investorReturn / fundingAmount) * 100 : 0
-  return { revenue, profit, investorReturn, coc }
-}
 
 export default function BusinessExplorer() {
   const { t } = useTranslation('explorer')
