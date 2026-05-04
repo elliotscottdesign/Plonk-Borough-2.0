@@ -1313,38 +1313,51 @@ function BarPriceUpliftCalculator() {
 }
 
 // ─── IncomeSection ────────────────────────────────────────────────────
+// Mirrors the Borough Income · 2026 Forecast card: eyebrow + grey total
+// in the header row, two-column donut+breakdown body, full-width monthly
+// stacked bar chart beneath a hairline divider. Hackney data feeds in via
+// sc.incomeLines / sc.totalIncome / monthly so all five Hackney income
+// lines (Bar takings, Office bookings, Game & Drink, Pool tournament,
+// Pool tickets) render with their own colours and growth-adjusted values.
 function IncomeSection({ sc, monthly }) {
   return (
     <>
-      <ScenarioLeversCard />
-      <BarPriceUpliftCalculator />
       <div className="card" style={{ padding:20 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-          <div style={{ fontSize:11, color:'#22D3EE', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Income · 2026</div>
+          <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>Income · 2026 Forecast</div>
           <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmtMoney(sc.totalIncome)}</div>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:24, alignItems:'center', marginBottom:8 }}>
-          <DonutChart data={sc.incomeLines} total={sc.totalIncome} size={210} label="Annual revenue" />
-          <div>
+
+        {/* Two-column upper half: donut left, breakdown right */}
+        <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:24, alignItems:'center' }}>
+          <div style={{ display:'flex', justifyContent:'center' }}>
+            <DonutChart data={sc.incomeLines} total={sc.totalIncome} size={200} label="Annual revenue" />
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:0, minWidth:0 }}>
             {sc.incomeLines.map(l => (
-              <div key={l.key} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:13 }}>
-                <span style={{ width:10, height:10, borderRadius:2, background:l.color, flexShrink:0 }} />
-                <span style={{ flex:1, color:'var(--cream)' }}>{l.label}</span>
-                <span style={{ color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(l.value)}</span>
-                <span style={{ color:'var(--cream-dim)', fontSize:11, width:50, textAlign:'right' }}>{l.pct.toFixed(1)}%</span>
+              <div key={l.key} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+                <div style={{ width:10, height:10, borderRadius:2, background:l.color, flexShrink:0 }} />
+                <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{l.label}</div>
+                <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(l.value)}</div>
+                <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{l.pct.toFixed(1)}%</div>
               </div>
             ))}
-            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px', fontSize:13, fontWeight:600 }}>
-              <span style={{ color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em', fontSize:11 }}>Total revenue</span>
-              <span className="serif" style={{ color:'#22D3EE', fontSize:16 }}>{fmtMoney(sc.totalIncome)}</span>
+            <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
+              <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Income</div>
+              <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmtMoney(sc.totalIncome)}</div>
             </div>
           </div>
         </div>
-        <div style={{ marginTop:16 }}>
-          <div style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly revenue · 2026</div>
+
+        {/* Monthly bar chart — full-width beneath the two-column block */}
+        <div style={{ marginTop:18, paddingTop:14, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>Monthly Income 2026 — Scaled</div>
           <Stacked2026 monthly={monthly} kind="income" />
         </div>
       </div>
+
+      <ScenarioLeversCard />
+      <BarPriceUpliftCalculator />
     </>
   )
 }
