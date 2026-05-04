@@ -17,18 +17,22 @@
  *
  * The stored value is a JSON CONTAINER carrying every lockable surface in
  * one document so each writer can refresh the cell without clobbering the
- * others. From v2 the shape is:
+ * others. From v3 the shape is:
  *
  *   {
- *     forecast: <2026 forecast snapshot> | null,
- *     ticketVolume: { value: <number>, lockedAt: <ISO string> } | null
+ *     funding:      <funding snapshot>             | null,
+ *     forecast:     <2026 forecast snapshot>       | null,
+ *     ticketVolume: { value, lockedAt }            | null
  *   }
  *
- * v1 deployments stored a flat forecast snapshot (with .revenue at top
- * level). The client auto-detects that legacy shape and adopts it as
- * { forecast: <legacy>, ticketVolume: null }, so existing servers keep
- * working without redeployment until the next time the founder locks
- * anything (which writes the new container shape).
+ * Backwards-compat:
+ *   • v2 deployments stored { forecast, ticketVolume } only; v3 clients
+ *     read the same payload and treat funding as null.
+ *   • v1 deployments stored a flat forecast snapshot (.revenue at top
+ *     level); v3 clients adopt it as { funding: null, forecast: <legacy>,
+ *     ticketVolume: null }.
+ * Existing servers keep working without redeployment until the next time
+ * the founder locks anything (which writes the new container shape).
  *
  * SETUP (one-time, ~3 minutes):
  *

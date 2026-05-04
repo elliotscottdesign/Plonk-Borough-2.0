@@ -139,12 +139,18 @@ export async function bootstrapDataFromSheet({ timeoutMs = 4000 } = {}) {
 // Fetch the lock container from LOCK_SYNC_URL (if set) and split into the
 // individual surfaces on window for LockedDeckContext to read at init.
 //
-// Server stores a single JSON value at the configured cell. From v2 the
-// shape is a container:
-//   { forecast: <forecastSnapshot>|null, ticketVolume: <{value,lockedAt}>|null }
-// Older deployments may still hold a flat forecast snapshot (with .revenue
-// at the top level) — we detect and adopt that as { forecast, ticketVolume:null }
-// so existing servers keep working without redeployment.
+// Server stores a single JSON value at the configured cell. From v3 the
+// shape is a 3-surface container:
+//   { funding:      <fundingSnapshot>|null,
+//     forecast:     <forecastSnapshot>|null,
+//     ticketVolume: <{value,lockedAt}>|null }
+//
+// Backwards-compat:
+//   • v2 container { forecast, ticketVolume }   → funding defaults to null.
+//   • v1 flat-forecast snapshot (.revenue top-level) → adopted as forecast,
+//     funding and ticketVolume default to null.
+// Existing servers keep working without redeployment until the next lock
+// write upgrades the cell to the v3 container shape.
 //
 // Falls back silently — the provider will use localStorage if this fails.
 async function fetchLockedSnapshot() {
@@ -160,12 +166,14 @@ async function fetchLockedSnapshot() {
       // Server responds with { snapshot: <object>|null }
       const raw = data.snapshot ?? null
 
+      let funding = null
       let forecast = null
       let ticketVolume = null
       if (raw && typeof raw === 'object') {
-        if ('forecast' in raw || 'ticketVolume' in raw) {
-          // New container shape.
-          forecast     = raw.forecast ?? null
+        if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw) {
+          // v2 / v3 container shape.
+          funding      = raw.funding      ?? null
+          forecast     = raw.forecast     ?? null
           ticketVolume = raw.ticketVolume ?? null
         } else if (Number.isFinite(raw.revenue)) {
           // Legacy flat-forecast shape.
@@ -173,11 +181,13 @@ async function fetchLockedSnapshot() {
         }
       }
 
+      window.__NDB_FUNDING_LOCK       = funding
       window.__NDB_LOCK_SNAPSHOT      = forecast
       window.__NDB_TICKET_VOLUME_LOCK = ticketVolume
       // eslint-disable-next-line no-console
       console.info(
         '[deck-data] ✓ locks synced from server' +
+        ` · funding=${funding ? 'set' : 'empty'}` +
         ` · forecast=${forecast ? 'set' : 'empty'}` +
         ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}`
       )

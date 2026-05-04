@@ -30,11 +30,10 @@ import {
 //   forecast      → localStorage `ndb_locked_forecast_v1`
 //   ticketVolume  → localStorage `ndb_ticket_volume_locked_v1`
 //
-// Forecast + ticketVolume *also* sync cross-device via LOCK_SYNC_URL when
-// configured (Apps Script / Cloudflare Worker — see infra/). Both ride the
-// same endpoint as a merged container { forecast, ticketVolume } so each
-// writer refreshes the cell without clobbering the other surface. Funding
-// is intentionally local-only (founder/investor model the raise privately).
+// All three lockable surfaces ALSO sync cross-device via LOCK_SYNC_URL when
+// configured (Apps Script / Cloudflare Worker — see infra/). Each rides the
+// same endpoint as a merged container { funding, forecast, ticketVolume } so
+// each writer refreshes the cell without clobbering the others.
 //
 // Founder access:
 //   sessionStorage.ndb_founder === '1' (set by PasswordGate at 888999)
@@ -81,6 +80,26 @@ const isValidFundingLocked = (s) =>
 
 const isValidFundingLive = (v) =>
   v && typeof v === 'object' && Number.isFinite(v.investment) && v.investment > 0
+
+function readPersistedFundingLock() {
+  // Priority 1: bootstrap fetched it from the server alongside the
+  // forecast + ticket-volume locks and stuffed it onto window.__NDB_FUNDING_LOCK.
+  if (typeof window !== 'undefined' && window.__NDB_FUNDING_LOCK !== undefined) {
+    const fromServer = window.__NDB_FUNDING_LOCK
+    try {
+      if (fromServer && isValidFundingLocked(fromServer)) {
+        localStorage.setItem(FUNDING_LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(FUNDING_LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidFundingLocked(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(FUNDING_LOCK_KEY, isValidFundingLocked)
+}
 
 // ─── Forecast state — keys + helpers ─────────────────────────────────
 const FORECAST_LOCK_KEY = 'ndb_locked_forecast_v1'
@@ -222,8 +241,7 @@ const TicketVolumeCtx = createContext({
 
 export function LockedDeckProvider({ children }) {
   // ─── Funding state ────────────────────────────────────────────────
-  const [fundingSnapshot, setFundingSnapshot] = useState(() =>
-    readPersisted(FUNDING_LOCK_KEY, isValidFundingLocked))
+  const [fundingSnapshot, setFundingSnapshot] = useState(readPersistedFundingLock)
   const [fundingValues, setFundingValues] = useState(() => {
     const persistedLive = readPersisted(FUNDING_LIVE_KEY, isValidFundingLive)
     if (persistedLive) return { ...buildFundingDefaults(), ...persistedLive }
@@ -250,10 +268,21 @@ export function LockedDeckProvider({ children }) {
 
   // Refs mirror the latest snapshot of EACH lock so the *other* lock's
   // mutator can include the right value when POSTing the merged container.
+  const fundingRef      = useRef(fundingSnapshot)
   const forecastRef     = useRef(forecastSnapshot)
   const ticketVolumeRef = useRef(ticketVolumeLock)
-  useEffect(() => { forecastRef.current = forecastSnapshot }, [forecastSnapshot])
-  useEffect(() => { ticketVolumeRef.current = ticketVolumeLock }, [ticketVolumeLock])
+  useEffect(() => { fundingRef.current      = fundingSnapshot   }, [fundingSnapshot])
+  useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
+  useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
+
+  // Build the full 3-surface container for cross-device sync. Always
+  // includes the latest of all three so neither writer clobbers the
+  // others on the server.
+  const buildContainer = (overrides = {}) => ({
+    funding:      'funding'      in overrides ? overrides.funding      : fundingRef.current,
+    forecast:     'forecast'     in overrides ? overrides.forecast     : forecastRef.current,
+    ticketVolume: 'ticketVolume' in overrides ? overrides.ticketVolume : ticketVolumeRef.current,
+  })
 
   // ─── Shared founder flag ──────────────────────────────────────────
   const isFounder = readIsFounder()
@@ -291,12 +320,14 @@ export function LockedDeckProvider({ children }) {
     const stamped = { ...deriveFundingSnapshot(fundingValues), lockedAt: new Date().toISOString() }
     setFundingSnapshot(stamped)
     try { localStorage.setItem(FUNDING_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ funding: stamped }))
   }, [fundingValues, isFounder])
 
   const unlockFunding = useCallback(() => {
     if (!isFounder) return
     setFundingSnapshot(null)
     try { localStorage.removeItem(FUNDING_LOCK_KEY) } catch {}
+    syncContainerToServer(buildContainer({ funding: null }))
   }, [isFounder])
 
   const resetFunding = useCallback(() => {
@@ -304,6 +335,7 @@ export function LockedDeckProvider({ children }) {
     if (fundingSnapshot) {
       setFundingSnapshot(null)
       try { localStorage.removeItem(FUNDING_LOCK_KEY) } catch {}
+      syncContainerToServer(buildContainer({ funding: null }))
     }
     setFundingValues(buildFundingDefaults())
   }, [fundingSnapshot, isFounder])
@@ -313,15 +345,13 @@ export function LockedDeckProvider({ children }) {
     if (!data) return
     setForecastSnapshot(data)
     try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(data)) } catch {}
-    // POST the merged container — keep the current ticket-volume lock
-    // intact server-side.
-    syncContainerToServer({ forecast: data, ticketVolume: ticketVolumeRef.current })
+    syncContainerToServer(buildContainer({ forecast: data }))
   }, [])
 
   const unlockForecast = useCallback(() => {
     setForecastSnapshot(null)
     try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
-    syncContainerToServer({ forecast: null, ticketVolume: ticketVolumeRef.current })
+    syncContainerToServer(buildContainer({ forecast: null }))
   }, [])
 
   // ─── Ticket-volume API ────────────────────────────────────────────
@@ -334,14 +364,14 @@ export function LockedDeckProvider({ children }) {
     const stamped = { value, lockedAt: new Date().toISOString() }
     setTicketVolumeLock(stamped)
     try { localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(stamped)) } catch {}
-    syncContainerToServer({ forecast: forecastRef.current, ticketVolume: stamped })
+    syncContainerToServer(buildContainer({ ticketVolume: stamped }))
   }, [isFounder])
 
   const unlockTicketVolume = useCallback(() => {
     if (!isFounder) return
     setTicketVolumeLock(null)
     try { localStorage.removeItem(TICKET_VOLUME_LOCK_KEY) } catch {}
-    syncContainerToServer({ forecast: forecastRef.current, ticketVolume: null })
+    syncContainerToServer(buildContainer({ ticketVolume: null }))
   }, [isFounder])
 
   // ─── Context values ───────────────────────────────────────────────
