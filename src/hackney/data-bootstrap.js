@@ -51,10 +51,19 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
     console.info('[hackney] no LOCK_SYNC_URL configured — locks will load from localStorage only')
     return { source: 'local-only' }
   }
+  // Per-tenant: the server stores ONE ROW PER ACCESS CODE. We pass the
+  // active code as ?code=<CODE>. On first visit (fresh tab) sessionStorage
+  // is empty — bootstrap runs before PasswordGate clears — so the server
+  // falls back to its legacy single-tenant cell. Once the user signs in,
+  // the LockedUseOfFundsProvider re-fetches with the right code via its
+  // on-mount useEffect.
+  let code = ''
+  try { code = sessionStorage.getItem('ndb_access_code') || '' } catch {}
+  const url = code ? `${LOCK_SYNC_URL}?code=${encodeURIComponent(code)}` : LOCK_SYNC_URL
   try {
     const ctrl = new AbortController()
     const timeout = setTimeout(() => ctrl.abort(), timeoutMs)
-    const res = await fetch(LOCK_SYNC_URL, { cache: 'no-store', signal: ctrl.signal })
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal })
     clearTimeout(timeout)
     if (!res.ok) throw new Error('HTTP ' + res.status)
     const data = await res.json()

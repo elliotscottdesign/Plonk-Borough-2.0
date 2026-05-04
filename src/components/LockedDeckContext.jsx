@@ -7,6 +7,7 @@ import {
   LOCK_SYNC_URL,
   LOCK_SYNC_SECRET,
 } from '../data.js'
+import { getAccessCode, namespacedKey } from '../lib/access-code.js'
 
 // ─── LockedDeckContext (Borough) ──────────────────────────────────────
 // Single context bundling both deck-level lockable surfaces:
@@ -88,10 +89,10 @@ function readPersistedFundingLock() {
     const fromServer = window.__NDB_FUNDING_LOCK
     try {
       if (fromServer && isValidFundingLocked(fromServer)) {
-        localStorage.setItem(FUNDING_LOCK_KEY, JSON.stringify(fromServer))
+        localStorage.setItem(namespacedKey(FUNDING_LOCK_KEY), JSON.stringify(fromServer))
         return fromServer
       } else {
-        localStorage.removeItem(FUNDING_LOCK_KEY)
+        localStorage.removeItem(namespacedKey(FUNDING_LOCK_KEY))
         return null
       }
     } catch {
@@ -120,10 +121,10 @@ function readPersistedTicketVolumeLock() {
     const fromServer = window.__NDB_TICKET_VOLUME_LOCK
     try {
       if (fromServer && isValidTicketVolumeLock(fromServer)) {
-        localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(fromServer))
+        localStorage.setItem(namespacedKey(TICKET_VOLUME_LOCK_KEY), JSON.stringify(fromServer))
         return fromServer
       } else {
-        localStorage.removeItem(TICKET_VOLUME_LOCK_KEY)
+        localStorage.removeItem(namespacedKey(TICKET_VOLUME_LOCK_KEY))
         return null
       }
     } catch {
@@ -131,7 +132,7 @@ function readPersistedTicketVolumeLock() {
     }
   }
   try {
-    const raw = localStorage.getItem(TICKET_VOLUME_LOCK_KEY)
+    const raw = localStorage.getItem(namespacedKey(TICKET_VOLUME_LOCK_KEY))
     if (!raw) return null
     const parsed = JSON.parse(raw)
     return isValidTicketVolumeLock(parsed) ? parsed : null
@@ -147,10 +148,10 @@ function readPersistedForecastSnapshot() {
     const fromServer = window.__NDB_LOCK_SNAPSHOT
     try {
       if (fromServer && isValidForecastSnapshot(fromServer)) {
-        localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(fromServer))
+        localStorage.setItem(namespacedKey(FORECAST_LOCK_KEY), JSON.stringify(fromServer))
         return fromServer
       } else {
-        localStorage.removeItem(FORECAST_LOCK_KEY)
+        localStorage.removeItem(namespacedKey(FORECAST_LOCK_KEY))
         return null
       }
     } catch {
@@ -158,27 +159,29 @@ function readPersistedForecastSnapshot() {
     }
   }
   try {
-    const raw = localStorage.getItem(FORECAST_LOCK_KEY)
+    const raw = localStorage.getItem(namespacedKey(FORECAST_LOCK_KEY))
     if (!raw) return null
     const parsed = JSON.parse(raw)
     return isValidForecastSnapshot(parsed) ? parsed : null
   } catch { return null }
 }
 
-// Cross-device lock sync — POSTs the merged container { forecast,
-// ticketVolume } to LOCK_SYNC_URL whenever either lock changes. The
-// server stores a single JSON cell, so callers must pass the full
-// container (the *intended* post-change state of both surfaces) — we
-// can't merge server-side.
+// Cross-device lock sync — POSTs the merged container { funding,
+// forecast, ticketVolume } to LOCK_SYNC_URL whenever any lock changes.
+// The server stores ONE ROW PER ACCESS CODE so callers must include the
+// active code in the body — without it the server falls back to its
+// legacy single-tenant cell.
 async function syncContainerToServer(container) {
   if (!LOCK_SYNC_URL) return
+  const code = getAccessCode()
+  if (!code) return  // not signed in → nothing to sync (defensive)
   try {
     await fetch(LOCK_SYNC_URL, {
       method: 'POST',
       mode: 'cors',
       cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
-      body: JSON.stringify({ snapshot: container, secret: LOCK_SYNC_SECRET || undefined }),
+      body: JSON.stringify({ code, snapshot: container, secret: LOCK_SYNC_SECRET || undefined }),
     })
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -187,9 +190,11 @@ async function syncContainerToServer(container) {
 }
 
 // ─── Shared helpers ──────────────────────────────────────────────────
+// All read/write paths go through namespacedKey() so two access codes
+// sharing one browser don't collide on the same localStorage slot.
 const readPersisted = (key, validator) => {
   try {
-    const raw = localStorage.getItem(key)
+    const raw = localStorage.getItem(namespacedKey(key))
     if (!raw) return null
     const parsed = JSON.parse(raw)
     return validator(parsed) ? parsed : null
@@ -275,6 +280,81 @@ export function LockedDeckProvider({ children }) {
   useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
 
+  // ─── Per-tenant re-hydration on mount ─────────────────────────────
+  // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
+  // doesn't know the access code yet — its lock fetch hits the server's
+  // legacy cell, not the user's per-tenant row. This effect runs once
+  // the provider mounts (i.e. after sign-in), grabs the active access
+  // code from sessionStorage, and fetches the right row. Subsequent
+  // locks/unlocks POST back to the same row via syncContainerToServer.
+  useEffect(() => {
+    if (!LOCK_SYNC_URL) return
+    const code = getAccessCode()
+    if (!code) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const ctrl = new AbortController()
+        const timeout = setTimeout(() => ctrl.abort(), 8000)
+        const res = await fetch(`${LOCK_SYNC_URL}?code=${encodeURIComponent(code)}`, {
+          cache: 'no-store', signal: ctrl.signal,
+        })
+        clearTimeout(timeout)
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        const raw = data && data.snapshot ? data.snapshot : null
+        let funding = null
+        let forecast = null
+        let ticketVolume = null
+        if (raw && typeof raw === 'object') {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw) {
+            funding      = raw.funding      ?? null
+            forecast     = raw.forecast     ?? null
+            ticketVolume = raw.ticketVolume ?? null
+          } else if (Number.isFinite(raw.revenue)) {
+            forecast = raw  // legacy flat-forecast
+          }
+        }
+        if (cancelled) return
+        // Apply server state — canonical for this code.
+        setFundingSnapshot(isValidFundingLocked(funding) ? funding : null)
+        setForecastSnapshot(isValidForecastSnapshot(forecast) ? forecast : null)
+        setTicketVolumeLock(isValidTicketVolumeLock(ticketVolume) ? ticketVolume : null)
+        // Mirror to localStorage (namespaced) so subsequent reloads on
+        // this device skip the network round-trip for first paint.
+        try {
+          if (isValidFundingLocked(funding)) {
+            localStorage.setItem(namespacedKey(FUNDING_LOCK_KEY), JSON.stringify(funding))
+          } else {
+            localStorage.removeItem(namespacedKey(FUNDING_LOCK_KEY))
+          }
+          if (isValidForecastSnapshot(forecast)) {
+            localStorage.setItem(namespacedKey(FORECAST_LOCK_KEY), JSON.stringify(forecast))
+          } else {
+            localStorage.removeItem(namespacedKey(FORECAST_LOCK_KEY))
+          }
+          if (isValidTicketVolumeLock(ticketVolume)) {
+            localStorage.setItem(namespacedKey(TICKET_VOLUME_LOCK_KEY), JSON.stringify(ticketVolume))
+          } else {
+            localStorage.removeItem(namespacedKey(TICKET_VOLUME_LOCK_KEY))
+          }
+        } catch {}
+        // eslint-disable-next-line no-console
+        console.info(
+          `[lock-sync] ✓ hydrated · code=${code}` +
+          ` · funding=${funding ? 'set' : 'empty'}` +
+          ` · forecast=${forecast ? 'set' : 'empty'}` +
+          ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}`
+        )
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn('[lock-sync] hydrate failed, using local state:', e.message)
+      }
+    })()
+    return () => { cancelled = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   // Build the full 3-surface container for cross-device sync. Always
   // includes the latest of all three so neither writer clobbers the
   // others on the server.
@@ -297,7 +377,7 @@ export function LockedDeckProvider({ children }) {
   // Persist funding live values (founder only).
   useEffect(() => {
     if (!isFounder) return
-    try { localStorage.setItem(FUNDING_LIVE_KEY, JSON.stringify(fundingValues)) } catch {}
+    try { localStorage.setItem(namespacedKey(FUNDING_LIVE_KEY), JSON.stringify(fundingValues)) } catch {}
   }, [fundingValues, isFounder])
 
   // ─── Funding API ──────────────────────────────────────────────────
@@ -319,14 +399,14 @@ export function LockedDeckProvider({ children }) {
     if (!isFounder) return
     const stamped = { ...deriveFundingSnapshot(fundingValues), lockedAt: new Date().toISOString() }
     setFundingSnapshot(stamped)
-    try { localStorage.setItem(FUNDING_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    try { localStorage.setItem(namespacedKey(FUNDING_LOCK_KEY), JSON.stringify(stamped)) } catch {}
     syncContainerToServer(buildContainer({ funding: stamped }))
   }, [fundingValues, isFounder])
 
   const unlockFunding = useCallback(() => {
     if (!isFounder) return
     setFundingSnapshot(null)
-    try { localStorage.removeItem(FUNDING_LOCK_KEY) } catch {}
+    try { localStorage.removeItem(namespacedKey(FUNDING_LOCK_KEY)) } catch {}
     syncContainerToServer(buildContainer({ funding: null }))
   }, [isFounder])
 
@@ -334,7 +414,7 @@ export function LockedDeckProvider({ children }) {
     if (!isFounder) return
     if (fundingSnapshot) {
       setFundingSnapshot(null)
-      try { localStorage.removeItem(FUNDING_LOCK_KEY) } catch {}
+      try { localStorage.removeItem(namespacedKey(FUNDING_LOCK_KEY)) } catch {}
       syncContainerToServer(buildContainer({ funding: null }))
     }
     setFundingValues(buildFundingDefaults())
@@ -344,13 +424,13 @@ export function LockedDeckProvider({ children }) {
   const lockForecast = useCallback((data) => {
     if (!data) return
     setForecastSnapshot(data)
-    try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(data)) } catch {}
+    try { localStorage.setItem(namespacedKey(FORECAST_LOCK_KEY), JSON.stringify(data)) } catch {}
     syncContainerToServer(buildContainer({ forecast: data }))
   }, [])
 
   const unlockForecast = useCallback(() => {
     setForecastSnapshot(null)
-    try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
+    try { localStorage.removeItem(namespacedKey(FORECAST_LOCK_KEY)) } catch {}
     syncContainerToServer(buildContainer({ forecast: null }))
   }, [])
 
@@ -363,14 +443,14 @@ export function LockedDeckProvider({ children }) {
     if (!Number.isFinite(value)) return
     const stamped = { value, lockedAt: new Date().toISOString() }
     setTicketVolumeLock(stamped)
-    try { localStorage.setItem(TICKET_VOLUME_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    try { localStorage.setItem(namespacedKey(TICKET_VOLUME_LOCK_KEY), JSON.stringify(stamped)) } catch {}
     syncContainerToServer(buildContainer({ ticketVolume: stamped }))
   }, [isFounder])
 
   const unlockTicketVolume = useCallback(() => {
     if (!isFounder) return
     setTicketVolumeLock(null)
-    try { localStorage.removeItem(TICKET_VOLUME_LOCK_KEY) } catch {}
+    try { localStorage.removeItem(namespacedKey(TICKET_VOLUME_LOCK_KEY)) } catch {}
     syncContainerToServer(buildContainer({ ticketVolume: null }))
   }, [isFounder])
 

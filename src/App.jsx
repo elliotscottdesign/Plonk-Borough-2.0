@@ -52,13 +52,24 @@ export default function App() {
   const topTabKeys = plonkAccess ? TOP_TAB_KEYS_PLONK : TOP_TAB_KEYS_BASE
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, founder, role, lang: chosenLang }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, role, lang: chosenLang, accessCode }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
-      // Founder flag — only 888999 grants edit access on the 2026 Performance
-      // tab via LockedForecastContext.canEdit. Everyone else is read-only.
-      if (founder) sessionStorage.setItem('ndb_founder', '1')
-      else         sessionStorage.removeItem('ndb_founder')
+      // Per-tenant access code — every signed-in user gets their own
+      // private slot for drags + locks. localStorage keys and the
+      // lock-sync server URL are both keyed off this string. Drags
+      // and locks under code A never affect code B's view.
+      if (accessCode) sessionStorage.setItem('ndb_access_code', accessCode)
+      else            sessionStorage.removeItem('ndb_access_code')
+      // Edit-access flag — under the per-tenant model EVERY signed-in
+      // user can drag + lock within their own scope, so this flag is
+      // set on every successful unlock. The original founder/observer
+      // boolean (only 888999 + JOHN1 currently) is preserved as
+      // ndb_role_founder for any future flow that needs to distinguish
+      // the canonical-founder tier.
+      sessionStorage.setItem('ndb_founder', '1')
+      if (founder) sessionStorage.setItem('ndb_role_founder', '1')
+      else         sessionStorage.removeItem('ndb_role_founder')
       // Plonk visibility — 888999 and VALEX get the Plonk top-tab; TEST1
       // and BRAZIL do not. Stripped from the tab array below.
       if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')

@@ -44,7 +44,9 @@ export default function PasswordGate({ onUnlock }) {
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
-      onUnlock({ ...access, lang: 'en' })
+      // Pass the canonical access code through alongside the role flags
+      // so App.jsx can use it as the per-tenant key for lock-sync.
+      onUnlock({ ...access, lang: 'en', accessCode: candidate })
     } else {
       setError(true)
       setInput('')

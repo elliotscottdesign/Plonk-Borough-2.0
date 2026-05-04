@@ -160,6 +160,15 @@ export async function bootstrapDataFromSheet({ timeoutMs = 9000 } = {}) {
 // Falls back silently — the provider will use localStorage if this fails.
 async function fetchLockedSnapshot() {
   if (!LOCK_SYNC_URL) return
+  // Per-tenant: the server stores ONE ROW PER ACCESS CODE. We pass the
+  // active code as ?code=<CODE>. On first visit (fresh tab) sessionStorage
+  // is empty here — bootstrap runs before PasswordGate clears — so the
+  // server falls back to its legacy single-tenant cell, which is
+  // harmless. Once the user signs in, the LockedDeckProvider re-fetches
+  // with the right code via its on-mount useEffect.
+  let code = ''
+  try { code = sessionStorage.getItem('ndb_access_code') || '' } catch {}
+  const url = code ? `${LOCK_SYNC_URL}?code=${encodeURIComponent(code)}` : LOCK_SYNC_URL
   try {
     // 8s timeout — Apps Script cold-start can take 3-5s per call (verified
     // empirically against the deployed endpoint), and a redirect hop adds
@@ -169,7 +178,7 @@ async function fetchLockedSnapshot() {
     // devices because the server payload was thrown away).
     const ctrl = new AbortController()
     const timeout = setTimeout(() => ctrl.abort(), 8000)
-    const res = await fetch(LOCK_SYNC_URL, { cache: 'no-store', signal: ctrl.signal })
+    const res = await fetch(url, { cache: 'no-store', signal: ctrl.signal })
     clearTimeout(timeout)
     if (!res.ok) throw new Error('HTTP ' + res.status)
     const data = await res.json()
