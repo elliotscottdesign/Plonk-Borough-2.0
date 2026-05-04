@@ -264,17 +264,33 @@ function readPersistedBarPriceLock() {
 // back to its legacy single-tenant cell. Mirrors Borough's
 // syncContainerToServer().
 async function syncContainerToServer(container) {
-  if (!LOCK_SYNC_URL) return
+  if (!LOCK_SYNC_URL) {
+    // eslint-disable-next-line no-console
+    console.warn('[hackney lock-sync] no LOCK_SYNC_URL configured — POST skipped')
+    return
+  }
   const code = getAccessCode()
-  if (!code) return  // not signed in → nothing to sync (defensive)
+  if (!code) {
+    // eslint-disable-next-line no-console
+    console.warn('[hackney lock-sync] no access code in sessionStorage — POST skipped (sign in first)')
+    return
+  }
+  // Verbose logging so the user can see exactly what was POSTed and what
+  // the server replied with, without opening the Network tab. Visible
+  // under [hackney lock-sync] in DevTools Console.
+  // eslint-disable-next-line no-console
+  console.info('[hackney lock-sync] → POST', { code, container })
   try {
-    await fetch(LOCK_SYNC_URL, {
+    const res = await fetch(LOCK_SYNC_URL, {
       method: 'POST',
       mode: 'cors',
       cache: 'no-store',
       headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
       body: JSON.stringify({ code, snapshot: container, secret: LOCK_SYNC_SECRET || undefined }),
     })
+    const text = await res.text()
+    // eslint-disable-next-line no-console
+    console.info(`[hackney lock-sync] ← ${res.status} ${res.statusText} ·`, text.slice(0, 200))
   } catch (e) {
     // eslint-disable-next-line no-console
     console.warn('[hackney lock-sync] container POST failed, kept local only:', e.message)
