@@ -356,7 +356,6 @@ function GolfHostSeasonality() {
                 formatter={(v) => [fmt(v), 'Till revenue']}
               />
               <Bar  dataKey="revenue" name="Revenue" fill="#2DD4BF" radius={[3,3,0,0]} maxBarSize={36} />
-              <Line dataKey="revenue" stroke="#2DD4BF" strokeWidth={2} dot={{ fill:'#2DD4BF', r:3 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
