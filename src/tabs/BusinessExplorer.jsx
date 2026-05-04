@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import PrevTillSales from './PrevTillSales.jsx'
@@ -10,7 +10,7 @@ import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_B
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedTicketVolume } from '../components/LockedDeckContext.jsx'
+import { useLockedTicketVolume, useLockedFixedCosts } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -1244,7 +1244,20 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
   const { t } = useTranslation('explorer')
   const { fmt } = useFmt()
-  const { isLocked, canEdit } = useLockedForecast()
+  // Two locks gate edits here: the broader 2026 forecast lock AND the
+  // section-specific fixed-costs lock. Either one being engaged disables
+  // the sliders. The Lock/Unlock button on this card controls only the
+  // fixed-costs lock — when engaged the values are pinned for every
+  // viewer and feed straight into the 2026 forecast totals.
+  const forecast = useLockedForecast()
+  const fcLock = useLockedFixedCosts()
+  const isLocked = fcLock.isLocked
+  const canEdit = forecast.canEdit && fcLock.canEdit
+  const handleLockToggle = () => {
+    if (!fcLock.isFounder) return
+    if (fcLock.isLocked) fcLock.unlock()
+    else fcLock.lock(fixedCosts)
+  }
 
   // Auto rent — contractually 15% of turnover. Not editable.
   const rent2025 = Math.round(ACTUALS_2025.revenue * RENT_PCT_OF_TURNOVER)
@@ -1258,8 +1271,8 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
   const totalMonthly     = Math.round(totalAnnual / 12)
   const delta            = totalAnnual - ref2025Total
 
-  const update = (id, value) => setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
-  const resetAll = () => setFixedCosts(FIXED_COSTS_2026_DEFAULTS)
+  const update = (id, value) => { if (canEdit) setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) })) }
+  const resetAll = () => { if (canEdit) setFixedCosts(FIXED_COSTS_2026_DEFAULTS) }
 
   const deltaColor = delta > 0 ? '#EF4444' : delta < 0 ? '#2DD4BF' : '#9CA3AF'
 
@@ -1300,8 +1313,44 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
       </div>
 
       {/* Per-row sliders */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('fixedCosts.sliderHeader')}</div>
+      <div style={{ background:'var(--ink-2)', border:`1px solid ${isLocked ? 'rgba(45,212,191,0.35)' : 'rgba(255,255,255,0.08)'}`, borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, gap:10, flexWrap:'wrap' }}>
+          <span style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.sliderHeader')}</span>
+          {fcLock.isFounder ? (
+            <button
+              onClick={handleLockToggle}
+              title={isLocked ? 'Unlock — resume editing the per-line fixed costs' : 'Lock these values so every visitor sees them and they feed the 2026 forecast totals'}
+              style={{
+                display:'inline-flex', alignItems:'center', gap:6,
+                padding:'5px 11px', borderRadius:6, fontSize:10.5, fontWeight:700,
+                letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
+                background: isLocked ? 'rgba(45,212,191,0.15)' : 'rgba(201,168,76,0.10)',
+                border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.35)'}`,
+                color: isLocked ? '#2DD4BF' : 'var(--gold)',
+                transition:'all 0.15s',
+              }}
+            >
+              <span>{isLocked ? '🔒' : '🔓'}</span>
+              <span>{isLocked ? 'Locked' : 'Lock'}</span>
+            </button>
+          ) : isLocked ? (
+            <span style={{
+              display:'inline-flex', alignItems:'center', gap:6,
+              padding:'5px 11px', borderRadius:6, fontSize:10.5, fontWeight:700,
+              letterSpacing:'0.06em', textTransform:'uppercase',
+              background:'rgba(45,212,191,0.10)',
+              border:'1px solid rgba(45,212,191,0.25)',
+              color:'#2DD4BF',
+            }}>
+              <span>🔒</span><span>Locked snapshot</span>
+            </span>
+          ) : null}
+        </div>
+        {isLocked && (
+          <div style={{ marginBottom:14, padding:'8px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
+            These values are locked and feeding the 2026 forecast totals. {fcLock.isFounder ? 'Unlock to edit.' : 'Founder-controlled — read-only for visitors.'}
+          </div>
+        )}
 
         {/* Auto rent — non-editable, scales with revenue at 15% (contractual) */}
         <div style={{ background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:8, padding:'14px 16px', marginBottom:14 }}>
@@ -1866,7 +1915,26 @@ export default function BusinessExplorer() {
 
   // Fixed costs (rent, rates, utilities, etc.) — monthly £ per item.
   // Total × 12 replaces the static fixedLine in the cost model.
-  const [fixedCosts, setFixedCosts] = useState(FIXED_COSTS_2026_DEFAULTS)
+  // When the founder locks this section, the locked.values pin the
+  // sliders for everyone and feed the 2026 forecast totals via the
+  // effectiveFixedCosts passed down to TabPerformance.
+  const fixedCostsLock = useLockedFixedCosts()
+  const [fixedCosts, setFixedCosts] = useState(
+    () => fixedCostsLock.locked?.values
+      ? { ...FIXED_COSTS_2026_DEFAULTS, ...fixedCostsLock.locked.values }
+      : FIXED_COSTS_2026_DEFAULTS
+  )
+  // Keep the live editing state in sync whenever a lock arrives
+  // (cross-device hydrate, founder lock action) so unlocking resumes
+  // editing from the last locked snapshot rather than defaults.
+  useEffect(() => {
+    if (fixedCostsLock.locked?.values) {
+      setFixedCosts(prev => ({ ...prev, ...fixedCostsLock.locked.values }))
+    }
+  }, [fixedCostsLock.locked])
+  const effectiveFixedCosts = fixedCostsLock.locked?.values
+    ? { ...FIXED_COSTS_2026_DEFAULTS, ...fixedCostsLock.locked.values }
+    : fixedCosts
 
   // Wage rates lifted to parent so the 2026 Performance tab and the standalone
   // Wages tab share the same state — moving a slider in either reflects in both.
@@ -1889,7 +1957,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     tillsales2025:   <BoroughTillSales2025 />,
-    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={fixedCosts} setFixedCosts={setFixedCosts} />,
+    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
     prevTillSales:   <PrevTillSales />,
   }

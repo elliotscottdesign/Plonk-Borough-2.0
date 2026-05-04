@@ -139,6 +139,39 @@ function readPersistedTicketVolumeLock() {
   } catch { return null }
 }
 
+// ─── Fixed-costs lock — per-line monthly sliders on Business Explorer ·
+// 2026 Performance (rates, electricity, water, insurance, internet, PRS,
+// maintenance, equipment & misc). When the founder locks this surface the
+// slider values are pinned for every viewer and feed straight into the
+// 2026 forecast totals via the locked snapshot.
+const FIXED_COSTS_LOCK_KEY = 'ndb_fixed_costs_locked_v1'
+
+const isValidFixedCostsLock = (v) =>
+  v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+function readPersistedFixedCostsLock() {
+  if (typeof window !== 'undefined' && window.__NDB_FIXED_COSTS_LOCK !== undefined) {
+    const fromServer = window.__NDB_FIXED_COSTS_LOCK
+    try {
+      if (fromServer && isValidFixedCostsLock(fromServer)) {
+        localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidFixedCostsLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(namespacedKey(FIXED_COSTS_LOCK_KEY))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidFixedCostsLock(parsed) ? parsed : null
+  } catch { return null }
+}
+
 const isValidForecastSnapshot = (s) =>
   s && typeof s === 'object' && Number.isFinite(s.revenue)
 
@@ -257,6 +290,15 @@ const TicketVolumeCtx = createContext({
   unlock: () => {},
 })
 
+const FixedCostsCtx = createContext({
+  locked: null,        // { values: {...}, lockedAt: ISO } | null
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  lock: () => {},      // (values: object) => void
+  unlock: () => {},
+})
+
 export function LockedDeckProvider({ children }) {
   // ─── Funding state ────────────────────────────────────────────────
   const [fundingSnapshot, setFundingSnapshot] = useState(readPersistedFundingLock)
@@ -284,14 +326,19 @@ export function LockedDeckProvider({ children }) {
   // ─── Ticket-volume state ──────────────────────────────────────────
   const [ticketVolumeLock, setTicketVolumeLock] = useState(readPersistedTicketVolumeLock)
 
+  // ─── Fixed-costs state ────────────────────────────────────────────
+  const [fixedCostsLock, setFixedCostsLock] = useState(readPersistedFixedCostsLock)
+
   // Refs mirror the latest snapshot of EACH lock so the *other* lock's
   // mutator can include the right value when POSTing the merged container.
   const fundingRef      = useRef(fundingSnapshot)
   const forecastRef     = useRef(forecastSnapshot)
   const ticketVolumeRef = useRef(ticketVolumeLock)
+  const fixedCostsRef   = useRef(fixedCostsLock)
   useEffect(() => { fundingRef.current      = fundingSnapshot   }, [fundingSnapshot])
   useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
+  useEffect(() => { fixedCostsRef.current   = fixedCostsLock    }, [fixedCostsLock])
 
   // ─── Per-tenant re-hydration on mount ─────────────────────────────
   // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
@@ -319,11 +366,13 @@ export function LockedDeckProvider({ children }) {
         let funding = null
         let forecast = null
         let ticketVolume = null
+        let fixedCosts = null
         if (raw && typeof raw === 'object') {
-          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw) {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw) {
             funding      = raw.funding      ?? null
             forecast     = raw.forecast     ?? null
             ticketVolume = raw.ticketVolume ?? null
+            fixedCosts   = raw.fixedCosts   ?? null
           } else if (Number.isFinite(raw.revenue)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -333,6 +382,7 @@ export function LockedDeckProvider({ children }) {
         setFundingSnapshot(isValidFundingLocked(funding) ? funding : null)
         setForecastSnapshot(isValidForecastSnapshot(forecast) ? forecast : null)
         setTicketVolumeLock(isValidTicketVolumeLock(ticketVolume) ? ticketVolume : null)
+        setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
         // Mirror to localStorage (namespaced) so subsequent reloads on
         // this device skip the network round-trip for first paint.
         try {
@@ -351,13 +401,19 @@ export function LockedDeckProvider({ children }) {
           } else {
             localStorage.removeItem(namespacedKey(TICKET_VOLUME_LOCK_KEY))
           }
+          if (isValidFixedCostsLock(fixedCosts)) {
+            localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(fixedCosts))
+          } else {
+            localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY))
+          }
         } catch {}
         // eslint-disable-next-line no-console
         console.info(
           `[lock-sync] ✓ hydrated · code=${code}` +
           ` · funding=${funding ? 'set' : 'empty'}` +
           ` · forecast=${forecast ? 'set' : 'empty'}` +
-          ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}`
+          ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}` +
+          ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}`
         )
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -368,13 +424,14 @@ export function LockedDeckProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Build the full 3-surface container for cross-device sync. Always
-  // includes the latest of all three so neither writer clobbers the
-  // others on the server.
+  // Build the full 4-surface container for cross-device sync. Always
+  // includes the latest of all four so no writer clobbers the others on
+  // the server.
   const buildContainer = (overrides = {}) => ({
     funding:      'funding'      in overrides ? overrides.funding      : fundingRef.current,
     forecast:     'forecast'     in overrides ? overrides.forecast     : forecastRef.current,
     ticketVolume: 'ticketVolume' in overrides ? overrides.ticketVolume : ticketVolumeRef.current,
+    fixedCosts:   'fixedCosts'   in overrides ? overrides.fixedCosts   : fixedCostsRef.current,
   })
 
   // ─── Shared founder flag ──────────────────────────────────────────
@@ -386,6 +443,8 @@ export function LockedDeckProvider({ children }) {
   const forecastCanEdit       = isFounder && !forecastIsLocked
   const ticketVolumeIsLocked  = ticketVolumeLock !== null
   const ticketVolumeCanEdit   = isFounder && !ticketVolumeIsLocked
+  const fixedCostsIsLocked    = fixedCostsLock !== null
+  const fixedCostsCanEdit     = isFounder && !fixedCostsIsLocked
 
   // Persist funding live values (founder only).
   useEffect(() => {
@@ -467,6 +526,26 @@ export function LockedDeckProvider({ children }) {
     syncContainerToServer(buildContainer({ ticketVolume: null }))
   }, [isFounder])
 
+  // ─── Fixed-costs API ──────────────────────────────────────────────
+  // Founder-only lock for the per-line monthly cost sliders. Persists
+  // across reloads in localStorage AND syncs cross-device via
+  // LOCK_SYNC_URL (when configured) by POSTing the merged container.
+  const lockFixedCosts = useCallback((values) => {
+    if (!isFounder) return
+    if (!values || typeof values !== 'object') return
+    const stamped = { values: { ...values }, lockedAt: new Date().toISOString() }
+    setFixedCostsLock(stamped)
+    try { localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ fixedCosts: stamped }))
+  }, [isFounder])
+
+  const unlockFixedCosts = useCallback(() => {
+    if (!isFounder) return
+    setFixedCostsLock(null)
+    try { localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ fixedCosts: null }))
+  }, [isFounder])
+
   // ─── Context values ───────────────────────────────────────────────
   const fundingValue = {
     values: fundingValues,
@@ -499,11 +578,22 @@ export function LockedDeckProvider({ children }) {
     unlock: unlockTicketVolume,
   }
 
+  const fixedCostsValue = {
+    locked: fixedCostsLock,
+    isLocked: fixedCostsIsLocked,
+    isFounder,
+    canEdit: fixedCostsCanEdit,
+    lock: lockFixedCosts,
+    unlock: unlockFixedCosts,
+  }
+
   return (
     <ForecastCtx.Provider value={forecastValue}>
       <FundingCtx.Provider value={fundingValue}>
         <TicketVolumeCtx.Provider value={ticketVolumeValue}>
-          {children}
+          <FixedCostsCtx.Provider value={fixedCostsValue}>
+            {children}
+          </FixedCostsCtx.Provider>
         </TicketVolumeCtx.Provider>
       </FundingCtx.Provider>
     </ForecastCtx.Provider>
@@ -521,6 +611,10 @@ export function useLockedForecast() {
 
 export function useLockedTicketVolume() {
   return useContext(TicketVolumeCtx)
+}
+
+export function useLockedFixedCosts() {
+  return useContext(FixedCostsCtx)
 }
 
 // Re-export so consumers don't need a second import

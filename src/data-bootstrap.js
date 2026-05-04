@@ -189,12 +189,14 @@ async function fetchLockedSnapshot() {
       let funding = null
       let forecast = null
       let ticketVolume = null
+      let fixedCosts = null
       if (raw && typeof raw === 'object') {
-        if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw) {
-          // v2 / v3 container shape.
+        if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw) {
+          // v2 / v3 / v4 container shape.
           funding      = raw.funding      ?? null
           forecast     = raw.forecast     ?? null
           ticketVolume = raw.ticketVolume ?? null
+          fixedCosts   = raw.fixedCosts   ?? null
         } else if (Number.isFinite(raw.revenue)) {
           // Legacy flat-forecast shape.
           forecast = raw
@@ -204,12 +206,14 @@ async function fetchLockedSnapshot() {
       window.__NDB_FUNDING_LOCK       = funding
       window.__NDB_LOCK_SNAPSHOT      = forecast
       window.__NDB_TICKET_VOLUME_LOCK = ticketVolume
+      window.__NDB_FIXED_COSTS_LOCK   = fixedCosts
       // eslint-disable-next-line no-console
       console.info(
         '[deck-data] ✓ locks synced from server' +
         ` · funding=${funding ? 'set' : 'empty'}` +
         ` · forecast=${forecast ? 'set' : 'empty'}` +
-        ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}`
+        ` · ticketVolume=${ticketVolume ? 'set' : 'empty'}` +
+        ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}`
       )
     }
   } catch (e) {
