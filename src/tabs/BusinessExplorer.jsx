@@ -128,14 +128,14 @@ const HISTORICAL_RENT_2025          = 111247
 const HISTORICAL_NON_RENT_FIXED_2025 = 54400
 
 const FIXED_COST_ITEMS = [
-  { id: 'rates',       ref2025Annual:  18000 },
-  { id: 'electricity', ref2025Annual:  18000 },
-  { id: 'water',       ref2025Annual:   4000 },
-  { id: 'insurance',   ref2025Annual:  10000 },
-  { id: 'internet',    ref2025Annual:   4000 },
-  { id: 'prs',         ref2025Annual:   2500 },
-  { id: 'maintenance', ref2025Annual:  14000 },
-  { id: 'misc',        ref2025Annual:   4147 },
+  { id: 'rates',       label: 'Business rates',         note: '2025 actual £18,000', ref2025Annual:  18000 },
+  { id: 'electricity', label: 'Electricity',            note: '2025 actual £18,000', ref2025Annual:  18000 },
+  { id: 'water',       label: 'Water',                  note: '2025 actual £4,000',  ref2025Annual:   4000 },
+  { id: 'insurance',   label: 'Insurance',              note: '2025 actual £10,000', ref2025Annual:  10000 },
+  { id: 'internet',    label: 'Internet',               note: '2025 actual £4,000',  ref2025Annual:   4000 },
+  { id: 'prs',         label: 'PRS / music licence',    note: '2025 actual £2,500',  ref2025Annual:   2500 },
+  { id: 'maintenance', label: 'Maintenance & repairs',  note: '2025 actual £14,000', ref2025Annual:  14000 },
+  { id: 'misc',        label: 'Equipment & misc',       note: '2025 actual £4,147',  ref2025Annual:   4147 },
 ]
 
 // Default 2026 monthly = 2025 monthly × 1.10 inflation, rounded to £.
@@ -1196,8 +1196,7 @@ function CompareCard({ label, v2025, v2026, delta, deltaColor, sub }) {
 // per-row rounding — within tolerance).
 // ───────────────────────────────────────────────────────────────────────
 function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
-  const { t } = useTranslation('explorer')
-  const { fmt } = useFmt()
+  const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
   // Two locks gate edits here: the broader 2026 forecast lock AND the
   // section-specific fixed-costs lock. Either one being engaged disables
   // the sliders. The Lock/Unlock button on this card controls only the
@@ -1207,159 +1206,117 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
   const fcLock = useLockedFixedCosts()
   const isLocked = fcLock.isLocked
   const canEdit = forecast.canEdit && fcLock.canEdit
-  const handleLockToggle = () => {
-    if (!fcLock.isFounder) return
-    if (fcLock.isLocked) fcLock.unlock()
-    else fcLock.lock(fixedCosts)
-  }
 
   // Auto rent — contractually 15% of turnover. Not editable.
-  const rent2025 = Math.round(ACTUALS_2025.revenue * RENT_PCT_OF_TURNOVER)
   const rent2026 = Math.round(totalIncome * RENT_PCT_OF_TURNOVER)
 
-  // Editable rows totals + auto rent
-  const editableRef2025  = FIXED_COST_ITEMS.reduce((sum, i) => sum + i.ref2025Annual, 0)
-  const editable2026     = sumFixedCostsAnnual(fixedCosts)
-  const ref2025Total     = editableRef2025 + rent2025
-  const totalAnnual      = editable2026 + rent2026
-  const totalMonthly     = Math.round(totalAnnual / 12)
-  const delta            = totalAnnual - ref2025Total
+  const editorAnnualTotal = sumFixedCostsAnnual(fixedCosts)
+  const grandTotal        = editorAnnualTotal + rent2026
 
-  const update = (id, value) => { if (canEdit) setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) })) }
+  // Storage convention: fixedCosts[id] = MONTHLY £. We render & edit in
+  // ANNUAL £ to match the Hackney editor; convert on read/write.
+  const setLine = (id, annualVal) => {
+    if (!canEdit) return
+    setFixedCosts(prev => ({ ...prev, [id]: Math.max(0, Math.round((Number(annualVal) || 0) / 12)) }))
+  }
   const resetAll = () => { if (canEdit) setFixedCosts(FIXED_COSTS_2026_DEFAULTS) }
 
-  const deltaColor = delta > 0 ? '#EF4444' : delta < 0 ? '#2DD4BF' : '#9CA3AF'
+  const lockedAtLabel = fcLock.locked?.lockedAt
+    ? new Date(fcLock.locked.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* Header + total tile */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:10 }}>
-            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.header')}</div>
-            <span style={{
-              fontSize:9.5, padding:'3px 9px', borderRadius:10, fontWeight:700,
-              background:'rgba(45,212,191,0.15)', color:'#2DD4BF',
-              border:'1px solid rgba(45,212,191,0.35)',
-              letterSpacing:'0.1em', textTransform:'uppercase',
-            }}>{t('fixedCosts.vatPill')}</span>
-          </div>
-          <ResetBtn onClick={resetAll} title={t('fixedCosts.resetAll')} />
-        </div>
-        <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('fixedCosts.note')}</div>
+    <div className="card" style={{ padding:20, border: isLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'#FB923C', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Fixed Costs · Editor</div>
+        <div style={{ fontSize:13, color:'#FB923C', fontWeight:600 }}>{fmtMoney(grandTotal)}/yr</div>
+      </div>
 
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:12 }}>
-          <div style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2025 Actual</div>
-            <div style={{ fontSize:20, fontWeight:700, color:'#9CA3AF' }}>{fmt(ref2025Total)}</div>
-          </div>
-          <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:9, color:'#22D3EE', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>2026 Forecast</div>
-            <div style={{ fontSize:22, fontWeight:800, color:'var(--gold)' }}>{fmt(totalAnnual)}</div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:3 }}>{fmt(totalMonthly)} / month</div>
-          </div>
-          <div style={{ background:'rgba(255,255,255,0.03)', border:`1px solid ${deltaColor}33`, borderRadius:8, padding:'14px 16px', textAlign:'center' }}>
-            <div style={{ fontSize:9, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6 }}>{t('fixedCosts.deltaLabel')}</div>
-            <div style={{ fontSize:22, fontWeight:800, color:deltaColor }}>{delta > 0 ? '+' : ''}{fmt(delta)}</div>
-            <div style={{ fontSize:11, color:'#6B7280', marginTop:3 }}>{t('fixedCosts.vsReference')}</div>
-          </div>
+      {/* Lock toolbar — Live preview / Locked pill on the left, Reset / Lock on the right */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:6,
+          padding:'3px 10px', borderRadius:12,
+          background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+          border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+          fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+          letterSpacing:'0.08em', textTransform:'uppercase',
+        }}>
+          <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+          {isLocked
+            ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to 2026 forecast')
+            : 'Live preview'}
+        </span>
+        <div style={{ display:'flex', gap:6 }}>
+          {fcLock.isFounder && (
+            <button onClick={resetAll} disabled={!canEdit} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.5 }}>Reset</button>
+          )}
+          {fcLock.isFounder && (
+            isLocked ? (
+              <button onClick={fcLock.unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+            ) : (
+              <button onClick={() => fcLock.lock(fixedCosts)} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+            )
+          )}
         </div>
       </div>
 
-      {/* Per-row sliders */}
-      <div style={{ background:'var(--ink-2)', border:`1px solid ${isLocked ? 'rgba(45,212,191,0.35)' : 'rgba(255,255,255,0.08)'}`, borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:14, gap:10, flexWrap:'wrap' }}>
-          <span style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('fixedCosts.sliderHeader')}</span>
-          {fcLock.isFounder ? (
-            <button
-              onClick={handleLockToggle}
-              title={isLocked ? 'Unlock — resume editing the per-line fixed costs' : 'Lock these values so every visitor sees them and they feed the 2026 forecast totals'}
-              style={{
-                display:'inline-flex', alignItems:'center', gap:6,
-                padding:'5px 11px', borderRadius:6, fontSize:10.5, fontWeight:700,
-                letterSpacing:'0.06em', textTransform:'uppercase', cursor:'pointer',
-                background: isLocked ? 'rgba(45,212,191,0.15)' : 'rgba(201,168,76,0.10)',
-                border: `1px solid ${isLocked ? 'rgba(45,212,191,0.45)' : 'rgba(201,168,76,0.35)'}`,
-                color: isLocked ? '#2DD4BF' : 'var(--gold)',
-                transition:'all 0.15s',
-              }}
-            >
-              <span>{isLocked ? '🔒' : '🔓'}</span>
-              <span>{isLocked ? 'Locked' : 'Lock'}</span>
-            </button>
-          ) : isLocked ? (
-            <span style={{
-              display:'inline-flex', alignItems:'center', gap:6,
-              padding:'5px 11px', borderRadius:6, fontSize:10.5, fontWeight:700,
-              letterSpacing:'0.06em', textTransform:'uppercase',
-              background:'rgba(45,212,191,0.10)',
-              border:'1px solid rgba(45,212,191,0.25)',
-              color:'#2DD4BF',
-            }}>
-              <span>🔒</span><span>Locked snapshot</span>
-            </span>
-          ) : null}
-        </div>
-        {isLocked && (
-          <div style={{ marginBottom:14, padding:'8px 12px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.2)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-            These values are locked and feeding the 2026 forecast totals. {fcLock.isFounder ? 'Unlock to edit.' : 'Founder-controlled — read-only for visitors.'}
-          </div>
-        )}
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Drag each annual figure. Defaults are 2025 actuals × 1.10 inflation. Rent ({fmtMoney(rent2026)}) is contractually 15% of turnover and shown as a separate read-only line — not editable here.
+      </div>
 
-        {/* Auto rent — non-editable, scales with revenue at 15% (contractual) */}
-        <div style={{ background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:8, padding:'14px 16px', marginBottom:14 }}>
-          <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-            <span style={{ display:'inline-flex', alignItems:'center', gap:8 }}>
-              <span style={{ fontWeight:600, color:'var(--cream)' }}>{t('fixedCosts.items.rent')}</span>
-              <span style={{
-                fontSize:9, padding:'2px 7px', borderRadius:8, fontWeight:700,
-                background:'rgba(45,212,191,0.18)', color:'#2DD4BF',
-                letterSpacing:'0.08em', textTransform:'uppercase',
-              }}>{t('fixedCosts.autoPill')}</span>
-            </span>
-            <span style={{ color:'#2DD4BF', fontWeight:700, fontSize:14 }}>£{Math.round(rent2026 / 12).toLocaleString()}/mo · {fmt(rent2026)}/yr</span>
-          </div>
-          <div style={{ fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-            {t('fixedCosts.rentFormula', { pct: '15%', revenue: fmt(Math.round(totalIncome)) })}
-          </div>
-          <div style={{ fontSize:10, color:'#6B7280', marginTop:3 }}>
-            {t('fixedCosts.rentRef2025', { val: fmt(rent2025) })}
-          </div>
-        </div>
-
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:14 }}>
-          {FIXED_COST_ITEMS.map(item => {
-            const monthly2025 = Math.round(item.ref2025Annual / 12)
-            const monthly2026 = fixedCosts[item.id] ?? FIXED_COSTS_2026_DEFAULTS[item.id]
-            const annual2026  = monthly2026 * 12
-            const sliderMax   = Math.max(monthly2025 * 2, monthly2026 + 100)
-            const monthDelta  = monthly2026 - monthly2025
-            const itemDeltaColor = monthDelta > 0 ? '#EF4444' : monthDelta < 0 ? '#2DD4BF' : '#9CA3AF'
-            const step = monthly2025 >= 2000 ? 25 : monthly2025 >= 500 ? 5 : 1
-            return (
-              <div key={item.id} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'12px 14px' }}>
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:6 }}>
-                  <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`fixedCosts.items.${item.id}`)}</span>
-                  <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                    <span style={{ color:'var(--gold)', fontWeight:700, fontSize:14 }}>£{monthly2026.toLocaleString()}/mo</span>
-                    <ResetBtn onClick={() => { if (canEdit) update(item.id, FIXED_COSTS_2026_DEFAULTS[item.id]) }} title={`Reset £${FIXED_COSTS_2026_DEFAULTS[item.id]}/mo`} />
-                  </span>
-                </div>
-                <input
-                  type="range" disabled={!canEdit} min={0} max={sliderMax} step={step}
-                  value={monthly2026}
-                  onChange={e => { if (canEdit) update(item.id, e.target.value) }}
-                  style={{ width:'100%', accentColor:'var(--gold)', opacity: canEdit ? 1 : 0.6 }}
-                />
-                <div style={{ display:'flex', justifyContent:'space-between', fontSize:10.5, color:'#6B7280', marginTop:4 }}>
-                  <span>{t('fixedCosts.ref2025', { val: '£' + monthly2025.toLocaleString() })}</span>
-                  <span style={{ color: itemDeltaColor, fontWeight:600 }}>{monthDelta !== 0 ? `${monthDelta > 0 ? '+' : ''}£${Math.abs(monthDelta).toLocaleString()}/mo` : '—'}</span>
-                  <span style={{ color:'#9CA3AF' }}>{t('fixedCosts.annual', { val: fmt(annual2026) })}</span>
-                </div>
+      {FIXED_COST_ITEMS.map(item => {
+        const def = Math.round((item.ref2025Annual / 12) * 1.10) * 12
+        const value = (fixedCosts[item.id] ?? FIXED_COSTS_2026_DEFAULTS[item.id]) * 12
+        const max = Math.max(def * 3, 1000)
+        const monthly = value / 12
+        return (
+          <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <div>
+              <div style={{ fontSize:13, color:'var(--cream)' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{item.note} · default {fmtMoney(def)}</div>
+            </div>
+            <div>
+              <input type="range" min={0} max={max} step={100} value={value}
+                onChange={(e) => setLine(item.id, +e.target.value)}
+                disabled={!canEdit}
+                style={{ width:'100%', accentColor:'#FB923C', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+                <span>£0</span>
+                <span>{fmtMoney(def)}</span>
+                <span>{fmtMoney(max)}</span>
               </div>
-            )
-          })}
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div className="serif" style={{ fontSize:16, color: value === def ? 'var(--cream)' : (value > def ? '#F87171' : '#10B981'), fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                {fmtMoney(value)}
+              </div>
+              <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(monthly).toLocaleString('en-GB')}/mo</div>
+            </div>
+          </div>
+        )
+      })}
+
+      {/* Read-only auto rent line — contractually 15% of turnover */}
+      <div style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'12px 0 4px', background:'rgba(248,113,113,0.04)', borderRadius:6, marginTop:8 }}>
+        <div>
+          <div style={{ fontSize:13, color:'var(--cream)', fontWeight:500 }}>Rent (auto · 15% of turnover)</div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)' }}>Contractual · 15% × {fmtMoney(Math.round(totalIncome))} revenue</div>
         </div>
+        <div style={{ fontSize:11, color:'var(--cream-dim)', fontStyle:'italic' }}>Not editable · scales with revenue</div>
+        <div style={{ textAlign:'right' }}>
+          <div className="serif" style={{ fontSize:16, color:'#F87171', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>{fmtMoney(rent2026)}</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(rent2026/12).toLocaleString('en-GB')}/mo</div>
+        </div>
+      </div>
+
+      {/* Grand total */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'12px 0 4px', borderTop:'2px solid rgba(248,113,113,0.3)', marginTop:10, fontWeight:600 }}>
+        <div>
+          <div style={{ fontSize:12, color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Fixed Costs · 2026</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:2 }}>£{Math.round(grandTotal/12).toLocaleString('en-GB')} per month</div>
+        </div>
+        <span className="serif" style={{ fontSize:18, color:'#FB923C' }}>{fmtMoney(grandTotal)}</span>
       </div>
     </div>
   )
