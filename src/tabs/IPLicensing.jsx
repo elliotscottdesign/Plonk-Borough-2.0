@@ -2,7 +2,6 @@ import React, { useState, useMemo } from 'react'
 import {
   IP_LICENSING_SKUS_ONLINE_2025,
   IP_LICENSING_SKUS_OFFICE_2025,
-  IP_LICENSING_MONTHLY_2025,
   IP_LICENSING_GRAND_2025,
   IP_LICENSING_COMMISSION_2025,
   IP_LICENSING_TOKEN_VALUE,
@@ -10,11 +9,9 @@ import {
   IP_LICENSING_PAYMENT_FEE_PCT,
 } from '../data.js'
 import ResetBtn from '../components/ResetBtn.jsx'
-import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import MarketingUpliftCard from '../components/MarketingUpliftCard.jsx'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-const fmtK = n => '£' + Math.round(n / 1000).toLocaleString() + 'k'
 const fmt0 = n => '£' + Math.round(n).toLocaleString()
 const pct = n => (n * 100).toFixed(1) + '%'
 
@@ -88,48 +85,6 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
-  )
-}
-
-// --- Monthly trend with online/office split (revenue) ---
-function MonthlyTrend() {
-  const { containerProps, segmentProps, overlay } = useChartTooltip()
-  const data = IP_LICENSING_MONTHLY_2025
-  const maxRev = Math.max(...data.map(d => d.onlineRev + d.officeRev))
-  return (
-    <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 20 }}>
-      <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
-        Monthly Channel Split — Revenue 2025
-      </div>
-      <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-        Blue = online portal revenue (actual) · Grey = office revenue (imputed at SKU list price, till-settled).
-      </div>
-      <div {...containerProps} style={{ display: 'flex', alignItems: 'flex-end', gap: 6, height: 180, marginBottom: 8, position: 'relative' }}>
-        {data.map(d => {
-          const onH = (d.onlineRev / maxRev) * 150
-          const ofH = (d.officeRev / maxRev) * 150
-          const total = d.onlineRev + d.officeRev
-          return (
-            <div key={d.month} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 3 }}>
-              <div style={{ fontSize: 9, color: '#9CA3AF' }}>{fmtK(total)}</div>
-              <div style={{ width: '100%', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', height: 150 }}>
-                <div style={{ width: '100%', background: '#6B7280', height: Math.max(2, ofH) + 'px', opacity: 0.7, cursor: 'default' }} {...segmentProps(`${d.month} · Office (imputed)\n${fmt0(d.officeRev)}`)} />
-                <div style={{ width: '100%', background: '#4FC3F7', borderRadius: '3px 3px 0 0', height: Math.max(2, onH) + 'px', cursor: 'default' }} {...segmentProps(`${d.month} · Online\n${fmt0(d.onlineRev)}`)} />
-              </div>
-              <div style={{ fontSize: 10, color: '#6B7280' }}>{d.month}</div>
-            </div>
-          )
-        })}
-        {overlay}
-      </div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#9CA3AF', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10, marginTop: 6 }}>
-        <div style={{ display: 'flex', gap: 16 }}>
-          <span><span style={{ display:'inline-block', width:10, height:10, background:'#4FC3F7', borderRadius:2, marginRight:6 }} />Online {fmt0(IP_LICENSING_GRAND_2025.onlineRev)}</span>
-          <span><span style={{ display:'inline-block', width:10, height:10, background:'#6B7280', borderRadius:2, marginRight:6 }} />Office {fmt0(IP_LICENSING_GRAND_2025.officeRev)} <span style={{ color:'#6B7280', fontStyle:'italic' }}>(imputed)</span></span>
-        </div>
-        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>Total: {fmt0(IP_LICENSING_GRAND_2025.totalRev)}</span>
       </div>
     </div>
   )
@@ -346,7 +301,7 @@ export default function IPLicensing() {
     { key: 'commissions',label: 'Commissions',             sub: 'Online · Office · Booking fee',       color: COMMISSION_CYAN },
     { key: 'marketing',  label: 'Marketing Uplift',        sub: 'Forecast tickets · capacity check',   color: '#E67E22' },
     { key: 'plonk',      label: 'Plonk × No Dice',         sub: 'Interactive P&L + venue view',        color: 'var(--gold)' },
-    { key: 'notes',      label: 'Monthly Trend & Notes',   sub: '2025 split · assumptions',            color: '#9CA3AF' },
+    { key: 'notes',      label: 'Assumptions',             sub: 'Open questions · methodology',        color: '#9CA3AF' },
   ]
 
   const [openBubble, setOpenBubble] = useState(null)
@@ -496,7 +451,6 @@ export default function IPLicensing() {
 
           {activeSection === 'notes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <MonthlyTrend />
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
                 <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
                 <ul style={{ paddingLeft: 18, margin: 0 }}>
