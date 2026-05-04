@@ -359,8 +359,10 @@ export default function BoroughTillSales2025() {
                 Free items · staff rang at £0
               </div>
               <div style={{ fontSize: 11, color: '#9CA3AF', marginBottom: 10 }}>
-                Top items rung at £0 (excluding Eat-In / Takeaway service-mode tags). Mostly
-                bottled beer — looks like ad-hoc staff drinks / comps rather than a deal.
+                Top items rung at £0 (excluding Eat-In / Takeaway service-mode tags). These are not
+                give-aways — they sit inside packages and private hires that the office team
+                already collected payment for, so they're rung through at £0 at the bar to
+                avoid double-charging the customer. The £ has already landed via the office.
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
                 {codes.freeMixers.map((x) => (
