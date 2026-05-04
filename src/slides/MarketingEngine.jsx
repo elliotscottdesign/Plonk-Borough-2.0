@@ -230,12 +230,10 @@ function EmpiricalForecast() {
   return (
     <div style={{ marginTop: 36 }}>
       <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 8 }}>
-        Empirical 2026 Forecast · derived from 2024 vs 2025 paid-search comparison
+        What would we lose if we turned the ads off? · Empirical 2026 Forecast
       </div>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 20, fontSize: 13, lineHeight: 1.6 }}>
-        Three-period historical comparison anchors the 2026 prediction. No sliders. Numbers below
-        come straight from the verified GA4 / Windsor.ai dataset — drag-anything stress-testing
-        lives in the collapsible sandboxes further down.
+        Three-period historical comparison answers the cost-of-pausing question directly. <strong style={{ color: 'var(--cream)' }}>2024 (paid search ON, untracked)</strong> vs <strong style={{ color: 'var(--cream)' }}>2025 Jan–Oct (OFF, the empirical "no-ads" period)</strong> vs <strong style={{ color: 'var(--cream)' }}>2025 Nov–Dec (37-day fully GA4-tracked campaign)</strong>. No sliders. Numbers below derive straight from the Windsor.ai / GA4 dataset; drag-anything stress-testing lives in the collapsible sandboxes further down.
       </p>
 
       {/* 3-column historical comparison */}

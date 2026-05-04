@@ -1,6 +1,24 @@
 import React, { useEffect, useState } from 'react'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { ACTUALS_2025 } from '../data.js'
+import { ACTUALS_2025, MARKETING } from '../data.js'
+
+// ─── Plonk Digital Marketing Engine — auto-locked driver ────────────────
+// Empirically derived from the 2024 (paid search ON, untracked) vs
+// 2025 Jan-Oct (OFF) vs 2025 Nov-Dec (ON, fully GA4-tracked) comparison
+// on the Plonk · Digital Marketing tab. Same formula as the
+// EmpiricalForecast component in src/slides/MarketingEngine.jsx — kept
+// in sync by hand (small enough to inline rather than refactor a
+// shared helper).
+const _ads_avgTicket          = 14
+const _ads_seoConvRate        = 0.015
+const _ads_annualClicks       = MARKETING.googleAdsBudget2026 / MARKETING.googleAdsCPC
+const _ads_convRate           = MARKETING.googleAdsConversions / MARKETING.googleAdsClicks
+const _ads_annualPaidRev      = _ads_annualClicks * _ads_convRate * _ads_avgTicket
+const _ads_organicGap         = MARKETING.organicSessions2024 - MARKETING.organicSessions2025
+const _ads_organicRecoveryRev = _ads_organicGap * _ads_seoConvRate * _ads_avgTicket
+const _ads_totalUplift        = _ads_annualPaidRev + _ads_organicRecoveryRev
+const PLONK_MARKETING_UPLIFT_PCT = +(_ads_totalUplift / ACTUALS_2025.revenue * 100).toFixed(1)
+const PLONK_MARKETING_UPLIFT_GBP = Math.round(_ads_totalUplift)
 
 // Borough Growth Drivers Calculator — investor-facing breakdown of HOW
 // the deck gets to the headline 10% / 15% / 20% growth scenarios used
@@ -38,10 +56,12 @@ const DRIVER_DEFS = [
   },
   {
     key: 'ads',
-    title: 'Google Ads at Scale',
-    intro: 'Proven £0.32 CPC and 5.7% conversion rate from the Nov–Dec 2025 campaign — 105 conversions in 37 days at £580 spend. Scale to £600/mth = ~107 conversions/month with verified unit economics. Direct, measurable demand capture.',
+    title: 'Plonk Digital Marketing Engine',
+    intro: 'Plonk Golf (the new spin-off owning the mini-golf IP) runs all paid search + SEO centrally on No Dice Borough\'s behalf. This driver is auto-locked to the empirical 2026 forecast on Plonk · Digital Marketing — derived from the verified Nov–Dec 2025 campaign (£0.32 CPC, 5.74% conv, 105 verified conversions in 37 days) extrapolated to a continuous £600/mth annualised spend, plus organic recovery from the 2025 ads-off floor toward the 2024 ceiling. Drag the slider on the Digital Marketing tab to change the forecast; this driver follows.',
     color: '#A78BFA',
-    defaultPct: 3,
+    defaultPct: PLONK_MARKETING_UPLIFT_PCT,
+    maxPct:     PLONK_MARKETING_UPLIFT_PCT,   // == ceil so the slider sits at exactly one position
+    autoLocked: true,                          // no founder lock UI, no drag — driven by data
   },
   {
     key: 'corporate',
@@ -151,9 +171,14 @@ export default function GrowthDrivers() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Effective values — locked snapshot wins per-driver when present.
+  // Effective values — autoLocked drivers always read their derived value;
+  // otherwise locked snapshot wins per-driver when present, else live state.
   const effectiveDrivers = Object.fromEntries(
-    DRIVER_DEFS.map(d => [d.key, locks[d.key] != null ? locks[d.key] : (drivers[d.key] || 0)])
+    DRIVER_DEFS.map(d => {
+      if (d.autoLocked) return [d.key, d.defaultPct]
+      if (locks[d.key] != null) return [d.key, locks[d.key]]
+      return [d.key, drivers[d.key] || 0]
+    })
   )
   const effectiveBarUplift = barPriceLocked != null ? barPriceLocked : barPriceUplift
   const driverTotal        = DRIVER_DEFS.reduce((s, d) => s + effectiveDrivers[d.key], 0)
@@ -163,6 +188,8 @@ export default function GrowthDrivers() {
 
   const setDriver = (key, val) => {
     if (!isFounder || locks[key] != null) return
+    const def = DRIVER_DEFS.find(d => d.key === key)
+    if (def?.autoLocked) return    // ignore writes to auto-locked drivers
     setDrivers(prev => {
       const next = { ...prev, [key]: val }
       writePersisted(STORAGE_KEY, next)
@@ -332,7 +359,8 @@ export default function GrowthDrivers() {
 }
 
 function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, onUnlock }) {
-  const dragDisabled    = isLocked || !isFounder
+  const isAutoLocked    = !!def.autoLocked
+  const dragDisabled    = isAutoLocked || isLocked || !isFounder
   const contributionGBP = (value / 100) * REVENUE_2025
   const shareOfTotal    = total > 0 ? (value / total) * 100 : 0
   const lockButtonColor = def.color === 'var(--gold)' ? 'var(--gold)' : def.color
@@ -344,7 +372,7 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
   return (
     <div style={{
       background: 'var(--ink-2)',
-      border: `1px solid ${isLocked ? 'rgba(16,185,129,0.45)' : `${def.color}33`}`,
+      border: `1px solid ${(isLocked || isAutoLocked) ? 'rgba(167,139,250,0.45)' : `${def.color}33`}`,
       borderTop: `3px solid ${def.color}`,
       borderRadius: 10,
       padding: 18,
@@ -360,7 +388,21 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
             {def.intro}
           </div>
         </div>
-        {isFounder && (
+        {isAutoLocked ? (
+          // Auto-locked drivers are derived from upstream data, not founder-
+          // toggleable. Show a badge instead of the Lock/Unlock button.
+          <span style={{
+            padding: '4px 10px', fontSize: 10, fontWeight: 600,
+            letterSpacing: '0.08em', textTransform: 'uppercase',
+            borderRadius: 6,
+            background: 'rgba(167,139,250,0.12)',
+            color: '#A78BFA',
+            border: '1px solid rgba(167,139,250,0.45)',
+            flexShrink: 0, whiteSpace: 'nowrap',
+          }} title="This driver tracks the empirical 2026 forecast on Plonk · Digital Marketing">
+            🔒 Auto-locked
+          </span>
+        ) : isFounder && (
           <button
             onClick={() => isLocked ? onUnlock() : onLock()}
             style={{
@@ -380,6 +422,18 @@ function DriverCard({ def, value, isLocked, isFounder, total, onChange, onLock, 
           </button>
         )}
       </div>
+
+      {/* Auto-locked source caption */}
+      {isAutoLocked && (
+        <div style={{
+          fontSize: 10, color: '#A78BFA', letterSpacing: '0.06em',
+          padding: '6px 10px', borderRadius: 6,
+          background: 'rgba(167,139,250,0.06)',
+          border: '1px solid rgba(167,139,250,0.25)',
+        }}>
+          ↗ Source: <strong>Plonk · Digital Marketing</strong> · Empirical 2026 Forecast (£{Math.round(contributionGBP).toLocaleString()}/yr)
+        </div>
+      )}
 
       {/* Headline contribution % */}
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginTop: 4 }}>
