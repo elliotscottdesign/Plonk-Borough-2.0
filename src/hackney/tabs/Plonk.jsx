@@ -539,13 +539,24 @@ function PnlTotal({ label, value, colour, hasTbd }) {
 // ─── Plonk landing — side-index layout ────────────────────────────────
 // Left column = sticky section index. Right column = the active section.
 // Default landing view is the Golf Operations · Transparency overview.
+// Operations bundles the Revenue Split and Operational Handover blocks
+// behind one section button — both speak to the new operating model so
+// they read better as one tab than two.
+function Operations() {
+  return (
+    <>
+      <RevenueSplit />
+      <OperationalHandover />
+    </>
+  )
+}
+
 const PLONK_SECTIONS = [
-  { key: 'overview', label: 'Transparency · Overview', Component: GolfOverview },
-  { key: 'pnl',      label: '2025 Golf P&L',           Component: GolfPnl },
-  { key: 'host',     label: 'Host & Till Activity',    Component: GolfHostSeasonality },
-  { key: 'dmn',      label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
-  { key: 'split',    label: 'Revenue Split',           Component: RevenueSplit },
-  { key: 'handover', label: 'Operational Handover',    Component: OperationalHandover },
+  { key: 'overview',   label: 'Transparency · Overview', Component: GolfOverview },
+  { key: 'pnl',        label: '2025 Golf P&L',           Component: GolfPnl },
+  { key: 'host',       label: 'Host & Till Activity',    Component: GolfHostSeasonality },
+  { key: 'dmn',        label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
+  { key: 'operations', label: 'Operations',              Component: Operations },
 ]
 
 export default function Plonk() {
