@@ -119,7 +119,7 @@ function GolfOperations() {
             <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Revenue (gross to No Dice in 2025)</div>
             <PnlRow label="Online ticket sales (DMN — tokens)" value={g.revenue.onlineTickets} colour="#4FC3F7" />
             <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026 row 3 · 52 weeks of 2025" />
-            <PnlRow label="Tournament entry fees"                value={g.revenue.tournamentEntry} colour="#4FC3F7" />
+            <PnlRow label="Pool tournament entries (stays with No Dice)" value={g.revenue.tournamentEntry} colour="#4FC3F7" sourceNote="Pool tournaments are bar-side — 100% retained by No Dice going forward, not part of the golf-revenue split." />
             <PnlTotal label="Total revenue 2025" value={totalRev2025} colour="#4FC3F7" hasTbd={[g.revenue.tillTickets].includes(TBD)} />
 
             {/* Net Contribution — embedded as the final block of the Revenue card */}

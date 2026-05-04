@@ -939,8 +939,14 @@ export const HACKNEY_GOLF_2025 = {
     tillTickets:      25503,    // £ — direct ticket sales at venue till. Source: Weekly
                                 //     Merged 2024-2026 row 3 ("Total Walk In Golf
                                 //     Tickets"), 52 weeks of 2025 summed (£25,502.77)
-    tournamentEntry:   3570,    // £ — kept for legacy parity (subsumed inside DMN
-                                //     Doubles + Singles Pool Tournament SKUs above)
+    tournamentEntry:   3570,    // £ — POOL tournament entries (Doubles + Singles
+                                //     Pool Tournament SKUs sold via DMN). NOT a golf
+                                //     line — stays 100% with No Dice going forward
+                                //     (bar-side activity, operator takes no share).
+                                //     Note: also subsumed inside the onlineTickets
+                                //     £44,812 above; broken out here for transparency
+                                //     so the No-Dice-retained portion of DMN sales
+                                //     is visible against the golf portion.
   },
   // Costs attributable to running the golf course in 2025.
   //
@@ -1051,7 +1057,7 @@ export const HACKNEY_GOLF_GOING_FORWARD = {
     { line: 'Arcade token revenue',       pct: 1.00, note: '100% to No Dice — operator takes no share of token value' },
     { line: 'Online ticket — golf round', pct: 0.00, note: 'Operator keeps the £-ticket portion (it is their core business)' },
     { line: 'Till ticket sales',          pct: 0.00, note: 'Operator keeps it (it is their core business)' },
-    { line: 'Tournament entry',           pct: TBD,  note: 'TBD — founder to confirm with operator entity' },
+    { line: 'Pool tournament entries',    pct: 1.00, note: '100% to No Dice — pool tournaments are a bar-side activity, operator takes no share' },
   ],
   noDiceTakesOver: [
     'Course hosting + operations on site (course was always open in 2025; bar staff covered the host role outside dedicated host shifts)',
