@@ -422,33 +422,47 @@ function DmnSkuBreakdown() {
         <SkuTable rows={office} />
       </div>
 
-      {/* Monthly split */}
+      {/* Monthly split — line chart, online (actual) vs office (imputed) */}
       <div className="card" style={{ padding:0, overflow:'hidden', marginBottom:14 }}>
-        <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', fontSize:11, color:'var(--gold)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
-          Monthly split · online (actual) vs office (imputed)
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', flexWrap:'wrap', gap:12 }}>
+          <span style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+            Monthly split · online (actual) vs office (imputed)
+          </span>
+          <span style={{ display:'flex', gap:14, fontSize:10.5, color:'var(--cream-dim)' }}>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <span style={{ width:14, height:2, background:'#4FC3F7' }} /> Online £
+            </span>
+            <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+              <span style={{ width:14, height:2, background:'#A78BFA' }} /> Office £ (imputed)
+            </span>
+          </span>
         </div>
-        <div style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'10px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-          <span>Month</span>
-          <span style={{ textAlign:'right' }}>Online qty</span>
-          <span style={{ textAlign:'right' }}>Online £</span>
-          <span style={{ textAlign:'right' }}>Office qty</span>
-          <span style={{ textAlign:'right' }}>Office £ (imputed)</span>
+        <div style={{ height:260, padding:'12px 8px 4px' }}>
+          <ResponsiveContainer>
+            <ComposedChart data={monthly} margin={{ top: 8, right: 16, bottom: 0, left: 8 }}>
+              <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
+              <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
+              <YAxis stroke="var(--cream-dim)" fontSize={10} tickFormatter={v => '£' + Math.round(v / 1000) + 'k'} width={56} />
+              <Tooltip
+                cursor={{ stroke:'rgba(201,168,76,0.2)' }}
+                contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
+                labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
+                itemStyle={{ color:'var(--cream)' }}
+                formatter={(v, name) => [fmt(v), name]}
+              />
+              <Line type="monotone" dataKey="onlineRev" name="Online £"           stroke="#4FC3F7" strokeWidth={2.5} dot={{ fill:'#4FC3F7', r:3 }} />
+              <Line type="monotone" dataKey="officeRev" name="Office £ (imputed)" stroke="#A78BFA" strokeWidth={2.5} dot={{ fill:'#A78BFA', r:3 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
-        {monthly.map(m => (
-          <div key={m.month} style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'8px 16px', borderBottom:'1px solid rgba(255,255,255,0.04)', fontSize:12, fontVariantNumeric:'tabular-nums' }}>
-            <span style={{ color:'var(--cream)' }}>{m.month}</span>
-            <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{m.onlineQty.toLocaleString('en-GB')}</span>
-            <span style={{ textAlign:'right', color:'#4FC3F7' }}>{fmt(m.onlineRev)}</span>
-            <span style={{ textAlign:'right', color:'var(--cream-dim)' }}>{m.officeQty.toLocaleString('en-GB')}</span>
-            <span style={{ textAlign:'right', color:'#A78BFA' }}>{fmt(m.officeRev)}</span>
-          </div>
-        ))}
-        <div style={{ display:'grid', gridTemplateColumns:'0.7fr 1fr 1.2fr 1fr 1.2fr', padding:'10px 16px', fontSize:13, fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
-          <span style={{ color:'var(--cream)' }}>2025</span>
-          <span style={{ textAlign:'right', color:'var(--cream)' }}>{grand.onlineQty.toLocaleString('en-GB')}</span>
-          <span className="serif" style={{ textAlign:'right', color:'#4FC3F7', fontSize:15 }}>{fmt(grand.onlineRev)}</span>
-          <span style={{ textAlign:'right', color:'var(--cream)' }}>{grand.officeQty.toLocaleString('en-GB')}</span>
-          <span className="serif" style={{ textAlign:'right', color:'#A78BFA', fontSize:15 }}>{fmt(grand.officeRev)}</span>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'14px 18px', borderTop:'1px solid rgba(201,168,76,0.15)', flexWrap:'wrap', gap:18, fontVariantNumeric:'tabular-nums' }}>
+          <span style={{ fontSize:11, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>2025 Total</span>
+          <span style={{ display:'flex', gap:24, alignItems:'baseline', fontSize:13 }}>
+            <span style={{ color:'var(--cream-dim)' }}>Online qty <strong style={{ color:'var(--cream)' }}>{grand.onlineQty.toLocaleString('en-GB')}</strong></span>
+            <span className="serif" style={{ color:'#4FC3F7', fontSize:18 }}>{fmt(grand.onlineRev)}</span>
+            <span style={{ color:'var(--cream-dim)' }}>Office qty <strong style={{ color:'var(--cream)' }}>{grand.officeQty.toLocaleString('en-GB')}</strong></span>
+            <span className="serif" style={{ color:'#A78BFA', fontSize:18 }}>{fmt(grand.officeRev)}</span>
+          </span>
         </div>
       </div>
 
