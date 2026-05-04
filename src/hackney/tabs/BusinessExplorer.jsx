@@ -1166,16 +1166,68 @@ function BarPriceUpliftCalculator() {
   // 2025 bar takings — Weekly Merge income source aggregate, bar-only line.
   const BAR_2025 = 484684
   const annualUplift = BAR_2025 * (pct / 100)
-  const canEdit = ctx.canEditForecast
+
+  // Bar-price lock — independent of the broader forecast lock so the
+  // founder can pin just this slider while everything else stays
+  // editable. Slider is editable only when (a) the forecast lock allows
+  // it AND (b) the bar-price lock isn't pinned.
+  const isBarPriceLocked = ctx.isBarPriceLocked
+  const isFounder        = ctx.isFounder
+  const canEdit          = ctx.canEditForecast && !isBarPriceLocked
+  const lockedAtLabel    = ctx.barPriceLock?.lockedAt
+    ? new Date(ctx.barPriceLock.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })
+    : null
 
   return (
-    <div className="card" style={{ padding: 22 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4 }}>
+    <div className="card" style={{
+      padding: 22,
+      border: isBarPriceLocked ? '1px solid rgba(16,185,129,0.4)' : undefined,
+    }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom: 4, gap:12, flexWrap:'wrap' }}>
         <span style={{ fontSize:11, color:'#FBBF24', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>
           Bar Price Uplift Calculator
         </span>
-        <span style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.06em' }}>
-          Feeds the Growth Drivers slide
+        <span style={{ display:'inline-flex', alignItems:'center', gap:8, flexWrap:'wrap', justifyContent:'flex-end' }}>
+          {/* Founder-set lock pill — visible to everyone when active. */}
+          {isBarPriceLocked && (
+            <span style={{
+              fontSize:9, padding:'3px 9px', borderRadius:10, fontWeight:700,
+              letterSpacing:'0.08em', textTransform:'uppercase',
+              background:'rgba(16,185,129,0.12)', color:'#10B981',
+              border:'1px solid rgba(16,185,129,0.4)', whiteSpace:'nowrap',
+            }}>
+              🔒 Locked{lockedAtLabel ? ` · ${lockedAtLabel}` : ''}
+            </span>
+          )}
+          {/* Founder-only Lock / Unlock toggle */}
+          {isFounder && (
+            <button
+              onClick={() => isBarPriceLocked ? ctx.unlockBarPrice() : ctx.lockBarPrice(pct)}
+              disabled={!isBarPriceLocked && !ctx.canEditForecast}
+              style={{
+                padding:'5px 11px', fontSize:10, fontWeight:700,
+                letterSpacing:'0.08em', textTransform:'uppercase',
+                borderRadius:6, cursor: (!isBarPriceLocked && !ctx.canEditForecast) ? 'not-allowed' : 'pointer',
+                background: isBarPriceLocked ? 'transparent' : 'rgba(251,191,36,0.15)',
+                color: isBarPriceLocked ? '#10B981' : '#FBBF24',
+                border: `1px solid ${isBarPriceLocked ? 'rgba(16,185,129,0.5)' : 'rgba(251,191,36,0.5)'}`,
+                whiteSpace:'nowrap', transition:'all 0.15s',
+                opacity: (!isBarPriceLocked && !ctx.canEditForecast) ? 0.45 : 1,
+              }}
+              title={
+                isBarPriceLocked
+                  ? 'Unlock the Bar Price Uplift'
+                  : (ctx.canEditForecast
+                      ? 'Lock this value so every visitor sees it'
+                      : 'Unlock the broader forecast first')
+              }
+            >
+              {isBarPriceLocked ? '🔓 Unlock' : '🔒 Lock'}
+            </button>
+          )}
+          <span style={{ fontSize:10, color:'var(--cream-dim)', letterSpacing:'0.06em' }}>
+            Feeds the Growth Drivers slide
+          </span>
         </span>
       </div>
       <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
@@ -1183,7 +1235,7 @@ function BarPriceUpliftCalculator() {
       </div>
 
       <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, marginBottom:18 }}>
-        <KpiCard2026 label="Price Uplift"          value={`+${pct.toFixed(1)}%`}              sub="Drag the slider below" color="#FBBF24" />
+        <KpiCard2026 label="Price Uplift"          value={`+${pct.toFixed(1)}%`}              sub={isBarPriceLocked ? '🔒 Locked' : 'Drag the slider below'} color="#FBBF24" />
         <KpiCard2026 label="2025 Bar Baseline"     value={fmtMoney(BAR_2025)}                  sub="Verified — Weekly Merge"  color="#9CA3AF" />
         <KpiCard2026 label="Annual £ Uplift (Y1)"  value={fmtMoney(Math.round(annualUplift))}  sub="At unchanged volume"      color="#10B981" />
       </div>

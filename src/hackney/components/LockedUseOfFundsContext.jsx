@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from 'react'
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import {
   USE_OF_FUNDS,
   USE_OF_FUNDS_RANGES,
@@ -6,30 +6,43 @@ import {
   WAGE_RATES,
   PL_WAGE_BASE,
   WAGE_OVERHEAD_MULT,
+  LOCK_SYNC_URL,
+  LOCK_SYNC_SECRET,
 } from '../../data/hackney.js'
 
 // ─── Locked Use-of-Funds context (Hackney) ─────────────────────────────
 // Single source of truth for the funding amount + 7-line use-of-funds
-// breakdown. Consumed by:
+// breakdown plus all other lockable Hackney surfaces. Consumed by:
 //   • FundingSlider (on Cover) — sets fundingAmount + lock/unlock
 //   • UseOfFunds slide — drives the 6 allocation sliders + WC residual
 //   • Cover, MarketContext, InvestmentSummary, WaterfallReturns,
 //     VenueInfo Development tab, BusinessExplorer Cashflow tab —
 //     read `effective.*` so every figure cascades from one variable
 //
-// State model:
+// Lockable surfaces (independent of each other; mirrors Borough's
+// LockedDeckContext architecture):
+//   1. FUNDING — investor's total raise + 7-line use-of-funds breakdown
+//      (LIVE_KEY / LOCK_KEY · localStorage only)
+//   2. WAGES — 4-role wage calculator
+//      (WAGE_LIVE_KEY / WAGE_LOCK_KEY · localStorage only)
+//   3. FORECAST — 2026 Performance scenario lock (revenue / costs /
+//      growth levers · syncs cross-device via LOCK_SYNC_URL)
+//   4. BAR PRICE — Bar Price Uplift slider (independent founder lock,
+//      pins the bar-price-uplift % for every visitor · syncs cross-device)
+//
+// State model per surface:
 //   • values     — live editable state (founder edits these)
 //   • snapshot   — locked snapshot or null
 //   • effective  — locked snapshot if locked, else derived(values)
-//                  (so consumer slides can render off ONE shape and
-//                  always see live preview during founder edits)
 //
 // Persistence:
-//   • locked snapshot   → localStorage (every user — read-only for
-//                          non-founder so the Hackney deck shows the
-//                          founder's locked story by default)
-//   • live values       → localStorage (founder only — preserves
-//                          editing progress across page refresh)
+//   • localStorage on every surface, founder-only for live values
+//   • forecast + barPrice ALSO sync cross-device via LOCK_SYNC_URL when
+//     configured (Apps Script — see infra/lock-sync-apps-script-hackney.gs).
+//     Both ride the same endpoint as a merged container { forecast,
+//     barPrice } so each writer refreshes the cell without clobbering
+//     the other surface. Funding + wages stay local-only — the founder
+//     tunes those privately before locking.
 //
 // Founder detection:
 //   • sessionStorage.ndb_founder === '1' (set by PasswordGate at 888999)
@@ -42,6 +55,10 @@ const WAGE_LIVE_KEY = 'ndh_wage_live_v1'
 const WAGE_LOCK_KEY = 'ndh_wage_locked_v1'
 const FORECAST_LIVE_KEY = 'ndh_forecast_live_v1'
 const FORECAST_LOCK_KEY = 'ndh_forecast_locked_v1'
+// Bar-price single-number lock — independent of the broader forecast
+// lock so the founder can pin just this slider while everything else
+// stays editable. Shape: { value: number, lockedAt: ISO }.
+const BAR_PRICE_LOCK_KEY = 'ndh_bar_price_locked_v1'
 
 // Default 2026 Performance forecast state — growth levers per income
 // line, plus matrices for ticket pricing, fixed-cost line edits and
@@ -153,6 +170,76 @@ const readPersisted = (key, validator) => {
   } catch { return null }
 }
 
+// ─── Bar-price lock validators + server-first readers ────────────────
+const isValidBarPriceLock = (v) =>
+  v && typeof v === 'object' && Number.isFinite(v.value)
+
+// Forecast snapshot — Hackney shape carries growth.bar at top level.
+// Used to read the bootstrap-supplied global at provider init.
+const isValidForecastForServer = (s) =>
+  s && typeof s === 'object' && s.growth && Number.isFinite(s.growth.bar)
+
+// Read forecast snapshot, preferring the bootstrap-fetched server value
+// (window.__NDB_HACKNEY_LOCK_SNAPSHOT) over localStorage. Mirrors the
+// Borough LockedDeckContext priority chain so a freshly-loaded page
+// reflects whatever the server holds, even if the local cache disagreed.
+function readPersistedForecastSnapshotHackney() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_LOCK_SNAPSHOT !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_LOCK_SNAPSHOT
+    try {
+      if (fromServer && isValidForecastForServer(fromServer)) {
+        localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(FORECAST_LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidForecastForServer(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(FORECAST_LOCK_KEY, isValidForecast)
+}
+
+function readPersistedBarPriceLock() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_BAR_PRICE_LOCK !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_BAR_PRICE_LOCK
+    try {
+      if (fromServer && isValidBarPriceLock(fromServer)) {
+        localStorage.setItem(BAR_PRICE_LOCK_KEY, JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(BAR_PRICE_LOCK_KEY)
+        return null
+      }
+    } catch {
+      return isValidBarPriceLock(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(BAR_PRICE_LOCK_KEY, isValidBarPriceLock)
+}
+
+// Cross-device lock sync — POSTs the merged container { forecast,
+// barPrice } to LOCK_SYNC_URL whenever either lock changes. The server
+// stores a single JSON cell, so callers must pass the full container
+// (the *intended* post-change state of both surfaces) — we can't merge
+// server-side. Mirrors Borough's syncContainerToServer().
+async function syncContainerToServer(container) {
+  if (!LOCK_SYNC_URL) return
+  try {
+    await fetch(LOCK_SYNC_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify({ snapshot: container, secret: LOCK_SYNC_SECRET || undefined }),
+    })
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[hackney lock-sync] container POST failed, kept local only:', e.message)
+  }
+}
+
 // Read founder status from sessionStorage. Also accepts a one-time URL
 // query (?founder=888999) which promotes the session — useful for
 // shareable founder links without going through the password gate.
@@ -215,14 +302,33 @@ export function LockedUseOfFundsProvider({ children }) {
   })
 
   // ─── Forecast (2026 Performance) state ───────────────────────────
-  const [forecastSnapshot, setForecastSnapshot] = useState(() => readPersisted(FORECAST_LOCK_KEY, isValidForecast))
+  // Init prefers the bootstrap-fetched server snapshot (so a fresh page
+  // load reflects the founder's latest cross-device lock) over local-
+  // Storage. Live values still seed from localStorage for editing.
+  const [forecastSnapshot, setForecastSnapshot] = useState(readPersistedForecastSnapshotHackney)
   const [forecastValues, setForecastValuesState] = useState(() => {
     const persisted = readPersisted(FORECAST_LIVE_KEY, isValidForecast)
     if (persisted) return { ...defaultForecast(), ...persisted, growth: { ...defaultForecast().growth, ...(persisted.growth || {}) } }
-    const lock = readPersisted(FORECAST_LOCK_KEY, isValidForecast)
+    const lock = readPersistedForecastSnapshotHackney()
     if (lock) return { ...defaultForecast(), ...lock, growth: { ...defaultForecast().growth, ...(lock.growth || {}) } }
     return defaultForecast()
   })
+
+  // ─── Bar-price single-number lock ────────────────────────────────
+  // Independent founder-only lock for the Bar Price Uplift slider on
+  // 2026 Performance. When set, every visitor sees the locked % and
+  // the slider is disabled. Persists in localStorage AND syncs cross-
+  // device via LOCK_SYNC_URL alongside the forecast lock as a merged
+  // container (see syncContainerToServer).
+  const [barPriceLock, setBarPriceLock] = useState(readPersistedBarPriceLock)
+
+  // Refs mirror the latest snapshot of EACH cross-device-synced lock so
+  // the *other* lock's mutator can include the right value when POSTing
+  // the merged container. Mirrors Borough's forecastRef / ticketVolumeRef.
+  const forecastRef = useRef(forecastSnapshot)
+  const barPriceRef = useRef(barPriceLock)
+  useEffect(() => { forecastRef.current = forecastSnapshot }, [forecastSnapshot])
+  useEffect(() => { barPriceRef.current = barPriceLock }, [barPriceLock])
 
   const isFounder = readIsFounder()
   const isLocked = snapshot !== null
@@ -231,6 +337,8 @@ export function LockedUseOfFundsProvider({ children }) {
   const canEditWages = isFounder && !isWageLocked
   const isForecastLocked = forecastSnapshot !== null
   const canEditForecast = isFounder && !isForecastLocked
+  const isBarPriceLocked = barPriceLock !== null
+  const canEditBarPrice  = isFounder && !isBarPriceLocked
 
   // Persist live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -322,10 +430,16 @@ export function LockedUseOfFundsProvider({ children }) {
   }, [wageSnapshot, isFounder])
 
   // ─── Forecast — derived view + setters ────────────────────────────
-  const forecastEffective = useMemo(
-    () => (isForecastLocked ? forecastSnapshot : forecastValues),
-    [isForecastLocked, forecastSnapshot, forecastValues],
-  )
+  // The bar-price single-number lock overlays whatever forecast layer
+  // is active so a founder-pinned bar-price uplift % is visible to all
+  // visitors regardless of whether the broader forecast is locked.
+  const forecastEffective = useMemo(() => {
+    const base = isForecastLocked ? forecastSnapshot : forecastValues
+    if (isBarPriceLocked && barPriceLock && Number.isFinite(barPriceLock.value)) {
+      return { ...base, barPriceUplift: barPriceLock.value }
+    }
+    return base
+  }, [isForecastLocked, forecastSnapshot, forecastValues, isBarPriceLocked, barPriceLock])
 
   // Generic top-level setter — caller passes a key + new value, OR
   // a key + (subKey, val) for nested updates (growth/pricing/fixed/office).
@@ -364,24 +478,50 @@ export function LockedUseOfFundsProvider({ children }) {
   }, [canEditForecast])
 
   // Bar price uplift % — sourced from the Bar Price Uplift Calculator on
-  // the 2026 Performance tab. Locked from there; the Growth Drivers slide
-  // shows it read-only.
+  // the 2026 Performance tab. No-op when the broader forecast is locked
+  // OR when the independent bar-price lock is active (founder must
+  // unlock to edit).
   const setBarPriceUplift = useCallback((pct) => {
     if (!canEditForecast) return
+    if (isBarPriceLocked) return
     setForecastValuesState(prev => ({ ...prev, barPriceUplift: pct }))
-  }, [canEditForecast])
+  }, [canEditForecast, isBarPriceLocked])
 
   const lockForecast = useCallback(() => {
     if (!isFounder) return
     const stamped = { ...forecastValues, lockedAt: new Date().toISOString() }
     setForecastSnapshot(stamped)
     try { localStorage.setItem(FORECAST_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    // POST the merged container — keep the current bar-price lock intact
+    // server-side.
+    syncContainerToServer({ forecast: stamped, barPrice: barPriceRef.current })
   }, [forecastValues, isFounder])
 
   const unlockForecast = useCallback(() => {
     if (!isFounder) return
     setForecastSnapshot(null)
     try { localStorage.removeItem(FORECAST_LOCK_KEY) } catch {}
+    syncContainerToServer({ forecast: null, barPrice: barPriceRef.current })
+  }, [isFounder])
+
+  // ─── Bar-price lock API ──────────────────────────────────────────
+  // Founder-only lock for the Bar Price Uplift slider. Persists across
+  // reloads in localStorage AND syncs cross-device via LOCK_SYNC_URL
+  // (when configured) by POSTing the merged container.
+  const lockBarPrice = useCallback((value) => {
+    if (!isFounder) return
+    if (!Number.isFinite(value)) return
+    const stamped = { value, lockedAt: new Date().toISOString() }
+    setBarPriceLock(stamped)
+    try { localStorage.setItem(BAR_PRICE_LOCK_KEY, JSON.stringify(stamped)) } catch {}
+    syncContainerToServer({ forecast: forecastRef.current, barPrice: stamped })
+  }, [isFounder])
+
+  const unlockBarPrice = useCallback(() => {
+    if (!isFounder) return
+    setBarPriceLock(null)
+    try { localStorage.removeItem(BAR_PRICE_LOCK_KEY) } catch {}
+    syncContainerToServer({ forecast: forecastRef.current, barPrice: null })
   }, [isFounder])
 
   const resetForecast = useCallback(() => {
@@ -428,6 +568,12 @@ export function LockedUseOfFundsProvider({ children }) {
     lockForecast,
     unlockForecast,
     resetForecast,
+    // Bar-price independent lock (overlays forecastEffective.barPriceUplift)
+    barPriceLock,
+    isBarPriceLocked,
+    canEditBarPrice,
+    lockBarPrice,
+    unlockBarPrice,
   }
 
   return (
