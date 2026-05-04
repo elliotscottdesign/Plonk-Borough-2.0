@@ -31,206 +31,182 @@ function STitle({ children }) {
 //   2. 2025 Golf P&L — revenue + costs + net contribution to No Dice
 //   3. Old vs New revenue split — line-by-line who keeps what
 //   4. Operational handover — what No Dice still does + what changes
-function GolfOperations() {
+// ─── Section components — each block of the old GolfOperations scroll ─
+// Split out so the Plonk landing page can render them one-at-a-time
+// driven by a left-rail section index. The "New entity structure" card
+// that used to live at the bottom of the Operational Handover scroll has
+// been removed.
+
+function GolfOverview() {
+  const [openCtx, setOpenCtx] = React.useState(false)
+  return (
+    <div>
+      <STitle>Golf Operations · Transparency for Investors</STitle>
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, marginBottom:14 }}>
+        <GolfHeroCard
+          color="var(--gold)"
+          label="Stays 100% with No Dice"
+          value="Bar · Food · Parties · Tokens"
+          sub="Bar takings, F&B, party hires and ALL token revenue (bundled in online SKUs AND sold at the bar) remain a No Dice line. Operator takes no share."
+        />
+        <GolfHeroCard
+          color="#A78BFA"
+          label="Moves to new operator"
+          value="Golf-round ticket portion + course costs"
+          sub="The golf-round share of ticket sales (online + till) moves to the operator, along with the course cost base — rent, host wages, maintenance, upgrades."
+        />
+        <GolfHeroCard
+          color="#22D3EE"
+          label="The new structure"
+          value="Independent operator · No Dice still hosts"
+          sub="A newly-incorporated operator owns the course P&L. No Dice continues to host and operate on-site — same customer-facing role. Cashflow settled monthly between entities."
+        />
+      </div>
+
+      <button
+        onClick={() => setOpenCtx(o => !o)}
+        style={{
+          width:'100%', padding:'10px 14px',
+          background:'rgba(201,168,76,0.06)',
+          border:'1px dashed rgba(201,168,76,0.3)',
+          borderRadius:6,
+          cursor:'pointer',
+          fontSize:11, color:'var(--gold-dim)',
+          letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+          display:'flex', alignItems:'center', justifyContent:'center', gap:8,
+        }}
+      >
+        <span style={{ transform:openCtx?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
+        {openCtx ? 'Hide background detail' : 'Show how golf used to work'}
+      </button>
+
+      {openCtx && (
+        <div className="card" style={{ padding:20, lineHeight:1.7, fontSize:13, color:'var(--cream-dim)', marginTop:10 }}>
+          <p style={{ marginBottom:12 }}>
+            <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> <strong style={{ color:'var(--cream)' }}>Plonk Golf Ltd</strong> ran a mini-golf course on the adjacent site (next door, on the same road) until its March 2026 liquidation. Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via Design My Night (£-priced ticket SKUs, some bundling <strong style={{ color:'var(--gold)' }}>arcade tokens</strong> as an add-on) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Players took their golf round, used any bundled tokens in the venue's arcade machines, then spent at the bar.
+          </p>
+          <p style={{ marginBottom:0 }}>
+            <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> No Dice Hackney is the new spin-off launching post-liquidation, acquiring assets back from the liquidator. The golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong> trading as <strong style={{ color:'var(--cream)' }}>Plonk</strong> — the same name now lives on as the brand of the mini-golf course at No Dice. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GolfPnl() {
   const g = HACKNEY_GOLF_2025
-  const f = HACKNEY_GOLF_GOING_FORWARD
-  // Revenue + cost totals for the 2025 P&L card. Treats TBD as 0 for
-  // total math while flagging the unknowns inline.
   const num = (v) => (typeof v === 'number' ? v : 0)
   const totalRev2025  = Object.values(g.revenue).reduce((s, v) => s + num(v), 0)
   const totalCost2025 = Object.values(g.costs).reduce((s, v) => s + num(v), 0)
   const net2025       = totalRev2025 - totalCost2025
   const tbdLines      = [...Object.values(g.revenue), ...Object.values(g.costs)].filter(v => v === TBD).length
-  const [openCtx, setOpenCtx] = React.useState(false)
-
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:28 }}>
+    <div>
+      <STitle>2025 Golf — Revenue, Costs &amp; Net Contribution</STitle>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+        {/* Revenue card — Net Contribution lives at the bottom of this card,
+            directly under Total Revenue 2025, so the revenue side carries the
+            bottom-line takeaway rather than sitting as a separate callout. */}
+        <div className="card" style={{ padding:20 }}>
+          <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Revenue (gross to No Dice in 2025)</div>
+          <PnlRow label="Online ticket sales (DMN — tokens)" value={g.revenue.onlineTickets} colour="#4FC3F7" />
+          <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026 row 3 · 52 weeks of 2025" />
+          <PnlTotal label="Total revenue 2025" value={totalRev2025} colour="#4FC3F7" hasTbd={[g.revenue.tillTickets].includes(TBD)} />
 
-      {/* Context — KPI-card layout matching the rest of the deck.
-          Three top-line cards summarise the new structure at a glance;
-          the historical detail (pre-liquidation flow, token mechanic
-          clarification, plain-English summary) collapses behind a
-          "Show details" toggle so investors aren't drowned in text. */}
-      <div>
-        <STitle>Golf Operations · Transparency for Investors</STitle>
-
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, marginBottom:14 }}>
-          <GolfHeroCard
-            color="var(--gold)"
-            label="Stays 100% with No Dice"
-            value="Bar · Food · Parties · Tokens"
-            sub="Bar takings, F&B, party hires and ALL token revenue (bundled in online SKUs AND sold at the bar) remain a No Dice line. Operator takes no share."
-          />
-          <GolfHeroCard
-            color="#A78BFA"
-            label="Moves to new operator"
-            value="Golf-round ticket portion + course costs"
-            sub="The golf-round share of ticket sales (online + till) moves to the operator, along with the course cost base — rent, host wages, maintenance, upgrades."
-          />
-          <GolfHeroCard
-            color="#22D3EE"
-            label="The new structure"
-            value="Independent operator · No Dice still hosts"
-            sub="A newly-incorporated operator owns the course P&L. No Dice continues to host and operate on-site — same customer-facing role. Cashflow settled monthly between entities."
-          />
-        </div>
-
-        <button
-          onClick={() => setOpenCtx(o => !o)}
-          style={{
-            width:'100%', padding:'10px 14px',
-            background:'rgba(201,168,76,0.06)',
-            border:'1px dashed rgba(201,168,76,0.3)',
-            borderRadius:6,
-            cursor:'pointer',
-            fontSize:11, color:'var(--gold-dim)',
-            letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
-            display:'flex', alignItems:'center', justifyContent:'center', gap:8,
-          }}
-        >
-          <span style={{ transform:openCtx?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', display:'inline-block' }}>›</span>
-          {openCtx ? 'Hide background detail' : 'Show how golf used to work'}
-        </button>
-
-        {openCtx && (
-          <div className="card" style={{ padding:20, lineHeight:1.7, fontSize:13, color:'var(--cream-dim)', marginTop:10 }}>
-            <p style={{ marginBottom:12 }}>
-              <strong style={{ color:'var(--cream)' }}>Pre-liquidation:</strong> <strong style={{ color:'var(--cream)' }}>Plonk Golf Ltd</strong> ran a mini-golf course on the adjacent site (next door, on the same road) until its March 2026 liquidation. Customers bought tickets two ways — <strong style={{ color:'var(--cream)' }}>online</strong> via Design My Night (£-priced ticket SKUs, some bundling <strong style={{ color:'var(--gold)' }}>arcade tokens</strong> as an add-on) or <strong style={{ color:'var(--cream)' }}>at the till</strong> on arrival. Players took their golf round, used any bundled tokens in the venue's arcade machines, then spent at the bar.
-            </p>
-            <p style={{ marginBottom:0 }}>
-              <strong style={{ color:'var(--cream)' }}>Going forward (2026+):</strong> No Dice Hackney is the new spin-off launching post-liquidation, acquiring assets back from the liquidator. The golf course is being separated into a newly-incorporated <strong style={{ color:'var(--cream)' }}>independent operator</strong> trading as <strong style={{ color:'var(--cream)' }}>Plonk</strong> — the same name now lives on as the brand of the mini-golf course at No Dice. No Dice continues to <strong style={{ color:'var(--cream)' }}>host and operate the course</strong> — same on-site presence, same customer-facing role. Cashflow between the two entities is settled monthly.
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* 2025 Golf P&L */}
-      <div>
-        <STitle>2025 Golf — Revenue, Costs &amp; Net Contribution</STitle>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          {/* Revenue card — Net Contribution lives at the bottom of this card,
-              directly under Total Revenue 2025, so the revenue side carries the
-              bottom-line takeaway rather than it sitting as a separate full-width
-              callout below both columns. */}
-          <div className="card" style={{ padding:20 }}>
-            <div style={{ fontSize:11, color:'#4FC3F7', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Revenue (gross to No Dice in 2025)</div>
-            <PnlRow label="Online ticket sales (DMN — tokens)" value={g.revenue.onlineTickets} colour="#4FC3F7" />
-            <PnlRow label="Till ticket sales (at venue)"         value={g.revenue.tillTickets}    colour="#4FC3F7" sourceNote="Weekly Merged 2024-2026 row 3 · 52 weeks of 2025" />
-            <PnlTotal label="Total revenue 2025" value={totalRev2025} colour="#4FC3F7" hasTbd={[g.revenue.tillTickets].includes(TBD)} />
-
-            {/* Net Contribution — embedded as the final block of the Revenue card */}
-            <div style={{
-              marginTop: 18, paddingTop: 16, paddingLeft: 14, paddingRight: 14, paddingBottom: 14,
-              background: net2025 >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(229,57,53,0.06)',
-              border: `1px solid ${net2025 >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(229,57,53,0.4)'}`,
-              borderRadius: 8,
-            }}>
-              <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12 }}>
-                <div style={{ flex:1, minWidth:0 }}>
-                  <div style={{ fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>2025 Net Contribution</div>
-                  <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>Total revenue − total course costs (TBD lines = £0).</div>
-                </div>
-                <div className="serif" style={{ fontSize:24, color: net2025 >= 0 ? '#10B981' : '#E53935', fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap' }}>
-                  {net2025 < 0 ? '−' : ''}{fmt(Math.abs(net2025))}
-                </div>
+          <div style={{
+            marginTop: 18, paddingTop: 16, paddingLeft: 14, paddingRight: 14, paddingBottom: 14,
+            background: net2025 >= 0 ? 'rgba(16,185,129,0.06)' : 'rgba(229,57,53,0.06)',
+            border: `1px solid ${net2025 >= 0 ? 'rgba(16,185,129,0.4)' : 'rgba(229,57,53,0.4)'}`,
+            borderRadius: 8,
+          }}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12 }}>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>2025 Net Contribution</div>
+                <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>Total revenue − total course costs (TBD lines = £0).</div>
               </div>
-              {tbdLines > 0 && (
-                <div style={{ marginTop:8, fontSize:10, color:'#EAB308', lineHeight:1.5 }}>
-                  ⚠ {tbdLines} line{tbdLines === 1 ? '' : 's'} marked TBD — figure firms up once till-sales + Golf-Host wages + maintenance / upgrade approximations land.
-                </div>
-              )}
+              <div className="serif" style={{ fontSize:24, color: net2025 >= 0 ? '#10B981' : '#E53935', fontVariantNumeric:'tabular-nums', whiteSpace:'nowrap' }}>
+                {net2025 < 0 ? '−' : ''}{fmt(Math.abs(net2025))}
+              </div>
             </div>
-          </div>
-          {/* Costs card */}
-          <div className="card" style={{ padding:20 }}>
-            <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
-            <PnlRow label="Golf host wages (rota-derived)" value={g.costs.hostWages} colour="#F87171" sourceNote="Live rota · 248.2 hrs × £13.15 × 1.355 (NIC + pension + holiday). Operational estimate — Weekly Merged has no Golf Host line" />
-            <PnlRow label="Course rent share"           value={g.costs.rentShare}   colour="#F87171" sourceNote="Separate course-site lease · £24,000 / yr inc VAT (founder)" />
-            <PnlRow label="Maintenance"                  value={g.costs.maintenance} colour="#F87171" sourceNote="Founder approximation · 2025" />
-            <PnlRow label="Upgrades"                     value={g.costs.upgrade}     colour="#F87171" sourceNote="Founder approximation · new holes + paint job + theming extending from the bar side" />
-            <PnlRow label="Utilities / bills"           value={g.costs.utilities}    colour="#9CA3AF" zeroNote="No bills paid for course" />
-            <PnlRow label="Business rates"               value={g.costs.businessRates} colour="#9CA3AF" zeroNote="No rates paid on course site" />
-            <PnlTotal label="Total cost 2025" value={totalCost2025} colour="#F87171" hasTbd={[g.costs.hostWages, g.costs.rentShare, g.costs.maintenance, g.costs.upgrade].some(v => v === TBD)} />
-          </div>
-        </div>
-      </div>
-
-      {/* Golf Host Seasonality — line + bar chart from 2025 rota */}
-      <GolfHostSeasonality />
-
-      {/* DMN ticket breakdown — per-SKU + per-month + token economics */}
-      <DmnSkuBreakdown />
-
-      {/* Old vs New structure — revenue split */}
-      <div>
-        <STitle>Revenue Split — Old Structure vs Going Forward</STitle>
-        <div className="card" style={{ padding:0, overflow:'hidden' }}>
-          <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 2fr', padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-            <span>Revenue line</span>
-            <span style={{ textAlign:'center' }}>2025 (old)</span>
-            <span style={{ textAlign:'center' }}>2026+ (new)</span>
-            <span>What changed</span>
-          </div>
-          {f.noDiceRetains.map(row => {
-            const oldShare = 1.00
-            const newShare = typeof row.pct === 'number' ? row.pct : null
-            const delta = newShare !== null ? newShare - oldShare : null
-            return (
-              <div key={row.line} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 2fr', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:13, alignItems:'baseline' }}>
-                <span style={{ color:'var(--cream)' }}>{row.line}</span>
-                <span style={{ textAlign:'center', color:'var(--gold-dim)', fontVariantNumeric:'tabular-nums' }}>100%</span>
-                <span style={{ textAlign:'center', fontVariantNumeric:'tabular-nums', color: newShare === null ? 'var(--cream-dim)' : (delta < 0 ? '#F87171' : (delta === 0 ? 'var(--cream)' : '#10B981')) }}>
-                  {newShare === null ? '—' : `${(newShare * 100).toFixed(0)}%`}
-                </span>
-                <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{row.note}</span>
+            {tbdLines > 0 && (
+              <div style={{ marginTop:8, fontSize:10, color:'#EAB308', lineHeight:1.5 }}>
+                ⚠ {tbdLines} line{tbdLines === 1 ? '' : 's'} marked TBD — figure firms up once till-sales + Golf-Host wages + maintenance / upgrade approximations land.
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Operational handover */}
-      <div>
-        <STitle>Operational Handover</STitle>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
-          <div className="card" style={{ padding:20, borderLeft:'3px solid #2DD4BF' }}>
-            <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What No Dice keeps doing</div>
-            {f.noDiceTakesOver.map(item => (
-              <div key={item} style={{ display:'flex', gap:10, fontSize:13, color:'var(--cream-dim)', marginBottom:10, lineHeight:1.6 }}>
-                <span style={{ color:'#2DD4BF', flexShrink:0 }}>✓</span><span>{item}</span>
-              </div>
-            ))}
-          </div>
-          <div className="card" style={{ padding:20, borderLeft:'3px solid #F87171' }}>
-            <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What moves to the golf company</div>
-            {f.golfCompanyTakesOver.map(item => (
-              <div key={item} style={{ display:'flex', gap:10, fontSize:13, color:'var(--cream-dim)', marginBottom:10, lineHeight:1.6 }}>
-                <span style={{ color:'#F87171', flexShrink:0 }}>→</span><span>{item}</span>
-              </div>
-            ))}
+            )}
           </div>
         </div>
-      </div>
-
-      {/* Structure summary */}
-      <div className="card" style={{ padding:18, background:'rgba(99,102,241,0.06)', border:'1px solid rgba(99,102,241,0.2)' }}>
-        <div style={{ fontSize:11, color:'#A78BFA', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:10 }}>New entity structure</div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr 1fr', gap:14, fontSize:12 }}>
-          <div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Operator</div>
-            <div style={{ color:'var(--cream)', lineHeight:1.5 }}>{f.structure.operator}</div>
-          </div>
-          <div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Course host</div>
-            <div style={{ color:'var(--cream)', lineHeight:1.5 }}>{f.structure.host}</div>
-          </div>
-          <div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Cashflow timing</div>
-            <div style={{ color:'var(--cream)', lineHeight:1.5 }}>{f.structure.cashflow}</div>
-          </div>
+        <div className="card" style={{ padding:20 }}>
+          <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
+          <PnlRow label="Golf host wages (rota-derived)" value={g.costs.hostWages} colour="#F87171" sourceNote="Live rota · 248.2 hrs × £13.15 × 1.355 (NIC + pension + holiday). Operational estimate — Weekly Merged has no Golf Host line" />
+          <PnlRow label="Course rent share"           value={g.costs.rentShare}   colour="#F87171" sourceNote="Separate course-site lease · £24,000 / yr inc VAT (founder)" />
+          <PnlRow label="Maintenance"                  value={g.costs.maintenance} colour="#F87171" sourceNote="Founder approximation · 2025" />
+          <PnlRow label="Upgrades"                     value={g.costs.upgrade}     colour="#F87171" sourceNote="Founder approximation · new holes + paint job + theming extending from the bar side" />
+          <PnlRow label="Utilities / bills"           value={g.costs.utilities}    colour="#9CA3AF" zeroNote="No bills paid for course" />
+          <PnlRow label="Business rates"               value={g.costs.businessRates} colour="#9CA3AF" zeroNote="No rates paid on course site" />
+          <PnlTotal label="Total cost 2025" value={totalCost2025} colour="#F87171" hasTbd={[g.costs.hostWages, g.costs.rentShare, g.costs.maintenance, g.costs.upgrade].some(v => v === TBD)} />
         </div>
       </div>
+    </div>
+  )
+}
 
+function RevenueSplit() {
+  const f = HACKNEY_GOLF_GOING_FORWARD
+  return (
+    <div>
+      <STitle>Revenue Split — Old Structure vs Going Forward</STitle>
+      <div className="card" style={{ padding:0, overflow:'hidden' }}>
+        <div style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 2fr', padding:'12px 16px', borderBottom:'1px solid rgba(201,168,76,0.3)', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
+          <span>Revenue line</span>
+          <span style={{ textAlign:'center' }}>2025 (old)</span>
+          <span style={{ textAlign:'center' }}>2026+ (new)</span>
+          <span>What changed</span>
+        </div>
+        {f.noDiceRetains.map(row => {
+          const oldShare = 1.00
+          const newShare = typeof row.pct === 'number' ? row.pct : null
+          const delta = newShare !== null ? newShare - oldShare : null
+          return (
+            <div key={row.line} style={{ display:'grid', gridTemplateColumns:'2fr 1fr 1fr 2fr', padding:'12px 16px', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:13, alignItems:'baseline' }}>
+              <span style={{ color:'var(--cream)' }}>{row.line}</span>
+              <span style={{ textAlign:'center', color:'var(--gold-dim)', fontVariantNumeric:'tabular-nums' }}>100%</span>
+              <span style={{ textAlign:'center', fontVariantNumeric:'tabular-nums', color: newShare === null ? 'var(--cream-dim)' : (delta < 0 ? '#F87171' : (delta === 0 ? 'var(--cream)' : '#10B981')) }}>
+                {newShare === null ? '—' : `${(newShare * 100).toFixed(0)}%`}
+              </span>
+              <span style={{ fontSize:12, color:'var(--cream-dim)' }}>{row.note}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function OperationalHandover() {
+  const f = HACKNEY_GOLF_GOING_FORWARD
+  return (
+    <div>
+      <STitle>Operational Handover</STitle>
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:14 }}>
+        <div className="card" style={{ padding:20, borderLeft:'3px solid #2DD4BF' }}>
+          <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What No Dice keeps doing</div>
+          {f.noDiceTakesOver.map(item => (
+            <div key={item} style={{ display:'flex', gap:10, fontSize:13, color:'var(--cream-dim)', marginBottom:10, lineHeight:1.6 }}>
+              <span style={{ color:'#2DD4BF', flexShrink:0 }}>✓</span><span>{item}</span>
+            </div>
+          ))}
+        </div>
+        <div className="card" style={{ padding:20, borderLeft:'3px solid #F87171' }}>
+          <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What moves to the golf company</div>
+          {f.golfCompanyTakesOver.map(item => (
+            <div key={item} style={{ display:'flex', gap:10, fontSize:13, color:'var(--cream-dim)', marginBottom:10, lineHeight:1.6 }}>
+              <span style={{ color:'#F87171', flexShrink:0 }}>→</span><span>{item}</span>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   )
 }
@@ -575,11 +551,70 @@ function PnlTotal({ label, value, colour, hasTbd }) {
   )
 }
 
+// ─── Plonk landing — side-index layout ────────────────────────────────
+// Left column = sticky section index. Right column = the active section.
+// Default landing view is the Golf Operations · Transparency overview.
+const PLONK_SECTIONS = [
+  { key: 'overview', label: 'Transparency · Overview', Component: GolfOverview },
+  { key: 'pnl',      label: '2025 Golf P&L',           Component: GolfPnl },
+  { key: 'host',     label: 'Host & Till Activity',    Component: GolfHostSeasonality },
+  { key: 'dmn',      label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
+  { key: 'split',    label: 'Revenue Split',           Component: RevenueSplit },
+  { key: 'handover', label: 'Operational Handover',    Component: OperationalHandover },
+]
+
 export default function Plonk() {
+  const [active, setActive] = React.useState('overview')
+  const current = PLONK_SECTIONS.find(s => s.key === active) || PLONK_SECTIONS[0]
+  const Active = current.Component
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
-      <div style={{ padding:'24px 32px', fontSize:13 }}>
-        <GolfOperations />
+      <div style={{
+        display:'grid', gridTemplateColumns:'220px 1fr',
+        gap:28, padding:'24px 32px', fontSize:13,
+        alignItems:'start',
+      }}>
+        {/* Sticky left index */}
+        <nav style={{
+          position:'sticky', top:16, alignSelf:'start',
+          display:'flex', flexDirection:'column', gap:4,
+        }}>
+          <div style={{
+            fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.12em',
+            textTransform:'uppercase', fontWeight:600, padding:'6px 12px 10px',
+          }}>
+            Sections
+          </div>
+          {PLONK_SECTIONS.map(s => {
+            const isActive = s.key === active
+            return (
+              <button
+                key={s.key}
+                onClick={() => setActive(s.key)}
+                style={{
+                  textAlign:'left',
+                  padding:'10px 14px',
+                  fontSize:12.5,
+                  borderRadius:8,
+                  cursor:'pointer',
+                  background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+                  border:`1px solid ${isActive ? 'rgba(201,168,76,0.4)' : 'transparent'}`,
+                  color: isActive ? 'var(--gold)' : 'var(--cream-dim)',
+                  fontWeight: isActive ? 600 : 400,
+                  letterSpacing:'0.02em',
+                  transition:'all 0.15s',
+                }}
+              >
+                {s.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        {/* Active section */}
+        <div style={{ minWidth:0, display:'flex', flexDirection:'column', gap:28 }}>
+          <Active />
+        </div>
       </div>
     </div>
   )
