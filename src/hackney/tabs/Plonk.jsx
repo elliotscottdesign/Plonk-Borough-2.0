@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import {
   HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
   HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
@@ -539,6 +539,168 @@ function PnlTotal({ label, value, colour, hasTbd }) {
   )
 }
 
+// ─── Plonk Commissions — three-slider model ──────────────────────────
+// Mirrors Borough's IP & Licensing commission section. Three sliders:
+//   1. Commission % on online golf sales (default 10%)
+//   2. Commission % on office golf sales (default 10%)
+//   3. Booking fee % on ALL online sales (default 10%)
+// Golf-only filter: any SKU with rounds > 0 is a golf SKU. Pool tables,
+// pool tournaments, brunches, drink add-ons and seasonal specials are
+// venue-managed (no commission).
+const isGolfSku = (r) => r.rounds > 0
+function sumGolfRev(rows)    { return rows.filter(isGolfSku).reduce((s, r) => s + r.revenue, 0) }
+function sumNonGolfRev(rows) { return rows.filter(r => !isGolfSku(r)).reduce((s, r) => s + r.revenue, 0) }
+
+function PlonkCommissions() {
+  const [commissionOnlinePct, setCommissionOnlinePct] = useState(10)
+  const [commissionOfficePct, setCommissionOfficePct] = useState(10)
+  const [bookingFeePct, setBookingFeePct]             = useState(10)
+
+  const onlineGolfRev    = sumGolfRev(HACKNEY_DMN_SKUS_ONLINE_2025)
+  const onlineNonGolfRev = sumNonGolfRev(HACKNEY_DMN_SKUS_ONLINE_2025)
+  const officeGolfRev    = sumGolfRev(HACKNEY_DMN_SKUS_OFFICE_2025)
+  const officeNonGolfRev = sumNonGolfRev(HACKNEY_DMN_SKUS_OFFICE_2025)
+  const onlineGrossAll   = HACKNEY_DMN_GRAND_2025.onlineRev
+
+  const commissionOnline = onlineGolfRev * (commissionOnlinePct / 100)
+  const commissionOffice = officeGolfRev * (commissionOfficePct / 100)
+  const bookingFees      = onlineGrossAll * (bookingFeePct / 100)
+  const total2026        = commissionOnline + commissionOffice + bookingFees
+
+  const ACCENT = '#22D3EE'
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+      <STitle>Plonk Commissions · 2026 income from venue</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:0 }}>
+        Three sliders model what Plonk Golf would earn under the new structure on 2025 base volume — commission % on online golf sales, commission % on office golf sales, and the customer-paid booking fee % applied to ALL online sales at checkout. Booking fee is set to <strong style={{ color:'var(--cream)' }}>10%</strong> by default; the two commission sliders default to <strong style={{ color:'var(--cream)' }}>10%</strong>.
+      </p>
+
+      {/* Headline summary card — totals + per-stream split */}
+      <div style={{ background:`${ACCENT}10`, border:`1px solid ${ACCENT}40`, borderRadius:10, padding:18 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+          <div>
+            <div style={{ fontSize:11, color:ACCENT, letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700 }}>Total Plonk income · 2026</div>
+            <div style={{ fontSize:12, color:'var(--cream-dim)', marginTop:4 }}>Commission on golf-rounds (online + office) plus the customer-paid booking fee surcharge.</div>
+          </div>
+          <div style={{ textAlign:'right' }}>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em' }}>Total</div>
+            <div className="serif" style={{ fontSize:26, color:ACCENT, fontWeight:800, lineHeight:1.1 }}>{fmt(Math.round(total2026))}</div>
+          </div>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8, marginTop:6 }}>
+          <CommMini label="Online golf commission" value={fmt(Math.round(commissionOnline))} color={ACCENT} />
+          <CommMini label="Office golf commission" value={fmt(Math.round(commissionOffice))} color={ACCENT} />
+          <CommMini label="Booking fees collected" value={fmt(Math.round(bookingFees))}      color={ACCENT} />
+        </div>
+      </div>
+
+      <CommissionSlider
+        label="Commission % — Online golf sales"
+        subtitle="Applied to online GOLF ticket sales only. Pool tables, pool tournaments, brunches, drink add-ons and seasonal specials are venue-managed — no Plonk Golf commission on those."
+        value={commissionOnlinePct}
+        onChange={setCommissionOnlinePct}
+        accent={ACCENT}
+        max={30}
+        defaultValue={10}
+        golfRev={onlineGolfRev}
+        nonGolfRev={onlineNonGolfRev}
+      />
+
+      <CommissionSlider
+        label="Commission % — Office golf sales (if Plonk Golf provides bookings manager)"
+        subtitle="Conditional scenario: if Plonk Golf provides a bookings manager for the venue, it earns a commission on office/till-settled golf sales. Set to 0% to model venue-handles-own-bookings."
+        value={commissionOfficePct}
+        onChange={setCommissionOfficePct}
+        accent={ACCENT}
+        max={30}
+        defaultValue={10}
+        golfRev={officeGolfRev}
+        nonGolfRev={officeNonGolfRev}
+      />
+
+      <BookingFeeSlider
+        value={bookingFeePct}
+        onChange={setBookingFeePct}
+        accent={ACCENT}
+        onlineGrossAll={onlineGrossAll}
+      />
+    </div>
+  )
+}
+
+function CommissionSlider({ label, subtitle, value, onChange, accent, max, defaultValue, golfRev, nonGolfRev }) {
+  const commission = golfRev * (value / 100)
+  return (
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${accent}60`, borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4, gap:12, flexWrap:'wrap' }}>
+        <div style={{ fontSize:11, color:accent, letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700 }}>{label}</div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:18, color:accent, fontWeight:700 }}>{value}%</div>
+          <button
+            onClick={() => onChange(defaultValue)}
+            title={`Reset to ${defaultValue}%`}
+            style={{ padding:'2px 9px', fontSize:10, borderRadius:4, cursor:'pointer', background:'transparent', border:`1px solid ${accent}55`, color:'var(--cream-dim)', letterSpacing:'0.04em', textTransform:'uppercase' }}
+          >Reset</button>
+        </div>
+      </div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', marginBottom:12, lineHeight:1.5 }}>{subtitle}</div>
+      <input type="range" min={0} max={max} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width:'100%', accentColor:accent }} />
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--cream-dim)', marginTop:2, marginBottom:14 }}>
+        <span>0%</span><span>{max}%</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:8 }}>
+        <CommMini label="Golf revenue (commissionable)" value={fmt(Math.round(golfRev))}    color={accent} />
+        <CommMini label="Non-golf (excluded)"           value={fmt(Math.round(nonGolfRev))} color="var(--cream-dim)" />
+        <CommMini label={`Commission @ ${value}%`}      value={fmt(Math.round(commission))} color="var(--gold)" emphasised />
+      </div>
+    </div>
+  )
+}
+
+function BookingFeeSlider({ value, onChange, accent, onlineGrossAll }) {
+  const collected = onlineGrossAll * (value / 100)
+  return (
+    <div style={{ background:'var(--ink-2)', border:`1px solid ${accent}60`, borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:4, gap:12, flexWrap:'wrap' }}>
+        <div style={{ fontSize:11, color:accent, letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700 }}>Booking fee % — applied to ALL online sales</div>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          <div style={{ fontSize:18, color:accent, fontWeight:700 }}>{value}%</div>
+          <button
+            onClick={() => onChange(10)}
+            title="Reset to 10%"
+            style={{ padding:'2px 9px', fontSize:10, borderRadius:4, cursor:'pointer', background:'transparent', border:`1px solid ${accent}55`, color:'var(--cream-dim)', letterSpacing:'0.04em', textTransform:'uppercase' }}
+          >Reset</button>
+        </div>
+      </div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', marginBottom:12, lineHeight:1.5 }}>
+        Customer pays ticket + this % on top at checkout. Retained by Plonk Golf as the online-funnel surcharge. Applies to ALL online SKUs (golf, pool, specials) — not till sales.
+      </div>
+      <input type="range" min={0} max={20} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width:'100%', accentColor:accent }} />
+      <div style={{ display:'flex', justifyContent:'space-between', fontSize:10, color:'var(--cream-dim)', marginTop:2, marginBottom:14 }}>
+        <span>0%</span><span>20%</span>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(2, 1fr)', gap:8 }}>
+        <CommMini label="Online gross (all SKUs)" value={fmt(Math.round(onlineGrossAll))} color="var(--cream)" />
+        <CommMini label={`Booking fees @ ${value}%`} value={fmt(Math.round(collected))} color={accent} emphasised />
+      </div>
+    </div>
+  )
+}
+
+function CommMini({ label, value, color, emphasised }) {
+  return (
+    <div style={{
+      background: emphasised ? 'rgba(201,168,76,0.08)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${emphasised ? 'rgba(201,168,76,0.35)' : 'rgba(255,255,255,0.06)'}`,
+      borderRadius:8, padding:'8px 12px',
+    }}>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:3 }}>{label}</div>
+      <div style={{ fontSize:14, color, fontWeight:700 }}>{value}</div>
+    </div>
+  )
+}
+
 // ─── Plonk landing — side-index layout ────────────────────────────────
 // Left column = sticky section index. Right column = the active section.
 // Default landing view is the Golf Operations · Transparency overview.
@@ -555,12 +717,13 @@ function Operations() {
 }
 
 const PLONK_SECTIONS = [
-  { key: 'overview',   label: 'Transparency · Overview', Component: GolfOverview },
-  { key: 'pnl',        label: '2025 Golf P&L',           Component: GolfPnl },
-  { key: 'hosts',      label: 'Golf Hosts',              Component: GolfHosts },
-  { key: 'till',       label: 'Walk-In Till Revenue',    Component: TillRevenue },
-  { key: 'dmn',        label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
-  { key: 'operations', label: 'Operations',              Component: Operations },
+  { key: 'overview',    label: 'Transparency · Overview', Component: GolfOverview },
+  { key: 'pnl',         label: '2025 Golf P&L',           Component: GolfPnl },
+  { key: 'hosts',       label: 'Golf Hosts',              Component: GolfHosts },
+  { key: 'till',        label: 'Walk-In Till Revenue',    Component: TillRevenue },
+  { key: 'dmn',         label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
+  { key: 'commissions', label: 'Plonk Commissions',       Component: PlonkCommissions },
+  { key: 'operations',  label: 'Operations',              Component: Operations },
 ]
 
 export default function Plonk() {
