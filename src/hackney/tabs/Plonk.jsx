@@ -250,8 +250,6 @@ function GolfHostSeasonality() {
   const tillData = HACKNEY_GOLF_TILL_2025_MONTHLY
   const tillTotal = tillData.reduce((s, m) => s + m.revenue, 0)
   const peakMo  = data.reduce((acc, m) => m.hours > acc.hours ? m : acc, data[0])
-  const activeMonthLabels = data.filter(m => m.shifts > 0).map(m => m.month).join(', ')
-  const darkMonthLabels   = data.filter(m => m.shifts === 0).map(m => m.month).join(', ')
   return (
     <div>
       <STitle>Golf Host Shifts · 2025 Seasonality (Operational)</STitle>
@@ -283,9 +281,6 @@ function GolfHostSeasonality() {
               <Bar  dataKey="hours" name="Hours" fill="#4FC3F7" radius={[3,3,0,0]} maxBarSize={36} />
             </ComposedChart>
           </ResponsiveContainer>
-        </div>
-        <div style={{ marginTop:10, padding:'10px 14px', background:'rgba(229,57,53,0.04)', borderLeft:'3px solid #F87171', borderRadius:4, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          <strong style={{ color:'#F87171' }}>Seasonal pattern:</strong> active in <strong style={{ color:'var(--cream)' }}>{activeMonthLabels}</strong> (6 months), dark in <strong style={{ color:'var(--cream)' }}>{darkMonthLabels}</strong> (6 months). The course shut over the summer-tail and didn't reopen for autumn / winter — half the calendar year ran zero golf hours while the bar continued to trade.
         </div>
       </div>
 
