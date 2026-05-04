@@ -799,8 +799,8 @@ export const PT_BR = {
   'How It Works · Plonk Golf × No Dice Borough':
     'Como Funciona · Plonk Golf × No Dice Borough',
   'What the franchise saves the venue': 'O que a franquia economiza para o local',
-  'Under the franchise model with No Dice Borough, Plonk Golf takes on the digital funnel, payment processing, group bookings, hosting, and SEO for all crazy golf tickets. All money goes directly into the franchisee account, with Plonk taking a direct debit post payment for their commission. A small one-off fee is paid upfront for use of the name.':
-    'Sob o modelo de franquia com a No Dice Borough, a Plonk Golf assume o funil digital, o processamento de pagamentos, as reservas em grupo, a hospedagem e o SEO para todos os ingressos de crazy golf. Todo o dinheiro vai direto para a conta do franqueado, com a Plonk recolhendo sua comissão por débito direto após o pagamento. Uma pequena taxa única é paga antecipadamente pelo uso do nome.',
+  'Under the franchise model with No Dice Borough, Plonk Golf takes on the digital funnel, payment processing, group bookings, hosting, and SEO for all crazy golf tickets. All money goes directly into the franchisee account, with Plonk taking a direct debit post payment for their commission. A small one-off fee is paid upfront for use of the name. All over-the-counter golf ticket sales go directly to the franchisee with no commission taken.':
+    'Sob o modelo de franquia com a No Dice Borough, a Plonk Golf assume o funil digital, o processamento de pagamentos, as reservas em grupo, a hospedagem e o SEO para todos os ingressos de crazy golf. Todo o dinheiro vai direto para a conta do franqueado, com a Plonk recolhendo sua comissão por débito direto após o pagamento. Uma pequena taxa única é paga antecipadamente pelo uso do nome. Todas as vendas de ingressos de golfe no balcão vão diretamente para o franqueado, sem comissão.',
   'Annual savings': 'Economia anual',
   'Recurring per year': 'Recorrente por ano',
   'One-off IP saving': 'Economia única de IP',
