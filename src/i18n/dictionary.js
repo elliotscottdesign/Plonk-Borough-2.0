@@ -32,13 +32,13 @@ export const PT_BR = {
     'IP e Licenciamento · Motor de Marketing · seção de desenvolvimento',
 
   // ---------- Slide nav ----------
-  '01  Cover': '01  Capa',
-  '02  Investment Summary': '02  Resumo do Investimento',
-  '03  Use of Funds': '03  Uso dos Fundos',
-  '04  Growth Drivers': '04  Drivers de Crescimento',
-  '05  Market Context': '05  Contexto de Mercado',
-  '06  Waterfall Returns': '06  Retornos em Cascata',
-  '07  Investment Case': '07  Case de Investimento',
+  'COVER':              'CAPA',
+  'INVESTMENT SUMMARY': 'RESUMO DO INVESTIMENTO',
+  'USE OF FUNDS':       'USO DOS FUNDOS',
+  'GROWTH DRIVERS':     'DRIVERS DE CRESCIMENTO',
+  'MARKET CONTEXT':     'CONTEXTO DE MERCADO',
+  'INVESTOR RETURNS':   'RETORNOS DO INVESTIDOR',
+  'INVESTMENT CASE':    'CASE DE INVESTIMENTO',
 
   // ---------- Password gate ----------
   'Investor Presentation · Confidential': 'Apresentação para Investidores · Confidencial',

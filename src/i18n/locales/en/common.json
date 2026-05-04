@@ -12,13 +12,13 @@
     "workbook": "Workbook ↗"
   },
   "slideNav": {
-    "cover": "01  Cover",
-    "summary": "02  Investment Summary",
-    "funds": "03  Use of Funds",
-    "drivers": "04  Growth Drivers",
-    "market": "05  Market Context",
-    "waterfall": "06  Investor Returns",
-    "case": "07  Investment Case"
+    "cover": "COVER",
+    "summary": "INVESTMENT SUMMARY",
+    "funds": "USE OF FUNDS",
+    "drivers": "GROWTH DRIVERS",
+    "market": "MARKET CONTEXT",
+    "waterfall": "INVESTOR RETURNS",
+    "case": "INVESTMENT CASE"
   },
   "labels": {
     "ebitda": "EBITDA",

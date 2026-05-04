@@ -12,13 +12,13 @@
     "workbook": "Planilha ↗"
   },
   "slideNav": {
-    "cover": "01  Capa",
-    "summary": "02  Resumo do Investimento",
-    "funds": "03  Uso dos Fundos",
-    "drivers": "04  Drivers de Crescimento",
-    "market": "05  Contexto de Mercado",
-    "waterfall": "06  Retornos do Investidor",
-    "case": "07  Case de Investimento"
+    "cover": "CAPA",
+    "summary": "RESUMO DO INVESTIMENTO",
+    "funds": "USO DOS FUNDOS",
+    "drivers": "DRIVERS DE CRESCIMENTO",
+    "market": "CONTEXTO DE MERCADO",
+    "waterfall": "RETORNOS DO INVESTIDOR",
+    "case": "CASE DE INVESTIMENTO"
   },
   "labels": {
     "ebitda": "EBITDA",
