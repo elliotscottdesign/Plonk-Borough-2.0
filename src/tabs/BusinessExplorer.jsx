@@ -79,14 +79,14 @@ const BASELINE_TOKENS_2025 = TICKET_SKUS_2025.reduce((sum, s) => sum + s.tokens 
 // pricing (£20/mo); accounting and director salary user-specified.
 // Total flows to the cost donut as a new "Office & Admin" line.
 const OFFICE_COST_ITEMS = [
-  { id: 'xero',       monthlyHint: 25,   source: 'weekly2025' },
-  { id: 'rotacloud',  monthlyHint: 40,   source: 'pricing'    },
-  { id: 'claude',     monthlyHint: 20,   source: 'pricing'    },
-  { id: 'google',     monthlyHint: 25,   source: 'weekly2025' },
-  { id: 'webhosting', monthlyHint: 42,   source: 'pricing'    },
-  { id: 'amazonPrime', monthlyHint: 9,   source: 'pricing'    },
-  { id: 'accounting', monthlyHint: null, source: 'specified'  },
-  { id: 'director',   monthlyHint: null, source: 'estimated'  },
+  { id: 'xero',         label: 'Xero accounting',            note: '£25/mo × 12' },
+  { id: 'rotacloud',    label: 'RotaCloud',                  note: '~£40/mo for 10 users × 12' },
+  { id: 'claude',       label: 'Claude Pro',                 note: '£20/mo × 12' },
+  { id: 'google',       label: 'Google Workspace',           note: '£25/mo × 12' },
+  { id: 'webhosting',   label: 'Web hosting',                note: 'Annual prepay (~£42/mo equiv.)' },
+  { id: 'amazonPrime',  label: 'Amazon Prime',               note: '£8.99/mo × 12 — venue stock + supplies' },
+  { id: 'accounting',   label: 'Accounting fees',            note: 'Annual fees' },
+  { id: 'director',     label: "Directors' compensation",    note: 'Total director comp budget' },
 ]
 
 const OFFICE_COSTS_2026_DEFAULTS = {
@@ -1372,83 +1372,66 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
 // weekly P&L where present, otherwise current online pricing.
 // ───────────────────────────────────────────────────────────────────────
 function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
-  const { t } = useTranslation('explorer')
-  const { fmt } = useFmt()
-  const { isLocked, canEdit } = useLockedForecast()
+  const { canEdit } = useLockedForecast()
+  const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-  const total = sumOfficeCosts(officeCosts)
-  const monthlyAvg = Math.round(total / 12)
+  const annualTotal = sumOfficeCosts(officeCosts)
+  const monthlyTotal = annualTotal / 12
 
-  const update = (id, value) => setOfficeCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
-  const resetAll = () => setOfficeCosts(OFFICE_COSTS_2026_DEFAULTS)
-
-  const cellTd = { padding:'10px 8px', fontSize:12, borderBottom:'1px solid rgba(255,255,255,0.05)' }
-  const headTh = { padding:'10px 8px', fontSize:9.5, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.06em', fontWeight:600, textAlign:'right', borderBottom:'1px solid rgba(255,255,255,0.1)' }
+  const setLine = (id, value) => {
+    if (!canEdit) return
+    setOfficeCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
+  }
 
   return (
-    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20, fontSize:13 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:6 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('officeCosts.header')}</div>
-        <ResetBtn onClick={resetAll} title={t('officeCosts.resetAll')} />
+    <div className="card" style={{ padding:20 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'#C084FC', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office Costs · Editor</div>
+        <div style={{ fontSize:13, color:'#C084FC', fontWeight:600 }}>{fmtMoney(annualTotal)}/yr</div>
       </div>
-      <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>{t('officeCosts.note')}</div>
-
-      {/* Total tile */}
-      <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.18)', borderRadius:8, padding:'14px 16px', textAlign:'center', marginBottom:14 }}>
-        <div style={{ fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:6 }}>{t('officeCosts.totalLabel')}</div>
-        <div style={{ fontSize:24, fontWeight:800, color:'var(--gold)' }}>{fmt(total)}</div>
-        <div style={{ fontSize:11, color:'#6B7280', marginTop:4 }}>{t('officeCosts.monthlyAvg', { val: fmt(monthlyAvg) })}</div>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Subscriptions, AI, accounting, and director compensation. Defaults reflect current spend ranges. Annual £ sliders below; total flows into the Op Costs donut as a single Office Costs line.
       </div>
 
-      {/* Editable items table */}
-      <div style={{ overflowX:'auto', background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8 }}>
-        <table style={{ width:'100%', borderCollapse:'collapse' }}>
-          <thead>
-            <tr>
-              <th style={{ ...headTh, textAlign:'left' }}>{t('officeCosts.col.item')}</th>
-              <th style={{ ...headTh, textAlign:'left' }}>{t('officeCosts.col.description')}</th>
-              <th style={headTh}>{t('officeCosts.col.source')}</th>
-              <th style={headTh}>{t('officeCosts.col.monthly')}</th>
-              <th style={headTh}>{t('officeCosts.col.annual')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {OFFICE_COST_ITEMS.map(item => {
-              const annual = officeCosts[item.id] ?? OFFICE_COSTS_2026_DEFAULTS[item.id]
-              const monthly = Math.round(annual / 12)
-              return (
-                <tr key={item.id}>
-                  <td style={{ ...cellTd, color:'var(--cream)', fontWeight:600, textAlign:'left' }}>{t(`officeCosts.items.${item.id}.name`)}</td>
-                  <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'left' }}>{t(`officeCosts.items.${item.id}.note`)}</td>
-                  <td style={{ ...cellTd, color:'#6B7280', textAlign:'right', fontSize:10, textTransform:'uppercase', letterSpacing:'0.06em' }}>{t(`officeCosts.source.${item.source}`)}</td>
-                  <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>{item.monthlyHint != null ? `£${monthly}` : '—'}</td>
-                  <td style={{ ...cellTd, textAlign:'right' }}>
-                    <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-                      <span style={{ color:'#6B7280', fontSize:11 }}>£</span>
-                      <input
-                        type="number" min={0} step={1} disabled={!canEdit}
-                        value={annual}
-                        onChange={e => update(item.id, e.target.value)}
-                        style={{ width:80, padding:'3px 6px', textAlign:'right', background:'rgba(0,0,0,0.3)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:4, color:'var(--gold)', fontWeight:600, fontSize:12, opacity: canEdit ? 1 : 0.6 }}
-                      />
-                    </span>
-                  </td>
-                </tr>
-              )
-            })}
-            <tr style={{ background:'rgba(201,168,76,0.05)', borderTop:'2px solid rgba(201,168,76,0.25)' }}>
-              <td style={{ ...cellTd, color:'var(--gold)', fontWeight:700, textTransform:'uppercase', letterSpacing:'0.06em', fontSize:10.5, textAlign:'left' }}>{t('officeCosts.col.totals')}</td>
-              <td style={cellTd}></td>
-              <td style={cellTd}></td>
-              <td style={{ ...cellTd, color:'#9CA3AF', textAlign:'right' }}>£{monthlyAvg}</td>
-              <td style={{ ...cellTd, color:'var(--gold)', fontWeight:700, textAlign:'right' }}>{fmt(total)}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      {OFFICE_COST_ITEMS.map(item => {
+        const def = OFFICE_COSTS_2026_DEFAULTS[item.id]
+        const value = officeCosts[item.id] ?? def
+        const max = Math.max(def * 3, 500)
+        const step = Math.max(10, Math.round(def / 40 / 5) * 5) || 25
+        const monthly = value / 12
+        return (
+          <div key={item.id} style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <div>
+              <div style={{ fontSize:13, color:'var(--cream)' }}>{item.label}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{item.note} · default {fmtMoney(def)}</div>
+            </div>
+            <div>
+              <input type="range" min={0} max={max} step={step} value={value}
+                onChange={(e) => setLine(item.id, +e.target.value)}
+                disabled={!canEdit}
+                style={{ width:'100%', accentColor:'#C084FC', cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
+              <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+                <span>£0</span>
+                <span>{fmtMoney(def)}</span>
+                <span>{fmtMoney(max)}</span>
+              </div>
+            </div>
+            <div style={{ textAlign:'right' }}>
+              <div className="serif" style={{ fontSize:16, color: value === def ? 'var(--cream)' : (value > def ? '#F87171' : '#10B981'), fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                {fmtMoney(value)}
+              </div>
+              <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:4 }}>£{Math.round(monthly).toLocaleString('en-GB')}/mo</div>
+            </div>
+          </div>
+        )
+      })}
 
-      <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.05)', border:'1px solid rgba(45,212,191,0.18)', borderRadius:6, fontSize:11, color:'#9CA3AF', lineHeight:1.5 }}>
-        {t('officeCosts.modelNote')}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', padding:'12px 0 4px', borderTop:'2px solid rgba(192,132,252,0.3)', marginTop:10, fontWeight:600 }}>
+        <div>
+          <div style={{ fontSize:12, color:'var(--cream)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total Office Costs · 2026</div>
+          <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:2 }}>£{Math.round(monthlyTotal).toLocaleString('en-GB')} per month</div>
+        </div>
+        <span className="serif" style={{ fontSize:18, color:'#C084FC' }}>{fmtMoney(annualTotal)}</span>
       </div>
     </div>
   )
