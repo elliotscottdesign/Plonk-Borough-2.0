@@ -114,71 +114,70 @@ export default function WaterfallReturns() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32 }}>
-
-        {/* Waterfall steps */}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-            {t('steps.header')}
+      {/* Hero metrics strip — Total Return takes the lead, key ratios sit
+          alongside. Replaces the old 4-card vertical stack on the right
+          which left the left column with huge dead vertical space. */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.6fr 1fr 1fr 1fr', gap: 12, marginBottom: 20 }}>
+        <div className="card-highlight" style={{ padding: '18px 22px' }}>
+          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            {t('summary.totalReturn')}
           </div>
+          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 6 }}>
+            {fmt(w.totalInvestor)}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+            {t('summary.totalReturnNote', { pct: investorPct })}
+          </div>
+        </div>
+
+        <HeroStat
+          label={t('summary.cashOnCash')}
+          value={`${(w.coc * 100).toFixed(1)}%`}
+          sub={t('summary.onInvested', { amount: fmt(fundingAmount) })}
+          gold
+        />
+        <HeroStat
+          label={t('summary.paybackPeriod')}
+          value={t('summary.paybackYears', { n: w.totalInvestor > 0 ? (fundingAmount / w.totalInvestor).toFixed(2) : 'N/A' })}
+          sub={t('summary.distributionTiming') + ': ' + t('summary.sameAsFounder')}
+        />
+        <HeroStat
+          label={`${t('summary.founderPosition')} (${founderPct}%)`}
+          value={fmt(w.founderDiv)}
+          sub={t('summary.paidNote')}
+          muted
+        />
+      </div>
+
+      {/* Distribution Waterfall — flipped from a tall vertical list to a
+          horizontal 3-card row so each step gets equal visual weight and
+          the section fits on one screen alongside the metrics above. */}
+      <div style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 12 }}>
+          {t('steps.header')}
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
           {steps.map((step, i) => (
-            <div key={i} style={{
-              display: 'flex', alignItems: 'center', gap: 14,
-              padding: '14px 0', borderBottom: '1px solid rgba(255,255,255,0.06)',
-            }}>
-              <div style={{ width: 3, height: 36, background: step.color, borderRadius: 2, flexShrink: 0 }} />
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, color: 'var(--cream)', marginBottom: 2 }}>{step.label}</div>
-                <div style={{ fontSize: 10, color: 'var(--cream-dim)' }}>{step.note}</div>
+            <div key={i} className="card" style={{ padding: 16, borderLeft: `3px solid ${step.color}` }}>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                {step.label}
               </div>
-              <div style={{
-                fontSize: 16, fontFamily: "'DM Serif Display', serif",
+              <div className="serif" style={{
+                fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 6,
                 color: step.amount < 0 ? '#E53935' : step.color,
               }}>
                 {step.amount < 0 ? '−' : ''}{fmt(Math.abs(step.amount))}
               </div>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+                {step.note}
+              </div>
             </div>
           ))}
         </div>
+      </div>
 
-        {/* Summary cards */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 4 }}>
-            {t('summary.header')}
-          </div>
-
-          <div className="card-highlight" style={{ padding: 24 }}>
-            <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {t('summary.totalReturn')}
-            </div>
-            <div className="serif" style={{ fontSize: 36, color: 'var(--gold)', marginBottom: 4 }}>
-              {fmt(w.totalInvestor)}
-            </div>
-            <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>
-              {t('summary.totalReturnNote', { pct: investorPct })}
-            </div>
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <Row label={t('summary.cashOnCash')} value={`${(w.coc * 100).toFixed(1)}%`} gold />
-            <Row label={t('summary.paybackPeriod')} value={t('summary.paybackYears', { n: w.totalInvestor > 0 ? (fundingAmount / w.totalInvestor).toFixed(2) : 'N/A' })} />
-            <Row label={t('summary.onInvested', { amount: fmt(fundingAmount) })} value={fmt(fundingAmount)} gold={fundingIsLocked} />
-            <Row label={t('summary.equityDividend', { pct: investorPct })} value={fmt(w.investorDiv)} gold />
-            <Row label={t('summary.distributionTiming')} value={t('summary.sameAsFounder')} />
-          </div>
-
-          <div className="card" style={{ padding: 20 }}>
-            <div style={{ fontSize: 11, color: 'var(--gold-dim)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-              {t('summary.founderPosition')}
-            </div>
-            <Row label={t('summary.founderEquity', { pct: founderPct })} value={fmt(w.founderDiv)} />
-            <Row label={t('summary.paid')} value={t('summary.paidNote')} />
-          </div>
-
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, padding: '4px 0' }}>
-            {t('summary.footnote')}
-          </div>
-        </div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 4 }}>
+        {t('summary.footnote')}
       </div>
 
       {/* Priority rules callout — what comes out of profit, in what order */}
@@ -533,6 +532,22 @@ function FiveYearPayoutBreakdown({ investment, isLocked, fmt }) {
   )
 }
 
+// Compact hero stat — used in the top-of-page metrics strip alongside the
+// gold Total Return card. Lower visual weight than card-highlight, higher
+// than SummaryTile (which is reused further down on the 5-year breakdown).
+function HeroStat({ label, value, sub, gold, muted }) {
+  return (
+    <div className="card" style={{ padding: '18px 20px' }}>
+      <div style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>{label}</div>
+      <div className="serif" style={{
+        fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 6,
+        color: gold ? 'var(--gold)' : muted ? 'var(--cream-dim)' : 'var(--cream)',
+      }}>{value}</div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{sub}</div>
+    </div>
+  )
+}
+
 function SummaryTile({ label, value, sub, colour }) {
   return (
     <div className="card" style={{ padding: 16 }}>
@@ -543,12 +558,3 @@ function SummaryTile({ label, value, sub, colour }) {
   )
 }
 
-function Row({ label, value, gold }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0',
-      borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-      <span style={{ fontSize: 12, color: 'var(--cream-dim)' }}>{label}</span>
-      <span style={{ fontSize: 13, color: gold ? 'var(--gold)' : 'var(--cream)' }}>{value}</span>
-    </div>
-  )
-}
