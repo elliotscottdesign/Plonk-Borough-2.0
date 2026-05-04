@@ -10,7 +10,7 @@ import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_B
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedTicketVolume, useLockedFixedCosts } from '../components/LockedDeckContext.jsx'
+import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -192,11 +192,12 @@ const PERF_SECTIONS = [
   { id: 'office',  icon: '🏢' },
 ]
 
-function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOfficeCosts, fixedCosts, setFixedCosts }) {
+function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCosts, fixedCosts, setFixedCosts }) {
   const [activeSection, setActiveSection] = useState('tickets')
   const { t } = useTranslation('explorer')
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK, fmtNum } = useFmt()
+  const wagesCtx = useLockedWages()
   const lineGrowths = buildLineGrowths(growth)
   const BASE_TOTAL = INCOME.reduce((s, i) => s + i.value, 0)
 
@@ -214,16 +215,12 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   const mult = 1 + aggGrowth / 100
   const incomeWithPct = income2026.map(i => ({ ...i, pct: +(i.value / totalIncome * 100).toFixed(1) }))
 
-  // 2026 wage bill — computed from wage sliders × WAGE_RATES.hours, then
-  // scaled by the 2025 P&L:Rota overhead multiplier (~1.586) to cover NICs,
-  // pension, holiday pay, etc. Replaces the old "242370 × 1.10" rule.
-  const rota2026 = (
-    wages.bar * WAGE_RATES[0].hours +
-    wages.sup * WAGE_RATES[1].hours +
-    wages.am  * WAGE_RATES[2].hours +
-    wages.mgr * WAGE_RATES[3].hours
-  )
-  const wageBill2026 = Math.round(rota2026 * WAGE_OVERHEAD_MULT)
+  // 2026 wage bill — sourced from the Sliding Wage Rate Calculator
+  // (per-role rate × hours summed, then × WAGE_OVERHEAD_MULT for NIC,
+  // pension, holiday). Single source of truth lives in the wages lock
+  // context so locking on the calculator card cascades the figure across
+  // every wage-cost surface in the deck.
+  const wageBill2026 = Math.round(wagesCtx.effective.loadedAnnual)
 
   const barRevenue2026 = income2026.find(x => x.labelKey === 'bar')?.value || 0
   const drinksGas2026 = Math.round(barRevenue2026 * 0.30)
@@ -635,7 +632,7 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 
           {/* WAGES */}
           {activeSection === 'wages' && (
-            <WageCalculatorCard wages={wages} totalIncome={totalIncome} />
+            <WageCalculatorCard />
           )}
 
           {/* OFFICE COSTS */}
@@ -1048,169 +1045,119 @@ function SummaryTile({ label, v2025, v2026, sub, highlight }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// Sliding Wage Rate Calculator card — 4 role-rate sliders (Bar / Sup / AM / Mgr)
-// using 2026 hours (Bar 4,967 / Sup 1,000 / AM 2,000 / Mgr 2,000). Computes the
-// 2026 P&L wage bill = (rate × hours summed) × WAGE_OVERHEAD_MULT (~1.586).
-// Same state as the standalone Wages tab — slider changes here flow through
-// to the 2026 cost calculation above and to the Wages tab.
+// Sliding Wage Rate Calculator card — 4 role rows (Bar Staff /
+// Supervisor / Asst. Manager / Manager). Each row has a rate slider AND
+// an hours slider; per-role total = rate × hours, shown in the row's
+// brand colour. Loaded annual = grossAnnual × WAGE_OVERHEAD_MULT (covers
+// employer NICs, pension, holiday). Founder presses Lock to pin the
+// snapshot — the locked loadedAnnual then cascades into the 2026
+// Performance cost donut, InvestmentSummary scenarios and
+// WaterfallReturns scenarios via useLockedWages().
 // ───────────────────────────────────────────────────────────────────────
-function WageCalculatorCard({ wages, totalIncome }) {
-  const { t } = useTranslation('explorer')
-  const { fmt, fmtNum } = useFmt()
-  const { isLocked, canEdit } = useLockedForecast()
+function WageCalculatorCard() {
+  const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const {
+    rows, effective, snapshot,
+    isLocked, isFounder, canEdit,
+    setRow, lock, unlock, reset,
+  } = useLockedWages()
 
-  const roles = [
-    // min = 2026 NMW for the role · max set wide so the annual-salary input
-    // can accommodate London market-rate management salaries (e.g. Manager
-    // at GBP 60-80k/yr = GBP 30-40/hr at 2,000 hrs).
-    { labelKey:'bar',         hours: WAGE_RATES[0].hours, rate: wages.bar, setRate: wages.setBar, plan: WAGE_RATES[0].rate, min:12.21, max:25 },
-    { labelKey:'supervisor',  hours: WAGE_RATES[1].hours, rate: wages.sup, setRate: wages.setSup, plan: WAGE_RATES[1].rate, min:13.85, max:30 },
-    { labelKey:'asstManager', hours: WAGE_RATES[2].hours, rate: wages.am,  setRate: wages.setAm,  plan: WAGE_RATES[2].rate, min:14.35, max:35 },
-    { labelKey:'manager',     hours: WAGE_RATES[3].hours, rate: wages.mgr, setRate: wages.setMgr, plan: WAGE_RATES[3].rate, min:15.38, max:45 },
+  const grossTotal  = effective.grossAnnual
+  const loadedTotal = effective.loadedAnnual
+  const baselineDelta = loadedTotal - PL_WAGE_BASE
+  const deltaPct = PL_WAGE_BASE > 0 ? (baselineDelta / PL_WAGE_BASE) * 100 : 0
+
+  const lockedAtLabel = snapshot?.lockedAt
+    ? new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
+  // Per-role bounds. Rate min = 2026 NMW for the role; max set wide
+  // enough to cover London market-rate management salaries.
+  const RATE_BOUNDS = [
+    { min:12.21, max:25 },  // Bar Staff
+    { min:13.85, max:30 },  // Supervisor
+    { min:14.35, max:35 },  // Asst. Manager
+    { min:15.38, max:45 },  // Manager
   ]
-
-  // 2025 actuals (constants from rota source)
-  const TOTAL_HOURS_2025 = 10043
-  const REVENUE_2025     = 741644
-
-  // 2026 derived from sliders + WAGE_RATES.hours
-  const totalHours2026 = roles.reduce((s, r) => s + r.hours, 0)
-  const rotaCost2026   = Math.round(roles.reduce((s, r) => s + r.hours * r.rate, 0))
-  const plWage2026     = Math.round(rotaCost2026 * WAGE_OVERHEAD_MULT)
-
-  // Comparison metrics (P&L wage basis on both years for apples-to-apples)
-  const pct2025 = (PL_WAGE_BASE / REVENUE_2025) * 100
-  const pct2026 = totalIncome > 0 ? (plWage2026 / totalIncome) * 100 : 0
-  const wageDelta  = plWage2026 - PL_WAGE_BASE
-  const hoursDelta = totalHours2026 - TOTAL_HOURS_2025
-  const pctDelta   = pct2026 - pct2025
-
-  // Delta sign helpers — for cost/wage %, "lower is better" (teal); for hours, neutral.
-  const deltaCash  = (n) => (n > 0 ? '+' : '') + fmt(n)
-  const deltaHours = (n) => (n > 0 ? '+' : '') + fmtNum(n) + ' ' + t('wages.hrs')
-  const deltaPts   = (n) => (n > 0 ? '+' : '') + n.toFixed(1) + ' pts'
-  const goodIfDown = (n) => (n < 0 ? '#2DD4BF' : n > 0 ? '#EF4444' : '#9CA3AF')
-  const neutral    = (n) => (n === 0 ? '#9CA3AF' : '#22D3EE')
+  const HOURS_MAX = 6000
+  const HOURS_STEP = 0.1
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
-      {/* ─── 2025 vs 2026 comparison strip (replaces the old top + bottom stat strips) */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:14 }}>{t('wages.compareHeader')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12 }}>
-          <CompareCard
-            label={t('wages.compareBill')}
-            v2025={fmt(PL_WAGE_BASE)}
-            v2026={fmt(plWage2026)}
-            delta={deltaCash(wageDelta)}
-            deltaColor={goodIfDown(wageDelta)}
-            sub={t('wages.compareBillSub')}
-          />
-          <CompareCard
-            label={t('wages.compareHours')}
-            v2025={fmtNum(TOTAL_HOURS_2025) + ' ' + t('wages.hrs')}
-            v2026={fmtNum(totalHours2026) + ' ' + t('wages.hrs')}
-            delta={deltaHours(hoursDelta)}
-            deltaColor={neutral(hoursDelta)}
-            sub={t('wages.compareHoursSub')}
-          />
-          <CompareCard
-            label={t('wages.comparePct')}
-            v2025={pct2025.toFixed(1) + '%'}
-            v2026={pct2026.toFixed(1) + '%'}
-            delta={deltaPts(pctDelta)}
-            deltaColor={goodIfDown(pctDelta)}
-            sub={t('wages.comparePctSub')}
-          />
+    <div className="card" style={{ padding:18, border: isLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <div style={{ display:'flex', alignItems:'center', gap:12, flexWrap:'wrap' }}>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'3px 10px', borderRadius:12,
+            background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+            fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase',
+          }}>
+            <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+            {isLocked ? 'Locked · cascades to 2026 forecast' : 'Live preview'}
+          </span>
+          <span style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.5 }}>
+            Drag each role's rate and hours. Loaded total = gross × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday). 2025 actual {fmt(PL_WAGE_BASE)}.
+          </span>
+        </div>
+        <div style={{ display:'flex', gap:6 }}>
+          {isFounder && (
+            <button onClick={reset} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+          )}
+          {isFounder && (
+            isLocked ? (
+              <button onClick={unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+            ) : (
+              <button onClick={lock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+            )
+          )}
         </div>
       </div>
 
-      {/* ─── Wage rate calculator — hourly slider + editable hourly + annual inputs ─── */}
-      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:16 }}>{t('wages.calculatorHeader')}</div>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:16 }}>
-          {roles.map(r => (
-            <WageRoleRow key={r.labelKey} role={r} canEdit={canEdit} t={t} fmt={fmt} fmtNum={fmtNum} />
-          ))}
+      {rows.map((r, i) => {
+        const bounds = RATE_BOUNDS[i] || { min: 10, max: 25 }
+        return (
+          <div key={r.role} style={{ display:'grid', gridTemplateColumns:'1.5fr 2fr 2fr 1fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+            <span style={{ color:'var(--cream)', fontSize:13 }}>
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}
+            </span>
+            <div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Rate · £{r.rate.toFixed(2)}/hr</div>
+              <input type="range" min={bounds.min} max={bounds.max} step="0.01" value={r.rate} disabled={!canEdit} onChange={e => setRow(i, 'rate', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
+            </div>
+            <div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Hours · {r.hours.toLocaleString('en-GB', { maximumFractionDigits: 1 })}/yr</div>
+              <input type="range" min="0" max={HOURS_MAX} step={HOURS_STEP} value={r.hours} disabled={!canEdit} onChange={e => setRow(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
+            </div>
+            <span style={{ color:r.color, textAlign:'right', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
+          </div>
+        )
+      })}
+
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, marginTop:16, paddingTop:14, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Gross / yr</div>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(grossTotal)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Loaded / yr</div>
+          <div className="serif" style={{ fontSize:18, color: isLocked ? '#10B981' : 'var(--gold)' }}>{fmt(loadedTotal)}</div>
+        </div>
+        <div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>vs 2025 Actual</div>
+          <div className="serif" style={{ fontSize:18, color: baselineDelta > 0 ? '#F87171' : '#10B981' }}>
+            {baselineDelta >= 0 ? '+' : ''}{fmt(baselineDelta)}
+          </div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{deltaPct >= 0 ? '+' : ''}{deltaPct.toFixed(1)}%</div>
         </div>
       </div>
-    </div>
-  )
-}
 
-// ───────────────────────────────────────────────────────────────────────
-// Wage role row — slider + editable £/hr input + editable annual £ input.
-// All three views are locked to a single underlying state (rate). Edit
-// any one and the other two recompute (annual = hours × rate).
-// ───────────────────────────────────────────────────────────────────────
-function WageRoleRow({ role: r, canEdit, t, fmt, fmtNum }) {
-  const annual = Math.round(r.hours * r.rate)
-  const onAnnualChange = (e) => {
-    if (!canEdit) return
-    const newAnnual = Math.max(0, Number(e.target.value) || 0)
-    const newRate = r.hours > 0 ? newAnnual / r.hours : 0
-    // Clamp to slider min/max so the slider thumb stays valid
-    const clamped = Math.max(r.min, Math.min(r.max, newRate))
-    r.setRate(Number(clamped.toFixed(2)))
-  }
-  const onHourlyChange = (e) => {
-    if (!canEdit) return
-    const v = Math.max(0, Number(e.target.value) || 0)
-    const clamped = Math.max(r.min, Math.min(r.max, v))
-    r.setRate(Number(clamped.toFixed(2)))
-  }
-  const inputBase = {
-    padding:'4px 8px', textAlign:'right', background:'rgba(0,0,0,0.3)',
-    border:'1px solid rgba(201,168,76,0.3)', borderRadius:4,
-    color:'var(--gold)', fontWeight:600, fontSize:12,
-    opacity: canEdit ? 1 : 0.6,
-  }
-  return (
-    <div style={{ background:'rgba(255,255,255,0.03)', borderRadius:8, padding:14 }}>
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:10 }}>
-        <span style={{ fontWeight:600, color:'var(--cream)' }}>{t(`wages.roles.${r.labelKey}`)}</span>
-        <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-          <span style={{ fontSize:10, color:'#6B7280' }}>{fmtNum(r.hours)} {t('wages.hrs')}</span>
-          <ResetBtn onClick={()=>{ if (canEdit) r.setRate(r.plan) }} title={`Reset £${r.plan.toFixed(2)}/hr`} />
-        </span>
-      </div>
-      <input
-        type="range" disabled={!canEdit}
-        min={r.min} max={r.max} step={0.01}
-        value={r.rate}
-        onChange={e=>{ if (canEdit) r.setRate(Number(e.target.value)) }}
-        style={{ width:'100%', accentColor:'var(--gold)', marginBottom:10, opacity: canEdit ? 1 : 0.6 }}
-      />
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-        <label style={{ display:'flex', flexDirection:'column', gap:3 }}>
-          <span style={{ fontSize:9, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t('wages.hourly')}</span>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-            <span style={{ fontSize:11, color:'#6B7280' }}>£</span>
-            <input
-              type="number" disabled={!canEdit}
-              min={r.min} max={r.max} step={0.01}
-              value={r.rate.toFixed(2)}
-              onChange={onHourlyChange}
-              style={{ ...inputBase, width:'100%' }}
-            />
-            <span style={{ fontSize:10, color:'#6B7280' }}>/hr</span>
-          </span>
-        </label>
-        <label style={{ display:'flex', flexDirection:'column', gap:3 }}>
-          <span style={{ fontSize:9, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em' }}>{t('wages.annualLabel')}</span>
-          <span style={{ display:'inline-flex', alignItems:'center', gap:4 }}>
-            <span style={{ fontSize:11, color:'#6B7280' }}>£</span>
-            <input
-              type="number" disabled={!canEdit}
-              min={0} step={100}
-              value={annual}
-              onChange={onAnnualChange}
-              style={{ ...inputBase, width:'100%' }}
-            />
-            <span style={{ fontSize:10, color:'#6B7280' }}>/yr</span>
-          </span>
-        </label>
-      </div>
+      {isLocked && (
+        <div style={{ marginTop:12, padding:'8px 12px', background:'rgba(16,185,129,0.06)', borderRadius:6, fontSize:11, color:'#10B981' }}>
+          ✓ Locked{lockedAtLabel ? ` · ${lockedAtLabel}` : ''} — {fmt(loadedTotal)} flows into the 2026 forecast wage line above (replaces the £{PL_WAGE_BASE.toLocaleString('en-GB')} default).
+        </div>
+      )}
     </div>
   )
 }
@@ -1589,6 +1536,8 @@ function TabCashflow({ growth }) {
   const { fmt, fmtK } = useFmt()
   const { snapshot, isLocked } = useLockedForecast()
   const { effective: funding } = useLockedFunding()
+  const { isLocked: isWagesLocked, effective: wagesEffective } = useLockedWages()
+  const wagesLine = isWagesLocked ? wagesEffective.loadedAnnual : 242370 * 1.10
   const INVESTOR_CAPITAL  = funding.investment    // tracks the locked Cover slider
   const RENT_3MO_RESERVE  = funding.rent          // tracks the Use of Funds rent snap
 
@@ -1614,7 +1563,7 @@ function TabCashflow({ growth }) {
     const rev = ACTUALS_2025.revenue * sc.mult
     const bar = 362836 * sc.mult
     const totalCosts =
-        242370 * 1.10                          // wages
+        wagesLine                              // wages — locked calculator if set, else default +10%
       + 54400 * 1.10                           // non-rent fixed
       + rev * 0.15                              // rent (15% of revenue)
       + bar * 0.30                              // drinks
@@ -1911,28 +1860,15 @@ export default function BusinessExplorer() {
     ? { ...FIXED_COSTS_2026_DEFAULTS, ...fixedCostsLock.locked.values }
     : fixedCosts
 
-  // Wage rates lifted to parent so the 2026 Performance tab and the standalone
-  // Wages tab share the same state — moving a slider in either reflects in both.
-  // Defaults match WAGE_RATES (2025 actual rates). Hours come from data.js.
-  const [barRate, setBarRate] = useState(WAGE_RATES[0].rate)
-  const [supRate, setSupRate] = useState(WAGE_RATES[1].rate)
-  const [amRate,  setAmRate]  = useState(WAGE_RATES[2].rate)
-  const [mgrRate, setMgrRate] = useState(WAGE_RATES[3].rate)
-  const wages = {
-    bar: barRate, setBar: setBarRate,
-    sup: supRate, setSup: setSupRate,
-    am:  amRate,  setAm:  setAmRate,
-    mgr: mgrRate, setMgr: setMgrRate,
-    resetAll: () => {
-      setBarRate(WAGE_RATES[0].rate); setSupRate(WAGE_RATES[1].rate)
-      setAmRate(WAGE_RATES[2].rate);  setMgrRate(WAGE_RATES[3].rate)
-    },
-  }
+  // Wage rate + hours state lives in the LockedDeckContext (useLockedWages).
+  // The Sliding Wage Rate Calculator card consumes it directly, and
+  // TabPerformance reads `loadedAnnual` from the same hook for its 2026
+  // wage cost line — so the parent no longer holds local wage state.
 
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     tillsales2025:   <BoroughTillSales2025 />,
-    performance2026: <TabPerformance growth={growth} wages={wages} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
+    performance2026: <TabPerformance growth={growth} pricing={pricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
     prevTillSales:   <PrevTillSales />,
   }
