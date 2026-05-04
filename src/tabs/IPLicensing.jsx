@@ -185,8 +185,8 @@ function MiniStat({ label, value, color, emphasised }) {
   )
 }
 
-// --- Plonk Golf × Venue model (reads commission values from parent state) ---
-function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
+// --- Plonk Golf × Venue model (reads commission + booking fee from parent state) ---
+function CommissionModel({ commissionOnlinePct, commissionOfficePct, bookingFeePct }) {
   const [volumeUplift, setVolumeUplift] = useState(0)
   const [webCost, setWebCost] = useState(6000)
   const [seoCost, setSeoCost] = useState(6000)
@@ -199,8 +199,8 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
     // Online: full (all SKUs) and golf-only
     const onlineGrossAll = IP_LICENSING_GRAND_2025.onlineRev * upliftFactor
     const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku) * upliftFactor
-    // Booking fee applies to ALL online sales (customer pays 10% on top at checkout, regardless of SKU)
-    const bookingFees = onlineGrossAll * IP_LICENSING_BOOKING_FEE_PCT
+    // Booking fee applies to ALL online sales (customer pays X% on top at checkout, regardless of SKU)
+    const bookingFees = onlineGrossAll * (bookingFeePct / 100)
     // Commission (online) only on golf
     const commissionOnline = onlineGolfRev * (commissionOnlinePct / 100)
     // Office: golf only (office is a scenario — commission conditional on PlonkGolf providing bookings manager)
@@ -217,7 +217,7 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
     const totalTokenCost = IP_LICENSING_SKUS_ONLINE_2025.reduce((a, s) => a + s.sold * upliftFactor * s.tokens * IP_LICENSING_TOKEN_VALUE, 0)
     const venueNet = onlineGrossAll - commissionOnline - totalTokenCost
     return { onlineGrossAll, onlineGolfRev, officeGrossAll, officeGolfRev, bookingFees, commissionOnline, commissionOffice, paymentFees, plonkGolfRevenue, plonkGolfCosts, plonkGolfNet, totalTokenCost, venueNet }
-  }, [commissionOnlinePct, commissionOfficePct, volumeUplift, webCost, seoCost, botCost, accountancyCost])
+  }, [commissionOnlinePct, commissionOfficePct, bookingFeePct, volumeUplift, webCost, seoCost, botCost, accountancyCost])
 
   const sliders = [
     { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF', default: 0 },
@@ -234,7 +234,7 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
           Plonk Golf × Venue — Interactive Model
         </div>
         <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
-          Commission rates come from the golf-only sliders under Sections A &amp; B. Booking fee (10%) is locked — applied to ALL online sales at checkout. Uplift and cost sliders below are scenario inputs.
+          Commission rates and booking fee come from the Commissions section sliders. Booking fee applies to ALL online sales at checkout. Uplift and cost sliders below are scenario inputs.
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
           {sliders.map(s => (
@@ -265,7 +265,7 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct }) {
           <Row label="↳ of which online golf (commissionable)" value={fmt0(m.onlineGolfRev)} muted />
           <Row label="↳ of which office golf — imputed (commissionable)" value={fmt0(m.officeGolfRev)} muted />
           <div style={{ height: 10 }} />
-          <Row label="+ Booking fees collected (10% on all online)" value={fmt0(m.bookingFees)} color="#E67E22" />
+          <Row label={`+ Booking fees collected (${bookingFeePct}% on all online)`} value={fmt0(m.bookingFees)} color="#E67E22" />
           <Row label={`+ Commission from Venue — Online sales (${commissionOnlinePct}% × golf)`} value={fmt0(m.commissionOnline)} color="#C9A84C" />
           <Row label={`+ Commission from Venue — Office sales (${commissionOfficePct}% × golf)`} value={fmt0(m.commissionOffice)} color="#C9A84C" />
           <Row label="= Plonk Golf revenue" value={fmt0(m.plonkGolfRevenue)} color="var(--cream)" bold />
@@ -319,9 +319,10 @@ export default function IPLicensing() {
   const g = IP_LICENSING_GRAND_2025
   const onlinePct = g.totalQty ? g.onlineQty / g.totalQty : 0
 
-  // Commission state — sliders live under sections A & B, values feed the Plonk Golf P&L
+  // Commission state — feeds the Commissions section AND the 2026 bubble AND the Plonk × Venue P&L
   const [commissionOnlinePct, setCommissionOnlinePct] = useState(10)
   const [commissionOfficePct, setCommissionOfficePct] = useState(10)
+  const [bookingFeePct, setBookingFeePct] = useState(IP_LICENSING_BOOKING_FEE_PCT * 100)
 
   const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku)
   const onlineNonGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, s => !isGolfSku(s))
@@ -331,11 +332,22 @@ export default function IPLicensing() {
   const commission2025 = IP_LICENSING_COMMISSION_2025.onlineTicketCommission
   const commission2026Online = onlineGolfRev * (commissionOnlinePct / 100)
   const commission2026Office = officeGolfRev * (commissionOfficePct / 100)
-  const commission2026 = commission2026Online + commission2026Office
+  const commission2026BookingFees = g.onlineRev * (bookingFeePct / 100)
+  const commission2026 = commission2026Online + commission2026Office + commission2026BookingFees
 
   const ONLINE_GREEN = '#10B981'
   const OFFICE_GOLD = 'var(--gold)'
   const COMMISSION_CYAN = '#2DD4BF'
+
+  const [activeSection, setActiveSection] = useState('online')
+  const sections = [
+    { key: 'online',     label: 'Online Tickets',          sub: 'Section A',                           color: ONLINE_GREEN },
+    { key: 'office',     label: 'Office Sales',            sub: 'Section B',                           color: OFFICE_GOLD },
+    { key: 'commissions',label: 'Commissions',             sub: 'Online · Office · Booking fee',       color: COMMISSION_CYAN },
+    { key: 'marketing',  label: 'Marketing Uplift',        sub: 'Forecast tickets · capacity check',   color: '#E67E22' },
+    { key: 'plonk',      label: 'Plonk × No Dice',         sub: 'Interactive P&L + venue view',        color: 'var(--gold)' },
+    { key: 'notes',      label: 'Monthly Trend & Notes',   sub: '2025 split · assumptions',            color: '#9CA3AF' },
+  ]
 
   const [openBubble, setOpenBubble] = useState(null)
   const bubbles = [
@@ -383,9 +395,9 @@ export default function IPLicensing() {
       key: 'commission-2026',
       label: '2026 Plonk Commission',
       value: fmt0(commission2026),
-      sub: `modelled @ ${commissionOnlinePct}% online + ${commissionOfficePct}% office golf`,
+      sub: `${commissionOnlinePct}% online · ${commissionOfficePct}% office · ${bookingFeePct}% booking fee`,
       color: COMMISSION_CYAN,
-      detail: <>Live projection driven by the commission sliders under Sections A &amp; B. Online: {fmt0(onlineGolfRev)} golf revenue × {commissionOnlinePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Online)}</strong>. Office: {fmt0(officeGolfRev)} golf revenue × {commissionOfficePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Office)}</strong>. Based on 2025 base volume — uplift scenarios are layered in the deeper interactive model below.</>,
+      detail: <>Live projection driven by the three sliders inside the <strong style={{ color: 'var(--cream)' }}>Commissions</strong> section. Online golf: {fmt0(onlineGolfRev)} × {commissionOnlinePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Online)}</strong>. Office golf: {fmt0(officeGolfRev)} × {commissionOfficePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Office)}</strong>. Booking fee: {fmt0(g.onlineRev)} × {bookingFeePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026BookingFees)}</strong>. Based on 2025 base volume — uplift scenarios are layered in the Plonk × No Dice section.</>,
     },
   ]
 
@@ -427,32 +439,162 @@ export default function IPLicensing() {
         </div>
       </div>
 
-      <SKUTable
-        title="Section A · Online Portal (Status = complete)"
-        subtitle="Customer books + pays through the online system. Booking fee (10%) added on top, retained by Plonk Golf. Commission charged to venue on online golf sales only (see slider below)."
-        rows={IP_LICENSING_SKUS_ONLINE_2025}
-        accentColor="#4FC3F7"
-        channel="online"
-      />
+      <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 18, alignItems: 'start' }}>
+        <SectionIndex sections={sections} active={activeSection} onSelect={setActiveSection} />
+
+        <div>
+          {activeSection === 'online' && (
+            <SKUTable
+              title="Section A · Online Portal (Status = complete)"
+              subtitle="Customer books + pays through the online system. Booking fee added on top, retained by Plonk Golf. Commission charged to venue on online golf sales only (see Commissions section)."
+              rows={IP_LICENSING_SKUS_ONLINE_2025}
+              accentColor={ONLINE_GREEN}
+              channel="online"
+            />
+          )}
+
+          {activeSection === 'office' && (
+            <SKUTable
+              title="Section B · Office / External (Status = external)"
+              subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till. Revenue column is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
+              rows={IP_LICENSING_SKUS_OFFICE_2025}
+              accentColor={OFFICE_GOLD}
+              channel="office"
+            />
+          )}
+
+          {activeSection === 'commissions' && (
+            <CommissionsSection
+              commissionOnlinePct={commissionOnlinePct}
+              setCommissionOnlinePct={setCommissionOnlinePct}
+              commissionOfficePct={commissionOfficePct}
+              setCommissionOfficePct={setCommissionOfficePct}
+              bookingFeePct={bookingFeePct}
+              setBookingFeePct={setBookingFeePct}
+              onlineGolfRev={onlineGolfRev}
+              onlineNonGolfRev={onlineNonGolfRev}
+              officeGolfRev={officeGolfRev}
+              officeNonGolfRev={officeNonGolfRev}
+              onlineGrossAll={g.onlineRev}
+              commission2026Online={commission2026Online}
+              commission2026Office={commission2026Office}
+              commission2026BookingFees={commission2026BookingFees}
+              commission2026={commission2026}
+              accent={COMMISSION_CYAN}
+            />
+          )}
+
+          {activeSection === 'marketing' && <MarketingUpliftCard />}
+
+          {activeSection === 'plonk' && (
+            <CommissionModel
+              commissionOnlinePct={commissionOnlinePct}
+              commissionOfficePct={commissionOfficePct}
+              bookingFeePct={bookingFeePct}
+            />
+          )}
+
+          {activeSection === 'notes' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <MonthlyTrend />
+              <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
+                <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
+                <ul style={{ paddingLeft: 18, margin: 0 }}>
+                  <li><strong style={{ color: 'var(--cream)' }}>Channel split:</strong> ~{(onlinePct * 100).toFixed(0)}% of 2025 tickets (and ~{(g.onlineRev / g.totalRev * 100).toFixed(0)}% of revenue) came via the online portal. The remaining ~{((1-onlinePct) * 100).toFixed(0)}% were office/till bookings. Under the new model this office channel goes away: those customers must self-serve online or contact the venue directly.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Office revenue is imputed</strong> at each SKU's list price (qty × price = £{g.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}). Actual till revenue may differ if the office team discounts/comps. Swap in real till takings when available.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Online total (£{g.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})}) reconciles</strong> with the existing deck's "Online Golf Tickets £210,485" line — small delta is from SKU categorisation edge cases (pool table reservations etc.).</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Booking fee:</strong> customer pays ticket + booking fee on top. Plonk Golf keeps it (funds online funnel). Not part of venue gross.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Commission %:</strong> separate, taken from venue's gross online sales — Plonk Golf's per-venue licensing fee.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Payment processing 1.5%:</strong> Stripe-style fee applied to all revenue that flows through the online payment provider — online portal sales always, office bookings only when Plonk Golf's bookings manager processes them digitally. Sits as a cost on the Plonk Golf P&amp;L.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Token stripping:</strong> under new model, arcade tokens move to in-store TILL only. Online SKUs will be re-priced to remove the £0.325 × 4 = £1.30 token component per bundle. Not yet applied — needs a new repriced product list from the venue.</li>
+                  <li><strong style={{ color: 'var(--cream)' }}>Not yet modelled:</strong> VAT on golf portion, card/processing fees inside the booking fee, refund/chargeback leakage (£135 fully-refunded in 2025 — immaterial), the ~9.8k unexplained tickets in the earlier PDF-summary extract (that data path superseded).</li>
+                </ul>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function SectionIndex({ sections, active, onSelect }) {
+  return (
+    <div style={{ position: 'sticky', top: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+      <div style={{ fontSize: 10, color: '#6B7280', textTransform: 'uppercase', letterSpacing: '0.1em', fontWeight: 600, padding: '4px 8px', marginBottom: 4 }}>Sections</div>
+      {sections.map(s => {
+        const isActive = active === s.key
+        return (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => onSelect(s.key)}
+            style={{
+              textAlign: 'left',
+              cursor: 'pointer',
+              background: isActive ? 'rgba(255,255,255,0.05)' : 'transparent',
+              border: '1px solid',
+              borderColor: isActive ? s.color : 'rgba(255,255,255,0.06)',
+              borderLeft: `3px solid ${isActive ? s.color : 'transparent'}`,
+              borderRadius: 6,
+              padding: '10px 12px',
+              font: 'inherit',
+              color: 'inherit',
+              transition: 'background 120ms ease, border-color 120ms ease',
+            }}
+          >
+            <div style={{ fontSize: 12, color: isActive ? 'var(--cream)' : 'var(--cream-dim)', fontWeight: 600 }}>{s.label}</div>
+            <div style={{ fontSize: 10, color: isActive ? s.color : '#6B7280', marginTop: 2 }}>{s.sub}</div>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function CommissionsSection({
+  commissionOnlinePct, setCommissionOnlinePct,
+  commissionOfficePct, setCommissionOfficePct,
+  bookingFeePct, setBookingFeePct,
+  onlineGolfRev, onlineNonGolfRev,
+  officeGolfRev, officeNonGolfRev,
+  onlineGrossAll,
+  commission2026Online, commission2026Office, commission2026BookingFees, commission2026,
+  accent,
+}) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ background: `${accent}10`, border: `1px solid ${accent}40`, borderRadius: 10, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+          <div>
+            <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Commissions · 2026 Plonk income from venue</div>
+            <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+              Three sliders — online golf %, office golf %, booking fee %. Total feeds the 2026 Plonk Commission bubble at the top.
+            </div>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Total 2026</div>
+            <div className="serif" style={{ fontSize: 26, color: accent, fontWeight: 800, lineHeight: 1.1 }}>{fmt0(commission2026)}</div>
+            <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>matches top bubble</div>
+          </div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 6 }}>
+          <MiniStat label="Online golf commission" value={fmt0(commission2026Online)} color={accent} />
+          <MiniStat label="Office golf commission" value={fmt0(commission2026Office)} color={accent} />
+          <MiniStat label="Booking fees collected" value={fmt0(commission2026BookingFees)} color={accent} />
+        </div>
+      </div>
 
       <CommissionSliderCard
         label="Commission % — Online golf sales"
         subtitle="Applied to online GOLF ticket sales only. Pool tables, events, group bookings 12+ and specials are venue-managed — no Plonk Golf commission on those."
         value={commissionOnlinePct}
         onChange={setCommissionOnlinePct}
-        accent="#4FC3F7"
-        totalChannelRev={g.onlineRev}
+        accent={accent}
+        totalChannelRev={onlineGrossAll}
         golfRev={onlineGolfRev}
         nonGolfRev={onlineNonGolfRev}
         helperText="Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens, Valentine's Day Deal."
-      />
-
-      <SKUTable
-        title="Section B · Office / External (Status = external)"
-        subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till. Revenue column is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
-        rows={IP_LICENSING_SKUS_OFFICE_2025}
-        accentColor="#9CA3AF"
-        channel="office"
       />
 
       <CommissionSliderCard
@@ -460,30 +602,44 @@ export default function IPLicensing() {
         subtitle="Conditional scenario: if Plonk Golf provides a bookings manager for the venue, it earns a commission on office/till-settled golf sales. Set to 0% to model venue-handles-own-bookings."
         value={commissionOfficePct}
         onChange={setCommissionOfficePct}
-        accent="#9CA3AF"
-        totalChannelRev={g.officeRev}
+        accent={accent}
+        totalChannelRev={officeGolfRev + officeNonGolfRev}
         golfRev={officeGolfRev}
         nonGolfRev={officeNonGolfRev}
         helperText="Same golf-only scope as online. Office-channel revenue is imputed at SKU list price — Plonk Golf commission on it is a modelled scenario, not a current revenue stream."
       />
 
-      <MarketingUpliftCard />
+      <BookingFeeSliderCard
+        value={bookingFeePct}
+        onChange={setBookingFeePct}
+        onlineGrossAll={onlineGrossAll}
+        accent={accent}
+      />
+    </div>
+  )
+}
 
-      <MonthlyTrend />
-      <CommissionModel commissionOnlinePct={commissionOnlinePct} commissionOfficePct={commissionOfficePct} />
-
-      <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
-        <ul style={{ paddingLeft: 18, margin: 0 }}>
-          <li><strong style={{ color: 'var(--cream)' }}>Channel split:</strong> ~{(onlinePct * 100).toFixed(0)}% of 2025 tickets (and ~{(g.onlineRev / g.totalRev * 100).toFixed(0)}% of revenue) came via the online portal. The remaining ~{((1-onlinePct) * 100).toFixed(0)}% were office/till bookings. Under the new model this office channel goes away: those customers must self-serve online or contact the venue directly.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Office revenue is imputed</strong> at each SKU's list price (qty × price = £{g.officeRev.toLocaleString('en-GB', {minimumFractionDigits:2})}). Actual till revenue may differ if the office team discounts/comps. Swap in real till takings when available.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Online total (£{g.onlineRev.toLocaleString('en-GB', {minimumFractionDigits:2})}) reconciles</strong> with the existing deck's "Online Golf Tickets £210,485" line — small delta is from SKU categorisation edge cases (pool table reservations etc.).</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Booking fee 10%:</strong> customer pays ticket + 10%. Plonk Golf keeps the 10% (funds online funnel). Not part of venue gross.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Commission %:</strong> separate, taken from venue's gross online sales — Plonk Golf's per-venue licensing fee.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Payment processing 1.5%:</strong> Stripe-style fee applied to all revenue that flows through the online payment provider — online portal sales always, office bookings only when Plonk Golf's bookings manager processes them digitally. Sits as a cost on the Plonk Golf P&amp;L.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Token stripping:</strong> under new model, arcade tokens move to in-store TILL only. Online SKUs will be re-priced to remove the £0.325 × 4 = £1.30 token component per bundle. Not yet applied — needs a new repriced product list from the venue.</li>
-          <li><strong style={{ color: 'var(--cream)' }}>Not yet modelled:</strong> VAT on golf portion, card/processing fees inside the 10% booking fee, refund/chargeback leakage (£135 fully-refunded in 2025 — immaterial), the ~9.8k unexplained tickets in the earlier PDF-summary extract (that data path superseded).</li>
-        </ul>
+function BookingFeeSliderCard({ value, onChange, onlineGrossAll, accent }) {
+  const collected = onlineGrossAll * (value / 100)
+  return (
+    <div style={{ background: 'var(--ink-2)', border: `1px solid ${accent}60`, borderRadius: 10, padding: 18 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+        <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Booking fee % — applied to ALL online sales</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ fontSize: 18, color: accent, fontWeight: 700 }}>{value}%</div>
+          <ResetBtn onClick={() => onChange(IP_LICENSING_BOOKING_FEE_PCT * 100)} title={`Reset to ${IP_LICENSING_BOOKING_FEE_PCT * 100}%`} />
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>
+        Customer pays ticket + this % on top at checkout. Retained by Plonk Golf as the online-funnel surcharge. Applies to ALL online SKUs (golf, pool, specials) — not till sales.
+      </div>
+      <input type="range" min={0} max={20} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: accent }} />
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 2, marginBottom: 14 }}>
+        <span>0%</span><span>20%</span>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8 }}>
+        <MiniStat label="Online gross (all SKUs)" value={fmt0(onlineGrossAll)} color="var(--cream)" />
+        <MiniStat label={`Booking fees @ ${value}%`} value={fmt0(collected)} color={accent} emphasised />
       </div>
     </div>
   )
