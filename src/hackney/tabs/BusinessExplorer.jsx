@@ -1292,241 +1292,265 @@ function Tab2026() {
 }
 
 
+// ─── Cashflow Forecast — May 2026 → Apr 2027 ──────────────────────────
+// Mirrors the Borough Cashflow Forecast tab layout exactly: header card
+// with scenario tabs + workbook link, 4-card KPI strip, SVG line chart
+// with threshold markers, monthly breakdown table.
+//
+// Hackney data feeds:
+//   • compute2026Scenario(...) — gives totalIncome + totalCosts + rent
+//     under each scenario (Conservative −10% on 2025 == growth=10,
+//     Base +15% == growth=15, Optimistic +25% == growth=25, Custom =
+//     locked forecast snapshot).
+//   • HACKNEY_CASH.safetyFloor / .safetyTarget — working-capital
+//     thresholds (£30k floor, £45k fully-built target). These replace
+//     Borough's "rent reserve" / "investor capital" thresholds since
+//     Hackney already pays rent monthly (no quarterly prepay) and the
+//     working-capital build is the relevant gate.
+//
+// Cashflow logic per month:
+//   - Inflow:    revenue × seasonal weight / 12
+//   - Operating: (totalCosts − rent) × seasonal weight / 12
+//   - Rent:      paid monthly during the 8 paying months (Sep 26 →
+//                Apr 27); £0 during the 4-month rent-free period
+//                (May–Aug 26 per the lease).
+//   - Net:       inflow − operating − rent
+//   - Cumulative: running total starting at £0 (Day-1 raise excluded —
+//                 that's modelled separately on Use of Funds).
+
+const HACKNEY_CASHFLOW_MONTHS   = ['May 26','Jun 26','Jul 26','Aug 26','Sep 26','Oct 26','Nov 26','Dec 26','Jan 27','Feb 27','Mar 27','Apr 27']
+const HACKNEY_CASHFLOW_SEASONAL = [0.90, 0.85, 1.00, 1.05, 1.05, 1.10, 1.20, 1.40, 0.85, 0.95, 1.00, 0.95]
+// Lease: 4 months rent-free (May 26 – Aug 26 = indexes 0..3); rent
+// payable monthly for the remaining 8 (Sep 26 – Apr 27 = indexes 4..11).
+const HACKNEY_RENT_FREE_MONTHS  = new Set([0, 1, 2, 3])
+
+function buildHackneyCashflow({ revenue, totalCosts, rentAnnual }) {
+  const nonRentCosts = Math.max(0, totalCosts - rentAnnual)
+  const payingMonths = 12 - HACKNEY_RENT_FREE_MONTHS.size
+  const monthlyRent  = payingMonths > 0 ? rentAnnual / payingMonths : 0
+  const out = []
+  let cumulative = 0
+  for (let i = 0; i < 12; i++) {
+    const w       = HACKNEY_CASHFLOW_SEASONAL[i]
+    const inflow  = Math.round(revenue * w / 12)
+    const opex    = Math.round(nonRentCosts * w / 12)
+    const rent    = HACKNEY_RENT_FREE_MONTHS.has(i) ? 0 : Math.round(monthlyRent)
+    const outflow = opex + rent
+    const net     = inflow - outflow
+    cumulative   += net
+    out.push({ month: HACKNEY_CASHFLOW_MONTHS[i], inflow, opex, rent, outflow, net, cumulative })
+  }
+  return out
+}
+
+const cfTh = (align) => ({ padding:'10px 14px', fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, textAlign:align, whiteSpace:'nowrap' })
+const cfTd = (align, color, weight=400) => ({ padding:'10px 14px', fontSize:12.5, color, fontWeight:weight, textAlign:align, whiteSpace:'nowrap' })
+
 function TabCashflow() {
   const ctx = useLockedUseOfFunds()
-  const { effective, isLocked, snapshot, forecastEffective, isForecastLocked, forecastSnapshot } = ctx
+  const { forecastEffective, isForecastLocked, forecastSnapshot, isWageLocked, wageEffective } = ctx
   const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  const fmtKShort = (n) => '£' + Math.round(n / 1000) + 'k'
 
-  // Day-1 startup-cost rows always reflect the live context — slider
-  // preview when not locked, snapshot when locked. Working Capital is
-  // the residual the context already computes for us.
-  const rentLabel = effective.rentMonths === 0
-    ? 'Landlord — Rent Deposit (paid monthly)'
-    : `Landlord — Rent Deposit (${effective.rentMonths} ${effective.rentMonths === 1 ? 'month' : 'months'})`
-  const day1 = [
-    { label: 'Stock Purchase — Liquidators',     amount: effective.stock },
-    { label: rentLabel,                           amount: effective.rent },
-    { label: 'Garden Refurbishment',             amount: effective.garden },
-    { label: 'Interior Completion & Signage',    amount: effective.interior },
-    { label: 'Marketing — Pre-launch & Year 1',  amount: effective.marketing },
-    { label: 'Legals & Restart',                 amount: effective.legals },
-    { label: 'Working Capital (residual)',       amount: effective.workingCapital ?? 0, residual: true },
-  ]
-  const day1Total = day1.reduce((s, r) => s + r.amount, 0)
-  const deal = computeDealFromInvestment(day1Total)
-
-  // Scenario badge — shows what the table is computed against. Locked
-  // forecast wins; otherwise fall back to the headline 15% Base case.
-  const avgGrowth = forecastEffective?.growth
-    ? (Object.values(forecastEffective.growth).reduce((s, v) => s + v, 0) / Object.values(forecastEffective.growth).length)
-    : 15
-  const scenarioLabel = isForecastLocked
-    ? `Locked Custom (${avgGrowth.toFixed(1)}% avg)`
-    : 'Base Case · +15%'
-  const scenarioColor = isForecastLocked ? '#10B981' : 'var(--gold)'
-  const scenarioLockedAt = forecastSnapshot?.lockedAt
-    ? new Date(forecastSnapshot.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
-    : null
-
-  // Floor / Target for the safe-zone status pill in the table.
   const FLOOR  = HACKNEY_CASH.safetyFloor
   const TARGET = HACKNEY_CASH.safetyTarget
 
-  // Build the monthly table. Opening = previous closing; first month's
-  // opening = day-1 raise less the same month's net flow's pre-trading
-  // contribution (treat the raise as already deployed into Day 1 line
-  // items). Status pill: ✓ in band, ↑ above target, ⚠ below floor.
-  const monthly = HACKNEY_CASHFLOW.map((m, i) => {
-    const opening = i === 0 ? 0 : HACKNEY_CASHFLOW[i - 1].closing
-    const status =
-      m.closing >= TARGET ? { tag: '↑ above target', color: '#22D3EE' } :
-      m.closing >= FLOOR  ? { tag: '✓ in safe zone', color: '#10B981' } :
-                            { tag: '⚠ below floor',  color: '#F87171' }
-    return { ...m, opening, status }
+  // Scenario set — Conservative −10% = +10% growth, Base = +15%,
+  // Optimistic = +25%. Custom uses the locked forecast snapshot if
+  // present (otherwise disabled).
+  const SCENARIOS = {
+    conservative: { label: 'Conservative −10%', growth: 10, color: '#94A3B8' },
+    base:         { label: 'Base +15%',         growth: 15, color: '#C9A84C' },
+    optimistic:   { label: 'Optimistic +25%',   growth: 25, color: '#2DD4BF' },
+    custom:       { label: 'Custom (Locked)',   growth: null, color: 'var(--gold)', disabled: !isForecastLocked },
+  }
+  const [active, setActive] = useState('base')
+  const sc = SCENARIOS[active]?.disabled ? SCENARIOS.base : SCENARIOS[active]
+  const activeKey = SCENARIOS[active]?.disabled ? 'base' : active
+
+  // Compute revenue + costs for the selected scenario via the existing
+  // canonical compute2026Scenario helper, then bucket it into months
+  // with the seasonal weights.
+  const wagesOverride = isWageLocked ? wageEffective.loadedAnnual : null
+  const scenarioForecast = (() => {
+    if (activeKey === 'custom' && forecastSnapshot) {
+      return compute2026Scenario(forecastSnapshot, wagesOverride)
+    }
+    const uniformGrowth = HACKNEY_SCENARIO_LEVERS.reduce((acc, l) => ({ ...acc, [l.key]: sc.growth }), {})
+    return compute2026Scenario({ growth: uniformGrowth, fixedCosts: {}, officeCosts: {} }, wagesOverride)
+  })()
+
+  const cf = buildHackneyCashflow({
+    revenue:    scenarioForecast.totalIncome,
+    totalCosts: scenarioForecast.totalCosts,
+    rentAnnual: scenarioForecast.rent,
   })
 
-  const peakMonth = monthly.reduce((p, c) => c.closing > p.closing ? c : p, monthly[0])
-  const lowMonth  = monthly.reduce((p, c) => c.closing < p.closing ? c : p, monthly[0])
+  const closingCash   = cf[cf.length - 1].cumulative
+  const minCash       = Math.min(0, ...cf.map(m => m.cumulative))
+  const maxCash       = Math.max(closingCash, FLOOR, TARGET, ...cf.map(m => m.cumulative))
+  const peakMonth     = cf.reduce((best, m) => m.cumulative > best.cumulative ? m : best, cf[0])
+  const floorCrossed  = cf.find(m => m.cumulative >= FLOOR)
+  const targetCrossed = cf.find(m => m.cumulative >= TARGET)
 
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
-      {/* Header strip — slide title + scenario badge + workbook CTA */}
-      <div style={{
-        display:'grid', gridTemplateColumns:'1fr auto', gap:18, alignItems:'center',
-        padding:'18px 22px', borderRadius:12,
-        background:'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(34,211,238,0.05))',
-        border:'1px solid rgba(201,168,76,0.25)',
-      }}>
-        <div>
-          <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2, marginBottom:4 }}>
-            Cashflow Forecast · May 2026 → Apr 2027
+    <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* Header — eyebrow + note + scenario tabs + workbook link */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18 }}>
+        <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:14, marginBottom:12 }}>
+          <div>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Cashflow Forecast · May 2026 → Apr 2027</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Monthly inflows, outflows and cumulative cash position. Rent-free May–Aug 2026 per the new lease; £65k pa rent payable monthly Sep 26 → Apr 27. For the full detailed model see the workbook.</div>
           </div>
-          <div style={{ fontSize:12, color:'var(--cream-dim)' }}>
-            Mirror of the Cash Flow Forecast tab in the project workbook · scenario:{' '}
-            <strong style={{ color: scenarioColor }}>{scenarioLabel}</strong>
-            {isForecastLocked && scenarioLockedAt ? ` · locked ${scenarioLockedAt}` : ''}
-          </div>
+          {WORKBOOK_URL && (
+            <a href={WORKBOOK_URL} target="_blank" rel="noopener noreferrer" style={{
+              display:'inline-flex', alignItems:'center', gap:6, padding:'8px 14px', borderRadius:6, fontSize:11, fontWeight:700,
+              letterSpacing:'0.06em', textTransform:'uppercase', textDecoration:'none', whiteSpace:'nowrap',
+              background:'rgba(201,168,76,0.10)', border:'1px solid rgba(201,168,76,0.35)', color:'var(--gold)',
+            }}>
+              <span>↗</span><span>Open in Workbook</span>
+            </a>
+          )}
         </div>
-        <a
-          href={WORKBOOK_URL + '#gid=0'}
-          target="_blank" rel="noopener noreferrer"
-          style={{
-            padding:'12px 22px', borderRadius:8, fontSize:12, fontWeight:600,
-            letterSpacing:'0.08em', textTransform:'uppercase', cursor:'pointer',
-            background:'var(--gold)', color:'var(--ink)',
-            border:'1px solid var(--gold)',
-            textDecoration:'none', whiteSpace:'nowrap',
-            display:'inline-flex', alignItems:'center', gap:10,
-          }}
-        >
-          🔗 Open in Workbook
-        </a>
-      </div>
 
-      {/* Headline KPIs */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
-        <KpiCard2026 label="Investment / Day-1 raise" value={fmt(day1Total)}        sub={isLocked ? '🔒 Locked' : 'Live preview'}                  color="var(--gold)" />
-        <KpiCard2026 label="Peak cash position"        value={fmt(peakMonth.closing)} sub={peakMonth.month}                                          color="#22D3EE" />
-        <KpiCard2026 label="Low cash position"         value={fmt(lowMonth.closing)}  sub={`${lowMonth.month} · ${lowMonth.closing >= FLOOR ? 'above' : 'below'} floor`} color={lowMonth.closing >= FLOOR ? '#10B981' : '#F87171'} />
-        <KpiCard2026 label="Year-end balance"          value={fmt(monthly[monthly.length - 1].closing)} sub="Apr 2027"                                color="#A78BFA" />
-      </div>
-
-      {/* Monthly cashflow table — mirrors the workbook Cash Flow Forecast tab */}
-      <div className="card" style={{ padding:0, overflow:'hidden' }}>
-        <div style={{ padding:'14px 18px', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', justifyContent:'space-between', alignItems:'baseline' }}>
-          <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>Monthly Cashflow Table</div>
-          <div style={{ fontSize:11, color:'var(--cream-dim)' }}>{monthly.length} months · safe zone {fmt(FLOOR)}–{fmt(TARGET)}</div>
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px', fontSize:11, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', padding:'10px 18px', background:'rgba(255,255,255,0.02)', borderBottom:'1px solid rgba(201,168,76,0.1)' }}>
-          <div>Month</div>
-          <div style={{ textAlign:'right' }}>Opening</div>
-          <div style={{ textAlign:'right' }}>Net Flow</div>
-          <div style={{ textAlign:'right' }}>Closing</div>
-          <div style={{ textAlign:'right' }}>Vs Safe Zone</div>
-        </div>
-        {monthly.map((m, i) => (
-          <div key={m.month} style={{
-            display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px',
-            padding:'10px 18px', fontSize:13,
-            borderBottom: i < monthly.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
-            alignItems:'center',
-          }}>
-            <div style={{ color:'var(--cream)', fontWeight:500 }}>{m.month}</div>
-            <div style={{ textAlign:'right', color:'var(--cream-dim)', fontVariantNumeric:'tabular-nums' }}>{fmt(m.opening)}</div>
-            <div style={{ textAlign:'right', color: m.net >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums' }}>
-              {m.net >= 0 ? '+' : '−'}{fmt(Math.abs(m.net))}
-            </div>
-            <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmt(m.closing)}</div>
-            <div style={{ textAlign:'right' }}>
-              <span style={{ fontSize:10, color: m.status.color, padding:'3px 8px', borderRadius:10, background: `${m.status.color}1A`, border: `1px solid ${m.status.color}55`, fontWeight:600, letterSpacing:'0.04em', whiteSpace:'nowrap' }}>
-                {m.status.tag}
-              </span>
-            </div>
-          </div>
-        ))}
-        <div style={{ display:'grid', gridTemplateColumns:'90px 1fr 1fr 1fr 130px', padding:'12px 18px', background:'rgba(201,168,76,0.06)', fontSize:13, fontWeight:700 }}>
-          <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em', fontSize:11 }}>Totals</div>
-          <div />
-          <div style={{ textAlign:'right', color: monthly.reduce((s, m) => s + m.net, 0) >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums' }}>
-            {monthly.reduce((s, m) => s + m.net, 0) >= 0 ? '+' : '−'}{fmt(Math.abs(monthly.reduce((s, m) => s + m.net, 0)))}
-          </div>
-          <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmt(monthly[monthly.length - 1].closing)}</div>
-          <div />
-        </div>
-      </div>
-
-      {/* Day-1 startup costs — driven by the Use of Funds slider lock */}
-      <div style={{ background:'var(--ink-2)', border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.12)'}`, borderRadius:10, padding:20 }}>
-        <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:14 }}>
-          <STitle>One-off Startup Costs (Day 1)</STitle>
-          <span style={{ fontSize:11, color: isLocked ? '#10B981' : 'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase' }}>
-            {isLocked ? '✓ Live from locked Use of Funds' : 'Default ask · founder can lock a smaller raise'}
-          </span>
-        </div>
-        <div>
-          {day1.map(r => (
-            <div key={r.label} style={{ display:'flex', justifyContent:'space-between', padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)', fontSize:13 }}>
-              <span style={{ color: r.residual ? 'var(--teal)' : 'var(--cream-dim)' }}>{r.label}</span>
-              <span style={{ color: r.residual ? 'var(--teal)' : (isLocked ? '#10B981' : 'var(--cream)'), fontVariantNumeric:'tabular-nums' }}>{fmt(r.amount)}</span>
-            </div>
+        {/* Scenario tabs */}
+        <div style={{ display:'flex', gap:6 }}>
+          {Object.entries(SCENARIOS).map(([key, s]) => (
+            <button
+              key={key}
+              onClick={() => { if (!s.disabled) setActive(key) }}
+              disabled={s.disabled}
+              title={s.disabled ? 'Lock the 2026 Performance forecast to populate the Custom scenario.' : undefined}
+              style={{
+                padding:'7px 16px', fontSize:11, borderRadius:6,
+                cursor: s.disabled ? 'not-allowed' : 'pointer',
+                background: activeKey === key ? `${s.color}22` : 'transparent',
+                border: `1px solid ${activeKey === key ? s.color : '#2A2F3A'}`,
+                color: activeKey === key ? s.color : 'var(--cream-dim)',
+                fontWeight: activeKey === key ? 700 : 400,
+                letterSpacing:'0.06em', textTransform:'uppercase',
+                opacity: s.disabled ? 0.45 : 1,
+                transition:'all 0.15s',
+              }}
+            >
+              {s.label}
+            </button>
           ))}
-          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 0', fontSize:14, fontWeight:600 }}>
-            <span style={{ color:'var(--cream)' }}>Total raise</span>
-            <span className="serif" style={{ color: isLocked ? '#10B981' : 'var(--gold)', fontSize:18 }}>{fmt(day1Total)}</span>
-          </div>
-        </div>
-        <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(255,255,255,0.02)', borderRadius:6, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          50/50 split locked. Pre-money {fmt(deal.preMoney)} · post-money {fmt(deal.postMoney)} · implied <strong style={{ color:'var(--cream)' }}>{deal.impliedMult.toFixed(2)}× EBITDA</strong> at this raise.
-          {isLocked && snapshot?.lockedAt ? ` · Locked ${new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })}.` : ''}
         </div>
       </div>
 
-      <STitle>Net Position &amp; Safety Floor</STitle>
-      <CashflowChart />
+      {/* KPI strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12 }}>
+        <KpiCard2026 label="Closing Cash · Apr 2027"      value={fmt(Math.round(closingCash))} sub="after 12 months trading" color={closingCash > 0 ? '#2DD4BF' : '#EF4444'} />
+        <KpiCard2026 label="Peak Cash Position"           value={fmt(Math.round(peakMonth.cumulative))} sub={peakMonth.month} color="#22D3EE" />
+        <KpiCard2026 label="Hit Working-Capital Floor"    value={floorCrossed ? floorCrossed.month : 'Not in window'} sub={`= ${fmt(FLOOR)}`} color={floorCrossed ? '#10B981' : '#EF4444'} />
+        <KpiCard2026 label="Hit Working-Capital Target"   value={targetCrossed ? targetCrossed.month : 'Not in window'} sub={`= ${fmt(TARGET)}`} color={targetCrossed ? 'var(--gold)' : '#9CA3AF'} />
+      </div>
 
-      {/* Footer CTA — one more workbook link at the bottom of the page */}
-      <a
-        href={WORKBOOK_URL + '#gid=0'}
-        target="_blank" rel="noopener noreferrer"
-        style={{
-          padding:'14px 22px', borderRadius:10,
-          background:'rgba(201,168,76,0.08)',
-          border:'1px dashed rgba(201,168,76,0.4)',
-          textDecoration:'none',
-          display:'flex', alignItems:'center', justifyContent:'center', gap:12,
-          fontSize:13, color:'var(--gold)', fontWeight:600,
-          letterSpacing:'0.06em',
-        }}
-      >
-        🔗 Open the Cash Flow Forecast tab in the project workbook
-      </a>
+      {/* Line chart with threshold markers */}
+      <CashflowLineChart cf={cf} sc={sc} minCash={minCash} maxCash={maxCash} floor={FLOOR} target={TARGET} fmt={fmt} fmtK={fmtKShort} />
+
+      {/* Monthly breakdown table */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:0, overflow:'hidden' }}>
+        <div style={{ padding:'14px 18px', borderBottom:'1px solid rgba(255,255,255,0.06)' }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase' }}>Monthly Breakdown</div>
+        </div>
+        <table style={{ width:'100%', borderCollapse:'collapse' }}>
+          <thead>
+            <tr style={{ background:'rgba(255,255,255,0.02)' }}>
+              <th style={cfTh('left')}>Month</th>
+              <th style={cfTh('right')}>Inflow</th>
+              <th style={cfTh('right')}>Operating</th>
+              <th style={cfTh('right')}>Rent</th>
+              <th style={cfTh('right')}>Net</th>
+              <th style={cfTh('right')}>Cumulative</th>
+            </tr>
+          </thead>
+          <tbody>
+            {cf.map(m => (
+              <tr key={m.month} style={{ borderTop:'1px solid rgba(255,255,255,0.04)' }}>
+                <td style={cfTd('left', '#D1D5DB')}>{m.month}</td>
+                <td style={cfTd('right', '#9CA3AF')}>{fmt(m.inflow)}</td>
+                <td style={cfTd('right', '#9CA3AF')}>{fmt(-m.opex)}</td>
+                <td style={cfTd('right', m.rent > 0 ? '#A78BFA' : '#6B7280')}>{m.rent > 0 ? fmt(-m.rent) : '—'}</td>
+                <td style={cfTd('right', m.net >= 0 ? '#2DD4BF' : '#EF4444', 600)}>{m.net >= 0 ? '+' : ''}{fmt(m.net)}</td>
+                <td style={cfTd('right', m.cumulative >= 0 ? 'var(--gold)' : '#EF4444', 700)}>{fmt(Math.round(m.cumulative))}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
 
-// ─── Cashflow chart — closing balance per month + working-capital band ───
-// The shaded green band shows the £30k–£45k working-capital safety zone:
-// floor at £30k (3 months rent — operational red line), target at £45k
-// (floor + £15k cushion for VAT bills + cost swings). Investor dividends
-// are gated on the closing balance sitting at or above the floor.
-function CashflowChart() {
-  const FLOOR  = HACKNEY_CASH.safetyFloor    // £30k
-  const TARGET = HACKNEY_CASH.safetyTarget   // £45k
+function CashflowLineChart({ cf, sc, minCash, maxCash, floor, target, fmt, fmtK }) {
+  // SVG line chart — 12 months × cumulative cash position, with the
+  // working-capital floor (£30k) and target (£45k) drawn as dashed
+  // horizontal threshold lines.
+  const W = 760
+  const H = 280
+  const padL = 60, padR = 30, padT = 24, padB = 36
+  const innerW = W - padL - padR
+  const innerH = H - padT - padB
+  const yMin = Math.min(0, minCash) - Math.abs(minCash * 0.05 || 1000)
+  const yMax = maxCash + Math.abs(maxCash * 0.05 || 1000)
+  const yRange = yMax - yMin
+  const x = (i) => padL + (i / (cf.length - 1)) * innerW
+  const y = (v) => padT + innerH - ((v - yMin) / yRange) * innerH
+
+  const yFloor  = y(floor)
+  const yTarget = y(target)
+  const yZero   = y(0)
+
+  const points = cf.map((m, i) => `${x(i)},${y(m.cumulative)}`).join(' ')
+
   return (
-    <div className="card" style={{ padding:18 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:12, flexWrap:'wrap', gap:8 }}>
-        <span style={{ fontSize:11, color:'var(--cream-dim)' }}>
-          Peak {fmtMoney(HACKNEY_CASH.peak)} (Aug 26) · Low {fmtMoney(HACKNEY_CASH.low)} (Feb 27) · Year-end {fmtMoney(HACKNEY_CASH.yearEnd)}
-        </span>
-        <span style={{ fontSize:11, color:'#10B981', fontVariantNumeric:'tabular-nums' }}>
-          Working-capital safe zone {fmtMoney(FLOOR)} – {fmtMoney(TARGET)}
-        </span>
+    <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:18 }}>
+      <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', marginBottom:14 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase' }}>Cumulative Cash Position</div>
+        <div style={{ display:'flex', gap:14, fontSize:10.5, color:'#9CA3AF' }}>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:2, background:sc.color }} />
+            Cumulative cash
+          </span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:1, borderTop:'1px dashed #F87171' }} />
+            Working-capital floor ({fmtK(floor)})
+          </span>
+          <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+            <span style={{ width:14, height:1, borderTop:'1px dashed var(--gold)' }} />
+            Fully-built target ({fmtK(target)})
+          </span>
+        </div>
       </div>
-      <div style={{ height: 260 }}>
-        <ResponsiveContainer>
-          <LineChart data={HACKNEY_CASHFLOW}>
-            <CartesianGrid stroke="rgba(201,168,76,0.08)" vertical={false} />
-            <XAxis dataKey="month" stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <YAxis tickFormatter={fmtK} stroke="var(--cream-dim)" fontSize={11} tickLine={false} />
-            <Tooltip cursor={{ stroke: 'rgba(201,168,76,0.2)' }}
-              contentStyle={{ background:'var(--ink-3)', border:'1px solid var(--gold-dim)', borderRadius:8, color:'var(--cream)' }}
-              labelStyle={{ color:'var(--cream)', fontWeight:600, marginBottom:4 }}
-              itemStyle={{ color:'var(--cream)' }}
-              formatter={(v) => fmtMoney(v)} />
-            {/* Working-capital safe-zone band: floor £30k → target £45k */}
-            <ReferenceArea y1={FLOOR} y2={TARGET} fill="#10B981" fillOpacity={0.10} stroke="rgba(16,185,129,0.25)" strokeDasharray="2 4" label={{ value:`Safe zone · £${FLOOR/1000}k–£${TARGET/1000}k`, position:'insideTopRight', fill:'#10B981', fontSize:10 }} />
-            {/* Floor line — never drop below */}
-            <ReferenceLine y={FLOOR} stroke="#F87171" strokeDasharray="4 4" label={{ value:`Floor £${FLOOR/1000}k`, position:'right', fill:'#F87171', fontSize:10 }} />
-            <Line type="monotone" dataKey="closing" name="Closing balance" stroke="var(--gold)" strokeWidth={2} dot={{ r:3, fill:'var(--gold)' }} />
-            <Line type="monotone" dataKey="net" name="Net flow" stroke="var(--teal)" strokeWidth={1.5} dot={{ r:2, fill:'var(--teal)' }} />
-            <Legend wrapperStyle={{ fontSize:11, color:'var(--cream-dim)' }} />
-          </LineChart>
-        </ResponsiveContainer>
-      </div>
-      <div style={{ fontSize:11, color:'var(--cream-dim)', lineHeight:1.55, marginTop:14, padding:'10px 12px', background:'rgba(16,185,129,0.05)', border:'1px solid rgba(16,185,129,0.2)', borderRadius:6 }}>
-        <strong style={{ color:'#10B981' }}>How this gates dividends · </strong>
-        Director salary and operating costs are paid from each month's revenue first. Founder draws their pro-rata share every quarter. Investor's pro-rata share is held back until the closing balance enters this green band (≥ {fmtMoney(FLOOR)}). Once the bank balance is fully built (≥ {fmtMoney(TARGET)}), missed investor quarters are caught up.
-      </div>
+
+      <svg width="100%" viewBox={`0 0 ${W} ${H}`} style={{ display:'block' }}>
+        {/* Zero baseline */}
+        <line x1={padL} x2={W-padR} y1={yZero} y2={yZero} stroke="rgba(255,255,255,0.18)" strokeWidth={1} />
+        {/* Threshold lines */}
+        <line x1={padL} x2={W-padR} y1={yFloor}  y2={yFloor}  stroke="#F87171"   strokeWidth={1} strokeDasharray="6 4" opacity={0.7} />
+        <line x1={padL} x2={W-padR} y1={yTarget} y2={yTarget} stroke="#C9A84C"   strokeWidth={1} strokeDasharray="6 4" opacity={0.7} />
+        {/* Cumulative line */}
+        <polyline points={points} fill="none" stroke={sc.color} strokeWidth={2.5} strokeLinejoin="round" strokeLinecap="round" />
+        {/* Data points */}
+        {cf.map((m, i) => (
+          <g key={i}>
+            <circle cx={x(i)} cy={y(m.cumulative)} r={3} fill={sc.color} />
+            <title>{`${m.month}\nCumulative ${fmt(Math.round(m.cumulative))}\nNet ${m.net >= 0 ? '+' : ''}${fmt(m.net)}`}</title>
+          </g>
+        ))}
+        {/* X-axis labels */}
+        {cf.map((m, i) => (
+          <text key={i} x={x(i)} y={H - padB + 16} fontSize="9.5" fill="#9CA3AF" textAnchor="middle">
+            {m.month.slice(0, 3)}
+          </text>
+        ))}
+        {/* Y-axis labels */}
+        <text x={padL - 8} y={yZero + 4}    fontSize="9.5" fill="#6B7280" textAnchor="end">£0</text>
+        <text x={padL - 8} y={yFloor + 4}   fontSize="9.5" fill="#F87171" textAnchor="end">{fmtK(floor)}</text>
+        <text x={padL - 8} y={yTarget + 4}  fontSize="9.5" fill="#C9A84C" textAnchor="end">{fmtK(target)}</text>
+      </svg>
     </div>
   )
 }
