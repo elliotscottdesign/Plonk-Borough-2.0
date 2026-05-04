@@ -363,6 +363,38 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
 
   return (
     <div style={{ display:'flex', flexDirection:'column', gap:16, fontSize:13 }}>
+      {/* INCOME · 2026 FORECAST — pinned to the top of the tab. Mirrors the
+          card that previously lived inside the income sub-section so the
+          breakdown + monthly profile is always visible regardless of which
+          index section the user has selected below. */}
+      <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
+          <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
+          <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
+        </div>
+        <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
+          <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+          {incomeWithPct.map((item, i) => (
+            <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+              <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
+              <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
+              <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
+              <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
+            </div>
+          ))}
+          <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
+            <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
+            <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
+          </div>
+        </div>
+        <div style={{ marginTop:14 }}>
+          <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
+          <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
+        </div>
+      </div>
+
       {/* Slider card — READ-ONLY indicator. The slider's position is derived from
           the 5 growth levers + wage sliders below; preset buttons (Bear/2025/Base/Bull)
           still snap the levers. The user can't drag this slider directly. */}
@@ -496,38 +528,11 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
             <TicketPriceMaker growth={growth} pricing={pricing} setPricing={setPricing} />
           )}
 
-          {/* INCOME — growth levers + income donut + monthly */}
+          {/* INCOME — growth levers; the donut + monthly breakdown is pinned at the top of the tab */}
           {activeSection === 'income' && (
             <>
               <ScenarioLeversCard growth={growth} />
               <BoroughBarPriceUpliftCalculator />
-              <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
-                  <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.income2026')}</div>
-                  <div style={{ fontSize:13, color:'#22D3EE', fontWeight:600 }}>{fmt(totalIncome)}</div>
-                </div>
-                <div style={{ display:'flex', justifyContent:'center', marginBottom:16 }}>
-                  <DonutChart data={incomeWithPct} total={totalIncome} size={200} />
-                </div>
-                <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
-                  {incomeWithPct.map((item, i) => (
-                    <div key={i} style={{ display:'flex', alignItems:'center', gap:10, padding:'7px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
-                      <div style={{ width:10, height:10, borderRadius:2, background:item.color, flexShrink:0 }} />
-                      <div style={{ flex:1, fontSize:13, color:'#D1D5DB' }}>{item.label}</div>
-                      <div style={{ fontSize:13, fontWeight:600, color:'#F5F0E8', minWidth:76, textAlign:'right' }}>{fmt(item.value)}</div>
-                      <div style={{ fontSize:12, color:'#6B7280', minWidth:40, textAlign:'right' }}>{item.pct}%</div>
-                    </div>
-                  ))}
-                  <div style={{ display:'flex', justifyContent:'space-between', padding:'10px 0 4px' }}>
-                    <div style={{ fontSize:12, fontWeight:700, color:'#F5F0E8', textTransform:'uppercase', letterSpacing:'0.06em' }}>{t('performance2025.totalIncome')}</div>
-                    <div style={{ fontSize:14, fontWeight:700, color:'#22D3EE' }}>{fmt(totalIncome)}</div>
-                  </div>
-                </div>
-                <div style={{ marginTop:14 }}>
-                  <div style={{ fontSize:10, color:'#6B7280', letterSpacing:'0.1em', textTransform:'uppercase', marginBottom:6 }}>{t('performance2026.monthlyIncome2026')}</div>
-                  <Stacked2026 monthly={monthlyIncome2026} kind="income" maxH={120} fmt={fmt} t={t} />
-                </div>
-              </div>
             </>
           )}
 
