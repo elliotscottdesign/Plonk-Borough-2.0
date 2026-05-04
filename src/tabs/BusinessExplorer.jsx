@@ -530,10 +530,6 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
         </div>
       </div>
 
-      {/* ─── BUILD CUSTOM SCENARIO ─── income levers (4 sliders), lifted out of
-          the income sub-section so they always sit below the headline KPIs. */}
-      <ScenarioLeversCard growth={growth} />
-
       {/* ─── SECTION DIVIDER ─── separates the headline summary from the per-section drill-downs */}
       <div style={{ marginTop: 12, paddingBottom: 12, borderBottom: '1px solid rgba(201,168,76,0.25)' }}>
         <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600 }}>
@@ -579,10 +575,15 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
             <TicketPriceMaker growth={growth} pricing={pricing} setPricing={setPricing} />
           )}
 
-          {/* INCOME — bar-price uplift only; the donut + monthly breakdown and
-              the Build Custom Scenario levers are pinned at the top of the tab */}
+          {/* INCOME — Build Custom Scenario levers, then Bar Price Uplift
+              Calculator. The donut + monthly breakdown is pinned at the top
+              of the tab and the headline KPIs / Forecast Calculator sits
+              just above this index content. */}
           {activeSection === 'income' && (
-            <BoroughBarPriceUpliftCalculator />
+            <>
+              <ScenarioLeversCard growth={growth} />
+              <BoroughBarPriceUpliftCalculator />
+            </>
           )}
 
           {/* OPERATING COSTS — full cost donut + monthly */}
