@@ -8,7 +8,7 @@ const fmtK = (n) => '£' + (Math.round(n / 1000)).toLocaleString() + 'k'
 
 export default function MarketingEngine() {
   const budget2026 = [
-    { line: 'Website Maintenance', supplier: 'Lithos Digital EE', monthly: 291, annual: 3492, note: 'plonkgolf.co.uk · cloud server · redirecting to nodiceborough.co.uk' },
+    { line: 'Website Maintenance', supplier: 'Lithos Digital EE', monthly: 291, annual: 3492, note: 'plonkgolf.co.uk · cloud server' },
     { line: 'SEO + Outreach + Business Listings', supplier: 'Lithos Digital EE', monthly: 872, annual: 10464, note: '3 articles/mth + 10 business listings · run all 12 months from Day 1' },
     { line: 'Google Ads (PPC spend)', supplier: 'Google Ads', monthly: 600, annual: 7200, note: '~1,875 clicks/mth · ~107 conversions/mth at verified £0.32 CPC' },
   ]

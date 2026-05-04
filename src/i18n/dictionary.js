@@ -399,8 +399,8 @@ export const PT_BR = {
   'Website Maintenance': 'Manutenção do Site',
   'SEO + Outreach + Business Listings': 'SEO + Outreach + Listagens de Negócio',
   'Google Ads (PPC spend)': 'Google Ads (gasto em PPC)',
-  'plonkgolf.co.uk · cloud server · redirecting to nodiceborough.co.uk':
-    'plonkgolf.co.uk · servidor em nuvem · redirecionando para nodiceborough.co.uk',
+  'plonkgolf.co.uk · cloud server':
+    'plonkgolf.co.uk · servidor em nuvem',
   '3 articles/mth + 10 business listings · run all 12 months from Day 1':
     '3 artigos/mês + 10 listagens de negócio · executado nos 12 meses a partir do Dia 1',
   '~1,875 clicks/mth · ~107 conversions/mth at verified £0.32 CPC':
