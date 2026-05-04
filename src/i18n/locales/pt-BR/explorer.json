@@ -15,7 +15,7 @@
     "tableHeader": "Detalhamento Mensal",
     "customDisabledHint": "Bloqueie a projeção 2026 Performance para preencher o cenário Personalizado.",
     "scenarios": {
-      "conservative": "Conservador −10%",
+      "conservative": "Conservador +10%",
       "base": "Base +15%",
       "optimistic": "Otimista +25%",
       "custom": "Personalizado (Bloqueado)"

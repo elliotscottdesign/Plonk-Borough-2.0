@@ -15,7 +15,7 @@
     "tableHeader": "Monthly Breakdown",
     "customDisabledHint": "Lock the 2026 Performance forecast to populate the Custom scenario.",
     "scenarios": {
-      "conservative": "Conservative −10%",
+      "conservative": "Conservative +10%",
       "base": "Base +15%",
       "optimistic": "Optimistic +25%",
       "custom": "Custom (Locked)"

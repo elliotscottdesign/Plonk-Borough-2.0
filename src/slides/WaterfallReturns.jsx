@@ -317,7 +317,7 @@ function DistributionCalendar({ investment, investorEq, founderEq, reserveTarget
   const dist = computeBoroughDistributionCalendar({ reserveTarget, investorEq, founderEq })
   const { calendar, quarterly, summary } = dist
   const investorAnnualPct = investment > 0 ? (summary.totalInvestor / investment) * 100 : 0
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   return (
     <div style={{ marginTop: 40 }}>
@@ -455,7 +455,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked, fmt }) {
   const totalReturned   = r.cumulativeDividends + r.exit.investorProceeds
   const multipleOfMoney = investment > 0 ? totalReturned / investment : 0
   const irr             = computeIRR(cashFlows)
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
   let cumInv = 0
   return (
     <div style={{ marginTop: 40 }}>

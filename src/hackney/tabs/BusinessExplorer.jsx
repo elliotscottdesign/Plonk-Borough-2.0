@@ -1407,11 +1407,11 @@ function TabCashflow() {
   const FLOOR  = HACKNEY_CASH.safetyFloor
   const TARGET = HACKNEY_CASH.safetyTarget
 
-  // Scenario set — Conservative −10% = +10% growth, Base = +15%,
+  // Scenario set — Conservative = +10% growth, Base = +15%,
   // Optimistic = +25%. Custom uses the locked forecast snapshot if
   // present (otherwise disabled).
   const SCENARIOS = {
-    conservative: { label: 'Conservative −10%', growth: 10, color: '#94A3B8' },
+    conservative: { label: 'Conservative +10%', growth: 10, color: '#94A3B8' },
     base:         { label: 'Base +15%',         growth: 15, color: '#C9A84C' },
     optimistic:   { label: 'Optimistic +25%',   growth: 25, color: '#2DD4BF' },
     custom:       { label: 'Custom (Locked)',   growth: null, color: 'var(--gold)', disabled: !isForecastLocked },
