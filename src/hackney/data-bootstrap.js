@@ -33,6 +33,7 @@
 //   • window.__NDB_HACKNEY_WAGE_LOCK         — wage calculator lock
 //   • window.__NDB_HACKNEY_LOCK_SNAPSHOT     — 2026 forecast snapshot
 //   • window.__NDB_HACKNEY_BAR_PRICE_LOCK    — bar-price slider lock
+//   • window.__NDB_HACKNEY_FIXED_COSTS_LOCK  — fixed-costs editor lock
 //
 // Note: Hackney does NOT replicate Borough's gviz Sheet fetch. Hackney's
 // data/hackney.js is hand-curated from the workbook; live cell hydration
@@ -74,13 +75,15 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
       let wages      = null
       let forecast   = null
       let barPrice   = null
+      let fixedCosts = null
       if (raw && typeof raw === 'object') {
-        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw) {
+        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw) {
           // Container shape (current).
           useOfFunds = raw.useOfFunds ?? null
           wages      = raw.wages      ?? null
           forecast   = raw.forecast   ?? null
           barPrice   = raw.barPrice   ?? null
+          fixedCosts = raw.fixedCosts ?? null
         } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
           // Legacy flat-forecast shape — adopt as forecast, others null.
           forecast = raw
@@ -91,6 +94,7 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
       window.__NDB_HACKNEY_WAGE_LOCK         = wages
       window.__NDB_HACKNEY_LOCK_SNAPSHOT     = forecast
       window.__NDB_HACKNEY_BAR_PRICE_LOCK    = barPrice
+      window.__NDB_HACKNEY_FIXED_COSTS_LOCK  = fixedCosts
 
       const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
       // eslint-disable-next-line no-console
@@ -99,7 +103,8 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
         ` · useOfFunds=${useOfFunds ? 'set' : 'empty'}` +
         ` · wages=${wages ? 'set' : 'empty'}` +
         ` · forecast=${forecast ? 'set' : 'empty'}` +
-        ` · barPrice=${barPrice ? 'set' : 'empty'}`
+        ` · barPrice=${barPrice ? 'set' : 'empty'}` +
+        ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}`
       )
     }
     return { source: 'server' }

@@ -21,7 +21,7 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //     read `effective.*` so every figure cascades from one variable
 //
 // Lockable surfaces (independent of each other; mirrors Borough's
-// LockedDeckContext architecture). All four sync cross-device:
+// LockedDeckContext architecture). All five sync cross-device:
 //   1. USE-OF-FUNDS — investor's total raise + 7-line use-of-funds
 //      breakdown (LIVE_KEY / LOCK_KEY · syncs cross-device)
 //   2. WAGES — 4-role wage calculator
@@ -30,6 +30,8 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //      growth levers · syncs cross-device)
 //   4. BAR PRICE — Bar Price Uplift single-number lock
 //      (independent founder pin · syncs cross-device)
+//   5. FIXED COSTS — per-line annual £ overrides for the Fixed Costs
+//      editor (FIXED_COSTS_LOCK_KEY · syncs cross-device)
 //
 // State model per surface:
 //   • values     — live editable state (founder edits these)
@@ -38,12 +40,13 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //
 // Persistence:
 //   • localStorage caches every surface for snappy first paint
-//   • All four surfaces ALSO sync cross-device via LOCK_SYNC_URL (Apps
+//   • All five surfaces ALSO sync cross-device via LOCK_SYNC_URL (Apps
 //     Script — see infra/lock-sync-apps-script-hackney.gs). They share
-//     ONE merged container { useOfFunds, wages, forecast, barPrice } so
-//     no writer overwrites another's state on the server. Every
-//     lock/unlock/reset callback routes through buildContainer() which
-//     reads fresh refs for the surfaces it isn't changing.
+//     ONE merged container { useOfFunds, wages, forecast, barPrice,
+//     fixedCosts } so no writer overwrites another's state on the
+//     server. Every lock/unlock/reset callback routes through
+//     buildContainer() which reads fresh refs for the surfaces it
+//     isn't changing.
 //
 // Founder detection:
 //   • sessionStorage.ndb_founder === '1' (set by PasswordGate at 888999)
@@ -60,6 +63,9 @@ const FORECAST_LOCK_KEY = 'ndh_forecast_locked_v1'
 // lock so the founder can pin just this slider while everything else
 // stays editable. Shape: { value: number, lockedAt: ISO }.
 const BAR_PRICE_LOCK_KEY = 'ndh_bar_price_locked_v1'
+// Fixed-costs editor lock — independent of the broader forecast lock.
+// Shape: { values: { lineKey: £, ... }, lockedAt: ISO }.
+const FIXED_COSTS_LOCK_KEY = 'ndh_fixed_costs_locked_v1'
 
 // Default 2026 Performance forecast state — growth levers per income
 // line, plus matrices for ticket pricing, fixed-cost line edits and
@@ -181,6 +187,9 @@ const readPersisted = (key, validator) => {
 const isValidBarPriceLock = (v) =>
   v && typeof v === 'object' && Number.isFinite(v.value)
 
+const isValidFixedCostsLock = (v) =>
+  v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
 // Forecast snapshot — Hackney shape carries growth.bar at top level.
 const isValidForecastForServer = (s) =>
   s && typeof s === 'object' && s.growth && Number.isFinite(s.growth.bar)
@@ -255,6 +264,24 @@ function readPersistedBarPriceLock() {
     }
   }
   return readPersisted(BAR_PRICE_LOCK_KEY, isValidBarPriceLock)
+}
+
+function readPersistedFixedCostsLock() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_FIXED_COSTS_LOCK !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_FIXED_COSTS_LOCK
+    try {
+      if (fromServer && isValidFixedCostsLock(fromServer)) {
+        localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidFixedCostsLock(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(FIXED_COSTS_LOCK_KEY, isValidFixedCostsLock)
 }
 
 // Cross-device lock sync — POSTs the merged container { useOfFunds,
@@ -381,17 +408,26 @@ export function LockedUseOfFundsProvider({ children }) {
   // the slider is disabled.
   const [barPriceLock, setBarPriceLock] = useState(readPersistedBarPriceLock)
 
+  // ─── Fixed-costs editor lock ─────────────────────────────────────
+  // Independent founder-only lock for the Fixed Costs editor on the
+  // 2026 Performance tab. When set, every visitor sees the locked
+  // line totals and the sliders are disabled. Locked values overlay
+  // forecastEffective.fixedCosts so cost calculations cascade.
+  const [fixedCostsLock, setFixedCostsLock] = useState(readPersistedFixedCostsLock)
+
   // Refs mirror the latest snapshot of EVERY cross-device-synced surface
   // so any callback can rebuild the full merged container without stale
   // closures. Mirrors Borough's fundingRef / forecastRef / ticketVolumeRef.
-  const useOfFundsRef = useRef(snapshot)
-  const wagesRef      = useRef(wageSnapshot)
-  const forecastRef   = useRef(forecastSnapshot)
-  const barPriceRef   = useRef(barPriceLock)
-  useEffect(() => { useOfFundsRef.current = snapshot         }, [snapshot])
-  useEffect(() => { wagesRef.current      = wageSnapshot     }, [wageSnapshot])
-  useEffect(() => { forecastRef.current   = forecastSnapshot }, [forecastSnapshot])
-  useEffect(() => { barPriceRef.current   = barPriceLock     }, [barPriceLock])
+  const useOfFundsRef  = useRef(snapshot)
+  const wagesRef       = useRef(wageSnapshot)
+  const forecastRef    = useRef(forecastSnapshot)
+  const barPriceRef    = useRef(barPriceLock)
+  const fixedCostsRef  = useRef(fixedCostsLock)
+  useEffect(() => { useOfFundsRef.current  = snapshot         }, [snapshot])
+  useEffect(() => { wagesRef.current       = wageSnapshot     }, [wageSnapshot])
+  useEffect(() => { forecastRef.current    = forecastSnapshot }, [forecastSnapshot])
+  useEffect(() => { barPriceRef.current    = barPriceLock     }, [barPriceLock])
+  useEffect(() => { fixedCostsRef.current  = fixedCostsLock   }, [fixedCostsLock])
 
   // ─── Per-tenant re-hydration on mount ─────────────────────────────
   // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
@@ -420,12 +456,14 @@ export function LockedUseOfFundsProvider({ children }) {
         let wages = null
         let forecast = null
         let barPrice = null
+        let fixedCosts = null
         if (raw && typeof raw === 'object') {
-          if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw) {
+          if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw) {
             useOfFunds = raw.useOfFunds ?? null
             wages      = raw.wages      ?? null
             forecast   = raw.forecast   ?? null
             barPrice   = raw.barPrice   ?? null
+            fixedCosts = raw.fixedCosts ?? null
           } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -435,15 +473,17 @@ export function LockedUseOfFundsProvider({ children }) {
         setWageSnapshot(isValidWageLock(wages) ? wages : null)
         setForecastSnapshot(isValidForecastForServer(forecast) ? forecast : null)
         setBarPriceLock(isValidBarPriceLock(barPrice) ? barPrice : null)
+        setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
         try {
           const setOrClear = (storeKey, val, validator) => {
             if (validator(val)) localStorage.setItem(namespacedKey(storeKey), JSON.stringify(val))
             else                localStorage.removeItem(namespacedKey(storeKey))
           }
-          setOrClear(LOCK_KEY,           useOfFunds, isValidLocked)
-          setOrClear(WAGE_LOCK_KEY,      wages,      isValidWageLock)
-          setOrClear(FORECAST_LOCK_KEY,  forecast,   isValidForecastForServer)
-          setOrClear(BAR_PRICE_LOCK_KEY, barPrice,   isValidBarPriceLock)
+          setOrClear(LOCK_KEY,             useOfFunds, isValidLocked)
+          setOrClear(WAGE_LOCK_KEY,        wages,      isValidWageLock)
+          setOrClear(FORECAST_LOCK_KEY,    forecast,   isValidForecastForServer)
+          setOrClear(BAR_PRICE_LOCK_KEY,   barPrice,   isValidBarPriceLock)
+          setOrClear(FIXED_COSTS_LOCK_KEY, fixedCosts, isValidFixedCostsLock)
         } catch {}
         // eslint-disable-next-line no-console
         console.info(
@@ -451,7 +491,8 @@ export function LockedUseOfFundsProvider({ children }) {
           ` · useOfFunds=${useOfFunds ? 'set' : 'empty'}` +
           ` · wages=${wages ? 'set' : 'empty'}` +
           ` · forecast=${forecast ? 'set' : 'empty'}` +
-          ` · barPrice=${barPrice ? 'set' : 'empty'}`
+          ` · barPrice=${barPrice ? 'set' : 'empty'}` +
+          ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}`
         )
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -462,14 +503,15 @@ export function LockedUseOfFundsProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Build the full 4-surface container for cross-device sync. Always
-  // includes the latest of all four so neither writer clobbers the
+  // Build the full 5-surface container for cross-device sync. Always
+  // includes the latest of all five so neither writer clobbers the
   // others on the server. Mirrors Borough's buildContainer().
   const buildContainer = (overrides = {}) => ({
     useOfFunds: 'useOfFunds' in overrides ? overrides.useOfFunds : useOfFundsRef.current,
     wages:      'wages'      in overrides ? overrides.wages      : wagesRef.current,
     forecast:   'forecast'   in overrides ? overrides.forecast   : forecastRef.current,
     barPrice:   'barPrice'   in overrides ? overrides.barPrice   : barPriceRef.current,
+    fixedCosts: 'fixedCosts' in overrides ? overrides.fixedCosts : fixedCostsRef.current,
   })
 
   const isFounder = readIsFounder()
@@ -481,6 +523,11 @@ export function LockedUseOfFundsProvider({ children }) {
   const canEditForecast = isFounder && !isForecastLocked
   const isBarPriceLocked = barPriceLock !== null
   const canEditBarPrice  = isFounder && !isBarPriceLocked
+  const isFixedCostsLocked = fixedCostsLock !== null
+  // Fixed-costs editor is editable only by the founder AND only when
+  // neither the broader forecast nor the per-section fixed-costs lock
+  // is engaged.
+  const canEditFixedCosts  = isFounder && !isForecastLocked && !isFixedCostsLocked
 
   // Persist live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -582,12 +629,15 @@ export function LockedUseOfFundsProvider({ children }) {
   // is active so a founder-pinned bar-price uplift % is visible to all
   // visitors regardless of whether the broader forecast is locked.
   const forecastEffective = useMemo(() => {
-    const base = isForecastLocked ? forecastSnapshot : forecastValues
+    let base = isForecastLocked ? forecastSnapshot : forecastValues
     if (isBarPriceLocked && barPriceLock && Number.isFinite(barPriceLock.value)) {
-      return { ...base, barPriceUplift: barPriceLock.value }
+      base = { ...base, barPriceUplift: barPriceLock.value }
+    }
+    if (isFixedCostsLocked && fixedCostsLock && fixedCostsLock.values) {
+      base = { ...base, fixedCosts: fixedCostsLock.values }
     }
     return base
-  }, [isForecastLocked, forecastSnapshot, forecastValues, isBarPriceLocked, barPriceLock])
+  }, [isForecastLocked, forecastSnapshot, forecastValues, isBarPriceLocked, barPriceLock, isFixedCostsLocked, fixedCostsLock])
 
   // Generic top-level setter — caller passes a key + new value, OR
   // a key + (subKey, val) for nested updates (growth/pricing/fixed/office).
@@ -670,6 +720,36 @@ export function LockedUseOfFundsProvider({ children }) {
     syncContainerToServer(buildContainer({ barPrice: null }))
   }, [isFounder])
 
+  // ─── Fixed-costs lock API ────────────────────────────────────────
+  // Founder-only lock for the Fixed Costs editor. Captures the current
+  // live overrides map and pins it for everyone. Persists to
+  // localStorage AND syncs cross-device via LOCK_SYNC_URL.
+  const lockFixedCosts = useCallback(() => {
+    if (!isFounder) return
+    const liveValues = forecastValues.fixedCosts || {}
+    const stamped = { values: { ...liveValues }, lockedAt: new Date().toISOString() }
+    setFixedCostsLock(stamped)
+    try { localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ fixedCosts: stamped }))
+  }, [forecastValues.fixedCosts, isFounder])
+
+  const unlockFixedCosts = useCallback(() => {
+    if (!isFounder) return
+    setFixedCostsLock(null)
+    try { localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ fixedCosts: null }))
+  }, [isFounder])
+
+  const resetFixedCosts = useCallback(() => {
+    if (!isFounder) return
+    if (fixedCostsLock) {
+      setFixedCostsLock(null)
+      try { localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY)) } catch {}
+      syncContainerToServer(buildContainer({ fixedCosts: null }))
+    }
+    setForecastValuesState(prev => ({ ...prev, fixedCosts: {} }))
+  }, [fixedCostsLock, isFounder])
+
   const resetForecast = useCallback(() => {
     if (!isFounder) return
     if (forecastSnapshot) {
@@ -721,6 +801,13 @@ export function LockedUseOfFundsProvider({ children }) {
     canEditBarPrice,
     lockBarPrice,
     unlockBarPrice,
+    // Fixed-costs independent lock (overlays forecastEffective.fixedCosts)
+    fixedCostsLock,
+    isFixedCostsLocked,
+    canEditFixedCosts,
+    lockFixedCosts,
+    unlockFixedCosts,
+    resetFixedCosts,
   }
 
   return (
