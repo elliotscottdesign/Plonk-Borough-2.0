@@ -487,12 +487,12 @@ const FORECAST_RULES = {
 
 // ─── 2026 Performance · Section keys for left-side TOC ────────────────
 const PERF_SECTIONS = [
+  { id: 'tickets',  label: 'Tickets',         icon: '🎟' },
   { id: 'income',   label: 'Income',          icon: '💰' },
   { id: 'opcosts',  label: 'Operating Costs', icon: '💸' },
   { id: 'fixed',    label: 'Fixed Costs',     icon: '🏠' },
   { id: 'wages',    label: 'Wages',           icon: '👥' },
   { id: 'office',   label: 'Office Costs',    icon: '🏢' },
-  { id: 'tickets',  label: 'Tickets',         icon: '🎟' },
 ]
 
 // 2026 cost donut palette — high-contrast, readable on dark background.
