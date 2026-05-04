@@ -328,6 +328,67 @@ export default function IPLicensing() {
   const officeGolfRev = sumRev(IP_LICENSING_SKUS_OFFICE_2025, isGolfSku)
   const officeNonGolfRev = sumRev(IP_LICENSING_SKUS_OFFICE_2025, s => !isGolfSku(s))
 
+  const commission2025 = IP_LICENSING_COMMISSION_2025.onlineTicketCommission
+  const commission2026Online = onlineGolfRev * (commissionOnlinePct / 100)
+  const commission2026Office = officeGolfRev * (commissionOfficePct / 100)
+  const commission2026 = commission2026Online + commission2026Office
+
+  const ONLINE_GREEN = '#10B981'
+  const OFFICE_GOLD = 'var(--gold)'
+  const COMMISSION_CYAN = '#2DD4BF'
+
+  const [openBubble, setOpenBubble] = useState(null)
+  const bubbles = [
+    {
+      key: 'online-tickets',
+      label: 'Online Tickets',
+      value: g.onlineQty.toLocaleString(),
+      sub: `${(onlinePct * 100).toFixed(1)}% of volume`,
+      color: ONLINE_GREEN,
+      detail: <>Tickets booked + paid through the DMN online portal during 2025 (status = <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>complete</code>). The dominant channel — under the Plonk Golf × Venue model this is the only channel that generates licensing commission by default.</>,
+    },
+    {
+      key: 'online-revenue',
+      label: 'Online Revenue',
+      value: fmt0(g.onlineRev),
+      sub: `${(g.onlineRev / g.totalRev * 100).toFixed(1)}% of total £ · actual`,
+      color: ONLINE_GREEN,
+      detail: <>Actual £ recorded by the DMN portal — not imputed. Reconciles within rounding to the deck's "Online Golf Tickets" headline. This figure is the gross online sale; Plonk Golf's commission is taken from it (golf-only SKUs).</>,
+    },
+    {
+      key: 'office-tickets',
+      label: 'Office Tickets',
+      value: g.officeQty.toLocaleString(),
+      sub: `${((1 - onlinePct) * 100).toFixed(1)}% of volume`,
+      color: OFFICE_GOLD,
+      detail: <>Bookings taken by the office/bookings team and settled at the venue till (status = <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>external</code>). DMN records the booking but not the payment. Going forward customers either self-serve online or contact the venue directly.</>,
+    },
+    {
+      key: 'office-revenue',
+      label: 'Office Revenue',
+      value: fmt0(g.officeRev),
+      sub: `${(g.officeRev / g.totalRev * 100).toFixed(1)}% of total £ · imputed`,
+      color: OFFICE_GOLD,
+      detail: <>Imputed at SKU list price (qty × price) because till payments don't flow through the online system. Actual till takings may differ if the office team discounts/comps. Plonk Golf only earns commission on this channel under the conditional bookings-manager scenario (slider B).</>,
+    },
+    {
+      key: 'commission-2025',
+      label: '2025 Plonk Commission',
+      value: fmt0(commission2025),
+      sub: 'verified · DMN arrangement',
+      color: COMMISSION_CYAN,
+      detail: <>Online ticket commission already booked under the existing Design My Night arrangement during 2025 — verified from the Borough weekly P&L (source: <em>Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx</em>, row 67, sum of cols 12-63). This is Plonk Golf P&L income, NOT venue revenue. Going forward the same commercial relationship moves from Design My Night to No Dice Bars LTD with the same effective rate.</>,
+    },
+    {
+      key: 'commission-2026',
+      label: '2026 Plonk Commission',
+      value: fmt0(commission2026),
+      sub: `modelled @ ${commissionOnlinePct}% online + ${commissionOfficePct}% office golf`,
+      color: COMMISSION_CYAN,
+      detail: <>Live projection driven by the commission sliders under Sections A &amp; B. Online: {fmt0(onlineGolfRev)} golf revenue × {commissionOnlinePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Online)}</strong>. Office: {fmt0(officeGolfRev)} golf revenue × {commissionOfficePct}% = <strong style={{ color: 'var(--cream)' }}>{fmt0(commission2026Office)}</strong>. Based on 2025 base volume — uplift scenarios are layered in the deeper interactive model below.</>,
+    },
+  ]
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, fontSize: 13 }}>
       <div style={{ background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: 10, padding: '14px 18px' }}>
@@ -337,30 +398,32 @@ export default function IPLicensing() {
         <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
           Source: <strong style={{ color: 'var(--cream)' }}>ALL DMN 2025 transactions</strong>, filtered to Borough venue only, split by Status column. Online revenue is actual portal revenue; office revenue is imputed at SKU list price (qty × price) because till payments don't appear in the online system. Under the Plonk Golf × Venue model, only the online channel generates Plonk Golf revenue.
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginTop: 14 }}>
-          <Stat label="Online Tickets" value={g.onlineQty.toLocaleString()} sub={`${(onlinePct * 100).toFixed(1)}% of volume`} color="#4FC3F7" />
-          <Stat label="Online Revenue" value={fmt0(g.onlineRev)} sub={`${(g.onlineRev / g.totalRev * 100).toFixed(1)}% of total £ · actual`} color="var(--gold)" />
-          <Stat label="Office Tickets" value={g.officeQty.toLocaleString()} sub={`${((1-onlinePct) * 100).toFixed(1)}% of volume`} color="#9CA3AF" />
-          <Stat label="Office Revenue" value={fmt0(g.officeRev)} sub={`${(g.officeRev / g.totalRev * 100).toFixed(1)}% of total £ · imputed`} color="#9CA3AF" />
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: 8, marginTop: 14 }}>
+          {bubbles.map(b => (
+            <StatBubble
+              key={b.key}
+              label={b.label}
+              value={b.value}
+              sub={b.sub}
+              color={b.color}
+              expanded={openBubble === b.key}
+              onClick={() => setOpenBubble(openBubble === b.key ? null : b.key)}
+            />
+          ))}
         </div>
+        {openBubble && (() => {
+          const b = bubbles.find(x => x.key === openBubble)
+          if (!b) return null
+          return (
+            <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.08)', borderLeft: `3px solid ${b.color}`, borderRadius: 6, fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+              <div style={{ fontSize: 10, color: b.color, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, marginBottom: 6 }}>{b.label}</div>
+              {b.detail}
+            </div>
+          )
+        })()}
         <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 10, display:'flex', justifyContent:'space-between', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: 10 }}>
           <span>Combined Borough 2025 revenue</span>
           <span style={{ color: 'var(--gold)', fontWeight: 700 }}>{fmt0(g.totalRev)}</span>
-        </div>
-      </div>
-
-      {/* Verified 2025 commission income to Plonk Golf — drawn from source weekly P&L */}
-      <div style={{ background: 'rgba(45,212,191,0.06)', border: '1px solid rgba(45,212,191,0.25)', borderRadius: 10, padding: '14px 18px' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 6 }}>
-          <div style={{ fontSize: 11, color: '#2DD4BF', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
-            Plonk Golf — Verified 2025 Commission Income
-          </div>
-          <div className="serif" style={{ fontSize: 22, color: '#2DD4BF', fontWeight: 700 }}>
-            {fmt0(IP_LICENSING_COMMISSION_2025.onlineTicketCommission)}
-          </div>
-        </div>
-        <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-          Online ticket commission already booked under the existing Design My Night arrangement during 2025 — verified from the Borough weekly P&L (source: <em>Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx</em>, row 67, sum of cols 12-63). This is Plonk Golf P&L income, NOT venue revenue. Going forward the same commercial relationship moves from Design My Night to No Dice Bars LTD with the same effective rate; the sliders below model 2026+ scenarios.
         </div>
       </div>
 
@@ -433,5 +496,31 @@ function Stat({ label, value, sub, color }) {
       <div style={{ fontSize: 20, fontWeight: 800, color }}>{value}</div>
       <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>{sub}</div>
     </div>
+  )
+}
+
+function StatBubble({ label, value, sub, color, expanded, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        textAlign: 'left',
+        cursor: 'pointer',
+        background: expanded ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.03)',
+        border: `1px solid ${expanded ? color : 'rgba(255,255,255,0.06)'}`,
+        borderRadius: 8,
+        padding: '10px 12px',
+        font: 'inherit',
+        color: 'inherit',
+        transition: 'background 120ms ease, border-color 120ms ease',
+        position: 'relative',
+      }}
+    >
+      <div style={{ fontSize: 9, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4, paddingRight: 14 }}>{label}</div>
+      <div style={{ fontSize: 17, fontWeight: 800, color, lineHeight: 1.1 }}>{value}</div>
+      <div style={{ fontSize: 10, color: '#6B7280', marginTop: 3, lineHeight: 1.3 }}>{sub}</div>
+      <span aria-hidden style={{ position: 'absolute', top: 8, right: 8, fontSize: 9, color: expanded ? color : '#6B7280', transform: expanded ? 'rotate(180deg)' : 'none', transition: 'transform 120ms ease' }}>▾</span>
+    </button>
   )
 }
