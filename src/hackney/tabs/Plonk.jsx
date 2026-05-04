@@ -244,11 +244,9 @@ function GolfHeroCard({ color, label, value, sub }) {
 //      Runs every month of 2025, including months when the host role
 //      was dark — meaning bar staff / supervisors were ringing up
 //      walk-in tickets at the till.
-function GolfHostSeasonality() {
+function GolfHosts() {
   const data    = HACKNEY_GOLF_HOST_2025_MONTHLY
   const totals  = HACKNEY_GOLF_HOST_2025_TOTALS
-  const tillData = HACKNEY_GOLF_TILL_2025_MONTHLY
-  const tillTotal = tillData.reduce((s, m) => s + m.revenue, 0)
   const peakMo  = data.reduce((acc, m) => m.hours > acc.hours ? m : acc, data[0])
   return (
     <div>
@@ -285,19 +283,24 @@ function GolfHostSeasonality() {
       </div>
 
       {/* Compact host-side totals strip — operational hours only */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginBottom:14 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
         <SeasonTile label="Total shifts"        value={totals.shifts.toString()}         sub="Dedicated Golf Host shifts" />
         <SeasonTile label="Total hours"         value={totals.hours.toFixed(1) + ' hrs'} sub={`Avg ${(totals.hours / totals.shifts).toFixed(1)} hrs/shift`} />
         <SeasonTile label="Active vs dark"      value={`${totals.activeMonths} / ${totals.darkMonths}`} sub="Months host was rota'd / not" />
       </div>
+    </div>
+  )
+}
 
-      {/* Walk-in (till) golf ticket revenue — separate chart with its own section header */}
-      <div style={{ marginTop:32, marginBottom:14 }}>
-        <STitle>Walk-In (Till) Golf Ticket Revenue · 2025</STitle>
-        <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:0 }}>
-          Source: Weekly Merged 2024-2026 sheet, row 3 (<strong style={{ color:'var(--cream)' }}>Total Walk In Golf Tickets</strong>), 52 weeks of 2025 aggregated. Total <strong style={{ color:'var(--gold)' }}>{fmt(tillTotal)}</strong>. Note: till sales ran every month — even when the rota had zero Golf Host shifts. Walk-in tickets were being rung up by bar staff / supervisors at the bar till regardless of whether a dedicated host was scheduled.
-        </p>
-      </div>
+function TillRevenue() {
+  const tillData  = HACKNEY_GOLF_TILL_2025_MONTHLY
+  const tillTotal = tillData.reduce((s, m) => s + m.revenue, 0)
+  return (
+    <div>
+      <STitle>Walk-In (Till) Golf Ticket Revenue · 2025</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Source: Weekly Merged 2024-2026 sheet, row 3 (<strong style={{ color:'var(--cream)' }}>Total Walk In Golf Tickets</strong>), 52 weeks of 2025 aggregated. Total <strong style={{ color:'var(--gold)' }}>{fmt(tillTotal)}</strong>. Note: till sales ran every month — even when the rota had zero Golf Host shifts. Walk-in tickets were being rung up by bar staff / supervisors at the bar till regardless of whether a dedicated host was scheduled.
+      </p>
 
       <div className="card" style={{ padding:18, marginBottom:14 }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
@@ -554,7 +557,8 @@ function Operations() {
 const PLONK_SECTIONS = [
   { key: 'overview',   label: 'Transparency · Overview', Component: GolfOverview },
   { key: 'pnl',        label: '2025 Golf P&L',           Component: GolfPnl },
-  { key: 'host',       label: 'Host & Till Activity',    Component: GolfHostSeasonality },
+  { key: 'hosts',      label: 'Golf Hosts',              Component: GolfHosts },
+  { key: 'till',       label: 'Walk-In Till Revenue',    Component: TillRevenue },
   { key: 'dmn',        label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
   { key: 'operations', label: 'Operations',              Component: Operations },
 ]
