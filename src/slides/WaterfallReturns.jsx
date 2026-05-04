@@ -332,17 +332,17 @@ function DistributionCalendar({ investment, investorEq, founderEq, reserveTarget
   const dist = computeBoroughDistributionCalendar({ reserveTarget, investorEq, founderEq })
   const { calendar, quarterly, summary } = dist
   const investorAnnualPct = investment > 0 ? (summary.totalInvestor / investment) * 100 : 0
+  const [open, setOpen] = useState(true)
 
   return (
     <div style={{ marginTop: 40 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)' }}>
-          12-Month Distribution Calendar · Y1 2026
-        </div>
-        <div style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          Driven by 2025 monthly seasonality scaled to 2026 forecast
-        </div>
-      </div>
+      <CollapsibleHeader
+        open={open}
+        onToggle={() => setOpen(o => !o)}
+        title={<>12-Month Distribution Calendar <span style={{ color: 'var(--gold-dim)' }}>· Y1 2026</span></>}
+        meta="Driven by 2025 monthly seasonality scaled to 2026 forecast"
+      />
+      {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
         Each month's operating profit refills the £{summary.reserveTarget.toLocaleString('en-GB')} working-capital reserve first. Once the reserve is full, surplus profit accrues for three months and pays out at the end of the calendar quarter. Reserve hit full in <strong style={{ color: 'var(--cream)' }}>{summary.reserveFullMonth}</strong>.
       </p>
@@ -451,6 +451,7 @@ function DistributionCalendar({ investment, investorEq, founderEq, reserveTarget
         <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)}`} colour="#10B981" />
         <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid alongside investor" />
       </div>
+      </>}
     </div>
   )
 }
@@ -469,12 +470,16 @@ function FiveYearPayoutBreakdown({ investment, isLocked, fmt }) {
   const totalReturned   = r.cumulativeDividends + r.exit.investorProceeds
   const multipleOfMoney = investment > 0 ? totalReturned / investment : 0
   const irr             = computeIRR(cashFlows)
+  const [open, setOpen] = useState(true)
   let cumInv = 0
   return (
     <div style={{ marginTop: 40 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 16 }}>
-        5-Year Share Payout Schedule{isLocked ? ' · Locked' : ''}
-      </div>
+      <CollapsibleHeader
+        open={open}
+        onToggle={() => setOpen(o => !o)}
+        title={<>5-Year Share Payout Schedule{isLocked ? <span style={{ color: 'var(--gold-dim)' }}> · Locked</span> : null}</>}
+      />
+      {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
         How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. Each year's profit splits 50/50 with the founder. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend. No preferred return, no priority tiers — investor and founder track exactly together.
       </p>
@@ -528,7 +533,45 @@ function FiveYearPayoutBreakdown({ investment, isLocked, fmt }) {
         <SummaryTile label="Total returned · MoM"         value={`${multipleOfMoney.toFixed(2)}×`} sub={`${fmt(totalReturned)} on ${fmt(investment)}`} colour="#10B981" />
         <SummaryTile label="IRR"                          value={isFinite(irr) ? `${(irr*100).toFixed(1)}%` : '—'} sub="5-year internal rate of return" colour="#10B981" />
       </div>
+      </>}
     </div>
+  )
+}
+
+// Reusable header for collapsible sections — large rotating arrow on the
+// left, serif h3 title (matches "Distribution Process · Priority Order"
+// styling), optional UPPERCASE meta tag on the right. Click anywhere on
+// the row toggles the section.
+function CollapsibleHeader({ open, onToggle, title, meta }) {
+  return (
+    <button
+      onClick={onToggle}
+      style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        width: '100%', gap: 14, marginBottom: 12,
+        background: 'transparent', border: 'none', padding: 0,
+        cursor: 'pointer', textAlign: 'left',
+      }}
+    >
+      <span style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
+        <span style={{
+          fontSize: 28, color: 'var(--gold)', lineHeight: 1, flexShrink: 0,
+          transform: open ? 'rotate(0deg)' : 'rotate(-90deg)',
+          transition: 'transform 0.2s ease',
+          display: 'inline-block', width: 24, textAlign: 'center',
+        }}>▾</span>
+        <h3 className="serif" style={{
+          fontSize: 22, color: 'var(--cream)', lineHeight: 1.25, margin: 0,
+        }}>
+          {title}
+        </h3>
+      </span>
+      {meta && (
+        <span style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.06em', textTransform: 'uppercase', flexShrink: 0 }}>
+          {meta}
+        </span>
+      )}
+    </button>
   )
 }
 
