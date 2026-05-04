@@ -29,8 +29,12 @@
  * 2) Add a new sheet named exactly:  Lock State
  *    Leave A1 empty — the script will fill it.
  *
- * 3) Extensions → Apps Script → paste this file's contents into Code.gs
- *    (replace any existing code). Save (⌘/Ctrl + S).
+ * 3) Extensions → Apps Script. In the Code.gs editor, FIRST select all
+ *    existing code (⌘/Ctrl + A) and DELETE it — Apps Script ships a stub
+ *    `function myFunction() {}` by default and any leftover from a previous
+ *    deployment must be removed, otherwise you'll end up with duplicate
+ *    function declarations and the script will fail to save. Then paste
+ *    this file's contents in. Save (⌘/Ctrl + S).
  *
  * 4) (Optional) Set a shared secret to authorise writes. Edit LOCK_SECRET
  *    below; copy the same value into src/data.js → LOCK_SYNC_SECRET.
