@@ -143,7 +143,7 @@ export const INCOME_SOURCES = [
   { name: 'Bar takings',                amount: 484684, pct: 86.9, color: '#0D1F4C' },
   { name: 'Online golf (DMN)',          amount:  39288, pct:  7.0, color: '#1565C0' },
   { name: 'Office bookings / hires',    amount:  28120, pct:  5.0, color: '#1976D2' },
-  { name: 'Tournament entry',           amount:   3570, pct:  0.6, color: '#1E88E5' },
+  { name: 'Pool tournament entries',    amount:   3570, pct:  0.6, color: '#1E88E5' },
   { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
   { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
 ]
@@ -606,7 +606,7 @@ export const INCOME_2026_COLORS = ['#0E7490','#0891B2','#06B6D4','#22D3EE','#67E
 export const HACKNEY_SCENARIO_LEVERS = [
   { key: 'bar',        labelKey: 'Bar',                    incomeKey: 'Bar takings',             color: INCOME_2026_COLORS[0], base: 484684 },
   { key: 'office',     labelKey: 'Office bookings / hires', incomeKey: 'Office bookings / hires', color: INCOME_2026_COLORS[2], base:  28120 },
-  { key: 'tournament', labelKey: 'Tournament entry',        incomeKey: 'Tournament entry',         color: INCOME_2026_COLORS[3], base:   3570 },
+  { key: 'tournament', labelKey: 'Pool tournament entries', incomeKey: 'Pool tournament entries',  color: INCOME_2026_COLORS[3], base:   3570 },
   { key: 'pool',       labelKey: 'Pool tickets (DMN)',      incomeKey: 'Pool tickets (DMN)',       color: INCOME_2026_COLORS[5], base:   2200 },
 ]
 
@@ -922,7 +922,10 @@ export const STOCK_SETUP_DETAIL = [
 //                        Headline £39,288 placeholder from prior
 //                        INCOME_SOURCES "Online golf (DMN)" line until
 //                        the per-SKU breakdown lands.
-//   • tournamentEntry — INCOME_SOURCES "Tournament entry" line
+//   • Pool tournament entries are NOT a golf line — they're bar-side
+//     and stay 100% with No Dice. Tracked on Business Explorer via
+//     INCOME_SOURCES["Pool tournament entries"] (2025) and HACKNEY_SCENARIO_LEVERS
+//     ["tournament"] (2026 forecast).
 //   • tillTickets     — Weekly Merged 2024-2026 row 3, walk-in
 //                        ticket sales for 1.1.2025 – 31.12.2025
 //   • hostWages       — live rota Google Sheet, "Golf host" role
@@ -939,14 +942,13 @@ export const HACKNEY_GOLF_2025 = {
     tillTickets:      25503,    // £ — direct ticket sales at venue till. Source: Weekly
                                 //     Merged 2024-2026 row 3 ("Total Walk In Golf
                                 //     Tickets"), 52 weeks of 2025 summed (£25,502.77)
-    tournamentEntry:   3570,    // £ — POOL tournament entries (Doubles + Singles
-                                //     Pool Tournament SKUs sold via DMN). NOT a golf
-                                //     line — stays 100% with No Dice going forward
-                                //     (bar-side activity, operator takes no share).
-                                //     Note: also subsumed inside the onlineTickets
-                                //     £44,812 above; broken out here for transparency
-                                //     so the No-Dice-retained portion of DMN sales
-                                //     is visible against the golf portion.
+    // POOL tournament entries removed from this object — they are NOT a
+    // golf line. Pool tournaments (Doubles + Singles Pool Tournament SKUs
+    // sold via DMN, £3,570 in 2025) are bar-side activity and stay 100%
+    // with No Dice. They're tracked on the main 2025 income breakdown via
+    // INCOME_SOURCES['Pool tournament entries'] and forecast on the 2026
+    // Performance tab via HACKNEY_SCENARIO_LEVERS['tournament']. They do
+    // not feature in the golf P&L.
   },
   // Costs attributable to running the golf course in 2025.
   //
