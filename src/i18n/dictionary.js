@@ -35,9 +35,9 @@ export const PT_BR = {
   '01  Cover': '01  Capa',
   '02  Investment Summary': '02  Resumo do Investimento',
   '03  Use of Funds': '03  Uso dos Fundos',
-  '04  Market Context': '04  Contexto de Mercado',
-  '05  Waterfall Returns': '05  Retornos em Cascata',
-  '06  Growth & Risks': '06  Crescimento e Riscos',
+  '04  Growth Drivers': '04  Drivers de Crescimento',
+  '05  Market Context': '05  Contexto de Mercado',
+  '06  Waterfall Returns': '06  Retornos em Cascata',
   '07  Investment Case': '07  Case de Investimento',
 
   // ---------- Password gate ----------

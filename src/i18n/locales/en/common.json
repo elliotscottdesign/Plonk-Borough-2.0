@@ -15,9 +15,9 @@
     "cover": "01  Cover",
     "summary": "02  Investment Summary",
     "funds": "03  Use of Funds",
-    "market": "04  Market Context",
-    "waterfall": "05  Waterfall Returns",
-    "drivers": "06  Growth Drivers",
+    "drivers": "04  Growth Drivers",
+    "market": "05  Market Context",
+    "waterfall": "06  Waterfall Returns",
     "case": "07  Investment Case"
   },
   "labels": {

@@ -15,9 +15,9 @@
     "cover": "01  Capa",
     "summary": "02  Resumo do Investimento",
     "funds": "03  Uso dos Fundos",
-    "market": "04  Contexto de Mercado",
-    "waterfall": "05  Retornos em Cascata",
-    "drivers": "06  Drivers de Crescimento",
+    "drivers": "04  Drivers de Crescimento",
+    "market": "05  Contexto de Mercado",
+    "waterfall": "06  Retornos em Cascata",
     "case": "07  Case de Investimento"
   },
   "labels": {
