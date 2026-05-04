@@ -35,8 +35,12 @@ export const BUSINESS = {
 export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg/edit?usp=sharing'
 
 // === LOCK SYNC ENDPOINT ===
-// Same shape as Borough's. Empty = localStorage-only (no cross-device sync).
-export const LOCK_SYNC_URL = ''
+// Hackney's deployed Apps Script web app — separate from Borough's
+// (see infra/lock-sync-apps-script-hackney.gs). Each deck MUST hit its
+// own endpoint; sharing one would cause the two decks to overwrite each
+// other's locked container on every founder lock. Empty = localStorage-
+// only (no cross-device sync).
+export const LOCK_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxksN8yyi-G0rI59O8j20v12tpk0vT1oWPUNMTvgPj--9DZGXT2OglCDvQUSuKRCPPD/exec'
 export const LOCK_SYNC_SECRET = ''
 
 // === DEAL STRUCTURE ===
