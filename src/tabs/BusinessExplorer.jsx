@@ -1583,7 +1583,7 @@ function TabCashflow({ growth }) {
       </div>
 
       {/* Line chart with threshold markers */}
-      <CashflowLineChart cf={cf} sc={sc} minCash={minCash} maxCash={maxCash} fmt={fmt} fmtK={fmtK} t={t} />
+      <CashflowLineChart cf={cf} sc={sc} minCash={minCash} maxCash={maxCash} fmt={fmt} fmtK={fmtK} t={t} reserveTarget={RENT_3MO_RESERVE} investorCapital={INVESTOR_CAPITAL} />
 
       {/* Monthly breakdown table */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:0, overflow:'hidden' }}>
@@ -1622,7 +1622,7 @@ function TabCashflow({ growth }) {
 const cfTh = (align) => ({ padding:'10px 14px', fontSize:10, color:'#9CA3AF', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600, textAlign:align, whiteSpace:'nowrap' })
 const cfTd = (align, color, weight=400) => ({ padding:'10px 14px', fontSize:12.5, color, fontWeight:weight, textAlign:align, whiteSpace:'nowrap' })
 
-function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t }) {
+function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t, reserveTarget, investorCapital }) {
   // SVG line chart — 12 months × cumulative cash position
   const W = 760
   const H = 280
@@ -1635,9 +1635,11 @@ function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t }) {
   const x = (i) => padL + (i / (cf.length - 1)) * innerW
   const y = (v) => padT + innerH - ((v - yMin) / yRange) * innerH
 
-  // Threshold horizontal line points
-  const yReserve = y(RENT_3MO_RESERVE)
-  const yCapital = y(INVESTOR_CAPITAL)
+  // Threshold horizontal line points — reserveTarget/investorCapital come
+  // from useLockedFunding() inside TabCashflow (per-render) and are passed
+  // in as props.
+  const yReserve = y(reserveTarget)
+  const yCapital = y(investorCapital)
   const yZero    = y(0)
 
   // Cumulative line as polyline
@@ -1654,11 +1656,11 @@ function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t }) {
           </span>
           <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
             <span style={{ width:14, height:1, background:'#A78BFA', borderTop:'1px dashed #A78BFA', borderColor:'#A78BFA' }} />
-            {t('cashflow.legend.reserve')} ({fmtK(RENT_3MO_RESERVE)})
+            {t('cashflow.legend.reserve')} ({fmtK(reserveTarget)})
           </span>
           <span style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
             <span style={{ width:14, height:1, borderTop:'1px dashed var(--gold)' }} />
-            {t('cashflow.legend.capital')} ({fmtK(INVESTOR_CAPITAL)})
+            {t('cashflow.legend.capital')} ({fmtK(investorCapital)})
           </span>
         </div>
       </div>
@@ -1686,8 +1688,8 @@ function CashflowLineChart({ cf, sc, minCash, maxCash, fmt, fmtK, t }) {
         ))}
         {/* Y-axis labels */}
         <text x={padL - 8} y={yZero + 4}     fontSize="9.5" fill="#6B7280" textAnchor="end">£0</text>
-        <text x={padL - 8} y={yReserve + 4}  fontSize="9.5" fill="#A78BFA" textAnchor="end">{fmtK(RENT_3MO_RESERVE)}</text>
-        <text x={padL - 8} y={yCapital + 4}  fontSize="9.5" fill="#C9A84C" textAnchor="end">{fmtK(INVESTOR_CAPITAL)}</text>
+        <text x={padL - 8} y={yReserve + 4}  fontSize="9.5" fill="#A78BFA" textAnchor="end">{fmtK(reserveTarget)}</text>
+        <text x={padL - 8} y={yCapital + 4}  fontSize="9.5" fill="#C9A84C" textAnchor="end">{fmtK(investorCapital)}</text>
       </svg>
     </div>
   )
