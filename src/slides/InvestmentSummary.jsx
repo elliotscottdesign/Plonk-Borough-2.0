@@ -67,7 +67,7 @@ export default function InvestmentSummary() {
   const SCENARIOS = {
     conservative: { label: t('scenarios.conservative.label'), sub: t('scenarios.conservative.sub'), multiplier: 1.10 },
     base:         { label: t('scenarios.base.label'),         sub: t('scenarios.base.sub'),         multiplier: 1.15 },
-    optimistic:   { label: t('scenarios.optimistic.label'),   sub: t('scenarios.optimistic.sub'),   multiplier: 1.25 },
+    optimistic:   { label: t('scenarios.optimistic.label'),   sub: t('scenarios.optimistic.sub'),   multiplier: 1.20 },
     custom:       {
       label:      t('scenarios.custom.label'),
       sub:        isLocked ? t('scenarios.custom.sub') : t('scenarios.custom.subUnlocked'),

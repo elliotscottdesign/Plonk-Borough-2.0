@@ -4,7 +4,7 @@
   "scenarios": {
     "bear": "Conservative +10%",
     "base": "Base Case +15%",
-    "bull": "Optimistic +25%",
+    "bull": "Optimistic +20%",
     "custom": "Custom"
   },
   "scenarioBadges": {

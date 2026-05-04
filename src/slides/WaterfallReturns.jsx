@@ -89,11 +89,11 @@ export default function WaterfallReturns() {
 
   // Scenario profits are computed dynamically from the same 2026 cost
   // model Investment Summary uses, so the two slides agree number-for-
-  // number. Multipliers match Investment Summary: 1.10 / 1.15 / 1.25.
+  // number. Multipliers match Investment Summary: 1.10 / 1.15 / 1.20.
   const SCENARIOS = {
     bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: calcScenarioProfit(1.10), color: '#E53935' },
     base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: calcScenarioProfit(1.15), color: '#C9A84C' },
-    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: calcScenarioProfit(1.25), color: '#2DD4BF' },
+    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: calcScenarioProfit(1.20), color: '#2DD4BF' },
     custom: {
       label:  t('scenarios.custom'),
       badge:  forecastIsLocked ? t('scenarioBadges.custom') : t('scenarioBadges.customUnlocked'),

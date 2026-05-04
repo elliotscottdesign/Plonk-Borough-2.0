@@ -329,10 +329,10 @@ function TabPerformance({ growth, wages, pricing, setPricing, officeCosts, setOf
   const sliderValue = Math.round(aggGrowth)
 
   const perfMarkers = [
-    { labelKey: 'bear',  value: -10, color: '#EF4444' },
+    { labelKey: 'bear',  value:  10, color: '#F87171' },
     { labelKey: 'y2025', value:   0, color: '#9CA3AF' },
     { labelKey: 'base',  value:  15, color: '#C9A84C' },
-    { labelKey: 'bull',  value:  25, color: '#22D3EE' },
+    { labelKey: 'bull',  value:  20, color: '#2DD4BF' },
   ]
 
   // ─── Lock / snapshot ─────────────────────────────────────────────────
@@ -1533,7 +1533,7 @@ function KpiCard2026({ label, value, sub, color }) {
 //   - Investor capital (£79,000 — when cumulative covers the original
 //     investment)
 //
-// Scenario selector: Conservative -10%, Base +15%, Optimistic +25%, Custom
+// Scenario selector: Conservative +10%, Base +15%, Optimistic +20%, Custom
 // (live from locked snapshot if present, disabled otherwise).
 // ───────────────────────────────────────────────────────────────────────
 
@@ -1590,7 +1590,7 @@ function TabCashflow({ growth }) {
   const SCENARIOS = {
     conservative: { labelKey: 'conservative', mult: 1.10, color: '#94A3B8' },
     base:         { labelKey: 'base',         mult: 1.15, color: '#C9A84C' },
-    optimistic:   { labelKey: 'optimistic',   mult: 1.25, color: '#2DD4BF' },
+    optimistic:   { labelKey: 'optimistic',   mult: 1.20, color: '#2DD4BF' },
     custom:       { labelKey: 'custom',       mult: snapshot ? snapshot.revenue / ACTUALS_2025.revenue : 1.15, color: 'var(--gold)', disabled: !isLocked },
   }
   const [active, setActive] = useState('base')

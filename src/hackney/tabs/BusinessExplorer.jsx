@@ -1357,8 +1357,8 @@ function Tab2026() {
 //
 // Hackney data feeds:
 //   • compute2026Scenario(...) — gives totalIncome + totalCosts + rent
-//     under each scenario (Conservative −10% on 2025 == growth=10,
-//     Base +15% == growth=15, Optimistic +25% == growth=25, Custom =
+//     under each scenario (Conservative +10% on 2025 == growth=10,
+//     Base +15% == growth=15, Optimistic +20% == growth=20, Custom =
 //     locked forecast snapshot).
 //   • HACKNEY_CASH.safetyFloor / .safetyTarget — working-capital
 //     thresholds (£30k floor, £45k fully-built target). These replace
@@ -1414,12 +1414,12 @@ function TabCashflow() {
   const TARGET = HACKNEY_CASH.safetyTarget
 
   // Scenario set — Conservative = +10% growth, Base = +15%,
-  // Optimistic = +25%. Custom uses the locked forecast snapshot if
+  // Optimistic = +20%. Custom uses the locked forecast snapshot if
   // present (otherwise disabled).
   const SCENARIOS = {
     conservative: { label: 'Conservative +10%', growth: 10, color: '#94A3B8' },
     base:         { label: 'Base +15%',         growth: 15, color: '#C9A84C' },
-    optimistic:   { label: 'Optimistic +25%',   growth: 25, color: '#2DD4BF' },
+    optimistic:   { label: 'Optimistic +20%',   growth: 20, color: '#2DD4BF' },
     custom:       { label: 'Custom (Locked)',   growth: null, color: 'var(--gold)', disabled: !isForecastLocked },
   }
   const [active, setActive] = useState('base')

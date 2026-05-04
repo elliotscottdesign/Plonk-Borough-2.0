@@ -17,7 +17,7 @@
     "scenarios": {
       "conservative": "Conservative +10%",
       "base": "Base +15%",
-      "optimistic": "Optimistic +25%",
+      "optimistic": "Optimistic +20%",
       "custom": "Custom (Locked)"
     },
     "kpi": {

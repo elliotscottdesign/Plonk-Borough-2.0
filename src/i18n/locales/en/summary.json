@@ -4,7 +4,7 @@
   "scenarios": {
     "conservative": { "label": "Conservative", "sub": "+10% on 2025" },
     "base": { "label": "Base Case", "sub": "+15% on 2025" },
-    "optimistic": { "label": "Optimistic", "sub": "+25% on 2025" },
+    "optimistic": { "label": "Optimistic", "sub": "+20% on 2025" },
     "custom": { "label": "Custom", "sub": "Locked from Business Explorer", "subUnlocked": "Lock the 2026 Performance tab to populate" }
   },
   "sections": {
