@@ -2417,6 +2417,21 @@ function TabTillSales2025() {
         Single-venue till instance — Hackney / London Fields E8 only. No Borough or other
         venue data is mixed in.
       </div>
+
+      {/* Reclassification footnote — explains why GOLF / GOLF & GAMES is gone */}
+      <div style={{ fontSize:10, color:'#9CA3AF', lineHeight:1.7, padding:'10px 14px', background:'rgba(34,211,238,0.05)', border:'1px solid rgba(34,211,238,0.18)', borderRadius:4 }}>
+        <span style={{ color:'#22D3EE', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>Activity bucket reclassification ·</span>{' '}
+        The raw Goodtill export carried two ambiguous activity tags — <strong style={{ color:'var(--cream)' }}>OTHER - GOLF</strong> (£59,266 · the new Peak / Off-Peak rounds)
+        and <strong style={{ color:'var(--cream)' }}>OTHER - GOLF & GAMES</strong> (£76,772 · a catch-all that mixed legacy £5–6 golf rounds, all pool reservations, all arcade tokens,
+        golf+token bundles and tournaments). Per-product analysis on the raw 89,521-line CSV split the combined £136k into
+        <strong style={{ color:'var(--cream)' }}> GOLF - Rounds (£80k)</strong>,
+        <strong style={{ color:'var(--cream)' }}> POOL - Reservations (£25k)</strong>,
+        <strong style={{ color:'var(--cream)' }}> GOLF + TOKEN BUNDLES (£16k)</strong>,
+        <strong style={{ color:'var(--cream)' }}> ARCADE - Tokens (£13k)</strong>,
+        <strong style={{ color:'var(--cream)' }}> GAME & DRINK BUNDLES (£1.4k)</strong> and
+        <strong style={{ color:'var(--cream)' }}> TOURNAMENTS (£15)</strong> — totals tie. The legacy £5–6 "Adult — Round of Golf" SKU
+        (3,128 lines) is the till's prior fixed-price button, now consolidated under GOLF - Rounds alongside the structured Peak/Off-Peak pricing.
+      </div>
     </div>
   )
 }
