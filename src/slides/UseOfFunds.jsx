@@ -63,9 +63,9 @@ export default function UseOfFunds() {
   }
   const setupGroups = [
     { key:'stock',      icon:'🥃', accent:'#A78BFA', vatKey:'incVat', items:['alcohol','soft','ice'] },
-    { key:'contracts',  icon:'🛠️', accent:'#2DD4BF', vatKey:'incVat', items:['cleaning','internet','app'] },
+    { key:'contracts',  icon:'🛠️', accent:'#2DD4BF', vatKey:'incVat', items:['cleaning','internet','app','insurance'] },
     { key:'subs',       icon:'💻', accent:'#4FC3F7', vatKey:'incVat', items:['xero','rota','google','spotify'] },
-    { key:'regulatory', icon:'🏛️', accent:'#F59E0B', vatKey:'exempt', items:['insurance','rates','licence'] },
+    { key:'regulatory', icon:'🏛️', accent:'#F59E0B', vatKey:'exempt', items:['rates','licence'] },
   ]
   const groupSubtotal = (g) => g.items.reduce((s, k) => s + setupItems[k].amount, 0)
   const setupTotal = setupGroups.reduce((s, g) => s + groupSubtotal(g), 0)

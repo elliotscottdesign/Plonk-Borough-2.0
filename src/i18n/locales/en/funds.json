@@ -67,7 +67,7 @@
       "rota":     { "label": "Rota Cloud — staff scheduling (3 mo)",  "note": "£25/mth × 3 — rota & timesheet system" },
       "google":   { "label": "Google Workspace (3 months)",           "note": "Email + Drive + collab tools, 2 users" },
       "spotify":  { "label": "Spotify Business (3 months)",           "note": "£20/mth × 3 — bar music licensing" },
-      "insurance":{ "label": "Insurance premium (annual)",            "note": "Combined liability + contents — annual premium paid up-front before opening (VAT-exempt)" },
+      "insurance":{ "label": "Insurance premium (annual)",            "note": "Combined liability + contents — annual premium paid up-front before opening" },
       "rates":    { "label": "Business rates (first month)",          "note": "First month UK business rates due before opening — Southwark Council, post-relief (VAT-exempt)" },
       "licence":  { "label": "Alcohol licence change (DPS)",          "note": "Designated Premises Supervisor change fee — Southwark Licensing (VAT-exempt)" }
     }

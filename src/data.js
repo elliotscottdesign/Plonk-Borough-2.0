@@ -531,7 +531,7 @@ export const STOCK_SETUP_DETAIL = [
   { item: 'Rota Cloud — staff scheduling',               amount:   75, type: 'sub3mo',     vatExempt: false, note: '£25/mth × 3 — rota & timesheet system' },
   { item: 'Google Workspace',                            amount:   75, type: 'sub3mo',     vatExempt: false, note: 'Email + Drive + collab tools — 3 months × 2 users' },
   { item: 'Spotify Business',                            amount:   60, type: 'sub3mo',     vatExempt: false, note: '£20/mth × 3 — bar music licensing' },
-  { item: 'Insurance premium (annual)',                  amount:  500, type: 'oneOff',     vatExempt: true,  note: 'Combined liability + contents — annual premium paid up-front before opening (insurance is VAT-exempt)' },
+  { item: 'Insurance premium (annual)',                  amount:  500, type: 'oneOff',     vatExempt: false, note: 'Combined liability + contents — annual premium paid up-front before opening' },
   { item: 'Business rates (first month)',                amount: 1800, type: 'monthly',    vatExempt: true,  note: 'First month UK business rates due before/at opening — Southwark Council (post-relief)' },
   { item: 'Alcohol licence change (DPS)',                amount:  100, type: 'oneOff',     vatExempt: true,  note: 'Designated Premises Supervisor change fee — Southwark Licensing' },
 ]
