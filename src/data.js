@@ -520,7 +520,7 @@ export const HARDWARE_BREAKDOWN = [
 // trades from Day 1.
 // Reflected in the central workbook (Investment Valuation 1 sheet, Section 4a).
 export const STOCK_SETUP_DETAIL = [
-  { item: 'Alcohol stock (opening fill)',                amount: 1500, type: 'oneOff',     vatExempt: false, note: 'Wines, spirits, beer for Day 1 trading' },
+  { item: 'Alcohol stock (opening fill)',                amount: 1635, type: 'oneOff',     vatExempt: false, note: 'Wines, spirits, beer for Day 1 trading' },
   { item: 'Soft drinks, mixers & non-alcohol stock',     amount:  300, type: 'oneOff',     vatExempt: false, note: 'Opening fill — cocktail mixers, soft drinks, juices' },
   { item: 'Ice supplies (first delivery)',               amount:   30, type: 'oneOff',     vatExempt: false, note: 'Daily delivery contract — first delivery only' },
   { item: 'Cleaning contracts restart',                  amount:  250, type: 'oneOff',     vatExempt: false, note: 'Deep clean + first month commercial cleaning' },
@@ -530,7 +530,6 @@ export const STOCK_SETUP_DETAIL = [
   { item: 'Rota Cloud — staff scheduling',               amount:   75, type: 'sub3mo',     vatExempt: false, note: '£25/mth × 3 — rota & timesheet system' },
   { item: 'Google Workspace',                            amount:   75, type: 'sub3mo',     vatExempt: false, note: 'Email + Drive + collab tools — 3 months × 2 users' },
   { item: 'Spotify Business',                            amount:   60, type: 'sub3mo',     vatExempt: false, note: '£20/mth × 3 — bar music licensing' },
-  { item: 'Supplier contract deposits',                  amount:  135, type: 'oneOff',     vatExempt: false, note: 'Water cooler, refuse, gas/electricity meter deposits' },
   { item: 'Business rates (first month)',                amount: 1800, type: 'monthly',    vatExempt: true,  note: 'First month UK business rates due before/at opening — Southwark Council (post-relief)' },
   { item: 'Alcohol licence change (DPS)',                amount:  100, type: 'oneOff',     vatExempt: true,  note: 'Designated Premises Supervisor change fee — Southwark Licensing' },
 ]
