@@ -507,9 +507,9 @@ export function computeDealFromInvestment(investment) {
 // detail rows below the Stock & Setup breakdown).
 export const HARDWARE_BREAKDOWN = [
   { item: 'Mini golf course',                       amount: 4000,  note: 'Holes, putting surfaces, course fittings & feature props' },
-  { item: 'Bar equipment across site',              amount: 10000, note: 'Beer lines, fridges, glasswash, bar tops, taps, ice machine, POS hardware' },
+  { item: 'Bar equipment across site',              amount: 8000,  note: 'Beer lines, fridges, glasswash, bar tops, taps, ice machine, POS hardware' },
   { item: 'Wet stock consumables & tools',          amount: 2000,  note: 'Glassware, cleaning chemicals, repair tools, hand-trolleys, small wares' },
-  { item: 'Arcade machines, furniture & fittings',  amount: 4000,  note: 'Arcade cabinets, pool tables, board game stock, seating, lighting fittings' },
+  { item: 'Arcade machines, furniture & fittings',  amount: 6000,  note: 'Arcade cabinets, pool tables, board game stock, seating, lighting fittings' },
 ]
 
 // === STOCK & OPERATIONAL SETUP — itemised £4,900 breakdown ===
