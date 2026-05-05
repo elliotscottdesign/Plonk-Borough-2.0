@@ -44,36 +44,39 @@ export default function UseOfFunds() {
   const display = effective
   const deal    = computeDealFromInvestment(display.total)
 
-  // Stock & Setup detail breakdown (unchanged from prior version)
+  // Stock & Setup detail breakdown — values mirror STOCK_SETUP_DETAIL in
+  // data.js. Keep in sync when amounts change there.
   const setupItems = {
-    alcohol:  { amount:1500, icon:'🍾' },
-    soft:     { amount: 300, icon:'🥤' },
-    ice:      { amount:  30, icon:'🧊' },
-    cleaning: { amount: 250, icon:'🧽' },
-    internet: { amount: 300, icon:'📡' },
-    app:      { amount: 200, icon:'📱' },
-    supplier: { amount: 135, icon:'🤝' },
-    xero:     { amount:  75, icon:'📊' },
-    rota:     { amount:  75, icon:'🗓️' },
-    google:   { amount:  75, icon:'🗂️' },
-    spotify:  { amount:  60, icon:'🎵' },
-    rates:    { amount:1800, icon:'🏛️' },
-    licence:  { amount: 100, icon:'📜' },
+    alcohol:   { amount:1635, icon:'🍾' },
+    soft:      { amount: 300, icon:'🥤' },
+    ice:       { amount:  30, icon:'🧊' },
+    cleaning:  { amount: 250, icon:'🧽' },
+    internet:  { amount: 300, icon:'📡' },
+    app:       { amount: 200, icon:'📱' },
+    xero:      { amount:  75, icon:'📊' },
+    rota:      { amount:  75, icon:'🗓️' },
+    google:    { amount:  75, icon:'🗂️' },
+    spotify:   { amount:  60, icon:'🎵' },
+    insurance: { amount: 500, icon:'🛡️' },
+    rates:     { amount:1800, icon:'🏛️' },
+    licence:   { amount: 100, icon:'📜' },
   }
   const setupGroups = [
     { key:'stock',      icon:'🥃', accent:'#A78BFA', vatKey:'incVat', items:['alcohol','soft','ice'] },
-    { key:'contracts',  icon:'🛠️', accent:'#2DD4BF', vatKey:'incVat', items:['cleaning','internet','app','supplier'] },
+    { key:'contracts',  icon:'🛠️', accent:'#2DD4BF', vatKey:'incVat', items:['cleaning','internet','app'] },
     { key:'subs',       icon:'💻', accent:'#4FC3F7', vatKey:'incVat', items:['xero','rota','google','spotify'] },
-    { key:'regulatory', icon:'🏛️', accent:'#F59E0B', vatKey:'exempt', items:['rates','licence'] },
+    { key:'regulatory', icon:'🏛️', accent:'#F59E0B', vatKey:'exempt', items:['insurance','rates','licence'] },
   ]
   const groupSubtotal = (g) => g.items.reduce((s, k) => s + setupItems[k].amount, 0)
   const setupTotal = setupGroups.reduce((s, g) => s + groupSubtotal(g), 0)
 
+  // Hardware breakdown — values mirror HARDWARE_BREAKDOWN in data.js.
+  // Keep in sync when amounts change there.
   const hardwareItems = [
     { key:'minigolf', amount: 4000, icon:'⛳' },
-    { key:'barEquip', amount:10000, icon:'🍻' },
+    { key:'barEquip', amount: 8000, icon:'🍻' },
     { key:'wetStock', amount: 2000, icon:'🔧' },
-    { key:'arcade',   amount: 4000, icon:'🕹️' },
+    { key:'arcade',   amount: 6000, icon:'🕹️' },
   ]
   const hardwareExVat = hardwareItems.reduce((s, i) => s + i.amount, 0)
   const hardwareIncVat = Math.round(hardwareExVat * 1.2)
@@ -177,7 +180,7 @@ export default function UseOfFunds() {
           value={display.stock}
           onChange={(v) => setValue('stock', v)}
           disabled={!canEdit}
-          subText="£4,900 default · breakdown below"
+          subText="£5,400 default · breakdown below"
           colour="#2DD4BF"
         />
       </div>

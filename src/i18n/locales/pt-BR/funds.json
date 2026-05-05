@@ -43,7 +43,7 @@
   },
   "setup": {
     "eyebrow": "Estoque e Setup Operacional — Itemizado",
-    "title": "Detalhamento das Operações de £4,900 do Dia 1",
+    "title": "Detalhamento das Operações de £5,400 do Dia 1",
     "subtitle": "Estoque inicial, contratos, pré-pagamento de 3 meses de assinaturas e custos regulatórios pré-abertura para operar desde o Dia 1",
     "totalLabel": "Total — Estoque e Setup Operacional",
     "vatLabels": {
@@ -67,7 +67,7 @@
       "rota":     { "label": "Rota Cloud — escalas (3 meses)",            "note": "£25/mês × 3 — sistema de escalas e timesheet" },
       "google":   { "label": "Google Workspace (3 meses)",                "note": "Email + Drive + ferramentas colaborativas, 2 usuários" },
       "spotify":  { "label": "Spotify Business (3 meses)",                "note": "£20/mês × 3 — licenciamento musical do bar" },
-      "supplier": { "label": "Cauções de contratos com fornecedores",     "note": "Água, lixo, gás/eletricidade — cauções de medidores" },
+      "insurance":{ "label": "Prêmio de seguro (anual)",                  "note": "Responsabilidade civil + conteúdo — prêmio anual pago antecipadamente antes da abertura (isento de IVA)" },
       "rates":    { "label": "Tributos comerciais (primeiro mês)",        "note": "Primeiro mês de tributos comerciais a pagar antes da abertura — Southwark Council, pós-desconto (isento de IVA)" },
       "licence":  { "label": "Alteração da licença de álcool (DPS)",      "note": "Taxa de alteração do Supervisor Designado do Estabelecimento — Southwark Licensing (isento de IVA)" }
     }
