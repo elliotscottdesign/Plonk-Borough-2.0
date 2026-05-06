@@ -44,6 +44,11 @@ const NotesCtx = createContext({
 
   saveState: 'idle',                  // 'idle' | 'saving' | 'saved' | 'error'
   lastSavedAt: null,                  // ISO of last successful POST
+
+  // Founder-only: post a reply against another user's note.
+  replyToNote: async () => false,     // (targetCode, pageId, text) → boolean
+  // User-side: re-fetch own row from server (picks up founder replies).
+  refreshOwnNotes: async () => {},
 })
 
 const isValidNotesBlob = (b) =>
@@ -208,6 +213,53 @@ export function NotesProvider({ children }) {
   const close  = useCallback(() => setIsOpen(false), [])
   const toggle = useCallback(() => setIsOpen(o => !o), [])
 
+  // ─── Founder reply API ────────────────────────────────────────────
+  const replyToNote = useCallback(async (targetCode, pageId, replyText) => {
+    if (!NOTES_SYNC_URL) return false
+    const code = getAccessCode()
+    if (!code || !targetCode || !pageId) return false
+    try {
+      const body = {
+        code,
+        target: { code: targetCode, pageId },
+        replyText: replyText || '',
+        secret: NOTES_SYNC_SECRET || undefined,
+      }
+      const res = await fetch(NOTES_SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      if (data?.error) return false
+      refreshAllRows()
+      return true
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[hackney notes] reply POST failed:', e.message)
+      return false
+    }
+  }, [refreshAllRows])
+
+  // ─── User-side refresh ────────────────────────────────────────────
+  const refreshOwnNotes = useCallback(async () => {
+    if (!NOTES_SYNC_URL) return
+    const code = getAccessCode()
+    if (!code) return
+    try {
+      const res = await fetch(`${NOTES_SYNC_URL}?code=${encodeURIComponent(code)}`, { cache: 'no-store' })
+      if (!res.ok) return
+      const data = await res.json()
+      if (data && isValidNotesBlob(data.notes)) setNotes(data.notes)
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[hackney notes] refreshOwnNotes failed:', e.message)
+    }
+  }, [])
+
   const value = useMemo(() => ({
     isOpen, open, close, toggle,
     activePage, setActivePage,
@@ -215,7 +267,8 @@ export function NotesProvider({ children }) {
     isFounder,
     allRows, refreshAllRows, isLoadingAll,
     saveState, lastSavedAt,
-  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt])
+    replyToNote, refreshOwnNotes,
+  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, refreshOwnNotes])
 
   return <NotesCtx.Provider value={value}>{children}</NotesCtx.Provider>
 }
