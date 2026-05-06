@@ -294,11 +294,11 @@ export default function IPLicensing() {
   const OFFICE_GOLD = 'var(--gold)'
   const COMMISSION_CYAN = '#2DD4BF'
 
-  const [activeSection, setActiveSection] = useState('online')
+  const [activeSection, setActiveSection] = useState('commissions')
   const sections = [
+    { key: 'commissions',label: 'Commissions',             sub: 'Online · Office · Booking fee',       color: COMMISSION_CYAN },
     { key: 'online',     label: '2025 Online Sales',       sub: 'Section A',                           color: ONLINE_GREEN },
     { key: 'office',     label: '2025 Office Sales',       sub: 'Section B',                           color: OFFICE_GOLD },
-    { key: 'commissions',label: 'Commissions',             sub: 'Online · Office · Booking fee',       color: COMMISSION_CYAN },
     { key: 'marketing',  label: 'Marketing Uplift',        sub: 'Forecast tickets · capacity check',   color: '#E67E22' },
     { key: 'plonk',      label: 'Plonk × No Dice',         sub: 'Interactive P&L + venue view',        color: 'var(--gold)' },
     { key: 'notes',      label: 'Assumptions',             sub: 'Open questions · methodology',        color: '#9CA3AF' },
