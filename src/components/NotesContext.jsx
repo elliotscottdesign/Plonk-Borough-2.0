@@ -52,6 +52,10 @@ const NotesCtx = createContext({
   replyToNote: async () => false,     // (targetCode, pageId, text) → boolean
   // Founder-only: mark / unmark another user's note as reviewed.
   setNoteReviewed: async () => false, // (targetCode, pageId, reviewed) → boolean
+  // Founder-only: delete a visitor's note (removes the page entry from
+  // their row — drops the user's text along with any founderReply +
+  // reviewed metadata for that page).
+  deleteVisitorNote: async () => false, // (targetCode, pageId, targetNotes) → boolean
   // User-side: delete a note for a page (clears the entry locally + on server).
   deleteNoteForPage: () => {},        // (pageId)
   // User-side: re-fetch own row from server (picks up founder replies).
@@ -297,6 +301,42 @@ export function NotesProvider({ children }) {
     }
   }, [refreshAllRows])
 
+  // ─── Founder visitor-note delete ──────────────────────────────────
+  // Founder-initiated cleanup of a visitor's note. POSTs the visitor's
+  // current notes blob with the target page entry stripped — using the
+  // visitor's code as the body's `code` field so the existing user-
+  // notes write path handles it (no Apps Script change required).
+  // The email-on-save path is skipped because we omit `text` from the
+  // body (only set when a user is leaving a fresh note, not when
+  // cleaning up).
+  const deleteVisitorNote = useCallback(async (targetCode, pageId, targetNotes) => {
+    if (!NOTES_SYNC_URL) return false
+    if (!targetCode || !pageId) return false
+    const cleanedByPage = { ...((targetNotes && targetNotes.byPage) || {}) }
+    delete cleanedByPage[pageId]
+    const cleaned = { ...(targetNotes || {}), byPage: cleanedByPage }
+    try {
+      const res = await fetch(NOTES_SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({
+          code: targetCode,
+          notes: cleaned,
+          secret: NOTES_SYNC_SECRET || undefined,
+        }),
+      })
+      if (!res.ok) return false
+      refreshAllRows()
+      return true
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[notes] deleteVisitorNote failed:', e.message)
+      return false
+    }
+  }, [refreshAllRows])
+
   // ─── User-side delete ─────────────────────────────────────────────
   // Removes a page entry from the local blob and POSTs the cleaned
   // notes payload so the server row reflects the deletion. The
@@ -340,8 +380,8 @@ export function NotesProvider({ children }) {
     isFounder,
     allRows, refreshAllRows, isLoadingAll,
     saveState, lastSavedAt,
-    replyToNote, setNoteReviewed, refreshOwnNotes,
-  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, refreshOwnNotes])
+    replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes,
+  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes])
 
   return <NotesCtx.Provider value={value}>{children}</NotesCtx.Provider>
 }

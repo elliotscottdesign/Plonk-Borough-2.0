@@ -191,7 +191,23 @@ function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode, onDelete }
 
           {mode === 'founder' && targetCode && (
             <>
-              <div style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
+              <div style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'flex-end', gap:6, flexWrap:'wrap' }}>
+                {onDelete && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm(`Delete ${targetCode}'s note on "${e.label}"? This removes it from their deck and cannot be undone.`)) {
+                        onDelete(e.id, e.label)
+                      }
+                    }}
+                    title={`Delete ${targetCode}'s note (founder action — removes the note from the visitor's deck)`}
+                    style={{
+                      padding:'4px 10px', fontSize:11, fontWeight:600, borderRadius:6,
+                      border:'1px solid rgba(248,113,113,0.45)', background:'transparent',
+                      color:'#F87171', cursor:'pointer',
+                      letterSpacing:'0.05em',
+                    }}
+                  >🗑 Delete note</button>
+                )}
                 <ReviewedToggle targetCode={targetCode} pageId={e.id} reviewed={e.reviewed} />
               </div>
               <ReplyComposer targetCode={targetCode} pageId={e.id} existing={e.founderReply} />
@@ -204,7 +220,7 @@ function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode, onDelete }
 }
 
 export default function NotesTab() {
-  const { notes, isFounder, allRows, refreshAllRows, isLoadingAll, refreshOwnNotes, deleteNoteForPage } = useNotes()
+  const { notes, isFounder, allRows, refreshAllRows, isLoadingAll, refreshOwnNotes, deleteNoteForPage, deleteVisitorNote } = useNotes()
   const code = getAccessCode()
 
   const founderRows = useMemo(() => {
@@ -283,7 +299,12 @@ export default function NotesTab() {
                       <div style={{ fontSize:13, color:'var(--cream)', fontWeight:600 }}>{r.code}</div>
                       <div style={{ fontSize:10, color:'var(--cream-dim)' }}>updated {fmtTs(r.updatedAt)}</div>
                     </div>
-                    <NotesList notesBlob={r.notes} mode="founder" targetCode={r.code} />
+                    <NotesList
+                      notesBlob={r.notes}
+                      mode="founder"
+                      targetCode={r.code}
+                      onDelete={(pageId) => deleteVisitorNote(r.code, pageId, r.notes)}
+                    />
                   </div>
                 ))}
               </div>

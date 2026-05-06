@@ -49,6 +49,8 @@ const NotesCtx = createContext({
   replyToNote: async () => false,     // (targetCode, pageId, text) → boolean
   // Founder-only: mark / unmark another user's note as reviewed.
   setNoteReviewed: async () => false, // (targetCode, pageId, reviewed) → boolean
+  // Founder-only: delete a visitor's note.
+  deleteVisitorNote: async () => false, // (targetCode, pageId, targetNotes) → boolean
   // User-side: delete a note for a page (clears the entry locally + on server).
   deleteNoteForPage: () => {},        // (pageId)
   // User-side: re-fetch own row from server (picks up founder replies).
@@ -279,6 +281,35 @@ export function NotesProvider({ children }) {
     }
   }, [refreshAllRows])
 
+  // ─── Founder visitor-note delete ──────────────────────────────────
+  const deleteVisitorNote = useCallback(async (targetCode, pageId, targetNotes) => {
+    if (!NOTES_SYNC_URL) return false
+    if (!targetCode || !pageId) return false
+    const cleanedByPage = { ...((targetNotes && targetNotes.byPage) || {}) }
+    delete cleanedByPage[pageId]
+    const cleaned = { ...(targetNotes || {}), byPage: cleanedByPage }
+    try {
+      const res = await fetch(NOTES_SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify({
+          code: targetCode,
+          notes: cleaned,
+          secret: NOTES_SYNC_SECRET || undefined,
+        }),
+      })
+      if (!res.ok) return false
+      refreshAllRows()
+      return true
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[hackney notes] deleteVisitorNote failed:', e.message)
+      return false
+    }
+  }, [refreshAllRows])
+
   // ─── User-side delete ─────────────────────────────────────────────
   const deleteNoteForPage = useCallback((pageId) => {
     if (!pageId) return
@@ -314,8 +345,8 @@ export function NotesProvider({ children }) {
     isFounder,
     allRows, refreshAllRows, isLoadingAll,
     saveState, lastSavedAt,
-    replyToNote, setNoteReviewed, refreshOwnNotes,
-  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, refreshOwnNotes])
+    replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes,
+  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes])
 
   return <NotesCtx.Provider value={value}>{children}</NotesCtx.Provider>
 }
