@@ -882,8 +882,8 @@ export const PT_BR = {
   'Commission % — Online golf sales': 'Comissão % — Vendas online de golfe',
   'Applied to online GOLF ticket sales only. Pool tables, events, group bookings 12+ and specials are venue-managed — no Plonk Golf commission on those.':
     'Aplicado apenas a vendas online de ingressos de GOLFE. Mesas de sinuca, eventos, reservas em grupo de 12+ e promoções são geridos pelo local — sem comissão da Plonk Golf nesses itens.',
-  "Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens, Valentine's Day Deal.":
-    "Excluídos da comissão: Reserva de Mesa de Sinuca, Torneio de Duplas de Sinuca, Fichas Extras de Fliperama, Oferta do Dia dos Namorados.",
+  "Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens.":
+    "Excluídos da comissão: Reserva de Mesa de Sinuca, Torneio de Duplas de Sinuca, Fichas Extras de Fliperama.",
   'Commission % — Office golf sales (if Plonk Golf provides bookings manager)':
     'Comissão % — Vendas de golfe de escritório (se a Plonk Golf fornecer gerente de reservas)',
   'Conditional scenario: if Plonk Golf provides a bookings manager for the venue, it earns a commission on office/till-settled golf sales. Set to 0% to model venue-handles-own-bookings.':

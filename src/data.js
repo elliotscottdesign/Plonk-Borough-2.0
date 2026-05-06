@@ -592,7 +592,7 @@ export const IP_LICENSING_SKUS_ONLINE_2025 = [
   { sku: 'Pool Table Reservation — 30 Mins',      rounds: 0, tokens: 0, price:  5.00, sold:  422, revenue:   2108.00 },
   { sku: 'Doubles Pool Tournament',               rounds: 0, tokens: 0, price:  5.00, sold:    5, revenue:     40.00 },
   { sku: 'Extra Arcade Tokens (add-on)',          rounds: 0, tokens: 0, price:  5.00, sold:   31, revenue:    155.00 },
-  { sku: "Valentine's Day Deal",                  rounds: 1, tokens: 0, price: 50.00, sold:    1, revenue:     50.00 },
+  // Valentine's Day Deal removed — withdrawn from Plonk promotional sales / no longer commissionable revenue.
 ]
 
 // 2025 Borough office/external SKUs (Status = external). Payment happens at venue till — the online
@@ -608,7 +608,7 @@ export const IP_LICENSING_SKUS_OFFICE_2025 = [
   { sku: 'Pool Table Reservation — 30 Mins',      rounds: 0, tokens: 0, price:  5.00, sold:  103, revenue:   515.00 },
   { sku: 'Doubles Pool Tournament',               rounds: 0, tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
   { sku: 'Extra Arcade Tokens (add-on)',          rounds: 0, tokens: 0, price:  5.00, sold:    0, revenue:     0.00 },
-  { sku: "Valentine's Day Deal",                  rounds: 1, tokens: 0, price: 50.00, sold:    0, revenue:     0.00 },
+  // Valentine's Day Deal removed — withdrawn from Plonk promotional sales / no longer commissionable revenue.
 ]
 
 // Per-month split: online (actual portal revenue) vs office (imputed at list price per SKU).
@@ -627,11 +627,20 @@ export const IP_LICENSING_MONTHLY_2025 = [
   { month: 'Dec', onlineQty: 1596, onlineRev: 21475.80, officeQty: 958, officeRev: 12770.50 },
 ]
 
-// Grand totals
+// Grand totals — derived from the SKU arrays above so any SKU change
+// (add/remove/edit) reconciles automatically without a second source
+// of truth to update.
+const _onlineQty = IP_LICENSING_SKUS_ONLINE_2025.reduce((s, r) => s + r.sold, 0)
+const _onlineRev = IP_LICENSING_SKUS_ONLINE_2025.reduce((s, r) => s + r.revenue, 0)
+const _officeQty = IP_LICENSING_SKUS_OFFICE_2025.reduce((s, r) => s + r.sold, 0)
+const _officeRev = IP_LICENSING_SKUS_OFFICE_2025.reduce((s, r) => s + r.revenue, 0)
 export const IP_LICENSING_GRAND_2025 = {
-  onlineQty: 15188, onlineRev: 211163.70,                 // actual online portal revenue
-  officeQty:  4512, officeRev:  61629.00,                 // imputed at SKU list price
-  totalQty:  19700, totalRev:  272792.70,                 // combined Borough 2025 revenue
+  onlineQty: _onlineQty,            // actual online portal revenue
+  onlineRev: _onlineRev,
+  officeQty: _officeQty,            // imputed at SKU list price
+  officeRev: _officeRev,
+  totalQty:  _onlineQty + _officeQty,
+  totalRev:  _onlineRev + _officeRev,
 }
 
 // === PLONK GOLF COMMISSION INCOME (2025 verified) ===
@@ -646,3 +655,49 @@ export const IP_LICENSING_COMMISSION_2025 = {
   source: 'Borough Weekly Totals CATEGORISED PAST 14 MONTHS V2.xlsx · CLEAR TOTALS · row 67 · sum cols 12-63',
   note: 'Verified 2025 commission income to Plonk Golf for running the online booking platform. Replaces Design My Night going forward — same commercial relationship, new entity.',
 }
+
+// === IP & LICENSING — DEFAULT COMMISSION RATES ===
+// 2026 Performance treats Plonk Golf's commission as a venue cost line
+// driven by these defaults. Founder can override via the IP & Licensing
+// → Commissions sliders, then lock; locked rates cascade across every
+// scenario calc in the deck (TabPerformance, InvestmentSummary,
+// WaterfallReturns, TabCashflow).
+//
+// Booking fee is INTENTIONALLY excluded from venue costs — historically
+// it was misattributed to old Plonk; under the new model it's collected
+// at checkout and goes to the bookings system to cover its costs, never
+// to No Dice or Plonk.
+export const IP_LICENSING_DEFAULT_COMMISSIONS = {
+  onlinePct: 10,    // % of online golf ticket revenue
+  officePct: 10,    // % of office golf bookings revenue (imputed at list price)
+}
+
+// Office-golf revenue baseline — sum of golf SKU revenue from the 2025
+// office channel, imputed at SKU list price. Used by 2026 Performance
+// and the deck slides to scale the office portion of commission with
+// the golf growth lever (same approach the IP & Licensing tab uses).
+export const IP_LICENSING_OFFICE_GOLF_REV_2025 =
+  IP_LICENSING_SKUS_OFFICE_2025
+    .filter(s => s.rounds > 0)
+    .reduce((sum, s) => sum + s.revenue, 0)
+
+// === IP & LICENSING — VENUE ANNUAL SAVINGS ===
+// Cost lines that move OFF the venue P&L under the new Plonk Golf
+// franchise model. These are ALREADY implicit in the 2026 Performance
+// cost stack (no bookings-manager wage in the wage calculator, no
+// Lithos hosting in fixed costs, no SEO retainer, no online payment
+// fees) — re-exported here so the 2026 Performance "Savings vs old
+// model" callout and the Plonk · How It Works tab share a single
+// source of truth.
+export const IP_LICENSING_VENUE_SAVINGS = {
+  onlinePaymentFees:     Math.round(IP_LICENSING_GRAND_2025.onlineRev * IP_LICENSING_PAYMENT_FEE_PCT),
+  webHostingLithos:      3492,    // £291/mo × 12 — Lithos website maintenance plan
+  bookingsManagerAnnual: 34320,   // £660/wk × 52 — replaced by chatbot + AI booking flow
+  seoLithos:             10464,   // £872/mo × 12 — Lithos SEO + outreach retainer
+  ipOneOffSaving:        50000,   // one-off — vs the old £72k IP & Goodwill purchase
+}
+export const IP_LICENSING_VENUE_SAVINGS_ANNUAL =
+  IP_LICENSING_VENUE_SAVINGS.onlinePaymentFees +
+  IP_LICENSING_VENUE_SAVINGS.webHostingLithos +
+  IP_LICENSING_VENUE_SAVINGS.bookingsManagerAnnual +
+  IP_LICENSING_VENUE_SAVINGS.seoLithos

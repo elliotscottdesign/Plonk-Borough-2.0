@@ -91,12 +91,11 @@ function SKUTable({ title, subtitle, rows, accentColor, channel }) {
 }
 
 // --- Golf-only filter: Plonk Golf only takes commission on GOLF tickets.
-//     Pool/tournament/add-ons/specials are venue-managed (+ group bookings 12+ handled directly by venue).
+//     Pool/tournament/add-ons are venue-managed (+ group bookings 12+ handled directly by venue).
 const NON_GOLF_SKUS = new Set([
   'Pool Table Reservation — 30 Mins',
   'Doubles Pool Tournament',
   'Extra Arcade Tokens (add-on)',
-  "Valentine's Day Deal",
 ])
 const isGolfSku = sku => !NON_GOLF_SKUS.has(sku)
 
@@ -549,7 +548,7 @@ function CommissionsSection({
         totalChannelRev={onlineGrossAll}
         golfRev={onlineGolfRev}
         nonGolfRev={onlineNonGolfRev}
-        helperText="Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens, Valentine's Day Deal."
+        helperText="Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens."
       />
 
       <CommissionSliderCard
