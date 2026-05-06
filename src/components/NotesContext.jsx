@@ -50,6 +50,10 @@ const NotesCtx = createContext({
 
   // Founder-only: post a reply against another user's note.
   replyToNote: async () => false,     // (targetCode, pageId, text) → boolean
+  // Founder-only: mark / unmark another user's note as reviewed.
+  setNoteReviewed: async () => false, // (targetCode, pageId, reviewed) → boolean
+  // User-side: delete a note for a page (clears the entry locally + on server).
+  deleteNoteForPage: () => {},        // (pageId)
   // User-side: re-fetch own row from server (picks up founder replies).
   refreshOwnNotes: async () => {},
 })
@@ -260,6 +264,55 @@ export function NotesProvider({ children }) {
     }
   }, [refreshAllRows])
 
+  // ─── Founder reviewed-flag API ────────────────────────────────────
+  // Sets / unsets the `reviewed` flag on another user's note. Server
+  // validates the founder code. Refreshes the all-rows view on success.
+  const setNoteReviewed = useCallback(async (targetCode, pageId, reviewed) => {
+    if (!NOTES_SYNC_URL) return false
+    const code = getAccessCode()
+    if (!code || !targetCode || !pageId) return false
+    try {
+      const body = {
+        code,
+        target: { code: targetCode, pageId },
+        reviewed: !!reviewed,
+        secret: NOTES_SYNC_SECRET || undefined,
+      }
+      const res = await fetch(NOTES_SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        cache: 'no-store',
+        headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+        body: JSON.stringify(body),
+      })
+      if (!res.ok) return false
+      const data = await res.json()
+      if (data?.error) return false
+      refreshAllRows()
+      return true
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('[notes] setNoteReviewed POST failed:', e.message)
+      return false
+    }
+  }, [refreshAllRows])
+
+  // ─── User-side delete ─────────────────────────────────────────────
+  // Removes a page entry from the local blob and POSTs the cleaned
+  // notes payload so the server row reflects the deletion. The
+  // founderReply / reviewed metadata for that page is dropped along
+  // with the user's text.
+  const deleteNoteForPage = useCallback((pageId) => {
+    if (!pageId) return
+    setNotes(prev => {
+      const nextByPage = { ...(prev.byPage || {}) }
+      delete nextByPage[pageId]
+      const next = { ...prev, byPage: nextByPage }
+      queuePOST(next, pageId, '')
+      return next
+    })
+  }, [queuePOST])
+
   // ─── User-side refresh ────────────────────────────────────────────
   // Re-fetches the current user's row from the server. Use case: user
   // wants to check whether the founder has posted a reply since the
@@ -283,12 +336,12 @@ export function NotesProvider({ children }) {
   const value = useMemo(() => ({
     isOpen, open, close, toggle,
     activePage, setActivePage,
-    notes, setNoteForPage,
+    notes, setNoteForPage, deleteNoteForPage,
     isFounder,
     allRows, refreshAllRows, isLoadingAll,
     saveState, lastSavedAt,
-    replyToNote, refreshOwnNotes,
-  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, refreshOwnNotes])
+    replyToNote, setNoteReviewed, refreshOwnNotes,
+  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, refreshOwnNotes])
 
   return <NotesCtx.Provider value={value}>{children}</NotesCtx.Provider>
 }

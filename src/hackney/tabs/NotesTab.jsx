@@ -37,6 +37,48 @@ function FounderReplyBlock({ reply }) {
   )
 }
 
+// Founder reviewed toggle.
+function ReviewedToggle({ targetCode, pageId, reviewed }) {
+  const { setNoteReviewed } = useNotes()
+  const [busy, setBusy] = useState(false)
+  const isReviewed = !!reviewed
+  const toggle = async () => {
+    setBusy(true)
+    await setNoteReviewed(targetCode, pageId, !isReviewed)
+    setBusy(false)
+  }
+  return (
+    <button
+      onClick={toggle}
+      disabled={busy}
+      title={isReviewed ? 'Untick to mark as not yet reviewed' : 'Tick to mark this note as reviewed (visitor sees a confirmation badge)'}
+      style={{
+        display:'inline-flex', alignItems:'center', gap:6,
+        padding:'4px 10px', fontSize:11, fontWeight:600, borderRadius:6,
+        border:`1px solid ${isReviewed ? 'rgba(16,185,129,0.5)' : 'rgba(255,255,255,0.15)'}`,
+        background: isReviewed ? 'rgba(16,185,129,0.12)' : 'transparent',
+        color: isReviewed ? '#10B981' : 'var(--cream-dim)',
+        cursor: busy ? 'wait' : 'pointer',
+        letterSpacing:'0.05em',
+      }}
+    >
+      <span style={{ fontSize:13 }}>{isReviewed ? '☑' : '☐'}</span>
+      <span>{isReviewed ? 'Reviewed' : 'Mark reviewed'}</span>
+    </button>
+  )
+}
+
+// Visitor reviewed badge.
+function ReviewedBadge({ reviewed }) {
+  if (!reviewed) return null
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:5, padding:'3px 8px', fontSize:10, fontWeight:700, borderRadius:10, background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.4)', color:'#10B981', letterSpacing:'0.05em', textTransform:'uppercase' }}>
+      <span>✓</span><span>Reviewed by founder</span>
+      <span style={{ color:'var(--cream-dim)', fontWeight:500, textTransform:'none', letterSpacing:0 }}>· {fmtTs(reviewed.at)}</span>
+    </span>
+  )
+}
+
 // Founder-only reply composer (Hackney variant — same logic, separate
 // useNotes context so it talks to the Hackney endpoint).
 function ReplyComposer({ targetCode, pageId, existing }) {
@@ -94,11 +136,16 @@ function ReplyComposer({ targetCode, pageId, existing }) {
   )
 }
 
-function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode }) {
+function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode, onDelete }) {
   const entries = useMemo(() => {
     const byPage = notesBlob?.byPage || {}
     return Object.entries(byPage)
-      .map(([id, v]) => ({ id, label: v?.label || id, text: v?.text || '', updatedAt: v?.updatedAt || '', founderReply: v?.founderReply || null }))
+      .map(([id, v]) => ({
+        id, label: v?.label || id, text: v?.text || '',
+        updatedAt: v?.updatedAt || '',
+        founderReply: v?.founderReply || null,
+        reviewed: v?.reviewed || null,
+      }))
       .filter(e => e.text.trim().length > 0)
       .sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))
   }, [notesBlob])
@@ -114,14 +161,41 @@ function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode }) {
     <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
       {entries.map(e => (
         <div key={e.id} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:8, padding:'12px 14px' }}>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:6 }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:6, flexWrap:'wrap' }}>
             <div style={{ fontSize:12, color:'var(--gold)', letterSpacing:'0.06em', textTransform:'uppercase', fontWeight:600 }}>{e.label}</div>
-            <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{fmtTs(e.updatedAt)}</div>
+            <div style={{ display:'flex', alignItems:'center', gap:8, flexWrap:'wrap' }}>
+              {mode === 'self' && <ReviewedBadge reviewed={e.reviewed} />}
+              <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{fmtTs(e.updatedAt)}</div>
+            </div>
           </div>
           <div style={{ fontSize:13, color:'var(--cream)', whiteSpace:'pre-wrap', lineHeight:1.55 }}>{e.text}</div>
           <FounderReplyBlock reply={e.founderReply} />
+
+          {mode === 'self' && onDelete && (
+            <div style={{ marginTop:10, display:'flex', justifyContent:'flex-end' }}>
+              <button
+                onClick={() => {
+                  if (window.confirm(`Delete your note on "${e.label}"? This cannot be undone.`)) {
+                    onDelete(e.id, e.label)
+                  }
+                }}
+                style={{
+                  padding:'4px 10px', fontSize:10, fontWeight:600, borderRadius:6,
+                  border:'1px solid rgba(248,113,113,0.4)', background:'transparent',
+                  color:'#F87171', cursor:'pointer',
+                  letterSpacing:'0.06em', textTransform:'uppercase',
+                }}
+              >🗑 Delete note</button>
+            </div>
+          )}
+
           {mode === 'founder' && targetCode && (
-            <ReplyComposer targetCode={targetCode} pageId={e.id} existing={e.founderReply} />
+            <>
+              <div style={{ marginTop:10, display:'flex', alignItems:'center', justifyContent:'flex-end' }}>
+                <ReviewedToggle targetCode={targetCode} pageId={e.id} reviewed={e.reviewed} />
+              </div>
+              <ReplyComposer targetCode={targetCode} pageId={e.id} existing={e.founderReply} />
+            </>
           )}
         </div>
       ))}
@@ -130,7 +204,7 @@ function NotesList({ notesBlob, emptyHint, mode = 'self', targetCode }) {
 }
 
 export default function NotesTab() {
-  const { notes, isFounder, allRows, refreshAllRows, isLoadingAll, refreshOwnNotes } = useNotes()
+  const { notes, isFounder, allRows, refreshAllRows, isLoadingAll, refreshOwnNotes, deleteNoteForPage } = useNotes()
   const code = getAccessCode()
 
   const founderRows = useMemo(() => {
@@ -171,6 +245,7 @@ export default function NotesTab() {
           </div>
           <NotesList
             notesBlob={notes}
+            onDelete={(pageId) => deleteNoteForPage(pageId)}
             emptyHint="No notes yet. Open any page, click Page Notes in the header, and type — your text appears here automatically."
           />
         </div>

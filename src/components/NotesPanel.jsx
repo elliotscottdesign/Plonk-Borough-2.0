@@ -14,7 +14,7 @@ import { NOTES_SYNC_URL } from '../data.js'
 export default function NotesPanel() {
   const {
     isOpen, close,
-    activePage, notes, setNoteForPage,
+    activePage, notes, setNoteForPage, deleteNoteForPage,
     saveState, lastSavedAt, refreshOwnNotes,
   } = useNotes()
 
@@ -24,6 +24,14 @@ export default function NotesPanel() {
   const pageEntry = pageId ? notes.byPage?.[pageId] : null
   const currentNote = pageEntry?.text || ''
   const founderReply = pageEntry?.founderReply
+  const reviewed = pageEntry?.reviewed
+
+  const handleDelete = () => {
+    if (!pageId) return
+    if (window.confirm(`Delete your note on "${pageLabel}"? This cannot be undone.`)) {
+      deleteNoteForPage(pageId)
+    }
+  }
 
   const textareaRef = useRef(null)
 
@@ -140,6 +148,15 @@ export default function NotesPanel() {
                 onBlur={(e)  => { e.target.style.borderColor = 'rgba(201,168,76,0.18)' }}
               />
 
+              {/* Reviewed badge — founder has marked this note as seen. */}
+              {reviewed && (
+                <div style={{ marginTop:10, padding:'8px 10px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.3)', borderRadius:6, display:'flex', alignItems:'center', gap:8 }}>
+                  <span style={{ fontSize:12, color:'#10B981', fontWeight:700 }}>✓</span>
+                  <span style={{ fontSize:11, color:'#10B981', letterSpacing:'0.05em', fontWeight:600 }}>Reviewed by founder</span>
+                  <span style={{ fontSize:10, color:'var(--cream-dim)', marginLeft:'auto' }}>{(() => { try { const t = new Date(reviewed.at); const hh = String(t.getHours()).padStart(2,'0'); const mm = String(t.getMinutes()).padStart(2,'0'); return `${hh}:${mm} · ${t.toLocaleDateString('en-GB', { day:'numeric', month:'short' })}` } catch { return '' } })()}</span>
+                </div>
+              )}
+
               {/* Founder reply (read-only) — shown if the founder has
                   responded to this specific page note. The user pulls
                   the latest via the refresh button below. */}
@@ -153,10 +170,19 @@ export default function NotesPanel() {
                 </div>
               )}
 
-              <div style={{ marginTop:12, display:'flex', alignItems:'center', justifyContent:'space-between', gap:8 }}>
-                <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.55, flex:1 }}>
-                  Notes are private to your access code. They auto-save{NOTES_SYNC_URL ? ' across devices' : ' on this device'} and the founder is notified by email when you leave a note (throttled to once every 5 minutes per user).
-                </div>
+              <div style={{ marginTop:12, display:'flex', alignItems:'center', gap:6, flexWrap:'wrap' }}>
+                {currentNote.trim().length > 0 && (
+                  <button
+                    onClick={handleDelete}
+                    title="Delete this note (cannot be undone)"
+                    style={{
+                      flexShrink:0, padding:'5px 10px', fontSize:10, fontWeight:600, borderRadius:6,
+                      border:'1px solid rgba(248,113,113,0.4)', background:'transparent',
+                      color:'#F87171', cursor:'pointer',
+                      letterSpacing:'0.06em', textTransform:'uppercase',
+                    }}
+                  >🗑 Delete note</button>
+                )}
                 {NOTES_SYNC_URL && (
                   <button
                     onClick={refreshOwnNotes}
@@ -169,6 +195,9 @@ export default function NotesPanel() {
                     }}
                   >↻ Replies</button>
                 )}
+              </div>
+              <div style={{ marginTop:10, fontSize:10, color:'var(--cream-dim)', lineHeight:1.55 }}>
+                Notes are private to your access code. They auto-save{NOTES_SYNC_URL ? ' across devices' : ' on this device'} and the founder is notified by email when you leave a note (throttled to once every 5 minutes per user).
               </div>
             </>
           )}

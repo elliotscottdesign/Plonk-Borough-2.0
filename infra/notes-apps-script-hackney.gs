@@ -232,28 +232,40 @@ function doPost(e) {
     const code = body.code ? String(body.code) : ''
     if (!code) return _json({ error: 'missing code' })
 
-    // ─── Founder-reply path ──────────────────────────────────────
-    // Shape: { code: '888999', target: { code: 'TEST1', pageId: 'deck:cover' }, replyText: '...' }
-    // Locates the target row, attaches a `founderReply` entry to the
-    // matching page, and writes the row back.
+    // ─── Founder target path ─────────────────────────────────────
+    // Shape: { code, target: { code, pageId }, replyText?, reviewed? }
+    //   - replyText present → set/clear founderReply
+    //   - reviewed === true → mark reviewed; === false → unmark
     if (body.target && body.target.code && body.target.pageId) {
       if (FOUNDER_CODES.indexOf(code) === -1) {
-        return _json({ error: 'reply requires founder code' })
+        return _json({ error: 'requires founder code' })
       }
       const targetCode = String(body.target.code)
       const pageId     = String(body.target.pageId)
       const blob = _readForCode(sh, targetCode) || { byPage: {} }
       if (!blob.byPage) blob.byPage = {}
       const entry = blob.byPage[pageId] || { text: '', label: pageId, updatedAt: '' }
-      const replyText = String(body.replyText || '').trim()
-      if (replyText) {
-        entry.founderReply = { text: replyText, updatedAt: new Date().toISOString(), authorCode: code }
-      } else {
-        delete entry.founderReply
+
+      if (Object.prototype.hasOwnProperty.call(body, 'replyText')) {
+        const replyText = String(body.replyText || '').trim()
+        if (replyText) {
+          entry.founderReply = { text: replyText, updatedAt: new Date().toISOString(), authorCode: code }
+        } else {
+          delete entry.founderReply
+        }
       }
+
+      if (Object.prototype.hasOwnProperty.call(body, 'reviewed')) {
+        if (body.reviewed === true) {
+          entry.reviewed = { at: new Date().toISOString(), by: code }
+        } else {
+          delete entry.reviewed
+        }
+      }
+
       blob.byPage[pageId] = entry
       _writeForCode(sh, targetCode, blob, _readLastEmailAt(sh, targetCode))
-      return _json({ ok: true, mode: 'reply', targetCode: targetCode, pageId: pageId })
+      return _json({ ok: true, mode: 'target', targetCode: targetCode, pageId: pageId })
     }
 
     // ─── Standard user-notes write ───────────────────────────────
