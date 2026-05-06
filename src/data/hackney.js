@@ -43,6 +43,24 @@ export const WORKBOOK_URL = 'https://docs.google.com/spreadsheets/d/1ICwGynpIMGD
 export const LOCK_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxksN8yyi-G0rI59O8j20v12tpk0vT1oWPUNMTvgPj--9DZGXT2OglCDvQUSuKRCPPD/exec'
 export const LOCK_SYNC_SECRET = ''
 
+// === NOTES SYNC ENDPOINT ============================================
+// Hackney's deployed Apps Script web app for the per-page notes
+// feature — separate from Borough's (and from the Hackney lock-sync).
+// Each deck has its own Notes sheet so investor notes against the
+// Borough deck never bleed into the Hackney one. Empty = localStorage-
+// only mode (notes work, but no cross-device sync + no founder email).
+//
+// Deployment instructions in infra/notes-apps-script-hackney.gs.
+//
+// Endpoints (handled by infra/notes-apps-script-hackney.gs):
+//   GET  ?code=<CODE>           → { notes: <blob>|null }
+//   GET  ?all=1&secret=<SECRET> → { rows: [{ code, notes, updatedAt }] }
+//   POST { code, notes, page, text, secret? } → upserts row + emails founder
+export const NOTES_SYNC_URL = ''
+export const NOTES_SYNC_SECRET = ''
+// Founder email — receives a notification when any user leaves a note.
+export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
+
 // === DEAL STRUCTURE ===
 // £100,000 investment for 50% equity. Pre-money = investment (£100k) →
 // post-money £200k. Implied 3.24× EBITDA on £30,896 verified 2025 profit

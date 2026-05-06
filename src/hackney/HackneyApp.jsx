@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
+import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
@@ -9,6 +10,8 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthDrivers from './slides/GrowthDrivers.jsx'
 import { LockedUseOfFundsProvider } from './components/LockedUseOfFundsContext.jsx'
+import { NotesProvider, useNotes } from './components/NotesContext.jsx'
+import NotesPanel from './components/NotesPanel.jsx'
 import { WORKBOOK_URL } from '../data/hackney.js'
 
 // HackneyApp — clones the structure of Borough's App.jsx exactly:
@@ -40,10 +43,24 @@ const TOP_TABS = [
   { key:'plonk',            label:'Plonk' },
 ]
 
+// Build the notes "active page" descriptor from the current top tab and
+// (for the deck) the active slide. Page ids are stable strings so server
+// rows survive label changes; labels come from SLIDE_DEFS / TOP_TABS.
+function deriveActivePage(topTab, slideId) {
+  if (topTab === 'investorDeck') {
+    const def = SLIDE_DEFS.find(s => s.id === slideId)
+    return def ? { id: `deck:${def.id}`, label: `Deck · ${def.label}` } : null
+  }
+  if (topTab === 'venueInfo')         return { id: 'venue',    label: 'Venue Info' }
+  if (topTab === 'businessExplorer')  return { id: 'explorer', label: 'Business Explorer' }
+  if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
+  if (topTab === 'notes')             return null   // master view
+  return null
+}
+
 export default function HackneyApp() {
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
-  const { Component } = SLIDE_DEFS[slideIdx]
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
 
   // Override the static <title> from index.html (which says "No Dice
@@ -78,12 +95,39 @@ export default function HackneyApp() {
 
   return (
     <LockedUseOfFundsProvider>
+      <NotesProvider>
+        <HackneyShell
+          topTab={topTab} setTopTab={setTopTab}
+          slideIdx={slideIdx} setSlideIdx={setSlideIdx}
+          go={go}
+        />
+      </NotesProvider>
+    </LockedUseOfFundsProvider>
+  )
+}
+
+// ─── Inner shell ──────────────────────────────────────────────────────
+// Lives inside both LockedUseOfFundsProvider and NotesProvider so it can
+// consume the notes hook (toggle button, active-page sync, master tab).
+function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
+  const { Component } = SLIDE_DEFS[slideIdx]
+  const notes = useNotes()
+
+  // Keep NotesContext.activePage in lockstep with the current view so
+  // the side panel's textarea binds to the right note.
+  useEffect(() => {
+    const slideId = SLIDE_DEFS[slideIdx]?.id
+    notes.setActivePage(deriveActivePage(topTab, slideId))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [topTab, slideIdx])
+
+  return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
 
-      {/* Top header — brand + tab buttons + back-to-Borough */}
+      {/* Top header — brand + tab buttons + notes cluster + back-to-Borough */}
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Hackney</div>
-        <div style={{ display:'flex', gap:4 }}>
+        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
           {TOP_TABS.map(t => (
             <button key={t.key} onClick={() => setTopTab(t.key)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===t.key?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===t.key?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t.key?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===t.key?600:400 }}>{t.label}</button>
           ))}
@@ -91,7 +135,19 @@ export default function HackneyApp() {
             <button onClick={() => window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer')} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'2px solid rgba(255,255,255,0.1)', color:'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}>Workbook</button>
           )}
         </div>
-        <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', textDecoration:'none', letterSpacing:'0.1em', textTransform:'uppercase' }}>← Borough deck</a>
+        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+          <button
+            onClick={() => setTopTab('notes')}
+            title="Main Notes — every note you've written, in one place"
+            style={{ padding:'8px 16px', fontSize:12, borderRadius:8, cursor:'pointer', background:topTab==='notes'?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab==='notes'?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab==='notes'?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab==='notes'?600:400 }}
+          >Main Notes</button>
+          <button
+            onClick={notes.toggle}
+            title="Open the page-notes panel for the current page"
+            style={{ padding:'8px 14px', fontSize:12, borderRadius:8, cursor:'pointer', background:notes.isOpen?'rgba(192,132,252,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${notes.isOpen?'#C084FC':'rgba(255,255,255,0.1)'}`, color:notes.isOpen?'#C084FC':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}
+          >📝 Page Notes</button>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', textDecoration:'none', letterSpacing:'0.1em', textTransform:'uppercase', marginLeft:8 }}>← Borough deck</a>
+        </div>
       </div>
 
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
@@ -124,8 +180,9 @@ export default function HackneyApp() {
         {topTab === 'venueInfo' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
+        {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
+      <NotesPanel />
     </div>
-    </LockedUseOfFundsProvider>
   )
 }
