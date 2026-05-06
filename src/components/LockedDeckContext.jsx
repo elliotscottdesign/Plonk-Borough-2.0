@@ -8,6 +8,7 @@ import {
   LOCK_SYNC_SECRET,
   WAGE_RATES,
   WAGE_OVERHEAD_MULT,
+  IP_LICENSING_DEFAULT_COMMISSIONS,
 } from '../data.js'
 import { getAccessCode, namespacedKey } from '../lib/access-code.js'
 
@@ -147,6 +148,55 @@ function readPersistedTicketVolumeLock() {
 // slider values are pinned for every viewer and feed straight into the
 // 2026 forecast totals via the locked snapshot.
 const FIXED_COSTS_LOCK_KEY = 'ndb_fixed_costs_locked_v1'
+
+// ─── Commissions lock — IP & Licensing Commissions sliders. Stores
+// the founder's online + office commission % rates so the figure
+// cascades into the venue P&L cost stack on Business Explorer · 2026
+// Performance and across the deck slides' scenario calcs.
+//
+// Booking fee is NOT in this lock — under the new model it goes to
+// the bookings system (not Plonk, not the venue), so it never appears
+// as a venue cost. Only commissions on actual sales are pinned.
+const COMMISSIONS_LIVE_KEY = 'ndb_commissions_live_v1'
+const COMMISSIONS_LOCK_KEY = 'ndb_commissions_locked_v1'
+
+function defaultCommissionRates() {
+  return {
+    onlinePct: IP_LICENSING_DEFAULT_COMMISSIONS.onlinePct,
+    officePct: IP_LICENSING_DEFAULT_COMMISSIONS.officePct,
+  }
+}
+
+const isValidCommissionsRates = (v) =>
+  v && typeof v === 'object' &&
+  Number.isFinite(v.onlinePct) && Number.isFinite(v.officePct) &&
+  v.onlinePct >= 0 && v.officePct >= 0
+
+const isValidCommissionsLock = (s) =>
+  s && typeof s === 'object' && isValidCommissionsRates(s.rates)
+
+function readPersistedCommissionsLock() {
+  if (typeof window !== 'undefined' && window.__NDB_COMMISSIONS_LOCK !== undefined) {
+    const fromServer = window.__NDB_COMMISSIONS_LOCK
+    try {
+      if (fromServer && isValidCommissionsLock(fromServer)) {
+        localStorage.setItem(namespacedKey(COMMISSIONS_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(COMMISSIONS_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidCommissionsLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(namespacedKey(COMMISSIONS_LOCK_KEY))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidCommissionsLock(parsed) ? parsed : null
+  } catch { return null }
+}
 
 // ─── Pricing lock — Ticket Price Maker matrix on Business Explorer ·
 // 2026 Performance · Tickets. Stores per-SKU { tokens, price } so the
@@ -407,6 +457,19 @@ const PricingCtx = createContext({
   unlock: () => {},
 })
 
+const CommissionsCtx = createContext({
+  rates: defaultCommissionRates(),
+  effective: defaultCommissionRates(),
+  snapshot: null,
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  setRate: () => {},   // (key: 'onlinePct'|'officePct', value: number) => void
+  lock: () => {},
+  unlock: () => {},
+  reset: () => {},
+})
+
 export function LockedDeckProvider({ children }) {
   // ─── Funding state ────────────────────────────────────────────────
   const [fundingSnapshot, setFundingSnapshot] = useState(readPersistedFundingLock)
@@ -440,6 +503,16 @@ export function LockedDeckProvider({ children }) {
   // ─── Pricing state ────────────────────────────────────────────────
   const [pricingLock, setPricingLock] = useState(readPersistedPricingLock)
 
+  // ─── Commissions state ────────────────────────────────────────────
+  const [commissionsLock, setCommissionsLock] = useState(readPersistedCommissionsLock)
+  const [commissionRates, setCommissionRatesState] = useState(() => {
+    const persisted = readPersisted(COMMISSIONS_LIVE_KEY, isValidCommissionsRates)
+    if (persisted) return persisted
+    const lock = readPersistedCommissionsLock()
+    if (lock?.rates && isValidCommissionsRates(lock.rates)) return lock.rates
+    return defaultCommissionRates()
+  })
+
   // ─── Wages state ──────────────────────────────────────────────────
   const [wagesLock, setWagesLock] = useState(readPersistedWagesLock)
   const [wageRows, setWageRowsState] = useState(() => {
@@ -458,12 +531,14 @@ export function LockedDeckProvider({ children }) {
   const fixedCostsRef   = useRef(fixedCostsLock)
   const wagesRef        = useRef(wagesLock)
   const pricingRef      = useRef(pricingLock)
+  const commissionsRef  = useRef(commissionsLock)
   useEffect(() => { fundingRef.current      = fundingSnapshot   }, [fundingSnapshot])
   useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
   useEffect(() => { fixedCostsRef.current   = fixedCostsLock    }, [fixedCostsLock])
   useEffect(() => { wagesRef.current        = wagesLock         }, [wagesLock])
   useEffect(() => { pricingRef.current      = pricingLock       }, [pricingLock])
+  useEffect(() => { commissionsRef.current  = commissionsLock   }, [commissionsLock])
 
   // ─── Per-tenant re-hydration on mount ─────────────────────────────
   // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
@@ -494,14 +569,16 @@ export function LockedDeckProvider({ children }) {
         let fixedCosts = null
         let wages = null
         let pricing = null
+        let commissions = null
         if (raw && typeof raw === 'object') {
-          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'wages' in raw || 'pricing' in raw) {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'wages' in raw || 'pricing' in raw || 'commissions' in raw) {
             funding      = raw.funding      ?? null
             forecast     = raw.forecast     ?? null
             ticketVolume = raw.ticketVolume ?? null
             fixedCosts   = raw.fixedCosts   ?? null
             wages        = raw.wages        ?? null
             pricing      = raw.pricing      ?? null
+            commissions  = raw.commissions  ?? null
           } else if (Number.isFinite(raw.revenue)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -514,6 +591,7 @@ export function LockedDeckProvider({ children }) {
         setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
         setWagesLock(isValidWageLock(wages) ? wages : null)
         setPricingLock(isValidPricingLock(pricing) ? pricing : null)
+        setCommissionsLock(isValidCommissionsLock(commissions) ? commissions : null)
         // Mirror to localStorage (namespaced) so subsequent reloads on
         // this device skip the network round-trip for first paint.
         try {
@@ -547,6 +625,11 @@ export function LockedDeckProvider({ children }) {
           } else {
             localStorage.removeItem(namespacedKey(PRICING_LOCK_KEY))
           }
+          if (isValidCommissionsLock(commissions)) {
+            localStorage.setItem(namespacedKey(COMMISSIONS_LOCK_KEY), JSON.stringify(commissions))
+          } else {
+            localStorage.removeItem(namespacedKey(COMMISSIONS_LOCK_KEY))
+          }
         } catch {}
         // eslint-disable-next-line no-console
         console.info(
@@ -577,6 +660,7 @@ export function LockedDeckProvider({ children }) {
     fixedCosts:   'fixedCosts'   in overrides ? overrides.fixedCosts   : fixedCostsRef.current,
     wages:        'wages'        in overrides ? overrides.wages        : wagesRef.current,
     pricing:      'pricing'      in overrides ? overrides.pricing      : pricingRef.current,
+    commissions:  'commissions'  in overrides ? overrides.commissions  : commissionsRef.current,
   })
 
   // ─── Shared founder flag ──────────────────────────────────────────
@@ -594,6 +678,15 @@ export function LockedDeckProvider({ children }) {
   const wagesCanEdit          = isFounder && !wagesIsLocked
   const pricingIsLocked       = pricingLock !== null
   const pricingCanEdit        = isFounder && !pricingIsLocked
+  const commissionsIsLocked   = commissionsLock !== null
+  const commissionsCanEdit    = isFounder && !commissionsIsLocked
+
+  // Persist commission live rates (founder only) so editing progress
+  // survives reload.
+  useEffect(() => {
+    if (!isFounder) return
+    try { localStorage.setItem(namespacedKey(COMMISSIONS_LIVE_KEY), JSON.stringify(commissionRates)) } catch {}
+  }, [commissionRates, isFounder])
 
   // Persist wage live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -721,6 +814,44 @@ export function LockedDeckProvider({ children }) {
     syncContainerToServer(buildContainer({ pricing: null }))
   }, [isFounder])
 
+  // ─── Commissions API ──────────────────────────────────────────────
+  const commissionsEffective = useMemo(
+    () => (commissionsIsLocked ? commissionsLock.rates : commissionRates),
+    [commissionsIsLocked, commissionsLock, commissionRates],
+  )
+
+  const setCommissionRate = useCallback((key, value) => {
+    if (!commissionsCanEdit) return
+    if (key !== 'onlinePct' && key !== 'officePct') return
+    const v = Math.max(0, Number(value) || 0)
+    setCommissionRatesState(prev => ({ ...prev, [key]: v }))
+  }, [commissionsCanEdit])
+
+  const lockCommissions = useCallback(() => {
+    if (!isFounder) return
+    const stamped = { rates: { ...commissionRates }, lockedAt: new Date().toISOString() }
+    setCommissionsLock(stamped)
+    try { localStorage.setItem(namespacedKey(COMMISSIONS_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ commissions: stamped }))
+  }, [commissionRates, isFounder])
+
+  const unlockCommissions = useCallback(() => {
+    if (!isFounder) return
+    setCommissionsLock(null)
+    try { localStorage.removeItem(namespacedKey(COMMISSIONS_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ commissions: null }))
+  }, [isFounder])
+
+  const resetCommissions = useCallback(() => {
+    if (!isFounder) return
+    if (commissionsLock) {
+      setCommissionsLock(null)
+      try { localStorage.removeItem(namespacedKey(COMMISSIONS_LOCK_KEY)) } catch {}
+      syncContainerToServer(buildContainer({ commissions: null }))
+    }
+    setCommissionRatesState(defaultCommissionRates())
+  }, [commissionsLock, isFounder])
+
   // ─── Wages API ────────────────────────────────────────────────────
   // The "effective" wage view — locked snapshot if locked, else the live
   // edits flowing from the slider card. Every wage-cost surface in the
@@ -825,6 +956,19 @@ export function LockedDeckProvider({ children }) {
     unlock: unlockPricing,
   }
 
+  const commissionsValue = {
+    rates: commissionRates,
+    effective: commissionsEffective,
+    snapshot: commissionsLock,
+    isLocked: commissionsIsLocked,
+    isFounder,
+    canEdit: commissionsCanEdit,
+    setRate: setCommissionRate,
+    lock: lockCommissions,
+    unlock: unlockCommissions,
+    reset: resetCommissions,
+  }
+
   return (
     <ForecastCtx.Provider value={forecastValue}>
       <FundingCtx.Provider value={fundingValue}>
@@ -832,7 +976,9 @@ export function LockedDeckProvider({ children }) {
           <FixedCostsCtx.Provider value={fixedCostsValue}>
             <WagesCtx.Provider value={wagesValue}>
               <PricingCtx.Provider value={pricingValue}>
-                {children}
+                <CommissionsCtx.Provider value={commissionsValue}>
+                  {children}
+                </CommissionsCtx.Provider>
               </PricingCtx.Provider>
             </WagesCtx.Provider>
           </FixedCostsCtx.Provider>
@@ -865,6 +1011,10 @@ export function useLockedWages() {
 
 export function useLockedPricing() {
   return useContext(PricingCtx)
+}
+
+export function useLockedCommissions() {
+  return useContext(CommissionsCtx)
 }
 
 // Re-export so consumers don't need a second import

@@ -1,49 +1,50 @@
 import React from 'react'
-import { IP_LICENSING_GRAND_2025, IP_LICENSING_PAYMENT_FEE_PCT } from '../data.js'
+import {
+  IP_LICENSING_GRAND_2025,
+  IP_LICENSING_VENUE_SAVINGS,
+  IP_LICENSING_VENUE_SAVINGS_ANNUAL,
+} from '../data.js'
 
 const fmt0 = n => '£' + Math.round(n).toLocaleString()
 const fmt2 = n => '£' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 
-// --- Savings breakdown: annualised cost lines that move from venue P&L to Plonk Golf under the franchise ---
-const onlinePaymentFee = IP_LICENSING_GRAND_2025.onlineRev * IP_LICENSING_PAYMENT_FEE_PCT // 1.5% of actual 2025 online
-const HOSTING_LITHOS = 3492                     // £291/mth — Lithos website maintenance
-const BOOKINGS_MGR_WEEKLY = 660                 // £660/wk gross wages
-const BOOKINGS_MGR_ANNUAL = BOOKINGS_MGR_WEEKLY * 52
-const SEO_LITHOS = 10464                         // £872/mth — Lithos SEO + outreach
-const IP_ONE_OFF_SAVING = 50000                  // £50k + VAT — compared to the previous £72k IP & Goodwill purchase
+// Savings figures live in data.js (IP_LICENSING_VENUE_SAVINGS) so the
+// 2026 Performance "Savings vs old model" callout and this How-it-works
+// breakdown stay in lockstep.
+const IP_ONE_OFF_SAVING = IP_LICENSING_VENUE_SAVINGS.ipOneOffSaving
 
 const ANNUAL_SAVINGS = [
   {
     label: 'Online payment fees',
-    annual: onlinePaymentFee,
+    annual: IP_LICENSING_VENUE_SAVINGS.onlinePaymentFees,
     detail: '1.5% of online ticket gross — Plonk Golf absorbs this via its Stripe account.',
     basis: `£${IP_LICENSING_GRAND_2025.onlineRev.toLocaleString('en-GB',{minimumFractionDigits:2})} 2025 online × 1.5%`,
     accent: '#4FC3F7',
   },
   {
     label: 'Web hosting (Lithos)',
-    annual: HOSTING_LITHOS,
+    annual: IP_LICENSING_VENUE_SAVINGS.webHostingLithos,
     detail: 'Plonk Golf runs the website and booking system — venue no longer needs its own Lithos plan.',
     basis: '£291 / month × 12',
     accent: '#2DD4BF',
   },
   {
     label: 'Bookings manager wage',
-    annual: BOOKINGS_MGR_ANNUAL,
+    annual: IP_LICENSING_VENUE_SAVINGS.bookingsManagerAnnual,
     detail: 'Online chatbot + AI booking replace the office bookings role. Group bookings 12+ are handled by venue management directly.',
     basis: '£660 / week × 52',
     accent: '#C9A84C',
   },
   {
     label: 'SEO management',
-    annual: SEO_LITHOS,
+    annual: IP_LICENSING_VENUE_SAVINGS.seoLithos,
     detail: 'Plonk Golf runs a non-venue-specific SEO programme at its own cost. No venue-level SEO retainer required.',
     basis: '£872 / month × 12',
     accent: '#E67E22',
   },
 ]
 
-const totalAnnual = ANNUAL_SAVINGS.reduce((s, r) => s + r.annual, 0)
+const totalAnnual = IP_LICENSING_VENUE_SAVINGS_ANNUAL
 
 export default function PlonkHowItWorks() {
   return (
