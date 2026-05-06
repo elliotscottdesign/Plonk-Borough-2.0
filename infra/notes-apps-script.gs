@@ -143,6 +143,18 @@ function _maybeEmailFounder(sh, code, page, text, notes) {
   const pageLabel = (page && page.label) ? page.label : (page && page.id) || 'Unknown page'
   const subject = 'Borough deck — note from ' + code
   const snippet = (text || '').slice(0, 1000)
+
+  // Workbook + Notes-tab deep links — derived dynamically so the URL
+  // tracks SHEET_ID without a second source of truth. The Notes-tab
+  // link drops the founder straight into the row for this access code.
+  let workbookUrl = ''
+  let notesTabUrl = ''
+  try {
+    const ss = SpreadsheetApp.openById(SHEET_ID)
+    workbookUrl = ss.getUrl()
+    notesTabUrl = workbookUrl + '#gid=' + sh.getSheetId()
+  } catch (e) {}
+
   const body = [
     'Someone from "' + code + '" has left a note.',
     '',
@@ -153,7 +165,13 @@ function _maybeEmailFounder(sh, code, page, text, notes) {
     snippet,
     '———————————————————————————————',
     '',
-    'View all notes for this user: open the deck → Notes tab (after Workbook).',
+    'Open the workbook:',
+    workbookUrl || '(workbook URL unavailable)',
+    '',
+    'Jump straight to the Notes sheet (one row per access code):',
+    notesTabUrl || '(notes-sheet URL unavailable)',
+    '',
+    'Or open the deck → Notes tab (after Workbook) for the formatted view.',
     '',
     'Throttle: at most one email per user every 5 minutes (further edits within',
     'the window are saved silently and visible on the Notes tab in real time).',
