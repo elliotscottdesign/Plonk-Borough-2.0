@@ -19,8 +19,22 @@
 //   GOLF + TOKEN BUNDLES   £15,840   (1,063 bundle SKUs)
 //   ARCADE - Tokens        £13,380   (2,664 standalone token sales)
 //   GAME & DRINK BUNDLES   £1,449    (Tuesday Drink & Game etc.)
-//   TOURNAMENTS            £15
+//   TOURNAMENTS            £15       (1 Pool entry on 8 Jan + 1 on 1 Feb)
 //   OTHER - MISC fragment  £179      (folded into the existing OTHER - MISC line)
+//
+// Per-SKU label cleanups applied to the raw CSV (Goodtill staff used
+// duplicate buttons for the same product):
+//   • "Six Arcade Tokens"   → merged into "6 Tokens" (470 combined lines · £2,389)
+//   • "Golf Tournament Entry" (1 line, 8 Jan 2025) → relabelled
+//     "Pool Tournament Entry" (founder confirmed: Hackney does not
+//     run golf tournaments)
+//
+// Token-pricing note: per-token unit price changed during 2025 (founder
+// adjusted the bundle prices over the year). Per-token avg therefore
+// drifts ~£0.77–£0.83 across SKUs:
+//   5 Arcade Tokens  £4.00 avg → £0.80 / token
+//   6 Tokens         £5.08 avg → £0.85 / token
+//   12 Tokens        £9.18 avg → £0.77 / token
 //
 // Categories are sorted descending by total revenue. `monthly` is a 9-element
 // array aligned to `months` (Jan … Sep). The Sep figure is partial — only
