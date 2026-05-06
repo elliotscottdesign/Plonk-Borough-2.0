@@ -9,7 +9,9 @@
     "venueInfo": "Venue Info",
     "businessExplorer": "Business Explorer",
     "plonk": "Plonk",
-    "workbook": "Workbook ↗"
+    "workbook": "Workbook ↗",
+    "notes": "Notes",
+    "notesAction": "📝 Notes"
   },
   "slideNav": {
     "cover": "COVER",

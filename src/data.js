@@ -39,6 +39,25 @@ export const LOCK_SYNC_URL = 'https://script.google.com/macros/s/AKfycbyg5MJVpgu
 // is already access-restricted (e.g. Cloudflare Worker behind Access).
 export const LOCK_SYNC_SECRET = ''
 
+// === NOTES SYNC ENDPOINT ============================================
+// Separate Apps Script web app for the per-page notes feature. Stores
+// each access code's notes blob (one row per code) in a "Notes" sheet
+// and emails the founder when a note is saved. Deployment instructions
+// in infra/notes-apps-script.gs.
+//
+// Until this URL is set, notes still work locally (localStorage
+// namespaced by access code) — the server POST + email simply skip,
+// and the founder cross-user view shows the local user only.
+//
+// Endpoints (handled by infra/notes-apps-script.gs):
+//   GET  ?code=<CODE>           → { notes: <blob>|null }
+//   GET  ?all=1&secret=<SECRET> → { rows: [{ code, notes, updatedAt }] }
+//   POST { code, notes, page, text, secret? } → upserts row + emails founder
+export const NOTES_SYNC_URL = ''
+export const NOTES_SYNC_SECRET = ''
+// Founder email — receives a notification when any user leaves a note.
+export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
+
 // === DEAL STRUCTURE ===
 // Investment ask £79,000 inc VAT. 50/50 equity — pre-money equal to investment (£79k),
 // post-money £158k. Multiple works out at 0.86× 2025 EBITDA (distressed pricing).

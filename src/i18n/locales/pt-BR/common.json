@@ -9,7 +9,9 @@
     "venueInfo": "Informações do Local",
     "businessExplorer": "Explorador do Negócio",
     "plonk": "Plonk",
-    "workbook": "Planilha ↗"
+    "workbook": "Planilha ↗",
+    "notes": "Notas",
+    "notesAction": "📝 Notas"
   },
   "slideNav": {
     "cover": "CAPA",
