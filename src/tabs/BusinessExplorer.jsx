@@ -6,11 +6,11 @@ import BoroughTillSales2025 from './BoroughTillSales2025.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
-import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, WORKBOOK_URL } from '../data.js'
+import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, IP_LICENSING_ONLINE_GOLF_REV_2025, IP_LICENSING_OFFICE_GOLF_REV_2025, IP_LICENSING_VENUE_SAVINGS, IP_LICENSING_VENUE_SAVINGS_ANNUAL, WORKBOOK_URL } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages, useLockedPricing } from '../components/LockedDeckContext.jsx'
+import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages, useLockedPricing, useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -198,6 +198,7 @@ function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCos
   const { t: tc } = useTranslation('common')
   const { fmt, fmtK, fmtNum } = useFmt()
   const wagesCtx = useLockedWages()
+  const commissionsCtx = useLockedCommissions()
   const lineGrowths = buildLineGrowths(growth)
   const BASE_TOTAL = INCOME.reduce((s, i) => s + i.value, 0)
 
@@ -249,27 +250,44 @@ function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCos
   const arcadeAttachAdjust = (matrixTokens2026 - baselineTokens2026) * IP_LICENSING_TOKEN_VALUE
   const arcadesLine        = Math.round(17152 * mult + arcadeAttachAdjust)
 
+  // Office costs (Apps + AI + Accounting + Director). Driven by the
+  // OfficeCostsSection editable matrix; flows here as a single line.
+  const officeCostsTotal = sumOfficeCosts(officeCosts)
+
+  // Plonk Commission — venue cost line under the new IP & Licensing
+  // model. Calculated from commissionable golf revenue (rounds-bearing
+  // SKUs, ex-tokens, ex-mixed-bundles like Game & Drink) × commission %
+  // sourced from the locked Commissions sliders on the IP & Licensing
+  // tab. Online portion scales with growth.golf; office portion same.
+  // Booking fee is intentionally NOT in this cost — it goes to the
+  // bookings system at checkout, never to Plonk or No Dice.
+  const onlineCommissionableRev2026 = IP_LICENSING_ONLINE_GOLF_REV_2025 * golfVolMult
+  const officeCommissionableRev2026 = IP_LICENSING_OFFICE_GOLF_REV_2025 * golfVolMult
+  const plonkCommissionOnline2026   = onlineCommissionableRev2026 * (commissionsCtx.effective.onlinePct / 100)
+  const plonkCommissionOffice2026   = officeCommissionableRev2026 * (commissionsCtx.effective.officePct / 100)
+  const plonkCommission2026         = Math.round(plonkCommissionOnline2026 + plonkCommissionOffice2026)
+  const plonkCommissionNote = t('performance2026.costNotes.plonkCommission')
+
   // ─── Net VAT (computed, replaces the historical 78851*mult line) ───────
   // Output VAT  = revenue × 1/6  (revenue is gross of 20% VAT)
   // Input VAT   = VAT-able costs × 1/6
-  // VAT-able    = fixed + drinks + cleaning + cardCharges
+  // VAT-able    = fixed + drinks + cleaning + cardCharges + plonkCommission
   // Zero-rated  = wages, arcades, food (per business owner)
+  // Plonk Commission is a B2B service from one UK Ltd to another → input
+  // VAT reclaimable.
   // Sense check: 2025 actuals → ~£77.8k, vs P&L £78.85k (1.3% diff) ✓
   const VAT_FRACTION   = 1 / 6
-  const vatableCosts   = fixedLine + drinksGas2026 + cleaningLine + cardChargesLine
+  const vatableCosts   = fixedLine + drinksGas2026 + cleaningLine + cardChargesLine + plonkCommission2026
   const outputVat      = totalIncome * VAT_FRACTION
   const inputVat       = vatableCosts * VAT_FRACTION
   const netVat         = Math.round(outputVat - inputVat)
   const vatComputedNote = t('performance2026.costNotes.vatComputed')
 
-  // Office costs (Apps + AI + Accounting + Director). Driven by the
-  // OfficeCostsSection editable matrix; flows here as a single line.
-  const officeCostsTotal = sumOfficeCosts(officeCosts)
-
   const costsRaw = [
     { labelKey: 'wages',       value: wageBill2026,    note: t('performance2026.costNotes.wagesDriven') },
     { labelKey: 'fixed',       value: fixedLine,        note: t('performance2026.costNotes.fixedDriven') },
     { labelKey: 'office',      value: officeCostsTotal, note: t('performance2026.costNotes.office'), customLabel: t('costCategories.office') },
+    { labelKey: 'plonkCommission', value: plonkCommission2026, note: plonkCommissionNote, customLabel: t('costCategories.plonkCommission') },
     { labelKey: 'drinks',      value: drinksGas2026,    note: t('performance2026.costNotes.drinks') },
     { labelKey: 'vat',         value: netVat,            note: vatComputedNote },
     { labelKey: 'cleaning',    value: cleaningLine,     note: scalesNote },
@@ -594,6 +612,17 @@ function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCos
           {/* OPERATING COSTS — full cost donut + monthly */}
           {activeSection === 'opcosts' && (
             <div style={{ background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:20 }}>
+              {/* IP & Licensing impact banner — pairs the new Plonk Commission cost
+                  with the annual savings the venue gains under the franchise model.
+                  Net benefit makes the story visible at a glance to investors. */}
+              <PlonkCommissionImpactBanner
+                plonkCommission={plonkCommission2026}
+                lockedRates={commissionsCtx.effective}
+                isLocked={commissionsCtx.isLocked}
+                fmt={fmt}
+                onlinePortion={Math.round(plonkCommissionOnline2026)}
+                officePortion={Math.round(plonkCommissionOffice2026)}
+              />
               <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
                 <div style={{ fontSize:11, color:'#9CA3AF', letterSpacing:'0.1em', textTransform:'uppercase' }}>{t('performance2026.costs2026')}</div>
                 <div style={{ fontSize:13, color:'#A78BFA', fontWeight:600 }}>{fmt(totalCosts)}</div>
@@ -1441,6 +1470,87 @@ function KpiCard2026({ label, value, sub, color }) {
 }
 
 // ───────────────────────────────────────────────────────────────────────
+// Plonk Commission Impact Banner — sits above the 2026 cost donut and
+// makes the IP & Licensing economics visible at a glance:
+//   • Plonk Commission paid out (the new cost line, slider-driven)
+//   • Annual savings already realised in this forecast (no bookings
+//     manager / Lithos hosting / SEO / online payment fees)
+//   • Net benefit (savings minus commission)
+//   • One-off saving on Year-1 IP cost (£72k → £22k)
+// Numbers source: IP_LICENSING_VENUE_SAVINGS in data.js — same set
+// rendered on the Plonk · How It Works tab.
+// ───────────────────────────────────────────────────────────────────────
+function PlonkCommissionImpactBanner({ plonkCommission, lockedRates, isLocked, fmt, onlinePortion, officePortion }) {
+  const annualSavings = IP_LICENSING_VENUE_SAVINGS_ANNUAL
+  const netBenefit    = annualSavings - plonkCommission
+  const oneOffSaving  = IP_LICENSING_VENUE_SAVINGS.ipOneOffSaving
+  const netColor      = netBenefit >= 0 ? '#10B981' : '#F87171'
+
+  return (
+    <div style={{
+      background:'rgba(192,132,252,0.05)',
+      border:'1px solid rgba(192,132,252,0.25)',
+      borderLeft:'3px solid #C084FC',
+      borderRadius:10,
+      padding:'14px 18px',
+      marginBottom:16,
+    }}>
+      <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:12, marginBottom:10, flexWrap:'wrap' }}>
+        <div style={{ fontSize:11, color:'#C084FC', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700 }}>IP &amp; Licensing impact on 2026 P&amp;L</div>
+        <div style={{ fontSize:10, color:'var(--cream-dim)', display:'inline-flex', alignItems:'center', gap:6 }}>
+          <span style={{ display:'inline-block', width:6, height:6, borderRadius:'50%', background: isLocked ? '#10B981' : '#FBBF24' }} />
+          {isLocked
+            ? `Locked · ${lockedRates.onlinePct}% online · ${lockedRates.officePct}% office`
+            : `Live preview · ${lockedRates.onlinePct}% online · ${lockedRates.officePct}% office (lock on IP & Licensing tab to pin)`}
+        </div>
+      </div>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10 }}>
+        <ImpactTile
+          label="Plonk Commission"
+          value={fmt(plonkCommission)}
+          sub={`paid to Plonk · ${fmt(onlinePortion)} online + ${fmt(officePortion)} office`}
+          color="#C084FC"
+        />
+        <ImpactTile
+          label="Annual savings"
+          value={fmt(annualSavings)}
+          sub="No bookings mgr · Lithos hosting · SEO · payment fees"
+          color="#10B981"
+        />
+        <ImpactTile
+          label="Net annual benefit"
+          value={(netBenefit >= 0 ? '+' : '') + fmt(netBenefit)}
+          sub="Savings − commission · already in cost stack"
+          color={netColor}
+          emphasised
+        />
+        <ImpactTile
+          label="One-off Y1 saving"
+          value={fmt(oneOffSaving) + '+'}
+          sub="vs old £72k IP & Goodwill purchase"
+          color="var(--gold)"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ImpactTile({ label, value, sub, color, emphasised }) {
+  return (
+    <div style={{
+      background: emphasised ? 'rgba(16,185,129,0.06)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${emphasised ? color + '60' : 'rgba(255,255,255,0.06)'}`,
+      borderRadius:8,
+      padding:'10px 12px',
+    }}>
+      <div style={{ fontSize:9.5, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:6, fontWeight:600 }}>{label}</div>
+      <div className="serif" style={{ fontSize:emphasised ? 22 : 18, color, lineHeight:1, marginBottom:5, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>{sub}</div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
 // Cashflow Forecast — 12 months from May 2026 → Apr 2027
 //
 // Mirrors the structure of the workbook's "Cash Flow Forecast" sheet but
@@ -1513,7 +1623,14 @@ function TabCashflow({ growth }) {
   const { snapshot, isLocked } = useLockedForecast()
   const { effective: funding } = useLockedFunding()
   const { isLocked: isWagesLocked, effective: wagesEffective } = useLockedWages()
+  const commissionsCtx = useLockedCommissions()
   const wagesLine = isWagesLocked ? wagesEffective.loadedAnnual : 242370 * 1.10
+  // Plonk Commission line builder — consistent with TabPerformance and
+  // the deck slides so all four cost stacks reconcile.
+  const buildCommissionLine = (mult) => (
+    IP_LICENSING_ONLINE_GOLF_REV_2025 * mult * (commissionsCtx.effective.onlinePct / 100) +
+    IP_LICENSING_OFFICE_GOLF_REV_2025 * mult * (commissionsCtx.effective.officePct / 100)
+  )
   const INVESTOR_CAPITAL  = funding.investment    // tracks the locked Cover slider
   const RENT_3MO_RESERVE  = funding.rent          // tracks the Use of Funds rent snap
 
@@ -1543,6 +1660,7 @@ function TabCashflow({ growth }) {
       + 54400 * 1.10                           // non-rent fixed
       + rev * 0.15                              // rent (15% of revenue)
       + bar * 0.30                              // drinks
+      + buildCommissionLine(sc.mult)            // Plonk commission — golf-only rev × locked rates
       + 78851 * sc.mult                         // VAT
       + 22965 * sc.mult                         // cleaning
       + 17152 * sc.mult                         // arcades

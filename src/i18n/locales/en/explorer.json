@@ -169,6 +169,7 @@
     "wages": "Wages",
     "fixed": "Fixed Costs",
     "office": "Office & Admin",
+    "plonkCommission": "Plonk Commission",
     "drinks": "Drinks & Gas",
     "vat": "VAT (Net)",
     "cleaning": "Cleaning",
@@ -213,6 +214,7 @@
       "drinks": "30% of bar revenue (2025 actual was 22.5%)",
       "scales": "Scales with aggregate revenue",
       "office": "Apps, AI, accountant fees and director's salary — driven by the Office Costs section below.",
+      "plonkCommission": "Commission paid to Plonk Golf on golf ticket revenue (online + office channels). Driven by the locked Commissions sliders on the IP & Licensing tab — booking fee excluded (goes to the bookings system, not Plonk).",
       "arcades": "Operator cost = sum of (tokens × volume) across all SKUs × £0.325. Lower per-SKU tokens in the Ticket Price Maker below to cut this.",
       "vatComputed": "Output VAT (revenue × 1/6) − reclaimed Input VAT — wages, arcades and food are zero-rated",
       "other": "Other"

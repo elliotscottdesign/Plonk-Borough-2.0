@@ -4,6 +4,8 @@ import {
   DEAL, ACTUALS_2025,
   BOROUGH_INVESTOR_RETURNS, BOROUGH_WORKING_CAPITAL_CUSHION,
   computeBoroughDistributionCalendar,
+  IP_LICENSING_ONLINE_GOLF_REV_2025,
+  IP_LICENSING_OFFICE_GOLF_REV_2025,
 } from '../data.js'
 
 // 2026 cost model constants — duplicated from InvestmentSummary so the
@@ -13,7 +15,7 @@ const HISTORICAL_NON_RENT_FIXED_2025 = 54400
 const RENT_PCT_OF_TURNOVER           = 0.15
 const BAR_2025                       = 362836
 
-function calcScenarioProfit(multiplier, wagesLine) {
+function calcScenarioProfit(multiplier, wagesLine, commissionLine) {
   const revenue = ACTUALS_2025.revenue * multiplier
   const bar     = BAR_2025 * multiplier
   const costs =
@@ -21,6 +23,7 @@ function calcScenarioProfit(multiplier, wagesLine) {
     + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // non-rent fixed +10%
     + revenue * RENT_PCT_OF_TURNOVER             // rent = 15% of turnover
     + bar * 0.30                                  // drinks = 30% of bar
+    + commissionLine                              // Plonk commission — golf-only rev × locked rates
     + 78851 * multiplier                          // VAT
     + 22965 * multiplier                          // cleaning
     + 17152 * multiplier                          // arcades
@@ -31,7 +34,7 @@ function calcScenarioProfit(multiplier, wagesLine) {
 import { formatCurrency } from '../i18n/format.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedWages } from '../components/LockedDeckContext.jsx'
+import { useLockedWages, useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
 function calcWaterfall(profit, totalRaise) {
   // Pure pro-rata — operating profit splits directly by equity %. No preferred, no A-share priority.
@@ -75,9 +78,15 @@ export default function WaterfallReturns() {
   const { snapshot, isLocked: forecastIsLocked } = useLockedForecast()
   const { effective: funding, isLocked: fundingIsLocked } = useLockedFunding()
   const { isLocked: isWagesLocked, effective: wagesEffective } = useLockedWages()
+  const commissionsCtx = useLockedCommissions()
   // Wages line for scenario costs — locked Sliding Wage Rate Calculator
   // value when set, else the historical 2025 P&L wage line + 10%.
   const wagesLine = isWagesLocked ? wagesEffective.loadedAnnual : 242370 * 1.10
+  // Plonk Commission line — golf-only rev × locked rates (or defaults).
+  const buildCommissionLine = (mult) => (
+    IP_LICENSING_ONLINE_GOLF_REV_2025 * mult * (commissionsCtx.effective.onlinePct / 100) +
+    IP_LICENSING_OFFICE_GOLF_REV_2025 * mult * (commissionsCtx.effective.officePct / 100)
+  )
   const fundingAmount = funding.investment
 
   // Working-capital safe-zone — Borough's floor is the locked rent prepay
@@ -90,15 +99,15 @@ export default function WaterfallReturns() {
   // Performance tab is locked, snapshot.opProfit (= profitAfterVat)
   // populates the Custom card. When unlocked, Custom is greyed out
   // and falls back to base.
-  const customProfit = snapshot?.opProfit ?? calcScenarioProfit(1.15, wagesLine)
+  const customProfit = snapshot?.opProfit ?? calcScenarioProfit(1.15, wagesLine, buildCommissionLine(1.15))
 
   // Scenario profits are computed dynamically from the same 2026 cost
   // model Investment Summary uses, so the two slides agree number-for-
   // number. Multipliers match Investment Summary: 1.10 / 1.15 / 1.20.
   const SCENARIOS = {
-    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: calcScenarioProfit(1.10, wagesLine), color: '#E53935' },
-    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: calcScenarioProfit(1.15, wagesLine), color: '#C9A84C' },
-    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: calcScenarioProfit(1.20, wagesLine), color: '#2DD4BF' },
+    bear:   { label: t('scenarios.bear'),   badge: t('scenarioBadges.bear'),   profit: calcScenarioProfit(1.10, wagesLine, buildCommissionLine(1.10)), color: '#E53935' },
+    base:   { label: t('scenarios.base'),   badge: t('scenarioBadges.base'),   profit: calcScenarioProfit(1.15, wagesLine, buildCommissionLine(1.15)), color: '#C9A84C' },
+    bull:   { label: t('scenarios.bull'),   badge: t('scenarioBadges.bull'),   profit: calcScenarioProfit(1.20, wagesLine, buildCommissionLine(1.20)), color: '#2DD4BF' },
     custom: {
       label:  t('scenarios.custom'),
       badge:  forecastIsLocked ? t('scenarioBadges.custom') : t('scenarioBadges.customUnlocked'),

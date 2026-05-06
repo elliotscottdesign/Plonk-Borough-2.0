@@ -10,6 +10,7 @@ import {
 } from '../data.js'
 import ResetBtn from '../components/ResetBtn.jsx'
 import MarketingUpliftCard from '../components/MarketingUpliftCard.jsx'
+import { useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmt0 = n => '£' + Math.round(n).toLocaleString()
@@ -104,7 +105,7 @@ function sumRev(rows, predicate = () => true) {
 }
 
 // --- Commission slider card (reused for Section A and B) ---
-function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalChannelRev, golfRev, nonGolfRev, max = 30, helperText, defaultValue = 10 }) {
+function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalChannelRev, golfRev, nonGolfRev, max = 30, helperText, defaultValue = 10, canEdit = true }) {
   const commission = golfRev * (value / 100)
   return (
     <div style={{ background: 'var(--ink-2)', border: `1px solid ${accent}60`, borderRadius: 10, padding: 18 }}>
@@ -112,11 +113,11 @@ function CommissionSliderCard({ label, subtitle, value, onChange, accent, totalC
         <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>{label}</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <div style={{ fontSize: 18, color: accent, fontWeight: 700 }}>{value}%</div>
-          <ResetBtn onClick={() => onChange(defaultValue)} title={`Reset to ${defaultValue}%`} />
+          <ResetBtn onClick={() => { if (canEdit) onChange(defaultValue) }} title={`Reset to ${defaultValue}%`} />
         </div>
       </div>
       <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 12, lineHeight: 1.5 }}>{subtitle}</div>
-      <input type="range" min={0} max={max} step={0.5} value={value} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: accent }} />
+      <input type="range" min={0} max={max} step={0.5} value={value} disabled={!canEdit} onChange={e => onChange(Number(e.target.value))} style={{ width: '100%', accentColor: accent, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
       <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 2, marginBottom: 14 }}>
         <span>0%</span><span>{max}%</span>
       </div>
@@ -273,9 +274,17 @@ export default function IPLicensing() {
   const g = IP_LICENSING_GRAND_2025
   const onlinePct = g.totalQty ? g.onlineQty / g.totalQty : 0
 
-  // Commission state — feeds the Commissions section AND the 2026 bubble AND the Plonk × Venue P&L
-  const [commissionOnlinePct, setCommissionOnlinePct] = useState(10)
-  const [commissionOfficePct, setCommissionOfficePct] = useState(10)
+  // Commission state — sourced from the LockedDeckContext so the
+  // founder's slider positions cascade into the venue P&L (Business
+  // Explorer · 2026 Performance) and every scenario calc in the deck.
+  // Booking fee stays local — it's not Plonk's revenue under the new
+  // model (it's collected at checkout and goes to the bookings system
+  // to cover its costs), so it never appears as a venue cost.
+  const commissionsLock = useLockedCommissions()
+  const commissionOnlinePct = commissionsLock.effective.onlinePct
+  const commissionOfficePct = commissionsLock.effective.officePct
+  const setCommissionOnlinePct = (v) => commissionsLock.setRate('onlinePct', v)
+  const setCommissionOfficePct = (v) => commissionsLock.setRate('officePct', v)
   const [bookingFeePct, setBookingFeePct] = useState(IP_LICENSING_BOOKING_FEE_PCT * 100)
 
   const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku)
@@ -435,6 +444,7 @@ export default function IPLicensing() {
               commission2026BookingFees={commission2026BookingFees}
               commission2026={commission2026}
               accent={COMMISSION_CYAN}
+              commissionsLock={commissionsLock}
             />
           )}
 
@@ -515,15 +525,21 @@ function CommissionsSection({
   onlineGrossAll,
   commission2026Online, commission2026Office, commission2026BookingFees, commission2026,
   accent,
+  commissionsLock,
 }) {
+  const { isLocked, isFounder, snapshot, lock, unlock, reset } = commissionsLock || {}
+  const lockedAtLabel = snapshot?.lockedAt
+    ? new Date(snapshot.lockedAt).toLocaleString('en-GB', { dateStyle:'medium', timeStyle:'short' })
+    : null
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: `${accent}10`, border: `1px solid ${accent}40`, borderRadius: 10, padding: 18 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10 }}>
+      <div style={{ background: `${accent}10`, border: `1px solid ${isLocked ? 'rgba(16,185,129,0.5)' : accent + '40'}`, borderRadius: 10, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 10, gap:12, flexWrap:'wrap' }}>
           <div>
             <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>Commissions · 2026 Plonk income from venue</div>
             <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-              Three sliders — online golf %, office golf %, booking fee %. Total feeds the 2026 Plonk Commission bubble at the top.
+              Two locked sliders cascade into the 2026 Performance cost donut as <strong style={{ color:'var(--cream)' }}>Plonk Commission</strong>. Booking fee is collected at checkout but goes to the bookings system — never to Plonk or the venue.
             </div>
           </div>
           <div style={{ textAlign: 'right' }}>
@@ -532,7 +548,35 @@ function CommissionsSection({
             <div style={{ fontSize: 11, color: '#6B7280', marginTop: 2 }}>matches top bubble</div>
           </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 6 }}>
+
+        {/* Lock toolbar — Live preview / Locked pill on the left, Reset / Lock on the right */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:12, marginTop:12, flexWrap:'wrap' }}>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'3px 10px', borderRadius:12,
+            background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+            fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase',
+          }}>
+            <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+            {isLocked
+              ? (lockedAtLabel ? `Locked · ${lockedAtLabel} · cascades to 2026 Performance` : 'Locked · cascades to 2026 Performance')
+              : 'Live preview · slide values cascade once locked'}
+          </span>
+          {isFounder && (
+            <div style={{ display:'flex', gap:6 }}>
+              <button onClick={reset} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+              {isLocked ? (
+                <button onClick={unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+              ) : (
+                <button onClick={lock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, marginTop: 14 }}>
           <MiniStat label="Online golf commission" value={fmt0(commission2026Online)} color={accent} />
           <MiniStat label="Office golf commission" value={fmt0(commission2026Office)} color={accent} />
           <MiniStat label="Booking fees collected" value={fmt0(commission2026BookingFees)} color={accent} />
@@ -549,6 +593,7 @@ function CommissionsSection({
         golfRev={onlineGolfRev}
         nonGolfRev={onlineNonGolfRev}
         helperText="Excluded from commission: Pool Table Reservation, Doubles Pool Tournament, Extra Arcade Tokens."
+        canEdit={!!commissionsLock?.canEdit}
       />
 
       <CommissionSliderCard
@@ -561,6 +606,7 @@ function CommissionsSection({
         golfRev={officeGolfRev}
         nonGolfRev={officeNonGolfRev}
         helperText="Same golf-only scope as online. Office-channel revenue is imputed at SKU list price — Plonk Golf commission on it is a modelled scenario, not a current revenue stream."
+        canEdit={!!commissionsLock?.canEdit}
       />
 
       <BookingFeeSliderCard

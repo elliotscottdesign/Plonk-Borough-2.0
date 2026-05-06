@@ -672,14 +672,32 @@ export const IP_LICENSING_DEFAULT_COMMISSIONS = {
   officePct: 10,    // % of office golf bookings revenue (imputed at list price)
 }
 
-// Office-golf revenue baseline — sum of golf SKU revenue from the 2025
-// office channel, imputed at SKU list price. Used by 2026 Performance
-// and the deck slides to scale the office portion of commission with
-// the golf growth lever (same approach the IP & Licensing tab uses).
-export const IP_LICENSING_OFFICE_GOLF_REV_2025 =
-  IP_LICENSING_SKUS_OFFICE_2025
-    .filter(s => s.rounds > 0)
-    .reduce((sum, s) => sum + s.revenue, 0)
+// Commissionable golf revenue — Plonk Golf's commission applies only
+// to the GOLF ROUND portion of each ticket. Three filter rules:
+//   1. Keep only SKUs that carry a golf round (rounds > 0)
+//   2. Exclude mixed bundles where a non-golf component (drink) is
+//      bundled in — currently just "Game & Drink"
+//   3. Within each remaining SKU, deduct the token component (tokens
+//      × IP_LICENSING_TOKEN_VALUE × sold) so commission only lands
+//      on the pure golf portion
+//
+// Used by 2026 Performance and every scenario calc in the deck to
+// scale commission with the golf growth lever.
+const COMMISSION_EXCLUDED_BUNDLES = new Set([
+  'Game & Drink',                  // golf + drink mixed bundle, no clean split
+])
+const _commissionableGolfRev = (skus) =>
+  skus
+    .filter(s => s.rounds > 0 && !COMMISSION_EXCLUDED_BUNDLES.has(s.sku))
+    .reduce((sum, s) => sum + (s.revenue - s.tokens * IP_LICENSING_TOKEN_VALUE * s.sold), 0)
+
+// Online golf-only revenue (commissionable, ex-tokens, ex-mixed-bundles).
+// 2025 baseline ≈ £186,484. Multiplied by golf growth factor for 2026.
+export const IP_LICENSING_ONLINE_GOLF_REV_2025 = _commissionableGolfRev(IP_LICENSING_SKUS_ONLINE_2025)
+
+// Office golf-only revenue (commissionable, ex-tokens, ex-mixed-bundles).
+// 2025 baseline ≈ £52,446. Imputed at SKU list price × volume.
+export const IP_LICENSING_OFFICE_GOLF_REV_2025 = _commissionableGolfRev(IP_LICENSING_SKUS_OFFICE_2025)
 
 // === IP & LICENSING — VENUE ANNUAL SAVINGS ===
 // Cost lines that move OFF the venue P&L under the new Plonk Golf

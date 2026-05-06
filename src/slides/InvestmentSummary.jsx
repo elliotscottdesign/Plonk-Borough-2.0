@@ -1,10 +1,14 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
-import { DEAL, ACTUALS_2025, computeDealFromInvestment } from '../data.js'
+import {
+  DEAL, ACTUALS_2025, computeDealFromInvestment,
+  IP_LICENSING_ONLINE_GOLF_REV_2025,
+  IP_LICENSING_OFFICE_GOLF_REV_2025,
+} from '../data.js'
 import { formatCurrency } from '../i18n/format.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedWages } from '../components/LockedDeckContext.jsx'
+import { useLockedWages, useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
 // Scenario returns — pure pro-rata on operating profit (no preferred, no A-share priority).
 // Uses the realistic 2026 cost model: wages +10%, non-rent fixed +10%, drinks = 30% of bar,
@@ -17,7 +21,7 @@ import { useLockedWages } from '../components/LockedDeckContext.jsx'
 const HISTORICAL_NON_RENT_FIXED_2025 = 54400
 const RENT_PCT_OF_TURNOVER           = 0.15
 
-function calcReturns(multiplier, totalRaise, wagesLine) {
+function calcReturns(multiplier, totalRaise, wagesLine, commissionLine) {
   const revenue = ACTUALS_2025.revenue * multiplier
   const bar = 362836 * multiplier
   const costs =
@@ -25,6 +29,7 @@ function calcReturns(multiplier, totalRaise, wagesLine) {
     + HISTORICAL_NON_RENT_FIXED_2025 * 1.10      // non-rent fixed costs +10%
     + revenue * RENT_PCT_OF_TURNOVER             // rent = 15% of turnover (NO inflation)
     + bar * 0.30                                 // drinks = 30% of bar
+    + commissionLine                             // Plonk commission — locked sliders if set, else 10%/10% on golf rev
     + 78851 * multiplier                         // VAT
     + 22965 * multiplier                         // cleaning
     + 17152 * multiplier                         // arcades
@@ -58,10 +63,18 @@ export default function InvestmentSummary() {
   const { snapshot, isLocked } = useLockedForecast()
   const { effective: funding } = useLockedFunding()
   const { isLocked: isWagesLocked, effective: wagesEffective } = useLockedWages()
+  const commissionsCtx = useLockedCommissions()
   // Wages line for scenario costs — when the founder has locked the
   // Sliding Wage Rate Calculator, use its loadedAnnual; otherwise fall
   // back to the historical 2025 P&L wage line + 10% inflation.
   const wagesLine = isWagesLocked ? wagesEffective.loadedAnnual : 242370 * 1.10
+  // Plonk Commission line — golf-only revenue × locked rates (or
+  // defaults). Same data source as Business Explorer · 2026 Performance
+  // so the scenario cards reconcile with the cost donut.
+  const buildCommissionLine = (mult) => (
+    IP_LICENSING_ONLINE_GOLF_REV_2025 * mult * (commissionsCtx.effective.onlinePct / 100) +
+    IP_LICENSING_OFFICE_GOLF_REV_2025 * mult * (commissionsCtx.effective.officePct / 100)
+  )
 
   // Single source of truth for the deal — derived from the live / locked
   // funding amount on the Cover slide. As that slider drags, every figure
@@ -88,7 +101,7 @@ export default function InvestmentSummary() {
   const s = SCENARIOS[activeKey]
   const r = activeKey === 'custom' && snapshot
     ? calcReturnsFromSnapshot(snapshot, fundingAmount)
-    : calcReturns(s.multiplier, fundingAmount, wagesLine)
+    : calcReturns(s.multiplier, fundingAmount, wagesLine, buildCommissionLine(s.multiplier))
 
   const paybackVal = isFinite(r.payback)
     ? t('rows.paybackYears', { n: r.payback.toFixed(1) })
