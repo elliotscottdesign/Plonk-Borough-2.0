@@ -56,7 +56,7 @@ export const LOCK_SYNC_SECRET = ''
 //   GET  ?code=<CODE>           → { notes: <blob>|null }
 //   GET  ?all=1&secret=<SECRET> → { rows: [{ code, notes, updatedAt }] }
 //   POST { code, notes, page, text, secret? } → upserts row + emails founder
-export const NOTES_SYNC_URL = ''
+export const NOTES_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxnfgCTDYsjvQdBWwO3Fjta6tQiFCsWkSHuSJUvvfXidawoEhPg7eHsNX6rm4ZEk60osg/exec'
 export const NOTES_SYNC_SECRET = ''
 // Founder email — receives a notification when any user leaves a note.
 export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
