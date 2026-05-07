@@ -157,6 +157,13 @@ const FIXED_COSTS_LOCK_KEY = 'ndb_fixed_costs_locked_v1'
 // totals via the locked snapshot.
 const OFFICE_COSTS_LOCK_KEY = 'ndb_office_costs_locked_v1'
 
+// ─── Plonk Golf × Venue interactive model lock — IP & Licensing tab.
+// Stores the founder's scenario inputs (volume uplift + Plonk-Golf-side
+// cost sliders) for the 'Plonk × No Dice' founder-only view. Section is
+// gated to access code 888999 so this lock is effectively a personal
+// scenario-saver across devices for the founder.
+const PLONK_MODEL_LOCK_KEY = 'ndb_plonk_model_locked_v1'
+
 // ─── Commissions lock — IP & Licensing Commissions sliders. Stores
 // the founder's online + office commission % rates so the figure
 // cascades into the venue P&L cost stack on Business Explorer · 2026
@@ -295,6 +302,32 @@ const isValidFixedCostsLock = (v) =>
 
 const isValidOfficeCostsLock = (v) =>
   v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+const isValidPlonkModelLock = (v) =>
+  v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+function readPersistedPlonkModelLock() {
+  if (typeof window !== 'undefined' && window.__NDB_PLONK_MODEL_LOCK !== undefined) {
+    const fromServer = window.__NDB_PLONK_MODEL_LOCK
+    try {
+      if (fromServer && isValidPlonkModelLock(fromServer)) {
+        localStorage.setItem(namespacedKey(PLONK_MODEL_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(PLONK_MODEL_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidPlonkModelLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(namespacedKey(PLONK_MODEL_LOCK_KEY))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidPlonkModelLock(parsed) ? parsed : null
+  } catch { return null }
+}
 
 function readPersistedOfficeCostsLock() {
   if (typeof window !== 'undefined' && window.__NDB_OFFICE_COSTS_LOCK !== undefined) {
@@ -478,6 +511,15 @@ const OfficeCostsCtx = createContext({
   unlock: () => {},
 })
 
+const PlonkModelCtx = createContext({
+  locked: null,        // { values: {...}, lockedAt: ISO } | null
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  lock: () => {},      // (values: object) => void
+  unlock: () => {},
+})
+
 const WagesCtx = createContext({
   rows: defaultWageRows(),
   effective: deriveWageSnapshot(defaultWageRows()),
@@ -546,6 +588,9 @@ export function LockedDeckProvider({ children }) {
   // ─── Office-costs state ───────────────────────────────────────────
   const [officeCostsLock, setOfficeCostsLock] = useState(readPersistedOfficeCostsLock)
 
+  // ─── Plonk-model state ────────────────────────────────────────────
+  const [plonkModelLock, setPlonkModelLock] = useState(readPersistedPlonkModelLock)
+
   // ─── Pricing state ────────────────────────────────────────────────
   const [pricingLock, setPricingLock] = useState(readPersistedPricingLock)
 
@@ -576,6 +621,7 @@ export function LockedDeckProvider({ children }) {
   const ticketVolumeRef = useRef(ticketVolumeLock)
   const fixedCostsRef   = useRef(fixedCostsLock)
   const officeCostsRef  = useRef(officeCostsLock)
+  const plonkModelRef   = useRef(plonkModelLock)
   const wagesRef        = useRef(wagesLock)
   const pricingRef      = useRef(pricingLock)
   const commissionsRef  = useRef(commissionsLock)
@@ -584,6 +630,7 @@ export function LockedDeckProvider({ children }) {
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
   useEffect(() => { fixedCostsRef.current   = fixedCostsLock    }, [fixedCostsLock])
   useEffect(() => { officeCostsRef.current  = officeCostsLock   }, [officeCostsLock])
+  useEffect(() => { plonkModelRef.current   = plonkModelLock    }, [plonkModelLock])
   useEffect(() => { wagesRef.current        = wagesLock         }, [wagesLock])
   useEffect(() => { pricingRef.current      = pricingLock       }, [pricingLock])
   useEffect(() => { commissionsRef.current  = commissionsLock   }, [commissionsLock])
@@ -619,8 +666,9 @@ export function LockedDeckProvider({ children }) {
         let wages = null
         let pricing = null
         let commissions = null
+        let plonkModel = null
         if (raw && typeof raw === 'object') {
-          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'wages' in raw || 'pricing' in raw || 'commissions' in raw) {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'wages' in raw || 'pricing' in raw || 'commissions' in raw || 'plonkModel' in raw) {
             funding      = raw.funding      ?? null
             forecast     = raw.forecast     ?? null
             ticketVolume = raw.ticketVolume ?? null
@@ -629,6 +677,7 @@ export function LockedDeckProvider({ children }) {
             wages        = raw.wages        ?? null
             pricing      = raw.pricing      ?? null
             commissions  = raw.commissions  ?? null
+            plonkModel   = raw.plonkModel   ?? null
           } else if (Number.isFinite(raw.revenue)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -643,6 +692,7 @@ export function LockedDeckProvider({ children }) {
         setWagesLock(isValidWageLock(wages) ? wages : null)
         setPricingLock(isValidPricingLock(pricing) ? pricing : null)
         setCommissionsLock(isValidCommissionsLock(commissions) ? commissions : null)
+        setPlonkModelLock(isValidPlonkModelLock(plonkModel) ? plonkModel : null)
         // Mirror to localStorage (namespaced) so subsequent reloads on
         // this device skip the network round-trip for first paint.
         try {
@@ -670,6 +720,11 @@ export function LockedDeckProvider({ children }) {
             localStorage.setItem(namespacedKey(OFFICE_COSTS_LOCK_KEY), JSON.stringify(officeCosts))
           } else {
             localStorage.removeItem(namespacedKey(OFFICE_COSTS_LOCK_KEY))
+          }
+          if (isValidPlonkModelLock(plonkModel)) {
+            localStorage.setItem(namespacedKey(PLONK_MODEL_LOCK_KEY), JSON.stringify(plonkModel))
+          } else {
+            localStorage.removeItem(namespacedKey(PLONK_MODEL_LOCK_KEY))
           }
           if (isValidWageLock(wages)) {
             localStorage.setItem(namespacedKey(WAGES_LOCK_KEY), JSON.stringify(wages))
@@ -715,6 +770,7 @@ export function LockedDeckProvider({ children }) {
     ticketVolume: 'ticketVolume' in overrides ? overrides.ticketVolume : ticketVolumeRef.current,
     fixedCosts:   'fixedCosts'   in overrides ? overrides.fixedCosts   : fixedCostsRef.current,
     officeCosts:  'officeCosts'  in overrides ? overrides.officeCosts  : officeCostsRef.current,
+    plonkModel:   'plonkModel'   in overrides ? overrides.plonkModel   : plonkModelRef.current,
     wages:        'wages'        in overrides ? overrides.wages        : wagesRef.current,
     pricing:      'pricing'      in overrides ? overrides.pricing      : pricingRef.current,
     commissions:  'commissions'  in overrides ? overrides.commissions  : commissionsRef.current,
@@ -733,6 +789,8 @@ export function LockedDeckProvider({ children }) {
   const fixedCostsCanEdit     = isFounder && !fixedCostsIsLocked
   const officeCostsIsLocked   = officeCostsLock !== null
   const officeCostsCanEdit    = isFounder && !officeCostsIsLocked
+  const plonkModelIsLocked    = plonkModelLock !== null
+  const plonkModelCanEdit     = isFounder && !plonkModelIsLocked
   const wagesIsLocked         = wagesLock !== null
   const wagesCanEdit          = isFounder && !wagesIsLocked
   const pricingIsLocked       = pricingLock !== null
@@ -871,6 +929,27 @@ export function LockedDeckProvider({ children }) {
     setOfficeCostsLock(null)
     try { localStorage.removeItem(namespacedKey(OFFICE_COSTS_LOCK_KEY)) } catch {}
     syncContainerToServer(buildContainer({ officeCosts: null }))
+  }, [isFounder])
+
+  // ─── Plonk-model API ──────────────────────────────────────────────
+  // Founder-only lock for the IP & Licensing → Plonk × No Dice
+  // interactive model (volume uplift + Plonk-Golf cost sliders +
+  // maintenance). Section is gated to 888999 so this is effectively a
+  // personal scenario-saver across devices.
+  const lockPlonkModel = useCallback((values) => {
+    if (!isFounder) return
+    if (!values || typeof values !== 'object') return
+    const stamped = { values: { ...values }, lockedAt: new Date().toISOString() }
+    setPlonkModelLock(stamped)
+    try { localStorage.setItem(namespacedKey(PLONK_MODEL_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ plonkModel: stamped }))
+  }, [isFounder])
+
+  const unlockPlonkModel = useCallback(() => {
+    if (!isFounder) return
+    setPlonkModelLock(null)
+    try { localStorage.removeItem(namespacedKey(PLONK_MODEL_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ plonkModel: null }))
   }, [isFounder])
 
   // ─── Pricing API ──────────────────────────────────────────────────
@@ -1022,6 +1101,15 @@ export function LockedDeckProvider({ children }) {
     unlock: unlockOfficeCosts,
   }
 
+  const plonkModelValue = {
+    locked: plonkModelLock,
+    isLocked: plonkModelIsLocked,
+    isFounder,
+    canEdit: plonkModelCanEdit,
+    lock: lockPlonkModel,
+    unlock: unlockPlonkModel,
+  }
+
   const wagesValue = {
     rows: wagesIsLocked ? wagesLock.rows : wageRows,
     effective: wagesEffective,
@@ -1066,7 +1154,9 @@ export function LockedDeckProvider({ children }) {
               <WagesCtx.Provider value={wagesValue}>
                 <PricingCtx.Provider value={pricingValue}>
                   <CommissionsCtx.Provider value={commissionsValue}>
-                    {children}
+                    <PlonkModelCtx.Provider value={plonkModelValue}>
+                      {children}
+                    </PlonkModelCtx.Provider>
                   </CommissionsCtx.Provider>
                 </PricingCtx.Provider>
               </WagesCtx.Provider>
@@ -1097,6 +1187,10 @@ export function useLockedFixedCosts() {
 
 export function useLockedOfficeCosts() {
   return useContext(OfficeCostsCtx)
+}
+
+export function useLockedPlonkModel() {
+  return useContext(PlonkModelCtx)
 }
 
 export function useLockedWages() {

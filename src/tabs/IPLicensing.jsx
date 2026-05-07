@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react'
+import React, { useState, useMemo, useEffect } from 'react'
 import {
   IP_LICENSING_SKUS_ONLINE_2025,
   IP_LICENSING_SKUS_OFFICE_2025,
@@ -10,7 +10,7 @@ import {
 } from '../data.js'
 import ResetBtn from '../components/ResetBtn.jsx'
 import MarketingUpliftCard from '../components/MarketingUpliftCard.jsx'
-import { useLockedCommissions } from '../components/LockedDeckContext.jsx'
+import { useLockedCommissions, useLockedPlonkModel } from '../components/LockedDeckContext.jsx'
 import { getAccessCode } from '../lib/access-code.js'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -142,16 +142,70 @@ function MiniStat({ label, value, color, emphasised }) {
 }
 
 // --- Plonk Golf × Venue model (reads commission + booking fee from parent state) ---
+// Defaults for the scenario inputs. Maintenance default = £3,000/yr
+// (12 × £250) — historically the on-site upkeep allocated to Plonk
+// Golf's side. Now slider-driven (user can model £0 → £15k/yr).
+const PLONK_MODEL_DEFAULTS = {
+  volumeUplift:    0,
+  webCost:         6000,
+  seoCost:         6000,
+  botCost:         1200,
+  accountancyCost: 3000,
+  maintenanceCost: 3000,
+}
+
 function CommissionModel({ commissionOnlinePct, commissionOfficePct, bookingFeePct }) {
-  const [volumeUplift, setVolumeUplift] = useState(0)
-  const [webCost, setWebCost] = useState(6000)
-  const [seoCost, setSeoCost] = useState(6000)
-  const [botCost, setBotCost] = useState(1200)
-  const [accountancyCost, setAccountancyCost] = useState(3000)
-  const maintenanceCost = 12 * 250
+  // Locked snapshot of the scenario (founder-pinned, cross-device).
+  // When locked, the inputs come from the snapshot — sliders disabled.
+  // When unlocked, inputs are local working state seeded from the last
+  // locked snapshot (or defaults).
+  const modelLock = useLockedPlonkModel()
+  const lockedValues = modelLock.locked?.values
+  const seedValues = lockedValues || PLONK_MODEL_DEFAULTS
+
+  const [volumeUplift, setVolumeUplift]       = useState(seedValues.volumeUplift)
+  const [webCost, setWebCost]                 = useState(seedValues.webCost)
+  const [seoCost, setSeoCost]                 = useState(seedValues.seoCost)
+  const [botCost, setBotCost]                 = useState(seedValues.botCost)
+  const [accountancyCost, setAccountancyCost] = useState(seedValues.accountancyCost)
+  const [maintenanceCost, setMaintenanceCost] = useState(seedValues.maintenanceCost)
+
+  // Re-seed local state when a lock arrives (cross-device hydrate or
+  // founder lock action) so unlocking resumes editing from the latest
+  // locked snapshot rather than stale defaults.
+  useEffect(() => {
+    if (lockedValues) {
+      if (Number.isFinite(lockedValues.volumeUplift))    setVolumeUplift(lockedValues.volumeUplift)
+      if (Number.isFinite(lockedValues.webCost))         setWebCost(lockedValues.webCost)
+      if (Number.isFinite(lockedValues.seoCost))         setSeoCost(lockedValues.seoCost)
+      if (Number.isFinite(lockedValues.botCost))         setBotCost(lockedValues.botCost)
+      if (Number.isFinite(lockedValues.accountancyCost)) setAccountancyCost(lockedValues.accountancyCost)
+      if (Number.isFinite(lockedValues.maintenanceCost)) setMaintenanceCost(lockedValues.maintenanceCost)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modelLock.locked])
+
+  // Effective values that drive the P&L — locked snapshot if locked,
+  // else live editing state.
+  const eff = lockedValues
+    ? {
+        volumeUplift:    lockedValues.volumeUplift    ?? volumeUplift,
+        webCost:         lockedValues.webCost         ?? webCost,
+        seoCost:         lockedValues.seoCost         ?? seoCost,
+        botCost:         lockedValues.botCost         ?? botCost,
+        accountancyCost: lockedValues.accountancyCost ?? accountancyCost,
+        maintenanceCost: lockedValues.maintenanceCost ?? maintenanceCost,
+      }
+    : { volumeUplift, webCost, seoCost, botCost, accountancyCost, maintenanceCost }
+
+  const isLocked = modelLock.isLocked
+  const canEdit  = !isLocked && modelLock.isFounder
+  const lockedAtLabel = modelLock.locked?.lockedAt
+    ? new Date(modelLock.locked.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
 
   const m = useMemo(() => {
-    const upliftFactor = 1 + volumeUplift / 100
+    const upliftFactor = 1 + eff.volumeUplift / 100
     // Online: full (all SKUs) and golf-only
     const onlineGrossAll = IP_LICENSING_GRAND_2025.onlineRev * upliftFactor
     const onlineGolfRev = sumRev(IP_LICENSING_SKUS_ONLINE_2025, isGolfSku) * upliftFactor
@@ -168,26 +222,56 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct, bookingFeeP
     const paymentFees = (onlineGrossAll + officeGrossAll) * IP_LICENSING_PAYMENT_FEE_PCT
 
     const plonkGolfRevenue = bookingFees + commissionOnline + commissionOffice
-    const plonkGolfCosts = maintenanceCost + webCost + seoCost + botCost + accountancyCost + paymentFees
+    const plonkGolfCosts = eff.maintenanceCost + eff.webCost + eff.seoCost + eff.botCost + eff.accountancyCost + paymentFees
     const plonkGolfNet = plonkGolfRevenue - plonkGolfCosts
     const totalTokenCost = IP_LICENSING_SKUS_ONLINE_2025.reduce((a, s) => a + s.sold * upliftFactor * s.tokens * IP_LICENSING_TOKEN_VALUE, 0)
     const venueNet = onlineGrossAll - commissionOnline - totalTokenCost
     return { onlineGrossAll, onlineGolfRev, officeGrossAll, officeGolfRev, bookingFees, commissionOnline, commissionOffice, paymentFees, plonkGolfRevenue, plonkGolfCosts, plonkGolfNet, totalTokenCost, venueNet }
-  }, [commissionOnlinePct, commissionOfficePct, bookingFeePct, volumeUplift, webCost, seoCost, botCost, accountancyCost])
+  }, [commissionOnlinePct, commissionOfficePct, bookingFeePct, eff.volumeUplift, eff.webCost, eff.seoCost, eff.botCost, eff.accountancyCost, eff.maintenanceCost])
 
   const sliders = [
-    { label: 'Volume uplift (vs 2025 online)', value: volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF', default: 0 },
-    { label: 'Website + booking system', value: webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
-    { label: 'SEO (non-venue-specific)', value: seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 6000 },
-    { label: 'Chatbot / AI booking', value: botCost, set: setBotCost, min: 0, max: 10000, step: 100, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 1200 },
-    { label: 'Accountancy fees', value: accountancyCost, set: setAccountancyCost, min: 0, max: 15000, step: 250, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: 3000 },
+    { label: 'Volume uplift (vs 2025 online)', value: eff.volumeUplift, set: setVolumeUplift, min: -20, max: 50, step: 1, suffix: '%', color: '#2DD4BF', default: PLONK_MODEL_DEFAULTS.volumeUplift },
+    { label: 'Website + booking system', value: eff.webCost, set: setWebCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: PLONK_MODEL_DEFAULTS.webCost },
+    { label: 'SEO (non-venue-specific)', value: eff.seoCost, set: setSeoCost, min: 0, max: 20000, step: 500, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: PLONK_MODEL_DEFAULTS.seoCost },
+    { label: 'Chatbot / AI booking', value: eff.botCost, set: setBotCost, min: 0, max: 10000, step: 100, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: PLONK_MODEL_DEFAULTS.botCost },
+    { label: 'Accountancy fees', value: eff.accountancyCost, set: setAccountancyCost, min: 0, max: 15000, step: 250, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: PLONK_MODEL_DEFAULTS.accountancyCost },
+    { label: 'Maintenance', value: eff.maintenanceCost, set: setMaintenanceCost, min: 0, max: 15000, step: 250, prefix: '£', suffix: '/yr', color: '#4FC3F7', default: PLONK_MODEL_DEFAULTS.maintenanceCost },
   ]
+
+  const handleLock = () => {
+    if (!canEdit) return
+    modelLock.lock({ volumeUplift, webCost, seoCost, botCost, accountancyCost, maintenanceCost })
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 20 }}>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 4 }}>
-          Plonk Golf × Venue — Interactive Model
+      <div style={{ background: 'var(--ink-2)', border: isLocked ? '1px solid rgba(16,185,129,0.4)' : '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 20 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:4, flexWrap:'wrap' }}>
+          <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600 }}>
+            Plonk Golf × Venue — Interactive Model
+          </div>
+          {modelLock.isFounder && (
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <span style={{
+                display:'inline-flex', alignItems:'center', gap:6,
+                padding:'3px 10px', borderRadius:12,
+                background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+                border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+                fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+                letterSpacing:'0.08em', textTransform:'uppercase',
+              }}>
+                <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+                {isLocked
+                  ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked scenario')
+                  : 'Live preview'}
+              </span>
+              {isLocked ? (
+                <button onClick={modelLock.unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+              ) : (
+                <button onClick={handleLock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+              )}
+            </div>
+          )}
         </div>
         <div style={{ fontSize: 12, color: '#9CA3AF', marginBottom: 16 }}>
           Commission rates and booking fee come from the Commissions section sliders. Booking fee applies to ALL online sales at checkout. Uplift and cost sliders below are scenario inputs.
@@ -199,10 +283,10 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct, bookingFeeP
                 <span style={{ color: 'var(--cream)' }}>{s.label}</span>
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ color: s.color, fontWeight: 700 }}>{s.prefix || ''}{Number(s.value).toLocaleString()}{s.suffix || ''}</span>
-                  <ResetBtn onClick={() => s.set(s.default)} title={`Reset to ${s.prefix || ''}${s.default.toLocaleString()}${s.suffix || ''}`} />
+                  <ResetBtn onClick={() => { if (canEdit) s.set(s.default) }} title={`Reset to ${s.prefix || ''}${s.default.toLocaleString()}${s.suffix || ''}`} />
                 </span>
               </div>
-              <input type="range" min={s.min} max={s.max} step={s.step} value={s.value} onChange={e => s.set(Number(e.target.value))} style={{ width: '100%', accentColor: s.color }} />
+              <input type="range" min={s.min} max={s.max} step={s.step} value={s.value} disabled={!canEdit} onChange={e => s.set(Number(e.target.value))} style={{ width: '100%', accentColor: s.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6B7280', marginTop: 2 }}>
                 <span>{s.prefix || ''}{s.min.toLocaleString()}{s.suffix || ''}</span>
                 <span>{s.prefix || ''}{s.max.toLocaleString()}{s.suffix || ''}</span>
@@ -226,11 +310,11 @@ function CommissionModel({ commissionOnlinePct, commissionOfficePct, bookingFeeP
           <Row label={`+ Commission from Venue — Office sales (${commissionOfficePct}% × golf)`} value={fmt0(m.commissionOffice)} color="#C9A84C" />
           <Row label="= Plonk Golf revenue" value={fmt0(m.plonkGolfRevenue)} color="var(--cream)" bold />
           <div style={{ height: 10 }} />
-          <Row label="− Maintenance (12 × £250)" value={fmt0(maintenanceCost)} color="#EF4444" />
-          <Row label="− Website + booking system" value={fmt0(webCost)} color="#EF4444" />
-          <Row label="− SEO" value={fmt0(seoCost)} color="#EF4444" />
-          <Row label="− Chatbot / AI booking" value={fmt0(botCost)} color="#EF4444" />
-          <Row label="− Accountancy fees" value={fmt0(accountancyCost)} color="#EF4444" />
+          <Row label="− Maintenance" value={fmt0(eff.maintenanceCost)} color="#EF4444" />
+          <Row label="− Website + booking system" value={fmt0(eff.webCost)} color="#EF4444" />
+          <Row label="− SEO" value={fmt0(eff.seoCost)} color="#EF4444" />
+          <Row label="− Chatbot / AI booking" value={fmt0(eff.botCost)} color="#EF4444" />
+          <Row label="− Accountancy fees" value={fmt0(eff.accountancyCost)} color="#EF4444" />
           <Row label={`− Payment processing (${(IP_LICENSING_PAYMENT_FEE_PCT * 100).toFixed(1)}% × online + office gross)`} value={fmt0(m.paymentFees)} color="#EF4444" />
           <Row label="= Total Plonk Golf costs" value={fmt0(m.plonkGolfCosts)} color="#EF4444" bold />
           <div style={{ height: 10, borderTop: '1px solid rgba(201,168,76,0.3)', marginTop: 6 }} />
