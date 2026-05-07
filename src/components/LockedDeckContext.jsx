@@ -149,6 +149,14 @@ function readPersistedTicketVolumeLock() {
 // 2026 forecast totals via the locked snapshot.
 const FIXED_COSTS_LOCK_KEY = 'ndb_fixed_costs_locked_v1'
 
+// ─── Office-costs lock — per-line annual sliders on Business Explorer ·
+// 2026 Performance · Office Costs (Xero, RotaCloud, Claude, Google
+// Workspace, Web hosting, Amazon Prime, Accounting, Director comp).
+// Same pattern as Fixed Costs: when the founder locks this surface the
+// slider values are pinned for every viewer and feed the 2026 forecast
+// totals via the locked snapshot.
+const OFFICE_COSTS_LOCK_KEY = 'ndb_office_costs_locked_v1'
+
 // ─── Commissions lock — IP & Licensing Commissions sliders. Stores
 // the founder's online + office commission % rates so the figure
 // cascades into the venue P&L cost stack on Business Explorer · 2026
@@ -284,6 +292,32 @@ function readPersistedWagesLock() {
 
 const isValidFixedCostsLock = (v) =>
   v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+const isValidOfficeCostsLock = (v) =>
+  v && typeof v === 'object' && v.values && typeof v.values === 'object'
+
+function readPersistedOfficeCostsLock() {
+  if (typeof window !== 'undefined' && window.__NDB_OFFICE_COSTS_LOCK !== undefined) {
+    const fromServer = window.__NDB_OFFICE_COSTS_LOCK
+    try {
+      if (fromServer && isValidOfficeCostsLock(fromServer)) {
+        localStorage.setItem(namespacedKey(OFFICE_COSTS_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(OFFICE_COSTS_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidOfficeCostsLock(fromServer) ? fromServer : null
+    }
+  }
+  try {
+    const raw = localStorage.getItem(namespacedKey(OFFICE_COSTS_LOCK_KEY))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    return isValidOfficeCostsLock(parsed) ? parsed : null
+  } catch { return null }
+}
 
 function readPersistedFixedCostsLock() {
   if (typeof window !== 'undefined' && window.__NDB_FIXED_COSTS_LOCK !== undefined) {
@@ -435,6 +469,15 @@ const FixedCostsCtx = createContext({
   unlock: () => {},
 })
 
+const OfficeCostsCtx = createContext({
+  locked: null,        // { values: {...}, lockedAt: ISO } | null
+  isLocked: false,
+  isFounder: false,
+  canEdit: false,
+  lock: () => {},      // (values: object) => void
+  unlock: () => {},
+})
+
 const WagesCtx = createContext({
   rows: defaultWageRows(),
   effective: deriveWageSnapshot(defaultWageRows()),
@@ -500,6 +543,9 @@ export function LockedDeckProvider({ children }) {
   // ─── Fixed-costs state ────────────────────────────────────────────
   const [fixedCostsLock, setFixedCostsLock] = useState(readPersistedFixedCostsLock)
 
+  // ─── Office-costs state ───────────────────────────────────────────
+  const [officeCostsLock, setOfficeCostsLock] = useState(readPersistedOfficeCostsLock)
+
   // ─── Pricing state ────────────────────────────────────────────────
   const [pricingLock, setPricingLock] = useState(readPersistedPricingLock)
 
@@ -529,6 +575,7 @@ export function LockedDeckProvider({ children }) {
   const forecastRef     = useRef(forecastSnapshot)
   const ticketVolumeRef = useRef(ticketVolumeLock)
   const fixedCostsRef   = useRef(fixedCostsLock)
+  const officeCostsRef  = useRef(officeCostsLock)
   const wagesRef        = useRef(wagesLock)
   const pricingRef      = useRef(pricingLock)
   const commissionsRef  = useRef(commissionsLock)
@@ -536,6 +583,7 @@ export function LockedDeckProvider({ children }) {
   useEffect(() => { forecastRef.current     = forecastSnapshot  }, [forecastSnapshot])
   useEffect(() => { ticketVolumeRef.current = ticketVolumeLock  }, [ticketVolumeLock])
   useEffect(() => { fixedCostsRef.current   = fixedCostsLock    }, [fixedCostsLock])
+  useEffect(() => { officeCostsRef.current  = officeCostsLock   }, [officeCostsLock])
   useEffect(() => { wagesRef.current        = wagesLock         }, [wagesLock])
   useEffect(() => { pricingRef.current      = pricingLock       }, [pricingLock])
   useEffect(() => { commissionsRef.current  = commissionsLock   }, [commissionsLock])
@@ -567,15 +615,17 @@ export function LockedDeckProvider({ children }) {
         let forecast = null
         let ticketVolume = null
         let fixedCosts = null
+        let officeCosts = null
         let wages = null
         let pricing = null
         let commissions = null
         if (raw && typeof raw === 'object') {
-          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'wages' in raw || 'pricing' in raw || 'commissions' in raw) {
+          if ('funding' in raw || 'forecast' in raw || 'ticketVolume' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'wages' in raw || 'pricing' in raw || 'commissions' in raw) {
             funding      = raw.funding      ?? null
             forecast     = raw.forecast     ?? null
             ticketVolume = raw.ticketVolume ?? null
             fixedCosts   = raw.fixedCosts   ?? null
+            officeCosts  = raw.officeCosts  ?? null
             wages        = raw.wages        ?? null
             pricing      = raw.pricing      ?? null
             commissions  = raw.commissions  ?? null
@@ -589,6 +639,7 @@ export function LockedDeckProvider({ children }) {
         setForecastSnapshot(isValidForecastSnapshot(forecast) ? forecast : null)
         setTicketVolumeLock(isValidTicketVolumeLock(ticketVolume) ? ticketVolume : null)
         setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
+        setOfficeCostsLock(isValidOfficeCostsLock(officeCosts) ? officeCosts : null)
         setWagesLock(isValidWageLock(wages) ? wages : null)
         setPricingLock(isValidPricingLock(pricing) ? pricing : null)
         setCommissionsLock(isValidCommissionsLock(commissions) ? commissions : null)
@@ -614,6 +665,11 @@ export function LockedDeckProvider({ children }) {
             localStorage.setItem(namespacedKey(FIXED_COSTS_LOCK_KEY), JSON.stringify(fixedCosts))
           } else {
             localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY))
+          }
+          if (isValidOfficeCostsLock(officeCosts)) {
+            localStorage.setItem(namespacedKey(OFFICE_COSTS_LOCK_KEY), JSON.stringify(officeCosts))
+          } else {
+            localStorage.removeItem(namespacedKey(OFFICE_COSTS_LOCK_KEY))
           }
           if (isValidWageLock(wages)) {
             localStorage.setItem(namespacedKey(WAGES_LOCK_KEY), JSON.stringify(wages))
@@ -658,6 +714,7 @@ export function LockedDeckProvider({ children }) {
     forecast:     'forecast'     in overrides ? overrides.forecast     : forecastRef.current,
     ticketVolume: 'ticketVolume' in overrides ? overrides.ticketVolume : ticketVolumeRef.current,
     fixedCosts:   'fixedCosts'   in overrides ? overrides.fixedCosts   : fixedCostsRef.current,
+    officeCosts:  'officeCosts'  in overrides ? overrides.officeCosts  : officeCostsRef.current,
     wages:        'wages'        in overrides ? overrides.wages        : wagesRef.current,
     pricing:      'pricing'      in overrides ? overrides.pricing      : pricingRef.current,
     commissions:  'commissions'  in overrides ? overrides.commissions  : commissionsRef.current,
@@ -674,6 +731,8 @@ export function LockedDeckProvider({ children }) {
   const ticketVolumeCanEdit   = isFounder && !ticketVolumeIsLocked
   const fixedCostsIsLocked    = fixedCostsLock !== null
   const fixedCostsCanEdit     = isFounder && !fixedCostsIsLocked
+  const officeCostsIsLocked   = officeCostsLock !== null
+  const officeCostsCanEdit    = isFounder && !officeCostsIsLocked
   const wagesIsLocked         = wagesLock !== null
   const wagesCanEdit          = isFounder && !wagesIsLocked
   const pricingIsLocked       = pricingLock !== null
@@ -792,6 +851,26 @@ export function LockedDeckProvider({ children }) {
     setFixedCostsLock(null)
     try { localStorage.removeItem(namespacedKey(FIXED_COSTS_LOCK_KEY)) } catch {}
     syncContainerToServer(buildContainer({ fixedCosts: null }))
+  }, [isFounder])
+
+  // ─── Office-costs API ─────────────────────────────────────────────
+  // Founder-only lock for the per-line annual cost sliders (Xero,
+  // RotaCloud, etc.). Same shape as fixed costs — pinned values feed
+  // the 2026 forecast totals via the locked snapshot.
+  const lockOfficeCosts = useCallback((values) => {
+    if (!isFounder) return
+    if (!values || typeof values !== 'object') return
+    const stamped = { values: { ...values }, lockedAt: new Date().toISOString() }
+    setOfficeCostsLock(stamped)
+    try { localStorage.setItem(namespacedKey(OFFICE_COSTS_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ officeCosts: stamped }))
+  }, [isFounder])
+
+  const unlockOfficeCosts = useCallback(() => {
+    if (!isFounder) return
+    setOfficeCostsLock(null)
+    try { localStorage.removeItem(namespacedKey(OFFICE_COSTS_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ officeCosts: null }))
   }, [isFounder])
 
   // ─── Pricing API ──────────────────────────────────────────────────
@@ -934,6 +1013,15 @@ export function LockedDeckProvider({ children }) {
     unlock: unlockFixedCosts,
   }
 
+  const officeCostsValue = {
+    locked: officeCostsLock,
+    isLocked: officeCostsIsLocked,
+    isFounder,
+    canEdit: officeCostsCanEdit,
+    lock: lockOfficeCosts,
+    unlock: unlockOfficeCosts,
+  }
+
   const wagesValue = {
     rows: wagesIsLocked ? wagesLock.rows : wageRows,
     effective: wagesEffective,
@@ -974,13 +1062,15 @@ export function LockedDeckProvider({ children }) {
       <FundingCtx.Provider value={fundingValue}>
         <TicketVolumeCtx.Provider value={ticketVolumeValue}>
           <FixedCostsCtx.Provider value={fixedCostsValue}>
-            <WagesCtx.Provider value={wagesValue}>
-              <PricingCtx.Provider value={pricingValue}>
-                <CommissionsCtx.Provider value={commissionsValue}>
-                  {children}
-                </CommissionsCtx.Provider>
-              </PricingCtx.Provider>
-            </WagesCtx.Provider>
+            <OfficeCostsCtx.Provider value={officeCostsValue}>
+              <WagesCtx.Provider value={wagesValue}>
+                <PricingCtx.Provider value={pricingValue}>
+                  <CommissionsCtx.Provider value={commissionsValue}>
+                    {children}
+                  </CommissionsCtx.Provider>
+                </PricingCtx.Provider>
+              </WagesCtx.Provider>
+            </OfficeCostsCtx.Provider>
           </FixedCostsCtx.Provider>
         </TicketVolumeCtx.Provider>
       </FundingCtx.Provider>
@@ -1003,6 +1093,10 @@ export function useLockedTicketVolume() {
 
 export function useLockedFixedCosts() {
   return useContext(FixedCostsCtx)
+}
+
+export function useLockedOfficeCosts() {
+  return useContext(OfficeCostsCtx)
 }
 
 export function useLockedWages() {

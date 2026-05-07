@@ -10,7 +10,7 @@ import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_B
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
-import { useLockedTicketVolume, useLockedFixedCosts, useLockedWages, useLockedPricing, useLockedCommissions } from '../components/LockedDeckContext.jsx'
+import { useLockedTicketVolume, useLockedFixedCosts, useLockedOfficeCosts, useLockedWages, useLockedPricing, useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
 const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
 
@@ -1394,8 +1394,16 @@ function FixedCostsSection({ fixedCosts, setFixedCosts, totalIncome }) {
 // weekly P&L where present, otherwise current online pricing.
 // ───────────────────────────────────────────────────────────────────────
 function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
-  const { canEdit } = useLockedForecast()
   const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
+  // Two locks gate edits here: the broader 2026 forecast lock AND the
+  // section-specific office-costs lock. Either one being engaged
+  // disables the sliders. The Lock/Unlock button on this card controls
+  // only the office-costs lock — when engaged the values are pinned for
+  // every viewer and feed straight into the 2026 forecast totals.
+  const forecast = useLockedForecast()
+  const ocLock   = useLockedOfficeCosts()
+  const isLocked = ocLock.isLocked
+  const canEdit  = forecast.canEdit && ocLock.canEdit
 
   const annualTotal = sumOfficeCosts(officeCosts)
   const monthlyTotal = annualTotal / 12
@@ -1405,12 +1413,41 @@ function OfficeCostsSection({ officeCosts, setOfficeCosts }) {
     setOfficeCosts(prev => ({ ...prev, [id]: Math.max(0, Number(value) || 0) }))
   }
 
+  const lockedAtLabel = ocLock.locked?.lockedAt
+    ? new Date(ocLock.locked.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
   return (
-    <div className="card" style={{ padding:20 }}>
+    <div className="card" style={{ padding:20, border: isLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14 }}>
         <div style={{ fontSize:11, color:'#C084FC', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Office Costs · Editor</div>
         <div style={{ fontSize:13, color:'#C084FC', fontWeight:600 }}>{fmtMoney(annualTotal)}/yr</div>
       </div>
+
+      {/* Lock toolbar — Live preview / Locked pill on the left, Lock / Unlock on the right */}
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <span style={{
+          display:'inline-flex', alignItems:'center', gap:6,
+          padding:'3px 10px', borderRadius:12,
+          background: isLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+          border: `1px solid ${isLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+          fontSize:10, color: isLocked ? '#10B981' : 'var(--gold-dim)',
+          letterSpacing:'0.08em', textTransform:'uppercase',
+        }}>
+          <span style={{ fontSize:9 }}>{isLocked ? '🔒' : '○'}</span>
+          {isLocked
+            ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to 2026 forecast')
+            : 'Live preview'}
+        </span>
+        {ocLock.isFounder && (
+          isLocked ? (
+            <button onClick={ocLock.unlock} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+          ) : (
+            <button onClick={() => ocLock.lock(officeCosts)} disabled={!canEdit} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background: canEdit ? 'var(--gold)' : 'rgba(201,168,76,0.4)', color:'var(--ink)', border:'1px solid var(--gold)', cursor: canEdit ? 'pointer' : 'not-allowed', letterSpacing:'0.06em', textTransform:'uppercase', opacity: canEdit ? 1 : 0.6 }}>🔒 Lock</button>
+          )
+        )}
+      </div>
+
       <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
         Subscriptions, AI, accounting, and director compensation. Defaults reflect current spend ranges. Annual £ sliders below; total flows into the Op Costs donut as a single Office Costs line.
       </div>
@@ -1938,7 +1975,23 @@ export default function BusinessExplorer() {
 
   // Office costs (Apps + AI + Accounting + Director) — annual £ per item.
   // Total flows to the cost donut as a new "Office & Admin" line.
-  const [officeCosts, setOfficeCosts] = useState(OFFICE_COSTS_2026_DEFAULTS)
+  // When the founder locks this section, the locked.values pin the
+  // sliders for everyone and feed the 2026 forecast totals via the
+  // effectiveOfficeCosts passed down to TabPerformance.
+  const officeCostsLock = useLockedOfficeCosts()
+  const [officeCosts, setOfficeCosts] = useState(
+    () => officeCostsLock.locked?.values
+      ? { ...OFFICE_COSTS_2026_DEFAULTS, ...officeCostsLock.locked.values }
+      : OFFICE_COSTS_2026_DEFAULTS
+  )
+  useEffect(() => {
+    if (officeCostsLock.locked?.values) {
+      setOfficeCosts(prev => ({ ...prev, ...officeCostsLock.locked.values }))
+    }
+  }, [officeCostsLock.locked])
+  const effectiveOfficeCosts = officeCostsLock.locked?.values
+    ? { ...OFFICE_COSTS_2026_DEFAULTS, ...officeCostsLock.locked.values }
+    : officeCosts
 
   // Fixed costs (rent, rates, utilities, etc.) — monthly £ per item.
   // Total × 12 replaces the static fixedLine in the cost model.
@@ -1971,7 +2024,7 @@ export default function BusinessExplorer() {
   const tabComponents = {
     performance2025: <FinancialPerformance />,
     tillsales2025:   <BoroughTillSales2025 />,
-    performance2026: <TabPerformance growth={growth} pricing={effectivePricing} setPricing={setPricing} officeCosts={officeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
+    performance2026: <TabPerformance growth={growth} pricing={effectivePricing} setPricing={setPricing} officeCosts={effectiveOfficeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
     prevTillSales:   <PrevTillSales />,
   }
