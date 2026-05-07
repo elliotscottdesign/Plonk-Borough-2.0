@@ -719,10 +719,110 @@ function Operations() {
   )
 }
 
+// ─── Labour Balance — investor-flagged note ─────────────────────────────
+// Investor raised the cost-of-labour imbalance for the golf course under
+// the new structure: who pays for the ~13 hrs/week of bar-staff time
+// spent opening, cleaning, testing, and closing down the course. The
+// proposal codified here is a £200/week (inc VAT) settlement from Plonk
+// Golf till sales to No Dice — covering 7 × 1-hr daily ops checks plus a
+// 6-hr Saturday peak shift. Cross-training the cover staff as bar staff
+// makes the hire efficient (one role serves both sides).
+function LabourBalance() {
+  const WEEKLY_INC_VAT  = 200
+  const WEEKS_PER_YEAR  = 52
+  const ANNUAL_INC_VAT  = WEEKLY_INC_VAT * WEEKS_PER_YEAR             // £10,400
+  const ANNUAL_NET_VAT  = Math.round(ANNUAL_INC_VAT / 1.2)             // £8,667
+  const VAT_PORTION     = ANNUAL_INC_VAT - ANNUAL_NET_VAT              // £1,733
+
+  // Implied per-hour rate for the 13 hrs/week
+  const HOURS_PER_WEEK  = 13
+  const PER_HOUR_INC    = WEEKLY_INC_VAT / HOURS_PER_WEEK              // ≈ £15.38
+  return (
+    <div>
+      <STitle>Labour Balance · Plonk → No Dice settlement</STitle>
+
+      {/* Investor flag banner */}
+      <div className="card" style={{ padding:18, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.35)', borderLeft:'4px solid #EAB308', marginBottom:16 }}>
+        <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:8 }}>Investor-flagged issue · cost of labour for the course</div>
+        <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.7 }}>
+          Under the new structure the course P&amp;L is a separately-incorporated operator (Plonk), but No Dice still hosts the course on-site. An investor flagged that the daily on-site work — opening, cleaning, testing the games, switching on lights, closing down — is being absorbed by No Dice bar staff at no charge. Without a settlement, No Dice carries the labour cost and Plonk Golf gets the operational benefit for free. The proposal below codifies a weekly transfer that balances this.
+        </div>
+      </div>
+
+      {/* The proposal — three KPI hero cards */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, marginBottom:16 }}>
+        <GolfHeroCard
+          color="#2DD4BF"
+          label="Weekly settlement"
+          value="£200 / wk inc VAT"
+          sub="Diverted from Plonk Golf till takings to No Dice each week. Covers the on-site labour No Dice provides to keep the course operational."
+        />
+        <GolfHeroCard
+          color="#22D3EE"
+          label="Hours covered"
+          value="13 hrs / wk"
+          sub="1 hour every day (open / clean / test / close — 7 hrs) + a 6-hour peak Saturday shift. Implied rate ≈ £15.38 / hr inc VAT, well covering loaded staff cost."
+        />
+        <GolfHeroCard
+          color="var(--gold)"
+          label="Annualised"
+          value={fmt(ANNUAL_INC_VAT) + ' / yr inc VAT'}
+          sub={`= ${fmt(ANNUAL_NET_VAT)} net + ${fmt(VAT_PORTION)} VAT. Lands in No Dice as a separate revenue line; Plonk Golf books it as an operational service fee.`}
+        />
+      </div>
+
+      {/* Daily / weekly schedule */}
+      <div className="card" style={{ padding:20, marginBottom:16 }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What the £200 / week buys</div>
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
+          <div>
+            <div style={{ fontSize:12, color:'var(--cream)', fontWeight:600, marginBottom:8 }}>Daily ops check (×7 days)</div>
+            <ul style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.8, paddingLeft:18, marginTop:0 }}>
+              <li>Switch on the course lights</li>
+              <li>Test each hole / play through to verify holes are working</li>
+              <li>Quick clean of the course (litter, balls, surfaces)</li>
+              <li>Switch off &amp; close down at end of day</li>
+            </ul>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:8 }}>
+              ≈ <strong style={{ color:'var(--cream)' }}>1 hour / day</strong> — 7 × 1 = <strong style={{ color:'var(--cream)' }}>7 hrs / week</strong>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize:12, color:'var(--cream)', fontWeight:600, marginBottom:8 }}>Saturday peak-day shift</div>
+            <ul style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.8, paddingLeft:18, marginTop:0 }}>
+              <li>Front-of-course host during the busiest day-trade window</li>
+              <li>Walk-in ticket sales rung at the till</li>
+              <li>Family / event party group handover &amp; turnaround</li>
+              <li>Ad-hoc maintenance &amp; ball restocking</li>
+            </ul>
+            <div style={{ fontSize:11, color:'var(--cream-dim)', marginTop:8 }}>
+              <strong style={{ color:'var(--cream)' }}>6 hrs</strong> Saturday peak — adds <strong style={{ color:'var(--cream)' }}>6 hrs / week</strong>
+            </div>
+          </div>
+        </div>
+        <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:6, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          <strong style={{ color:'#2DD4BF' }}>Total commitment:</strong> <strong style={{ color:'var(--cream)' }}>{HOURS_PER_WEEK} hrs / week</strong> at an implied rate of ≈ <strong style={{ color:'var(--cream)' }}>£{PER_HOUR_INC.toFixed(2)} / hr inc VAT</strong>. Comfortably covers the loaded cost of bar staff time (£13.15 base × 1.355 NIC + pension + holiday ≈ £17.82 / hr loaded) once the cross-training efficiency below is factored in.
+        </div>
+      </div>
+
+      {/* Cross-training argument */}
+      <div className="card" style={{ padding:20, borderLeft:'3px solid #2DD4BF' }}>
+        <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>Why bar staff handle the course (efficient hire)</div>
+        <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.7 }}>
+          The hours covered by this settlement are best done by <strong style={{ color:'var(--cream)' }}>No Dice bar staff</strong>, not a dedicated Golf Host headcount. Bar staff are already on-site for the bar shift; the daily 1-hour ops check and Saturday cover sit cleanly inside their schedule. One person covers <strong style={{ color:'var(--cream)' }}>both sides of the business</strong> — bar service + course host — making the hire materially more efficient than two part-time roles split across a small footprint.
+          <br /><br />
+          Result: Plonk Golf gets reliable on-site labour at a fixed weekly cost; No Dice converts spare bar-staff capacity into a recurring £10.4k / yr line; the customer experience stays seamless because the same person who pours their drink also opens up their golf round.
+        </div>
+      </div>
+    </div>
+  )
+}
+
 const PLONK_SECTIONS = [
   { key: 'overview',    label: 'Transparency · Overview', Component: GolfOverview },
   { key: 'pnl',         label: '2025 Golf P&L',           Component: GolfPnl },
   { key: 'hosts',       label: 'Golf Hosts',              Component: GolfHosts },
+  { key: 'labour',      label: 'Labour Balance',          Component: LabourBalance },
   { key: 'till',        label: 'Walk-In Till Revenue',    Component: TillRevenue },
   { key: 'dmn',         label: 'Online Ticket Sales',     Component: DmnSkuBreakdown },
   { key: 'commissions', label: 'Plonk Commissions',       Component: PlonkCommissions },
