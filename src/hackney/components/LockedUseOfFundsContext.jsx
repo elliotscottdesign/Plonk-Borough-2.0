@@ -21,7 +21,7 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //     read `effective.*` so every figure cascades from one variable
 //
 // Lockable surfaces (independent of each other; mirrors Borough's
-// LockedDeckContext architecture). All seven sync cross-device:
+// LockedDeckContext architecture). All eight sync cross-device:
 //   1. USE-OF-FUNDS — investor's total raise + 7-line use-of-funds
 //      breakdown (LIVE_KEY / LOCK_KEY · syncs cross-device)
 //   2. WAGES — 4-role wage calculator
@@ -36,6 +36,10 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //      Costs editor (OFFICE_COSTS_LOCK_KEY · syncs cross-device)
 //   7. PRICING — per-SKU Tokens + £/unit overrides for the Tickets
 //      editor (PRICING_LOCK_KEY · syncs cross-device)
+//   8. GOLF HOST — rate (£/hr · max £15) + hours/week (max 20) for
+//      the Plonk Golf → No Dice labour settlement. Locked annual
+//      flows into the Plonk Golf P&L host-wage line going forward
+//      (GOLF_HOST_LIVE_KEY / GOLF_HOST_LOCK_KEY · syncs cross-device)
 //
 // State model per surface:
 //   • values     — live editable state (founder edits these)
@@ -44,11 +48,11 @@ import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 //
 // Persistence:
 //   • localStorage caches every surface for snappy first paint
-//   • All seven surfaces ALSO sync cross-device via LOCK_SYNC_URL
+//   • All eight surfaces ALSO sync cross-device via LOCK_SYNC_URL
 //     (Apps Script — see infra/lock-sync-apps-script-hackney.gs). They
 //     share ONE merged container { useOfFunds, wages, forecast,
-//     barPrice, fixedCosts, officeCosts, pricing } so no writer
-//     overwrites another's state on the server. Every
+//     barPrice, fixedCosts, officeCosts, pricing, golfHost } so no
+//     writer overwrites another's state on the server. Every
 //     lock/unlock/reset callback routes through buildContainer() which
 //     reads fresh refs for the surfaces it isn't changing.
 //
@@ -78,6 +82,13 @@ const OFFICE_COSTS_LOCK_KEY = 'ndh_office_costs_locked_v1'
 // Tokens + £/unit overrides on the Tickets editor. Shape:
 // { values: { skuName: { tokens?: number, price?: number }, ... }, lockedAt: ISO }.
 const PRICING_LOCK_KEY = 'ndh_pricing_locked_v1'
+// Golf-host wage lock — codifies the Plonk Golf → No Dice labour
+// settlement (Labour Balance section on Plonk page). Founder sets
+// hourly rate (max £15) and hours/week (max 20); locked annual
+// flows into the Plonk Golf P&L as the host-wage line going forward.
+// Shape: { rate, hoursPerWeek, weeklyGross, annualGross, annualLoaded, lockedAt }.
+const GOLF_HOST_LIVE_KEY = 'ndh_golf_host_live_v1'
+const GOLF_HOST_LOCK_KEY = 'ndh_golf_host_locked_v1'
 
 // Default 2026 Performance forecast state — growth levers per income
 // line, plus matrices for ticket pricing, fixed-cost line edits and
@@ -208,6 +219,31 @@ const isValidOfficeCostsLock = (v) =>
 const isValidPricingLock = (v) =>
   v && typeof v === 'object' && v.values && typeof v.values === 'object'
 
+// Golf-host wage validators — live state carries rate + hoursPerWeek;
+// lock snapshot also carries the derived weekly / annual figures so
+// downstream consumers don't have to recompute.
+const isValidGolfHostLive = (v) =>
+  v && typeof v === 'object' && Number.isFinite(v.rate) && Number.isFinite(v.hoursPerWeek)
+
+const isValidGolfHostLock = (v) =>
+  v && typeof v === 'object' && Number.isFinite(v.rate) && Number.isFinite(v.hoursPerWeek) && Number.isFinite(v.annualLoaded)
+
+// Defaults sized to the Labour Balance proposal (≈ £200/wk inc VAT settlement):
+//   £15 / hr × 13 hrs / wk = £195 / wk × 52 = £10,140 / yr gross
+//                                 × WAGE_OVERHEAD_MULT (1.355) ≈ £13,740 / yr loaded
+function defaultGolfHostValues() {
+  return { rate: 15, hoursPerWeek: 13 }
+}
+
+function deriveGolfHostSnapshot(live) {
+  const rate = Math.max(0, Math.min(15, Number(live?.rate) || 0))
+  const hoursPerWeek = Math.max(0, Math.min(20, Number(live?.hoursPerWeek) || 0))
+  const weeklyGross = rate * hoursPerWeek
+  const annualGross = weeklyGross * 52
+  const annualLoaded = annualGross * WAGE_OVERHEAD_MULT
+  return { rate, hoursPerWeek, weeklyGross, annualGross, annualLoaded }
+}
+
 // Forecast snapshot — Hackney shape carries growth.bar at top level.
 const isValidForecastForServer = (s) =>
   s && typeof s === 'object' && s.growth && Number.isFinite(s.growth.bar)
@@ -336,6 +372,24 @@ function readPersistedPricingLock() {
     }
   }
   return readPersisted(PRICING_LOCK_KEY, isValidPricingLock)
+}
+
+function readPersistedGolfHostLock() {
+  if (typeof window !== 'undefined' && window.__NDB_HACKNEY_GOLF_HOST_LOCK !== undefined) {
+    const fromServer = window.__NDB_HACKNEY_GOLF_HOST_LOCK
+    try {
+      if (fromServer && isValidGolfHostLock(fromServer)) {
+        localStorage.setItem(namespacedKey(GOLF_HOST_LOCK_KEY), JSON.stringify(fromServer))
+        return fromServer
+      } else {
+        localStorage.removeItem(namespacedKey(GOLF_HOST_LOCK_KEY))
+        return null
+      }
+    } catch {
+      return isValidGolfHostLock(fromServer) ? fromServer : null
+    }
+  }
+  return readPersisted(GOLF_HOST_LOCK_KEY, isValidGolfHostLock)
 }
 
 // Cross-device lock sync — POSTs the merged container { useOfFunds,
@@ -483,6 +537,21 @@ export function LockedUseOfFundsProvider({ children }) {
   // through the rest of the deck (KPIs, Op Costs donut, Cashflow).
   const [pricingLock, setPricingLock] = useState(readPersistedPricingLock)
 
+  // ─── Golf-host wage lock ─────────────────────────────────────────
+  // Codifies the Plonk Golf → No Dice labour settlement. Live values
+  // are the founder's drag-state for hourly rate (max £15) and
+  // hours/week (max 20); the lock snapshot also carries the derived
+  // weekly + annual figures so the Plonk Golf P&L can read the
+  // loaded annual cost directly without recomputing.
+  const [golfHostLock, setGolfHostLock] = useState(readPersistedGolfHostLock)
+  const [golfHostValues, setGolfHostValuesState] = useState(() => {
+    const persisted = readPersisted(GOLF_HOST_LIVE_KEY, isValidGolfHostLive)
+    if (persisted) return persisted
+    const lock = readPersistedGolfHostLock()
+    if (lock) return { rate: lock.rate, hoursPerWeek: lock.hoursPerWeek }
+    return defaultGolfHostValues()
+  })
+
   // Refs mirror the latest snapshot of EVERY cross-device-synced surface
   // so any callback can rebuild the full merged container without stale
   // closures. Mirrors Borough's fundingRef / forecastRef / ticketVolumeRef.
@@ -493,6 +562,7 @@ export function LockedUseOfFundsProvider({ children }) {
   const fixedCostsRef   = useRef(fixedCostsLock)
   const officeCostsRef  = useRef(officeCostsLock)
   const pricingRef      = useRef(pricingLock)
+  const golfHostRef     = useRef(golfHostLock)
   useEffect(() => { useOfFundsRef.current   = snapshot         }, [snapshot])
   useEffect(() => { wagesRef.current        = wageSnapshot     }, [wageSnapshot])
   useEffect(() => { forecastRef.current     = forecastSnapshot }, [forecastSnapshot])
@@ -500,6 +570,7 @@ export function LockedUseOfFundsProvider({ children }) {
   useEffect(() => { fixedCostsRef.current   = fixedCostsLock   }, [fixedCostsLock])
   useEffect(() => { officeCostsRef.current  = officeCostsLock  }, [officeCostsLock])
   useEffect(() => { pricingRef.current      = pricingLock      }, [pricingLock])
+  useEffect(() => { golfHostRef.current     = golfHostLock     }, [golfHostLock])
 
   // ─── Per-tenant re-hydration on mount ─────────────────────────────
   // Bootstrap runs BEFORE PasswordGate clears, so on a fresh tab it
@@ -531,8 +602,9 @@ export function LockedUseOfFundsProvider({ children }) {
         let fixedCosts = null
         let officeCosts = null
         let pricing = null
+        let golfHost = null
         if (raw && typeof raw === 'object') {
-          if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'pricing' in raw) {
+          if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'pricing' in raw || 'golfHost' in raw) {
             useOfFunds  = raw.useOfFunds  ?? null
             wages       = raw.wages       ?? null
             forecast    = raw.forecast    ?? null
@@ -540,6 +612,7 @@ export function LockedUseOfFundsProvider({ children }) {
             fixedCosts  = raw.fixedCosts  ?? null
             officeCosts = raw.officeCosts ?? null
             pricing     = raw.pricing     ?? null
+            golfHost    = raw.golfHost    ?? null
           } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
             forecast = raw  // legacy flat-forecast
           }
@@ -552,6 +625,7 @@ export function LockedUseOfFundsProvider({ children }) {
         setFixedCostsLock(isValidFixedCostsLock(fixedCosts) ? fixedCosts : null)
         setOfficeCostsLock(isValidOfficeCostsLock(officeCosts) ? officeCosts : null)
         setPricingLock(isValidPricingLock(pricing) ? pricing : null)
+        setGolfHostLock(isValidGolfHostLock(golfHost) ? golfHost : null)
         try {
           const setOrClear = (storeKey, val, validator) => {
             if (validator(val)) localStorage.setItem(namespacedKey(storeKey), JSON.stringify(val))
@@ -564,6 +638,7 @@ export function LockedUseOfFundsProvider({ children }) {
           setOrClear(FIXED_COSTS_LOCK_KEY,  fixedCosts,  isValidFixedCostsLock)
           setOrClear(OFFICE_COSTS_LOCK_KEY, officeCosts, isValidOfficeCostsLock)
           setOrClear(PRICING_LOCK_KEY,      pricing,     isValidPricingLock)
+          setOrClear(GOLF_HOST_LOCK_KEY,    golfHost,    isValidGolfHostLock)
         } catch {}
         // eslint-disable-next-line no-console
         console.info(
@@ -574,7 +649,8 @@ export function LockedUseOfFundsProvider({ children }) {
           ` · barPrice=${barPrice ? 'set' : 'empty'}` +
           ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}` +
           ` · officeCosts=${officeCosts ? 'set' : 'empty'}` +
-          ` · pricing=${pricing ? 'set' : 'empty'}`
+          ` · pricing=${pricing ? 'set' : 'empty'}` +
+          ` · golfHost=${golfHost ? 'set' : 'empty'}`
         )
       } catch (e) {
         // eslint-disable-next-line no-console
@@ -585,8 +661,8 @@ export function LockedUseOfFundsProvider({ children }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Build the full 7-surface container for cross-device sync. Always
-  // includes the latest of all seven so neither writer clobbers the
+  // Build the full 8-surface container for cross-device sync. Always
+  // includes the latest of all eight so neither writer clobbers the
   // others on the server. Mirrors Borough's buildContainer().
   const buildContainer = (overrides = {}) => ({
     useOfFunds:  'useOfFunds'  in overrides ? overrides.useOfFunds  : useOfFundsRef.current,
@@ -596,6 +672,7 @@ export function LockedUseOfFundsProvider({ children }) {
     fixedCosts:  'fixedCosts'  in overrides ? overrides.fixedCosts  : fixedCostsRef.current,
     officeCosts: 'officeCosts' in overrides ? overrides.officeCosts : officeCostsRef.current,
     pricing:     'pricing'     in overrides ? overrides.pricing     : pricingRef.current,
+    golfHost:    'golfHost'    in overrides ? overrides.golfHost    : golfHostRef.current,
   })
 
   const isFounder = readIsFounder()
@@ -621,6 +698,11 @@ export function LockedUseOfFundsProvider({ children }) {
   // Ticket pricing editor — same dual-gate. Founder only AND neither
   // the broader forecast nor the per-section pricing lock engaged.
   const canEditPricing  = isFounder && !isForecastLocked && !isPricingLocked
+  const isGolfHostLocked = golfHostLock !== null
+  // Golf-host wage sliders — single gate. Founder only AND the
+  // per-section lock not engaged. (No broader forecast dependency —
+  // this surface is independent of the 2026 Performance lock.)
+  const canEditGolfHost  = isFounder && !isGolfHostLocked
 
   // Persist live values (founder only) so editing progress survives reload.
   useEffect(() => {
@@ -637,6 +719,11 @@ export function LockedUseOfFundsProvider({ children }) {
     if (!isFounder) return
     try { localStorage.setItem(namespacedKey(FORECAST_LIVE_KEY), JSON.stringify(forecastValues)) } catch {}
   }, [forecastValues, isFounder])
+
+  useEffect(() => {
+    if (!isFounder) return
+    try { localStorage.setItem(namespacedKey(GOLF_HOST_LIVE_KEY), JSON.stringify(golfHostValues)) } catch {}
+  }, [golfHostValues, isFounder])
 
   // The "effective" surface — locked snapshot if locked, else live derived.
   // Every consumer slide reads from this so values cascade live.
@@ -910,6 +997,46 @@ export function LockedUseOfFundsProvider({ children }) {
     setForecastValuesState(prev => ({ ...prev, pricing: {} }))
   }, [pricingLock, isFounder])
 
+  // ─── Golf-host lock API ──────────────────────────────────────────
+  // Founder-only lock for the Plonk → No Dice labour settlement. Live
+  // sliders adjust rate (£/hr) and hoursPerWeek; locking captures the
+  // derived weekly + annual figures so consumers can read annualLoaded
+  // directly without recomputing.
+  const golfHostEffective = useMemo(
+    () => (isGolfHostLocked ? golfHostLock : deriveGolfHostSnapshot(golfHostValues)),
+    [isGolfHostLocked, golfHostLock, golfHostValues]
+  )
+
+  const setGolfHostValue = useCallback((key, val) => {
+    if (!canEditGolfHost) return
+    setGolfHostValuesState(prev => ({ ...prev, [key]: val }))
+  }, [canEditGolfHost])
+
+  const lockGolfHost = useCallback(() => {
+    if (!isFounder) return
+    const stamped = { ...deriveGolfHostSnapshot(golfHostValues), lockedAt: new Date().toISOString() }
+    setGolfHostLock(stamped)
+    try { localStorage.setItem(namespacedKey(GOLF_HOST_LOCK_KEY), JSON.stringify(stamped)) } catch {}
+    syncContainerToServer(buildContainer({ golfHost: stamped }))
+  }, [golfHostValues, isFounder])
+
+  const unlockGolfHost = useCallback(() => {
+    if (!isFounder) return
+    setGolfHostLock(null)
+    try { localStorage.removeItem(namespacedKey(GOLF_HOST_LOCK_KEY)) } catch {}
+    syncContainerToServer(buildContainer({ golfHost: null }))
+  }, [isFounder])
+
+  const resetGolfHost = useCallback(() => {
+    if (!isFounder) return
+    if (golfHostLock) {
+      setGolfHostLock(null)
+      try { localStorage.removeItem(namespacedKey(GOLF_HOST_LOCK_KEY)) } catch {}
+      syncContainerToServer(buildContainer({ golfHost: null }))
+    }
+    setGolfHostValuesState(defaultGolfHostValues())
+  }, [golfHostLock, isFounder])
+
   const resetForecast = useCallback(() => {
     if (!isFounder) return
     if (forecastSnapshot) {
@@ -982,6 +1109,16 @@ export function LockedUseOfFundsProvider({ children }) {
     lockPricing,
     unlockPricing,
     resetPricing,
+    // Golf-host wage lock (Plonk → No Dice labour settlement)
+    golfHostValues,
+    golfHostLock,
+    golfHostEffective,
+    isGolfHostLocked,
+    canEditGolfHost,
+    setGolfHostValue,
+    lockGolfHost,
+    unlockGolfHost,
+    resetGolfHost,
   }
 
   return (

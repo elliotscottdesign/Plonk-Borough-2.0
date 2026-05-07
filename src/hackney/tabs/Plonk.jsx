@@ -5,7 +5,9 @@ import {
   HACKNEY_GOLF_TILL_2025_MONTHLY,
   HACKNEY_DMN_SKUS_ONLINE_2025, HACKNEY_DMN_SKUS_OFFICE_2025,
   HACKNEY_DMN_MONTHLY_2025, HACKNEY_DMN_GRAND_2025,
+  WAGE_OVERHEAD_MULT,
 } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import {
   ResponsiveContainer, ComposedChart, Line, Bar,
   XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -97,9 +99,22 @@ function GolfOverview() {
 
 function GolfPnl() {
   const g = HACKNEY_GOLF_2025
+  const { isGolfHostLocked, golfHostEffective } = useLockedUseOfFunds()
   const num = (v) => (typeof v === 'number' ? v : 0)
+
+  // Host-wage cost line — when the founder has locked the Golf Host
+  // sliders on the Labour Balance section, that locked annual loaded
+  // figure replaces the rota-derived 2025 estimate. Cascades the
+  // settlement straight into the cost stack here.
+  const hostWagesLine = isGolfHostLocked
+    ? Math.round(golfHostEffective.annualLoaded)
+    : g.costs.hostWages
+  const hostWagesNote = isGolfHostLocked
+    ? `Locked from Labour Balance · £${golfHostEffective.rate.toFixed(2)}/hr × ${golfHostEffective.hoursPerWeek.toFixed(1)} hrs/wk × 52 × ${WAGE_OVERHEAD_MULT.toFixed(3)} loading`
+    : 'Live rota · 248.2 hrs × £13.15 × 1.355 (NIC + pension + holiday). Operational estimate — Weekly Merged has no Golf Host line'
+
   const totalRev2025  = Object.values(g.revenue).reduce((s, v) => s + num(v), 0)
-  const totalCost2025 = Object.values(g.costs).reduce((s, v) => s + num(v), 0)
+  const totalCost2025 = Object.entries(g.costs).reduce((s, [k, v]) => s + num(k === 'hostWages' ? hostWagesLine : v), 0)
   const net2025       = totalRev2025 - totalCost2025
   const tbdLines      = [...Object.values(g.revenue), ...Object.values(g.costs)].filter(v => v === TBD).length
   return (
@@ -139,7 +154,7 @@ function GolfPnl() {
         </div>
         <div className="card" style={{ padding:20 }}>
           <div style={{ fontSize:11, color:'#F87171', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:14 }}>Costs (attributable to course)</div>
-          <PnlRow label="Golf host wages (rota-derived)" value={g.costs.hostWages} colour="#F87171" sourceNote="Live rota · 248.2 hrs × £13.15 × 1.355 (NIC + pension + holiday). Operational estimate — Weekly Merged has no Golf Host line" />
+          <PnlRow label={isGolfHostLocked ? 'Golf host wages (Labour Balance · locked)' : 'Golf host wages (rota-derived)'} value={hostWagesLine} colour={isGolfHostLocked ? '#10B981' : '#F87171'} sourceNote={hostWagesNote} />
           <PnlRow label="Course rent share"           value={g.costs.rentShare}   colour="#F87171" sourceNote="Separate course-site lease · £24,000 / yr inc VAT (founder)" />
           <PnlRow label="Maintenance"                  value={g.costs.maintenance} colour="#F87171" sourceNote="Founder approximation · 2025" />
           <PnlRow label="Upgrades"                     value={g.costs.upgrade}     colour="#F87171" sourceNote="Founder approximation · new holes + paint job + theming extending from the bar side" />
@@ -719,24 +734,34 @@ function Operations() {
   )
 }
 
-// ─── Labour Balance — investor-flagged note ─────────────────────────────
+// ─── Labour Balance — investor-flagged note + slider-driven settlement ──
 // Investor raised the cost-of-labour imbalance for the golf course under
-// the new structure: who pays for the ~13 hrs/week of bar-staff time
-// spent opening, cleaning, testing, and closing down the course. The
-// proposal codified here is a £200/week (inc VAT) settlement from Plonk
-// Golf till sales to No Dice — covering 7 × 1-hr daily ops checks plus a
-// 6-hr Saturday peak shift. Cross-training the cover staff as bar staff
-// makes the hire efficient (one role serves both sides).
+// the new structure: who pays for the on-site bar-staff time spent
+// opening, cleaning, testing, and closing down the course. This section
+// codifies the proposed Plonk Golf → No Dice transfer with two founder
+// sliders (rate £/hr · max £15, hours/wk · max 20). Locking the section
+// pins the annual loaded figure and cascades it into the Plonk Golf P&L
+// host-wage line.
 function LabourBalance() {
-  const WEEKLY_INC_VAT  = 200
-  const WEEKS_PER_YEAR  = 52
-  const ANNUAL_INC_VAT  = WEEKLY_INC_VAT * WEEKS_PER_YEAR             // £10,400
-  const ANNUAL_NET_VAT  = Math.round(ANNUAL_INC_VAT / 1.2)             // £8,667
-  const VAT_PORTION     = ANNUAL_INC_VAT - ANNUAL_NET_VAT              // £1,733
+  const {
+    golfHostValues, golfHostEffective, golfHostLock,
+    isGolfHostLocked, isFounder, canEditGolfHost,
+    setGolfHostValue, lockGolfHost, unlockGolfHost, resetGolfHost,
+  } = useLockedUseOfFunds()
 
-  // Implied per-hour rate for the 13 hrs/week
-  const HOURS_PER_WEEK  = 13
-  const PER_HOUR_INC    = WEEKLY_INC_VAT / HOURS_PER_WEEK              // ≈ £15.38
+  // Live (founder-editable) values feed the sliders. Effective is the
+  // locked snapshot when present, else the derived live snapshot —
+  // consumers downstream only ever read effective.
+  const liveRate  = isGolfHostLocked ? golfHostEffective.rate         : golfHostValues.rate
+  const liveHours = isGolfHostLocked ? golfHostEffective.hoursPerWeek : golfHostValues.hoursPerWeek
+  const weeklyGross  = golfHostEffective.weeklyGross
+  const annualGross  = golfHostEffective.annualGross
+  const annualLoaded = golfHostEffective.annualLoaded
+
+  const lockedAtLabel = golfHostLock?.lockedAt
+    ? new Date(golfHostLock.lockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
   return (
     <div>
       <STitle>Labour Balance · Plonk → No Dice settlement</STitle>
@@ -745,35 +770,111 @@ function LabourBalance() {
       <div className="card" style={{ padding:18, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.35)', borderLeft:'4px solid #EAB308', marginBottom:16 }}>
         <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:8 }}>Investor-flagged issue · cost of labour for the course</div>
         <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.7 }}>
-          Under the new structure the course P&amp;L is a separately-incorporated operator (Plonk), but No Dice still hosts the course on-site. An investor flagged that the daily on-site work — opening, cleaning, testing the games, switching on lights, closing down — is being absorbed by No Dice bar staff at no charge. Without a settlement, No Dice carries the labour cost and Plonk Golf gets the operational benefit for free. The proposal below codifies a weekly transfer that balances this.
+          Under the new structure the course P&amp;L is a separately-incorporated operator (Plonk), but No Dice still hosts the course on-site. An investor flagged that the daily on-site work — opening, cleaning, testing the games, switching on lights, closing down — is being absorbed by No Dice bar staff at no charge. Without a settlement, No Dice carries the labour cost and Plonk Golf gets the operational benefit for free. Drag the two sliders below, then lock to pin the annual figure into the Plonk Golf P&amp;L cost line going forward.
         </div>
       </div>
 
-      {/* The proposal — three KPI hero cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, marginBottom:16 }}>
-        <GolfHeroCard
-          color="#2DD4BF"
-          label="Weekly settlement"
-          value="£200 / wk inc VAT"
-          sub="Diverted from Plonk Golf till takings to No Dice each week. Covers the on-site labour No Dice provides to keep the course operational."
-        />
-        <GolfHeroCard
-          color="#22D3EE"
-          label="Hours covered"
-          value="13 hrs / wk"
-          sub="1 hour every day (open / clean / test / close — 7 hrs) + a 6-hour peak Saturday shift. Implied rate ≈ £15.38 / hr inc VAT, well covering loaded staff cost."
-        />
-        <GolfHeroCard
-          color="var(--gold)"
-          label="Annualised"
-          value={fmt(ANNUAL_INC_VAT) + ' / yr inc VAT'}
-          sub={`= ${fmt(ANNUAL_NET_VAT)} net + ${fmt(VAT_PORTION)} VAT. Lands in No Dice as a separate revenue line; Plonk Golf books it as an operational service fee.`}
-        />
+      {/* Slider card — rate + hours/week, with live-preview / locked pill + Reset/Lock controls */}
+      <div className="card" style={{ padding:20, marginBottom:16, border: isGolfHostLocked ? '1px solid rgba(16,185,129,0.4)' : undefined }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:14, flexWrap:'wrap', gap:10 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Golf Host Wage · Editor</div>
+          <div style={{ fontSize:13, color:'var(--gold)', fontWeight:600 }}>{fmt(annualLoaded)} / yr loaded</div>
+        </div>
+
+        {/* Lock toolbar — Live preview / Locked pill on the left, Reset / Lock on the right */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'3px 10px', borderRadius:12,
+            background: isGolfHostLocked ? 'rgba(16,185,129,0.12)' : 'rgba(201,168,76,0.08)',
+            border: `1px solid ${isGolfHostLocked ? 'rgba(16,185,129,0.4)' : 'rgba(201,168,76,0.2)'}`,
+            fontSize:10, color: isGolfHostLocked ? '#10B981' : 'var(--gold-dim)',
+            letterSpacing:'0.08em', textTransform:'uppercase',
+          }}>
+            <span style={{ fontSize:9 }}>{isGolfHostLocked ? '🔒' : '○'}</span>
+            {isGolfHostLocked
+              ? (lockedAtLabel ? `Locked · ${lockedAtLabel}` : 'Locked · cascades to Plonk Golf P&L')
+              : 'Live preview'}
+          </span>
+          <div style={{ display:'flex', gap:6 }}>
+            {isFounder && (
+              <button onClick={resetGolfHost} style={{ fontSize:11, padding:'5px 12px', borderRadius:4, background:'transparent', color:'var(--cream-dim)', border:'1px solid rgba(201,168,76,0.3)', cursor:'pointer' }}>Reset</button>
+            )}
+            {isFounder && (
+              isGolfHostLocked ? (
+                <button onClick={unlockGolfHost} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'transparent', color:'var(--gold)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔓 Unlock</button>
+              ) : (
+                <button onClick={lockGolfHost} style={{ fontSize:11, fontWeight:600, padding:'5px 14px', borderRadius:4, background:'var(--gold)', color:'var(--ink)', border:'1px solid var(--gold)', cursor:'pointer', letterSpacing:'0.06em', textTransform:'uppercase' }}>🔒 Lock</button>
+              )
+            )}
+          </div>
+        </div>
+
+        {/* Two sliders — rate / hours per week */}
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24, padding:'10px 0' }}>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Hourly rate</div>
+            <div className="serif" style={{ fontSize:24, color:'var(--cream)', marginBottom:6 }}>£{Number(liveRate).toFixed(2)} / hr</div>
+            <input
+              type="range" min={0} max={15} step={0.25}
+              value={liveRate}
+              disabled={!canEditGolfHost}
+              onChange={e => setGolfHostValue('rate', +e.target.value)}
+              style={{ width:'100%', accentColor:'var(--gold)', cursor: canEditGolfHost ? 'pointer' : 'not-allowed', opacity: canEditGolfHost ? 1 : 0.55 }}
+            />
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+              <span>£0</span>
+              <span>£7.50</span>
+              <span>£15.00 max</span>
+            </div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:4, textTransform:'uppercase', letterSpacing:'0.06em' }}>Hours per week</div>
+            <div className="serif" style={{ fontSize:24, color:'var(--cream)', marginBottom:6 }}>{Number(liveHours).toFixed(1)} hrs / wk</div>
+            <input
+              type="range" min={0} max={20} step={0.5}
+              value={liveHours}
+              disabled={!canEditGolfHost}
+              onChange={e => setGolfHostValue('hoursPerWeek', +e.target.value)}
+              style={{ width:'100%', accentColor:'#2DD4BF', cursor: canEditGolfHost ? 'pointer' : 'not-allowed', opacity: canEditGolfHost ? 1 : 0.55 }}
+            />
+            <div style={{ display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--cream-dim)', marginTop:2 }}>
+              <span>0</span>
+              <span>10</span>
+              <span>20 hrs max</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Computed totals */}
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:12, marginTop:18, paddingTop:14, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Weekly gross</div>
+            <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(weeklyGross)}</div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>rate × hours</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Annual gross</div>
+            <div className="serif" style={{ fontSize:18, color:'var(--cream)' }}>{fmt(annualGross)}</div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>weekly × 52</div>
+          </div>
+          <div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:4 }}>Annual loaded</div>
+            <div className="serif" style={{ fontSize:18, color: isGolfHostLocked ? '#10B981' : 'var(--gold)' }}>{fmt(annualLoaded)}</div>
+            <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>× {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday)</div>
+          </div>
+        </div>
+
+        {isGolfHostLocked && (
+          <div style={{ marginTop:12, padding:'8px 12px', background:'rgba(16,185,129,0.06)', borderRadius:6, fontSize:11, color:'#10B981' }}>
+            ✓ Locked — {fmt(annualLoaded)} / yr loaded flows into the Plonk Golf P&amp;L as the host-wage cost line going forward (replaces the rota-derived 2025 estimate).
+          </div>
+        )}
       </div>
 
-      {/* Daily / weekly schedule */}
+      {/* What the settlement covers — illustrative breakdown */}
       <div className="card" style={{ padding:20, marginBottom:16 }}>
-        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What the £200 / week buys</div>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600, marginBottom:12 }}>What the weekly settlement buys</div>
         <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
           <div>
             <div style={{ fontSize:12, color:'var(--cream)', fontWeight:600, marginBottom:8 }}>Daily ops check (×7 days)</div>
@@ -801,7 +902,7 @@ function LabourBalance() {
           </div>
         </div>
         <div style={{ marginTop:14, padding:'10px 14px', background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.25)', borderRadius:6, fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
-          <strong style={{ color:'#2DD4BF' }}>Total commitment:</strong> <strong style={{ color:'var(--cream)' }}>{HOURS_PER_WEEK} hrs / week</strong> at an implied rate of ≈ <strong style={{ color:'var(--cream)' }}>£{PER_HOUR_INC.toFixed(2)} / hr inc VAT</strong>. Comfortably covers the loaded cost of bar staff time (£13.15 base × 1.355 NIC + pension + holiday ≈ £17.82 / hr loaded) once the cross-training efficiency below is factored in.
+          <strong style={{ color:'#2DD4BF' }}>Reference baseline:</strong> the schedule above sums to <strong style={{ color:'var(--cream)' }}>13 hrs / week</strong>. At <strong style={{ color:'var(--cream)' }}>£{Number(liveRate).toFixed(2)} / hr</strong> × <strong style={{ color:'var(--cream)' }}>{Number(liveHours).toFixed(1)} hrs</strong>, the live sliders above settle <strong style={{ color:'var(--cream)' }}>{fmt(weeklyGross)} / week</strong> ({fmt(annualLoaded)} / yr loaded). Drag either slider to model alternatives.
         </div>
       </div>
 
@@ -811,7 +912,7 @@ function LabourBalance() {
         <div style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.7 }}>
           The hours covered by this settlement are best done by <strong style={{ color:'var(--cream)' }}>No Dice bar staff</strong>, not a dedicated Golf Host headcount. Bar staff are already on-site for the bar shift; the daily 1-hour ops check and Saturday cover sit cleanly inside their schedule. One person covers <strong style={{ color:'var(--cream)' }}>both sides of the business</strong> — bar service + course host — making the hire materially more efficient than two part-time roles split across a small footprint.
           <br /><br />
-          Result: Plonk Golf gets reliable on-site labour at a fixed weekly cost; No Dice converts spare bar-staff capacity into a recurring £10.4k / yr line; the customer experience stays seamless because the same person who pours their drink also opens up their golf round.
+          Result: Plonk Golf gets reliable on-site labour at a fixed weekly cost; No Dice converts spare bar-staff capacity into a recurring revenue line; the customer experience stays seamless because the same person who pours their drink also opens up their golf round.
         </div>
       </div>
     </div>

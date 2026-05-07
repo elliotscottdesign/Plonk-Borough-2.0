@@ -36,6 +36,7 @@
 //   • window.__NDB_HACKNEY_FIXED_COSTS_LOCK   — fixed-costs editor lock
 //   • window.__NDB_HACKNEY_OFFICE_COSTS_LOCK  — office-costs editor lock
 //   • window.__NDB_HACKNEY_PRICING_LOCK       — ticket-pricing editor lock
+//   • window.__NDB_HACKNEY_GOLF_HOST_LOCK     — golf-host wage lock
 //
 // Note: Hackney does NOT replicate Borough's gviz Sheet fetch. Hackney's
 // data/hackney.js is hand-curated from the workbook; live cell hydration
@@ -80,8 +81,9 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
       let fixedCosts  = null
       let officeCosts = null
       let pricing     = null
+      let golfHost    = null
       if (raw && typeof raw === 'object') {
-        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'pricing' in raw) {
+        if ('useOfFunds' in raw || 'wages' in raw || 'forecast' in raw || 'barPrice' in raw || 'fixedCosts' in raw || 'officeCosts' in raw || 'pricing' in raw || 'golfHost' in raw) {
           // Container shape (current).
           useOfFunds  = raw.useOfFunds  ?? null
           wages       = raw.wages       ?? null
@@ -90,6 +92,7 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
           fixedCosts  = raw.fixedCosts  ?? null
           officeCosts = raw.officeCosts ?? null
           pricing     = raw.pricing     ?? null
+          golfHost    = raw.golfHost    ?? null
         } else if (raw.growth && Number.isFinite(raw.growth.bar)) {
           // Legacy flat-forecast shape — adopt as forecast, others null.
           forecast = raw
@@ -103,6 +106,7 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
       window.__NDB_HACKNEY_FIXED_COSTS_LOCK   = fixedCosts
       window.__NDB_HACKNEY_OFFICE_COSTS_LOCK  = officeCosts
       window.__NDB_HACKNEY_PRICING_LOCK       = pricing
+      window.__NDB_HACKNEY_GOLF_HOST_LOCK     = golfHost
 
       const ms = Math.round((typeof performance !== 'undefined' ? performance.now() : Date.now()) - start)
       // eslint-disable-next-line no-console
@@ -114,7 +118,8 @@ export async function bootstrapHackneyLocks({ timeoutMs = 10000 } = {}) {
         ` · barPrice=${barPrice ? 'set' : 'empty'}` +
         ` · fixedCosts=${fixedCosts ? 'set' : 'empty'}` +
         ` · officeCosts=${officeCosts ? 'set' : 'empty'}` +
-        ` · pricing=${pricing ? 'set' : 'empty'}`
+        ` · pricing=${pricing ? 'set' : 'empty'}` +
+        ` · golfHost=${golfHost ? 'set' : 'empty'}`
       )
     }
     return { source: 'server' }
