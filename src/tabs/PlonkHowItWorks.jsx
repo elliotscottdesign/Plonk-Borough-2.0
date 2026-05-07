@@ -11,7 +11,6 @@ const fmt2 = n => '£' + n.toLocaleString('en-GB', { minimumFractionDigits: 2, m
 // Savings figures live in data.js (IP_LICENSING_VENUE_SAVINGS) so the
 // 2026 Performance "Savings vs old model" callout and this How-it-works
 // breakdown stay in lockstep.
-const IP_ONE_OFF_SAVING = IP_LICENSING_VENUE_SAVINGS.ipOneOffSaving
 
 const ANNUAL_SAVINGS = [
   {
@@ -64,10 +63,8 @@ export default function PlonkHowItWorks() {
       </div>
 
       {/* Headline savings */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 14 }}>
+      <div>
         <HeadlineStat label="Annual savings" value={fmt0(totalAnnual)} sub="Recurring per year" accent="#2DD4BF" />
-        <HeadlineStat label="One-off IP saving" value="£50,000 + VAT" sub="vs. the previous £72,000 IP &amp; Goodwill purchase under the old deal" accent="#C9A84C" />
-        <HeadlineStat label="Year 1 total saving" value={fmt0(totalAnnual + IP_ONE_OFF_SAVING) + '+'} sub="Annual + one-off (ex VAT on the IP line)" accent="var(--gold)" />
       </div>
 
       {/* Line-by-line savings */}
@@ -89,21 +86,6 @@ export default function PlonkHowItWorks() {
               <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'right', fontStyle: 'italic' }}>{item.basis}</div>
             </div>
           ))}
-
-          {/* One-off IP purchase line */}
-          <div style={{ display: 'grid', gridTemplateColumns: '180px 1fr 160px', gap: 20, background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.35)', borderLeft: '3px solid var(--gold)', borderRadius: 8, padding: '14px 20px', alignItems: 'center' }}>
-            <div>
-              <div className="serif" style={{ fontSize: 22, color: 'var(--gold)', lineHeight: 1 }}>£50,000</div>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>one-off + VAT</div>
-            </div>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--cream)', marginBottom: 4 }}>IP purchase — replaced with IP License Fee</div>
-              <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-                Original deal included £72,000 Plonk IP &amp; Goodwill. Under the franchise model the venue licenses the IP for a fraction of that upfront, saving ~£50,000 + VAT on the initial capital stack.
-              </div>
-            </div>
-            <div style={{ fontSize: 11, color: '#6B7280', textAlign: 'right', fontStyle: 'italic' }}>vs. old Use of Funds</div>
-          </div>
         </div>
       </div>
 

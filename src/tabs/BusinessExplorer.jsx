@@ -1483,7 +1483,6 @@ function KpiCard2026({ label, value, sub, color }) {
 function PlonkCommissionImpactBanner({ plonkCommission, lockedRates, isLocked, fmt, onlinePortion, officePortion }) {
   const annualSavings = IP_LICENSING_VENUE_SAVINGS_ANNUAL
   const netBenefit    = annualSavings - plonkCommission
-  const oneOffSaving  = IP_LICENSING_VENUE_SAVINGS.ipOneOffSaving
   const netColor      = netBenefit >= 0 ? '#10B981' : '#F87171'
 
   return (
@@ -1504,7 +1503,7 @@ function PlonkCommissionImpactBanner({ plonkCommission, lockedRates, isLocked, f
             : `Live preview · ${lockedRates.onlinePct}% online · ${lockedRates.officePct}% office (lock on IP & Licensing tab to pin)`}
         </div>
       </div>
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10 }}>
         <ImpactTile
           label="Plonk Commission"
           value={fmt(plonkCommission)}
@@ -1523,12 +1522,6 @@ function PlonkCommissionImpactBanner({ plonkCommission, lockedRates, isLocked, f
           sub="Savings − commission · already in cost stack"
           color={netColor}
           emphasised
-        />
-        <ImpactTile
-          label="One-off Y1 saving"
-          value={fmt(oneOffSaving) + '+'}
-          sub="vs old £72k IP & Goodwill purchase"
-          color="var(--gold)"
         />
       </div>
     </div>

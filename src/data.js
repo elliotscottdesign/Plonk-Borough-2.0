@@ -712,7 +712,6 @@ export const IP_LICENSING_VENUE_SAVINGS = {
   webHostingLithos:      3492,    // £291/mo × 12 — Lithos website maintenance plan
   bookingsManagerAnnual: 34320,   // £660/wk × 52 — replaced by chatbot + AI booking flow
   seoLithos:             10464,   // £872/mo × 12 — Lithos SEO + outreach retainer
-  ipOneOffSaving:        50000,   // one-off — vs the old £72k IP & Goodwill purchase
 }
 export const IP_LICENSING_VENUE_SAVINGS_ANNUAL =
   IP_LICENSING_VENUE_SAVINGS.onlinePaymentFees +
