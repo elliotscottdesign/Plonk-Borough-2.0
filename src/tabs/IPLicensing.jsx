@@ -11,6 +11,7 @@ import {
 import ResetBtn from '../components/ResetBtn.jsx'
 import MarketingUpliftCard from '../components/MarketingUpliftCard.jsx'
 import { useLockedCommissions } from '../components/LockedDeckContext.jsx'
+import { getAccessCode } from '../lib/access-code.js'
 
 const fmt = n => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 const fmt0 = n => '£' + Math.round(n).toLocaleString()
@@ -302,15 +303,27 @@ export default function IPLicensing() {
   const OFFICE_GOLD = 'var(--gold)'
   const COMMISSION_CYAN = '#2DD4BF'
 
+  // 'Plonk × No Dice' is a Plonk-Golf-side P&L view (company costing for
+  // Plonk Golf Ltd, not for the venue). Only the canonical founder code
+  // 888999 should see it — VALEX gets the Plonk top-tab to view IP &
+  // Licensing economics but is intentionally excluded from this view.
+  const isCanonicalFounder = getAccessCode() === '888999'
+
   const [activeSection, setActiveSection] = useState('commissions')
   const sections = [
     { key: 'commissions',label: 'Commissions',             sub: 'Online · Office · Booking fee',       color: COMMISSION_CYAN },
     { key: 'online',     label: '2025 Online Sales',       sub: 'Section A',                           color: ONLINE_GREEN },
     { key: 'office',     label: '2025 Office Sales',       sub: 'Section B',                           color: OFFICE_GOLD },
     { key: 'marketing',  label: 'Marketing Uplift',        sub: 'Forecast tickets · capacity check',   color: '#E67E22' },
-    { key: 'plonk',      label: 'Plonk × No Dice',         sub: 'Interactive P&L + venue view',        color: 'var(--gold)' },
+    ...(isCanonicalFounder
+      ? [{ key: 'plonk', label: 'Plonk × No Dice',         sub: 'Interactive P&L + venue view',        color: 'var(--gold)' }]
+      : []),
     { key: 'notes',      label: 'Assumptions',             sub: 'Open questions · methodology',        color: '#9CA3AF' },
   ]
+  // Defensive: if the section the user had selected has been stripped
+  // (e.g. they were on 'plonk' and later signed in as a non-888999),
+  // bounce them back to Commissions so the right pane never goes blank.
+  const safeActiveSection = sections.some(s => s.key === activeSection) ? activeSection : 'commissions'
 
   const [openBubble, setOpenBubble] = useState(null)
   const bubbles = [
@@ -403,10 +416,10 @@ export default function IPLicensing() {
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '230px 1fr', gap: 18, alignItems: 'start' }}>
-        <SectionIndex sections={sections} active={activeSection} onSelect={setActiveSection} />
+        <SectionIndex sections={sections} active={safeActiveSection} onSelect={setActiveSection} />
 
         <div>
-          {activeSection === 'online' && (
+          {safeActiveSection === 'online' && (
             <SKUTable
               title="Section A · Online Portal (Status = complete)"
               subtitle="Customer books + pays through the online system. Booking fee added on top, retained by Plonk Golf. Commission charged to venue on online golf sales only (see Commissions section)."
@@ -416,7 +429,7 @@ export default function IPLicensing() {
             />
           )}
 
-          {activeSection === 'office' && (
+          {safeActiveSection === 'office' && (
             <SKUTable
               title="Section B · Office / External (Status = external)"
               subtitle="Bookings taken by the office/bookings team. Payment is settled at the venue till. Revenue column is IMPUTED at SKU list price (qty × price). Booking fee column is £0 because till sales don't carry the online booking fee."
@@ -426,7 +439,7 @@ export default function IPLicensing() {
             />
           )}
 
-          {activeSection === 'commissions' && (
+          {safeActiveSection === 'commissions' && (
             <CommissionsSection
               commissionOnlinePct={commissionOnlinePct}
               setCommissionOnlinePct={setCommissionOnlinePct}
@@ -448,9 +461,9 @@ export default function IPLicensing() {
             />
           )}
 
-          {activeSection === 'marketing' && <MarketingUpliftCard />}
+          {safeActiveSection === 'marketing' && <MarketingUpliftCard />}
 
-          {activeSection === 'plonk' && (
+          {safeActiveSection === 'plonk' && (
             <CommissionModel
               commissionOnlinePct={commissionOnlinePct}
               commissionOfficePct={commissionOfficePct}
@@ -458,7 +471,7 @@ export default function IPLicensing() {
             />
           )}
 
-          {activeSection === 'notes' && (
+          {safeActiveSection === 'notes' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)', borderRadius: 10, padding: 16, fontSize: 12, color: '#9CA3AF', lineHeight: 1.7 }}>
                 <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 10 }}>Assumptions &amp; open questions</div>
