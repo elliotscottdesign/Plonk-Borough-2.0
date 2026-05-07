@@ -3,6 +3,8 @@ import {
   HACKNEY_GOLF_2025, HACKNEY_GOLF_GOING_FORWARD, TBD,
   HACKNEY_GOLF_HOST_2025_MONTHLY, HACKNEY_GOLF_HOST_2025_TOTALS,
   HACKNEY_GOLF_TILL_2025_MONTHLY,
+  HACKNEY_GOLF_TILL_SKUS_2025, HACKNEY_GOLF_TILL_SKUS_GRAND_2025,
+  HACKNEY_GOLF_TILL_SKUS_MONTHLY_2025,
   HACKNEY_DMN_SKUS_ONLINE_2025, HACKNEY_DMN_SKUS_OFFICE_2025,
   HACKNEY_DMN_MONTHLY_2025, HACKNEY_DMN_GRAND_2025,
   WAGE_OVERHEAD_MULT,
@@ -310,6 +312,11 @@ function GolfHosts() {
 function TillRevenue() {
   const tillData  = HACKNEY_GOLF_TILL_2025_MONTHLY
   const tillTotal = tillData.reduce((s, m) => s + m.revenue, 0)
+  // Goodtill till SKU breakdown (built from the raw 89,521-line export
+  // after the OTHER - GOLF / OTHER - GOLF & GAMES tag cleanup).
+  const skus       = HACKNEY_GOLF_TILL_SKUS_2025
+  const skuGrand   = HACKNEY_GOLF_TILL_SKUS_GRAND_2025
+  const skuMonthly = HACKNEY_GOLF_TILL_SKUS_MONTHLY_2025
   return (
     <div>
       <STitle>Walk-In (Till) Golf Ticket Revenue · 2025</STitle>
@@ -342,11 +349,55 @@ function TillRevenue() {
       </div>
 
       {/* Till-side totals strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:18 }}>
         <SeasonTile label="Total walk-in revenue 2025" value={fmt(tillTotal)}                                                            sub="52 weeks · all months active" colour="#2DD4BF" />
         <SeasonTile label="Avg per month"               value={fmt(tillTotal / 12)}                                                       sub="Across 12 months" />
         <SeasonTile label="Peak month"                  value={(() => { const p = tillData.reduce((a, m) => m.revenue > a.revenue ? m : a, tillData[0]); return `${p.month} · ${fmt(p.revenue)}` })()} sub="Highest till take" />
         <SeasonTile label="Quiet month"                 value={(() => { const p = tillData.reduce((a, m) => m.revenue < a.revenue ? m : a, tillData[0]); return `${p.month} · ${fmt(p.revenue)}` })()} sub="Lowest till take" />
+      </div>
+
+      {/* ─── Goodtill SKU breakdown — mirrors Online Sales tab structure ─── */}
+      <STitle>Walk-In SKU Mix · Goodtill till buttons</STitle>
+      <p style={{ fontSize:13, color:'var(--cream-dim)', lineHeight:1.6, marginBottom:14 }}>
+        Per-SKU breakdown built from the raw 89,521-line Goodtill export (Jan – 23 Sep 2025), filtered to every transaction tagged <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>OTHER - GOLF</code> or <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>OTHER - GOLF & GAMES</code> that represents a golf round (or a golf+token bundle). No scanning happens at Hackney — every line is a real cash transaction at the bar till.
+      </p>
+
+      {/* Headline strip — same shape as the Online sales tab */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:10, marginBottom:14 }}>
+        <SeasonTile label="Pure golf rounds"          value={fmt(skuGrand.roundsRevenue)}  sub={`${skuGrand.roundsSold.toLocaleString('en-GB')} sold · ${skus.filter(s => s.tokens === 0).length} SKUs`} colour="#2DD4BF" />
+        <SeasonTile label="Golf + token bundles"      value={fmt(skuGrand.bundlesRevenue)} sub={`${skuGrand.bundlesSold.toLocaleString('en-GB')} sold · ${skus.filter(s => s.tokens > 0).length} SKUs`}  colour="#A78BFA" />
+        <SeasonTile label="Combined till volume"      value={fmt(skuGrand.totalRevenue)}   sub={`${skuGrand.totalSold.toLocaleString('en-GB')} units · 21 SKU archetypes`} colour="#10B981" />
+        <SeasonTile label="Tokens carried in bundles" value={skuGrand.tokensTotal.toLocaleString('en-GB')} sub="100% to No Dice · no operator share" colour="#EAB308" />
+      </div>
+
+      {/* SKU table — reuses the SkuTable shape used for the Online tab */}
+      <div className="card" style={{ padding:0, overflow:'hidden', marginBottom:14 }}>
+        <div style={{ padding:'12px 16px', borderBottom:'1px solid rgba(45,212,191,0.3)', fontSize:11, color:'#2DD4BF', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+          Walk-in SKUs · Goodtill button presses · {skus.length} archetypes
+        </div>
+        <SkuTable rows={skus} />
+      </div>
+
+      {/* Reconciliation banner — till activity vs Weekly Merged P&L */}
+      <div className="card" style={{ padding:14, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.3)', borderLeft:'3px solid #EAB308' }}>
+        <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600, marginBottom:8 }}>Till activity vs P&amp;L · reconciliation</div>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.7 }}>
+          Goodtill till data shows <strong style={{ color:'var(--cream)' }}>{fmt(skuGrand.totalRevenue)}</strong> of golf-tagged transactions across <strong style={{ color:'var(--cream)' }}>{skuGrand.totalSold.toLocaleString('en-GB')}</strong> units sold for the 9 months Jan – 23 Sep 2025. The Weekly Merged 2024-2026 row 3 figure cited above ({fmt(tillTotal)}) is for the full 52-week year and reflects the financial-truth P&amp;L line. The gap is structural and under separate reconciliation — the SKU breakdown above is faithful to the till's button-press record.
+        </div>
+        <div style={{ marginTop:10, display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, fontSize:11, color:'var(--cream-dim)' }}>
+          <div>
+            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Goodtill till activity (9 mo)</div>
+            <div className="serif" style={{ fontSize:18, color:'#2DD4BF' }}>{fmt(skuGrand.totalRevenue)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Weekly Merged P&amp;L (52 wk)</div>
+            <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(tillTotal)}</div>
+          </div>
+          <div>
+            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Gap (under reconciliation)</div>
+            <div className="serif" style={{ fontSize:18, color:'#F87171' }}>{fmt(skuGrand.totalRevenue - tillTotal)}</div>
+          </div>
+        </div>
       </div>
     </div>
   )
