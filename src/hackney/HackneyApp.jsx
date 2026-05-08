@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
+import TokenShare from './tabs/TokenShare.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
@@ -36,11 +37,16 @@ const SLIDE_DEFS = [
   { id:'waterfall',  label:'Investor Returns',   Component: WaterfallReturns },
 ]
 
+// `founderOnly: true` flags a tab as gated to the 888999 access code.
+// PasswordGate sets sessionStorage.ndb_founder='1' on that unlock; the
+// tab list filters on it before rendering so other access codes never
+// see the tab in the header at all.
 const TOP_TABS = [
   { key:'investorDeck',     label:'Investor Deck' },
   { key:'businessExplorer', label:'Business Explorer' },
   { key:'venueInfo',        label:'Venue Info' },
   { key:'plonk',            label:'Plonk' },
+  { key:'tokenShare',       label:'Token Share', founderOnly: true },
 ]
 
 // Build the notes "active page" descriptor from the current top tab and
@@ -54,8 +60,15 @@ function deriveActivePage(topTab, slideId) {
   if (topTab === 'venueInfo')         return { id: 'venue',    label: 'Venue Info' }
   if (topTab === 'businessExplorer')  return { id: 'explorer', label: 'Business Explorer' }
   if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
+  if (topTab === 'tokenShare')        return { id: 'tokenShare', label: 'Token Share' }
   if (topTab === 'notes')             return null   // master view
   return null
+}
+
+// Read founder flag set by PasswordGate at 888999. Used to filter
+// founder-only tabs out of the header for non-founder access codes.
+function readIsFounder() {
+  try { return sessionStorage.getItem('ndb_founder') === '1' } catch { return false }
 }
 
 export default function HackneyApp() {
@@ -112,6 +125,8 @@ export default function HackneyApp() {
 function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
   const { Component } = SLIDE_DEFS[slideIdx]
   const notes = useNotes()
+  const isFounder = readIsFounder()
+  const visibleTabs = TOP_TABS.filter(t => !t.founderOnly || isFounder)
 
   // Keep NotesContext.activePage in lockstep with the current view so
   // the side panel's textarea binds to the right note.
@@ -128,7 +143,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Hackney</div>
         <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-          {TOP_TABS.map(t => (
+          {visibleTabs.map(t => (
             <button key={t.key} onClick={() => setTopTab(t.key)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===t.key?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===t.key?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t.key?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===t.key?600:400 }}>{t.label}</button>
           ))}
           {WORKBOOK_URL && (
@@ -180,6 +195,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
         {topTab === 'venueInfo' && <div style={{ flex:1, overflowY:'auto' }}><VenueInfo /></div>}
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
+        {topTab === 'tokenShare' && isFounder && <div style={{ flex:1, overflowY:'auto' }}><TokenShare /></div>}
         {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
       <NotesPanel />
