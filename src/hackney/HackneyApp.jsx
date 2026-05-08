@@ -65,10 +65,12 @@ function deriveActivePage(topTab, slideId) {
   return null
 }
 
-// Read founder flag set by PasswordGate at 888999. Used to filter
-// founder-only tabs out of the header for non-founder access codes.
+// Read canonical-founder flag — set ONLY for the 888999 access code
+// (and any future role:'founder' codes). Note: 'ndb_founder' is set for
+// every signed-in user under the per-tenant model (it's the edit-access
+// flag), so we use 'ndb_role_founder' here for true 888999-only gating.
 function readIsFounder() {
-  try { return sessionStorage.getItem('ndb_founder') === '1' } catch { return false }
+  try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false }
 }
 
 export default function HackneyApp() {
