@@ -52,4 +52,43 @@ Hackney-labelled copy of the same cleaned dataset, packaged for import as a new 
 
 Identical schema and contents to `goodtill_2025_categorised.csv`; the only difference is the note block at the top (rows 1–9) which labels the file as Hackney-specific and flags the **24 Sep 2025 → onwards data gap** (till migration to Lightspeed). Headers in row 10, data from row 11.
 
-This is the dataset that powers the forthcoming Hackney 2025 sales slide in the React deck.
+⚠ **This is the RAW export.** It contains a substantial duplicate-line problem (~26.7% of all rows are exact clones of an earlier row). The React deck and downstream aggregates are NOT built from this file directly — see the cleaned dataset below. The raw file is preserved untouched for audit.
+
+## `hackney_2025_till_sales_clean.csv` ⭐ canonical for the deck
+
+Deduplicated copy of `hackney_2025_till_sales.csv`. **This is the dataset that feeds the React deck constants** (`HACKNEY_2025_TILL_SALES`, `HACKNEY_2025_DISCOUNTS`, `HACKNEY_GOLF_TILL_SKUS_2025` and the related grand / monthly roll-ups).
+
+| | |
+|---|---|
+| Source | Derived from `hackney_2025_till_sales.csv` (raw Goodtill export) |
+| Rows | 70,933 total · 69,164 COMPLETED |
+| Lines removed | 25,796 (~26.7% of raw export) |
+| Revenue impact | £628,227 → **£513,686** COMPLETED revenue (−18.2%) |
+| Distinct Sale IDs | 43,784 (unchanged — same sales, fewer line items per sale) |
+
+### Dedup logic
+
+A row is a duplicate when **every one** of these 10 identity-bearing fields matches an earlier row exactly:
+
+`Sale ID + Sale Time + Order Status + Product Name + Quantity + Unit Price + Sale Discount + Total + Eat-in/Takeaway + Item Notes`
+
+The first occurrence is kept; later identical rows are dropped. Header rows 1–10 are preserved verbatim with a provenance note at the top of the file documenting the cleanup.
+
+### Why dedup was needed
+
+The raw Goodtill export contained tight clusters of identical lines: same Sale ID, same Sale Time **to the second**, same Product Name, same Unit Price, same Quantity, same discount fields, same takeaway flag — written 2× / 3× / 4× and in extreme cases up to 65× per cluster. Genuine 2-unit purchases would appear in Goodtill as a single `qty=2` line; repeated `qty=1` clones at the same instant on the same Sale ID are not legitimate distinct purchases — they are duplicate writes by the till or the export pipeline. The duplication rate varied by category:
+
+| Category | Raw rev | Clean rev | Drop |
+|---|---:|---:|---:|
+| OTHER - GOLF | £59,266 | £36,522 | −38.4% |
+| OTHER - GOLF & GAMES | £76,772 | £58,839 | −23.4% |
+| BEER - DRAUGHT | £191,599 | £152,980 | −20.2% |
+| SPIRITS - TEQUILA & SHOTS | £13,714 | £11,012 | −19.7% |
+| BEER & CIDER - BOTTLED | £46,378 | £38,771 | −16.4% |
+| COCKTAILS - CLASSIC | £49,579 | £42,542 | −14.2% |
+| COCKTAILS - HOUSE | £65,913 | £56,839 | −13.8% |
+| (all 27 categories) | £628,227 | £513,686 | **−18.2%** |
+
+### Workbook import
+
+`File → Import → Upload → hackney_2025_till_sales_clean.csv → Insert new sheet(s)` — name the new sheet `Goodtill 2025 (clean)` to distinguish it from the existing raw import. The header block (rows 1–10) explains the cleanup; data starts at row 11.

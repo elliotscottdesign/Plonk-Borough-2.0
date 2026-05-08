@@ -378,24 +378,27 @@ function TillRevenue() {
         <SkuTable rows={skus} />
       </div>
 
-      {/* Reconciliation banner — till activity vs Weekly Merged P&L */}
-      <div className="card" style={{ padding:14, background:'rgba(234,179,8,0.06)', border:'1px solid rgba(234,179,8,0.3)', borderLeft:'3px solid #EAB308' }}>
-        <div style={{ fontSize:11, color:'#EAB308', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600, marginBottom:8 }}>Till activity vs P&amp;L · reconciliation</div>
+      {/* Provenance + dedup note — explains where these figures came from */}
+      <div className="card" style={{ padding:14, background:'rgba(45,212,191,0.06)', border:'1px solid rgba(45,212,191,0.3)', borderLeft:'3px solid #2DD4BF' }}>
+        <div style={{ fontSize:11, color:'#2DD4BF', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600, marginBottom:8 }}>Source · cleaned Goodtill export</div>
         <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.7 }}>
-          Goodtill till data shows <strong style={{ color:'var(--cream)' }}>{fmt(skuGrand.totalRevenue)}</strong> of golf-tagged transactions across <strong style={{ color:'var(--cream)' }}>{skuGrand.totalSold.toLocaleString('en-GB')}</strong> units sold for the 9 months Jan – 23 Sep 2025. The Weekly Merged 2024-2026 row 3 figure cited above ({fmt(tillTotal)}) is for the full 52-week year and reflects the financial-truth P&amp;L line. The gap is structural and under separate reconciliation — the SKU breakdown above is faithful to the till's button-press record.
+          The figures above come from <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>data/hackney_2025_till_sales_clean.csv</code> — a deduplicated copy of the raw Goodtill export. An audit found ~26.7% of all rows in the raw file were exact clones of an earlier row (same Sale ID, same second, same product, same price, same quantity, same discount, same takeaway flag, same notes). For golf specifically, dedup removed <strong style={{ color:'var(--cream)' }}>4,222 duplicate lines</strong> worth <strong style={{ color:'var(--cream)' }}>£37,619</strong> from the raw till totals. The raw file is preserved untouched at <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 6px', borderRadius:3 }}>data/hackney_2025_till_sales.csv</code> for audit.
         </div>
         <div style={{ marginTop:10, display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:14, fontSize:11, color:'var(--cream-dim)' }}>
           <div>
-            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Goodtill till activity (9 mo)</div>
+            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Clean till activity (9 mo)</div>
             <div className="serif" style={{ fontSize:18, color:'#2DD4BF' }}>{fmt(skuGrand.totalRevenue)}</div>
+            <div style={{ fontSize:10 }}>{skuGrand.totalSold.toLocaleString('en-GB')} units sold</div>
           </div>
           <div>
             <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Weekly Merged P&amp;L (52 wk)</div>
             <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>{fmt(tillTotal)}</div>
+            <div style={{ fontSize:10 }}>full year, includes Q4</div>
           </div>
           <div>
-            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Gap (under reconciliation)</div>
+            <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.06em', marginBottom:2 }}>Remaining gap</div>
             <div className="serif" style={{ fontSize:18, color:'#F87171' }}>{fmt(skuGrand.totalRevenue - tillTotal)}</div>
+            <div style={{ fontSize:10 }}>under separate review</div>
           </div>
         </div>
       </div>

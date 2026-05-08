@@ -1071,42 +1071,46 @@ export const HACKNEY_GOLF_TILL_2025_MONTHLY = [
   { month: 'Dec', weeks: 5, revenue:  1260 },
 ]
 
-// === WALK-IN GOLF — TILL SKU BREAKDOWN (Goodtill 2025 Jan–23 Sep) ============
+// === WALK-IN GOLF — TILL SKU BREAKDOWN (Goodtill 2025 Jan–23 Sep, CLEAN) =====
 // Per-product aggregate of every till transaction tagged either OTHER - GOLF
 // or OTHER - GOLF & GAMES that represents a golf round (or a golf+token
-// bundle). Built from the raw 89,521-line Goodtill export after the tag
-// cleanup work — no scanning happens at Hackney, so each line is a real
-// cash transaction at the bar till.
+// bundle). No scanning happens at Hackney, so each line is a real cash
+// transaction at the bar till.
+//
+// Source: data/hackney_2025_till_sales_clean.csv (deduplicated). The raw
+// Goodtill export at data/hackney_2025_till_sales.csv had ~26.7% of all
+// rows as exact duplicates (same Sale ID + second + product + price + qty
+// + discount + total + takeaway flag + notes). Genuine 2-unit purchases
+// would appear as a single qty=2 line; repeated qty=1 clones at the same
+// instant are not legitimate distinct purchases.
+//
+// Headline impact for golf specifically:
+//   Pre-dedup:  9,915 lines · 10,437 units · £95,861.58
+//   Post-dedup: 5,693 lines ·  6,221 units · £58,242.97  (−39.2% revenue,
+//                                                         −42.6% lines)
 //
 // Schema mirrors HACKNEY_DMN_SKUS_ONLINE_2025 (sku, rounds, tokens, price,
 // sold, revenue) so the same SkuTable renderer is reusable. `sold` counts
-// units (Goodtill Quantity column), not lines — couples buying 2 rounds
-// in one transaction count as 2.
-//
-// ⚠ Reconciliation note — the till-side total here is £95,861.58 across
-// 10,437 units sold vs the Weekly Merged 2024-2026 row 3 figure of £25,506
-// for the full 2025 year. The gap is structural and under separate
-// reconciliation; the SKU breakdown below is faithful to the till's
-// button-press record.
+// units (Goodtill Quantity column), not lines.
 export const HACKNEY_GOLF_TILL_SKUS_2025 = [
-  { sku: 'Peak Adult — Round of Golf',                       rounds: 1, tokens: 0, price: 12.89, sold: 3098, revenue: 39920.32 },
-  { sku: 'Adult — Round of Golf (legacy £5/£6 button)',      rounds: 1, tokens: 0, price:  5.22, sold: 3252, revenue: 16974.29 },
-  { sku: 'Off Peak Adult — Round of Golf',                   rounds: 1, tokens: 0, price:  9.86, sold: 1536, revenue: 15141.06 },
-  { sku: 'Peak Adult — Golf and Five Arcade Tokens',         rounds: 1, tokens: 5, price: 15.95, sold:  627, revenue: 10003.20 },
-  { sku: 'Off Peak Adult — Golf and Five Arcade Tokens',     rounds: 1, tokens: 5, price: 12.32, sold:  261, revenue:  3215.59 },
-  { sku: 'Under 18s — Round of Golf (legacy)',               rounds: 1, tokens: 0, price:  5.19, sold:  563, revenue:  2919.80 },
-  { sku: 'Off Peak Under 18s — Round of Golf',               rounds: 1, tokens: 0, price:  5.49, sold:  436, revenue:  2393.05 },
-  { sku: 'Peak Under 18s — Round of Golf',                   rounds: 1, tokens: 0, price:  7.44, sold:  270, revenue:  2009.25 },
-  { sku: 'Peak Under 18s — Golf and Five Arcade Tokens',     rounds: 1, tokens: 5, price: 11.90, sold:   60, revenue:   714.00 },
-  { sku: 'Adult — Round of Golf & Four Tokens',              rounds: 1, tokens: 4, price:  8.38, sold:   74, revenue:   620.32 },
-  { sku: 'Off Peak Under 18s — Golf and Five Arcade Tokens', rounds: 1, tokens: 5, price: 10.00, sold:   53, revenue:   530.00 },
-  { sku: 'Peak Adult — Round of Golf & Four Tokens',         rounds: 1, tokens: 4, price: 11.83, sold:   41, revenue:   485.00 },
-  { sku: 'Night Golf',                                       rounds: 1, tokens: 0, price:  5.20, sold:   89, revenue:   462.75 },
-  { sku: '2-4-1 — Adult — Round of Golf',                    rounds: 1, tokens: 0, price:  4.52, sold:   37, revenue:   167.14 },
-  { sku: 'Under 18s — Round of Golf & Four Tokens',          rounds: 1, tokens: 4, price:  8.50, sold:   15, revenue:   127.50 },
-  { sku: 'Off Peak Adult — Round of Golf & Four Tokens',     rounds: 1, tokens: 4, price:  8.50, sold:   15, revenue:   127.50 },
-  { sku: 'Under 18s — Round of Golf (£6 button)',            rounds: 1, tokens: 0, price:  6.00, sold:    3, revenue:    18.00 },
+  { sku: 'Peak Adult — Round of Golf',                       rounds: 1, tokens: 0, price: 12.87, sold: 1914, revenue: 24641.77 },
+  { sku: 'Adult — Round of Golf (legacy £5/£6 button)',      rounds: 1, tokens: 0, price:  5.26, sold: 1743, revenue:  9173.80 },
+  { sku: 'Off Peak Adult — Round of Golf',                   rounds: 1, tokens: 0, price:  9.86, sold:  911, revenue:  8981.28 },
+  { sku: 'Peak Adult — Golf and Five Arcade Tokens',         rounds: 1, tokens: 5, price: 15.94, sold:  405, revenue:  6456.00 },
+  { sku: 'Off Peak Adult — Golf and Five Arcade Tokens',     rounds: 1, tokens: 5, price: 12.35, sold:  166, revenue:  2050.92 },
+  { sku: 'Under 18s — Round of Golf (legacy)',               rounds: 1, tokens: 0, price:  5.22, sold:  355, revenue:  1851.40 },
+  { sku: 'Off Peak Under 18s — Round of Golf',               rounds: 1, tokens: 0, price:  5.49, sold:  286, revenue:  1569.15 },
+  { sku: 'Peak Under 18s — Round of Golf',                   rounds: 1, tokens: 0, price:  7.43, sold:  193, revenue:  1434.75 },
+  { sku: 'Peak Under 18s — Golf and Five Arcade Tokens',     rounds: 1, tokens: 5, price: 11.91, sold:   41, revenue:   488.40 },
+  { sku: 'Off Peak Under 18s — Golf and Five Arcade Tokens', rounds: 1, tokens: 5, price: 10.00, sold:   39, revenue:   390.00 },
+  { sku: 'Adult — Round of Golf & Four Tokens',              rounds: 1, tokens: 4, price:  8.63, sold:   45, revenue:   388.41 },
+  { sku: 'Peak Adult — Round of Golf & Four Tokens',         rounds: 1, tokens: 4, price: 11.30, sold:   23, revenue:   260.00 },
+  { sku: 'Night Golf',                                       rounds: 1, tokens: 0, price:  5.29, sold:   45, revenue:   238.25 },
+  { sku: '2-4-1 — Adult — Round of Golf',                    rounds: 1, tokens: 0, price:  4.60, sold:   30, revenue:   138.03 },
+  { sku: 'Under 18s — Round of Golf & Four Tokens',          rounds: 1, tokens: 4, price:  8.50, sold:    9, revenue:    76.50 },
+  { sku: 'Off Peak Adult — Round of Golf & Four Tokens',     rounds: 1, tokens: 4, price:  8.50, sold:    7, revenue:    59.50 },
   { sku: '2-4-1 — Adult — Round of Golf & Four Tokens',      rounds: 1, tokens: 4, price:  8.41, sold:    2, revenue:    16.81 },
+  { sku: 'Under 18s — Round of Golf (£6 button)',            rounds: 1, tokens: 0, price:  6.00, sold:    2, revenue:    12.00 },
   { sku: '2-4-1 — Under 18s — Round of Golf',                rounds: 1, tokens: 0, price:  5.00, sold:    2, revenue:    10.00 },
   { sku: 'Plonk Medal',                                      rounds: 1, tokens: 0, price:  6.00, sold:    1, revenue:     6.00 },
   { sku: 'Mothers Day Golf (£0 — staff comp)',               rounds: 1, tokens: 0, price:  0.00, sold:    2, revenue:     0.00 },
@@ -1114,34 +1118,35 @@ export const HACKNEY_GOLF_TILL_SKUS_2025 = [
 
 // Aggregate roll-ups for the headline strip on the Walk-In Till section.
 // Pre-computed so the React layer can render them without re-summing.
+// All values are post-dedup (data/hackney_2025_till_sales_clean.csv).
 export const HACKNEY_GOLF_TILL_SKUS_GRAND_2025 = {
-  totalSold:        10437,
-  totalRevenue:     95861.58,
+  totalSold:        6221,
+  totalRevenue:     58242.97,
   // Split between pure golf rounds and golf+token bundles for the headline.
-  roundsSold:       9289,    // qty across SKUs with tokens === 0
-  roundsRevenue:    80021.66,
-  bundlesSold:      1148,
-  bundlesRevenue:   15839.92,
+  roundsSold:       5484,    // qty across SKUs with tokens === 0
+  roundsRevenue:    48056.43,
+  bundlesSold:      737,
+  bundlesRevenue:   10186.54,
   // Bundled tokens carried inside the Golf+Tokens SKUs above (units ×
   // tokens-per-unit, summed). 100% of token revenue stays with No Dice.
-  tokensTotal:      5593,
+  tokensTotal:      3599,
 }
 
 // Monthly walk-in golf till totals — per-month £ summed across every
-// golf-tagged line in the Goodtill export. Used as the till-side bar
-// chart on the Walk-In Till section. Sep is partial (Goodtill data ends
-// 23 Sep when Hackney migrated to Lightspeed); Oct–Dec are not in this
-// dataset.
+// golf-tagged line in the cleaned Goodtill export. Used as the till-side
+// bar chart on the Walk-In Till section. Sep is partial (Goodtill data
+// ends 23 Sep when Hackney migrated to Lightspeed); Oct–Dec are not in
+// this dataset.
 export const HACKNEY_GOLF_TILL_SKUS_MONTHLY_2025 = [
-  { month: 'Jan', revenue:  7844 },
-  { month: 'Feb', revenue:  9660 },
-  { month: 'Mar', revenue: 11546 },
-  { month: 'Apr', revenue: 10661 },
-  { month: 'May', revenue: 12674 },
-  { month: 'Jun', revenue:  9728 },
-  { month: 'Jul', revenue: 12004 },
-  { month: 'Aug', revenue: 16446 },
-  { month: 'Sep', revenue:  5298 },
+  { month: 'Jan', revenue: 4645 },
+  { month: 'Feb', revenue: 6079 },
+  { month: 'Mar', revenue: 6904 },
+  { month: 'Apr', revenue: 6349 },
+  { month: 'May', revenue: 7986 },
+  { month: 'Jun', revenue: 6084 },
+  { month: 'Jul', revenue: 7349 },
+  { month: 'Aug', revenue: 9818 },
+  { month: 'Sep', revenue: 3028 },
 ]
 
 // Go-forward (2026+) revenue split between the new golf operator and No Dice.
