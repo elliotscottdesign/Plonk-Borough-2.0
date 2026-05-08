@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useNotes } from '../components/NotesContext.jsx'
 import { getAccessCode } from '../../lib/access-code.js'
 import { NOTES_SYNC_URL } from '../../data/hackney.js'
@@ -85,6 +85,16 @@ function ReplyComposer({ targetCode, pageId, existing }) {
   const { replyToNote } = useNotes()
   const [text, setText] = useState((existing?.text) || '')
   const [state, setState] = useState('idle')
+  // Auto-grow the textarea so pasted / typed long replies are fully
+  // visible without an internal scrollbar. Resets to scrollHeight on
+  // every text change.
+  const textareaRef = useRef(null)
+  useEffect(() => {
+    const el = textareaRef.current
+    if (!el) return
+    el.style.height = 'auto'
+    el.style.height = `${el.scrollHeight}px`
+  }, [text])
 
   const submit = async () => {
     setState('saving')
@@ -109,12 +119,13 @@ function ReplyComposer({ targetCode, pageId, existing }) {
     <div style={{ marginTop:8, padding:'10px 12px', background:'rgba(192,132,252,0.04)', border:'1px dashed rgba(192,132,252,0.3)', borderRadius:6 }}>
       <div style={{ fontSize:10, color:'#C084FC', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600, marginBottom:6 }}>Reply as founder</div>
       <textarea
+        ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
         placeholder="Type a reply — the user sees it on their own deck after refresh."
         rows={3}
         style={{
-          width:'100%', resize:'vertical', minHeight:48,
+          width:'100%', resize:'vertical', minHeight:60, overflow:'hidden',
           background:'rgba(0,0,0,0.25)', border:'1px solid rgba(192,132,252,0.25)',
           borderRadius:6, padding:'8px 10px',
           color:'var(--cream)', fontSize:12.5, lineHeight:1.5,
