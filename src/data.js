@@ -211,74 +211,83 @@ export const ROTA_TOTAL   = 152801   // 2025 rota cost (rate × hours, before ov
 export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 
 // === BAR ROTA — average week (2026 operating model) ===
-// Trading hours: 12pm → 11pm (= 11 hours/day, doors-open).
-// One person opens at 11am for a 1-hour pre-open prep slot.
+// Trading hours: 12pm → 11:30pm Mon–Sat (= 11.5h/day). Sunday closes
+// early at 9pm (12pm → 21:00 = 9h). Opener arrives 11:30am for a
+// 30-minute pre-open prep slot.
 //
-// Bar staffing pattern (Mon–Thu + Sun):
+// Bar staffing pattern (Mon–Wed + Sun):
 //   • 3 overlapping 6-hour shifts so coverage stays continuous
 //     while never putting more than 2 staff on the bar at once.
-//   • Opener  11–17  (preps from 11; bar-floor with mid 12–17)
-//   • Mid     12–18  (overlaps opener 12–17, hands off to closer 17–18)
-//   • Closer  17–23  (overlaps mid 17–18, then closes alone)
-// Fri + Sat add a 4th 6-hour evening shift so 3 staff are on the
-// floor through the peak (mid+closer+evening = 3 between 17–18,
-// closer+evening = 2 from 18–23). All shifts are paid 6h each.
+//   • Opener  11:30–17:30  (preps 11:30–12, bar-floor 12–17:30)
+//   • Mid     12:00–18:00  (overlaps opener 12–17:30, closer 17–18)
+//   • Closer  17:00–23:30  (overlaps mid 17–18, then closes alone)
+// Fri + Sat add a 4th 6.5h evening shift so 3 staff are on the floor
+// through the peak handoff at 17–18 (mid + closer + evening = 3),
+// then closer + evening = 2 staff continuing through to 23:30.
+// Thursday adds TWO extra 5.5h evening shifts (Evening 1 + Evening 2,
+// both 18:00–23:30) so 3 bar staff cover the whole 18:00–23:30 window
+// through the busy late-week shift, plus an extended Closer to 23:30.
+// Sunday is the standard 3-shift pattern but compressed to the 9pm
+// close — the Closer only works 17:00–21:00 (4h, the one shift that
+// breaks the 6h rule because the trading day is shorter).
 //
 // Manager (or Supervisor) rota:
 //   • One management presence on the floor for every open hour
-//     (12–23, all 7 days = 77 hrs/week).
-//   • Monday adds an EXTRA 4-hour admin shift (09–13) for weekly prep
-//     + financial reports — manager present, NOT counted as bar-floor
-//     coverage. This is on top of the Mon floor shift.
+//     (Mon–Sat 12:00–23:30 = 11.5h × 6 = 69h, Sun 12:00–21:00 = 9h).
+//     Total floor = 78h/week.
+//   • Monday adds an EXTRA 4-hour admin shift (09:00–13:00) for
+//     weekly prep + financial reports — manager present, NOT counted
+//     as bar-floor coverage. This is on top of the Mon floor shift.
 //
 // Edit any row's `start`/`end`/`day` to change the rota. Totals
 // recompute via deriveBarRotaTotals() below; weekly hours × 52 give
 // the annual figures the Sliding Wage Calculator multiplies by rate.
 export const BAR_ROTA_OPEN_HOUR  = 12
-export const BAR_ROTA_CLOSE_HOUR = 23
-export const BAR_ROTA_PREP_HOUR  = 11
+export const BAR_ROTA_CLOSE_HOUR = 23.5     // default close — Sun closes earlier (21:00)
+export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before doors
 
 export const BAR_WEEKLY_ROTA = [
+  // Mon–Sat close at 11:30pm. Sunday closes early at 9pm.
   // ─ MON ─────────────────────────────────────────────────────
-  { day: 'Mon', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Mon', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Mon', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Mon', role: 'manager', position: 'Floor',    start: 12, end: 23 },
-  { day: 'Mon', role: 'manager', position: 'Admin',    start:  9, end: 13, note: 'Weekly prep + financial reports — off-bar' },
+  { day: 'Mon', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Mon', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Mon', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Mon', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Mon', role: 'manager', position: 'Admin',      start:  9,   end: 13, note: 'Weekly prep + financial reports — off-bar' },
   // ─ TUE ─────────────────────────────────────────────────────
-  { day: 'Tue', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Tue', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Tue', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Tue', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  { day: 'Tue', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Tue', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Tue', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Tue', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
   // ─ WED ─────────────────────────────────────────────────────
-  { day: 'Wed', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Wed', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Wed', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Wed', role: 'manager', position: 'Floor',    start: 12, end: 23 },
-  // ─ THU (3-staff evening, extended close 11:30pm) ──────────
-  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11,   end: 17 },
+  { day: 'Wed', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Wed', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Wed', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Wed', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  // ─ THU (3-staff evening) ──────────────────────────────────
+  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
   { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
   { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
   { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
   { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
   { day: 'Thu', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
   // ─ FRI (3 staff peak) ─────────────────────────────────────
-  { day: 'Fri', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Fri', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Fri', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Fri', role: 'bar',     position: 'Evening',  start: 17, end: 23, note: 'Fri/Sat extra evening cover' },
-  { day: 'Fri', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  { day: 'Fri', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Fri', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Fri', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Fri', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, note: 'Fri/Sat extra evening cover' },
+  { day: 'Fri', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
   // ─ SAT (3 staff peak) ─────────────────────────────────────
-  { day: 'Sat', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Sat', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Sat', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Sat', role: 'bar',     position: 'Evening',  start: 17, end: 23, note: 'Fri/Sat extra evening cover' },
-  { day: 'Sat', role: 'manager', position: 'Floor',    start: 12, end: 23 },
-  // ─ SUN ─────────────────────────────────────────────────────
-  { day: 'Sun', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Sun', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Sun', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Sun', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  { day: 'Sat', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Sat', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Sat', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Sat', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, note: 'Fri/Sat extra evening cover' },
+  { day: 'Sat', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  // ─ SUN (early close 9pm) ──────────────────────────────────
+  { day: 'Sun', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
+  { day: 'Sun', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 17,   end: 21, note: 'Sunday early close 9pm' },
+  { day: 'Sun', role: 'manager', position: 'Floor',      start: 12,   end: 21 },
 ]
 
 // Helper — compute weekly + annual totals from the rota above.
