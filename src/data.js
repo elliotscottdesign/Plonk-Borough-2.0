@@ -210,6 +210,104 @@ export const ROTA_TOTAL   = 152801   // 2025 rota cost (rate × hours, before ov
 // 2025 P&L : Rota = 1.5862 — used to scale 2026 rota cost up to a P&L-equivalent figure.
 export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 
+// === BAR ROTA — average week (2026 operating model) ===
+// Trading hours: 12pm → 11pm (= 11 hours/day, doors-open).
+// One person opens at 11am for a 1-hour pre-open prep slot.
+//
+// Bar staffing pattern (Mon–Thu + Sun):
+//   • 3 overlapping 6-hour shifts so coverage stays continuous
+//     while never putting more than 2 staff on the bar at once.
+//   • Opener  11–17  (preps from 11; bar-floor with mid 12–17)
+//   • Mid     12–18  (overlaps opener 12–17, hands off to closer 17–18)
+//   • Closer  17–23  (overlaps mid 17–18, then closes alone)
+// Fri + Sat add a 4th 6-hour evening shift so 3 staff are on the
+// floor through the peak (mid+closer+evening = 3 between 17–18,
+// closer+evening = 2 from 18–23). All shifts are paid 6h each.
+//
+// Manager (or Supervisor) rota:
+//   • One management presence on the floor for every open hour
+//     (12–23, all 7 days = 77 hrs/week).
+//   • Monday adds an EXTRA 4-hour admin shift (09–13) for weekly prep
+//     + financial reports — manager present, NOT counted as bar-floor
+//     coverage. This is on top of the Mon floor shift.
+//
+// Edit any row's `start`/`end`/`day` to change the rota. Totals
+// recompute via deriveBarRotaTotals() below; weekly hours × 52 give
+// the annual figures the Sliding Wage Calculator multiplies by rate.
+export const BAR_ROTA_OPEN_HOUR  = 12
+export const BAR_ROTA_CLOSE_HOUR = 23
+export const BAR_ROTA_PREP_HOUR  = 11
+
+export const BAR_WEEKLY_ROTA = [
+  // ─ MON ─────────────────────────────────────────────────────
+  { day: 'Mon', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Mon', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Mon', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Mon', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  { day: 'Mon', role: 'manager', position: 'Admin',    start:  9, end: 13, note: 'Weekly prep + financial reports — off-bar' },
+  // ─ TUE ─────────────────────────────────────────────────────
+  { day: 'Tue', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Tue', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Tue', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Tue', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ WED ─────────────────────────────────────────────────────
+  { day: 'Wed', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Wed', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Wed', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Wed', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ THU ─────────────────────────────────────────────────────
+  { day: 'Thu', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Thu', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Thu', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Thu', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ FRI (3 staff peak) ─────────────────────────────────────
+  { day: 'Fri', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Fri', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Fri', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Fri', role: 'bar',     position: 'Evening',  start: 17, end: 23, note: 'Fri/Sat extra evening cover' },
+  { day: 'Fri', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ SAT (3 staff peak) ─────────────────────────────────────
+  { day: 'Sat', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Sat', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Sat', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Sat', role: 'bar',     position: 'Evening',  start: 17, end: 23, note: 'Fri/Sat extra evening cover' },
+  { day: 'Sat', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ SUN ─────────────────────────────────────────────────────
+  { day: 'Sun', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
+  { day: 'Sun', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
+  { day: 'Sun', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
+  { day: 'Sun', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+]
+
+// Helper — compute weekly + annual totals from the rota above.
+// Annual = weekly × 52 (rota repeats 52 times/year, no closure weeks
+// in the model). Useful for tying back to the Sliding Wage Calculator
+// hours/role figures.
+export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
+  const sum = (filter) =>
+    rota.filter(filter).reduce((s, r) => s + Math.max(0, r.end - r.start), 0)
+  const weeklyBarHours      = sum(r => r.role === 'bar')
+  const weeklyManagerFloor  = sum(r => r.role === 'manager' && r.position !== 'Admin')
+  const weeklyManagerAdmin  = sum(r => r.role === 'manager' && r.position === 'Admin')
+  const weeklyManagerHours  = weeklyManagerFloor + weeklyManagerAdmin
+  const weeklyOpenHours     = (BAR_ROTA_CLOSE_HOUR - BAR_ROTA_OPEN_HOUR) * 7
+  return {
+    weeklyOpenHours,
+    weeklyBarHours,
+    weeklyManagerFloor,
+    weeklyManagerAdmin,
+    weeklyManagerHours,
+    weeklyTotal: weeklyBarHours + weeklyManagerHours,
+    annualBarHours:     weeklyBarHours * 52,
+    annualManagerFloor: weeklyManagerFloor * 52,
+    annualManagerAdmin: weeklyManagerAdmin * 52,
+    annualManagerHours: weeklyManagerHours * 52,
+    annualOpenHours:    weeklyOpenHours * 52,
+    annualTotal:        (weeklyBarHours + weeklyManagerHours) * 52,
+  }
+}
+export const BAR_ROTA_TOTALS = deriveBarRotaTotals()
+
 // === DIGITAL MARKETING (GA4 verified) ===
 export const MARKETING = {
   // 2025 actuals

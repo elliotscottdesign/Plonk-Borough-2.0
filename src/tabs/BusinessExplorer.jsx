@@ -6,7 +6,7 @@ import BoroughTillSales2025 from './BoroughTillSales2025.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
-import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, IP_LICENSING_ONLINE_GOLF_REV_2025, IP_LICENSING_OFFICE_GOLF_REV_2025, IP_LICENSING_VENUE_SAVINGS, IP_LICENSING_VENUE_SAVINGS_ANNUAL, WORKBOOK_URL } from '../data.js'
+import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, IP_LICENSING_ONLINE_GOLF_REV_2025, IP_LICENSING_OFFICE_GOLF_REV_2025, IP_LICENSING_VENUE_SAVINGS, IP_LICENSING_VENUE_SAVINGS_ANNUAL, BAR_WEEKLY_ROTA, BAR_ROTA_TOTALS, BAR_ROTA_OPEN_HOUR, BAR_ROTA_CLOSE_HOUR, WORKBOOK_URL } from '../data.js'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
@@ -661,7 +661,10 @@ function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCos
 
           {/* WAGES */}
           {activeSection === 'wages' && (
-            <WageCalculatorCard />
+            <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
+              <WeeklyRotaCard />
+              <WageCalculatorCard />
+            </div>
           )}
 
           {/* OFFICE COSTS */}
@@ -1105,6 +1108,159 @@ function SummaryTile({ label, v2025, v2026, sub, highlight }) {
           {sub && <div style={{ fontSize:10, color:'#6B7280' }}>{sub}</div>}
         </div>
       </div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Weekly Rota card — read-only view of the average week (Mon–Sun)
+// sourced from BAR_WEEKLY_ROTA in data.js. Edits live there: change
+// shift start/end times, add/remove shifts, the totals at the bottom
+// recompute on next reload. Trading hours total + bar staff hours +
+// manager floor + manager admin shown on a stat strip; per-day grid
+// lays out each shift visually as a band on the 9–24 hour timeline so
+// the founder can spot gaps or overlaps at a glance.
+// ───────────────────────────────────────────────────────────────────────
+function WeeklyRotaCard() {
+  const fmt0 = (n) => Math.round(n).toLocaleString('en-GB')
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+  const totals = BAR_ROTA_TOTALS
+  // Day labels
+  const fmtH = (h) => {
+    if (h === 12) return '12pm'
+    if (h === 0 || h === 24) return '12am'
+    if (h < 12) return `${h}am`
+    return `${h - 12}pm`
+  }
+  // Render timeline 9am → 11pm (15 hours of canvas) so admin shifts
+  // fit visually alongside trading hours.
+  const TL_START = 9
+  const TL_END   = 24
+  const tlSpan   = TL_END - TL_START
+  const tickHours = [9, 11, 12, 15, 17, 19, 21, 23]
+  const colorFor = (row) => {
+    if (row.role === 'manager' && row.position === 'Admin') return '#A78BFA'
+    if (row.role === 'manager') return '#0D9488'
+    return '#E67E22'
+  }
+
+  return (
+    <div className="card" style={{ padding:18 }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+        <div>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Rota · Average Week</div>
+          <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.55, marginTop:4, maxWidth:680 }}>
+            Bar shifts are 6 hours each — opener (11–17), mid (12–18), closer (17–23). Fri + Sat add a 4th evening shift for peak cover. Manager covers every open hour; Mon adds a 4-hour admin block off-bar for prep and reports.
+          </div>
+        </div>
+        <div style={{ fontSize:10, color:'var(--cream-dim)' }}>
+          Edit <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>BAR_WEEKLY_ROTA</code> in <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>src/data.js</code>
+        </div>
+      </div>
+
+      {/* Stat strip */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8, marginBottom:14 }}>
+        <RotaStat label="Open hours / week"      value={fmt0(totals.weeklyOpenHours) + ' h'} sub={`${fmt0(totals.annualOpenHours)} h / year`} color="#22D3EE" />
+        <RotaStat label="Bar hours / week"       value={fmt0(totals.weeklyBarHours) + ' h'}  sub={`${fmt0(totals.annualBarHours)} h / year`}  color="#E67E22" />
+        <RotaStat label="Manager floor / week"   value={fmt0(totals.weeklyManagerFloor) + ' h'} sub={`${fmt0(totals.annualManagerFloor)} h / year`} color="#0D9488" />
+        <RotaStat label="Manager admin / week"   value={fmt0(totals.weeklyManagerAdmin) + ' h'} sub={`${fmt0(totals.annualManagerAdmin)} h / year`} color="#A78BFA" />
+        <RotaStat label="Total paid hours / week" value={fmt0(totals.weeklyTotal) + ' h'} sub={`${fmt0(totals.annualTotal)} h / year`} color="var(--gold)" emphasised />
+      </div>
+
+      {/* Timeline header — hour ticks */}
+      <div style={{ display:'grid', gridTemplateColumns:'46px 1fr', gap:8, alignItems:'center', marginBottom:6 }}>
+        <div />
+        <div style={{ position:'relative', height:14 }}>
+          {tickHours.map(h => (
+            <div key={h} style={{
+              position:'absolute',
+              left: `${((h - TL_START) / tlSpan) * 100}%`,
+              transform: 'translateX(-50%)',
+              fontSize:9, color:'var(--cream-dim)',
+              letterSpacing:'0.04em',
+            }}>{fmtH(h)}</div>
+          ))}
+        </div>
+      </div>
+
+      {/* Day rows */}
+      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+        {days.map(day => {
+          const rows = BAR_WEEKLY_ROTA.filter(r => r.day === day)
+          return (
+            <div key={day} style={{ display:'grid', gridTemplateColumns:'46px 1fr', gap:8, alignItems:'center' }}>
+              <div style={{ fontSize:11, color:'var(--cream)', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>{day}</div>
+              <div style={{ position:'relative', height:54, background:'rgba(255,255,255,0.03)', borderRadius:6, border:'1px solid rgba(255,255,255,0.05)' }}>
+                {/* Open-hours backdrop */}
+                <div style={{
+                  position:'absolute',
+                  left: `${((BAR_ROTA_OPEN_HOUR - TL_START) / tlSpan) * 100}%`,
+                  width: `${((BAR_ROTA_CLOSE_HOUR - BAR_ROTA_OPEN_HOUR) / tlSpan) * 100}%`,
+                  top:0, bottom:0,
+                  background:'rgba(34,211,238,0.04)',
+                  borderLeft:'1px dashed rgba(34,211,238,0.25)',
+                  borderRight:'1px dashed rgba(34,211,238,0.25)',
+                }} />
+                {/* Shift bars — stack vertically inside the row to avoid overlap */}
+                {rows.map((r, i) => {
+                  const color = colorFor(r)
+                  const left  = ((Math.max(TL_START, r.start) - TL_START) / tlSpan) * 100
+                  const width = ((Math.min(TL_END, r.end) - Math.max(TL_START, r.start)) / tlSpan) * 100
+                  const lane  = i % 5    // simple lane stacking
+                  const top   = 4 + lane * 9
+                  return (
+                    <div key={`${day}-${i}`}
+                      title={`${r.role === 'bar' ? 'Bar' : 'Manager'} · ${r.position} · ${fmtH(r.start)}–${fmtH(r.end)} (${r.end - r.start}h)${r.note ? ' · ' + r.note : ''}`}
+                      style={{
+                        position:'absolute',
+                        left: `${left}%`, width: `${width}%`,
+                        top, height:7,
+                        background: color,
+                        borderRadius:3,
+                        opacity: 0.85,
+                      }}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Legend */}
+      <div style={{ display:'flex', gap:14, marginTop:12, fontSize:10, color:'var(--cream-dim)', flexWrap:'wrap' }}>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:10, height:7, background:'#E67E22', borderRadius:2, display:'inline-block' }} />
+          Bar shift (6h)
+        </span>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:10, height:7, background:'#0D9488', borderRadius:2, display:'inline-block' }} />
+          Manager · Floor (covers every open hour)
+        </span>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:10, height:7, background:'#A78BFA', borderRadius:2, display:'inline-block' }} />
+          Manager · Admin (Mon prep, off-bar)
+        </span>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:10, height:7, background:'rgba(34,211,238,0.18)', border:'1px dashed rgba(34,211,238,0.4)', borderRadius:2, display:'inline-block' }} />
+          Trading hours (12pm–11pm)
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function RotaStat({ label, value, sub, color, emphasised }) {
+  return (
+    <div style={{
+      background: emphasised ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${emphasised ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.06)'}`,
+      borderRadius: 8, padding: '10px 12px',
+    }}>
+      <div style={{ fontSize:9.5, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5, fontWeight:600 }}>{label}</div>
+      <div className="serif" style={{ fontSize: emphasised ? 20 : 17, color, lineHeight:1, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>{value}</div>
+      <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{sub}</div>
     </div>
   )
 }
