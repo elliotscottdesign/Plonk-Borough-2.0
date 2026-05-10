@@ -256,56 +256,89 @@ export const BAR_ROTA_OPEN_HOUR  = 12
 export const BAR_ROTA_CLOSE_HOUR = 23.5     // default close — Sun closes earlier (21:00)
 export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before doors
 
-export const BAR_WEEKLY_ROTA = [
-  // Mon–Sat close at 11:30pm. Sunday closes early at 9pm.
-  // `tier` carves the bar floor into pay grades:
-  //   'bar'        — bar-staff rate
-  //   'supervisor' — supervisor rate (target ~40h/wk)
-  //   'manager'    — manager rate, service hours (target ~20h/wk)
-  // Manager admin is the separate `role: 'manager', position: 'Admin'`
-  // rows further down (Mon–Fri 9–13 = 20h/wk).
-  //
-  // ─ MON ─────────────────────────────────────────────────────
-  { day: 'Mon', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Mon', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
-  { day: 'Mon', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
-  // ─ TUE ─────────────────────────────────────────────────────
-  { day: 'Tue', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Tue', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
-  { day: 'Tue', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
-  // ─ WED ─────────────────────────────────────────────────────
-  { day: 'Wed', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Wed', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
-  { day: 'Wed', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
-  // ─ THU (3-staff evening, all shifts ≥6h) ─────────────────
-  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
-  { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
-  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-  // ─ FRI (3 staff peak) ─────────────────────────────────────
-  { day: 'Fri', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Fri', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
-  { day: 'Fri', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
-  { day: 'Fri', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
-  // ─ SAT (3 staff peak) ─────────────────────────────────────
-  { day: 'Sat', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Sat', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
-  { day: 'Sat', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
-  { day: 'Sat', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
-  // ─ SUN (early close 9pm, all shifts ≥6h so only 2 shifts fit) ─
-  { day: 'Sun', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 15,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm — 2 shifts fit the shorter day' },
+// Per-day shift definitions. Each key (Mon–Sun) holds an array of
+// shifts for that day so editing is grouped naturally — open Mon's
+// block to see Mon's full slate together, etc.
+//
+// Shape of each shift:
+//   { role, position, start, end, tier?, note? }
+//   role     — 'bar' (on-floor) | 'manager' (off-bar admin block)
+//   position — Opener / Mid / Closer / Evening / Admin
+//   start/end — 24h decimals (e.g. 17.5 = 5:30pm)
+//   tier     — pay grade for cost calc, only used on `role: 'bar'`:
+//              'bar'        — bar-staff rate
+//              'supervisor' — supervisor rate (target ~40h/wk)
+//              'manager'    — manager rate, service hours (target ~20h/wk)
+//   note     — optional comment surfaced in tooltip + planner card
+//
+// Manager admin shifts use `role: 'manager'` instead of a tier and
+// pay at the manager rate. Mon–Fri 9–13 = 20h/wk admin (off-bar
+// prep, payroll, suppliers, accounts).
+export const BAR_WEEKLY_ROTA = {
+  Mon: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
+    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
+    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin — prep + reports' },
+  ],
+  Tue: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
+    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
+    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
+  ],
+  Wed: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
+    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
+    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
+  ],
+  // Thursday — 3-staff cover from 5:30pm to 11:30pm close
+  Thu: [
+    { role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
+    { role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
+    { role: 'bar',     position: 'Evening 1',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
+    { role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
+    { role: 'manager', position: 'Admin',      start:  9,   end: 13,   note: 'Mgr admin' },
+  ],
+  // Friday — 3 staff at evening peak (17–18 handoff)
+  Fri: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
+    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
+    { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
+    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
+  ],
+  // Saturday — same as Fri but no admin shift
+  Sat: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
+    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
+    { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
+  ],
+  // Sunday — early 9pm close; only 2 overlapping 6h shifts fit cleanly
+  Sun: [
+    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Closer',  start: 15,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm' },
+  ],
+}
 
-  // ─ MANAGER ADMIN — 4h × 5 weekdays = 20h/wk ────────────────
-  // Off-bar block for weekly prep, financial reports, payroll,
-  // suppliers, accounts, etc. NOT counted as bar-floor coverage.
-  { day: 'Mon', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin — prep + reports' },
-  { day: 'Tue', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
-  { day: 'Wed', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
-  { day: 'Thu', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
-  { day: 'Fri', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
-]
+// Day order constant — keeps Mon→Sun iteration consistent everywhere.
+export const ROTA_DAYS = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+
+// Flat-list helper. Iterates days in Mon→Sun order and stamps each
+// shift with its `day`. Use whenever a single iterable is more
+// convenient (e.g. summing across the whole week).
+export function flattenBarWeeklyRota(rota = BAR_WEEKLY_ROTA) {
+  const out = []
+  for (const day of ROTA_DAYS) {
+    for (const shift of (rota[day] || [])) {
+      out.push({ ...shift, day })
+    }
+  }
+  return out
+}
 
 // Helper — compute weekly + annual totals from the rota above.
 // Annual = weekly × 52 (rota repeats 52 times/year, no closure weeks
@@ -313,8 +346,9 @@ export const BAR_WEEKLY_ROTA = [
 // Manager service / Manager admin) so the Sliding Wage Calculator
 // can pick up each tier's hours-per-year directly.
 export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
+  const flat = flattenBarWeeklyRota(rota)
   const sum = (filter) =>
-    rota.filter(filter).reduce((s, r) => s + Math.max(0, r.end - r.start), 0)
+    flat.filter(filter).reduce((s, r) => s + Math.max(0, r.end - r.start), 0)
   const weeklyBarStaffHours       = sum(r => r.role === 'bar' && r.tier === 'bar')
   const weeklySupervisorHours     = sum(r => r.role === 'bar' && r.tier === 'supervisor')
   const weeklyManagerServiceHours = sum(r => r.role === 'bar' && r.tier === 'manager')
@@ -325,10 +359,9 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
   // BAR_ROTA_OPEN_HOUR (12pm) to the latest non-admin shift end on that
   // day. So a Thursday closing at 23.5 contributes 11.5h, not 11h, and
   // Sunday's 21:00 close contributes 9h.
-  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
-  const weeklyOpenHours = days.reduce((tot, day) => {
-    const ends = rota
-      .filter(r => r.day === day && !(r.role === 'manager' && r.position === 'Admin'))
+  const weeklyOpenHours = ROTA_DAYS.reduce((tot, day) => {
+    const ends = (rota[day] || [])
+      .filter(r => !(r.role === 'manager' && r.position === 'Admin'))
       .map(r => r.end)
     if (!ends.length) return tot
     const close = Math.max(BAR_ROTA_OPEN_HOUR, ...ends)
