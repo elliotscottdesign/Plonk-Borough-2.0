@@ -302,20 +302,30 @@ export const BAR_WEEKLY_ROTA = {
     { role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
     { role: 'manager', position: 'Admin',      start:  9,   end: 13,   note: 'Mgr admin' },
   ],
-  // Friday — 3 staff at evening peak (17–18 handoff)
+  // Friday — 3 staff continuously from 4pm to 11:30pm close.
+  // The 'Late' shift (16:00–23:30) lifts the floor to 3 across that
+  // whole window: 16:00–17:00 Opener+Mid+Late; busy handoff 17:00–18:00
+  // (Closer + Evening overlap with the others); 18:00–23:30 = Closer+
+  // Evening+Late = 3.
   Fri: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
     { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
+    { role: 'bar',     position: 'Late',    start: 16,   end: 23.5, tier: 'bar', note: 'Fri 3-staff cover from 4pm' },
     { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
   ],
-  // Saturday — same as Fri but no admin shift
+  // Saturday — 3 staff continuously from open to close.
+  // 'Day' (12–18) covers the daytime third body; 'Late' (17:30–23:30)
+  // covers the evening third. Coverage: 12–17 Opener+Mid+Day = 3;
+  // 17–18 a busy handoff; 18–23:30 Closer+Evening+Late = 3.
   Sat: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
     { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
+    { role: 'bar',     position: 'Day',     start: 12,   end: 18,   tier: 'bar', note: 'Sat 3-staff cover (day)' },
+    { role: 'bar',     position: 'Late',    start: 17.5, end: 23.5, tier: 'bar', note: 'Sat 3-staff cover (evening)' },
   ],
   // Sunday — early 9pm close; only 2 overlapping 6h shifts fit cleanly
   Sun: [
