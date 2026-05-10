@@ -199,18 +199,17 @@ function TicketMonthlyStacked() {
 }
 
 // ───────────────────────────────────────────────────────────────────────
-// 2025 Performance — now structured as 5 indexed sections behind a
-// left-hand vertical nav: Income · Outgoings · Till Sales · Discounts
-// · Ticket Sales. Each section is its own sub-component below; the
-// nav is sticky so it stays visible while scrolling the selected
-// section's content.
+// 2025 Performance — structured to match the 2026 Performance layout:
+// a "Detail Sections" divider above a 200px sticky sidebar card on
+// the left, the selected section's content on the right. Sections:
+// Income · Outgoings · Till Sales · Discounts · Ticket Sales.
 // ───────────────────────────────────────────────────────────────────────
 const SECTIONS = [
-  { key: 'income',      labelKey: 'performance2025.income',           fallback: 'Income',         icon: '↑', color: '#3B82F6' },
-  { key: 'outgoings',   labelKey: 'performance2025.costs',            fallback: 'Outgoings',      icon: '↓', color: '#EF4444' },
-  { key: 'tillsales',   labelKey: null,                                fallback: 'Till Sales',     icon: '🧾', color: 'var(--gold)' },
-  { key: 'discounts',   labelKey: null,                                fallback: 'Discounts',      icon: '%', color: '#F87171' },
-  { key: 'tickets',     labelKey: 'performance2025.ticketBreakdown',   fallback: 'Ticket Sales',   icon: '🎟', color: '#4FC3F7' },
+  { key: 'income',      labelKey: 'performance2025.income',          fallback: 'Income',       icon: '💰' },
+  { key: 'outgoings',   labelKey: 'performance2025.costs',           fallback: 'Outgoings',    icon: '💸' },
+  { key: 'tillsales',   labelKey: null,                               fallback: 'Till Sales',   icon: '🧾' },
+  { key: 'discounts',   labelKey: null,                               fallback: 'Discounts',    icon: '🏷' },
+  { key: 'tickets',     labelKey: 'performance2025.ticketBreakdown',  fallback: 'Ticket Sales', icon: '🎟' },
 ]
 
 export default function FinancialPerformance() {
@@ -235,49 +234,54 @@ export default function FinancialPerformance() {
 
   return (
     <div style={{ maxWidth:1300, margin:'0 auto', padding:'0 4px' }}>
-      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:28, alignItems:'flex-start' }}>
 
-        {/* LEFT-HAND INDEX NAV — sticky so it stays put while the
-            section content scrolls. Each entry is a button with an
-            accent left rail in the section's colour when active. */}
-        <nav style={{ position:'sticky', top:16, alignSelf:'flex-start' }}>
-          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.14em', textTransform:'uppercase', fontWeight:700, marginBottom:10, padding:'0 4px' }}>
-            2025 Performance
+      {/* "Detail Sections" divider — mirrors the heading above the
+          index nav on the 2026 Performance tab so the two pages read
+          the same way. */}
+      <div style={{ marginTop: 4, paddingBottom: 12, marginBottom: 16, borderBottom: '1px solid rgba(201,168,76,0.25)' }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'var(--gold)', fontWeight: 600 }}>
+          Detail Sections
+        </div>
+      </div>
+
+      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
+
+        {/* Sticky sidebar TOC — matched to the 2026 Performance pattern
+            (ink-2 card with border, founder reads the same UI on both
+            tabs). */}
+        <div style={{ position:'sticky', top:16, background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:8 }}>
+          <div style={{ fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.1em', padding:'6px 8px 10px' }}>
+            {t('sections.indexLabel', 'Sections')}
           </div>
-          <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-            {SECTIONS.map(s => {
-              const active = section === s.key
-              const label  = s.labelKey ? t(s.labelKey, s.fallback) : s.fallback
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setSection(s.key)}
-                  style={{
-                    display:'flex', alignItems:'center', gap:10,
-                    padding:'10px 12px',
-                    background: active ? 'rgba(201,168,76,0.10)' : 'transparent',
-                    border:'1px solid', borderColor: active ? 'rgba(201,168,76,0.35)' : 'transparent',
-                    borderLeft: `3px solid ${active ? s.color : 'transparent'}`,
-                    borderRadius: 4,
-                    color: active ? 'var(--cream)' : 'var(--cream-dim)',
-                    fontSize: 12, fontWeight: active ? 600 : 500,
-                    textTransform:'uppercase', letterSpacing:'0.06em',
-                    cursor:'pointer', textAlign:'left',
-                    transition:'all 0.12s',
-                  }}
-                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.03)' }}
-                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = 'transparent' }}
-                >
-                  <span style={{ fontSize:14, lineHeight:1, color: active ? s.color : '#6B7280', width:18, textAlign:'center' }}>{s.icon}</span>
-                  <span>{label}</span>
-                </button>
-              )
-            })}
-          </div>
-        </nav>
+          {SECTIONS.map(s => {
+            const isActive = section === s.key
+            const label    = s.labelKey ? t(s.labelKey, s.fallback) : s.fallback
+            return (
+              <button
+                key={s.key}
+                onClick={() => setSection(s.key)}
+                style={{
+                  display:'flex', alignItems:'center', gap:10,
+                  width:'100%', padding:'10px 12px', marginBottom:4,
+                  background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+                  border: isActive ? '1px solid rgba(201,168,76,0.35)' : '1px solid transparent',
+                  borderRadius:6,
+                  color: isActive ? 'var(--gold)' : 'var(--cream)',
+                  fontSize:12, fontWeight: isActive ? 700 : 500,
+                  cursor:'pointer', textAlign:'left',
+                  letterSpacing:'0.04em', transition:'all 0.15s',
+                }}
+              >
+                <span style={{ fontSize:14, opacity:0.8 }}>{s.icon}</span>
+                <span style={{ flex:1 }}>{label}</span>
+                {isActive && <span style={{ color:'var(--gold)', fontSize:10 }}>●</span>}
+              </button>
+            )
+          })}
+        </div>
 
         {/* RIGHT: SELECTED SECTION CONTENT */}
-        <div>
+        <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
 
           {section === 'income' && (
             <div>
