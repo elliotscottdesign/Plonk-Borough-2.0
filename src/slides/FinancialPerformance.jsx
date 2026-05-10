@@ -5,6 +5,7 @@ import {
   IP_LICENSING_SKUS_OFFICE_2025,
   IP_LICENSING_MONTHLY_2025,
   IP_LICENSING_GRAND_2025,
+  ACTUALS_2025,
 } from '../data.js'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
@@ -232,8 +233,68 @@ export default function FinancialPerformance() {
   const incomeLabels      = incomeLocalised.map(i => i.label)
   const costMonthlyLabels = ['wages','fixed','drinks','vat'].map(k => t(`costCategories.${k}`)).concat([t('performance2026.costNotes.other')])
 
+  // ── Top-line locked actuals row ─────────────────────────────────
+  // Sits above the index (mirrors the Forecast Calculator KPI strip
+  // on 2026 Performance) so the headline 2025 figures stay visible
+  // regardless of which detail section the user clicks into.
+  //
+  // Variable Costs = drinks/gas + arcades + cleaning + food +
+  // googleAds + cardCharges (all directly volume-linked lines).
+  // VAT (Net) = net VAT paid after input reclaim. Operating Profit
+  // is the verified P&L line (= EBITDA + tax/other, no D&A).
+  const variableCosts = ACTUALS_2025.drinksGas + ACTUALS_2025.arcades + ACTUALS_2025.cleaning + ACTUALS_2025.food + ACTUALS_2025.googleAds + ACTUALS_2025.cardCharges
+  const KPI = [
+    { label: 'Revenue',          value: ACTUALS_2025.revenue,    color: '#3B82F6', sub: '2025 verified · inc bar + golf' },
+    { label: 'Wages',            value: ACTUALS_2025.wages,      color: '#F97316', sub: 'P&L wage line, all tiers' },
+    { label: 'Variable Costs',   value: variableCosts,           color: '#A78BFA', sub: 'Drinks · arcades · cleaning · food · ads · cards' },
+    { label: 'Fixed Costs',      value: ACTUALS_2025.fixedCosts, color: '#F87171', sub: 'Rent · utilities · insurance · subs' },
+    { label: 'VAT (Net)',        value: ACTUALS_2025.vatNet,     color: '#94A3B8', sub: 'Output VAT − input reclaim' },
+    { label: 'Operating Profit', value: ACTUALS_2025.profit,     color: '#10B981', sub: '= EBITDA · no D&A line' },
+  ]
+
   return (
-    <div style={{ maxWidth:1300, margin:'0 auto', padding:'0 4px' }}>
+    <div style={{ maxWidth:1400, margin:'0 auto', padding:'0 4px' }}>
+
+      {/* Top-line locked actuals — always visible regardless of which
+          detail section is active (the active section content swaps
+          in the right pane below). */}
+      <div style={{ marginBottom: 18 }}>
+        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:12, marginBottom: 10 }}>
+          <div>
+            <div className="serif" style={{ fontSize: 18, color: 'var(--cream)', lineHeight: 1.2 }}>
+              2025 Verified Actuals
+            </div>
+            <div style={{ fontSize: 11, color: '#9CA3AF', marginTop: 3 }}>
+              Locked figures from the Weekly Merge 2024–2026 sheet · stays visible across every section
+            </div>
+          </div>
+          <span style={{
+            display:'inline-flex', alignItems:'center', gap:6,
+            padding:'4px 10px', borderRadius:12,
+            background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.4)',
+            fontSize:10, color:'#10B981',
+            letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+          }}>
+            🔒 Locked actuals
+          </span>
+        </div>
+        <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:10 }}>
+          {KPI.map(k => (
+            <div key={k.label} style={{
+              background:'var(--ink-2)',
+              border:`1px solid ${k.color}33`,
+              borderTop:`3px solid ${k.color}`,
+              borderRadius:10, padding:'14px 16px',
+            }}>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:8, fontWeight:600 }}>{k.label}</div>
+              <div className="serif" style={{ fontSize:'clamp(1.2rem, 1.9vw, 1.7rem)', color:k.color, lineHeight:1, marginBottom:6, fontVariantNumeric:'tabular-nums' }}>
+                {fmt(k.value)}
+              </div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', lineHeight:1.4 }}>{k.sub}</div>
+            </div>
+          ))}
+        </div>
+      </div>
 
       {/* "Detail Sections" divider — mirrors the heading above the
           index nav on the 2026 Performance tab so the two pages read
@@ -244,7 +305,7 @@ export default function FinancialPerformance() {
         </div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
+      <div style={{ display:'grid', gridTemplateColumns:'180px 1fr', gap:16, alignItems:'flex-start' }}>
 
         {/* Sticky sidebar TOC — matched to the 2026 Performance pattern
             (ink-2 card with border, founder reads the same UI on both
