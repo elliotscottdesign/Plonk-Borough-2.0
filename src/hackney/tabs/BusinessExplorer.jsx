@@ -48,8 +48,8 @@ const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 
 const TABS = [
   { key: 'performance2025', label: '2025 Performance' },
-  { key: 'prevtillsales',   label: 'Till Sales 2020–2024' },
   { key: 'performance2026', label: '2026 Performance' },
+  { key: 'prevtillsales',   label: 'Historic Till Sales' },
 ]
 
 // Section subheading — serif font (matches the main tab headings) at ~18px in
