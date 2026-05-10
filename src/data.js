@@ -277,12 +277,12 @@ export const BAR_WEEKLY_ROTA = [
   { day: 'Wed', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
   { day: 'Wed', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
   { day: 'Wed', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
-  // ─ THU (3-staff evening) ──────────────────────────────────
+  // ─ THU (3-staff evening, all shifts ≥6h) ─────────────────
   { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
   { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
   { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
-  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 18,   end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 18,   end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
+  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
+  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
   // ─ FRI (3 staff peak) ─────────────────────────────────────
   { day: 'Fri', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
   { day: 'Fri', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
@@ -293,10 +293,9 @@ export const BAR_WEEKLY_ROTA = [
   { day: 'Sat', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
   { day: 'Sat', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
   { day: 'Sat', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
-  // ─ SUN (early close 9pm) ──────────────────────────────────
+  // ─ SUN (early close 9pm, all shifts ≥6h so only 2 shifts fit) ─
   { day: 'Sun', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-  { day: 'Sun', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
-  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 17,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm' },
+  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 15,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm — 2 shifts fit the shorter day' },
 
   // ─ MANAGER ADMIN — 4h × 5 weekdays = 20h/wk ────────────────
   // Off-bar block for weekly prep, financial reports, payroll,

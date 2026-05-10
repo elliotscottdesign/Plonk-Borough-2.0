@@ -1123,8 +1123,39 @@ function SummaryTile({ label, v2025, v2026, sub, highlight }) {
 // ───────────────────────────────────────────────────────────────────────
 function WeeklyRotaCard() {
   const fmt0 = (n) => Math.round(n).toLocaleString('en-GB')
+  const fmtCash = (n) => '£' + Math.round(n).toLocaleString('en-GB')
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
   const totals = BAR_ROTA_TOTALS
+
+  // Per-tier hourly rates — driven by useLockedWages so any rate
+  // edits in the Sliding Wage Calculator cascade into the rota costs
+  // shown below. Tier → wage row index (0 Bar Staff, 1 Sup, 3 Manager).
+  const wagesCtx = useLockedWages()
+  const rates = {
+    bar:        wagesCtx.effective.rows[0]?.rate ?? 13.85,
+    supervisor: wagesCtx.effective.rows[1]?.rate ?? 14.35,
+    manager:    wagesCtx.effective.rows[3]?.rate ?? 18.00,
+  }
+  // Map a rota row to the hourly rate that applies to it.
+  const rateFor = (r) => {
+    if (r.role === 'manager') return rates.manager     // admin shifts use manager rate
+    if (r.tier === 'manager') return rates.manager
+    if (r.tier === 'supervisor') return rates.supervisor
+    return rates.bar
+  }
+  const hoursOf = (r) => Math.max(0, r.end - r.start)
+  const costOf  = (r) => hoursOf(r) * rateFor(r)
+
+  // Weekly + annual gross cost by tier
+  const weeklyCost = {
+    bar:           totals.weeklyBarStaffHours       * rates.bar,
+    supervisor:    totals.weeklySupervisorHours     * rates.supervisor,
+    managerSvc:    totals.weeklyManagerServiceHours * rates.manager,
+    managerAdmin:  totals.weeklyManagerAdmin        * rates.manager,
+  }
+  weeklyCost.total = weeklyCost.bar + weeklyCost.supervisor + weeklyCost.managerSvc + weeklyCost.managerAdmin
+  const annualGross  = weeklyCost.total * 52
+  const annualLoaded = annualGross * WAGE_OVERHEAD_MULT
   // Day labels — supports half-hours (e.g. 23.5 → "11:30pm")
   const fmtH = (h) => {
     const whole = Math.floor(h)
@@ -1263,6 +1294,96 @@ function WeeklyRotaCard() {
           Trading hours (12pm → close)
         </span>
       </div>
+
+      {/* Schedule Table — per-day shift breakdown with hours + cost */}
+      <div style={{ marginTop:18, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(255,255,255,0.06)', borderRadius:8, padding:'12px 14px' }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>Schedule + Cost · per shift</div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)' }}>Rates from Wage Calculator below — edit there to recompute</div>
+        </div>
+
+        {days.map(day => {
+          const dayShifts = BAR_WEEKLY_ROTA.filter(r => r.day === day)
+          const dayHours  = dayShifts.reduce((s, r) => s + hoursOf(r), 0)
+          const dayCost   = dayShifts.reduce((s, r) => s + costOf(r), 0)
+          return (
+            <div key={day} style={{ marginBottom:10 }}>
+              <div style={{ display:'grid', gridTemplateColumns:'46px 1fr', gap:8, alignItems:'baseline', marginBottom:4 }}>
+                <div style={{ fontSize:11, color:'var(--cream)', fontWeight:700, letterSpacing:'0.06em', textTransform:'uppercase' }}>{day}</div>
+                <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{fmt0(dayHours)} h · {fmtCash(dayCost)}</div>
+              </div>
+              <div style={{ display:'grid', gridTemplateColumns:'46px 1fr 110px 60px 90px 70px 80px', gap:8, fontSize:11.5, color:'var(--cream)', alignItems:'center' }}>
+                {dayShifts.map((r, i) => {
+                  const tierLabel =
+                    (r.role === 'manager' && r.position === 'Admin') ? 'Mgr · admin' :
+                    (r.tier === 'manager')    ? 'Mgr · service' :
+                    (r.tier === 'supervisor') ? 'Supervisor' :
+                    'Bar Staff'
+                  const tierColor =
+                    (r.role === 'manager' && r.position === 'Admin') ? '#A78BFA' :
+                    (r.tier === 'manager')    ? '#0D9488' :
+                    (r.tier === 'supervisor') ? '#D4A843' :
+                    '#E67E22'
+                  const hours = hoursOf(r)
+                  const rate  = rateFor(r)
+                  const cost  = costOf(r)
+                  return (
+                    <React.Fragment key={`${day}-row-${i}`}>
+                      <div />
+                      <div style={{ color:'var(--cream)', fontSize:11.5 }}>
+                        {r.position}
+                        {r.note && <span style={{ color:'#6B7280', fontSize:10, marginLeft:6, fontStyle:'italic' }}>· {r.note}</span>}
+                      </div>
+                      <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{fmtH(r.start)} → {fmtH(r.end)}</div>
+                      <div style={{ fontSize:11, color:'var(--cream-dim)', textAlign:'right' }}>{hours}h</div>
+                      <div style={{ fontSize:10, color: tierColor, fontWeight:600 }}>{tierLabel}</div>
+                      <div style={{ fontSize:10, color:'var(--cream-dim)', textAlign:'right' }}>£{rate.toFixed(2)}/h</div>
+                      <div style={{ fontSize:11, color:'var(--cream)', fontWeight:600, textAlign:'right', fontVariantNumeric:'tabular-nums' }}>{fmtCash(cost)}</div>
+                    </React.Fragment>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        {/* Weekly + annual cost summary */}
+        <div style={{ marginTop:6, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.08)' }}>
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8, fontSize:11 }}>
+            <CostTile label="Bar Staff" hours={totals.weeklyBarStaffHours}       weekly={weeklyCost.bar}          color="#E67E22" fmtCash={fmtCash} fmt0={fmt0} />
+            <CostTile label="Supervisor" hours={totals.weeklySupervisorHours}   weekly={weeklyCost.supervisor}   color="#D4A843" fmtCash={fmtCash} fmt0={fmt0} />
+            <CostTile label="Mgr · service" hours={totals.weeklyManagerServiceHours} weekly={weeklyCost.managerSvc} color="#0D9488" fmtCash={fmtCash} fmt0={fmt0} />
+            <CostTile label="Mgr · admin" hours={totals.weeklyManagerAdmin}     weekly={weeklyCost.managerAdmin} color="#A78BFA" fmtCash={fmtCash} fmt0={fmt0} />
+            <CostTile label="Total" hours={totals.weeklyTotalPaid}              weekly={weeklyCost.total}        color="var(--gold)" fmtCash={fmtCash} fmt0={fmt0} emphasised />
+          </div>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginTop:10 }}>
+            <div style={{ background:'rgba(201,168,76,0.06)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:6, padding:'10px 12px' }}>
+              <div style={{ fontSize:9.5, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4, fontWeight:600 }}>Annual gross (rate × hours)</div>
+              <div className="serif" style={{ fontSize:18, color:'var(--gold)', fontVariantNumeric:'tabular-nums' }}>{fmtCash(annualGross)}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:3 }}>= {fmtCash(weeklyCost.total)}/wk × 52</div>
+            </div>
+            <div style={{ background:'rgba(192,132,252,0.06)', border:'1px solid rgba(192,132,252,0.3)', borderRadius:6, padding:'10px 12px' }}>
+              <div style={{ fontSize:9.5, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4, fontWeight:600 }}>Annual loaded (P&L wage line)</div>
+              <div className="serif" style={{ fontSize:18, color:'#C084FC', fontVariantNumeric:'tabular-nums' }}>{fmtCash(annualLoaded)}</div>
+              <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:3 }}>= gross × {WAGE_OVERHEAD_MULT.toFixed(3)} (NIC + pension + holiday)</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CostTile({ label, hours, weekly, color, emphasised, fmtCash, fmt0 }) {
+  return (
+    <div style={{
+      background: emphasised ? 'rgba(201,168,76,0.06)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${emphasised ? 'rgba(201,168,76,0.3)' : 'rgba(255,255,255,0.06)'}`,
+      borderRadius: 6, padding: '8px 10px',
+    }}>
+      <div style={{ fontSize:9, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:4, fontWeight:600 }}>{label}</div>
+      <div style={{ fontSize:13, color, fontWeight:700, fontVariantNumeric:'tabular-nums' }}>{fmtCash(weekly)}/wk</div>
+      <div style={{ fontSize:10, color:'var(--cream-dim)', marginTop:2 }}>{fmt0(hours)}h × rate</div>
     </div>
   )
 }
