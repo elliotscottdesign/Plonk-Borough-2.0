@@ -15,6 +15,7 @@ import InvestmentCase from './slides/InvestmentCase.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
+import { RotaProvider } from './components/EditableRotaContext.jsx'
 import NotesPanel from './components/NotesPanel.jsx'
 import { WORKBOOK_URL } from './data.js'
 
@@ -117,12 +118,14 @@ export default function App() {
   return (
     <LockedDeckProvider>
       <NotesProvider>
-        <BoroughShell
-          topTab={topTab} setTopTab={setTopTab}
-          slideIdx={slideIdx} setSlideIdx={setSlideIdx}
-          topTabKeys={topTabKeys} plonkAccess={plonkAccess}
-          go={go}
-        />
+        <RotaProvider>
+          <BoroughShell
+            topTab={topTab} setTopTab={setTopTab}
+            slideIdx={slideIdx} setSlideIdx={setSlideIdx}
+            topTabKeys={topTabKeys} plonkAccess={plonkAccess}
+            go={go}
+          />
+        </RotaProvider>
       </NotesProvider>
     </LockedDeckProvider>
   )

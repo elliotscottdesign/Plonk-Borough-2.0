@@ -7,6 +7,7 @@ import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { DEAL, ACTUALS_2025, FORECAST, WAGE_RATES, WAGE_OVERHEAD_MULT, PL_WAGE_BASE, IP_LICENSING_TOKEN_VALUE, IP_LICENSING_SKUS_ONLINE_2025, IP_LICENSING_SKUS_OFFICE_2025, IP_LICENSING_ONLINE_GOLF_REV_2025, IP_LICENSING_OFFICE_GOLF_REV_2025, IP_LICENSING_VENUE_SAVINGS, IP_LICENSING_VENUE_SAVINGS_ANNUAL, BAR_WEEKLY_ROTA, BAR_ROTA_TOTALS, BAR_ROTA_OPEN_HOUR, BAR_ROTA_CLOSE_HOUR, ROTA_DAYS, flattenBarWeeklyRota, WORKBOOK_URL } from '../data.js'
+import { useEditableRota } from '../components/EditableRotaContext.jsx'
 import { useLockedForecast } from '../components/LockedForecastContext.jsx'
 import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
@@ -1141,7 +1142,10 @@ function SummaryTile({ label, v2025, v2026, sub, highlight }) {
 function WeeklyRotaCard() {
   const fmt0    = (n) => Math.round(n).toLocaleString('en-GB')
   const fmtCash = (n) => '£' + Math.round(n).toLocaleString('en-GB')
-  const totals  = BAR_ROTA_TOTALS
+
+  // Live editable rota — replaces the static BAR_WEEKLY_ROTA reference
+  // so add/edit/delete + drag-drop changes flow into totals immediately.
+  const { rota, totals, addShift, updateShift, removeShift, moveShift, resetRota } = useEditableRota()
 
   // Per-tier hourly rates — driven by useLockedWages. Tier → wage row
   // index (0 Bar Staff, 1 Sup, 3 Manager).
@@ -1192,18 +1196,60 @@ function WeeklyRotaCard() {
   const annualGross  = weeklyCost.total * 52
   const annualLoaded = annualGross * WAGE_OVERHEAD_MULT
 
+  // ── Editor state ─────────────────────────────────────────────
+  // `editor`: { mode: 'add' | 'edit', day, idx, shift } | null
+  const [editor, setEditor] = useState(null)
+  // Drag-and-drop tracking — `dragOver` highlights the active drop target
+  const [dragOver, setDragOver] = useState(null)
+
+  // Helpers for the day-ordered display: we sort by start time but keep
+  // the original index in `rota[day]` so updateShift / removeShift can
+  // find the right entry after a sort.
+  const orderedWithIdx = (day) => (rota[day] || [])
+    .map((s, idx) => ({ s, idx }))
+    .sort((a, b) => a.s.start - b.s.start)
+
+  const onDragStart = (e, day, idx) => {
+    e.dataTransfer.setData('application/json', JSON.stringify({ day, idx }))
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const onDragOver = (e, day) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOver !== day) setDragOver(day)
+  }
+  const onDragLeave = () => setDragOver(null)
+  const onDrop = (e, toDay) => {
+    e.preventDefault()
+    setDragOver(null)
+    try {
+      const payload = JSON.parse(e.dataTransfer.getData('application/json') || '{}')
+      if (payload && typeof payload.day === 'string' && typeof payload.idx === 'number') {
+        moveShift(payload.day, payload.idx, toDay)
+      }
+    } catch { /* ignore malformed payload */ }
+  }
+
   return (
     <div style={{ paddingTop:4 }}>
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:14, flexWrap:'wrap' }}>
+      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
         <div>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Planner · Average Week</div>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Planner · Average Week · <span style={{ color:'#22D3EE' }}>EDITABLE</span></div>
           <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.55, marginTop:4, maxWidth:780 }}>
-            Mon → Sun grid of every shift in the rota. Each card is colour-coded by pay tier — <strong style={{ color:'#E67E22' }}>Bar Staff</strong> · <strong style={{ color:'#D4A843' }}>Supervisor</strong> · <strong style={{ color:'#0D9488' }}>Manager (service)</strong> · <strong style={{ color:'#A78BFA' }}>Manager (admin)</strong>. Manager + Supervisor sit INSIDE the bar headcount, no extra body. Costs driven by the Sliding Wage Calculator below — edit + lock new rates there to recompute.
+            Mon → Sun grid of every shift in the rota. Colour-coded by pay tier — <strong style={{ color:'#E67E22' }}>Bar Staff</strong> · <strong style={{ color:'#D4A843' }}>Supervisor</strong> · <strong style={{ color:'#0D9488' }}>Manager (service)</strong> · <strong style={{ color:'#A78BFA' }}>Manager (admin)</strong>. Manager + Supervisor sit INSIDE the bar headcount, no extra body. Costs driven by the Sliding Wage Calculator below — edit + lock new rates there to recompute. <strong style={{ color:'#22D3EE' }}>Drag a shift</strong> onto another day to reassign, click <strong>✎</strong> to edit, <strong>×</strong> to remove, or <strong>+ Add</strong> at the bottom of any day. Saves to this browser only — refresh-safe.
           </div>
         </div>
-        <div style={{ fontSize:10, color:'var(--cream-dim)' }}>
-          Edit <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>BAR_WEEKLY_ROTA</code> in <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>src/data.js</code>
-        </div>
+        <button
+          onClick={() => { if (window.confirm('Reset rota to the canonical default? Your edits will be lost.')) resetRota() }}
+          style={{
+            fontSize:10, color:'#FCD34D', background:'rgba(251,191,36,0.06)',
+            border:'1px solid rgba(251,191,36,0.4)', borderRadius:4,
+            padding:'6px 10px', cursor:'pointer', textTransform:'uppercase',
+            letterSpacing:'0.06em', fontWeight:600,
+          }}
+        >
+          ↺ Reset to default
+        </button>
       </div>
 
       {/* Hours stat strip */}
@@ -1219,19 +1265,25 @@ function WeeklyRotaCard() {
       {/* Mon → Sun planner grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(7, minmax(140px, 1fr))', gap:8 }}>
         {ROTA_DAYS.map(day => {
-          const shifts   = BAR_WEEKLY_ROTA[day] || []
+          const shifts   = rota[day] || []
           const dayHours = shifts.reduce((s, r) => s + hoursOf(r), 0)
           const dayCost  = shifts.reduce((s, r) => s + costOf(r), 0)
-          // Order shifts by start time so cards stack chronologically
-          const ordered = [...shifts].sort((a, b) => a.start - b.start)
+          const ordered  = orderedWithIdx(day)
+          const isDropTarget = dragOver === day
           return (
-            <div key={day} style={{
-              background:'rgba(255,255,255,0.02)',
-              border:'1px solid rgba(255,255,255,0.06)',
-              borderRadius:8,
-              padding:'10px 8px',
-              display:'flex', flexDirection:'column', gap:6,
-            }}>
+            <div
+              key={day}
+              onDragOver={(e) => onDragOver(e, day)}
+              onDragLeave={onDragLeave}
+              onDrop={(e) => onDrop(e, day)}
+              style={{
+                background: isDropTarget ? 'rgba(34,211,238,0.08)' : 'rgba(255,255,255,0.02)',
+                border: isDropTarget ? '1px dashed rgba(34,211,238,0.5)' : '1px solid rgba(255,255,255,0.06)',
+                borderRadius:8,
+                padding:'10px 8px',
+                display:'flex', flexDirection:'column', gap:6,
+                transition:'background 0.12s, border-color 0.12s',
+              }}>
               {/* Day header */}
               <div style={{
                 display:'flex', justifyContent:'space-between', alignItems:'baseline',
@@ -1245,10 +1297,13 @@ function WeeklyRotaCard() {
               {ordered.length === 0 ? (
                 <div style={{ fontSize:10, color:'#6B7280', fontStyle:'italic', padding:'8px 4px' }}>No shifts</div>
               ) : (
-                ordered.map((r, i) => {
+                ordered.map(({ s: r, idx }) => {
                   const meta = tierMeta(r)
                   return (
-                    <div key={`${day}-${i}`}
+                    <div
+                      key={`${day}-${idx}`}
+                      draggable
+                      onDragStart={(e) => onDragStart(e, day, idx)}
                       title={`${meta.label} · ${r.position} · ${fmtH(r.start)}–${fmtH(r.end)} (${hoursOf(r)}h)${r.note ? ' · ' + r.note : ''}`}
                       style={{
                         background:'rgba(255,255,255,0.04)',
@@ -1256,6 +1311,8 @@ function WeeklyRotaCard() {
                         borderRadius:4,
                         padding:'6px 8px',
                         display:'flex', flexDirection:'column', gap:2,
+                        cursor:'grab',
+                        userSelect:'none',
                       }}
                     >
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:6 }}>
@@ -1270,10 +1327,48 @@ function WeeklyRotaCard() {
                         <span style={{ fontSize:10.5, color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmtCash(costOf(r))}</span>
                       </div>
                       {r.note && <div style={{ fontSize:8.5, color:'#6B7280', fontStyle:'italic', marginTop:1 }}>{r.note}</div>}
+                      {/* Edit + delete row */}
+                      <div style={{ display:'flex', gap:4, marginTop:4, paddingTop:4, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditor({ mode:'edit', day, idx, shift: { ...r } }) }}
+                          style={{
+                            flex:1, fontSize:9, color:'var(--cream-dim)',
+                            background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
+                            borderRadius:3, padding:'2px 4px', cursor:'pointer',
+                            textTransform:'uppercase', letterSpacing:'0.04em', fontWeight:600,
+                          }}
+                          title="Edit shift"
+                        >✎ Edit</button>
+                        <button
+                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete ${day} ${r.position} shift?`)) removeShift(day, idx) }}
+                          style={{
+                            fontSize:9, color:'#F87171',
+                            background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.25)',
+                            borderRadius:3, padding:'2px 6px', cursor:'pointer', fontWeight:700,
+                          }}
+                          title="Delete shift"
+                        >×</button>
+                      </div>
                     </div>
                   )
                 })
               )}
+
+              {/* Add block */}
+              <button
+                onClick={() => setEditor({
+                  mode: 'add',
+                  day,
+                  idx: -1,
+                  shift: { role:'bar', position:'New shift', start: 12, end: 18, tier:'bar', note:'' },
+                })}
+                style={{
+                  fontSize:10, color:'#22D3EE',
+                  background:'rgba(34,211,238,0.06)', border:'1px dashed rgba(34,211,238,0.4)',
+                  borderRadius:4, padding:'6px 4px', cursor:'pointer', fontWeight:600,
+                  letterSpacing:'0.04em', textTransform:'uppercase',
+                }}
+              >+ Add block</button>
 
               {/* Day total */}
               <div style={{
@@ -1287,6 +1382,29 @@ function WeeklyRotaCard() {
           )
         })}
       </div>
+
+      {/* Editor modal — add or edit a shift */}
+      {editor && (
+        <ShiftEditorModal
+          editor={editor}
+          onClose={() => setEditor(null)}
+          onSave={(nextDay, partial) => {
+            // For add: push to the chosen day. For edit: if day changed,
+            // remove from old + add to new; otherwise patch in place.
+            if (editor.mode === 'add') {
+              addShift(nextDay, partial)
+            } else {
+              if (nextDay === editor.day) {
+                updateShift(editor.day, editor.idx, partial)
+              } else {
+                removeShift(editor.day, editor.idx)
+                addShift(nextDay, partial)
+              }
+            }
+            setEditor(null)
+          }}
+        />
+      )}
 
       {/* Cost summary tiles */}
       <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8 }}>
@@ -1312,6 +1430,174 @@ function WeeklyRotaCard() {
       </div>
     </div>
   )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Shift editor modal — add or edit a single rota entry.
+// Fields:
+//   - Day (Mon-Sun select; defaults to the day the editor was opened on)
+//   - Position (free text — e.g. "Opener", "Closer", "Late")
+//   - Role (Bar / Manager) — Manager forces position 'Admin' + admin tier
+//   - Tier (Bar Staff / Supervisor / Manager service) — only when role=Bar
+//   - Start / End (number, half-hour step)
+//   - Note (optional free text)
+// On Save, calls back with the chosen day + the shift object the parent
+// should persist via addShift / updateShift.
+// ───────────────────────────────────────────────────────────────────────
+function ShiftEditorModal({ editor, onClose, onSave }) {
+  const [day, setDay]           = useState(editor.day)
+  const [position, setPosition] = useState(editor.shift.position || '')
+  const [role, setRole]         = useState(editor.shift.role || 'bar')          // 'bar' | 'manager'
+  const [tier, setTier]         = useState(editor.shift.tier || 'bar')          // 'bar' | 'supervisor' | 'manager'
+  const [start, setStart]       = useState(editor.shift.start ?? 12)
+  const [end, setEnd]           = useState(editor.shift.end ?? 18)
+  const [note, setNote]         = useState(editor.shift.note || '')
+
+  // Validation — surface a small red message rather than blocking the
+  // dialog. We let the founder save anything they like as long as start
+  // < end and position is non-empty.
+  const errors = []
+  if (!position.trim()) errors.push('Position is required')
+  if (typeof start !== 'number' || typeof end !== 'number' || end <= start) errors.push('End must be after Start')
+
+  const handleSave = () => {
+    if (errors.length) return
+    const built = role === 'manager'
+      ? { role: 'manager', position: position.trim() || 'Admin', start: Number(start), end: Number(end), note: note.trim() || undefined }
+      : { role: 'bar',     position: position.trim(), start: Number(start), end: Number(end), tier, note: note.trim() || undefined }
+    // strip undefined keys for cleanliness
+    Object.keys(built).forEach(k => built[k] === undefined && delete built[k])
+    onSave(day, built)
+  }
+
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position:'fixed', inset:0, zIndex:1000,
+        background:'rgba(0,0,0,0.65)',
+        display:'flex', alignItems:'center', justifyContent:'center',
+        padding:20,
+      }}
+    >
+      <div
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          background:'var(--ink-2)',
+          border:'1px solid rgba(201,168,76,0.4)',
+          borderRadius:10,
+          padding:'22px 24px',
+          width:'100%', maxWidth:460,
+          boxShadow:'0 12px 40px rgba(0,0,0,0.6)',
+          color:'var(--cream)',
+        }}
+      >
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:16 }}>
+          <div className="serif" style={{ fontSize:18, color:'var(--gold)' }}>
+            {editor.mode === 'add' ? 'Add shift' : 'Edit shift'}
+          </div>
+          <button
+            onClick={onClose}
+            style={{ background:'transparent', border:'none', color:'var(--cream-dim)', cursor:'pointer', fontSize:18, lineHeight:1 }}
+            title="Close"
+          >×</button>
+        </div>
+
+        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+          <Field label="Day">
+            <select value={day} onChange={(e) => setDay(e.target.value)} style={selectStyle}>
+              {ROTA_DAYS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+          </Field>
+
+          <Field label="Role">
+            <select value={role} onChange={(e) => {
+              const next = e.target.value
+              setRole(next)
+              // Manager admin block — auto-fill position + clear tier
+              if (next === 'manager') {
+                if (!position || position === 'New shift') setPosition('Admin')
+                setTier('manager')
+              }
+            }} style={selectStyle}>
+              <option value="bar">Bar (floor service)</option>
+              <option value="manager">Manager (admin)</option>
+            </select>
+          </Field>
+
+          <Field label="Position" full>
+            <input type="text" value={position} onChange={(e) => setPosition(e.target.value)} placeholder="e.g. Opener" style={inputStyle} />
+          </Field>
+
+          {role === 'bar' && (
+            <Field label="Pay tier" full>
+              <select value={tier} onChange={(e) => setTier(e.target.value)} style={selectStyle}>
+                <option value="bar">Bar Staff</option>
+                <option value="supervisor">Supervisor</option>
+                <option value="manager">Manager (service)</option>
+              </select>
+            </Field>
+          )}
+
+          <Field label="Start (24h, e.g. 11.5 = 11:30)">
+            <input type="number" step="0.5" min="0" max="24" value={start}
+                   onChange={(e) => setStart(parseFloat(e.target.value))} style={inputStyle} />
+          </Field>
+          <Field label="End (24h)">
+            <input type="number" step="0.5" min="0" max="24" value={end}
+                   onChange={(e) => setEnd(parseFloat(e.target.value))} style={inputStyle} />
+          </Field>
+
+          <Field label="Note (optional)" full>
+            <input type="text" value={note} onChange={(e) => setNote(e.target.value)} placeholder="" style={inputStyle} />
+          </Field>
+        </div>
+
+        {errors.length > 0 && (
+          <div style={{ marginTop:12, padding:'8px 10px', background:'rgba(248,113,113,0.08)', border:'1px solid rgba(248,113,113,0.3)', borderRadius:4, color:'#FCA5A5', fontSize:11 }}>
+            {errors.join(' · ')}
+          </div>
+        )}
+
+        <div style={{ display:'flex', justifyContent:'flex-end', gap:8, marginTop:18 }}>
+          <button onClick={onClose} style={cancelBtnStyle}>Cancel</button>
+          <button onClick={handleSave} disabled={errors.length > 0} style={{
+            ...saveBtnStyle,
+            opacity: errors.length > 0 ? 0.5 : 1,
+            cursor: errors.length > 0 ? 'not-allowed' : 'pointer',
+          }}>
+            {editor.mode === 'add' ? 'Add shift' : 'Save changes'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function Field({ label, children, full }) {
+  return (
+    <label style={{ display:'flex', flexDirection:'column', gap:4, gridColumn: full ? '1 / -1' : 'auto' }}>
+      <span style={{ fontSize:10, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', fontWeight:600 }}>{label}</span>
+      {children}
+    </label>
+  )
+}
+
+const inputStyle = {
+  background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.12)',
+  borderRadius:4, padding:'7px 10px', color:'var(--cream)', fontSize:13,
+  fontFamily:'inherit',
+}
+const selectStyle = { ...inputStyle, padding:'6px 10px' }
+const cancelBtnStyle = {
+  background:'transparent', border:'1px solid rgba(255,255,255,0.15)',
+  color:'var(--cream-dim)', borderRadius:4, padding:'8px 16px',
+  fontSize:12, cursor:'pointer', fontWeight:600,
+}
+const saveBtnStyle = {
+  background:'var(--gold)', border:'1px solid var(--gold)',
+  color:'#0F141A', borderRadius:4, padding:'8px 18px',
+  fontSize:12, fontWeight:700,
 }
 
 function CostTile({ label, hours, weekly, color, emphasised, fmtCash, fmt0 }) {
