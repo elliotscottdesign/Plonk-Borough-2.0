@@ -215,95 +215,117 @@ export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 // early at 9pm (12pm → 21:00 = 9h). Opener arrives 11:30am for a
 // 30-minute pre-open prep slot.
 //
-// Bar staffing pattern (Mon–Wed + Sun):
-//   • 3 overlapping 6-hour shifts so coverage stays continuous
-//     while never putting more than 2 staff on the bar at once.
+// STAFFING MODEL — Interpretation B (manager / supervisor are part of
+// the bar headcount, not an extra body on top):
+//
+// Each bar-floor shift carries a `tier` indicating which pay grade
+// fills it. Target weekly distribution:
+//   • Bar Staff       ≈ 90  h/week  (balance)
+//   • Supervisor      ≈ 40  h/week  (founder direction)
+//   • Manager service ≈ 20  h/week  (founder direction)
+//   • Manager admin   = 20  h/week  (off-bar — weekly prep, reports,
+//                                    accounts, suppliers, payroll
+//                                    spread Mon–Fri 9–13)
+//
+// "1 supervisor or manager on at any time" — under this model
+// supervisor + manager service hours (~60h) sit INSIDE the bar
+// shifts, so peak open hours have a sup/mgr; lower-priority slots
+// (e.g. weekday openers) are bar-staff-only. The user-facing
+// weekly card surfaces the per-tier totals so coverage gaps are
+// visible.
+//
+// Shift pattern (Mon–Wed + Sun): 3 overlapping 6-hour shifts so
+// coverage stays continuous while never putting more than 2 staff on
+// the bar at once.
 //   • Opener  11:30–17:30  (preps 11:30–12, bar-floor 12–17:30)
 //   • Mid     12:00–18:00  (overlaps opener 12–17:30, closer 17–18)
 //   • Closer  17:00–23:30  (overlaps mid 17–18, then closes alone)
 // Fri + Sat add a 4th 6.5h evening shift so 3 staff are on the floor
-// through the peak handoff at 17–18 (mid + closer + evening = 3),
-// then closer + evening = 2 staff continuing through to 23:30.
-// Thursday adds TWO extra 5.5h evening shifts (Evening 1 + Evening 2,
-// both 18:00–23:30) so 3 bar staff cover the whole 18:00–23:30 window
-// through the busy late-week shift, plus an extended Closer to 23:30.
+// through the peak handoff at 17–18, then 2 continue through close.
+// Thursday adds TWO extra 5.5h evening shifts (Evening 1 + 2, both
+// 18:00–23:30) for 3-staff cover through the busy late-week peak.
 // Sunday is the standard 3-shift pattern but compressed to the 9pm
-// close — the Closer only works 17:00–21:00 (4h, the one shift that
-// breaks the 6h rule because the trading day is shorter).
+// close — Closer 17:00–21:00 (4h, breaks the 6h rule because the
+// trading day is shorter).
 //
-// Manager (or Supervisor) rota:
-//   • One management presence on the floor for every open hour
-//     (Mon–Sat 12:00–23:30 = 11.5h × 6 = 69h, Sun 12:00–21:00 = 9h).
-//     Total floor = 78h/week.
-//   • Monday adds an EXTRA 4-hour admin shift (09:00–13:00) for
-//     weekly prep + financial reports — manager present, NOT counted
-//     as bar-floor coverage. This is on top of the Mon floor shift.
-//
-// Edit any row's `start`/`end`/`day` to change the rota. Totals
+// Edit any row's `start`/`end`/`day`/`tier` to rebalance. Totals
 // recompute via deriveBarRotaTotals() below; weekly hours × 52 give
-// the annual figures the Sliding Wage Calculator multiplies by rate.
+// the annual figures that drive the Sliding Wage Calculator's hours
+// per role tier (Bar Staff / Supervisor / Manager).
 export const BAR_ROTA_OPEN_HOUR  = 12
 export const BAR_ROTA_CLOSE_HOUR = 23.5     // default close — Sun closes earlier (21:00)
 export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before doors
 
 export const BAR_WEEKLY_ROTA = [
   // Mon–Sat close at 11:30pm. Sunday closes early at 9pm.
+  // `tier` carves the bar floor into pay grades:
+  //   'bar'        — bar-staff rate
+  //   'supervisor' — supervisor rate (target ~40h/wk)
+  //   'manager'    — manager rate, service hours (target ~20h/wk)
+  // Manager admin is the separate `role: 'manager', position: 'Admin'`
+  // rows further down (Mon–Fri 9–13 = 20h/wk).
+  //
   // ─ MON ─────────────────────────────────────────────────────
-  { day: 'Mon', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Mon', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Mon', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Mon', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
-  { day: 'Mon', role: 'manager', position: 'Admin',      start:  9,   end: 13, note: 'Weekly prep + financial reports — off-bar' },
+  { day: 'Mon', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Mon', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
+  { day: 'Mon', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
   // ─ TUE ─────────────────────────────────────────────────────
-  { day: 'Tue', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Tue', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Tue', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Tue', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Tue', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Tue', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
+  { day: 'Tue', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
   // ─ WED ─────────────────────────────────────────────────────
-  { day: 'Wed', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Wed', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Wed', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Wed', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Wed', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Wed', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
+  { day: 'Wed', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'supervisor' },
   // ─ THU (3-staff evening) ──────────────────────────────────
-  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
-  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
-  { day: 'Thu', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
+  { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
+  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 18,   end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
+  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 18,   end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
   // ─ FRI (3 staff peak) ─────────────────────────────────────
-  { day: 'Fri', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Fri', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Fri', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Fri', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, note: 'Fri/Sat extra evening cover' },
-  { day: 'Fri', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Fri', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Fri', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
+  { day: 'Fri', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
+  { day: 'Fri', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
   // ─ SAT (3 staff peak) ─────────────────────────────────────
-  { day: 'Sat', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Sat', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Sat', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
-  { day: 'Sat', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, note: 'Fri/Sat extra evening cover' },
-  { day: 'Sat', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
+  { day: 'Sat', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Sat', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
+  { day: 'Sat', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
+  { day: 'Sat', role: 'bar',     position: 'Evening',    start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
   // ─ SUN (early close 9pm) ──────────────────────────────────
-  { day: 'Sun', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5 },
-  { day: 'Sun', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
-  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 17,   end: 21, note: 'Sunday early close 9pm' },
-  { day: 'Sun', role: 'manager', position: 'Floor',      start: 12,   end: 21 },
+  { day: 'Sun', role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
+  { day: 'Sun', role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'bar' },
+  { day: 'Sun', role: 'bar',     position: 'Closer',     start: 17,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm' },
+
+  // ─ MANAGER ADMIN — 4h × 5 weekdays = 20h/wk ────────────────
+  // Off-bar block for weekly prep, financial reports, payroll,
+  // suppliers, accounts, etc. NOT counted as bar-floor coverage.
+  { day: 'Mon', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin — prep + reports' },
+  { day: 'Tue', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
+  { day: 'Wed', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
+  { day: 'Thu', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
+  { day: 'Fri', role: 'manager', position: 'Admin', start: 9, end: 13, note: 'Mgr admin' },
 ]
 
 // Helper — compute weekly + annual totals from the rota above.
 // Annual = weekly × 52 (rota repeats 52 times/year, no closure weeks
-// in the model). Useful for tying back to the Sliding Wage Calculator
-// hours/role figures.
+// in the model). Hours are split by tier (Bar Staff / Supervisor /
+// Manager service / Manager admin) so the Sliding Wage Calculator
+// can pick up each tier's hours-per-year directly.
 export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
   const sum = (filter) =>
     rota.filter(filter).reduce((s, r) => s + Math.max(0, r.end - r.start), 0)
-  const weeklyBarHours      = sum(r => r.role === 'bar')
-  const weeklyManagerFloor  = sum(r => r.role === 'manager' && r.position !== 'Admin')
-  const weeklyManagerAdmin  = sum(r => r.role === 'manager' && r.position === 'Admin')
-  const weeklyManagerHours  = weeklyManagerFloor + weeklyManagerAdmin
+  const weeklyBarStaffHours       = sum(r => r.role === 'bar' && r.tier === 'bar')
+  const weeklySupervisorHours     = sum(r => r.role === 'bar' && r.tier === 'supervisor')
+  const weeklyManagerServiceHours = sum(r => r.role === 'bar' && r.tier === 'manager')
+  const weeklyManagerAdmin        = sum(r => r.role === 'manager' && r.position === 'Admin')
+  const weeklyManagerHours        = weeklyManagerServiceHours + weeklyManagerAdmin
+  const weeklyBarFloorHours       = weeklyBarStaffHours + weeklySupervisorHours + weeklyManagerServiceHours
   // Open hours derive from the rota itself: per-day, "open" is from
   // BAR_ROTA_OPEN_HOUR (12pm) to the latest non-admin shift end on that
-  // day. So a Thursday closing at 23.5 contributes 11.5h, not 11h.
+  // day. So a Thursday closing at 23.5 contributes 11.5h, not 11h, and
+  // Sunday's 21:00 close contributes 9h.
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
   const weeklyOpenHours = days.reduce((tot, day) => {
     const ends = rota
@@ -313,19 +335,24 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
     const close = Math.max(BAR_ROTA_OPEN_HOUR, ...ends)
     return tot + (close - BAR_ROTA_OPEN_HOUR)
   }, 0)
+  const weeklyTotalPaid = weeklyBarFloorHours + weeklyManagerAdmin
   return {
     weeklyOpenHours,
-    weeklyBarHours,
-    weeklyManagerFloor,
+    weeklyBarFloorHours,
+    weeklyBarStaffHours,
+    weeklySupervisorHours,
+    weeklyManagerServiceHours,
     weeklyManagerAdmin,
     weeklyManagerHours,
-    weeklyTotal: weeklyBarHours + weeklyManagerHours,
-    annualBarHours:     weeklyBarHours * 52,
-    annualManagerFloor: weeklyManagerFloor * 52,
-    annualManagerAdmin: weeklyManagerAdmin * 52,
-    annualManagerHours: weeklyManagerHours * 52,
-    annualOpenHours:    weeklyOpenHours * 52,
-    annualTotal:        (weeklyBarHours + weeklyManagerHours) * 52,
+    weeklyTotalPaid,
+    // Annual = weekly × 52
+    annualOpenHours:           weeklyOpenHours           * 52,
+    annualBarStaffHours:       weeklyBarStaffHours       * 52,
+    annualSupervisorHours:     weeklySupervisorHours     * 52,
+    annualManagerServiceHours: weeklyManagerServiceHours * 52,
+    annualManagerAdmin:        weeklyManagerAdmin        * 52,
+    annualManagerHours:        weeklyManagerHours        * 52,
+    annualTotalPaid:           weeklyTotalPaid           * 52,
   }
 }
 export const BAR_ROTA_TOTALS = deriveBarRotaTotals()

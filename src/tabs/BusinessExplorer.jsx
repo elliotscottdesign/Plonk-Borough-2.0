@@ -1140,10 +1140,13 @@ function WeeklyRotaCard() {
   const TL_END   = 24
   const tlSpan   = TL_END - TL_START
   const tickHours = [9, 11, 12, 15, 17, 19, 21, 23]
+  // Colour by pay tier so the founder can see at a glance which
+  // shifts are bar-staff / supervisor / manager-service / mgr-admin.
   const colorFor = (row) => {
     if (row.role === 'manager' && row.position === 'Admin') return '#A78BFA'
-    if (row.role === 'manager') return '#0D9488'
-    return '#E67E22'
+    if (row.role === 'bar' && row.tier === 'manager')        return '#0D9488'
+    if (row.role === 'bar' && row.tier === 'supervisor')     return '#D4A843'
+    return '#E67E22'   // bar-staff
   }
 
   return (
@@ -1151,8 +1154,8 @@ function WeeklyRotaCard() {
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:14, flexWrap:'wrap' }}>
         <div>
           <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Rota · Average Week</div>
-          <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.55, marginTop:4, maxWidth:680 }}>
-            Bar shifts are 6 hours each — opener (11–17), mid (12–18), closer (17–23). Fri + Sat add a 4th evening shift for peak cover. Manager covers every open hour; Mon adds a 4-hour admin block off-bar for prep and reports.
+          <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.55, marginTop:4, maxWidth:720 }}>
+            Bar shifts overlap as Opener (11:30–17:30) · Mid (12–18) · Closer (17–23:30). Each shift is filled by a <strong style={{ color:'#E67E22' }}>Bar Staff</strong>, <strong style={{ color:'#D4A843' }}>Supervisor</strong>, or <strong style={{ color:'#0D9488' }}>Manager (service)</strong> — manager + supervisor sit INSIDE the bar headcount, no extra body. Fri/Sat add a 4th evening shift; Thu adds two 6pm‑close evenings for 3‑staff cover. Sun closes 9pm. Manager admin (off‑bar) runs 9–13 Mon–Fri.
           </div>
         </div>
         <div style={{ fontSize:10, color:'var(--cream-dim)' }}>
@@ -1160,13 +1163,14 @@ function WeeklyRotaCard() {
         </div>
       </div>
 
-      {/* Stat strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8, marginBottom:14 }}>
-        <RotaStat label="Open hours / week"      value={fmt0(totals.weeklyOpenHours) + ' h'} sub={`${fmt0(totals.annualOpenHours)} h / year`} color="#22D3EE" />
-        <RotaStat label="Bar hours / week"       value={fmt0(totals.weeklyBarHours) + ' h'}  sub={`${fmt0(totals.annualBarHours)} h / year`}  color="#E67E22" />
-        <RotaStat label="Manager floor / week"   value={fmt0(totals.weeklyManagerFloor) + ' h'} sub={`${fmt0(totals.annualManagerFloor)} h / year`} color="#0D9488" />
-        <RotaStat label="Manager admin / week"   value={fmt0(totals.weeklyManagerAdmin) + ' h'} sub={`${fmt0(totals.annualManagerAdmin)} h / year`} color="#A78BFA" />
-        <RotaStat label="Total paid hours / week" value={fmt0(totals.weeklyTotal) + ' h'} sub={`${fmt0(totals.annualTotal)} h / year`} color="var(--gold)" emphasised />
+      {/* Stat strip — five tiers */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:8, marginBottom:14 }}>
+        <RotaStat label="Open hours / week"     value={fmt0(totals.weeklyOpenHours) + ' h'}           sub={`${fmt0(totals.annualOpenHours)} h / year`}           color="#22D3EE" />
+        <RotaStat label="Bar Staff / week"      value={fmt0(totals.weeklyBarStaffHours) + ' h'}       sub={`${fmt0(totals.annualBarStaffHours)} h / year`}       color="#E67E22" />
+        <RotaStat label="Supervisor / week"     value={fmt0(totals.weeklySupervisorHours) + ' h'}     sub={`${fmt0(totals.annualSupervisorHours)} h / year · target 40h`} color="#D4A843" />
+        <RotaStat label="Mgr · service / week"  value={fmt0(totals.weeklyManagerServiceHours) + ' h'} sub={`${fmt0(totals.annualManagerServiceHours)} h / year · target 20h`} color="#0D9488" />
+        <RotaStat label="Mgr · admin / week"    value={fmt0(totals.weeklyManagerAdmin) + ' h'}        sub={`${fmt0(totals.annualManagerAdmin)} h / year · target 20h`} color="#A78BFA" />
+        <RotaStat label="Total paid / week"     value={fmt0(totals.weeklyTotalPaid) + ' h'}           sub={`${fmt0(totals.annualTotalPaid)} h / year`}           color="var(--gold)" emphasised />
       </div>
 
       {/* Timeline header — hour ticks */}
@@ -1210,9 +1214,15 @@ function WeeklyRotaCard() {
                   const width = ((Math.min(TL_END, r.end) - Math.max(TL_START, r.start)) / tlSpan) * 100
                   const lane  = i % 5    // simple lane stacking
                   const top   = 4 + lane * 9
+                  // Tier label for the tooltip — Bar Staff / Supervisor / Manager (service) / Manager (admin)
+                  const tierLabel =
+                    (r.role === 'manager' && r.position === 'Admin') ? 'Manager · admin' :
+                    (r.role === 'bar' && r.tier === 'manager')        ? 'Manager · service' :
+                    (r.role === 'bar' && r.tier === 'supervisor')     ? 'Supervisor' :
+                    'Bar Staff'
                   return (
                     <div key={`${day}-${i}`}
-                      title={`${r.role === 'bar' ? 'Bar' : 'Manager'} · ${r.position} · ${fmtH(r.start)}–${fmtH(r.end)} (${r.end - r.start}h)${r.note ? ' · ' + r.note : ''}`}
+                      title={`${tierLabel} · ${r.position} · ${fmtH(r.start)}–${fmtH(r.end)} (${r.end - r.start}h)${r.note ? ' · ' + r.note : ''}`}
                       style={{
                         position:'absolute',
                         left: `${left}%`, width: `${width}%`,
@@ -1234,19 +1244,23 @@ function WeeklyRotaCard() {
       <div style={{ display:'flex', gap:14, marginTop:12, fontSize:10, color:'var(--cream-dim)', flexWrap:'wrap' }}>
         <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
           <span style={{ width:10, height:7, background:'#E67E22', borderRadius:2, display:'inline-block' }} />
-          Bar shift (6h)
+          Bar Staff
+        </span>
+        <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
+          <span style={{ width:10, height:7, background:'#D4A843', borderRadius:2, display:'inline-block' }} />
+          Supervisor
         </span>
         <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
           <span style={{ width:10, height:7, background:'#0D9488', borderRadius:2, display:'inline-block' }} />
-          Manager · Floor (covers every open hour)
+          Manager · service (on-bar)
         </span>
         <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
           <span style={{ width:10, height:7, background:'#A78BFA', borderRadius:2, display:'inline-block' }} />
-          Manager · Admin (Mon prep, off-bar)
+          Manager · admin (off-bar, 9–13 Mon–Fri)
         </span>
         <span style={{ display:'inline-flex', alignItems:'center', gap:5 }}>
           <span style={{ width:10, height:7, background:'rgba(34,211,238,0.18)', border:'1px dashed rgba(34,211,238,0.4)', borderRadius:2, display:'inline-block' }} />
-          Trading hours (12pm–11pm)
+          Trading hours (12pm → close)
         </span>
       </div>
     </div>
