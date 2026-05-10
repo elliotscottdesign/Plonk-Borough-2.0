@@ -24,9 +24,17 @@ function KpiCard({ label, value, sub, color }) {
   )
 }
 
-export default function BoroughTillSales2025() {
+// `section` lets the 2025 Performance index split this component into
+// the Till Sales-only view and the Discounts-only view. Default 'all'
+// preserves the previous single-page layout for any caller that just
+// renders <BoroughTillSales2025 />.
+export default function BoroughTillSales2025({ section = 'all' }) {
   const [discOpen, setDiscOpen] = useState(false)
   const [showMinor, setShowMinor] = useState(false)
+  const showTill      = section === 'all' || section === 'till'
+  const showDiscounts = section === 'all' || section === 'discounts'
+  const forceDiscOpen = section === 'discounts'   // expand by default in dedicated view
+  const discIsOpen    = forceDiscOpen || discOpen
   const data = BOROUGH_2025_TILL_SALES
   const disc = BOROUGH_2025_DISCOUNTS
   const codes = BOROUGH_2025_DISCOUNT_CODES
@@ -66,16 +74,21 @@ export default function BoroughTillSales2025() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* Slide title */}
+      {/* Slide title — shown in both views so the user knows which
+          dataset they're looking at. */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
         <span style={{ width: 36, height: 36, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 8, fontSize: 18 }}>🧾</span>
         <div>
-          <div className="serif" style={{ fontSize: 24, color: 'var(--cream)', lineHeight: 1.2 }}>Borough 2025 · Till Sales by Category</div>
+          <div className="serif" style={{ fontSize: 24, color: 'var(--cream)', lineHeight: 1.2 }}>
+            Borough 2025 · {section === 'discounts' ? 'Discount analytics' : 'Till Sales by Category'}
+          </div>
           <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 2 }}>No Dice Borough · Borough Market SE1 · Goodtill till data, COMPLETED orders only, 3 Jan → 14 Sep 2025</div>
         </div>
       </div>
 
-      {/* Till ≠ Financials warning */}
+      {/* Till ≠ Financials warning — only in Till Sales view */}
+      {showTill && (<>
+        {/* (warning + till body wrapped in fragment so we toggle them as one) */}
       <div style={{ padding: '14px 18px', background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 6, display: 'flex', gap: 14, alignItems: 'flex-start' }}>
         <div style={{ fontSize: 18, lineHeight: '18px', color: '#FBBF24' }}>ⓘ</div>
         <div style={{ flex: 1 }}>
@@ -188,23 +201,28 @@ export default function BoroughTillSales2025() {
           </div>
         </div>
       </div>
+      </>)}
 
-      {/* Discounts (collapsible) */}
+      {/* Discounts section. Collapsible in the combined view, always
+          expanded in the dedicated Discounts view. */}
+      {showDiscounts && (
       <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 6, overflow: 'hidden' }}>
-        <button onClick={() => setDiscOpen(o => !o)} style={{ width: '100%', padding: '14px 18px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--cream)', textAlign: 'left' }}>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
-            <span style={{ fontSize: 22, color: 'var(--gold)', transform: discOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>›</span>
-            <div>
-              <div className="serif" style={{ fontSize: 22, color: 'var(--cream)', lineHeight: 1.2 }}>Discounts</div>
-              <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
-                Cost against drink sales · {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
+        {!forceDiscOpen && (
+          <button onClick={() => setDiscOpen(o => !o)} style={{ width: '100%', padding: '14px 18px', background: 'transparent', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: 'var(--cream)', textAlign: 'left' }}>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 14 }}>
+              <span style={{ fontSize: 22, color: 'var(--gold)', transform: discOpen ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 0.15s', display: 'inline-block' }}>›</span>
+              <div>
+                <div className="serif" style={{ fontSize: 22, color: 'var(--cream)', lineHeight: 1.2 }}>Discounts</div>
+                <div style={{ fontSize: 12, color: '#9CA3AF', marginTop: 4 }}>
+                  Cost against drink sales · {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
+                </div>
               </div>
             </div>
-          </div>
-          <span style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{discOpen ? 'Hide' : 'Show'}</span>
-        </button>
+            <span style={{ fontSize: 10, color: '#9CA3AF', letterSpacing: '0.06em', textTransform: 'uppercase' }}>{discOpen ? 'Hide' : 'Show'}</span>
+          </button>
+        )}
 
-        {discOpen && (
+        {discIsOpen && (
           <div style={{ padding: '4px 18px 20px', borderTop: '1px solid rgba(201,168,76,0.12)' }}>
             {/* KPI strip */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 14, marginBottom: 18 }}>
@@ -414,13 +432,17 @@ export default function BoroughTillSales2025() {
           </div>
         )}
       </div>
+      )}
 
-      {/* Source footnote */}
-      <div style={{ fontSize: 10, color: '#6B7280', lineHeight: 1.6 }}>
-        Source · data/borough_2025_till_sales.csv (cleaned Goodtill export, 32,156 rows ·
-        141 previously-blank categories filled by the recategorisation playbook).
-        Single-venue till instance — Borough Market SE1 only. No Hackney or other venue data is mixed in.
-      </div>
+      {/* Source footnote — only when rendering the combined view, the
+          split views surface it on their own indexed sections instead. */}
+      {section === 'all' && (
+        <div style={{ fontSize: 10, color: '#6B7280', lineHeight: 1.6 }}>
+          Source · data/borough_2025_till_sales.csv (cleaned Goodtill export, 32,156 rows ·
+          141 previously-blank categories filled by the recategorisation playbook).
+          Single-venue till instance — Borough Market SE1 only. No Hackney or other venue data is mixed in.
+        </div>
+      )}
     </div>
   )
 }
