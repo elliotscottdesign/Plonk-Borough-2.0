@@ -2446,6 +2446,7 @@ function TabTillSales2025() {
 function TabPrevTillSales() {
   const [year, setYear] = useState(2024)   // default to most recent full year
   const [showMinor, setShowMinor] = useState(false)
+  const [hoverIdx, setHoverIdx] = useState(null)
   const cats = HACKNEY_PREV_TILL_SALES[year] || []
   const summary = HACKNEY_PREV_TILL_YEAR_TOTALS[year]
   const totals = hackneyTotalsForYear(year)
@@ -2566,23 +2567,84 @@ function TabPrevTillSales() {
         <KpiCard2026 label={`${year} · Zero-priced`}  value={`${totals.pctZero.toFixed(1)}%`} sub={`${totals.totalZeroLines.toLocaleString('en-GB')} of ${totals.totalLines.toLocaleString('en-GB')} lines`} color="#F87171" />
       </div>
 
-      {/* Donut hero + category table — donut column promoted to equal width */}
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:32, alignItems:'flex-start' }}>
-        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'32px 28px' }}>
-          <div style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:18, textAlign:'center', fontWeight:600 }}>
+      {/* Donut hero + category table — grid cells stretch so donut card
+          matches table height; SVG capped at 260px and centred so the
+          donut doesn't balloon. Slices have a hover tooltip with units,
+          total inc-VAT, and % share. */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:32, alignItems:'stretch' }}>
+        <div style={{
+          background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8,
+          padding:'18px 20px',
+          display:'flex', flexDirection:'column',
+          position:'relative', overflow:'hidden',
+        }}>
+          <div style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', textAlign:'center', fontWeight:600 }}>
             {year} · Top categories by units
           </div>
-          <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
-            {arcs.map((a, i) => (
-              <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
-                <title>{`${a.cat.name} · ${a.cat.qty.toLocaleString('en-GB')} units`}</title>
-              </path>
-            ))}
-            <text x="160" y="150" textAnchor="middle" fontSize="12" fill="#9CA3AF" letterSpacing="0.12em">UNITS SOLD</text>
-            <text x="160" y="190" textAnchor="middle" fontSize="36" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{totals.totalQty.toLocaleString('en-GB')}</text>
-          </svg>
-          <div style={{ textAlign:'center', marginTop:14, fontSize:12, color:'#9CA3AF' }}>
-            {year} · COMPLETED orders only
+          <div style={{ flex:1, display:'flex', alignItems:'center', justifyContent:'center', position:'relative', minHeight:0 }}>
+            <svg
+              viewBox="0 0 320 320"
+              style={{ width:'100%', maxWidth:260, height:'auto', display:'block' }}
+              onMouseLeave={() => setHoverIdx(null)}
+            >
+              {arcs.map((a, i) => {
+                const isHover = hoverIdx === i
+                return (
+                  <path
+                    key={i}
+                    d={a.d}
+                    fill={a.color}
+                    stroke="var(--ink-2)"
+                    strokeWidth="1.5"
+                    onMouseEnter={() => setHoverIdx(i)}
+                    style={{
+                      cursor:'pointer',
+                      opacity: hoverIdx === null || isHover ? 1 : 0.45,
+                      transform: isHover ? 'scale(1.025)' : 'scale(1)',
+                      transformOrigin:'160px 160px',
+                      transition:'opacity 0.15s, transform 0.15s',
+                    }}
+                  >
+                    <title>{`${a.cat.name} · ${a.cat.qty.toLocaleString('en-GB')} units · £${Math.round(a.cat.total).toLocaleString('en-GB')}`}</title>
+                  </path>
+                )
+              })}
+              <text x="160" y="150" textAnchor="middle" fontSize="12" fill="#9CA3AF" letterSpacing="0.12em">UNITS SOLD</text>
+              <text x="160" y="190" textAnchor="middle" fontSize="36" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{totals.totalQty.toLocaleString('en-GB')}</text>
+            </svg>
+            {hoverIdx !== null && arcs[hoverIdx] && (() => {
+              const c = arcs[hoverIdx].cat
+              const color = arcs[hoverIdx].color
+              const pctUnits = (c.qty / Math.max(1, donutTotal)) * 100
+              return (
+                <div style={{
+                  position:'absolute', left:12, right:12, bottom:8,
+                  background:'rgba(13,17,23,0.96)',
+                  border:`1px solid ${color}`,
+                  borderRadius:6, padding:'10px 12px',
+                  boxShadow:'0 6px 16px rgba(0,0,0,0.45)',
+                  pointerEvents:'none',
+                  display:'flex', flexDirection:'column', gap:4,
+                  fontVariantNumeric:'tabular-nums',
+                }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                    <div style={{ width:10, height:10, background:color, borderRadius:2, flexShrink:0 }} />
+                    <div style={{ fontSize:12, color:'var(--cream)', fontWeight:600, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>
+                      {c.name}
+                    </div>
+                  </div>
+                  <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:'2px 12px', fontSize:11, color:'#9CA3AF' }}>
+                    <div>Units</div>
+                    <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600 }}>{c.qty.toLocaleString('en-GB')} <span style={{ color:'#6B7280', fontWeight:400 }}>· {pctUnits.toFixed(1)}%</span></div>
+                    <div>Total inc-VAT</div>
+                    <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600 }}>£{Math.round(c.total).toLocaleString('en-GB')}</div>
+                  </div>
+                </div>
+              )
+            })()}
+          </div>
+          <div style={{ textAlign:'center', marginTop:8, fontSize:12, color:'#9CA3AF' }}>
+            {year} · COMPLETED orders only · <span style={{ color:'var(--gold-dim)' }}>hover slices for detail</span>
           </div>
         </div>
 
