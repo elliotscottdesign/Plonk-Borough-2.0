@@ -152,23 +152,31 @@ export const FORECAST = {
   margin:       0.1377,         // profit / revenue
 }
 
-// === INCOME BY SOURCE (Jan–Dec 2025) ===
-// TBD: Hackney's bar-only revenue isn't yet split by source in the workbook.
-// Source: Weekly Merged 2024-2026 tab, Jan–Dec 2025 columns aggregated.
-// Total = £557,861 (£19.8k higher than Monthly Summary's £538,091; the
-// Weekly Merged tab is gross of categorisation differences and includes
-// some pre-restatement items). The deck uses Monthly Summary's £538k as
-// the headline annual revenue; this breakdown represents the relative
-// shares of each income source.
+// === INCOME BY SOURCE (Jan–Dec 2025, BAR-ONLY VIEW) ===
+// Hackney is presented as a Bar entity going forward — the Plonk Golf
+// course is a separately-incorporated operator and its golf-round
+// revenue does NOT belong in No Dice Hackney's historic sales mix.
+// The "Online golf (DMN)" line that was previously here (£39,288)
+// has been removed from this breakdown — that revenue stream is
+// shown on the Plonk page (HACKNEY_GOLF_2025) instead.
+//
+// Source: Weekly Merged 2024-2026 tab, Jan–Dec 2025 columns aggregated,
+// minus the online-golf row. Bar-only sources sum to £523,398 (was
+// £562,686 with golf included). The deck uses Monthly Summary's £538k
+// as the headline annual revenue elsewhere; this breakdown represents
+// the relative shares of each bar-side income source for the donut.
+//
+// Notes on what stays here:
+//   • Game & Drink — drink component is bar revenue and stays 100%
+//     with No Dice per the Plonk Operations agreement (the drink
+//     dwarfs the bundled golf round)
+//   • Pool tournament entries + Pool tickets — bar-side activity,
+//     stays 100% with No Dice
 export const INCOME_SOURCES = [
-  { name: 'Bar takings',                amount: 484684, pct: 86.9, color: '#0D1F4C' },
-  { name: 'Online golf (DMN)',          amount:  39288, pct:  7.0, color: '#1565C0' },
-  { name: 'Office bookings / hires',    amount:  28120, pct:  5.0, color: '#1976D2' },
-  // Game & Drink stays 100% with No Dice — the drink component is bar
-  // revenue and the round-of-golf portion is retained per the Plonk
-  // Operations going-forward agreement. Online + office combined.
+  { name: 'Bar takings',                amount: 484684, pct: 92.6, color: '#0D1F4C' },
+  { name: 'Office bookings / hires',    amount:  28120, pct:  5.4, color: '#1976D2' },
   { name: 'Game & Drink',               amount:   4824, pct:  0.9, color: '#F59E0B' },
-  { name: 'Pool tournament entries',    amount:   3570, pct:  0.6, color: '#1E88E5' },
+  { name: 'Pool tournament entries',    amount:   3570, pct:  0.7, color: '#1E88E5' },
   { name: 'Pool tickets (DMN)',         amount:   2200, pct:  0.4, color: '#039BE5' },
   { name: 'Service charge',             amount:      0, pct:  0.0, color: '#4FC3F7' },
 ]
@@ -964,11 +972,12 @@ export const STOCK_SETUP_DETAIL = [
 //
 // Sources for figures below:
 //   • onlineTickets   — Design My Night sales export, Hackney venue,
-//                        1.1.2025 – 31.12.2025 (TBD — see
-//                        HACKNEY_GOLF_DMN_2025 below once populated).
-//                        Headline £39,288 placeholder from prior
-//                        INCOME_SOURCES "Online golf (DMN)" line until
-//                        the per-SKU breakdown lands.
+//                        1.1.2025 – 31.12.2025. Sourced from the live
+//                        per-SKU breakdown (HACKNEY_DMN_SKUS_ONLINE_2025,
+//                        £44,812.35) — NOT from INCOME_SOURCES, which is
+//                        the bar-only view and no longer carries an
+//                        Online golf line (golf moved to the operator
+//                        entity for the going-forward bar narrative).
 //   • Pool tournament entries are NOT a golf line — they're bar-side
 //     and stay 100% with No Dice. Tracked on Business Explorer via
 //     INCOME_SOURCES["Pool tournament entries"] (2025) and HACKNEY_SCENARIO_LEVERS
