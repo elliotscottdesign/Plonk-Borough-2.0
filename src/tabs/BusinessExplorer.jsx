@@ -1148,17 +1148,22 @@ function WeeklyRotaCard() {
   // so add/edit/delete + drag-drop changes flow into totals immediately.
   const { rota, totals, addShift, updateShift, removeShift, moveShift, resetRota } = useEditableRota()
 
-  // Per-tier hourly rates — driven by useLockedWages. Tier → wage row
-  // index (0 Bar Staff, 1 Sup, 3 Manager).
+  // Per-tier hourly rates — driven by useLockedWages. The four slider
+  // rows in WAGE_RATES are the canonical source for every rate on the
+  // rota: row 0 Bar Staff · row 1 Supervisor · row 2 Asst. Manager
+  // · row 3 Manager. Any rate edit on the sliders cascades into rota
+  // costs the moment the user moves a slider.
   const wagesCtx = useLockedWages()
   const rates = {
     bar:        wagesCtx.effective.rows[0]?.rate ?? 13.85,
     supervisor: wagesCtx.effective.rows[1]?.rate ?? 14.35,
+    assistant:  wagesCtx.effective.rows[2]?.rate ?? 15.38,
     manager:    wagesCtx.effective.rows[3]?.rate ?? 18.00,
   }
   const rateFor = (r) => {
     if (r.role === 'manager') return rates.manager
     if (r.tier === 'manager') return rates.manager
+    if (r.tier === 'assistant') return rates.assistant
     if (r.tier === 'supervisor') return rates.supervisor
     return rates.bar
   }
@@ -1175,12 +1180,15 @@ function WeeklyRotaCard() {
     return `${whole - 12}${half}pm`
   }
 
-  // Tier visual mapping
+  // Tier visual mapping. Asst. Manager colour matches the slider row 2
+  // colour in WAGE_RATES (#94A3B8 slate).
   const tierMeta = (r) => {
     if (r.role === 'manager' && r.position === 'Admin')
       return { label: 'Mgr · admin',   color: '#A78BFA' }
     if (r.tier === 'manager')
       return { label: 'Mgr · service', color: '#0D9488' }
+    if (r.tier === 'assistant')
+      return { label: 'Asst. Manager', color: '#94A3B8' }
     if (r.tier === 'supervisor')
       return { label: 'Supervisor',    color: '#D4A843' }
     return { label: 'Bar Staff',       color: '#E67E22' }
@@ -1190,10 +1198,11 @@ function WeeklyRotaCard() {
   const weeklyCost = {
     bar:           totals.weeklyBarStaffHours       * rates.bar,
     supervisor:    totals.weeklySupervisorHours     * rates.supervisor,
+    assistant:     (totals.weeklyAssistantHours || 0) * rates.assistant,
     managerSvc:    totals.weeklyManagerServiceHours * rates.manager,
     managerAdmin:  totals.weeklyManagerAdmin        * rates.manager,
   }
-  weeklyCost.total = weeklyCost.bar + weeklyCost.supervisor + weeklyCost.managerSvc + weeklyCost.managerAdmin
+  weeklyCost.total = weeklyCost.bar + weeklyCost.supervisor + weeklyCost.assistant + weeklyCost.managerSvc + weeklyCost.managerAdmin
   const annualGross  = weeklyCost.total * 52
   const annualLoaded = annualGross * WAGE_OVERHEAD_MULT
 
@@ -1254,13 +1263,14 @@ function WeeklyRotaCard() {
       </div>
 
       {/* Hours stat strip */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:8, marginBottom:14 }}>
-        <RotaStat label="Open hours / week"     value={fmt0(totals.weeklyOpenHours) + ' h'}           sub={`${fmt0(totals.annualOpenHours)} h / year`}           color="#22D3EE" />
-        <RotaStat label="Bar Staff / week"      value={fmt0(totals.weeklyBarStaffHours) + ' h'}       sub={`${fmt0(totals.annualBarStaffHours)} h / year`}       color="#E67E22" />
-        <RotaStat label="Supervisor / week"     value={fmt0(totals.weeklySupervisorHours) + ' h'}     sub={`target 40 h`}                                       color="#D4A843" />
-        <RotaStat label="Mgr · service / week"  value={fmt0(totals.weeklyManagerServiceHours) + ' h'} sub={`target 20 h`}                                       color="#0D9488" />
-        <RotaStat label="Mgr · admin / week"    value={fmt0(totals.weeklyManagerAdmin) + ' h'}        sub={`target 20 h`}                                       color="#A78BFA" />
-        <RotaStat label="Total paid / week"     value={fmt0(totals.weeklyTotalPaid) + ' h'}           sub={`${fmt0(totals.annualTotalPaid)} h / year`}           color="var(--gold)" emphasised />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(7, 1fr)', gap:8, marginBottom:14 }}>
+        <RotaStat label="Open hours / week"     value={fmt0(totals.weeklyOpenHours) + ' h'}              sub={`${fmt0(totals.annualOpenHours)} h / year`}           color="#22D3EE" />
+        <RotaStat label="Bar Staff / week"      value={fmt0(totals.weeklyBarStaffHours) + ' h'}          sub={`${fmt0(totals.annualBarStaffHours)} h / year`}       color="#E67E22" />
+        <RotaStat label="Supervisor / week"     value={fmt0(totals.weeklySupervisorHours) + ' h'}        sub={`max 5 days`}                                        color="#D4A843" />
+        <RotaStat label="Asst. Mgr / week"      value={fmt0(totals.weeklyAssistantHours || 0) + ' h'}    sub={`max 5 days`}                                        color="#94A3B8" />
+        <RotaStat label="Mgr · service / week"  value={fmt0(totals.weeklyManagerServiceHours) + ' h'}    sub={`max 5 days`}                                        color="#0D9488" />
+        <RotaStat label="Mgr · admin / week"    value={fmt0(totals.weeklyManagerAdmin) + ' h'}           sub={`target 20 h`}                                       color="#A78BFA" />
+        <RotaStat label="Total paid / week"     value={fmt0(totals.weeklyTotalPaid) + ' h'}              sub={`${fmt0(totals.annualTotalPaid)} h / year`}           color="var(--gold)" emphasised />
       </div>
 
       {/* Mon → Sun planner grid */}
@@ -1408,12 +1418,13 @@ function WeeklyRotaCard() {
       )}
 
       {/* Cost summary tiles */}
-      <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'repeat(5, 1fr)', gap:8 }}>
-        <CostTile label="Bar Staff"     hours={totals.weeklyBarStaffHours}       weekly={weeklyCost.bar}          color="#E67E22" fmtCash={fmtCash} fmt0={fmt0} />
-        <CostTile label="Supervisor"    hours={totals.weeklySupervisorHours}     weekly={weeklyCost.supervisor}   color="#D4A843" fmtCash={fmtCash} fmt0={fmt0} />
-        <CostTile label="Mgr · service" hours={totals.weeklyManagerServiceHours} weekly={weeklyCost.managerSvc}   color="#0D9488" fmtCash={fmtCash} fmt0={fmt0} />
-        <CostTile label="Mgr · admin"   hours={totals.weeklyManagerAdmin}        weekly={weeklyCost.managerAdmin} color="#A78BFA" fmtCash={fmtCash} fmt0={fmt0} />
-        <CostTile label="Total"         hours={totals.weeklyTotalPaid}           weekly={weeklyCost.total}        color="var(--gold)" fmtCash={fmtCash} fmt0={fmt0} emphasised />
+      <div style={{ marginTop:14, display:'grid', gridTemplateColumns:'repeat(6, 1fr)', gap:8 }}>
+        <CostTile label="Bar Staff"     hours={totals.weeklyBarStaffHours}            weekly={weeklyCost.bar}          color="#E67E22" fmtCash={fmtCash} fmt0={fmt0} />
+        <CostTile label="Supervisor"    hours={totals.weeklySupervisorHours}          weekly={weeklyCost.supervisor}   color="#D4A843" fmtCash={fmtCash} fmt0={fmt0} />
+        <CostTile label="Asst. Manager" hours={totals.weeklyAssistantHours || 0}      weekly={weeklyCost.assistant}    color="#94A3B8" fmtCash={fmtCash} fmt0={fmt0} />
+        <CostTile label="Mgr · service" hours={totals.weeklyManagerServiceHours}      weekly={weeklyCost.managerSvc}   color="#0D9488" fmtCash={fmtCash} fmt0={fmt0} />
+        <CostTile label="Mgr · admin"   hours={totals.weeklyManagerAdmin}             weekly={weeklyCost.managerAdmin} color="#A78BFA" fmtCash={fmtCash} fmt0={fmt0} />
+        <CostTile label="Total"         hours={totals.weeklyTotalPaid}                weekly={weeklyCost.total}        color="var(--gold)" fmtCash={fmtCash} fmt0={fmt0} emphasised />
       </div>
 
       {/* Annual gross + loaded */}
@@ -1535,6 +1546,7 @@ function ShiftEditorModal({ editor, onClose, onSave }) {
               <select value={tier} onChange={(e) => setTier(e.target.value)} style={selectStyle}>
                 <option value="bar">Bar Staff</option>
                 <option value="supervisor">Supervisor</option>
+                <option value="assistant">Asst. Manager</option>
                 <option value="manager">Manager (service)</option>
               </select>
             </Field>

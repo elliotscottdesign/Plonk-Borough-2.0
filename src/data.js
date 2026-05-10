@@ -364,10 +364,13 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
     flat.filter(filter).reduce((s, r) => s + Math.max(0, r.end - r.start), 0)
   const weeklyBarStaffHours       = sum(r => r.role === 'bar' && r.tier === 'bar')
   const weeklySupervisorHours     = sum(r => r.role === 'bar' && r.tier === 'supervisor')
+  // Assistant Manager — 4th tier, sits between Supervisor and Manager.
+  // Same `role: 'bar'` floor-service category, different pay grade.
+  const weeklyAssistantHours      = sum(r => r.role === 'bar' && r.tier === 'assistant')
   const weeklyManagerServiceHours = sum(r => r.role === 'bar' && r.tier === 'manager')
   const weeklyManagerAdmin        = sum(r => r.role === 'manager' && r.position === 'Admin')
   const weeklyManagerHours        = weeklyManagerServiceHours + weeklyManagerAdmin
-  const weeklyBarFloorHours       = weeklyBarStaffHours + weeklySupervisorHours + weeklyManagerServiceHours
+  const weeklyBarFloorHours       = weeklyBarStaffHours + weeklySupervisorHours + weeklyAssistantHours + weeklyManagerServiceHours
   // Open hours derive from the rota itself: per-day, "open" is from
   // BAR_ROTA_OPEN_HOUR (12pm) to the latest non-admin shift end on that
   // day. So a Thursday closing at 23.5 contributes 11.5h, not 11h, and
@@ -386,6 +389,7 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
     weeklyBarFloorHours,
     weeklyBarStaffHours,
     weeklySupervisorHours,
+    weeklyAssistantHours,
     weeklyManagerServiceHours,
     weeklyManagerAdmin,
     weeklyManagerHours,
@@ -394,6 +398,7 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
     annualOpenHours:           weeklyOpenHours           * 52,
     annualBarStaffHours:       weeklyBarStaffHours       * 52,
     annualSupervisorHours:     weeklySupervisorHours     * 52,
+    annualAssistantHours:      weeklyAssistantHours      * 52,
     annualManagerServiceHours: weeklyManagerServiceHours * 52,
     annualManagerAdmin:        weeklyManagerAdmin        * 52,
     annualManagerHours:        weeklyManagerHours        * 52,
