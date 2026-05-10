@@ -48,7 +48,6 @@ const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 
 const TABS = [
   { key: 'performance2025', label: '2025 Performance' },
-  { key: 'tillsales2025',   label: '2025 Till Sales' },
   { key: 'prevtillsales',   label: 'Till Sales 2020–2024' },
   { key: 'performance2026', label: '2026 Performance' },
 ]
@@ -69,25 +68,97 @@ function Tbd({ children }) {
   )
 }
 
-function Tab2025() {
+// ─── 2025 Performance · left-hand section index ───────────────────────
+// Sub-sections used to live one-below-the-other in a long scroll;
+// promoted to a left-rail TOC so investors can jump straight to a
+// section. Till Sales (previously its own top-level tab) is now an
+// index section here too — Hackney is a bar-only entity so the 2025
+// view should consolidate every angle on the same year in one place.
+const PERF_2025_SECTIONS = [
+  { id: 'topline',  label: 'Top-Line Actuals', icon: '📊' },
+  { id: 'income',   label: 'Income by Source', icon: '💰' },
+  { id: 'costs',    label: 'Costs by Category', icon: '💸' },
+  { id: 'monthly',  label: 'Monthly Performance', icon: '📈' },
+  { id: 'till',     label: 'Till Sales',       icon: '🧾' },
+  { id: 'hours',    label: 'Hours & Wages',    icon: '👥' },
+]
+
+function Sidebar2025TOC({ active, onChange }) {
   return (
-    <div style={{ display:'flex', flexDirection:'column', gap:20 }}>
-      <STitle>2025 Verified Actuals — Bar Only</STitle>
-      <TopLineCards />
+    <div style={{ position:'sticky', top:16, background:'var(--ink-2)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:10, padding:8 }}>
+      <div style={{ fontSize:10, color:'#6B7280', textTransform:'uppercase', letterSpacing:'0.1em', padding:'6px 8px 10px' }}>2025 Performance · Index</div>
+      {PERF_2025_SECTIONS.map(s => {
+        const isActive = active === s.id
+        return (
+          <button
+            key={s.id}
+            onClick={() => onChange(s.id)}
+            style={{
+              display:'flex', alignItems:'center', gap:10, width:'100%',
+              padding:'10px 12px', marginBottom:4,
+              background: isActive ? 'rgba(201,168,76,0.12)' : 'transparent',
+              border: isActive ? '1px solid rgba(201,168,76,0.35)' : '1px solid transparent',
+              borderRadius:6,
+              color: isActive ? 'var(--gold)' : 'var(--cream)',
+              fontSize:12, fontWeight: isActive ? 700 : 500,
+              cursor:'pointer', textAlign:'left',
+              letterSpacing:'0.04em', transition:'all 0.15s',
+            }}
+          >
+            <span style={{ fontSize:14, opacity:0.85 }}>{s.icon}</span>
+            <span style={{ flex:1 }}>{s.label}</span>
+            {isActive && <span style={{ color:'var(--gold)', fontSize:10 }}>●</span>}
+          </button>
+        )
+      })}
+    </div>
+  )
+}
 
-      <STitle>Income by Source</STitle>
-      <IncomeBySourceChart />
-
-      <STitle>Costs by Category</STitle>
-      <CostsByCategoryChart />
-
-      <STitle>Monthly Performance</STitle>
-      <MonthlyPerformanceChart />
-
-      <STitle>Hours — 2025 Rota Reference (4-role bar-only)</STitle>
-      <WageRotaReference />
-
-      <WageReconciliation />
+function Tab2025() {
+  const [activeSection, setActiveSection] = useState('topline')
+  return (
+    <div style={{ display:'grid', gridTemplateColumns:'200px 1fr', gap:16, alignItems:'flex-start' }}>
+      <Sidebar2025TOC active={activeSection} onChange={setActiveSection} />
+      <div style={{ display:'flex', flexDirection:'column', gap:20, minWidth:0 }}>
+        {activeSection === 'topline' && (
+          <>
+            <STitle>2025 Verified Actuals — Bar Only</STitle>
+            <TopLineCards />
+          </>
+        )}
+        {activeSection === 'income' && (
+          <>
+            <STitle>Income by Source</STitle>
+            <IncomeBySourceChart />
+          </>
+        )}
+        {activeSection === 'costs' && (
+          <>
+            <STitle>Costs by Category</STitle>
+            <CostsByCategoryChart />
+          </>
+        )}
+        {activeSection === 'monthly' && (
+          <>
+            <STitle>Monthly Performance</STitle>
+            <MonthlyPerformanceChart />
+          </>
+        )}
+        {activeSection === 'till' && (
+          <>
+            <STitle>2025 Till Sales — Goodtill (cleaned)</STitle>
+            <TabTillSales2025 />
+          </>
+        )}
+        {activeSection === 'hours' && (
+          <>
+            <STitle>Hours — 2025 Rota Reference (4-role bar-only)</STitle>
+            <WageRotaReference />
+            <WageReconciliation />
+          </>
+        )}
+      </div>
     </div>
   )
 }
@@ -2457,7 +2528,6 @@ export default function BusinessExplorer() {
   const [tab, setTab] = useState('performance2025')
   const tabComponents = {
     performance2025: <Tab2025 />,
-    tillsales2025:   <TabTillSales2025 />,
     prevtillsales:   <TabPrevTillSales />,
     performance2026: <Tab2026 />,
   }
