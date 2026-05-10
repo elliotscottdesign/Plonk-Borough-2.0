@@ -1125,12 +1125,14 @@ function WeeklyRotaCard() {
   const fmt0 = (n) => Math.round(n).toLocaleString('en-GB')
   const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
   const totals = BAR_ROTA_TOTALS
-  // Day labels
+  // Day labels — supports half-hours (e.g. 23.5 → "11:30pm")
   const fmtH = (h) => {
-    if (h === 12) return '12pm'
-    if (h === 0 || h === 24) return '12am'
-    if (h < 12) return `${h}am`
-    return `${h - 12}pm`
+    const whole = Math.floor(h)
+    const half  = (h - whole) >= 0.5 ? ':30' : ''
+    if (whole === 12) return '12' + half + 'pm'
+    if (whole === 0 || whole === 24) return '12' + half + 'am'
+    if (whole < 12) return `${whole}${half}am`
+    return `${whole - 12}${half}pm`
   }
   // Render timeline 9am → 11pm (15 hours of canvas) so admin shifts
   // fit visually alongside trading hours.

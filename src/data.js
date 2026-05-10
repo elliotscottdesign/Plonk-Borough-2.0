@@ -255,11 +255,13 @@ export const BAR_WEEKLY_ROTA = [
   { day: 'Wed', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
   { day: 'Wed', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
   { day: 'Wed', role: 'manager', position: 'Floor',    start: 12, end: 23 },
-  // ─ THU ─────────────────────────────────────────────────────
-  { day: 'Thu', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
-  { day: 'Thu', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
-  { day: 'Thu', role: 'bar',     position: 'Closer',   start: 17, end: 23 },
-  { day: 'Thu', role: 'manager', position: 'Floor',    start: 12, end: 23 },
+  // ─ THU (3-staff evening, extended close 11:30pm) ──────────
+  { day: 'Thu', role: 'bar',     position: 'Opener',     start: 11,   end: 17 },
+  { day: 'Thu', role: 'bar',     position: 'Mid',        start: 12,   end: 18 },
+  { day: 'Thu', role: 'bar',     position: 'Closer',     start: 17,   end: 23.5 },
+  { day: 'Thu', role: 'bar',     position: 'Evening 1',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
+  { day: 'Thu', role: 'bar',     position: 'Evening 2',  start: 18,   end: 23.5, note: 'Thu 3-staff peak (6pm → close)' },
+  { day: 'Thu', role: 'manager', position: 'Floor',      start: 12,   end: 23.5 },
   // ─ FRI (3 staff peak) ─────────────────────────────────────
   { day: 'Fri', role: 'bar',     position: 'Opener',   start: 11, end: 17 },
   { day: 'Fri', role: 'bar',     position: 'Mid',      start: 12, end: 18 },
@@ -290,7 +292,18 @@ export function deriveBarRotaTotals(rota = BAR_WEEKLY_ROTA) {
   const weeklyManagerFloor  = sum(r => r.role === 'manager' && r.position !== 'Admin')
   const weeklyManagerAdmin  = sum(r => r.role === 'manager' && r.position === 'Admin')
   const weeklyManagerHours  = weeklyManagerFloor + weeklyManagerAdmin
-  const weeklyOpenHours     = (BAR_ROTA_CLOSE_HOUR - BAR_ROTA_OPEN_HOUR) * 7
+  // Open hours derive from the rota itself: per-day, "open" is from
+  // BAR_ROTA_OPEN_HOUR (12pm) to the latest non-admin shift end on that
+  // day. So a Thursday closing at 23.5 contributes 11.5h, not 11h.
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+  const weeklyOpenHours = days.reduce((tot, day) => {
+    const ends = rota
+      .filter(r => r.day === day && !(r.role === 'manager' && r.position === 'Admin'))
+      .map(r => r.end)
+    if (!ends.length) return tot
+    const close = Math.max(BAR_ROTA_OPEN_HOUR, ...ends)
+    return tot + (close - BAR_ROTA_OPEN_HOUR)
+  }, 0)
   return {
     weeklyOpenHours,
     weeklyBarHours,
