@@ -662,8 +662,14 @@ function TabPerformance({ growth, pricing, setPricing, officeCosts, setOfficeCos
           {/* WAGES */}
           {activeSection === 'wages' && (
             <div style={{ display:'flex', flexDirection:'column', gap:16 }}>
-              <WeeklyRotaCard />
               <WageCalculatorCard />
+              <CollapsibleSection
+                title="Weekly Planner · Rota + Cost Breakdown"
+                subtitle="Mon → Sun shift grid with per-shift cost, tier totals, annual gross + loaded P&L wage line. Click to open."
+                accent="var(--gold)"
+              >
+                <WeeklyRotaCard />
+              </CollapsibleSection>
             </div>
           )}
 
@@ -1187,7 +1193,7 @@ function WeeklyRotaCard() {
   const annualLoaded = annualGross * WAGE_OVERHEAD_MULT
 
   return (
-    <div className="card" style={{ padding:18 }}>
+    <div style={{ paddingTop:4 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:14, flexWrap:'wrap' }}>
         <div>
           <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Planner · Average Week</div>
@@ -1332,6 +1338,61 @@ function RotaStat({ label, value, sub, color, emphasised }) {
       <div style={{ fontSize:9.5, color:'var(--cream-dim)', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:5, fontWeight:600 }}>{label}</div>
       <div className="serif" style={{ fontSize: emphasised ? 20 : 17, color, lineHeight:1, marginBottom:4, fontVariantNumeric:'tabular-nums' }}>{value}</div>
       <div style={{ fontSize:10, color:'var(--cream-dim)' }}>{sub}</div>
+    </div>
+  )
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// Generic collapsible — clean disclosure section with a chevron header.
+// Default closed; click anywhere on the header to toggle. Children only
+// mount when open so heavy panels (like the Weekly Planner) don't pay
+// the render cost on tabs they're collapsed under.
+// ───────────────────────────────────────────────────────────────────────
+function CollapsibleSection({ title, subtitle, accent = 'var(--gold)', children, defaultOpen = false }) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div style={{
+      background: 'var(--ink-2)',
+      border: `1px solid ${open ? 'rgba(201,168,76,0.35)' : 'rgba(255,255,255,0.08)'}`,
+      borderRadius: 10,
+      overflow: 'hidden',
+      transition: 'border-color 0.15s',
+    }}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        aria-expanded={open}
+        style={{
+          width: '100%',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+          padding: '14px 18px',
+          background: 'transparent',
+          border: 'none',
+          cursor: 'pointer',
+          textAlign: 'left',
+          color: 'var(--cream)',
+        }}
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 11, color: accent, letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 700 }}>{title}</div>
+          {subtitle && <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>{subtitle}</div>}
+        </div>
+        <span style={{
+          flexShrink: 0,
+          fontSize: 14, color: accent,
+          transform: `rotate(${open ? 90 : 0}deg)`,
+          transition: 'transform 0.18s ease',
+          width: 20, height: 20,
+          display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+          background: 'rgba(201,168,76,0.08)',
+          border: `1px solid ${accent}40`,
+          borderRadius: 4,
+        }}>›</span>
+      </button>
+      {open && (
+        <div style={{ padding: '0 14px 14px' }}>
+          {children}
+        </div>
+      )}
     </div>
   )
 }
