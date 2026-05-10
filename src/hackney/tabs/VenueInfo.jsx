@@ -148,9 +148,6 @@ function TabCatchment() {
     { value: '12,682',  label: 'LONDON FIELDS WARD POPULATION', sub: 'Resident population (2.3 avg household size)', source: 'ONS Census 2021 ward profile', color: '#4FC3F7' },
     { value: '£49,532', label: 'HACKNEY MEDIAN INCOME',          sub: 'Annual household income',                       source: 'Hackney Council 2024',           color: '#2DD4BF' },
     { value: '36.8',    label: 'LONDON FIELDS AVG AGE',          sub: 'Years (Hackney borough avg 32)',                source: 'ONS Census 2021',                 color: '#4FC3F7' },
-    { value: '68.4%',   label: 'ECONOMICALLY ACTIVE',            sub: 'Of London Fields ward residents',               source: 'ONS Census 2021',                 color: '#2DD4BF' },
-    { value: 'TBD',     label: 'VENUE PAGE VIEWS 2026',          sub: 'GA4 — pending baseline post-relaunch',          source: 'Google Analytics',                color: '#C9A84C' },
-    { value: 'TBD',     label: 'ORGANIC SEARCH SHARE',           sub: 'Of all venue traffic — pending GA4',            source: 'GA4 2026',                        color: '#C9A84C' },
   ]
   const strengths = [
     { icon:'🎨', title:'CREATIVE NEIGHBOURHOOD',       text:'London Fields is at the heart of East London\'s independent creative scene — the ward sits between Broadway Market, Hackney Wick and Dalston, three of London\'s densest concentrations of independent hospitality and lifestyle brands.' },
