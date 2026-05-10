@@ -2,10 +2,9 @@
   "header": "Business Explorer · Borough Market SE1",
   "tabs": {
     "performance2025": "2025 Performance",
-    "tillsales2025": "2025 Till Sales",
     "performance2026": "2026 Performance",
     "cashflow": "Cashflow Forecast",
-    "prevTillSales": "Previous Till Sales"
+    "prevTillSales": "Historic Till Sales"
   },
   "cashflow": {
     "header": "Cashflow Forecast · May 2026 → Apr 2027",

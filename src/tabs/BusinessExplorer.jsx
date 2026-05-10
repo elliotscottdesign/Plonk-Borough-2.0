@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import PrevTillSales from './PrevTillSales.jsx'
-import BoroughTillSales2025 from './BoroughTillSales2025.jsx'
 import ResetBtn from '../components/ResetBtn.jsx'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
@@ -13,7 +12,9 @@ import { useBarPriceUplift } from '../slides/GrowthDrivers.jsx'
 import { useLockedFunding } from '../components/LockedFundingContext.jsx'
 import { useLockedTicketVolume, useLockedFixedCosts, useLockedOfficeCosts, useLockedWages, useLockedPricing, useLockedCommissions } from '../components/LockedDeckContext.jsx'
 
-const TAB_KEYS = ['performance2025','tillsales2025','performance2026','cashflow','prevTillSales']
+// 2025 Till Sales moved INTO the 2025 Performance tab (above the Ticket
+// Sales Breakdown) — no longer a standalone tab.
+const TAB_KEYS = ['performance2025','performance2026','cashflow','prevTillSales']
 
 function useFmt() {
   const { i18n } = useTranslation()
@@ -2597,7 +2598,6 @@ export default function BusinessExplorer() {
 
   const tabComponents = {
     performance2025: <FinancialPerformance />,
-    tillsales2025:   <BoroughTillSales2025 />,
     performance2026: <TabPerformance growth={growth} pricing={effectivePricing} setPricing={setPricing} officeCosts={effectiveOfficeCosts} setOfficeCosts={setOfficeCosts} fixedCosts={effectiveFixedCosts} setFixedCosts={setFixedCosts} />,
     cashflow:        <TabCashflow growth={growth} />,
     prevTillSales:   <PrevTillSales />,

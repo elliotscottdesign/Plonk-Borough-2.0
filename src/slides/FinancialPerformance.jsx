@@ -8,6 +8,7 @@ import {
 } from '../data.js'
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
+import BoroughTillSales2025 from '../tabs/BoroughTillSales2025.jsx'
 
 // Named exports — imported by BusinessExplorer's 2026 Performance tab as the 2025
 // baseline for scenario-adjusted forecasts. `labelKey` points at
@@ -285,6 +286,13 @@ export default function FinancialPerformance() {
           </div>
         </div>
 
+      </div>
+
+      {/* 2025 TILL SALES — full Goodtill category breakdown for the year,
+          moved in from the previously separate "2025 Till Sales" tab so
+          the till mix sits alongside the rest of 2025 performance. */}
+      <div style={{ marginTop:32, paddingTop:24, borderTop:'1px solid rgba(201,168,76,0.2)' }}>
+        <BoroughTillSales2025 />
       </div>
 
       {/* TICKET BREAKDOWN — Online vs Office (sourced from IP & Licensing dataset) */}
