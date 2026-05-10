@@ -588,7 +588,7 @@ function TabDevelopment() {
             <h3 style={{ fontSize:18, fontWeight:700, color:'#fff', marginBottom:16 }}>Landlord Rent Deposit (3 months)</h3>
             {[
               'Held by the landlord per the lease — refundable on exit',
-              'Paid in 3 monthly instalments of £6,500 inc VAT during the 4-month rent-free start',
+              'Paid in 3 monthly instalments of £6,500 inc VAT during the 3-month rent-free start',
               `Funded from operating cash flow — does not consume the ${raiseLabel} Day-1 raise`,
               'Establishes rent compliance footing with the freeholder from Day 1',
             ].map((item,i) => <div key={i} style={{ display:'flex', gap:10, marginBottom:10, fontSize:13, color:'#D1D5DB' }}><Arr c="#A78BFA" /><span>{item}</span></div>)}

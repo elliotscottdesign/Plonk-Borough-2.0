@@ -466,8 +466,8 @@ function ReconTile({ label, value, sub, colour }) {
 //   • Stock / variable:  +10% on every variable line (drinks, food, cleaning, djs, arcades)
 //   • Fixed costs:       +10% on the non-rent, non-rates lines
 //   • Rent:              NEW lease — £65,000 + VAT per annum (net in P&L).
-//                        4-month rent-free start. Y1 = 8 paying months ×
-//                        £65k/12 = £43,333. Y2 steady = £65,000.
+//                        3-month rent-free start. Y1 = 9 paying months ×
+//                        £65k/12 = £48,750. Y2 steady = £65,000.
 //                        Y3+ compounds at +3% annual lease uplift.
 //                        Deposit £19,500 inc VAT (3 mo × £6,500), paid in
 //                        3 monthly instalments from operating cash during
@@ -479,7 +479,7 @@ const FORECAST_RULES = {
   variableUplift:  0.10,
   fixedUplift:     0.10,    // applied to non-rent, non-rates fixed lines
   rentAnnualNet:   65000,   // £65,000 + VAT pa (net in P&L)
-  rentY1:          43333,   // 8 paying months × £65k/12 (4 months rent-free per lease)
+  rentY1:          48750,   // 9 paying months × £65k/12 (3 months rent-free per lease)
   rentSteady:      65000,   // Y2 full year
   rentUplift:      0.03,    // 3% annual uplift on rent (Y3+ compounds)
   rates:           16830,   // 2025 actual £15,300 × 1.10 — pending council confirm
@@ -528,7 +528,7 @@ function compute2026Scenario(forecastValues, wagesOverride) {
   // Wages — locked calculator if present, else PL_WAGE_BASE.
   const wages = Number.isFinite(wagesOverride) && wagesOverride > 0 ? wagesOverride : PL_WAGE_BASE
 
-  // Fixed costs — editor matrix annual total + Y1 lease rent (£43,333).
+  // Fixed costs — editor matrix annual total + Y1 lease rent (£48,750).
   const fixedFromMatrix = sumHackneyFixedCostsAnnual(forecastValues?.fixedCosts ?? {})
   const rent            = FORECAST_RULES.rentY1
   const fixedLine       = fixedFromMatrix + rent
@@ -1301,7 +1301,7 @@ function FixedCostsSection() {
       <div style={{ display:'grid', gridTemplateColumns:'2fr 3fr 1.4fr', gap:12, alignItems:'center', padding:'12px 0 4px', background:'rgba(248,113,113,0.04)', borderRadius:6, marginTop:8 }}>
         <div>
           <div style={{ fontSize:13, color:'var(--cream)', fontWeight:500 }}>Rent (Y1, lease schedule)</div>
-          <div style={{ fontSize:10, color:'var(--cream-dim)' }}>£65k+VAT pa · 4-mo rent-free Y1 · 8 paying months × £65k/12</div>
+          <div style={{ fontSize:10, color:'var(--cream-dim)' }}>£65k+VAT pa · 3-mo rent-free Y1 · 9 paying months × £65k/12</div>
         </div>
         <div style={{ fontSize:11, color:'var(--cream-dim)', fontStyle:'italic' }}>Not editable · lease-driven</div>
         <div style={{ textAlign:'right' }}>
@@ -1576,18 +1576,18 @@ function Tab2026() {
 // Cashflow logic per month:
 //   - Inflow:    revenue × seasonal weight / 12
 //   - Operating: (totalCosts − rent) × seasonal weight / 12
-//   - Rent:      paid monthly during the 8 paying months (Sep 26 →
-//                Apr 27); £0 during the 4-month rent-free period
-//                (May–Aug 26 per the lease).
+//   - Rent:      paid monthly during the 9 paying months (Aug 26 →
+//                Apr 27); £0 during the 3-month rent-free period
+//                (May–Jul 26 per the lease).
 //   - Net:       inflow − operating − rent
 //   - Cumulative: running total starting at £0 (Day-1 raise excluded —
 //                 that's modelled separately on Use of Funds).
 
 const HACKNEY_CASHFLOW_MONTHS   = ['May 26','Jun 26','Jul 26','Aug 26','Sep 26','Oct 26','Nov 26','Dec 26','Jan 27','Feb 27','Mar 27','Apr 27']
 const HACKNEY_CASHFLOW_SEASONAL = [0.90, 0.85, 1.00, 1.05, 1.05, 1.10, 1.20, 1.40, 0.85, 0.95, 1.00, 0.95]
-// Lease: 4 months rent-free (May 26 – Aug 26 = indexes 0..3); rent
-// payable monthly for the remaining 8 (Sep 26 – Apr 27 = indexes 4..11).
-const HACKNEY_RENT_FREE_MONTHS  = new Set([0, 1, 2, 3])
+// Lease: 3 months rent-free (May 26 – Jul 26 = indexes 0..2); rent
+// payable monthly for the remaining 9 (Aug 26 – Apr 27 = indexes 3..11).
+const HACKNEY_RENT_FREE_MONTHS  = new Set([0, 1, 2])
 
 function buildHackneyCashflow({ revenue, totalCosts, rentAnnual }) {
   const nonRentCosts = Math.max(0, totalCosts - rentAnnual)
@@ -1671,7 +1671,7 @@ function TabCashflow() {
         <div style={{ display:'flex', alignItems:'flex-start', justifyContent:'space-between', gap:14, marginBottom:12 }}>
           <div>
             <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:4 }}>Cashflow Forecast · May 2026 → Apr 2027</div>
-            <div style={{ fontSize:12, color:'#9CA3AF' }}>Monthly inflows, outflows and cumulative cash position. Rent-free May–Aug 2026 per the new lease; £65k pa rent payable monthly Sep 26 → Apr 27. For the full detailed model see the workbook.</div>
+            <div style={{ fontSize:12, color:'#9CA3AF' }}>Monthly inflows, outflows and cumulative cash position. Rent-free May–Jul 2026 per the new lease; £65k pa rent payable monthly Aug 26 → Apr 27. For the full detailed model see the workbook.</div>
           </div>
           {WORKBOOK_URL && (
             <a href={WORKBOOK_URL} target="_blank" rel="noopener noreferrer" style={{

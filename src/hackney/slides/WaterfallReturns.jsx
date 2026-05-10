@@ -57,7 +57,7 @@ export default function WaterfallReturns() {
   const effective = { ...DEAL, ...computeDealFromInvestment(ctxEffective.investment) }
 
   // Scenario profit figures use the new 2026 cost model with the
-  // £65k+VAT pa lease (Y1 rent £43,333 net, 8 paying months; rates
+  // £65k+VAT pa lease (Y1 rent £48,750 net, 9 paying months; rates
   // £16,830; +10% on other fixed and stock). Revenue, variable and VAT
   // scale together; wages, other fixed and director are held flat
   // across scenarios. Default profits below assume PL_WAGE_BASE wages;
@@ -65,14 +65,19 @@ export default function WaterfallReturns() {
   // every scenario shifts down by that wage delta (wages reduce profit
   // 1:1 since they're a flat line per scenario).
   const wageDelta = isWageLocked ? wageEffective.loadedAnnual - PL_WAGE_BASE : 0
+  // Scenario op-profit deltas (May 2026 lease change): rent-free period
+  // dropped from 4 months to 3 months, adding £5,417 of Y1 rent across
+  // every scenario. Each base figure below is the prior value minus the
+  // £5,417 rent uplift (rent doesn't scale with revenue, so all three
+  // scenarios shift by the same flat amount).
   const SCENARIOS = {
-    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  74412 - wageDelta,       color: '#E53935' },
-    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  90598 - wageDelta,       color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 106790 - wageDelta,       color: '#2DD4BF' },
+    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  68995 - wageDelta,       color: '#E53935' },
+    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  85181 - wageDelta,       color: '#C9A84C' },
+    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 101373 - wageDelta,       color: '#2DD4BF' },
     custom: {
       label:    'Custom',
       badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:    90598 - wageDelta,
+      profit:    85181 - wageDelta,
       color:    'var(--gold)',
       disabled: !isLocked,
     },
