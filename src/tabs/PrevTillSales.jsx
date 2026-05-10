@@ -107,48 +107,101 @@ export default function PrevTillSales() {
         </div>
       </div>
 
-      {/* Year-over-year revenue trajectory */}
+      {/* Year-over-year revenue trajectory — left-hand year index.
+          Each row is a clickable button with year, note, YoY badge,
+          revenue and a chevron/dot indicator so it's obvious that the
+          rows drive the breakdown below. */}
       <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'18px 20px' }}>
-        <div className="serif" style={{ fontSize:18, color:'var(--cream)', marginBottom:14, lineHeight:1.25 }}>
-          Three-year revenue trajectory
+        <div style={{ display:'flex', alignItems:'baseline', justifyContent:'space-between', gap:12, marginBottom:4 }}>
+          <div className="serif" style={{ fontSize:18, color:'var(--cream)', lineHeight:1.25 }}>
+            Three-year revenue trajectory
+          </div>
+          <div style={{ fontSize:10, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:600 }}>
+            Select a year ↓
+          </div>
         </div>
-        <div style={{ display:'flex', alignItems:'flex-end', gap:14, height:160 }}>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginBottom:14 }}>
+          Click a year below to drill into its category mix.
+        </div>
+        <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
           {trajectory.map((t, i) => {
-            const h = Math.round((t.revenue / maxRev) * 130)
             const isSel = t.isSelected
             const prev = i > 0 ? trajectory[i-1].revenue : null
             const yoy = prev ? ((t.revenue / prev - 1) * 100) : null
+            const barFrac = t.revenue / maxRev
             return (
-              <button key={t.year} onClick={() => setYear(t.year)} style={{
-                flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:4,
-                background:'transparent', border:'none', cursor:'pointer', padding:0, height:160, justifyContent:'flex-end',
-              }}>
-                {yoy !== null && (
-                  <div style={{ fontSize:10, color: yoy >= 0 ? '#10B981' : '#F87171', fontVariantNumeric:'tabular-nums', fontWeight:600 }}>
-                    {yoy >= 0 ? '+' : ''}{yoy.toFixed(0)}%
+              <button
+                key={t.year}
+                onClick={() => setYear(t.year)}
+                style={{
+                  position:'relative',
+                  display:'grid',
+                  gridTemplateColumns:'72px 1fr auto 110px 18px',
+                  alignItems:'center',
+                  gap:16,
+                  padding:'14px 18px',
+                  background: isSel
+                    ? 'linear-gradient(90deg, rgba(201,168,76,0.14) 0%, rgba(201,168,76,0.04) 100%)'
+                    : 'rgba(255,255,255,0.02)',
+                  border: isSel ? '1px solid var(--gold)' : '1px solid rgba(255,255,255,0.06)',
+                  borderLeft: isSel ? '3px solid var(--gold)' : '3px solid rgba(34,211,238,0.25)',
+                  borderRadius:6,
+                  cursor:'pointer',
+                  color:'var(--cream)',
+                  textAlign:'left',
+                  transition:'all 0.15s',
+                  overflow:'hidden',
+                }}
+                onMouseEnter={(e) => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+                onMouseLeave={(e) => { if (!isSel) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
+              >
+                {/* Subtle bar fill behind content to keep a sense of scale */}
+                <div style={{
+                  position:'absolute', left:0, top:0, bottom:0,
+                  width:`${barFrac * 100}%`,
+                  background: isSel
+                    ? 'linear-gradient(90deg, rgba(201,168,76,0.10) 0%, rgba(201,168,76,0) 100%)'
+                    : 'linear-gradient(90deg, rgba(34,211,238,0.07) 0%, rgba(34,211,238,0) 100%)',
+                  pointerEvents:'none',
+                }} />
+                <div className="serif" style={{ position:'relative', fontSize:24, color: isSel ? 'var(--gold)' : 'var(--cream)', fontVariantNumeric:'tabular-nums', lineHeight:1 }}>
+                  {t.year}
+                </div>
+                <div style={{ position:'relative', display:'flex', flexDirection:'column', gap:2 }}>
+                  <div style={{ fontSize:12, color:'var(--cream)', fontWeight:500 }}>
+                    {YEAR_NOTES[t.year] || ''}
+                  </div>
+                  <div style={{ fontSize:10, color:'#6B7280', fontVariantNumeric:'tabular-nums', letterSpacing:'0.04em' }}>
+                    {t.lines.toLocaleString('en-GB')} till lines
+                  </div>
+                </div>
+                {yoy !== null ? (
+                  <div style={{
+                    position:'relative',
+                    fontSize:11, fontWeight:700,
+                    padding:'4px 10px', borderRadius:999,
+                    background: yoy >= 0 ? 'rgba(16,185,129,0.14)' : 'rgba(248,113,113,0.14)',
+                    color: yoy >= 0 ? '#10B981' : '#F87171',
+                    border: yoy >= 0 ? '1px solid rgba(16,185,129,0.3)' : '1px solid rgba(248,113,113,0.3)',
+                    fontVariantNumeric:'tabular-nums',
+                    whiteSpace:'nowrap',
+                  }}>
+                    {yoy >= 0 ? '+' : ''}{yoy.toFixed(0)}% YoY
+                  </div>
+                ) : (
+                  <div style={{ position:'relative', fontSize:10, color:'#6B7280', fontStyle:'italic', whiteSpace:'nowrap' }}>
+                    baseline
                   </div>
                 )}
-                {yoy === null && <div style={{ fontSize:10, height:14 }}>&nbsp;</div>}
-                <div style={{ fontSize:11, color: isSel ? 'var(--gold)' : 'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>
+                <div className="serif" style={{ position:'relative', fontSize:20, color: isSel ? 'var(--gold)' : 'var(--cream)', fontVariantNumeric:'tabular-nums', textAlign:'right', lineHeight:1 }}>
                   £{Math.round(t.revenue/1000)}k
                 </div>
-                <div style={{
-                  width:'80%', height:h,
-                  background: isSel
-                    ? 'linear-gradient(180deg, var(--gold-light) 0%, var(--gold) 100%)'
-                    : 'linear-gradient(180deg, rgba(34,211,238,0.5) 0%, rgba(34,211,238,0.3) 100%)',
-                  border: isSel ? '1px solid var(--gold)' : '1px solid rgba(34,211,238,0.4)',
-                  borderRadius:'3px 3px 0 0',
-                  transition:'all 0.15s',
-                }} />
-                <div style={{ fontSize:11, color: isSel ? 'var(--gold)' : 'var(--cream-dim)', marginTop:4, fontWeight: isSel ? 700 : 400 }}>{t.year}</div>
-                <div style={{ fontSize:9, color:'#6B7280', fontVariantNumeric:'tabular-nums' }}>{t.lines.toLocaleString('en-GB')} lines</div>
+                <div style={{ position:'relative', fontSize:16, color: isSel ? 'var(--gold)' : '#6B7280', textAlign:'center', lineHeight:1 }}>
+                  {isSel ? '●' : '›'}
+                </div>
               </button>
             )
           })}
-        </div>
-        <div style={{ fontSize:11, color:'#9CA3AF', marginTop:12, fontStyle:'italic' }}>
-          {YEAR_NOTES[year] || ''} · Click any bar to switch the breakdown below.
         </div>
       </div>
 
