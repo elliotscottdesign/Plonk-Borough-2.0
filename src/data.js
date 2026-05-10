@@ -211,47 +211,62 @@ export const ROTA_TOTAL   = 152801   // 2025 rota cost (rate × hours, before ov
 export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 
 // === BAR ROTA — average week (2026 operating model) ===
-// Trading hours: 12pm → 11:30pm Mon–Sat (= 11.5h/day). Sunday closes
-// early at 9pm (12pm → 21:00 = 9h). Opener arrives 11:30am for a
-// 30-minute pre-open prep slot.
+// Trading hours: 11:30am → 11:30pm Mon–Sat (= 12h/day). Sunday closes
+// early at 9pm (11:30am → 21:00 = 9.5h). Staff arrive at 11:30 — no
+// work happens before then.
 //
-// STAFFING MODEL — Interpretation B (manager / supervisor are part of
-// the bar headcount, not an extra body on top):
+// STAFFING MODEL — four pay tiers (driven by sliders in the wage
+// calculator): Bar Staff · Supervisor · Asst. Manager · Manager.
+// Manager / Asst. Manager / Supervisor sit INSIDE the bar headcount,
+// not on top — Interpretation B.
 //
-// Each bar-floor shift carries a `tier` indicating which pay grade
-// fills it. Target weekly distribution:
-//   • Bar Staff       ≈ 90  h/week  (balance)
-//   • Supervisor      ≈ 40  h/week  (founder direction)
-//   • Manager service ≈ 20  h/week  (founder direction)
-//   • Manager admin   = 20  h/week  (off-bar — weekly prep, reports,
-//                                    accounts, suppliers, payroll
-//                                    spread Mon–Fri 9–13)
+// RULES THE ROTA HONOURS:
+//   1. Never have more than ONE of {Mgr, AM, Sup} on the floor at once.
+//   2. A 30-min handover overlap between two seniors IS allowed — used
+//      at every shift change so the outgoing senior briefs the
+//      incoming one and the bar has continuous senior cover.
+//   3. No shift below 6h.
+//   4. Each senior role works at most 5 days/week. The 3 seniors are
+//      1 Manager + 1 Asst. Manager + 1 Supervisor.
+//   5. Double shifts (one senior on the floor for the whole day) carry
+//      a 30-min break covered by the bar staff overlap mid-day.
 //
-// "1 supervisor or manager on at any time" — under this model
-// supervisor + manager service hours (~60h) sit INSIDE the bar
-// shifts, so peak open hours have a sup/mgr; lower-priority slots
-// (e.g. weekday openers) are bar-staff-only. The user-facing
-// weekly card surfaces the per-tier totals so coverage gaps are
-// visible.
+// THE MATH — and why Sup lands ~24h not 40h:
+//   Open hours/week = 6 × 12h + 9.5h = 81.5h of senior coverage.
+//   Senior capacity = 3 × 40h = 120h. Mgr's 20h admin is off-floor,
+//   leaving 100h of senior available for the floor. That's already
+//   18.5h over the 81.5h floor need — so under strict no-overlap (only
+//   30-min handover allowed) one senior has to absorb the surplus.
+//   We give Mgr and AM 40h each (their full target) and let Sup land
+//   at ~24.5h. Sup can be padded back up to 40h later with stocktake
+//   / training / deep-clean blocks (each ≥ 6h to satisfy rule 3) if
+//   the founder wants — those go in as additional shifts.
 //
-// Shift pattern (Mon–Wed + Sun): 3 overlapping 6-hour shifts so
-// coverage stays continuous while never putting more than 2 staff on
-// the bar at once.
-//   • Opener  11:30–17:30  (preps 11:30–12, bar-floor 12–17:30)
-//   • Mid     12:00–18:00  (overlaps opener 12–17:30, closer 17–18)
-//   • Closer  17:00–23:30  (overlaps mid 17–18, then closes alone)
-// Fri + Sat add a 4th 6.5h evening shift so 3 staff are on the floor
-// through the peak handoff at 17–18, then 2 continue through close.
-// Thursday adds TWO extra 5.5h evening shifts (Evening 1 + 2, both
-// 18:00–23:30) for 3-staff cover through the busy late-week peak.
-// Sunday is the standard 3-shift pattern but compressed to the 9pm
-// close — Closer 17:00–21:00 (4h, breaks the 6h rule because the
-// trading day is shorter).
+// SENIOR PLAN BY DAY:
+//   Mon  Mgr admin 11:30–21:30 (10h off-floor) · Sup opens 11:30–17:30
+//        · AM closes 17:00–23:30 (handover 17:00–17:30)
+//   Tue  Mgr admin 11:30–21:30 (10h off-floor) · AM opens 11:30–17:30
+//        · Sup closes 17:00–23:30 (handover 17:00–17:30)
+//   Wed  Sup opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
+//   Thu  Sup opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
+//   Fri  AM opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
+//   Sat  AM solo double 11:30–23:30 (12h, 30-min break covered by bar)
+//   Sun  AM solo double 11:30–21:00 (9.5h, 30-min break covered by bar)
+//
+// SENIOR HOURS TOTALS:
+//   • Manager       — 5 days · 39.5h (20h admin + 19.5h service)
+//   • Asst. Manager — 5 days · 40h  (6.5 + 6 + 6 + 12 + 9.5)
+//   • Supervisor    — 4 days · 24.5h (6 + 6.5 + 6 + 6)
+//   • Bar Staff     — fills the floor + adds peak coverage on
+//                     Thu/Fri/Sat (3-staff bar evening, Sat all day)
+//
+// SHIFT NAMING CONVENTION:
+//   • Senior shifts carry tier ∈ {supervisor, assistant, manager}.
+//   • Bar-staff shifts carry tier = 'bar'.
+//   • Admin uses role: 'manager' + position: 'Admin' (off-floor).
 //
 // Edit any row's `start`/`end`/`day`/`tier` to rebalance. Totals
-// recompute via deriveBarRotaTotals() below; weekly hours × 52 give
-// the annual figures that drive the Sliding Wage Calculator's hours
-// per role tier (Bar Staff / Supervisor / Manager).
+// recompute via deriveBarRotaTotals() below.
 export const BAR_ROTA_OPEN_HOUR  = 12
 export const BAR_ROTA_CLOSE_HOUR = 23.5     // default close — Sun closes earlier (21:00)
 export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before doors
@@ -263,77 +278,70 @@ export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before door
 // Shape of each shift:
 //   { role, position, start, end, tier?, note? }
 //   role     — 'bar' (on-floor) | 'manager' (off-bar admin block)
-//   position — Opener / Mid / Closer / Evening / Admin
+//   position — Open / Close / Double / Mid / Evening / Admin etc.
 //   start/end — 24h decimals (e.g. 17.5 = 5:30pm)
 //   tier     — pay grade for cost calc, only used on `role: 'bar'`:
 //              'bar'        — bar-staff rate
-//              'supervisor' — supervisor rate (target ~40h/wk)
-//              'manager'    — manager rate, service hours (target ~20h/wk)
+//              'supervisor' — supervisor rate
+//              'assistant'  — Asst. Manager rate
+//              'manager'    — manager rate (service hours)
 //   note     — optional comment surfaced in tooltip + planner card
-//
-// Manager admin shifts use `role: 'manager'` instead of a tier and
-// pay at the manager rate. Admin is structured as one full Monday
-// block (8h) plus three 4h blocks on Tue/Wed/Thu = 20h/wk admin
-// (off-bar prep, payroll, suppliers, accounts). All admin starts at
-// 11:30 — staff arrival time, no work happens before then.
 export const BAR_WEEKLY_ROTA = {
-  // Monday — manager dedicates the whole day to admin (8h block)
+  // Monday — Mgr does a 10h admin block off-floor (no service today).
+  // Senior floor cover is Sup open → AM close with a 30-min handover.
   Mon: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
-    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start: 11.5, end: 19.5, note: 'Mgr admin — full Monday block (8h)' },
+    { role: 'bar',     position: 'Sr Open',    start: 11.5, end: 17.5, tier: 'supervisor', note: 'Sup opens — handover with AM 17:00–17:30' },
+    { role: 'bar',     position: 'Sr Close',   start: 17,   end: 23.5, tier: 'assistant',  note: 'AM closes — handover with Sup 17:00–17:30' },
+    { role: 'bar',     position: 'Bar Opener', start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer', start: 17,   end: 23.5, tier: 'bar' },
+    { role: 'manager', position: 'Admin',      start: 11.5, end: 21.5, note: 'Mgr admin day (10h off-floor)' },
   ],
+  // Tuesday — Mgr admin day 2. AM open → Sup close with 30-min handover.
   Tue: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
-    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block' },
+    { role: 'bar',     position: 'Sr Open',    start: 11.5, end: 17.5, tier: 'assistant',  note: 'AM opens — handover with Sup 17:00–17:30' },
+    { role: 'bar',     position: 'Sr Close',   start: 17,   end: 23.5, tier: 'supervisor', note: 'Sup closes — handover with AM 17:00–17:30' },
+    { role: 'bar',     position: 'Bar Opener', start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer', start: 17,   end: 23.5, tier: 'bar' },
+    { role: 'manager', position: 'Admin',      start: 11.5, end: 21.5, note: 'Mgr admin day (10h off-floor)' },
   ],
+  // Wednesday — Sup open → Mgr close. 2-staff floor (1 senior + 1 bar).
   Wed: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
-    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block' },
+    { role: 'bar',     position: 'Sr Open',    start: 11.5, end: 17.5, tier: 'supervisor' },
+    { role: 'bar',     position: 'Sr Close',   start: 17,   end: 23.5, tier: 'manager',    note: 'Mgr service close — handover with Sup' },
+    { role: 'bar',     position: 'Bar Opener', start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer', start: 17,   end: 23.5, tier: 'bar' },
   ],
-  // Thursday — 3-staff cover from 5:30pm to 11:30pm close.
-  // Manager does a 4h admin block 11:30–15:30 then comes back as Closer.
+  // Thursday — Sup open → Mgr close. 3-staff peak from 17:30 to close.
   Thu: [
-    { role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
-    { role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
-    { role: 'bar',     position: 'Evening 1',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-    { role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-    { role: 'manager', position: 'Admin',      start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block before close' },
+    { role: 'bar',     position: 'Sr Open',     start: 11.5, end: 17.5, tier: 'supervisor' },
+    { role: 'bar',     position: 'Sr Close',    start: 17,   end: 23.5, tier: 'manager',    note: 'Mgr service close — handover with Sup' },
+    { role: 'bar',     position: 'Bar Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer',  start: 17,   end: 23.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Evening', start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff evening peak' },
   ],
-  // Friday — 3 staff continuously from 4pm to 11:30pm close.
-  // The 'Late' shift (16:00–23:30) lifts the floor to 3 across that
-  // whole window: 16:00–17:00 Opener+Mid+Late; busy handoff 17:00–18:00
-  // (Closer + Evening overlap with the others); 18:00–23:30 = Closer+
-  // Evening+Late = 3. No admin block — admin is concentrated Mon–Thu.
+  // Friday — AM open → Mgr close. 3-staff peak.
   Fri: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
-    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
-    { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
-    { role: 'bar',     position: 'Late',    start: 16,   end: 23.5, tier: 'bar', note: 'Fri 3-staff cover from 4pm' },
+    { role: 'bar',     position: 'Sr Open',     start: 11.5, end: 17.5, tier: 'assistant' },
+    { role: 'bar',     position: 'Sr Close',    start: 17,   end: 23.5, tier: 'manager',    note: 'Mgr service close — handover with AM' },
+    { role: 'bar',     position: 'Bar Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer',  start: 17,   end: 23.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Evening', start: 17.5, end: 23.5, tier: 'bar', note: 'Fri 3-staff evening peak' },
   ],
-  // Saturday — 3 staff continuously from open to close.
-  // 'Day' (12–18) covers the daytime third body; 'Late' (17:30–23:30)
-  // covers the evening third. Coverage: 12–17 Opener+Mid+Day = 3;
-  // 17–18 a busy handoff; 18–23:30 Closer+Evening+Late = 3.
+  // Saturday — AM solo double 11:30–23:30 (12h). 3-staff all day.
+  // AM's 30-min break is covered by the bar staff overlap mid-day.
   Sat: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
-    { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Sat close' },
-    { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
-    { role: 'bar',     position: 'Day',     start: 12,   end: 18,   tier: 'bar', note: 'Sat 3-staff cover (day)' },
-    { role: 'bar',     position: 'Late',    start: 17.5, end: 23.5, tier: 'bar', note: 'Sat 3-staff cover (evening)' },
+    { role: 'bar',     position: 'Sr Double',   start: 11.5, end: 23.5, tier: 'assistant', note: 'AM solo double (12h) — 30-min break covered by bar staff' },
+    { role: 'bar',     position: 'Bar Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Mid',     start: 12,   end: 18,   tier: 'bar', note: 'Sat 3-staff day cover' },
+    { role: 'bar',     position: 'Bar Closer',  start: 17,   end: 23.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Evening', start: 17.5, end: 23.5, tier: 'bar', note: 'Sat 3-staff evening cover' },
   ],
-  // Sunday — early 9pm close; only 2 overlapping 6h shifts fit cleanly
+  // Sunday — AM solo double 11:30–21:00 (9.5h). 2-staff floor; bar
+  // closer arrives 15:00 to cover AM's break + the early-evening tail.
   Sun: [
-    { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Closer',  start: 15,   end: 21,   tier: 'supervisor', note: 'Sunday early close 9pm' },
+    { role: 'bar',     position: 'Sr Double',   start: 11.5, end: 21,   tier: 'assistant', note: 'AM solo double (9.5h) — 30-min break covered by bar closer' },
+    { role: 'bar',     position: 'Bar Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer',  start: 15,   end: 21,   tier: 'bar', note: 'Covers AM break + Sun close' },
   ],
 }
 
