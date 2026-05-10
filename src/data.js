@@ -198,11 +198,14 @@ export const MONTHLY_PROFIT = [
 // The P&L wage line in 2026 = (sum of slider rate × hours above) × overhead
 // multiplier (= ACTUALS_2025.wages / ROTA_TOTAL = ~1.586). The multiplier covers
 // Employer NICs, pension auto-enrolment, holiday pay, agency cover, training.
+// Supervisor is a part-time role capped at 20h/wk (= 1,040h/yr). The
+// rota currently uses 18h/wk (3 × 6h opens Mon/Wed/Thu) = 936h/yr.
+// `hoursMax` (when present) overrides the global slider ceiling.
 export const WAGE_RATES = [
   { role:'Bar Staff',        rate:13.85, hours:4967, color:'#E67E22' },
-  { role:'Supervisor',       rate:14.35, hours:1000, color:'#D4A843' },
-  { role:'Asst. Manager',    rate:15.38, hours:2000, color:'#94A3B8' },
-  { role:'Manager',          rate:18.00, hours:2000, color:'#0D9488' },
+  { role:'Supervisor',       rate:14.35, hours: 936, color:'#D4A843', hoursMax: 1040, partTime: true },
+  { role:'Asst. Manager',    rate:15.38, hours:2080, color:'#94A3B8' },
+  { role:'Manager',          rate:18.00, hours:2054, color:'#0D9488' },
 ]
 
 export const PL_WAGE_BASE = 242370   // 2025 verified P&L wage line
@@ -246,7 +249,9 @@ export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 //   Mon  Mgr admin 11:30–21:30 (10h off-floor) · Sup opens 11:30–17:30
 //        · AM closes 17:00–23:30 (handover 17:00–17:30)
 //   Tue  Mgr admin 11:30–21:30 (10h off-floor) · AM opens 11:30–17:30
-//        · Sup closes 17:00–23:30 (handover 17:00–17:30)
+//        · NO senior 17:00–23:30 — Tue is the slowest night so we run
+//          bar-staff only at the close (a Bar Evening shift gets added
+//          so the floor stays 2-handed)
 //   Wed  Sup opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
 //   Thu  Sup opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
 //   Fri  AM opens 11:30–17:30 · Mgr closes 17:00–23:30 (handover)
@@ -256,9 +261,11 @@ export const WAGE_OVERHEAD_MULT = PL_WAGE_BASE / ROTA_TOTAL
 // SENIOR HOURS TOTALS:
 //   • Manager       — 5 days · 39.5h (20h admin + 19.5h service)
 //   • Asst. Manager — 5 days · 40h  (6.5 + 6 + 6 + 12 + 9.5)
-//   • Supervisor    — 4 days · 24.5h (6 + 6.5 + 6 + 6)
+//   • Supervisor    — 3 days · 18h  (part-time, max 20h cap — Mon /
+//                     Wed / Thu opens, 6h each)
 //   • Bar Staff     — fills the floor + adds peak coverage on
 //                     Thu/Fri/Sat (3-staff bar evening, Sat all day)
+//                     + Tue evening cover since no senior closes Tue
 //
 // SHIFT NAMING CONVENTION:
 //   • Senior shifts carry tier ∈ {supervisor, assistant, manager}.
@@ -296,13 +303,15 @@ export const BAR_WEEKLY_ROTA = {
     { role: 'bar',     position: 'Bar Closer', start: 17,   end: 23.5, tier: 'bar' },
     { role: 'manager', position: 'Admin',      start: 11.5, end: 21.5, note: 'Mgr admin day (10h off-floor)' },
   ],
-  // Tuesday — Mgr admin day 2. AM open → Sup close with 30-min handover.
+  // Tuesday — Mgr admin day 2. AM opens. Sup is capped part-time (≤20h)
+  // so doesn't close Tue — Tue evening runs bar-staff-only with an
+  // extra Bar Evening shift keeping the floor at 2 bodies all night.
   Tue: [
-    { role: 'bar',     position: 'Sr Open',    start: 11.5, end: 17.5, tier: 'assistant',  note: 'AM opens — handover with Sup 17:00–17:30' },
-    { role: 'bar',     position: 'Sr Close',   start: 17,   end: 23.5, tier: 'supervisor', note: 'Sup closes — handover with AM 17:00–17:30' },
-    { role: 'bar',     position: 'Bar Opener', start: 11.5, end: 17.5, tier: 'bar' },
-    { role: 'bar',     position: 'Bar Closer', start: 17,   end: 23.5, tier: 'bar' },
-    { role: 'manager', position: 'Admin',      start: 11.5, end: 21.5, note: 'Mgr admin day (10h off-floor)' },
+    { role: 'bar',     position: 'Sr Open',     start: 11.5, end: 17.5, tier: 'assistant', note: 'AM opens' },
+    { role: 'bar',     position: 'Bar Opener',  start: 11.5, end: 17.5, tier: 'bar' },
+    { role: 'bar',     position: 'Bar Closer',  start: 17,   end: 23.5, tier: 'bar', note: 'Slowest night — bar-staff only close' },
+    { role: 'bar',     position: 'Bar Evening', start: 17.5, end: 23.5, tier: 'bar', note: 'Maintains 2-staff floor after AM leaves' },
+    { role: 'manager', position: 'Admin',       start: 11.5, end: 21.5, note: 'Mgr admin day (10h off-floor)' },
   ],
   // Wednesday — Sup open → Mgr close. 2-staff floor (1 senior + 1 bar).
   Wed: [

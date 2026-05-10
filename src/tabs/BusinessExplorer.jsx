@@ -1769,18 +1769,37 @@ function WageCalculatorCard() {
 
       {rows.map((r, i) => {
         const bounds = RATE_BOUNDS[i] || { min: 10, max: 25 }
+        // Per-row hours ceiling. If the row carries `hoursMax` (used for
+        // the Supervisor part-time cap = 20h/wk × 52 = 1,040h/yr) it
+        // overrides the global HOURS_MAX so the slider can't drag the
+        // role above its part-time ceiling. Weekly equivalent shown
+        // next to the annual figure for quick reasoning.
+        const rowHoursMax = Number.isFinite(r.hoursMax) ? r.hoursMax : HOURS_MAX
+        const weeklyHours = r.hours / 52
         return (
           <div key={r.role} style={{ display:'grid', gridTemplateColumns:'1.5fr 2fr 2fr 1fr', gap:12, alignItems:'center', padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
             <span style={{ color:'var(--cream)', fontSize:13 }}>
-              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />{r.role}
+              <span style={{ display:'inline-block', width:8, height:8, borderRadius:2, background:r.color, marginRight:8 }} />
+              {r.role}
+              {r.partTime && (
+                <span style={{
+                  marginLeft:6, fontSize:9, padding:'1px 6px', borderRadius:8,
+                  background:'rgba(212,168,67,0.12)', border:'1px solid rgba(212,168,67,0.4)',
+                  color:'#D4A843', letterSpacing:'0.06em', textTransform:'uppercase', fontWeight:600,
+                  whiteSpace:'nowrap',
+                }}>Part-time · max {Math.round(rowHoursMax/52)}h/wk</span>
+              )}
             </span>
             <div>
               <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Rate · £{r.rate.toFixed(2)}/hr</div>
               <input type="range" min={bounds.min} max={bounds.max} step="0.01" value={r.rate} disabled={!canEdit} onChange={e => setRow(i, 'rate', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
             </div>
             <div>
-              <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>Hours · {r.hours.toLocaleString('en-GB', { maximumFractionDigits: 1 })}/yr</div>
-              <input type="range" min="0" max={HOURS_MAX} step={HOURS_STEP} value={r.hours} disabled={!canEdit} onChange={e => setRow(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
+              <div style={{ fontSize:10, color:'var(--cream-dim)', marginBottom:2 }}>
+                Hours · {r.hours.toLocaleString('en-GB', { maximumFractionDigits: 1 })}/yr
+                <span style={{ color:'#6B7280', marginLeft:6 }}>≈ {weeklyHours.toFixed(1)}h/wk</span>
+              </div>
+              <input type="range" min="0" max={rowHoursMax} step={HOURS_STEP} value={r.hours} disabled={!canEdit} onChange={e => setRow(i, 'hours', +e.target.value)} style={{ width:'100%', accentColor:r.color, cursor: canEdit ? 'pointer' : 'not-allowed', opacity: canEdit ? 1 : 0.55 }} />
             </div>
             <span style={{ color:r.color, textAlign:'right', fontSize:13, fontVariantNumeric:'tabular-nums' }}>{fmt(r.rate * r.hours)}</span>
           </div>

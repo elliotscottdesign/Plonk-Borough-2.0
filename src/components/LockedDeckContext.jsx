@@ -257,7 +257,12 @@ const WAGES_LIVE_KEY = 'ndb_wages_live_v1'
 const WAGES_LOCK_KEY = 'ndb_wages_locked_v1'
 
 function defaultWageRows() {
-  return WAGE_RATES.map(r => ({ role: r.role, rate: r.rate, hours: r.hours, color: r.color }))
+  // hoursMax + partTime carry through so the slider can render a
+  // tighter ceiling for part-time roles (Supervisor → 1,040h/yr cap).
+  return WAGE_RATES.map(r => ({
+    role: r.role, rate: r.rate, hours: r.hours, color: r.color,
+    hoursMax: r.hoursMax, partTime: r.partTime,
+  }))
 }
 
 function deriveWageSnapshot(rows) {
@@ -1023,7 +1028,18 @@ export function LockedDeckProvider({ children }) {
 
   const setWageRow = useCallback((idx, key, val) => {
     if (!wagesCanEdit) return
-    setWageRowsState(prev => prev.map((r, i) => i === idx ? { ...r, [key]: val } : r))
+    setWageRowsState(prev => prev.map((r, i) => {
+      if (i !== idx) return r
+      let next = val
+      // Clamp `hours` to the row's per-role ceiling (used for the
+      // Supervisor part-time cap = 1,040h/yr). Without this a UI-side
+      // slider min/max can be bypassed by a persisted value or a
+      // future code path that calls setRow directly.
+      if (key === 'hours' && Number.isFinite(r.hoursMax) && Number.isFinite(next)) {
+        next = Math.min(next, r.hoursMax)
+      }
+      return { ...r, [key]: next }
+    }))
   }, [wagesCanEdit])
 
   const lockWages = useCallback(() => {
