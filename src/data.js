@@ -272,48 +272,51 @@ export const BAR_ROTA_PREP_HOUR  = 11.5     // opener arrives 30 min before door
 //   note     — optional comment surfaced in tooltip + planner card
 //
 // Manager admin shifts use `role: 'manager'` instead of a tier and
-// pay at the manager rate. Mon–Fri 9–13 = 20h/wk admin (off-bar
-// prep, payroll, suppliers, accounts).
+// pay at the manager rate. Admin is structured as one full Monday
+// block (8h) plus three 4h blocks on Tue/Wed/Thu = 20h/wk admin
+// (off-bar prep, payroll, suppliers, accounts). All admin starts at
+// 11:30 — staff arrival time, no work happens before then.
 export const BAR_WEEKLY_ROTA = {
+  // Monday — manager dedicates the whole day to admin (8h block)
   Mon: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin — prep + reports' },
+    { role: 'manager', position: 'Admin',   start: 11.5, end: 19.5, note: 'Mgr admin — full Monday block (8h)' },
   ],
   Tue: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
+    { role: 'manager', position: 'Admin',   start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block' },
   ],
   Wed: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'bar' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'supervisor' },
-    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
+    { role: 'manager', position: 'Admin',   start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block' },
   ],
-  // Thursday — 3-staff cover from 5:30pm to 11:30pm close
+  // Thursday — 3-staff cover from 5:30pm to 11:30pm close.
+  // Manager does a 4h admin block 11:30–15:30 then comes back as Closer.
   Thu: [
     { role: 'bar',     position: 'Opener',     start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',        start: 12,   end: 18,   tier: 'supervisor' },
     { role: 'bar',     position: 'Closer',     start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Thu close' },
     { role: 'bar',     position: 'Evening 1',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
     { role: 'bar',     position: 'Evening 2',  start: 17.5, end: 23.5, tier: 'bar', note: 'Thu 3-staff peak' },
-    { role: 'manager', position: 'Admin',      start:  9,   end: 13,   note: 'Mgr admin' },
+    { role: 'manager', position: 'Admin',      start: 11.5, end: 15.5, note: 'Mgr admin — within-shift 4h block before close' },
   ],
   // Friday — 3 staff continuously from 4pm to 11:30pm close.
   // The 'Late' shift (16:00–23:30) lifts the floor to 3 across that
   // whole window: 16:00–17:00 Opener+Mid+Late; busy handoff 17:00–18:00
   // (Closer + Evening overlap with the others); 18:00–23:30 = Closer+
-  // Evening+Late = 3.
+  // Evening+Late = 3. No admin block — admin is concentrated Mon–Thu.
   Fri: [
     { role: 'bar',     position: 'Opener',  start: 11.5, end: 17.5, tier: 'bar' },
     { role: 'bar',     position: 'Mid',     start: 12,   end: 18,   tier: 'supervisor' },
     { role: 'bar',     position: 'Closer',  start: 17,   end: 23.5, tier: 'manager', note: 'Mgr service — Fri close' },
     { role: 'bar',     position: 'Evening', start: 17,   end: 23.5, tier: 'bar', note: 'Fri/Sat extra evening cover' },
     { role: 'bar',     position: 'Late',    start: 16,   end: 23.5, tier: 'bar', note: 'Fri 3-staff cover from 4pm' },
-    { role: 'manager', position: 'Admin',   start:  9,   end: 13,   note: 'Mgr admin' },
   ],
   // Saturday — 3 staff continuously from open to close.
   // 'Day' (12–18) covers the daytime third body; 'Late' (17:30–23:30)
