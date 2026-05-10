@@ -27,7 +27,23 @@
 import React, { createContext, useContext, useEffect, useMemo, useState, useCallback } from 'react'
 import { BAR_WEEKLY_ROTA, ROTA_DAYS, deriveBarRotaTotals } from '../data.js'
 
-const STORAGE_KEY = 'ndb_rota_v1'
+const STORAGE_KEY      = 'ndb_rota_v1'
+const LOCK_STORAGE_KEY = 'ndb_rota_locked_v1'
+
+// Mirrors the founder gate used by LockedDeckContext (URL ?founder=…
+// or sessionStorage key set by PasswordGate). Kept local so this file
+// doesn't need to import from the lock context.
+function readIsFounder() {
+  try {
+    if (typeof window === 'undefined') return false
+    const url = new URLSearchParams(window.location.search)
+    if (url.get('founder') === '888999') {
+      sessionStorage.setItem('ndb_founder', '1')
+      return true
+    }
+    return sessionStorage.getItem('ndb_founder') === '1'
+  } catch { return false }
+}
 
 const RotaCtx = createContext(null)
 
@@ -80,28 +96,58 @@ function writePersistedRota(rota) {
   }
 }
 
+// Lock-state persistence. Shape: { lockedAt: ISO-string } | null.
+function readPersistedLock() {
+  try {
+    const raw = window.localStorage.getItem(LOCK_STORAGE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object' && typeof parsed.lockedAt === 'string') {
+      return parsed
+    }
+    return null
+  } catch { return null }
+}
+
+function writePersistedLock(lock) {
+  try {
+    if (lock) window.localStorage.setItem(LOCK_STORAGE_KEY, JSON.stringify(lock))
+    else window.localStorage.removeItem(LOCK_STORAGE_KEY)
+  } catch {}
+}
+
 export function RotaProvider({ children }) {
   // Lazy init so we read localStorage exactly once on mount.
   const [rota, setRotaState] = useState(() => readPersistedRota() || cloneRota(BAR_WEEKLY_ROTA))
+  const [lock, setLockState] = useState(() => readPersistedLock())
+
+  const isFounder = readIsFounder()
+  const isLocked  = !!lock
+  // CRUD is gated on lock state — once locked, the rota is the source
+  // of truth for downstream wage totals and shouldn't drift. Founder
+  // is allowed (still has to unlock first).
+  const canEdit   = !isLocked
 
   // Persist any change.
-  useEffect(() => {
-    writePersistedRota(rota)
-  }, [rota])
+  useEffect(() => { writePersistedRota(rota) }, [rota])
+  useEffect(() => { writePersistedLock(lock) }, [lock])
 
   const setRota = useCallback((next) => {
+    if (!canEdit) return
     setRotaState(cloneRota(next))
-  }, [])
+  }, [canEdit])
 
   const addShift = useCallback((day, shift) => {
+    if (!canEdit) return
     setRotaState(prev => {
       const next = cloneRota(prev)
       next[day] = [...(next[day] || []), { ...shift }]
       return next
     })
-  }, [])
+  }, [canEdit])
 
   const updateShift = useCallback((day, idx, partial) => {
+    if (!canEdit) return
     setRotaState(prev => {
       const next = cloneRota(prev)
       const arr = next[day] || []
@@ -110,9 +156,10 @@ export function RotaProvider({ children }) {
       next[day] = arr
       return next
     })
-  }, [])
+  }, [canEdit])
 
   const removeShift = useCallback((day, idx) => {
+    if (!canEdit) return
     setRotaState(prev => {
       const next = cloneRota(prev)
       const arr = (next[day] || []).slice()
@@ -120,9 +167,10 @@ export function RotaProvider({ children }) {
       next[day] = arr
       return next
     })
-  }, [])
+  }, [canEdit])
 
   const moveShift = useCallback((fromDay, fromIdx, toDay) => {
+    if (!canEdit) return
     if (fromDay === toDay) return
     setRotaState(prev => {
       const next = cloneRota(prev)
@@ -134,11 +182,23 @@ export function RotaProvider({ children }) {
       next[toDay] = [...(next[toDay] || []), { ...shift }]
       return next
     })
-  }, [])
+  }, [canEdit])
 
   const resetRota = useCallback(() => {
+    if (!canEdit) return
     setRotaState(cloneRota(BAR_WEEKLY_ROTA))
-  }, [])
+  }, [canEdit])
+
+  // Lock / unlock — founder-gated, mirrors the wages lock UX.
+  const lockRota = useCallback(() => {
+    if (!isFounder) return
+    setLockState({ lockedAt: new Date().toISOString() })
+  }, [isFounder])
+
+  const unlockRota = useCallback(() => {
+    if (!isFounder) return
+    setLockState(null)
+  }, [isFounder])
 
   // Re-derive totals whenever the rota changes.
   const totals = useMemo(() => deriveBarRotaTotals(rota), [rota])
@@ -146,13 +206,19 @@ export function RotaProvider({ children }) {
   const value = useMemo(() => ({
     rota,
     totals,
+    isLocked,
+    lockedAt: lock?.lockedAt || null,
+    isFounder,
+    canEdit,
     setRota,
     addShift,
     updateShift,
     removeShift,
     moveShift,
     resetRota,
-  }), [rota, totals, setRota, addShift, updateShift, removeShift, moveShift, resetRota])
+    lockRota,
+    unlockRota,
+  }), [rota, totals, isLocked, lock, isFounder, canEdit, setRota, addShift, updateShift, removeShift, moveShift, resetRota, lockRota, unlockRota])
 
   return <RotaCtx.Provider value={value}>{children}</RotaCtx.Provider>
 }
@@ -165,12 +231,18 @@ export function useEditableRota() {
     return {
       rota: cloneRota(BAR_WEEKLY_ROTA),
       totals: deriveBarRotaTotals(BAR_WEEKLY_ROTA),
+      isLocked: false,
+      lockedAt: null,
+      isFounder: false,
+      canEdit: false,
       setRota: () => {},
       addShift: () => {},
       updateShift: () => {},
       removeShift: () => {},
       moveShift: () => {},
       resetRota: () => {},
+      lockRota: () => {},
+      unlockRota: () => {},
     }
   }
   return ctx

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useTranslation } from 'react-i18next'
 import FinancialPerformance, { INCOME, COSTS, MONTHLY_INCOME, MONTHLY_COSTS, DonutChart } from '../slides/FinancialPerformance.jsx'
 import PrevTillSales from './PrevTillSales.jsx'
@@ -1146,7 +1146,12 @@ function WeeklyRotaCard() {
 
   // Live editable rota — replaces the static BAR_WEEKLY_ROTA reference
   // so add/edit/delete + drag-drop changes flow into totals immediately.
-  const { rota, totals, addShift, updateShift, removeShift, moveShift, resetRota } = useEditableRota()
+  const {
+    rota, totals,
+    isLocked: rotaIsLocked, lockedAt: rotaLockedAt, isFounder, canEdit: rotaCanEdit,
+    addShift, updateShift, removeShift, moveShift, resetRota,
+    lockRota, unlockRota,
+  } = useEditableRota()
 
   // Per-tier hourly rates — driven by useLockedWages. The four slider
   // rows in WAGE_RATES are the canonical source for every rate on the
@@ -1240,26 +1245,105 @@ function WeeklyRotaCard() {
     } catch { /* ignore malformed payload */ }
   }
 
+  // Locking the rota cascades the per-tier annual hours straight into
+  // the wage calculator sliders, which are then the source for 2026
+  // Performance + the IP & Licensing waterfall. The cascade just calls
+  // setRow on each slider index — no special protocol — but it's
+  // gated on wages being unlocked first (otherwise setRow is a no-op).
+  const handleLockRota = useCallback(() => {
+    if (!isFounder) return
+    if (wagesCtx.isLocked) {
+      window.alert('The Wage Calculator is currently locked. Unlock it first, then lock the rota to cascade hours.')
+      return
+    }
+    const annual = (weekly) => Math.round(weekly * 52)
+    // Push each tier's annual hours into the matching slider row.
+    // Index map: 0 Bar · 1 Sup · 2 Asst · 3 Mgr (incl. admin).
+    wagesCtx.setRow(0, 'hours', annual(totals.weeklyBarStaffHours))
+    wagesCtx.setRow(1, 'hours', annual(totals.weeklySupervisorHours))
+    wagesCtx.setRow(2, 'hours', annual(totals.weeklyAssistantHours || 0))
+    wagesCtx.setRow(3, 'hours', annual((totals.weeklyManagerServiceHours || 0) + (totals.weeklyManagerAdmin || 0)))
+    lockRota()
+  }, [isFounder, wagesCtx, totals, lockRota])
+
+  const lockedAtLabel = rotaLockedAt
+    ? new Date(rotaLockedAt).toLocaleString('en-GB', { dateStyle: 'medium', timeStyle: 'short' })
+    : null
+
   return (
     <div style={{ paddingTop:4 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:12, marginBottom:14, flexWrap:'wrap' }}>
         <div>
-          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>Weekly Planner · Average Week · <span style={{ color:'#22D3EE' }}>EDITABLE</span></div>
+          <div style={{ display:'flex', alignItems:'center', gap:10, flexWrap:'wrap' }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600 }}>
+              Weekly Planner · Average Week ·
+              <span style={{ color: rotaIsLocked ? '#10B981' : '#22D3EE', marginLeft:6 }}>
+                {rotaIsLocked ? 'LOCKED' : 'EDITABLE'}
+              </span>
+            </div>
+            {rotaIsLocked && (
+              <span style={{
+                display:'inline-flex', alignItems:'center', gap:6,
+                padding:'3px 10px', borderRadius:12,
+                background:'rgba(16,185,129,0.12)', border:'1px solid rgba(16,185,129,0.4)',
+                fontSize:10, color:'#10B981',
+                letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600,
+              }}>
+                🔒 Feeding wage calculator + 2026 forecast
+                {lockedAtLabel && <span style={{ color:'#6EE7B7', fontWeight:400, marginLeft:4 }}>· {lockedAtLabel}</span>}
+              </span>
+            )}
+          </div>
           <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.55, marginTop:4, maxWidth:780 }}>
-            Mon → Sun grid of every shift in the rota. Colour-coded by pay tier — <strong style={{ color:'#E67E22' }}>Bar Staff</strong> · <strong style={{ color:'#D4A843' }}>Supervisor</strong> · <strong style={{ color:'#0D9488' }}>Manager (service)</strong> · <strong style={{ color:'#A78BFA' }}>Manager (admin)</strong>. Manager + Supervisor sit INSIDE the bar headcount, no extra body. Costs driven by the Sliding Wage Calculator below — edit + lock new rates there to recompute. <strong style={{ color:'#22D3EE' }}>Drag a shift</strong> onto another day to reassign, click <strong>✎</strong> to edit, <strong>×</strong> to remove, or <strong>+ Add</strong> at the bottom of any day. Saves to this browser only — refresh-safe.
+            Mon → Sun grid of every shift in the rota. Colour-coded by pay tier — <strong style={{ color:'#E67E22' }}>Bar Staff</strong> · <strong style={{ color:'#D4A843' }}>Supervisor</strong> · <strong style={{ color:'#94A3B8' }}>Asst. Manager</strong> · <strong style={{ color:'#0D9488' }}>Manager (service)</strong> · <strong style={{ color:'#A78BFA' }}>Manager (admin)</strong>. Manager + AM + Supervisor sit INSIDE the bar headcount, no extra body. {rotaIsLocked
+              ? <>Rota is <strong style={{ color:'#10B981' }}>locked</strong> — per-tier annual hours have been pushed into the Sliding Wage Calculator below, which drives 2026 Performance + Waterfall returns. Unlock to edit again.</>
+              : <>Costs driven by the Sliding Wage Calculator below. <strong style={{ color:'#22D3EE' }}>Drag</strong> a shift onto another day to reassign, <strong>✎</strong> to edit, <strong>×</strong> to remove, or <strong>+ Add</strong> at the bottom of any day. Click <strong style={{ color:'#10B981' }}>🔒 Lock & cascade</strong> when you're happy to push hours into wages.</>}
           </div>
         </div>
-        <button
-          onClick={() => { if (window.confirm('Reset rota to the canonical default? Your edits will be lost.')) resetRota() }}
-          style={{
-            fontSize:10, color:'#FCD34D', background:'rgba(251,191,36,0.06)',
-            border:'1px solid rgba(251,191,36,0.4)', borderRadius:4,
-            padding:'6px 10px', cursor:'pointer', textTransform:'uppercase',
-            letterSpacing:'0.06em', fontWeight:600,
-          }}
-        >
-          ↺ Reset to default
-        </button>
+        <div style={{ display:'flex', gap:6, alignItems:'center', flexWrap:'wrap', justifyContent:'flex-end' }}>
+          {rotaCanEdit && (
+            <button
+              onClick={() => { if (window.confirm('Reset rota to the canonical default? Your edits will be lost.')) resetRota() }}
+              style={{
+                fontSize:10, color:'#FCD34D', background:'rgba(251,191,36,0.06)',
+                border:'1px solid rgba(251,191,36,0.4)', borderRadius:4,
+                padding:'6px 10px', cursor:'pointer', textTransform:'uppercase',
+                letterSpacing:'0.06em', fontWeight:600,
+              }}
+            >
+              ↺ Reset to default
+            </button>
+          )}
+          {isFounder && (
+            rotaIsLocked ? (
+              <button
+                onClick={unlockRota}
+                style={{
+                  fontSize:11, fontWeight:700, padding:'6px 14px', borderRadius:4,
+                  background:'transparent', color:'#10B981',
+                  border:'1px solid #10B981', cursor:'pointer',
+                  letterSpacing:'0.06em', textTransform:'uppercase',
+                }}
+              >🔓 Unlock rota</button>
+            ) : (
+              <button
+                onClick={handleLockRota}
+                title="Push per-tier hours into the Wage Calculator + freeze the rota"
+                style={{
+                  fontSize:11, fontWeight:700, padding:'6px 14px', borderRadius:4,
+                  background:'#10B981', color:'#04140C',
+                  border:'1px solid #10B981', cursor:'pointer',
+                  letterSpacing:'0.06em', textTransform:'uppercase',
+                }}
+              >🔒 Lock & cascade</button>
+            )
+          )}
+          {!isFounder && (
+            <span style={{ fontSize:10, color:'var(--cream-dim)', fontStyle:'italic' }}>
+              Founder-only lock
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Hours stat strip */}
@@ -1313,8 +1397,8 @@ function WeeklyRotaCard() {
                   return (
                     <div
                       key={`${day}-${idx}`}
-                      draggable
-                      onDragStart={(e) => onDragStart(e, day, idx)}
+                      draggable={rotaCanEdit}
+                      onDragStart={(e) => { if (rotaCanEdit) onDragStart(e, day, idx) }}
                       title={`${meta.label} · ${r.position} · ${fmtH(r.start)}–${fmtH(r.end)} (${hoursOf(r)}h)${r.note ? ' · ' + r.note : ''}`}
                       style={{
                         background:'rgba(255,255,255,0.04)',
@@ -1322,7 +1406,7 @@ function WeeklyRotaCard() {
                         borderRadius:4,
                         padding:'6px 8px',
                         display:'flex', flexDirection:'column', gap:2,
-                        cursor:'grab',
+                        cursor: rotaCanEdit ? 'grab' : 'default',
                         userSelect:'none',
                       }}
                     >
@@ -1338,48 +1422,52 @@ function WeeklyRotaCard() {
                         <span style={{ fontSize:10.5, color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmtCash(costOf(r))}</span>
                       </div>
                       {r.note && <div style={{ fontSize:8.5, color:'#6B7280', fontStyle:'italic', marginTop:1 }}>{r.note}</div>}
-                      {/* Edit + delete row */}
-                      <div style={{ display:'flex', gap:4, marginTop:4, paddingTop:4, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setEditor({ mode:'edit', day, idx, shift: { ...r } }) }}
-                          style={{
-                            flex:1, fontSize:9, color:'var(--cream-dim)',
-                            background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
-                            borderRadius:3, padding:'2px 4px', cursor:'pointer',
-                            textTransform:'uppercase', letterSpacing:'0.04em', fontWeight:600,
-                          }}
-                          title="Edit shift"
-                        >✎ Edit</button>
-                        <button
-                          onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete ${day} ${r.position} shift?`)) removeShift(day, idx) }}
-                          style={{
-                            fontSize:9, color:'#F87171',
-                            background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.25)',
-                            borderRadius:3, padding:'2px 6px', cursor:'pointer', fontWeight:700,
-                          }}
-                          title="Delete shift"
-                        >×</button>
-                      </div>
+                      {/* Edit + delete row — hidden while the rota is locked */}
+                      {rotaCanEdit && (
+                        <div style={{ display:'flex', gap:4, marginTop:4, paddingTop:4, borderTop:'1px solid rgba(255,255,255,0.05)' }}>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setEditor({ mode:'edit', day, idx, shift: { ...r } }) }}
+                            style={{
+                              flex:1, fontSize:9, color:'var(--cream-dim)',
+                              background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
+                              borderRadius:3, padding:'2px 4px', cursor:'pointer',
+                              textTransform:'uppercase', letterSpacing:'0.04em', fontWeight:600,
+                            }}
+                            title="Edit shift"
+                          >✎ Edit</button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete ${day} ${r.position} shift?`)) removeShift(day, idx) }}
+                            style={{
+                              fontSize:9, color:'#F87171',
+                              background:'rgba(248,113,113,0.06)', border:'1px solid rgba(248,113,113,0.25)',
+                              borderRadius:3, padding:'2px 6px', cursor:'pointer', fontWeight:700,
+                            }}
+                            title="Delete shift"
+                          >×</button>
+                        </div>
+                      )}
                     </div>
                   )
                 })
               )}
 
-              {/* Add block */}
-              <button
-                onClick={() => setEditor({
-                  mode: 'add',
-                  day,
-                  idx: -1,
-                  shift: { role:'bar', position:'New shift', start: 12, end: 18, tier:'bar', note:'' },
-                })}
-                style={{
-                  fontSize:10, color:'#22D3EE',
-                  background:'rgba(34,211,238,0.06)', border:'1px dashed rgba(34,211,238,0.4)',
-                  borderRadius:4, padding:'6px 4px', cursor:'pointer', fontWeight:600,
-                  letterSpacing:'0.04em', textTransform:'uppercase',
-                }}
-              >+ Add block</button>
+              {/* Add block — hidden while the rota is locked */}
+              {rotaCanEdit && (
+                <button
+                  onClick={() => setEditor({
+                    mode: 'add',
+                    day,
+                    idx: -1,
+                    shift: { role:'bar', position:'New shift', start: 12, end: 18, tier:'bar', note:'' },
+                  })}
+                  style={{
+                    fontSize:10, color:'#22D3EE',
+                    background:'rgba(34,211,238,0.06)', border:'1px dashed rgba(34,211,238,0.4)',
+                    borderRadius:4, padding:'6px 4px', cursor:'pointer', fontWeight:600,
+                    letterSpacing:'0.04em', textTransform:'uppercase',
+                  }}
+                >+ Add block</button>
+              )}
 
               {/* Day total */}
               <div style={{
