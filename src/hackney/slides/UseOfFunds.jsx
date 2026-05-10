@@ -135,47 +135,6 @@ export default function UseOfFunds() {
 
       {/* Working Capital — full-width residual slider, always disabled */}
       <WorkingCapitalSlider amount={display.workingCapital} target={display.total} allocated={display.allocated} />
-
-      {/* Per-line summary table */}
-      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.12)', borderRadius: 10, padding: 20, marginTop: 20 }}>
-        <div style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.12em', textTransform: 'uppercase', fontWeight: 600, marginBottom: 14 }}>Allocation summary</div>
-        {ORDER.map(key => {
-          const meta = USE_OF_FUNDS.find(u => u.key === key)
-          const amount = display[key]
-          const pct = display.total > 0 ? amount / display.total : 0
-          return (
-            <div key={key} style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: 'var(--cream)' }}>{meta.item}{key === 'rent' ? (display.rentMonths === 0 ? ' (paid monthly)' : ` (${display.rentMonths} ${display.rentMonths === 1 ? 'month' : 'months'})`) : ''}</span>
-                <span style={{ fontSize: 13, color: 'var(--gold)', fontVariantNumeric: 'tabular-nums' }}>{fmt(amount)} <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}>· {(pct * 100).toFixed(1)}%</span></span>
-              </div>
-              <div style={{ height: 4, background: 'rgba(201,168,76,0.08)', borderRadius: 2 }}>
-                <div style={{ width: `${pct * 100}%`, height: '100%', background: 'var(--gold)', borderRadius: 2 }} />
-              </div>
-            </div>
-          )
-        })}
-        {/* Working Capital row — derived */}
-        {(() => {
-          const amount = display.workingCapital
-          const pct = display.total > 0 ? amount / display.total : 0
-          return (
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 4 }}>
-                <span style={{ fontSize: 13, color: 'var(--teal)' }}>Working Capital <span style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>· residual</span></span>
-                <span style={{ fontSize: 13, color: 'var(--teal)', fontVariantNumeric: 'tabular-nums' }}>{fmt(amount)} <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}>· {(pct * 100).toFixed(1)}%</span></span>
-              </div>
-              <div style={{ height: 4, background: 'rgba(45,212,191,0.08)', borderRadius: 2 }}>
-                <div style={{ width: `${pct * 100}%`, height: '100%', background: 'var(--teal)', borderRadius: 2 }} />
-              </div>
-            </div>
-          )
-        })()}
-        <div style={{ borderTop: '1px solid rgba(201,168,76,0.2)', marginTop: 12, paddingTop: 10, display: 'flex', justifyContent: 'space-between' }}>
-          <span style={{ fontSize: 13, color: 'var(--cream)', fontWeight: 600 }}>Total raise</span>
-          <span className="serif" style={{ fontSize: 18, color: isLocked ? '#10B981' : 'var(--gold)' }}>{fmt(display.total)}</span>
-        </div>
-      </div>
     </div>
   )
 }
