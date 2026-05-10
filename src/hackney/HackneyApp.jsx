@@ -7,6 +7,7 @@ import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
+import CashflowForecast from './slides/CashflowForecast.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthDrivers from './slides/GrowthDrivers.jsx'
@@ -32,6 +33,7 @@ const SLIDE_DEFS = [
   { id:'cover',      label:'Cover',              Component: Cover },
   { id:'summary',    label:'Investment Summary', Component: InvestmentSummary },
   { id:'funds',      label:'Use of Funds',       Component: UseOfFunds },
+  { id:'cashflow',   label:'Cashflow Forecast',  Component: CashflowForecast },
   { id:'drivers',    label:'Growth Drivers',     Component: GrowthDrivers },
   { id:'market',     label:'Market Context',     Component: MarketContext },
   { id:'waterfall',  label:'Investor Returns',   Component: WaterfallReturns },
