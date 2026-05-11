@@ -234,10 +234,20 @@ function doPost(e) {
 
       // Reply: only acts when replyText is explicitly present in body
       // (an undefined replyText means "leave the existing reply alone").
+      // `replyColor` is the founder's saved text-colour preference
+      // (cyan / magenta / yellow / white). When the founder updates a
+      // reply we also update the colour so the swatch they have selected
+      // is the one the visitor sees.
       if (Object.prototype.hasOwnProperty.call(body, 'replyText')) {
-        const replyText = String(body.replyText || '').trim()
+        const replyText  = String(body.replyText || '').trim()
+        const replyColor = body.replyColor ? String(body.replyColor) : ''
         if (replyText) {
-          entry.founderReply = { text: replyText, updatedAt: new Date().toISOString(), authorCode: code }
+          entry.founderReply = {
+            text:       replyText,
+            color:      replyColor || (entry.founderReply && entry.founderReply.color) || 'white',
+            updatedAt:  new Date().toISOString(),
+            authorCode: code,
+          }
         } else {
           delete entry.founderReply
         }

@@ -19,18 +19,41 @@ function fmtTs(iso) {
   } catch { return String(iso) }
 }
 
+// Four reply text colours the founder can pick from. Stored on each
+// reply record so investors see the exact colour the founder chose
+// when they composed it. The reply record is persisted by the notes
+// Apps Script (extended to accept a `replyColor` field) — see
+// infra/notes-apps-script.gs.
+const REPLY_COLORS = [
+  { id: 'cyan',    hex: '#06B6D4', label: 'Cyan' },
+  { id: 'magenta', hex: '#EC4899', label: 'Magenta' },
+  { id: 'yellow', hex: '#FACC15', label: 'Yellow' },
+  { id: 'white',   hex: '#F5F0E8', label: 'White' },
+]
+const REPLY_COLOR_BY_ID = Object.fromEntries(REPLY_COLORS.map(c => [c.id, c]))
+function resolveReplyColor(raw) {
+  if (!raw) return REPLY_COLOR_BY_ID.white
+  // Accept either an id ("cyan") or a hex string saved on older replies.
+  if (REPLY_COLOR_BY_ID[raw]) return REPLY_COLOR_BY_ID[raw]
+  const match = REPLY_COLORS.find(c => c.hex.toLowerCase() === String(raw).toLowerCase())
+  return match || REPLY_COLOR_BY_ID.white
+}
+
 // Render the founder's reply (if present) under a note. Used in both
 // the user's own-notes view and the founder's all-rows view, so the
 // person who wrote the note and the founder both see the same thread.
+// Reply text colour comes from `reply.color` — set by the founder via
+// the swatches on ReplyComposer.
 function FounderReplyBlock({ reply }) {
   if (!reply || !(reply.text || '').trim()) return null
+  const c = resolveReplyColor(reply.color)
   return (
     <div style={{ marginTop:10, padding:'10px 12px', background:'rgba(192,132,252,0.06)', border:'1px solid rgba(192,132,252,0.25)', borderRadius:6 }}>
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', gap:12, marginBottom:4 }}>
         <div style={{ fontSize:10, color:'#C084FC', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>Founder reply</div>
         <div style={{ fontSize:9, color:'var(--cream-dim)' }}>{fmtTs(reply.updatedAt)}</div>
       </div>
-      <div style={{ fontSize:13, color:'var(--cream)', whiteSpace:'pre-wrap', lineHeight:1.55 }}>{reply.text}</div>
+      <div style={{ fontSize:13, color: c.hex, whiteSpace:'pre-wrap', lineHeight:1.55 }}>{reply.text}</div>
     </div>
   )
 }
@@ -83,10 +106,38 @@ function ReviewedBadge({ reviewed }) {
 // Founder-only reply composer. Renders inline below a note inside the
 // founder's all-rows view. Edits start prefilled with the existing
 // reply (if any) so the founder can amend rather than overwrite blindly.
+// Reply text colour: 4 swatches (Cyan / Magenta / Yellow / White).
+// The founder's choice is persisted to localStorage so it stays
+// "locked" across reply boxes + sessions, and travels with each reply
+// to the server so investors see the chosen colour.
+const REPLY_COLOR_STORAGE_KEY = 'ndb_founder_reply_color_v1'
+function readPersistedReplyColor() {
+  try {
+    const raw = window.localStorage.getItem(REPLY_COLOR_STORAGE_KEY)
+    if (raw && REPLY_COLOR_BY_ID[raw]) return raw
+  } catch {}
+  return 'white'   // safe default — looks like the existing cream text
+}
+
 function ReplyComposer({ targetCode, pageId, existing }) {
   const { replyToNote } = useNotes()
   const [text, setText] = useState((existing?.text) || '')
   const [state, setState] = useState('idle')
+  // Locked founder colour preference — initialised from localStorage,
+  // falls back to the colour saved on the existing reply if there is
+  // one. Picking a new swatch immediately persists.
+  const [colorId, setColorId] = useState(() =>
+    (existing?.color && REPLY_COLOR_BY_ID[existing.color])
+      ? existing.color
+      : readPersistedReplyColor()
+  )
+  const setLockedColor = (id) => {
+    if (!REPLY_COLOR_BY_ID[id]) return
+    setColorId(id)
+    try { window.localStorage.setItem(REPLY_COLOR_STORAGE_KEY, id) } catch {}
+  }
+  const activeColor = REPLY_COLOR_BY_ID[colorId] || REPLY_COLOR_BY_ID.white
+
   // Auto-grow the textarea so pasted / typed long replies are fully
   // visible without an internal scrollbar. Resets to scrollHeight on
   // every text change.
@@ -100,14 +151,14 @@ function ReplyComposer({ targetCode, pageId, existing }) {
 
   const submit = async () => {
     setState('saving')
-    const ok = await replyToNote(targetCode, pageId, text)
+    const ok = await replyToNote(targetCode, pageId, text, colorId)
     setState(ok ? 'saved' : 'error')
     if (ok) setTimeout(() => setState('idle'), 1500)
   }
   const clear = async () => {
     setText('')
     setState('saving')
-    const ok = await replyToNote(targetCode, pageId, '')
+    const ok = await replyToNote(targetCode, pageId, '', colorId)
     setState(ok ? 'saved' : 'error')
     if (ok) setTimeout(() => setState('idle'), 1500)
   }
@@ -119,19 +170,49 @@ function ReplyComposer({ targetCode, pageId, existing }) {
 
   return (
     <div style={{ marginTop:8, padding:'10px 12px', background:'rgba(192,132,252,0.04)', border:'1px dashed rgba(192,132,252,0.3)', borderRadius:6 }}>
-      <div style={{ fontSize:10, color:'#C084FC', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600, marginBottom:6 }}>Reply as founder</div>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', gap:8, marginBottom:6 }}>
+        <div style={{ fontSize:10, color:'#C084FC', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>Reply as founder</div>
+        {/* Colour-pick swatches. Active swatch gets a brighter ring +
+            its hex shown next to the label so the choice is unambiguous. */}
+        <div style={{ display:'flex', alignItems:'center', gap:6 }}>
+          <span style={{ fontSize:9, color:'var(--cream-dim)', letterSpacing:'0.06em', textTransform:'uppercase' }}>Text colour</span>
+          {REPLY_COLORS.map(c => {
+            const isActive = colorId === c.id
+            return (
+              <button
+                key={c.id}
+                onClick={() => setLockedColor(c.id)}
+                title={`${c.label} — saved as your default reply colour`}
+                style={{
+                  width:18, height:18, borderRadius:'50%',
+                  background: c.hex,
+                  border: isActive ? `2px solid var(--cream)` : `1px solid rgba(255,255,255,0.18)`,
+                  boxShadow: isActive ? `0 0 0 2px ${c.hex}55` : 'none',
+                  cursor:'pointer', padding:0,
+                  outline:'none',
+                  transition:'box-shadow 0.15s, border-color 0.15s',
+                }}
+              />
+            )
+          })}
+          <span style={{ fontSize:9, color: activeColor.hex, fontWeight:700, letterSpacing:'0.04em', minWidth:42, textAlign:'right' }}>{activeColor.label}</span>
+        </div>
+      </div>
       <textarea
         ref={textareaRef}
         value={text}
         onChange={(e) => setText(e.target.value)}
-        placeholder="Type a reply — the user sees it on their own deck after refresh."
+        placeholder="Type a reply — investors see it in the colour you picked, in their own deck after refresh."
         rows={3}
         style={{
           width:'100%', resize:'vertical', minHeight:60, overflow:'hidden',
           background:'rgba(0,0,0,0.25)', border:'1px solid rgba(192,132,252,0.25)',
           borderRadius:6, padding:'8px 10px',
-          color:'var(--cream)', fontSize:12.5, lineHeight:1.5,
+          // Render the composer text in the picked colour so the founder
+          // sees a faithful preview while drafting.
+          color: activeColor.hex, fontSize:12.5, lineHeight:1.5,
           fontFamily:"'DM Sans',sans-serif", outline:'none',
+          caretColor: activeColor.hex,
         }}
       />
       <div style={{ display:'flex', gap:6, alignItems:'center', marginTop:6 }}>

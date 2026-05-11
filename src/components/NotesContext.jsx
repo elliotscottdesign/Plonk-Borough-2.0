@@ -237,15 +237,21 @@ export function NotesProvider({ children }) {
   // founder code (FOUNDER_CODES = ['888999']) so this only succeeds
   // when the active session is the founder's. Refreshes the all-rows
   // view on success so the founder sees their own reply land.
-  const replyToNote = useCallback(async (targetCode, pageId, replyText) => {
+  const replyToNote = useCallback(async (targetCode, pageId, replyText, replyColor) => {
     if (!NOTES_SYNC_URL) return false
     const code = getAccessCode()
     if (!code || !targetCode || !pageId) return false
     try {
+      // `replyColor` is the founder's swatch choice (cyan / magenta /
+      // yellow / white). Saved on the server-side reply record so the
+      // target user sees the founder's chosen text colour. Optional
+      // for backward compatibility — Apps Scripts without the update
+      // will simply ignore the unknown field.
       const body = {
         code,
         target: { code: targetCode, pageId },
         replyText: replyText || '',
+        replyColor: replyColor || undefined,
         secret: NOTES_SYNC_SECRET || undefined,
       }
       const res = await fetch(NOTES_SYNC_URL, {

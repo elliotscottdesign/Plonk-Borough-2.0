@@ -220,7 +220,10 @@ export function NotesProvider({ children }) {
   const toggle = useCallback(() => setIsOpen(o => !o), [])
 
   // ─── Founder reply API ────────────────────────────────────────────
-  const replyToNote = useCallback(async (targetCode, pageId, replyText) => {
+  // `replyColor` carries the founder's swatch choice (cyan/magenta/
+  // yellow/white). Apps Script saves it on the reply record so the
+  // visitor sees the chosen colour. Optional — older scripts ignore.
+  const replyToNote = useCallback(async (targetCode, pageId, replyText, replyColor) => {
     if (!NOTES_SYNC_URL) return false
     const code = getAccessCode()
     if (!code || !targetCode || !pageId) return false
@@ -229,6 +232,7 @@ export function NotesProvider({ children }) {
         code,
         target: { code: targetCode, pageId },
         replyText: replyText || '',
+        replyColor: replyColor || undefined,
         secret: NOTES_SYNC_SECRET || undefined,
       }
       const res = await fetch(NOTES_SYNC_URL, {

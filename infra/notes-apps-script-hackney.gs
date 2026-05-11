@@ -246,10 +246,20 @@ function doPost(e) {
       if (!blob.byPage) blob.byPage = {}
       const entry = blob.byPage[pageId] || { text: '', label: pageId, updatedAt: '' }
 
+      // `replyColor` carries the founder's text-colour preference
+      // (cyan / magenta / yellow / white). Saved on the reply record
+      // so the visitor sees the chosen colour. Falls back to the
+      // existing colour on the row, then to white.
       if (Object.prototype.hasOwnProperty.call(body, 'replyText')) {
-        const replyText = String(body.replyText || '').trim()
+        const replyText  = String(body.replyText || '').trim()
+        const replyColor = body.replyColor ? String(body.replyColor) : ''
         if (replyText) {
-          entry.founderReply = { text: replyText, updatedAt: new Date().toISOString(), authorCode: code }
+          entry.founderReply = {
+            text:       replyText,
+            color:      replyColor || (entry.founderReply && entry.founderReply.color) || 'white',
+            updatedAt:  new Date().toISOString(),
+            authorCode: code,
+          }
         } else {
           delete entry.founderReply
         }
