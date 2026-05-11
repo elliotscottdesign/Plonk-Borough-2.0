@@ -1833,7 +1833,7 @@ function TabTillSales2025() {
       {/* Slide title — serif, white, mixed-case (matches the new STitle treatment) */}
       <div style={{ marginBottom:4 }}>
         <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2025 · Till Sales by Category</div>
-        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025 · <span style={{ color:'var(--gold)' }}>bar-only (golf excluded)</span></div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025 · <span style={{ color:'var(--gold)' }}>bar-only</span></div>
       </div>
 
       {/* Two compact alert bars — headline + one-line summary visible at all
@@ -1859,7 +1859,7 @@ function TabTillSales2025() {
         </button>
         {tillNoteOpen && (
           <div style={{ padding:'0 18px 14px 48px', fontSize:12, color:'#FDE68A', lineHeight:1.6 }}>
-            Numbers below are gross customer payments through the till — inclusive of VAT, after discounts at the till, before any subsequent refund / comp / accounting restatement. All figures on this tab are <strong>bar-only</strong> — golf SKUs (GOLF - Rounds, GOLF + TOKEN BUNDLES) are stripped because golf is not part of the No Dice Hackney offering to investors. For audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab (sourced from Weekly Merge 2024–2026). Expect the till total here to read higher than the Weekly Merge figure (VAT layer + restatements + refunds — full reconciliation in the Discounts section below).
+            Numbers below are gross customer payments through the till — inclusive of VAT, after discounts at the till, before any subsequent refund / comp / accounting restatement. All figures on this tab are <strong>bar-only</strong> — the No Dice Hackney offer to investors is a bar-led venue, so non-bar SKUs are filtered out of every aggregate. For audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab (sourced from Weekly Merge 2024–2026). Expect the till total here to read higher than the Weekly Merge figure (VAT layer + restatements + refunds — full reconciliation in the Discounts section below).
           </div>
         )}
       </div>
@@ -2014,7 +2014,7 @@ function TabTillSales2025() {
                 Discounts
               </div>
               <div style={{ fontSize:12, color:'#9CA3AF', marginTop:4 }}>
-                Cost against drink sales · {fmtMoney(Math.round(barDiscAmount))} discounted · {barDiscRate.toFixed(2)}% of gross · bar-only (golf excluded)
+                Cost against drink sales · {fmtMoney(Math.round(barDiscAmount))} discounted · {barDiscRate.toFixed(2)}% of gross · bar-only
               </div>
             </div>
           </div>
@@ -2226,14 +2226,14 @@ function TabTillSales2025() {
                 Why doesn't this match the Weekly Merge 2024-2026 sheet?
               </div>
               <div style={{ color:'#CBD5E1' }}>
-                Every aggregate on this tab is <strong>bar-only</strong> — golf SKUs (GOLF - Rounds, GOLF + TOKEN
-                BUNDLES, totalling ~£58k inc-VAT) are filtered out at render time because golf is not part of the
-                No Dice Hackney offering to investors. The remaining gap vs the Monthly Summary in the
-                <strong> 2025 Performance</strong> tab is structural: <strong>(1)</strong> Goodtill totals are
-                gross of VAT (the 20% layer is the largest single chunk); <strong>(2)</strong> Monthly Summary is
-                post-restatement / re-categorisation; <strong>(3)</strong> refunds / voids / comps recorded after
-                COMPLETED. Bottom line: <strong>this till data is for product-mix and discount analytics — not
-                for the P&amp;L</strong>. Weekly Merge 2024-2026 stays the canonical revenue figure.
+                Every aggregate on this tab is <strong>bar-only</strong> — non-bar SKUs are filtered out at render
+                time because the No Dice Hackney offer to investors is a bar-led venue. The remaining gap vs the
+                Monthly Summary in the <strong>2025 Performance</strong> tab is structural: <strong>(1)</strong>
+                Goodtill totals are gross of VAT (the 20% layer is the largest single chunk); <strong>(2)</strong>
+                Monthly Summary is post-restatement / re-categorisation; <strong>(3)</strong> refunds / voids /
+                comps recorded after COMPLETED. Bottom line: <strong>this till data is for product-mix and
+                discount analytics — not for the P&amp;L</strong>. Weekly Merge 2024-2026 stays the canonical
+                revenue figure.
               </div>
             </div>
           </div>
@@ -2248,19 +2248,13 @@ function TabTillSales2025() {
         venue data is mixed in.
       </div>
 
-      {/* Cleanup footnote — dedup + reclassification of GOLF / GOLF & GAMES */}
+      {/* Cleanup footnote — dataset provenance (dedup of the raw Goodtill export) */}
       <div style={{ fontSize:10, color:'#9CA3AF', lineHeight:1.7, padding:'10px 14px', background:'rgba(34,211,238,0.05)', border:'1px solid rgba(34,211,238,0.18)', borderRadius:4 }}>
         <span style={{ color:'#22D3EE', fontWeight:600, letterSpacing:'0.06em', textTransform:'uppercase' }}>Cleaned dataset ·</span>{' '}
         Numbers above come from <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>data/hackney_2025_till_sales_clean.csv</code> — the raw
         Goodtill export with <strong style={{ color:'var(--cream)' }}>25,796 exact-duplicate rows (~26.7% of the file)</strong> removed (rows where every identity field — Sale ID + second + product + price + qty + discount + total + takeaway flag + notes — matched an earlier row exactly).
         Total COMPLETED revenue dropped £628k → <strong style={{ color:'var(--cream)' }}>£514k</strong> (−18.2%) after dedup.
-        The two ambiguous Goodtill activity tags <strong style={{ color:'var(--cream)' }}>OTHER - GOLF</strong> + <strong style={{ color:'var(--cream)' }}>OTHER - GOLF & GAMES</strong> were further split by product into seven clean buckets:
-        <strong style={{ color:'var(--cream)' }}> GOLF - Rounds (£48k)</strong>,
-        <strong style={{ color:'var(--cream)' }}> POOL - Reservations (£24k)</strong>,
-        <strong style={{ color:'var(--cream)' }}> ARCADE - Tokens (£12k)</strong>,
-        <strong style={{ color:'var(--cream)' }}> GOLF + TOKEN BUNDLES (£10k)</strong>,
-        <strong style={{ color:'var(--cream)' }}> GAME & DRINK BUNDLES (£1.3k)</strong>,
-        <strong style={{ color:'var(--cream)' }}> TOURNAMENTS (£15)</strong>, plus a £163 misc fragment folded into OTHER - MISC. Raw export preserved untouched at
+        Raw export preserved untouched at
         <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>data/hackney_2025_till_sales.csv</code> for audit.
       </div>
     </div>
