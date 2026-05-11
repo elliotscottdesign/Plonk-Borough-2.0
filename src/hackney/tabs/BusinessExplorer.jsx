@@ -34,21 +34,25 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 const fmtMoney = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 const fmtK     = (n) => '£' + Math.round(n/1000) + 'k'
 
-// BusinessExplorer — clones Borough's 3-sub-tab structure:
+// BusinessExplorer — 4 sub-tabs:
 //   • 2025 Performance — verified actuals + breakdowns
 //   • 2026 Performance — locked editable forecast (founder edits, investors view)
+//   • Cashflow Forecast — month-by-month operating cashflow (delegates to the
+//     CashflowForecast slide component)
+//   • Historic Till Sales — 2020-2024 aggregates
 //
-// Cashflow Forecast — moved out to its own Investor Deck slide
-// (src/hackney/slides/CashflowForecast.jsx, sits after Use of Funds).
-//
-// Each sub-tab is a SKELETON for the framework — section headers preserved,
-// content TBD until Hackney's bar-only restated data is wired in. Borough's
-// equivalents in src/tabs/BusinessExplorer.jsx are 1,650+ lines of detail —
-// when Hackney equivalents land, mirror that structure section-for-section.
+// CashflowForecast lives in src/hackney/slides/CashflowForecast.jsx so it can
+// also be mounted from the Investor Deck if needed. The dispatch entry below
+// imports it from there. The circular import (CashflowForecast imports
+// compute2026Scenario + KpiCard2026 from this file) is safe because both
+// exports are hoisted function declarations.
+
+import CashflowForecast from '../slides/CashflowForecast.jsx'
 
 const TABS = [
   { key: 'performance2025', label: '2025 Performance' },
   { key: 'performance2026', label: '2026 Performance' },
+  { key: 'cashflow',        label: 'Cashflow Forecast' },
   { key: 'prevtillsales',   label: 'Historic Till Sales' },
 ]
 
@@ -2528,8 +2532,9 @@ export default function BusinessExplorer() {
   const [tab, setTab] = useState('performance2025')
   const tabComponents = {
     performance2025: <Tab2025 />,
-    prevtillsales:   <TabPrevTillSales />,
     performance2026: <Tab2026 />,
+    cashflow:        <CashflowForecast />,
+    prevtillsales:   <TabPrevTillSales />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
