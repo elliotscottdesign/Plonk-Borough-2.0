@@ -60,6 +60,13 @@ const NotesCtx = createContext({
   deleteNoteForPage: () => {},        // (pageId)
   // User-side: re-fetch own row from server (picks up founder replies).
   refreshOwnNotes: async () => {},
+
+  // ─── Safety surfaces ────────────────────────────────────────────
+  // hydrateWarning: set when the server returned a thinner blob than
+  // the local cache on this mount — local is kept, founder is warned.
+  // notesHealth: founder-only ?health=1 probe result.
+  hydrateWarning: null,
+  notesHealth: { status: 'unknown', sheetRowCount: null, historyRowCount: null, error: null },
 })
 
 const isValidNotesBlob = (b) =>
@@ -87,6 +94,8 @@ export function NotesProvider({ children }) {
   const [isLoadingAll, setIsLoadingAll] = useState(false)
   const [saveState, setSaveState] = useState('idle')
   const [lastSavedAt, setLastSavedAt] = useState(null)
+  const [hydrateWarning, setHydrateWarning] = useState(null)
+  const [notesHealth, setNotesHealth] = useState({ status: 'unknown', sheetRowCount: null, historyRowCount: null, error: null })
 
   const isFounder = readIsFounder()
 
@@ -96,12 +105,17 @@ export function NotesProvider({ children }) {
   }, [notes])
 
   // ─── Server hydrate on mount ─────────────────────────────────────
-  // Per-user GET refreshes the local blob with the server's copy if
-  // present. Founders also pull every row for the master tab.
+  // SAFETY GUARD: a server response with fewer pages than the local
+  // cache is treated as suspicious (likely a misconfigured endpoint
+  // or empty backend). We keep the local copy and expose a warning
+  // so the founder sees the problem before any saves clobber the
+  // good state.
   useEffect(() => {
     if (!NOTES_SYNC_URL) return
     const code = getAccessCode()
     if (!code) return
+    const localAtMount = readPersistedNotes()
+    const localPageCount = Object.keys(localAtMount?.byPage || {}).length
     let cancelled = false
     ;(async () => {
       try {
@@ -113,9 +127,17 @@ export function NotesProvider({ children }) {
         clearTimeout(t)
         if (!res.ok || cancelled) return
         const data = await res.json()
-        if (data && isValidNotesBlob(data.notes)) {
-          setNotes(data.notes)
+        if (!data || !isValidNotesBlob(data.notes)) return
+        const serverPageCount = Object.keys(data.notes.byPage || {}).length
+        if (serverPageCount < localPageCount) {
+          // eslint-disable-next-line no-console
+          console.warn(`[notes] hydrate guard: server returned ${serverPageCount} pages, local has ${localPageCount}. KEEPING LOCAL.`)
+          if (!cancelled) setHydrateWarning({
+            localPageCount, serverPageCount, at: new Date().toISOString(),
+          })
+          return
         }
+        if (!cancelled) setNotes(data.notes)
       } catch (e) {
         // eslint-disable-next-line no-console
         console.warn('[notes] hydrate failed, using local state:', e.message)
@@ -124,6 +146,33 @@ export function NotesProvider({ children }) {
     return () => { cancelled = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // ─── Founder-only backend health probe ──────────────────────────
+  useEffect(() => {
+    if (!NOTES_SYNC_URL || !isFounder) return
+    let cancelled = false
+    ;(async () => {
+      try {
+        const res = await fetch(`${NOTES_SYNC_URL}?health=1${NOTES_SYNC_SECRET ? `&secret=${encodeURIComponent(NOTES_SYNC_SECRET)}` : ''}`, { cache: 'no-store' })
+        if (!res.ok || cancelled) return
+        const data = await res.json()
+        if (cancelled) return
+        if (data && data.health === 'ok') {
+          const sheetRowCount   = typeof data.sheetRowCount   === 'number' ? data.sheetRowCount   : null
+          const historyRowCount = typeof data.historyRowCount === 'number' ? data.historyRowCount : null
+          setNotesHealth({
+            status: sheetRowCount === 0 ? 'empty' : 'ok',
+            sheetRowCount, historyRowCount, error: null,
+          })
+        } else {
+          setNotesHealth({ status: 'unknown', sheetRowCount: null, historyRowCount: null, error: 'old deployment — no /health branch' })
+        }
+      } catch (e) {
+        if (!cancelled) setNotesHealth({ status: 'error', sheetRowCount: null, historyRowCount: null, error: e.message })
+      }
+    })()
+    return () => { cancelled = true }
+  }, [isFounder])
 
   const refreshAllRows = useCallback(async () => {
     if (!NOTES_SYNC_URL || !isFounder) return
@@ -330,6 +379,8 @@ export function NotesProvider({ children }) {
         body: JSON.stringify({
           code: targetCode,
           notes: cleaned,
+          intent: 'delete',
+          deletedPageId: pageId,
           secret: NOTES_SYNC_SECRET || undefined,
         }),
       })
@@ -348,22 +399,42 @@ export function NotesProvider({ children }) {
   // notes payload so the server row reflects the deletion. The
   // founderReply / reviewed metadata for that page is dropped along
   // with the user's text.
+  // ─── User-side delete ─────────────────────────────────────────────
+  // Sends intent:'delete' so the server-side empty-write guard accepts
+  // a legitimate delete-to-zero-pages.
   const deleteNoteForPage = useCallback((pageId) => {
     if (!pageId) return
     setNotes(prev => {
       const nextByPage = { ...(prev.byPage || {}) }
       delete nextByPage[pageId]
       const next = { ...prev, byPage: nextByPage }
-      queuePOST(next, pageId, '')
+      const code = getAccessCode()
+      if (NOTES_SYNC_URL && code) {
+        ;(async () => {
+          try {
+            await fetch(NOTES_SYNC_URL, {
+              method: 'POST',
+              mode: 'cors',
+              cache: 'no-store',
+              headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+              body: JSON.stringify({
+                code,
+                notes: next,
+                intent: 'delete',
+                deletedPageId: pageId,
+                secret: NOTES_SYNC_SECRET || undefined,
+              }),
+            })
+          } catch {}
+        })()
+      }
       return next
     })
-  }, [queuePOST])
+  }, [])
 
   // ─── User-side refresh ────────────────────────────────────────────
-  // Re-fetches the current user's row from the server. Use case: user
-  // wants to check whether the founder has posted a reply since the
-  // page mounted. Replies arrive via the same row, just in a new
-  // founderReply field nested under each page entry.
+  // Same hydrate-guard as the mount effect — never let the server
+  // shrink local state.
   const refreshOwnNotes = useCallback(async () => {
     if (!NOTES_SYNC_URL) return
     const code = getAccessCode()
@@ -372,12 +443,21 @@ export function NotesProvider({ children }) {
       const res = await fetch(`${NOTES_SYNC_URL}?code=${encodeURIComponent(code)}`, { cache: 'no-store' })
       if (!res.ok) return
       const data = await res.json()
-      if (data && isValidNotesBlob(data.notes)) setNotes(data.notes)
+      if (!data || !isValidNotesBlob(data.notes)) return
+      const localPageCount  = Object.keys(notes?.byPage || {}).length
+      const serverPageCount = Object.keys(data.notes.byPage || {}).length
+      if (serverPageCount < localPageCount) {
+        // eslint-disable-next-line no-console
+        console.warn(`[notes] refresh guard: server returned ${serverPageCount} pages, local has ${localPageCount}. KEEPING LOCAL.`)
+        setHydrateWarning({ localPageCount, serverPageCount, at: new Date().toISOString() })
+        return
+      }
+      setNotes(data.notes)
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('[notes] refreshOwnNotes failed:', e.message)
     }
-  }, [])
+  }, [notes])
 
   const value = useMemo(() => ({
     isOpen, open, close, toggle,
@@ -387,7 +467,8 @@ export function NotesProvider({ children }) {
     allRows, refreshAllRows, isLoadingAll,
     saveState, lastSavedAt,
     replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes,
-  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes])
+    hydrateWarning, notesHealth,
+  }), [isOpen, open, close, toggle, activePage, setActivePage, notes, setNoteForPage, deleteNoteForPage, isFounder, allRows, refreshAllRows, isLoadingAll, saveState, lastSavedAt, replyToNote, setNoteReviewed, deleteVisitorNote, refreshOwnNotes, hydrateWarning, notesHealth])
 
   return <NotesCtx.Provider value={value}>{children}</NotesCtx.Provider>
 }

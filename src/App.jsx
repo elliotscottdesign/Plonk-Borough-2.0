@@ -17,6 +17,7 @@ import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
 import NotesPanel from './components/NotesPanel.jsx'
+import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
 
 // Path-based deck dispatch. /hackney (and any nested path under it) renders
@@ -149,6 +150,9 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
 
   return (
     <div style={{ display:'flex', flexDirection:'column', height:'100vh', overflow:'hidden', background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif" }}>
+      {/* Founder-only safety banner — hidden when backend looks healthy.
+          Sits above the header so it can't be missed. */}
+      <NotesHealthBanner />
       <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
         <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>{t('shell.brand')}</div>
         <div style={{ display:'flex', gap:4, alignItems:'center' }}>

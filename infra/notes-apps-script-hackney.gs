@@ -72,13 +72,25 @@
  *    Same URL persists across deployments.
  */
 
-const SHEET_ID       = '1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg'  // Hackney workbook
-const SHEET_NAME     = 'Notes'
-const HEADER_ROW     = ['code', 'notes', 'updated_at', 'last_email_at']
-const NOTES_SECRET   = ''                              // optional shared secret
-const FOUNDER_EMAIL  = 'elliotscottdesign@gmail.com'   // notification recipient
-const EMAIL_THROTTLE_MS = 5 * 60 * 1000                // 5 minutes per access code
-const FOUNDER_CODES  = ['888999']                      // codes allowed to post replies into other users' rows
+const SHEET_ID         = '1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg'  // Hackney workbook
+const SHEET_NAME       = 'Notes'
+const HEADER_ROW       = ['code', 'notes', 'updated_at', 'last_email_at']
+const NOTES_SECRET     = ''                              // optional shared secret
+const FOUNDER_EMAIL    = 'elliotscottdesign@gmail.com'   // notification recipient
+const EMAIL_THROTTLE_MS = 5 * 60 * 1000                  // 5 minutes per access code
+const FOUNDER_CODES    = ['888999']                      // codes allowed to post replies into other users' rows
+
+// ─── DATA-LOSS DEFENCES ───────────────────────────────────────────
+// HistoryRow: append-only audit log. Every successful write inserts
+// one row here so the Notes tab can be reconstructed even if it gets
+// wiped. Recovery query: filter by `code`, sort by `ts` desc, take
+// the latest non-empty `notes_blob` per pageId.
+const HISTORY_SHEET_NAME = 'NotesHistory'
+const HISTORY_HEADER_ROW = ['ts', 'code', 'op', 'page_id', 'page_label', 'text_snippet', 'page_count', 'notes_blob']
+// Daily snapshot tabs are named Notes_Backup_YYYY-MM-DD. Kept for
+// BACKUP_RETENTION_DAYS days; older tabs are removed by the trigger.
+const BACKUP_SHEET_PREFIX = 'Notes_Backup_'
+const BACKUP_RETENTION_DAYS = 30
 
 function _sheet() {
   const ss = SpreadsheetApp.openById(SHEET_ID)
@@ -155,6 +167,47 @@ function _json(payload) {
     .setMimeType(ContentService.MimeType.JSON)
 }
 
+// ─── Page-count helper — used by the empty-write guard ─────────────
+function _pageCount(blob) {
+  if (!blob || typeof blob !== 'object') return 0
+  var bp = blob.byPage
+  if (!bp || typeof bp !== 'object') return 0
+  var n = 0
+  for (var k in bp) if (Object.prototype.hasOwnProperty.call(bp, k)) n++
+  return n
+}
+
+// ─── Append-only history sheet ────────────────────────────────────
+// Returns the NotesHistory sheet (creating it on first call). Every
+// successful write appends a row so the canonical Notes tab can be
+// rebuilt even if it's been wiped.
+function _historySheet() {
+  var ss = SpreadsheetApp.openById(SHEET_ID)
+  var sh = ss.getSheetByName(HISTORY_SHEET_NAME)
+  if (!sh) sh = ss.insertSheet(HISTORY_SHEET_NAME)
+  var a1 = sh.getRange('A1').getValue()
+  if (a1 !== HISTORY_HEADER_ROW[0]) {
+    sh.getRange(1, 1, 1, HISTORY_HEADER_ROW.length).setValues([HISTORY_HEADER_ROW])
+    sh.setFrozenRows(1)
+  }
+  return sh
+}
+
+function _appendHistory(code, op, page, text, blob) {
+  try {
+    var sh = _historySheet()
+    var ts = new Date().toISOString()
+    var pageId    = page && page.id    ? String(page.id)    : ''
+    var pageLabel = page && page.label ? String(page.label) : pageId
+    var snippet   = String(text || '').slice(0, 500)
+    var count     = _pageCount(blob)
+    var json      = blob ? JSON.stringify(blob) : ''
+    sh.appendRow([ts, String(code), String(op || ''), pageId, pageLabel, snippet, count, json])
+  } catch (err) {
+    // Never let a history-write error break the main write path.
+  }
+}
+
 function _maybeEmailFounder(sh, code, page, text, notes) {
   if (!FOUNDER_EMAIL) return false
   const now = Date.now()
@@ -175,11 +228,19 @@ function _maybeEmailFounder(sh, code, page, text, notes) {
     notesTabUrl = workbookUrl + '#gid=' + sh.getSheetId()
   } catch (e) {}
 
+  // Full JSON blob (capped at 60KB so very large states don't bounce
+  // emails). Your inbox becomes a free, immutable backup for every
+  // saved note — searchable by access code or page id.
+  var fullBlob = ''
+  try { fullBlob = notes ? JSON.stringify(notes, null, 2) : '' } catch (e) { fullBlob = '' }
+  if (fullBlob.length > 60000) fullBlob = fullBlob.slice(0, 60000) + '\n…[truncated]'
+
   const body = [
     'Someone from "' + code + '" has left a note on the Hackney deck.',
     '',
     'Page: ' + pageLabel,
     'Saved at: ' + new Date().toISOString(),
+    'Total pages on this user blob: ' + _pageCount(notes),
     '',
     '— Note text ——————————————————————',
     snippet,
@@ -195,6 +256,14 @@ function _maybeEmailFounder(sh, code, page, text, notes) {
     '',
     'Throttle: at most one email per user every 5 minutes (further edits within',
     'the window are saved silently and visible on the Main Notes tab in real time).',
+    '',
+    '— Full backup of this user\'s notes (JSON) —————————',
+    fullBlob || '(empty)',
+    '———————————————————————————————',
+    'Keep this email — it is a recoverable snapshot of every page this user',
+    'had notes on at the moment of the save. Use it alongside the NotesHistory',
+    'tab and the daily Notes_Backup_YYYY-MM-DD snapshots to reconstruct state',
+    'if the live Notes tab is ever lost or wiped.',
   ].join('\n')
   try {
     MailApp.sendEmail({ to: FOUNDER_EMAIL, subject: subject, body: body })
@@ -208,6 +277,31 @@ function doGet(e) {
   try {
     const sh = _sheet()
     const params = (e && e.parameter) || {}
+
+    // ─── Health probe (founder-only banner) ───────────────────────
+    // Reports sheet/tab metadata so the deck can warn the founder if
+    // the backend is empty or wired to the wrong workbook.
+    if (params.health === '1') {
+      if (NOTES_SECRET && params.secret !== NOTES_SECRET) {
+        return _json({ error: 'unauthorised' })
+      }
+      var hist = null
+      try { hist = _historySheet() } catch (e2) {}
+      var sheetRowCount   = Math.max(0, sh.getLastRow() - 1)
+      var historyRowCount = hist ? Math.max(0, hist.getLastRow() - 1) : 0
+      return _json({
+        health: 'ok',
+        sheetId: SHEET_ID,
+        sheetName: SHEET_NAME,
+        historySheetName: HISTORY_SHEET_NAME,
+        sheetRowCount: sheetRowCount,
+        historyRowCount: historyRowCount,
+        backupPrefix: BACKUP_SHEET_PREFIX,
+        backupRetentionDays: BACKUP_RETENTION_DAYS,
+        serverTime: new Date().toISOString(),
+      })
+    }
+
     if (params.all === '1') {
       if (NOTES_SECRET && params.secret !== NOTES_SECRET) {
         return _json({ error: 'unauthorised' })
@@ -275,6 +369,7 @@ function doPost(e) {
 
       blob.byPage[pageId] = entry
       _writeForCode(sh, targetCode, blob, _readLastEmailAt(sh, targetCode))
+      _appendHistory(targetCode, 'founder_target', { id: pageId, label: pageId }, '', blob)
       return _json({ ok: true, mode: 'target', targetCode: targetCode, pageId: pageId })
     }
 
@@ -282,6 +377,24 @@ function doPost(e) {
     const notes = body.notes
     const page  = body.page || null
     const text  = body.text || ''
+    const intent = body.intent ? String(body.intent) : ''
+
+    // ─── EMPTY-WRITE GUARD ───────────────────────────────────────
+    // If the incoming blob has zero pages AND the row on disk already
+    // had pages, refuse the write unless the client explicitly flagged
+    // intent='delete'. This is the safety net against bug-induced
+    // wipes: a misbehaving client cannot blank a populated row.
+    var incomingCount = _pageCount(notes)
+    var existingBlob  = _readForCode(sh, code)
+    var existingCount = _pageCount(existingBlob)
+    if (incomingCount === 0 && existingCount > 0 && intent !== 'delete') {
+      _appendHistory(code, 'REFUSED_EMPTY_WRITE', page, text, existingBlob)
+      return _json({
+        error: 'refused empty write',
+        reason: 'incoming blob has 0 pages but existing row has ' + existingCount + ' pages; intent="delete" not set',
+        existingPageCount: existingCount,
+      })
+    }
 
     let emailed = false
     if (text && text.trim().length > 0) {
@@ -289,8 +402,63 @@ function doPost(e) {
     }
     const lastEmailAt = emailed ? Date.now() : _readLastEmailAt(sh, code)
     _writeForCode(sh, code, notes, lastEmailAt)
+    _appendHistory(code, intent === 'delete' ? 'delete' : 'write', page, text, notes)
     return _json({ ok: true, emailed: emailed })
   } catch (err) {
     return _json({ error: err.toString() })
   }
+}
+
+// ─── Daily snapshot trigger ───────────────────────────────────────
+// Copies the live Notes tab to a dated tab (Notes_Backup_YYYY-MM-DD)
+// once per day. Pruning removes snapshots older than
+// BACKUP_RETENTION_DAYS. Run installDailyTrigger() ONCE from the
+// Apps Script editor (Run → installDailyTrigger) to register the
+// 03:00 time-driven trigger. Subsequent code redeploys do not need
+// to re-install the trigger.
+function dailySnapshot() {
+  var ss = SpreadsheetApp.openById(SHEET_ID)
+  var src = ss.getSheetByName(SHEET_NAME)
+  if (!src) return
+  var tz = ss.getSpreadsheetTimeZone() || 'Etc/UTC'
+  var dateStr = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd')
+  var name = BACKUP_SHEET_PREFIX + dateStr
+  // Idempotent — skip if today's snapshot already exists.
+  if (ss.getSheetByName(name)) return
+  src.copyTo(ss).setName(name)
+  _pruneOldSnapshots(ss, tz)
+}
+
+function _pruneOldSnapshots(ss, tz) {
+  var sheets = ss.getSheets()
+  var cutoff = Date.now() - BACKUP_RETENTION_DAYS * 24 * 60 * 60 * 1000
+  for (var i = 0; i < sheets.length; i++) {
+    var s = sheets[i]
+    var n = s.getName()
+    if (n.indexOf(BACKUP_SHEET_PREFIX) !== 0) continue
+    var dStr = n.substring(BACKUP_SHEET_PREFIX.length)
+    var parsed = Date.parse(dStr + 'T00:00:00Z')
+    if (!isNaN(parsed) && parsed < cutoff) {
+      try { ss.deleteSheet(s) } catch (e) {}
+    }
+  }
+}
+
+// One-time install — run this from the Apps Script editor after
+// pasting the file. It will list any existing dailySnapshot triggers
+// and avoid creating a duplicate. Re-running is safe.
+function installDailyTrigger() {
+  var triggers = ScriptApp.getProjectTriggers()
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === 'dailySnapshot') {
+      Logger.log('dailySnapshot trigger already installed')
+      return
+    }
+  }
+  ScriptApp.newTrigger('dailySnapshot')
+    .timeBased()
+    .atHour(3)
+    .everyDays(1)
+    .create()
+  Logger.log('Installed daily 03:00 snapshot trigger')
 }
