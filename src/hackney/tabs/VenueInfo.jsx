@@ -20,12 +20,13 @@ const fmtRaise = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 //     transferred from Network Rail to Blackstone / Telereal Trillium JV.
 
 const TABS = [
-  { key: 'catchment',  label: 'Catchment' },
-  { key: 'location',   label: 'Location' },
-  { key: 'floorPlan',  label: 'Floor Plan' },
-  { key: 'gallery',    label: 'Gallery' },
-  { key: 'licence',    label: 'Licence' },
-  { key: 'development',label: 'Development' },
+  { key: 'catchment',    label: 'Catchment' },
+  { key: 'location',     label: 'Location' },
+  { key: 'floorPlan',    label: 'Floor Plan' },
+  { key: 'gallery',      label: 'Gallery' },
+  { key: 'licence',      label: 'Licence' },
+  { key: 'development',  label: 'Development' },
+  { key: 'headsOfTerms', label: 'Heads of Terms' },
 ]
 
 const range = (n, fn) => Array.from({ length: n }, (_, i) => fn(i + 1))
@@ -680,15 +681,190 @@ function TabDevelopment() {
   )
 }
 
+// =============================================================================
+// HEADS OF TERMS — landlord-issued summary terms for the new 6-year tenancy at
+// 407 & adjacent land, Ellingfort Road. Reference: LOF01303 · 8 May 2026.
+// Reproduced in full from the Arch Company Properties Limited document so the
+// deck can stand alone without the PDF.
+// =============================================================================
+function TabHeadsOfTerms() {
+  const cs = { background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.12)', borderRadius:10, padding:20, marginBottom:12 }
+  // Long-form rows (label above, prose below) — used where the value text is
+  // too long for the right-aligned Row helper.
+  const Block = ({ label, children, gold }) => (
+    <div style={{ padding:'10px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+      <div style={{ fontSize:12, color:'var(--cream-dim)', marginBottom:6 }}>{label}</div>
+      <div style={{ fontSize:12, color: gold ? 'var(--gold)' : 'var(--cream)', lineHeight:1.6 }}>{children}</div>
+    </div>
+  )
+
+  const glossary = [
+    { t: 'assignee',                   d: 'an individual or entity who takes over Your obligations in the Agreement by way of an assignment' },
+    { t: 'assignment',                 d: 'the legal transfer of the Agreement from You to the assignee' },
+    { t: 'authorised guarantee agreement', d: "a form of guarantee that You will give to Us guaranteeing the assignee's obligations under the Agreement" },
+    { t: 'break right',                d: 'a right for either Us or You (as applicable) to end the Agreement early by serving notice on the other party and complying with any required conditions' },
+    { t: 'charging',                   d: 'the process of securing a charge in favour of a bank or other lender against the Agreement' },
+    { t: 'class (use)',                d: 'one of a number of classes set out in the Town and Country Planning (Use Classes) Order 1987 (as amended) which puts different uses of land and buildings into various categories known as "Use Classes"' },
+    { t: 'guarantor',                  d: 'an individual or entity who promises to carry out Your obligations in the Agreement if You fail to do so' },
+    { t: 'public liability insurance', d: "a type of business insurance that covers You if Your business activities result in someone being injured or someone else's property being damaged" },
+    { t: 'service Charge',             d: 'a payment towards the day-to-day running of the estate (of which the Property forms part)' },
+    { t: 'sharing',                    d: 'the process of allowing another individual or entity to occupy the Property at the same time as You' },
+    { t: 'subletting',                 d: 'the process of You granting a new agreement to an individual or entity which gives them a legal interest in the Property and a right to occupy that part of the Property' },
+  ]
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:0 }}>
+
+      {/* Header card — provenance / reference */}
+      <div style={cs}>
+        <STitle>Key Terms — 407 &amp; Adjacent Land, Ellingfort Road</STitle>
+        <Row label="Space reference"     value="LOF01303" gold />
+        <Row label="Document"            value="Heads of Terms (subject to contract)" />
+        <Row label="Issued by"           value="The Arch Company Properties Limited" />
+        <Row label="Date of Key Terms"   value="8 May 2026" gold />
+        <Row label="Status"              value="Subject to signing &amp; completion of a valid Agreement (including Our standard Terms and Conditions)" />
+      </div>
+
+      {/* Parties */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+        <div style={cs}>
+          <STitle>Parties</STitle>
+          <Row label="Owner ('Us' / 'Our' / 'We')"  value="The Arch Company Properties Limited" />
+          <Row label="Customer ('You' / 'Your')"   value="No Dice Hackney Ltd" gold />
+          <Row label="Company number"               value="CRN 17149532" />
+          <Row label="Customer address"             value="15 Mentmore Terrace, London E8 3PN" />
+          <Row label="Guarantor"                    value="None" />
+        </div>
+        <div style={cs}>
+          <STitle>Property Details</STitle>
+          <Row label="Property"        value="407 &amp; Adj Land Ellingfort Road, London E8 3PE" gold />
+          <Row label="Parking rights"  value="None" />
+        </div>
+      </div>
+
+      {/* Use */}
+      <div style={cs}>
+        <STitle>Use</STitle>
+        <Block label="Permitted use">
+          Bar or Events space with games or other uses in Classes <strong style={{ color:'var(--cream)' }}>B8</strong> — Storage or distribution; <strong style={{ color:'var(--cream)' }}>E(d)</strong> — Commercial, business and service for indoor sport, recreation or fitness, not involving motorised vehicles or firearms, principally to visiting members of the public; <strong style={{ color:'var(--cream)' }}>E(g)(iii)</strong> — Commercial, business and service for any industrial process, being a use which can be carried out in any residential area without detriment to the amenity of that area by reason of; <strong style={{ color:'var(--cream)' }}>Sui Generis</strong> with Our Consent.
+        </Block>
+        <Row label="Premises licence" value="You are required to obtain a premises licence" gold />
+      </div>
+
+      {/* Occupation period & break rights */}
+      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+        <div style={cs}>
+          <STitle>Occupation Period</STitle>
+          <Row label="Start date"        value="Date of Completion" />
+          <Row label="Term"              value="6 years" gold />
+          <Row label="Landlord &amp; Tenant Act 1954" value="Granted outside the security of tenure provisions of the 1954 Act" />
+        </div>
+        <div style={cs}>
+          <STitle>Break Rights</STitle>
+          <Row label="Your break right"   value="Yes — on the 3rd anniversary of the term start date by giving 6 months' notice" gold />
+          <Row label="Our break right"    value="None" />
+          <Row label="Your break payment" value="None" />
+          <Row label="Planning break"     value="None" />
+        </div>
+      </div>
+
+      {/* Payments */}
+      <div style={cs}>
+        <STitle>Payments (all plus VAT, unless stated otherwise)</STitle>
+        <Row label="Rent"                value="£65,000.00 per year plus VAT — payable by direct debit, monthly in advance on the 1st of every month" gold />
+        <Row label="Annual rent increase" value="3.0% per year" />
+        <Row label="Rent free period"    value="3 months" gold />
+        <Row label="Rent review date(s)" value="Not applicable" />
+        <Row label="Rent review"         value="None" />
+        <Row label="Service charge"      value="Initial amount £0.00 per year" />
+        <Row label="Insurance rent"      value="Initial amount £491.71 per year" />
+        <Block label="Deposit" gold>
+          £19,500.00 (including a sum equivalent to VAT at the current rate at the date of this Agreement), payable in three instalments:
+          <ul style={{ margin:'8px 0 0 18px', padding:0, color:'var(--cream-dim)' }}>
+            <li>£6,500.00 on completion</li>
+            <li>£6,500.00 on the 1st month anniversary</li>
+            <li>£6,500.00 on the 2nd month anniversary</li>
+          </ul>
+        </Block>
+        <Block label="Business rates &amp; outgoings">
+          You will be responsible for the payment of business rates and other outgoings, including electricity, gas, water and other services or utilities charged on the Property.
+        </Block>
+        <Row label="Document costs" value="£595.00 plus VAT" />
+      </div>
+
+      {/* Your obligations */}
+      <div style={cs}>
+        <STitle>Your Obligations</STitle>
+        <Block label="Repair &amp; condition">
+          You must keep the Property in a good state of repair and condition.
+        </Block>
+        <Block label="Alterations">
+          No external or structural alterations are allowed. Any internal non-structural alterations require Our prior approval. Any alterations must be removed at the end of the term unless We request that You do not do this.
+        </Block>
+        <Row label="Signage"               value="All external signs must be approved by Us" />
+        <Row label="Agreement transferable" value="No" />
+        <Row label="Subletting"             value="Not allowed" />
+      </div>
+
+      {/* Network Rail */}
+      <div style={cs}>
+        <STitle>Network Rail — Specific Requirements</STitle>
+        <Block label="Network Rail operational break right">
+          Network Rail, as the ultimate landlord, reserves the right to end the Agreement at any time if necessary to protect the safety, function and/or operation of the railway.
+        </Block>
+        <Block label="Arch inspections">
+          The Agreement will contain standard arch inspection provisions which require You to allow full access for inspections and maintenance of the viaduct, including the removal at Your own cost of any fixtures and fittings to enable the inspection.
+        </Block>
+        <Block label="Public liability insurance" gold>
+          You will be responsible for ensuring the appropriate level of public liability insurance is in place. This is currently £3 million.
+        </Block>
+      </div>
+
+      {/* Conditions of letting */}
+      <div style={cs}>
+        <STitle>Conditions of Letting</STitle>
+        <Block label="Subject to contract">
+          These Key Terms remain subject to You and Us signing and completing a valid Agreement (including Our standard Terms and Conditions).
+        </Block>
+        <Block label="Target completion timeline">
+          3 working days from the date of these Key Terms — all of Your required identification documents to be provided to Us to enable Us to carry out necessary checks.
+        </Block>
+        <Row label="Date of Key Terms" value="8 May 2026" gold />
+        <Row label="Additional letting terms" value="None" />
+      </div>
+
+      {/* Glossary */}
+      <div style={cs}>
+        <STitle>Glossary of Key Terms</STitle>
+        {glossary.map(g => (
+          <div key={g.t} style={{ display:'flex', gap:12, padding:'8px 0', borderBottom:'1px solid rgba(255,255,255,0.05)' }}>
+            <div style={{ fontSize:12, color:'var(--gold)', minWidth:180, flexShrink:0, fontWeight:600, textTransform:'lowercase' }}>{g.t}</div>
+            <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>{g.d}</div>
+          </div>
+        ))}
+      </div>
+
+      <div style={{ ...cs, background:'rgba(201,168,76,0.04)', borderColor:'rgba(201,168,76,0.25)' }}>
+        <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:6 }}>Source</div>
+        <div style={{ fontSize:12, color:'var(--cream-dim)', lineHeight:1.6 }}>
+          The Arch Company Properties Limited — Key Terms document, Space Ref <strong style={{ color:'var(--cream)' }}>LOF01303</strong>, dated <strong style={{ color:'var(--cream)' }}>8 May 2026</strong>. Reproduced in full above; subject to contract and to the standard Agreement Terms and Conditions referred to in the document.
+        </div>
+      </div>
+
+    </div>
+  )
+}
+
 export default function VenueInfo() {
   const [tab, setTab] = useState('catchment')
   const tabComponents = {
-    catchment:   <TabCatchment />,
-    location:    <TabLocation />,
-    floorPlan:   <TabFloorPlan />,
-    gallery:     <GalleryHub />,
-    licence:     <TabLicence />,
-    development: <TabDevelopment />,
+    catchment:    <TabCatchment />,
+    location:     <TabLocation />,
+    floorPlan:    <TabFloorPlan />,
+    gallery:      <GalleryHub />,
+    licence:      <TabLicence />,
+    development:  <TabDevelopment />,
+    headsOfTerms: <TabHeadsOfTerms />,
   }
   return (
     <div style={{ minHeight:'100%', background:'var(--ink)', color:'var(--cream)' }}>
