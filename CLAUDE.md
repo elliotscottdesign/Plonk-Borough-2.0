@@ -2,6 +2,13 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## Working-style rules (founder-set, treat as load-bearing)
+
+- **Apps Script changes: always send the FULL file.** The founder is not a coder and will not hunt for line numbers, find-and-replace blocks, or count braces. Whenever an `infra/*.gs` file needs to change, deliver the complete new file as one paste-and-replace block ("select all → delete → paste → save → deploy new version"). Never ship diffs, snippets, or "find this block and change it" instructions for Apps Script.
+- **Commit + push to main after every change.** "Commit" on this project means commit + push direct to main; the founder is non-technical and wants shipping to be one step ([memory: feedback_commit_push.md]).
+- **Workbook links: always send a fresh URL** when mentioning a workbook (don't assume a previous link is still in context).
+- **Be specific in deploy steps.** "Save → Deploy → Manage deployments → ✏️ pencil → Version: New version → Deploy" — never assume the founder remembers the path.
+
 ## Project
 
 Single-page React investor presentation for **No Dice Borough Ltd** (Borough Market experience venue). Vite + React 18 + Tailwind 3 + Recharts + lucide-react. Deployed as a static site to GitHub Pages at `nodice.bar` (custom domain via [public/CNAME](public/CNAME)).
