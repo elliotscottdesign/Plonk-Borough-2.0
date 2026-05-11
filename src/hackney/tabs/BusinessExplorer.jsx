@@ -1773,14 +1773,32 @@ function TabTillSales2025() {
   const peakValue = monthlyTotals[peakIdx]
   const fmtN = (n) => n.toLocaleString('en-GB')
 
-  // Donut is bar-only: golf ticket categories are filtered out before the
-  // donut is built. The raw `categories` / `totalRevenue` still feed the
-  // KPI strip + monthly chart (those are a faithful record of all till
-  // activity) but the donut shows the bar product mix on its own. Add new
-  // golf SKUs to this set if more are ever introduced.
+  // ─── Bar-only filter ─────────────────────────────────────────────
+  // The investor deal is for No Dice Hackney as a BAR — golf operations
+  // are not part of what's offered. Every visible aggregate on this tab
+  // (KPIs, donut, category table, monthly peak, discount summary, etc.)
+  // filters out golf SKUs so the figures match what's actually for sale.
+  // The underlying till data file is left untouched (audit record); the
+  // bar-only restatement happens here at render time.
   const GOLF_CATS = new Set(['GOLF - Rounds', 'GOLF + TOKEN BUNDLES'])
-  const barCategories = categories.filter(c => !GOLF_CATS.has(c.name))
-  const barTotalRevenue = barCategories.reduce((s, c) => s + c.total, 0)
+  const isBar = (c) => !GOLF_CATS.has(c.name)
+
+  const barCategories     = categories.filter(isBar)
+  const barTotalRevenue   = barCategories.reduce((s, c) => s + c.total, 0)
+  const barMonthlyTotals  = months.map((_, i) =>
+    barCategories.reduce((s, c) => s + (c.monthly?.[i] || 0), 0))
+  const barPeakIdx        = barMonthlyTotals.reduce((bi, v, i, arr) => v > arr[bi] ? i : bi, 0)
+  const barPeakMonth      = months[barPeakIdx]
+  const barPeakValue      = barMonthlyTotals[barPeakIdx]
+  const barAvgSpend       = barTotalRevenue / Math.max(1, totalTxns)
+
+  // Discount summary — restate without the golf rows. Monthly rate strip
+  // stays raw (it isn't broken down by category in the source).
+  const barDiscCategories = disc.categories.filter(isBar)
+  const barDiscGross      = barDiscCategories.reduce((s, c) => s + c.gross, 0)
+  const barDiscAmount     = barDiscCategories.reduce((s, c) => s + c.discount, 0)
+  const barDiscRate       = barDiscGross > 0 ? (barDiscAmount / barDiscGross) * 100 : 0
+
   // Donut: small categories (<1%) folded into "Other"
   const threshold = barTotalRevenue * 0.01
   const major = barCategories.filter(c => c.total >= threshold)
@@ -1815,7 +1833,7 @@ function TabTillSales2025() {
       {/* Slide title — serif, white, mixed-case (matches the new STitle treatment) */}
       <div style={{ marginBottom:4 }}>
         <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2025 · Till Sales by Category</div>
-        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025</div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025 · <span style={{ color:'var(--gold)' }}>bar-only (golf excluded)</span></div>
       </div>
 
       {/* Two compact alert bars — headline + one-line summary visible at all
@@ -1841,7 +1859,7 @@ function TabTillSales2025() {
         </button>
         {tillNoteOpen && (
           <div style={{ padding:'0 18px 14px 48px', fontSize:12, color:'#FDE68A', lineHeight:1.6 }}>
-            Numbers below are gross customer payments through the till — inclusive of VAT, after discounts at the till, before any subsequent refund / comp / accounting restatement. For audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab (sourced from Weekly Merge 2024–2026). Expect the till total here to read higher than the Weekly Merge figure (VAT layer + restatements + refunds + golf-line split — full reconciliation in the Discounts section below).
+            Numbers below are gross customer payments through the till — inclusive of VAT, after discounts at the till, before any subsequent refund / comp / accounting restatement. All figures on this tab are <strong>bar-only</strong> — golf SKUs (GOLF - Rounds, GOLF + TOKEN BUNDLES) are stripped because golf is not part of the No Dice Hackney offering to investors. For audited / P&amp;L revenue see the <strong>2025 Performance</strong> tab (sourced from Weekly Merge 2024–2026). Expect the till total here to read higher than the Weekly Merge figure (VAT layer + restatements + refunds — full reconciliation in the Discounts section below).
           </div>
         )}
       </div>
@@ -1870,12 +1888,12 @@ function TabTillSales2025() {
         )}
       </div>
 
-      {/* KPI strip */}
+      {/* KPI strip — bar-only (golf SKUs filtered out) */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
-        <KpiCard2026 label="Gross till sales" value={fmtMoney(totalRevenue)} sub="Jan → 23 Sep 2025 · inc-VAT" color="var(--gold)" />
-        <KpiCard2026 label="Transactions"     value={fmtN(totalTxns)}        sub={`${fmtMoney(Math.round(avgSpend))} avg spend`} color="#22D3EE" />
-        <KpiCard2026 label="Peak month"       value={peakMonth}              sub={fmtMoney(peakValue)} color="#A78BFA" />
-        <KpiCard2026 label="Coverage"         value="Goodtill only"           sub={`ends ${lastDate}`} color="#F87171" />
+        <KpiCard2026 label="Bar till sales"   value={fmtMoney(barTotalRevenue)} sub="Jan → 23 Sep 2025 · inc-VAT · bar-only" color="var(--gold)" />
+        <KpiCard2026 label="Transactions"     value={fmtN(totalTxns)}            sub={`${fmtMoney(Math.round(barAvgSpend))} avg bar spend`} color="#22D3EE" />
+        <KpiCard2026 label="Peak month"       value={barPeakMonth}               sub={`${fmtMoney(barPeakValue)} · bar-only`} color="#A78BFA" />
+        <KpiCard2026 label="Coverage"         value="Goodtill only"              sub={`ends ${lastDate}`} color="#F87171" />
       </div>
 
       {/* Donut hero + category table — donut promoted as the main visual */}
@@ -1897,7 +1915,7 @@ function TabTillSales2025() {
             <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(barTotalRevenue)}</text>
           </svg>
           <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF', letterSpacing:'0.04em' }}>
-            Jan → 23 Sep 2025 · inc-VAT · golf categories excluded
+            Jan → 23 Sep 2025 · inc-VAT · bar-only
           </div>
           {/* Top 3 callout strip below donut */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginTop:18 }}>
@@ -1910,25 +1928,25 @@ function TabTillSales2025() {
                   {fmtMoney(c.total)}
                 </div>
                 <div style={{ fontSize:10, color:TILL_CAT_PALETTE[i], fontVariantNumeric:'tabular-nums' }}>
-                  {((c.total/totalRevenue)*100).toFixed(1)}%
+                  {((c.total/barTotalRevenue)*100).toFixed(1)}%
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Category table — only major rows by default */}
+        {/* Category table — only major rows by default · bar-only */}
         <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
           <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
-            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>By category · descending</div>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>By category · descending · bar-only</div>
             <div style={{ fontSize:10, color:'#6B7280' }}>
-              {showMinor ? `${categories.length} categories` : `${major.length} of ${categories.length} · over 1% only`}
+              {showMinor ? `${barCategories.length} bar categories` : `${major.length} of ${barCategories.length} · over 1% only`}
             </div>
           </div>
           <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-            {(showMinor ? categories : major).map((c, i) => {
-              const pct = (c.total / totalRevenue) * 100
-              const barW = (c.total / categories[0].total) * 100
+            {(showMinor ? barCategories : major).map((c, i) => {
+              const pct = (c.total / barTotalRevenue) * 100
+              const barW = (c.total / barCategories[0].total) * 100
               const isMinor = c.total < threshold
               const color = isMinor
                 ? '#475569'
@@ -1971,9 +1989,9 @@ function TabTillSales2025() {
             </button>
           )}
           <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, fontSize:11, fontWeight:700 }}>
-            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total</div>
+            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Bar total</div>
             <div />
-            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(totalRevenue)}</div>
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(barTotalRevenue)}</div>
             <div style={{ textAlign:'right', color:'#9CA3AF' }}>100%</div>
           </div>
         </div>
@@ -1996,7 +2014,7 @@ function TabTillSales2025() {
                 Discounts
               </div>
               <div style={{ fontSize:12, color:'#9CA3AF', marginTop:4 }}>
-                Cost against drink sales · {fmtMoney(Math.round(disc.totalDiscount))} discounted · {disc.discountRate.toFixed(2)}% of gross · {fmtN(disc.discountedOrders)} discounted orders of {fmtN(disc.totalOrders)}
+                Cost against drink sales · {fmtMoney(Math.round(barDiscAmount))} discounted · {barDiscRate.toFixed(2)}% of gross · bar-only (golf excluded)
               </div>
             </div>
           </div>
@@ -2009,8 +2027,8 @@ function TabTillSales2025() {
           <div style={{ padding:'4px 18px 20px', borderTop:'1px solid rgba(201,168,76,0.12)' }}>
             {/* KPI strip */}
             <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginTop:14, marginBottom:18 }}>
-              <KpiCard2026 label="Total discounted"    value={fmtMoney(Math.round(disc.totalDiscount))} sub={`${disc.discountRate.toFixed(2)}% of gross`} color="#F87171" />
-              <KpiCard2026 label="Discounted orders"   value={fmtN(disc.discountedOrders)}              sub={`${disc.discountedOrderPct}% of orders`} color="#FB923C" />
+              <KpiCard2026 label="Total discounted"    value={fmtMoney(Math.round(barDiscAmount))}   sub={`${barDiscRate.toFixed(2)}% of bar gross`} color="#F87171" />
+              <KpiCard2026 label="Discounted orders"   value={fmtN(disc.discountedOrders)}            sub={`${disc.discountedOrderPct}% of orders`} color="#FB923C" />
               <KpiCard2026 label="Avg per disc. order" value={fmtMoney(Math.round(disc.avgDiscountPerDiscountedOrder))} sub="across discounted orders" color="#FBBF24" />
               <KpiCard2026 label="Peak window"         value="Apr–Jun" sub="~9% vs ~5% baseline" color="#A78BFA" />
             </div>
@@ -2054,7 +2072,7 @@ function TabTillSales2025() {
               <div style={{ textAlign:'right' }}>Rate</div>
             </div>
             <div style={{ display:'flex', flexDirection:'column', gap:4 }}>
-              {disc.categories.map((c, i) => {
+              {barDiscCategories.map((c, i) => {
                 const heat = c.rate >= 15 ? '#F87171' : c.rate >= 8 ? '#FB923C' : c.rate >= 4 ? '#FBBF24' : '#9CA3AF'
                 const flag = c.rate >= 15 ? '🚨' : c.rate >= 8 ? '⚠' : ''
                 return (
@@ -2208,14 +2226,14 @@ function TabTillSales2025() {
                 Why doesn't this match the Weekly Merge 2024-2026 sheet?
               </div>
               <div style={{ color:'#CBD5E1' }}>
-                Like-for-like Jan→Aug 2025: Goodtill till data <strong>£595k inc-VAT</strong> vs Monthly Summary
-                <strong> £383k</strong> — gap ~£212k. Discounts (~£39k) account for only ~6% of the gap. The rest
-                is structural: <strong>(1)</strong> Goodtill totals are gross of VAT (~£99k of the gap is the 20%
-                layer); <strong>(2)</strong> Monthly Summary is post-restatement / re-categorisation; <strong>(3)</strong>
-                Goodtill captures till-rung golf entries that Weekly Merge splits to a separate Online Golf line;
-                <strong> (4)</strong> refunds / voids / comps recorded after COMPLETED. Bottom line: <strong>this
-                till data is for product-mix and discount analytics — not for the P&amp;L</strong>. Weekly Merge
-                2024-2026 stays the canonical revenue figure.
+                Every aggregate on this tab is <strong>bar-only</strong> — golf SKUs (GOLF - Rounds, GOLF + TOKEN
+                BUNDLES, totalling ~£58k inc-VAT) are filtered out at render time because golf is not part of the
+                No Dice Hackney offering to investors. The remaining gap vs the Monthly Summary in the
+                <strong> 2025 Performance</strong> tab is structural: <strong>(1)</strong> Goodtill totals are
+                gross of VAT (the 20% layer is the largest single chunk); <strong>(2)</strong> Monthly Summary is
+                post-restatement / re-categorisation; <strong>(3)</strong> refunds / voids / comps recorded after
+                COMPLETED. Bottom line: <strong>this till data is for product-mix and discount analytics — not
+                for the P&amp;L</strong>. Weekly Merge 2024-2026 stays the canonical revenue figure.
               </div>
             </div>
           </div>
