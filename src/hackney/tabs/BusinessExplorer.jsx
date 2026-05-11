@@ -1773,10 +1773,18 @@ function TabTillSales2025() {
   const peakValue = monthlyTotals[peakIdx]
   const fmtN = (n) => n.toLocaleString('en-GB')
 
+  // Donut is bar-only: golf ticket categories are filtered out before the
+  // donut is built. The raw `categories` / `totalRevenue` still feed the
+  // KPI strip + monthly chart (those are a faithful record of all till
+  // activity) but the donut shows the bar product mix on its own. Add new
+  // golf SKUs to this set if more are ever introduced.
+  const GOLF_CATS = new Set(['GOLF - Rounds', 'GOLF + TOKEN BUNDLES'])
+  const barCategories = categories.filter(c => !GOLF_CATS.has(c.name))
+  const barTotalRevenue = barCategories.reduce((s, c) => s + c.total, 0)
   // Donut: small categories (<1%) folded into "Other"
-  const threshold = totalRevenue * 0.01
-  const major = categories.filter(c => c.total >= threshold)
-  const minor = categories.filter(c => c.total < threshold)
+  const threshold = barTotalRevenue * 0.01
+  const major = barCategories.filter(c => c.total >= threshold)
+  const minor = barCategories.filter(c => c.total < threshold)
   const minorTotal = minor.reduce((s, c) => s + c.total, 0)
   const donutCats = minorTotal > 0
     ? [...major, { name: 'Other (<1% combined)', total: minorTotal, qty: minor.reduce((s,c)=>s+c.qty,0) }]
@@ -1880,16 +1888,16 @@ function TabTillSales2025() {
           <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
             {arcs.map((a, i) => (
               <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
-                <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/totalRevenue)*100).toFixed(1)}%)`}</title>
+                <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/barTotalRevenue)*100).toFixed(1)}%)`}</title>
               </path>
             ))}
             {/* Centre label sits well inside the donut hole so it doesn't clip
                 the surrounding arc band. The dating moves below the SVG. */}
-            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">TOTAL TILL SALES</text>
-            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(totalRevenue)}</text>
+            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">BAR TILL SALES</text>
+            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(barTotalRevenue)}</text>
           </svg>
           <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF', letterSpacing:'0.04em' }}>
-            Jan → 23 Sep 2025 · inc-VAT
+            Jan → 23 Sep 2025 · inc-VAT · golf categories excluded
           </div>
           {/* Top 3 callout strip below donut */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:10, marginTop:18 }}>
