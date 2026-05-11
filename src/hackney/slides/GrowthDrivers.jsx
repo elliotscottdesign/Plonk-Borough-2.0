@@ -17,8 +17,8 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 const DRIVER_DEFS = [
   {
     key: 'seo',
-    title: 'SEO Rebuild from Day 1',
-    intro: 'Restore organic search visibility from launch — domain authority preserved via 301 redirect, structured data, local schema, content depth. Drives discovery for high-intent searches (London Fields bar, late-night Hackney, etc.).',
+    title: 'Registered as a Bar on Google',
+    intro: 'Now we will be registered as a Bar on Google — driving more footfall via Google traffic and searches across Google Business and Maps.',
     color: '#22D3EE',
   },
   {
