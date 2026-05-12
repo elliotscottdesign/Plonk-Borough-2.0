@@ -348,3 +348,174 @@ function _pad(s, n) {
   if (s.length >= n) return s.slice(0, n - 1) + ' '
   return s + new Array(n - s.length + 1).join(' ')
 }
+
+// ─── Usage audit — scans formula references across the workbook ───
+// For each sheet, counts how many other sheets read it (incoming
+// refs) and how many it reads from (outgoing refs), then classifies:
+//   HUB         — read by others AND reads from others (live compute)
+//   SOURCE-only — read by others, doesn't read anything (pure data)
+//   OUTPUT-only — reads from others, nothing reads it (dashboard / view)
+//   ORPHAN      — no formula links in either direction (suspect)
+//   EMPTY       — fewer than 20 non-empty cells total (likely dead)
+//
+// Use the report to decide what to merge/archive/delete. Read-only —
+// never modifies the workbook.
+function auditSheetUsage() {
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var sheets = ss.getSheets()
+
+  // ─── Pass 1: collect basic stats + every formula on every sheet ───
+  var info = []
+  var allFormulas = {}
+  sheets.forEach(function(sh) {
+    var name = sh.getName()
+    var rows = sh.getLastRow()
+    var cols = sh.getLastColumn()
+    var nonEmpty = 0
+    var formulas = []
+    if (rows > 0 && cols > 0) {
+      var values = sh.getRange(1, 1, rows, cols).getValues()
+      var fmls   = sh.getRange(1, 1, rows, cols).getFormulas()
+      for (var r = 0; r < rows; r++) {
+        for (var c = 0; c < cols; c++) {
+          if (values[r][c] !== '' && values[r][c] !== null) nonEmpty++
+          if (fmls[r][c]) formulas.push(fmls[r][c])
+        }
+      }
+    }
+    allFormulas[name] = formulas
+    info.push({
+      name: name, rows: rows, cols: cols,
+      nonEmpty: nonEmpty, formulaCount: formulas.length,
+      incomingRefs: 0, outgoingRefs: 0,
+      referencedBy: [], references: [],
+      status: '',
+    })
+  })
+
+  // ─── Pass 2: incoming refs (other sheets pointing at me) ──────────
+  info.forEach(function(s) {
+    var nameEsc = s.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+    // Quoted form: 'Sheet Name'!  — needed for any name with spaces
+    var rxQuoted   = new RegExp("'" + nameEsc.replace(/'/g, "''") + "'!", 'i')
+    // Unquoted form: SheetName!   — only valid for names without special chars
+    var rxUnquoted = new RegExp("(^|[^A-Za-z0-9_'])" + nameEsc + "!", 'i')
+    var refByMap = {}
+    Object.keys(allFormulas).forEach(function(otherName) {
+      if (otherName === s.name) return
+      var fmls = allFormulas[otherName]
+      var hits = 0
+      for (var i = 0; i < fmls.length; i++) {
+        var f = fmls[i]
+        if (rxQuoted.test(f) || rxUnquoted.test(f)) hits++
+      }
+      if (hits > 0) {
+        s.incomingRefs += hits
+        refByMap[otherName] = hits
+      }
+    })
+    s.referencedBy = Object.keys(refByMap).map(function(k) { return k + '(' + refByMap[k] + ')' })
+  })
+
+  // ─── Pass 3: outgoing refs (which sheets I read from) ─────────────
+  info.forEach(function(s) {
+    var fmls = allFormulas[s.name]
+    var refMap = {}
+    for (var i = 0; i < fmls.length; i++) {
+      var f = fmls[i]
+      // Find every 'Quoted Name'! and UnquotedName! pattern in the formula
+      var qMatches = f.match(/'([^']+)'!/g) || []
+      qMatches.forEach(function(m) {
+        var n = m.slice(1, -2)  // strip leading ' and trailing '!
+        if (n && n !== s.name) refMap[n] = (refMap[n] || 0) + 1
+      })
+      var uMatches = f.match(/(?:^|[^A-Za-z0-9_'])([A-Za-z_][A-Za-z0-9_]*)!/g) || []
+      uMatches.forEach(function(m) {
+        var n = m.replace(/!$/, '').replace(/^[^A-Za-z_]+/, '')
+        if (n && n !== s.name) refMap[n] = (refMap[n] || 0) + 1
+      })
+    }
+    Object.keys(refMap).forEach(function(k) {
+      s.outgoingRefs += refMap[k]
+      s.references.push(k + '(' + refMap[k] + ')')
+    })
+  })
+
+  // ─── Classify ─────────────────────────────────────────────────────
+  info.forEach(function(s) {
+    var emptyish = s.nonEmpty < 20
+    var isolated = s.incomingRefs === 0 && s.outgoingRefs === 0
+    if (emptyish && isolated)              s.status = 'EMPTY+ORPHAN'
+    else if (emptyish)                     s.status = 'EMPTY'
+    else if (isolated)                     s.status = 'ORPHAN'
+    else if (s.incomingRefs === 0 && s.outgoingRefs > 0) s.status = 'OUTPUT-only'
+    else if (s.incomingRefs > 0  && s.outgoingRefs === 0) s.status = 'SOURCE-only'
+    else                                    s.status = 'HUB'
+  })
+
+  // ─── Output ──────────────────────────────────────────────────────
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════════════════════════════')
+  lines.push(' Hackney Workbook · Sheet Usage Audit  · ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════════════════════════════')
+  lines.push('Workbook: ' + ss.getName() + '   ·   ' + sheets.length + ' sheets scanned')
+  lines.push('')
+  lines.push(_pad('Sheet name', 38) + _pad('Rows', 6) + _pad('Cols', 5) + _pad('Cells', 7) + _pad('In', 5) + _pad('Out', 5) + _pad('Status', 15) + 'Top links')
+  lines.push(new Array(140).join('─'))
+  info.forEach(function(s) {
+    var note = ''
+    if (s.status === 'EMPTY' || s.status === 'EMPTY+ORPHAN') {
+      note = '⚠ archive candidate (empty)'
+    } else if (s.status === 'ORPHAN') {
+      note = '⚠ archive candidate (no formula links)'
+    } else if (s.incomingRefs === 0) {
+      note = 'reads ' + s.references.slice(0, 3).join(', ') + (s.references.length > 3 ? ' …' : '')
+    } else if (s.outgoingRefs === 0) {
+      note = 'read by ' + s.referencedBy.slice(0, 3).join(', ') + (s.referencedBy.length > 3 ? ' …' : '')
+    } else {
+      note = 'in:' + s.referencedBy.slice(0, 2).join(',') + ' | out:' + s.references.slice(0, 2).join(',')
+    }
+    lines.push(
+      _pad(s.name, 38) +
+      _pad(String(s.rows), 6) +
+      _pad(String(s.cols), 5) +
+      _pad(String(s.nonEmpty), 7) +
+      _pad(String(s.incomingRefs), 5) +
+      _pad(String(s.outgoingRefs), 5) +
+      _pad(s.status, 15) +
+      note
+    )
+  })
+
+  // ─── Summary by status ────────────────────────────────────────────
+  lines.push('')
+  lines.push('─── Summary by status ─────────────────────────────────────')
+  var counts = {}
+  info.forEach(function(s) { counts[s.status] = (counts[s.status] || 0) + 1 })
+  Object.keys(counts).sort().forEach(function(k) {
+    lines.push('  ' + _pad(k, 16) + counts[k] + ' sheet(s)')
+  })
+
+  // ─── Archive candidates ──────────────────────────────────────────
+  var archiveCandidates = info.filter(function(s) {
+    return s.status === 'ORPHAN' || s.status === 'EMPTY' || s.status === 'EMPTY+ORPHAN'
+  })
+  if (archiveCandidates.length > 0) {
+    lines.push('')
+    lines.push('─── Archive candidates (no formula links / empty) ────────')
+    archiveCandidates.forEach(function(s) {
+      lines.push('  • ' + _pad(s.name, 36) + s.status + '   ' + s.nonEmpty + ' cells')
+    })
+  }
+
+  // ─── Largest sheets (cells) ──────────────────────────────────────
+  var byCells = info.slice().sort(function(a, b) { return b.nonEmpty - a.nonEmpty })
+  lines.push('')
+  lines.push('─── Top 10 by populated cell count ───────────────────────')
+  byCells.slice(0, 10).forEach(function(s) {
+    lines.push('  ' + _pad(s.name, 36) + _pad(String(s.nonEmpty), 8) + 'cells   ' + s.status)
+  })
+
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
