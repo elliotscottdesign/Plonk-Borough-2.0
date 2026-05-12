@@ -4,43 +4,155 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width,initial-scale=1" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Plonk Golf — redirecting…</title>
+    <title>Plonk Golf — preview access</title>
 
     <!--
-      Shareable short-link. nodice.bar/plonk forwards to plonkgolf.co.uk
-      so the URL is easier to share / type on a phone.
+      Shareable preview link. Visitors type the access code here; on the
+      correct code we forward them to https://plonkgolf.co.uk. The check
+      is client-side only — it's a friction gate to stop random discovery
+      visitors stumbling onto the live booking flow, NOT real security.
+      To change the code, edit ACCESS_CODE below.
+
+      We also remember the unlock in localStorage so the same browser
+      skips the form on repeat visits.
     -->
 
-    <meta http-equiv="refresh" content="0; url=https://plonkgolf.co.uk/" />
-    <link rel="canonical" href="https://plonkgolf.co.uk/" />
-    <script>
-      window.location.replace("https://plonkgolf.co.uk/");
-    </script>
     <style>
+      :root {
+        --ink: #0e2a21;
+        --cream: #f2ebd9;
+        --gold: #e8c547;
+        --red: #f3a6b0;
+      }
       html,
       body {
         margin: 0;
         padding: 0;
-        height: 100%;
-        background: #0e2a21;
-        color: #f2ebd9;
+        min-height: 100%;
+        background: var(--ink);
+        color: var(--cream);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      }
+      body {
         display: flex;
         align-items: center;
         justify-content: center;
+        padding: 32px 24px;
+        box-sizing: border-box;
+      }
+      .card {
+        width: 100%;
+        max-width: 420px;
         text-align: center;
       }
-      a {
-        color: #e8c547;
+      h1 {
+        font-family: Georgia, "Times New Roman", serif;
+        font-weight: 400;
+        font-size: 40px;
+        line-height: 1.1;
+        margin: 0 0 12px;
+      }
+      p.sub {
+        margin: 0 0 28px;
+        color: rgba(242, 235, 217, 0.7);
+        font-size: 15px;
+        line-height: 1.5;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      input {
+        padding: 14px 16px;
+        border-radius: 10px;
+        border: 1px solid rgba(242, 235, 217, 0.25);
+        background: rgba(0, 0, 0, 0.25);
+        color: var(--cream);
+        font-size: 16px;
+        text-align: center;
+        letter-spacing: 0.15em;
+        text-transform: uppercase;
+        outline: none;
+      }
+      input:focus {
+        border-color: var(--gold);
+      }
+      button {
+        padding: 14px 20px;
+        border-radius: 999px;
+        border: none;
+        background: var(--gold);
+        color: var(--ink);
+        font-weight: 700;
+        font-size: 13px;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        cursor: pointer;
+      }
+      button:hover {
+        filter: brightness(1.05);
+      }
+      p.err {
+        margin: 0;
+        color: var(--red);
+        font-size: 13px;
+        min-height: 18px;
       }
     </style>
   </head>
   <body>
-    <div>
-      <p style="font-size: 18px; margin: 0 0 12px">Redirecting you to Plonk Golf…</p>
-      <p style="font-size: 14px; opacity: 0.7; margin: 0">
-        If nothing happens, <a href="https://plonkgolf.co.uk/">click here</a>.
-      </p>
+    <div class="card">
+      <h1>Plonk Golf</h1>
+      <p class="sub">Preview only. Enter the access code to continue.</p>
+      <form id="f">
+        <input
+          id="code"
+          type="text"
+          autocomplete="off"
+          autocapitalize="characters"
+          placeholder="Access code"
+          autofocus
+        />
+        <p class="err" id="err"></p>
+        <button type="submit">Enter</button>
+      </form>
     </div>
+
+    <script>
+      var ACCESS_CODE = "PLONK";
+      var DESTINATION = "https://plonkgolf.co.uk/";
+      var STORAGE_KEY = "ndb_plonk_preview";
+
+      // If they've unlocked before on this device, skip the form.
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === "1") {
+          window.location.replace(DESTINATION);
+        }
+      } catch (e) {
+        /* localStorage might be blocked — just show the form */
+      }
+
+      var form = document.getElementById("f");
+      var input = document.getElementById("code");
+      var err = document.getElementById("err");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var entered = (input.value || "").trim().toUpperCase();
+        if (entered === ACCESS_CODE) {
+          try {
+            localStorage.setItem(STORAGE_KEY, "1");
+          } catch (e2) {
+            /* ignore */
+          }
+          window.location.replace(DESTINATION);
+        } else {
+          err.textContent = "That's not the right code.";
+          input.focus();
+          input.select();
+        }
+      });
+    </script>
   </body>
 </html>
