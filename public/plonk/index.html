@@ -2,19 +2,24 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
     <meta name="robots" content="noindex,nofollow" />
-    <title>Plonk Golf — preview access</title>
+    <title>Plonk Golf — preview</title>
 
     <!--
-      Shareable preview link. Visitors type the access code here; on the
-      correct code we forward them to https://plonkgolf.co.uk. The check
-      is client-side only — it's a friction gate to stop random discovery
-      visitors stumbling onto the live booking flow, NOT real security.
-      To change the code, edit ACCESS_CODE below.
+      nodice.bar/plonk — preview shortcut for the new Plonk Golf build.
+      Visitor enters the PLONK code → we render the Cloudflare Pages
+      preview in a full-screen iframe so the address bar stays on
+      www.nodice.bar/plonk the whole time.
 
-      We also remember the unlock in localStorage so the same browser
-      skips the form on repeat visits.
+      Notes:
+      - Access code is client-side only. It's a friction gate, not real
+        security. To rotate it, edit ACCESS_CODE below.
+      - localStorage records the unlock per device so they only type
+        the code once.
+      - Links inside the iframe stay inside the iframe (relative paths
+        navigate within plonkgolf-website.pages.dev) — the parent URL
+        stays as nodice.bar/plonk.
     -->
 
     <style>
@@ -28,12 +33,15 @@
       body {
         margin: 0;
         padding: 0;
-        min-height: 100%;
+        height: 100%;
         background: var(--ink);
         color: var(--cream);
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        overflow: hidden;
       }
-      body {
+      #gate {
+        position: fixed;
+        inset: 0;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -99,43 +107,72 @@
         font-size: 13px;
         min-height: 18px;
       }
+      #frame {
+        position: fixed;
+        inset: 0;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+      }
+      .hidden {
+        display: none !important;
+      }
     </style>
   </head>
   <body>
-    <div class="card">
-      <h1>Plonk Golf</h1>
-      <p class="sub">Preview only. Enter the access code to continue.</p>
-      <form id="f">
-        <input
-          id="code"
-          type="text"
-          autocomplete="off"
-          autocapitalize="characters"
-          placeholder="Access code"
-          autofocus
-        />
-        <p class="err" id="err"></p>
-        <button type="submit">Enter</button>
-      </form>
+    <div id="gate">
+      <div class="card">
+        <h1>Plonk Golf</h1>
+        <p class="sub">Preview only. Enter the access code to continue.</p>
+        <form id="f">
+          <input
+            id="code"
+            type="text"
+            autocomplete="off"
+            autocapitalize="characters"
+            placeholder="Access code"
+            autofocus
+          />
+          <p class="err" id="err"></p>
+          <button type="submit">Enter</button>
+        </form>
+      </div>
     </div>
+
+    <iframe
+      id="frame"
+      class="hidden"
+      title="Plonk Golf preview"
+      src="about:blank"
+      allow="payment; clipboard-read; clipboard-write"
+    ></iframe>
 
     <script>
       var ACCESS_CODE = "PLONK";
-      var DESTINATION = "https://plonkgolf.co.uk/";
+      var DESTINATION = "https://plonkgolf-website.pages.dev/";
       var STORAGE_KEY = "ndb_plonk_preview";
 
-      // If they've unlocked before on this device, skip the form.
-      try {
-        if (localStorage.getItem(STORAGE_KEY) === "1") {
-          window.location.replace(DESTINATION);
-        }
-      } catch (e) {
-        /* localStorage might be blocked — just show the form */
-      }
-
+      var gate = document.getElementById("gate");
+      var frame = document.getElementById("frame");
       var form = document.getElementById("f");
       var input = document.getElementById("code");
       var err = document.getElementById("err");
+
+      function unlock() {
+        frame.src = DESTINATION;
+        frame.classList.remove("hidden");
+        gate.classList.add("hidden");
+      }
+
+      // Already unlocked on this device? Skip the form.
+      try {
+        if (localStorage.getItem(STORAGE_KEY) === "1") {
+          unlock();
+        }
+      } catch (e) {
+        /* localStorage blocked — just show the form */
+      }
 
       form.addEventListener("submit", function (e) {
         e.preventDefault();
@@ -146,7 +183,7 @@
           } catch (e2) {
             /* ignore */
           }
-          window.location.replace(DESTINATION);
+          unlock();
         } else {
           err.textContent = "That's not the right code.";
           input.focus();
