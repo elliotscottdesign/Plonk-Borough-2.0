@@ -114,18 +114,21 @@ const CAT_BY_CODE = (() => {
 // here it gets tagged 'uncategorised' (red) so it's impossible to
 // miss in the workbook.
 const RULES = [
-  // System (NotesHistory, daily backups, lock sync)
+  // ─── System (NotesHistory, daily backups, lock state) ─────────
   { code: 'system',         pattern: /^NotesHistory$/i },
   { code: 'system',         pattern: /^Notes_Backup_\d{4}-\d{2}-\d{2}$/i },
-  { code: 'system',         pattern: /lock.*sync|sync.*lock|lock_state|forecast.*lock/i },
+  { code: 'system',         pattern: /lock.*sync|sync.*lock|forecast.*lock/i },
+  { code: 'system',         pattern: /^lock[\s_-]*state$/i },
+  { code: 'system',         pattern: /^error[\s_-]*log$/i },
 
-  // Investor input — the live Notes sheet
+  // ─── Investor input — the live Notes sheet ────────────────────
   { code: 'investor_input', pattern: /^Notes$/i },
 
-  // Raw data — Goodtill exports and other untouched dumps
+  // ─── Raw data — Goodtill exports and other untouched dumps ────
   { code: 'raw_data',       pattern: /goodtill|raw[\s_-]*(till|data|export)|export[\s_-]*raw|till[\s_-]*export/i },
 
-  // Deck source of truth — sheets that drive the React deck content
+  // ─── Deck source of truth — sheets that drive the React deck ──
+  // Generic patterns (apply across both Borough and Hackney workbooks)
   { code: 'deck_source',    pattern: /weekly[\s_-]*merge|weekly[\s_-]*merged/i },
   { code: 'deck_source',    pattern: /monthly[\s_-]*summary|monthly[\s_-]*p&?l|monthly[\s_-]*pnl/i },
   { code: 'deck_source',    pattern: /\bforecast\b|\bcashflow\b|cash[\s_-]*flow/i },
@@ -135,9 +138,30 @@ const RULES = [
   { code: 'deck_source',    pattern: /investor[\s_-]*returns?|waterfall|deal[\s_-]*terms?/i },
   { code: 'deck_source',    pattern: /discount[s]?[\s_-]*(summary|analysis|breakdown)/i },
   { code: 'deck_source',    pattern: /till[\s_-]*sales?[\s_-]*(by[\s_-]*category|clean|cleaned)|2025[\s_-]*till|hackney[\s_-]*till/i },
+  // Hackney workbook-specific named sheets
+  { code: 'deck_source',    pattern: /^category[\s_-]*aggregates?$/i },
+  { code: 'deck_source',    pattern: /^sales$/i },
+  { code: 'deck_source',    pattern: /^(investor|investment)[\s_-]*(summary|valuation|rounds?|model)/i },
+  { code: 'deck_source',    pattern: /^dividend[\s_-]*(&[\s_-]*)?distribution/i },
+  { code: 'deck_source',    pattern: /^scenario[\s_-]*planning$/i },
+  { code: 'deck_source',    pattern: /^downside[\s_-]*scenario$/i },
+  { code: 'deck_source',    pattern: /^summary$/i },
+  { code: 'deck_source',    pattern: /^events?[\s_-]*strategy$/i },
+  { code: 'deck_source',    pattern: /^growth[\s_-]*drivers?$/i },
+  { code: 'deck_source',    pattern: /^capacity[\s_-]*model$/i },
+  { code: 'deck_source',    pattern: /^tech[\s_-]*optimisation$/i },
+  { code: 'deck_source',    pattern: /^inputs?$/i },
+  { code: 'deck_source',    pattern: /^annual[\s_-]*overview$/i },
+  { code: 'deck_source',    pattern: /^performance[\s_-]*charts?$/i },
+  { code: 'deck_source',    pattern: /^\d{4}[\s_-]*weekly[\s_-]*totals?$/i },
+  { code: 'deck_source',    pattern: /^weekly[\s_-]*data$/i },
+  // Monthly raw-entry tabs (January..December roll up into Weekly Merged)
+  { code: 'deck_source',    pattern: /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i },
 
-  // Internal / founder working sheets (last sieve before uncategorised)
+  // ─── Internal / founder dashboards & working sheets ───────────
   { code: 'internal',       pattern: /scratch|draft|wip|workings?|sandbox|notes?[\s_-]*pad/i },
+  { code: 'internal',       pattern: /^control[\s_-]*panel$/i },
+  { code: 'internal',       pattern: /^audit[\s_-]*(view|dashboard|panel)$/i },
 ]
 
 function _categorise(name) {
