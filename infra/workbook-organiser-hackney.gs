@@ -92,6 +92,13 @@ const CATEGORIES = [
     desc:  'Working sheets, scratch calculations, ad-hoc analysis. Not shown to investors via the deck; not on the audit path either.',
   },
   {
+    code:  'archive',
+    label: 'Archive',
+    emoji: '🗄',
+    color: '#374151', // dark grey
+    desc:  'Retained for audit but no longer in use. Prefixed with _ARCHIVE_ so they always sort to the bottom. Safe to delete manually if you don\'t need the historical content.',
+  },
+  {
     code:  'uncategorised',
     label: 'Uncategorised (needs a rule)',
     emoji: '❓',
@@ -114,18 +121,27 @@ const CAT_BY_CODE = (() => {
 // here it gets tagged 'uncategorised' (red) so it's impossible to
 // miss in the workbook.
 const RULES = [
+  // ─── Archive (always wins — prefix is the marker) ─────────────
+  { code: 'archive',        pattern: /^_ARCHIVE_/i },
+
   // ─── System (NotesHistory, daily backups, lock state) ─────────
   { code: 'system',         pattern: /^NotesHistory$/i },
   { code: 'system',         pattern: /^Notes_Backup_\d{4}-\d{2}-\d{2}$/i },
   { code: 'system',         pattern: /lock.*sync|sync.*lock|forecast.*lock/i },
   { code: 'system',         pattern: /^lock[\s_-]*state$/i },
-  { code: 'system',         pattern: /^error[\s_-]*log$/i },
+  // Note: 'Error Log' previously matched here; now archived so it
+  // goes via the _ARCHIVE_ prefix above.
 
   // ─── Investor input — the live Notes sheet ────────────────────
   { code: 'investor_input', pattern: /^Notes$/i },
 
   // ─── Raw data — Goodtill exports and other untouched dumps ────
   { code: 'raw_data',       pattern: /goodtill|raw[\s_-]*(till|data|export)|export[\s_-]*raw|till[\s_-]*export/i },
+  // 'Sales' is the 1.44M-cell raw Goodtill dump in this workbook.
+  // Exact-match rule placed BEFORE the deck_source `^sales$` rule
+  // used to live here (now removed) so it correctly classifies as
+  // raw data on every run.
+  { code: 'raw_data',       pattern: /^sales$/i },
 
   // ─── Deck source of truth — sheets that drive the React deck ──
   // Generic patterns (apply across both Borough and Hackney workbooks)
@@ -139,13 +155,10 @@ const RULES = [
   { code: 'deck_source',    pattern: /discount[s]?[\s_-]*(summary|analysis|breakdown)/i },
   { code: 'deck_source',    pattern: /till[\s_-]*sales?[\s_-]*(by[\s_-]*category|clean|cleaned)|2025[\s_-]*till|hackney[\s_-]*till/i },
   // Hackney workbook-specific named sheets
-  { code: 'deck_source',    pattern: /^category[\s_-]*aggregates?$/i },
-  { code: 'deck_source',    pattern: /^sales$/i },
   { code: 'deck_source',    pattern: /^(investor|investment)[\s_-]*(summary|valuation|rounds?|model)/i },
   { code: 'deck_source',    pattern: /^dividend[\s_-]*(&[\s_-]*)?distribution/i },
   { code: 'deck_source',    pattern: /^scenario[\s_-]*planning$/i },
   { code: 'deck_source',    pattern: /^downside[\s_-]*scenario$/i },
-  { code: 'deck_source',    pattern: /^summary$/i },
   { code: 'deck_source',    pattern: /^events?[\s_-]*strategy$/i },
   { code: 'deck_source',    pattern: /^growth[\s_-]*drivers?$/i },
   { code: 'deck_source',    pattern: /^capacity[\s_-]*model$/i },
@@ -216,8 +229,10 @@ function _refreshGuideSheet(ss) {
   var notes = [
     ['• Green (Investor Input) is where your notes land when you save them in the deck. The deck writes here automatically — you do not need to open this workbook to use the Notes feature.'],
     ['• Blue (Deck Source of Truth) sheets are the financial figures behind the React deck. If a number changes here it changes in the deck too (after the founder ships an update).'],
+    ['• Some Blue sheets are MANUALLY-MAINTAINED REFERENCE SHEETS — they have no formula links inside this workbook but are still the canonical source for figures published in the React deck. Weekly Merged 2024-2026 is the primary one. Do not delete a Blue sheet on the basis that nothing inside the workbook reads it — the deck reads it directly via constants exported into the React codebase.'],
     ['• Purple (Raw Data) sheets are the underlying till exports — they are kept untouched as an audit trail. The numbers in the deck come from the cleaned, deduplicated versions of these files.'],
     ['• Amber (System / Backups) sheets are written automatically by the back-end scripts. Treat them as read-only — they protect your data against accidental loss.'],
+    ['• Dark-grey (Archive) sheets are retained for audit but no longer in use. Safe to delete manually if you do not need the historical content.'],
   ]
   sh.getRange(footerRow + 1, 1, notes.length, 1).setValues(notes).setFontSize(10).setFontColor('#374151').setWrap(true)
 
@@ -347,6 +362,64 @@ function _pad(s, n) {
   s = String(s)
   if (s.length >= n) return s.slice(0, n - 1) + ' '
   return s + new Array(n - s.length + 1).join(' ')
+}
+
+// ─── Compaction (round 1) ─────────────────────────────────────────
+// Renames the four sheets we agreed to archive — adds the _ARCHIVE_
+// prefix so the categoriser picks them up as 🗄 Archive on the next
+// organise run, and runs the organiser to apply colours + order in
+// one go.
+//
+// Archived sheets:
+//   • Summary               — orphan, superseded by Annual Overview
+//   • Error Log             — old system file (NotesHistory replaces it)
+//   • Category Aggregates   — orphan, not maintained
+//   • Rota Analysis 2025    — orphan, not feeding any other sheet
+//
+// Re-run safely: if the sheet already has the _ARCHIVE_ prefix it
+// is left alone, so calling this twice is a no-op for the second
+// call. Never deletes anything — only renames.
+function compactHackneyWorkbook() {
+  var TARGETS = [
+    'Summary',
+    'Error Log',
+    'Category Aggregates',
+    'Rota Analysis 2025',
+  ]
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var renamed = []
+  var skipped = []
+  TARGETS.forEach(function(name) {
+    var sh = ss.getSheetByName(name)
+    if (!sh) { skipped.push(name + ' (not found)'); return }
+    var newName = '_ARCHIVE_' + name
+    if (ss.getSheetByName(newName)) { skipped.push(name + ' (already archived)'); return }
+    sh.setName(newName)
+    renamed.push(name + ' → ' + newName)
+  })
+
+  // Now run the standard organiser — colours and reorder follow
+  var organiseLog = organiseHackneyWorkbook()
+
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Hackney Workbook · Compaction Round 1')
+  lines.push(' ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('')
+  lines.push('Renamed for archive:')
+  if (renamed.length === 0) lines.push('  (none — all targets already archived or missing)')
+  renamed.forEach(function(r) { lines.push('  ✓ ' + r) })
+  if (skipped.length > 0) {
+    lines.push('')
+    lines.push('Skipped:')
+    skipped.forEach(function(s) { lines.push('  – ' + s) })
+  }
+  lines.push('')
+  lines.push('─── Organiser run that followed ───')
+  lines.push(organiseLog)
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
 }
 
 // ─── Usage audit — scans formula references across the workbook ───
