@@ -1,0 +1,326 @@
+/**
+ * No Dice Hackney — Workbook Organiser (one-shot admin script)
+ * ────────────────────────────────────────────────────────────
+ *
+ * Single-purpose tool: cleans up the Hackney workbook so investors
+ * (and the founder) can tell at a glance which sheets are which.
+ *
+ * What it does, in one run of `organiseHackneyWorkbook()`:
+ *   1. Creates/refreshes a "📖 Sheet Guide" tab at position 1 with
+ *      a legend explaining the colour code.
+ *   2. Tags every other sheet with one of six tab colours by
+ *      pattern-matching its name.
+ *   3. Reorders sheets so they group by category (guide → investor
+ *      input → deck source of truth → raw data → system →
+ *      internal/uncategorised).
+ *   4. Logs a full report so you can paste it back to me — anything
+ *      that ended up in "uncategorised" (yellow with ❓) is a sheet
+ *      I need a tag for.
+ *
+ * What it does NOT do:
+ *   • Never deletes any sheet. Compaction/removal is a manual call;
+ *     after running this, send me the report and I'll list which
+ *     sheets are safe to archive or merge.
+ *   • Never touches cell contents. Tab colour / order / a new guide
+ *     sheet only.
+ *
+ * INSTALL (~2 minutes, ONE time):
+ *   1. Open the Hackney workbook:
+ *      https://docs.google.com/spreadsheets/d/1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg/edit
+ *   2. Extensions → Apps Script. A new project opens.
+ *      Rename it (top-left) to: Hackney Workbook Organiser
+ *   3. Delete the default Code.gs stub. Paste this entire file in.
+ *      Save (⌘/Ctrl + S).
+ *   4. Run menu → organiseHackneyWorkbook. Authorise if prompted
+ *      (needs Sheets access; no email, no web deploy).
+ *   5. Open the workbook — every tab is now colour-coded and the
+ *      📖 Sheet Guide sits at position 1.
+ *   6. Send me the View → Logs output. Anything tagged with ❓ in
+ *      that log is something I need a rule for.
+ *
+ * Safe to re-run any time — it's idempotent. Adding new sheets to
+ * the workbook later? Just re-run and they get tagged + ordered.
+ */
+
+const HACKNEY_SHEET_ID = '1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg'
+
+// ─── Categories ───────────────────────────────────────────────────
+// Order here = display order in the workbook. Each entry has a code,
+// a human label, an emoji prefix shown on the guide sheet, a tab
+// colour, and an explanation that appears on the guide sheet.
+const CATEGORIES = [
+  {
+    code:  'guide',
+    label: 'Sheet Guide',
+    emoji: '📖',
+    color: '#C9A84C', // gold
+    desc:  'Legend for this workbook. Read this first.',
+  },
+  {
+    code:  'investor_input',
+    label: 'Investor Input',
+    emoji: '🟢',
+    color: '#16A34A', // green
+    desc:  'Where investor notes land. One row per access code. Leave as-is — the React deck writes here automatically when an investor saves a note.',
+  },
+  {
+    code:  'deck_source',
+    label: 'Deck Source of Truth',
+    emoji: '🔵',
+    color: '#2563EB', // blue
+    desc:  'Financial sheets that mirror what appears in the React investor deck (Weekly Merge, Monthly Summary, Forecast, Cashflow, Use of Funds, etc.). Edit here → I update the deck constants.',
+  },
+  {
+    code:  'raw_data',
+    label: 'Raw Data',
+    emoji: '🟣',
+    color: '#7E22CE', // purple
+    desc:  'Unprocessed exports (Goodtill till data, raw imports). Audit trail — never edited in place. Source files for the cleaned datasets that feed the deck.',
+  },
+  {
+    code:  'system',
+    label: 'System / Backups',
+    emoji: '🟡',
+    color: '#CA8A04', // amber
+    desc:  'Apps Script writes here automatically — NotesHistory audit log, daily Notes_Backup_YYYY-MM-DD snapshots, lock-sync state. Don\'t edit.',
+  },
+  {
+    code:  'internal',
+    label: 'Internal / Founder',
+    emoji: '⚪',
+    color: '#6B7280', // grey
+    desc:  'Working sheets, scratch calculations, ad-hoc analysis. Not shown to investors via the deck; not on the audit path either.',
+  },
+  {
+    code:  'uncategorised',
+    label: 'Uncategorised (needs a rule)',
+    emoji: '❓',
+    color: '#DC2626', // red — visible warning state
+    desc:  'No pattern matched this sheet — tell Claude what category it belongs to and the rule will be added.',
+  },
+]
+
+const CAT_BY_CODE = (() => {
+  const m = {}
+  CATEGORIES.forEach(c => { m[c.code] = c })
+  return m
+})()
+
+// ─── Categorisation rules ─────────────────────────────────────────
+// Order matters — first match wins. Patterns are case-INSENSITIVE
+// regular expressions tested against the raw sheet name.
+//
+// Add a new sheet name to the list and re-run. If it doesn't match
+// here it gets tagged 'uncategorised' (red) so it's impossible to
+// miss in the workbook.
+const RULES = [
+  // System (NotesHistory, daily backups, lock sync)
+  { code: 'system',         pattern: /^NotesHistory$/i },
+  { code: 'system',         pattern: /^Notes_Backup_\d{4}-\d{2}-\d{2}$/i },
+  { code: 'system',         pattern: /lock.*sync|sync.*lock|lock_state|forecast.*lock/i },
+
+  // Investor input — the live Notes sheet
+  { code: 'investor_input', pattern: /^Notes$/i },
+
+  // Raw data — Goodtill exports and other untouched dumps
+  { code: 'raw_data',       pattern: /goodtill|raw[\s_-]*(till|data|export)|export[\s_-]*raw|till[\s_-]*export/i },
+
+  // Deck source of truth — sheets that drive the React deck content
+  { code: 'deck_source',    pattern: /weekly[\s_-]*merge|weekly[\s_-]*merged/i },
+  { code: 'deck_source',    pattern: /monthly[\s_-]*summary|monthly[\s_-]*p&?l|monthly[\s_-]*pnl/i },
+  { code: 'deck_source',    pattern: /\bforecast\b|\bcashflow\b|cash[\s_-]*flow/i },
+  { code: 'deck_source',    pattern: /use[\s_-]*of[\s_-]*funds|use[\s_-]*of[\s_-]*fund|UoF/i },
+  { code: 'deck_source',    pattern: /\brota\b|\bwages?\b|\bpayroll\b/i },
+  { code: 'deck_source',    pattern: /income[\s_-]*sources?|cost[\s_-]*categor|fixed[\s_-]*costs?|office[\s_-]*costs?/i },
+  { code: 'deck_source',    pattern: /investor[\s_-]*returns?|waterfall|deal[\s_-]*terms?/i },
+  { code: 'deck_source',    pattern: /discount[s]?[\s_-]*(summary|analysis|breakdown)/i },
+  { code: 'deck_source',    pattern: /till[\s_-]*sales?[\s_-]*(by[\s_-]*category|clean|cleaned)|2025[\s_-]*till|hackney[\s_-]*till/i },
+
+  // Internal / founder working sheets (last sieve before uncategorised)
+  { code: 'internal',       pattern: /scratch|draft|wip|workings?|sandbox|notes?[\s_-]*pad/i },
+]
+
+function _categorise(name) {
+  for (var i = 0; i < RULES.length; i++) {
+    if (RULES[i].pattern.test(name)) return RULES[i].code
+  }
+  return 'uncategorised'
+}
+
+// ─── Tab colour helper ────────────────────────────────────────────
+function _setTabColor(sheet, hex) {
+  // setTabColorObject is the modern API; setTabColor takes a hex
+  // string. Use the string form for compatibility across all Apps
+  // Script runtimes.
+  try { sheet.setTabColor(hex) } catch (e) { /* ignore — older runtime */ }
+}
+
+// ─── Guide sheet content ──────────────────────────────────────────
+function _refreshGuideSheet(ss) {
+  var GUIDE_NAME = '📖 Sheet Guide'
+  var sh = ss.getSheetByName(GUIDE_NAME)
+  if (!sh) sh = ss.insertSheet(GUIDE_NAME, 0)
+  sh.clear()
+  sh.setTabColor(CAT_BY_CODE.guide.color)
+
+  // ─── Top banner ───
+  sh.getRange('A1').setValue('No Dice Hackney — Workbook Sheet Guide').setFontSize(18).setFontWeight('bold').setFontFamily('Inter')
+  sh.getRange('A2').setValue('Every tab in this workbook is colour-coded by what it does. Use this legend to navigate.').setFontSize(11).setFontStyle('italic').setFontColor('#6B7280')
+  sh.getRange('A3').setValue('Last refreshed: ' + new Date().toISOString().replace('T',' ').slice(0,16) + ' (re-run organiseHackneyWorkbook in Apps Script to refresh)').setFontSize(9).setFontColor('#9CA3AF')
+
+  // ─── Legend table ───
+  sh.getRange('A5').setValue('Colour key').setFontSize(13).setFontWeight('bold')
+  var legendStart = 7
+  sh.getRange(legendStart - 1, 1, 1, 3)
+    .setValues([['Category', 'Tab colour', 'What it means']])
+    .setFontWeight('bold').setBackground('#F3F4F6').setFontColor('#111827')
+
+  var legendRows = CATEGORIES.map(function(c) {
+    return [c.emoji + ' ' + c.label, c.color, c.desc]
+  })
+  sh.getRange(legendStart, 1, legendRows.length, 3).setValues(legendRows).setVerticalAlignment('top').setWrap(true)
+
+  // Paint each "Tab colour" cell with that category's colour
+  CATEGORIES.forEach(function(c, i) {
+    var cell = sh.getRange(legendStart + i, 2)
+    cell.setBackground(c.color).setFontColor('#FFFFFF').setFontWeight('bold').setHorizontalAlignment('center')
+  })
+
+  // ─── Footer ───
+  var footerRow = legendStart + legendRows.length + 2
+  sh.getRange(footerRow, 1).setValue('Notes for investors').setFontSize(13).setFontWeight('bold')
+  var notes = [
+    ['• Green (Investor Input) is where your notes land when you save them in the deck. The deck writes here automatically — you do not need to open this workbook to use the Notes feature.'],
+    ['• Blue (Deck Source of Truth) sheets are the financial figures behind the React deck. If a number changes here it changes in the deck too (after the founder ships an update).'],
+    ['• Purple (Raw Data) sheets are the underlying till exports — they are kept untouched as an audit trail. The numbers in the deck come from the cleaned, deduplicated versions of these files.'],
+    ['• Amber (System / Backups) sheets are written automatically by the back-end scripts. Treat them as read-only — they protect your data against accidental loss.'],
+  ]
+  sh.getRange(footerRow + 1, 1, notes.length, 1).setValues(notes).setFontSize(10).setFontColor('#374151').setWrap(true)
+
+  // ─── Layout ───
+  sh.setColumnWidth(1, 280)
+  sh.setColumnWidth(2, 140)
+  sh.setColumnWidth(3, 720)
+  sh.setFrozenRows(1)
+  sh.hideGridlines()
+
+  return sh
+}
+
+// ─── Main entrypoint ──────────────────────────────────────────────
+function organiseHackneyWorkbook() {
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var guide = _refreshGuideSheet(ss)
+
+  // Group sheets by category. The guide sheet is in its own slot
+  // (always position 0).
+  var sheets = ss.getSheets()
+  var report = { byCategory: {}, uncategorised: [] }
+
+  CATEGORIES.forEach(function(c) { report.byCategory[c.code] = [] })
+
+  sheets.forEach(function(sh) {
+    var name = sh.getName()
+    if (sh.getSheetId() === guide.getSheetId()) {
+      report.byCategory.guide.push(name)
+      return
+    }
+    var code = _categorise(name)
+    report.byCategory[code].push(name)
+    if (code === 'uncategorised') report.uncategorised.push(name)
+    _setTabColor(sh, CAT_BY_CODE[code].color)
+  })
+
+  // Reorder: guide first, then each category's sheets in
+  // alphabetical order. Apps Script's moveActiveSheet works on
+  // 1-based positions; we collect the desired order and place each
+  // sheet by name.
+  var desiredOrder = []
+  CATEGORIES.forEach(function(c) {
+    var names = (report.byCategory[c.code] || []).slice().sort(function(a, b) {
+      // Backup snapshots — newest first (descending date)
+      if (c.code === 'system') return b.localeCompare(a)
+      return a.localeCompare(b)
+    })
+    names.forEach(function(n) { desiredOrder.push(n) })
+  })
+
+  // Apply order — move each sheet in desired position 1, 2, 3 ...
+  for (var i = 0; i < desiredOrder.length; i++) {
+    var sh = ss.getSheetByName(desiredOrder[i])
+    if (!sh) continue
+    ss.setActiveSheet(sh)
+    ss.moveActiveSheet(i + 1)
+  }
+
+  // ─── Build a human-readable report and dump to Logger.log ─────
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Hackney Workbook Organiser — run report')
+  lines.push(' ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('')
+  lines.push('Workbook: ' + ss.getName())
+  lines.push('Total sheets: ' + sheets.length)
+  lines.push('')
+  CATEGORIES.forEach(function(c) {
+    var names = report.byCategory[c.code] || []
+    lines.push(c.emoji + '  ' + c.label.toUpperCase() + '  (' + c.color + ')  — ' + names.length + ' sheet(s)')
+    if (names.length === 0) {
+      lines.push('    (none)')
+    } else {
+      names.forEach(function(n) { lines.push('    • ' + n) })
+    }
+    lines.push('')
+  })
+
+  if (report.uncategorised.length > 0) {
+    lines.push('───────────────────────────────────────────────────────')
+    lines.push(' ⚠  ' + report.uncategorised.length + ' sheet(s) need a categorisation rule:')
+    report.uncategorised.forEach(function(n) { lines.push('    ❓ ' + n) })
+    lines.push('')
+    lines.push(' Send this list to Claude — they will be added to the')
+    lines.push(' RULES array in this script and re-run will tag them.')
+    lines.push('───────────────────────────────────────────────────────')
+  } else {
+    lines.push('✅ Every sheet matched a rule. Workbook is clean.')
+  }
+
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
+// ─── Read-only audit (no changes) ─────────────────────────────────
+// Run this first if you'd like to preview without touching anything.
+// Just lists every sheet with its current tab colour and what
+// category the rules WOULD assign.
+function auditHackneyWorkbook() {
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var sheets = ss.getSheets()
+  var lines = []
+  lines.push('Audit (no changes made) — ' + new Date().toISOString())
+  lines.push('Workbook: ' + ss.getName() + '   sheets: ' + sheets.length)
+  lines.push('')
+  lines.push(_pad('Sheet name', 50) + _pad('Rows', 8) + _pad('Cols', 8) + _pad('Current colour', 18) + 'Would assign')
+  lines.push(new Array(110).join('─'))
+  sheets.forEach(function(sh) {
+    var name = sh.getName()
+    var code = _categorise(name)
+    var cat  = CAT_BY_CODE[code]
+    lines.push(
+      _pad(name, 50) +
+      _pad(String(sh.getLastRow()), 8) +
+      _pad(String(sh.getLastColumn()), 8) +
+      _pad(String(sh.getTabColor() || '—'), 18) +
+      cat.emoji + ' ' + cat.label
+    )
+  })
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
+function _pad(s, n) {
+  s = String(s)
+  if (s.length >= n) return s.slice(0, n - 1) + ' '
+  return s + new Array(n - s.length + 1).join(' ')
+}
