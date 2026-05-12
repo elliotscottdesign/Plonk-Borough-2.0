@@ -202,7 +202,7 @@ function _refreshGuideSheet(ss) {
   sh.setColumnWidth(2, 140)
   sh.setColumnWidth(3, 720)
   sh.setFrozenRows(1)
-  sh.hideGridlines()
+  sh.setHiddenGridlines(true)
 
   return sh
 }
