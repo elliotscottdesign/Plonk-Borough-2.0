@@ -5,6 +5,7 @@ import Plonk from './tabs/Plonk.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
+import GroupStructure from './slides/GroupStructure.jsx'
 import UseOfFunds from './slides/UseOfFunds.jsx'
 import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
@@ -31,6 +32,7 @@ import { WORKBOOK_URL } from '../data/hackney.js'
 const SLIDE_DEFS = [
   { id:'cover',      label:'Cover',              Component: Cover },
   { id:'summary',    label:'Investment Summary', Component: InvestmentSummary },
+  { id:'group',      label:'Group Structure',    Component: GroupStructure },
   { id:'funds',      label:'Use of Funds',       Component: UseOfFunds },
   { id:'drivers',    label:'Growth Drivers',     Component: GrowthDrivers },
   { id:'market',     label:'Market Context',     Component: MarketContext },
