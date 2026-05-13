@@ -167,6 +167,7 @@ const RULES = [
   { code: 'deck_source',    pattern: /^annual[\s_-]*overview$/i },
   { code: 'deck_source',    pattern: /^performance[\s_-]*charts?$/i },
   { code: 'deck_source',    pattern: /^\d{4}[\s_-]*weekly[\s_-]*totals?$/i },
+  { code: 'deck_source',    pattern: /^\d{4}[\s_-]*monthly[\s_-]*data$/i },
   { code: 'deck_source',    pattern: /^weekly[\s_-]*data$/i },
   // Monthly raw-entry tabs (January..December roll up into Weekly Merged)
   { code: 'deck_source',    pattern: /^(january|february|march|april|may|june|july|august|september|october|november|december)$/i },
@@ -399,6 +400,243 @@ function deleteArchivedSheets() {
   deleted.forEach(function(n) { lines.push('  ✓ ' + n) })
   lines.push('')
   lines.push('Remaining sheet count: ' + ss.getSheets().length)
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
+// ─── Month-sheet consolidation ────────────────────────────────────
+// Merges January..December into a single '2025 Monthly Data' sheet
+// with the month as a column. Rewrites every formula in Monthly
+// Summary + Weekly Data that points at the old month sheets.
+//
+//   planMonthConsolidation()    → DRY RUN: shows what would change,
+//                                  modifies nothing. ALWAYS run first.
+//   executeMonthConsolidation() → LIVE: creates the new sheet,
+//                                  rewrites consumer formulas,
+//                                  archives the 12 source sheets
+//                                  (rename to _ARCHIVE_<Month>).
+//
+// Recovery: if anything looks wrong after execution, the 12 source
+// sheets are still in the workbook as _ARCHIVE_<Month>. Rename them
+// back to revert.
+function planMonthConsolidation()    { return _consolidateMonths(true)  }
+function executeMonthConsolidation() { return _consolidateMonths(false) }
+
+function _consolidateMonths(dryRun) {
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var NEW_SHEET = '2025 Monthly Data'
+
+  // Phase 1: read source month sheets
+  var monthData = {}
+  MONTHS.forEach(function(mName) {
+    var sh = ss.getSheetByName(mName)
+    if (!sh) return
+    var rows = sh.getLastRow()
+    var cols = sh.getLastColumn()
+    monthData[mName] = {
+      rows: rows, cols: cols,
+      values: sh.getRange(1, 1, rows, cols).getValues(),
+      formulas: sh.getRange(1, 1, rows, cols).getFormulas(),
+    }
+  })
+
+  // Phase 2: plan target layout + row map
+  // Target: Month | Week | Dates | Income | All Costs | Fixed | Variable | Wages | VAT Diff | Profit
+  // Source columns A..I shift to target B..J (Month is the new col A)
+  var newRows = [['Month','Week','Dates','Income','All Costs','Fixed Costs','Variable Costs','Wages','VAT Diff','Profit']]
+  var rowMap = {} // {month: {srcRow: tgtRow}}
+
+  MONTHS.forEach(function(mName) {
+    var d = monthData[mName]
+    if (!d) return
+    rowMap[mName] = {}
+    // Source row 1 = title, 2 = header, 3..(rows-1) = weeks, rows = TOTAL
+    for (var srcRow = 3; srcRow < d.rows; srcRow++) {
+      var dataRow = [mName]
+      for (var c = 0; c < d.cols; c++) {
+        dataRow.push(d.formulas[srcRow - 1][c] || d.values[srcRow - 1][c])
+      }
+      newRows.push(dataRow)
+      rowMap[mName][srcRow] = newRows.length // 1-indexed
+    }
+  })
+  var weekRowsEnd = newRows.length
+
+  // Phase 3: Monthly Totals block (replaces the per-sheet TOTAL row)
+  newRows.push(['', '', '', '', '', '', '', '', '', ''])
+  newRows.push(['Monthly Totals — per-month sums across the weeks above', '', '', '', '', '', '', '', '', ''])
+  newRows.push(['Month', '', '', 'Income', 'All Costs', 'Fixed Costs', 'Variable Costs', 'Wages', 'VAT Diff', 'Profit'])
+  var totalsStartRow = newRows.length + 1
+  var totalsCols = ['D','E','F','G','H','I','J'] // Income..Profit in target
+  MONTHS.forEach(function(mName, idx) {
+    var d = monthData[mName]
+    if (!d) return
+    var tgtTotalRow = totalsStartRow + idx
+    rowMap[mName][d.rows] = tgtTotalRow
+    var row = [mName, '', '']
+    totalsCols.forEach(function(col) {
+      row.push('=SUMIFS(' + col + '2:' + col + weekRowsEnd + ',A2:A' + weekRowsEnd + ',"' + mName + '")')
+    })
+    newRows.push(row)
+  })
+
+  // Phase 4: rewrite in-sheet formulas that came from source (col +1, row remap)
+  function shiftCol(letter) { return letter.length === 1 ? String.fromCharCode(letter.charCodeAt(0) + 1) : letter }
+  MONTHS.forEach(function(mName) {
+    var d = monthData[mName]; if (!d) return
+    for (var srcRow = 3; srcRow < d.rows; srcRow++) {
+      var tgtRow = rowMap[mName][srcRow]
+      if (!tgtRow) continue
+      for (var c = 0; c < d.cols; c++) {
+        var f = d.formulas[srcRow - 1][c]
+        if (!f) continue
+        var newF = f.replace(/([A-Z]+)(\d+)/g, function(m, col, row) {
+          var nr = rowMap[mName][parseInt(row)]
+          if (!nr) return m
+          return shiftCol(col) + nr
+        })
+        newRows[tgtRow - 1][c + 1] = newF
+      }
+    }
+  })
+
+  // Phase 5: build external rewrite map for consumer formulas
+  var externalMap = {} // {Month!CellRef: NewCellRef}
+  MONTHS.forEach(function(mName) {
+    var d = monthData[mName]; if (!d) return
+    for (var srcRow = 3; srcRow <= d.rows; srcRow++) {
+      var tgtRow = rowMap[mName][srcRow]
+      if (!tgtRow) continue
+      for (var c = 0; c < d.cols; c++) {
+        var srcCol = String.fromCharCode(65 + c)
+        externalMap[mName + '!' + srcCol + srcRow] = shiftCol(srcCol) + tgtRow
+      }
+    }
+  })
+
+  // Phase 6: walk consumers, rewrite formulas (ranges before singletons)
+  var rewrites = []
+  var consumers = ['Monthly Summary', 'Weekly Data']
+  consumers.forEach(function(cName) {
+    var sh = ss.getSheetByName(cName); if (!sh) return
+    var rows = sh.getLastRow(); var cols = sh.getLastColumn()
+    if (rows === 0 || cols === 0) return
+    var fmls = sh.getRange(1, 1, rows, cols).getFormulas()
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var f = fmls[r][c]; if (!f) continue
+        var hasMonth = false
+        for (var i = 0; i < MONTHS.length; i++) {
+          if (f.indexOf(MONTHS[i] + '!') !== -1 || f.indexOf("'" + MONTHS[i] + "'!") !== -1) { hasMonth = true; break }
+        }
+        if (!hasMonth) continue
+        var newF = f
+        MONTHS.forEach(function(mName) {
+          // ranges first
+          var rxRQ = new RegExp("'" + mName + "'!([A-Z]+)(\\d+):([A-Z]+)(\\d+)", 'g')
+          newF = newF.replace(rxRQ, function(m, c1, r1, c2, r2) {
+            var t1 = externalMap[mName + '!' + c1 + r1]; var t2 = externalMap[mName + '!' + c2 + r2]
+            return (t1 && t2) ? ("'" + NEW_SHEET + "'!" + t1 + ":" + t2) : m
+          })
+          var rxR = new RegExp("(^|[^A-Za-z0-9_'])" + mName + "!([A-Z]+)(\\d+):([A-Z]+)(\\d+)", 'g')
+          newF = newF.replace(rxR, function(m, pre, c1, r1, c2, r2) {
+            var t1 = externalMap[mName + '!' + c1 + r1]; var t2 = externalMap[mName + '!' + c2 + r2]
+            return (t1 && t2) ? (pre + "'" + NEW_SHEET + "'!" + t1 + ":" + t2) : m
+          })
+          // singletons
+          var rxSQ = new RegExp("'" + mName + "'!([A-Z]+)(\\d+)", 'g')
+          newF = newF.replace(rxSQ, function(m, col, row) {
+            var t = externalMap[mName + '!' + col + row]
+            return t ? ("'" + NEW_SHEET + "'!" + t) : m
+          })
+          var rxS = new RegExp("(^|[^A-Za-z0-9_'])" + mName + "!([A-Z]+)(\\d+)", 'g')
+          newF = newF.replace(rxS, function(m, pre, col, row) {
+            var t = externalMap[mName + '!' + col + row]
+            return t ? (pre + "'" + NEW_SHEET + "'!" + t) : m
+          })
+        })
+        // Safety: if any Month! ref still remains after rewriting, flag and DO NOT apply
+        var stillHasMonth = false
+        for (var i = 0; i < MONTHS.length; i++) {
+          if (newF.indexOf(MONTHS[i] + '!') !== -1 || newF.indexOf("'" + MONTHS[i] + "'!") !== -1) { stillHasMonth = true; break }
+        }
+        if (stillHasMonth) {
+          rewrites.push({ sheet: cName, cell: _colLetter(c) + (r+1), row: r+1, col: c+1, old: f, neu: f, error: 'partial — left unchanged. Best attempt: ' + newF })
+        } else if (newF !== f) {
+          rewrites.push({ sheet: cName, cell: _colLetter(c) + (r+1), row: r+1, col: c+1, old: f, neu: newF })
+        }
+      }
+    }
+  })
+
+  // Phase 7: report
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Month consolidation ' + (dryRun ? '(DRY RUN — no changes)' : '(LIVE — applying)'))
+  lines.push(' ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('')
+  lines.push('New sheet: ' + NEW_SHEET)
+  lines.push('  Header + ' + (weekRowsEnd - 1) + ' weekly rows + 12-row Monthly Totals block = ' + newRows.length + ' total rows')
+  lines.push('')
+  lines.push('Source month sheets to archive (rename to _ARCHIVE_<Month>):')
+  Object.keys(monthData).forEach(function(mName) {
+    lines.push('  • ' + mName + ' (' + monthData[mName].rows + ' rows)')
+  })
+  lines.push('')
+  var failed = rewrites.filter(function(rw) { return rw.error })
+  lines.push('Consumer formula rewrites: ' + rewrites.length + ' total, ' + failed.length + ' flagged for manual review')
+  rewrites.slice(0, 30).forEach(function(rw) {
+    lines.push('  ' + (rw.error ? '⚠ ' : '✓ ') + rw.sheet + '!' + rw.cell)
+    lines.push('    OLD: ' + rw.old)
+    if (rw.error) lines.push('    !!  ' + rw.error)
+    else          lines.push('    NEW: ' + rw.neu)
+  })
+  if (rewrites.length > 30) lines.push('  … ' + (rewrites.length - 30) + ' more')
+
+  if (failed.length > 0) {
+    lines.push('')
+    lines.push('⚠  ' + failed.length + ' formula(s) could not be fully migrated. They will be LEFT UNCHANGED if you run execute — investigate them manually after.')
+  }
+
+  if (dryRun) {
+    lines.push('')
+    lines.push('DRY RUN — nothing modified. If the rewrites above look correct, run executeMonthConsolidation() to apply.')
+    Logger.log(lines.join('\n'))
+    return lines.join('\n')
+  }
+
+  // Phase 8: live
+  var existing = ss.getSheetByName(NEW_SHEET)
+  if (existing) ss.deleteSheet(existing)
+  var newSh = ss.insertSheet(NEW_SHEET)
+  newSh.getRange(1, 1, newRows.length, newRows[0].length).setValues(newRows)
+  newSh.getRange(1, 1, 1, newRows[0].length).setFontWeight('bold').setBackground('#1E40AF').setFontColor('#FFFFFF')
+  newSh.setFrozenRows(1)
+
+  rewrites.forEach(function(rw) {
+    if (rw.error) return // safety: skip partial migrations
+    var sh = ss.getSheetByName(rw.sheet); if (!sh) return
+    sh.getRange(rw.row, rw.col).setFormula(rw.neu)
+  })
+
+  var archived = []
+  MONTHS.forEach(function(mName) {
+    var sh = ss.getSheetByName(mName); if (!sh) return
+    sh.setName('_ARCHIVE_' + mName)
+    archived.push(mName)
+  })
+
+  organiseHackneyWorkbook()
+
+  lines.push('')
+  lines.push('✅ Applied:')
+  lines.push('  • Created sheet: ' + NEW_SHEET)
+  lines.push('  • Rewrote ' + (rewrites.length - failed.length) + ' consumer formulas (' + failed.length + ' skipped — flagged above)')
+  lines.push('  • Archived ' + archived.length + ' month sheets (renamed to _ARCHIVE_<Month>)')
+  lines.push('')
+  lines.push('NEXT: open 2025 Monthly Data, Monthly Summary, Weekly Data — sanity-check the numbers. If anything looks broken, rename the _ARCHIVE_<Month> sheets back to their original names to fully revert.')
   Logger.log(lines.join('\n'))
   return lines.join('\n')
 }
