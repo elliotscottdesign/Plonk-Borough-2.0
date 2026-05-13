@@ -364,6 +364,120 @@ function _pad(s, n) {
   return s + new Array(n - s.length + 1).join(' ')
 }
 
+// Convert a 0-indexed column number to its A1 letter (0 → A, 26 → AA).
+function _colLetter(n) {
+  var s = ''
+  n = n + 1
+  while (n > 0) {
+    var rem = (n - 1) % 26
+    s = String.fromCharCode(65 + rem) + s
+    n = Math.floor((n - 1) / 26)
+  }
+  return s
+}
+
+// ─── Hard-delete every _ARCHIVE_* sheet ───────────────────────────
+// Safety: the prefix is the only thing that qualifies a sheet for
+// deletion. Anything not starting with _ARCHIVE_ is untouched.
+function deleteArchivedSheets() {
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var sheets = ss.getSheets()
+  var deleted = []
+  sheets.forEach(function(sh) {
+    var name = sh.getName()
+    if (/^_ARCHIVE_/i.test(name)) {
+      ss.deleteSheet(sh)
+      deleted.push(name)
+    }
+  })
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Hard-delete archived sheets · ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('Deleted ' + deleted.length + ' sheet(s):')
+  if (deleted.length === 0) lines.push('  (none — nothing carried the _ARCHIVE_ prefix)')
+  deleted.forEach(function(n) { lines.push('  ✓ ' + n) })
+  lines.push('')
+  lines.push('Remaining sheet count: ' + ss.getSheets().length)
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
+// ─── Inspect the 12 month sheets (read-only) ──────────────────────
+// Dumps the full content of January..December so we can see whether
+// they share a layout, plus every formula in Monthly Summary +
+// Weekly Data that references them. Output is the input for planning
+// the merge into a single 2025 Monthly Data sheet — without seeing
+// the layout we can't rewrite the formulas safely.
+function inspectMonthSheets() {
+  var MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Month-sheet inspection (read-only) · ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('')
+
+  // 1. Dump each month's content (values + formulas)
+  MONTHS.forEach(function(mName) {
+    var sh = ss.getSheetByName(mName)
+    if (!sh) { lines.push('── ' + mName + ' — NOT FOUND ──'); lines.push(''); return }
+    var rows = sh.getLastRow()
+    var cols = sh.getLastColumn()
+    lines.push('── ' + mName + '   (' + rows + ' rows × ' + cols + ' cols) ──')
+    if (rows > 0 && cols > 0) {
+      var values = sh.getRange(1, 1, rows, cols).getValues()
+      var fmls   = sh.getRange(1, 1, rows, cols).getFormulas()
+      for (var r = 0; r < rows; r++) {
+        var rowStrs = []
+        for (var c = 0; c < cols; c++) {
+          var v = fmls[r][c] || values[r][c]
+          var s = String(v == null ? '' : v)
+          if (s.length > 18) s = s.slice(0, 17) + '…'
+          while (s.length < 18) s += ' '
+          rowStrs.push(s)
+        }
+        lines.push('  R' + (r+1) + '  ' + rowStrs.join('| '))
+      }
+    }
+    lines.push('')
+  })
+
+  // 2. Every formula in the two consumers that points at a month sheet
+  lines.push('── Formula consumers (sheets that read from month tabs) ──')
+  var consumers = ['Monthly Summary', 'Weekly Data']
+  consumers.forEach(function(consumerName) {
+    var sh = ss.getSheetByName(consumerName)
+    if (!sh) { lines.push(''); lines.push('  ' + consumerName + ': NOT FOUND'); return }
+    var rows = sh.getLastRow()
+    var cols = sh.getLastColumn()
+    if (rows === 0 || cols === 0) return
+    var fmls = sh.getRange(1, 1, rows, cols).getFormulas()
+    var hits = []
+    for (var r = 0; r < rows; r++) {
+      for (var c = 0; c < cols; c++) {
+        var f = fmls[r][c]
+        if (!f) continue
+        var hitsMonth = false
+        for (var i = 0; i < MONTHS.length; i++) {
+          var m = MONTHS[i]
+          if (f.indexOf(m + '!') !== -1 || f.indexOf("'" + m + "'!") !== -1) { hitsMonth = true; break }
+        }
+        if (hitsMonth) {
+          hits.push(_colLetter(c) + (r+1) + '  =' + f)
+        }
+      }
+    }
+    lines.push('')
+    lines.push('  ' + consumerName + ' — ' + hits.length + ' formula cell(s) point at month sheets:')
+    hits.slice(0, 80).forEach(function(h) { lines.push('    ' + h) })
+    if (hits.length > 80) lines.push('    … ' + (hits.length - 80) + ' more (truncated)')
+  })
+
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
 // ─── Compaction (round 1) ─────────────────────────────────────────
 // Renames the four sheets we agreed to archive — adds the _ARCHIVE_
 // prefix so the categoriser picks them up as 🗄 Archive on the next
