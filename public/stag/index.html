@@ -244,7 +244,57 @@
     .btn-big { font-size: 16px; padding: 18px 28px; width: 100%; max-width: 340px; }
     .footnote { font-size: 14px; }
     footer { padding: 32px 20px; }
+    .settlement-section { padding: 56px 18px 48px; }
+    .settlement-rules { padding: 20px 22px; }
+    .settlement-rules li { font-size: 14px; }
+    .settlement-table { font-size: 12.5px; }
+    .settlement-table th, .settlement-table td { padding: 9px 10px; }
+    .settlement-table .name { font-size: 14px; }
+    .settlement-stat-value { font-size: 26px; }
+    .settlement-stat.featured .settlement-stat-value { font-size: 32px; }
   }
+
+  /* The Tribute (post-campaign settlement) */
+  .settlement-section { padding: 80px 24px 64px; border-bottom: 1px solid var(--line); }
+  .settlement-lead { color: var(--cream-dim); font-size: 16px; line-height: 1.7; max-width: 720px; margin: 0 0 32px; }
+  .settlement-lead strong { color: var(--cream); font-weight: 500; }
+
+  .settlement-headline { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 0 0 40px; }
+  .settlement-stat { padding: 22px 22px; background: var(--bg-2); border: 1px solid var(--line); border-radius: 12px; }
+  .settlement-stat.featured { border-color: var(--gold); background: linear-gradient(135deg, rgba(212,175,55,0.10), rgba(212,175,55,0.02)); box-shadow: 0 6px 24px rgba(212,175,55,0.10); }
+  .settlement-stat-label { color: var(--cream-dim); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 8px; }
+  .settlement-stat-value { font-family: 'DM Serif Display', Georgia, serif; color: var(--gold); font-size: 32px; line-height: 1.1; }
+  .settlement-stat.featured .settlement-stat-value { font-size: 38px; }
+
+  .settlement-rules { padding: 26px 30px; background: var(--bg-2); border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 12px; margin-bottom: 44px; }
+  .settlement-rules h3 { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--gold); font-size: 18px; letter-spacing: 0.1em; text-transform: uppercase; margin: 0 0 14px; }
+  .settlement-rules ol { padding-left: 22px; margin: 0; }
+  .settlement-rules li { color: var(--cream-dim); font-size: 14.5px; line-height: 1.7; margin-bottom: 8px; }
+  .settlement-rules li:last-child { margin-bottom: 0; }
+  .settlement-rules strong { color: var(--cream); font-weight: 500; }
+  .settlement-rules em { color: var(--gold); font-style: normal; font-weight: 600; }
+
+  .settlement-subheading { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; color: var(--cream); font-size: 22px; letter-spacing: 0.04em; margin: 40px 0 14px; }
+
+  .settlement-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; border: 1px solid var(--line); border-radius: 12px; background: var(--bg-2); }
+  .settlement-table { width: 100%; border-collapse: collapse; font-size: 13.5px; min-width: 600px; }
+  .settlement-table th { background: var(--bg-3); color: var(--gold); text-align: left; padding: 12px 14px; font-size: 10.5px; letter-spacing: 0.14em; text-transform: uppercase; font-weight: 700; border-bottom: 1px solid var(--gold-dim); white-space: nowrap; }
+  .settlement-table th.num { text-align: right; }
+  .settlement-table td { padding: 11px 14px; border-bottom: 1px solid var(--line); color: var(--cream); }
+  .settlement-table tr:last-child td { border-bottom: none; }
+  .settlement-table td.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .settlement-table td.name { font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; font-size: 16px; color: var(--cream); }
+  .settlement-table td.outstanding { color: var(--gold); font-weight: 700; }
+  .settlement-table tr.row-julian td { color: var(--cream-dim); font-style: italic; opacity: 0.75; }
+  .settlement-table tr.row-elliot td { background: rgba(212,175,55,0.04); font-style: italic; color: var(--cream-dim); }
+  .settlement-table tr.row-elliot td.name { color: var(--gold); font-style: normal; }
+  .settlement-table tfoot td { background: rgba(212,175,55,0.08); border-top: 2px solid var(--gold-dim); color: var(--gold); font-weight: 700; font-size: 14.5px; padding-top: 14px; padding-bottom: 14px; }
+  .settlement-table .yes { color: var(--gold); font-weight: 700; text-align: center; }
+  .settlement-table .no { color: var(--cream-dim); text-align: center; opacity: 0.35; }
+  .settlement-table .paid-in { color: var(--cream); font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; background: rgba(212,175,55,0.06); }
+  .settlement-table tr.total-row td { background: rgba(212,175,55,0.06); color: var(--gold); font-weight: 700; border-bottom: 2px solid var(--gold-dim); }
+  .settlement-table tr.total-row td.name { color: var(--gold); font-family: 'Gideon Roman', 'Cinzel', Georgia, serif; }
+  .settlement-table .legend-cell { text-align: center; }
 </style>
 </head>
 <body>
@@ -269,7 +319,7 @@
       <div class="hero-stat"><div class="hero-stat-num">XII+</div><div class="hero-stat-label">hours</div></div>
     </div>
     <div class="cta-row">
-      <a href="#rsvp" class="btn btn-big">Join the March →</a>
+      <a href="#settlement" class="btn btn-big">The Tribute →</a>
     </div>
   </div>
 </div>
@@ -333,6 +383,198 @@
         Behold — the legion's reward is loosed at last.
         <strong>The Marching Powder of Marcus Vettius Medicus is released.</strong>
       </div>
+    </div>
+  </div>
+</section>
+
+<section class="settlement-section" id="settlement">
+  <div class="wrap">
+    <div class="section-title">The Tribute</div>
+    <h2 class="serif section-heading">Settle the debt.</h2>
+    <p class="settlement-lead">
+      The campaign is won, but coin must still be reckoned. Elliot fronted the legion's purse across the day. Below is the input data, the rules applied, and what each man owes him to balance the books.
+    </p>
+
+    <div class="settlement-headline">
+      <div class="settlement-stat">
+        <div class="settlement-stat-label">Total spent</div>
+        <div class="settlement-stat-value">£654.00</div>
+      </div>
+      <div class="settlement-stat">
+        <div class="settlement-stat-label">Already paid in</div>
+        <div class="settlement-stat-value">£299.00</div>
+      </div>
+      <div class="settlement-stat featured">
+        <div class="settlement-stat-label">Still owed to Elliot</div>
+        <div class="settlement-stat-value">£197.56</div>
+      </div>
+    </div>
+
+    <div class="settlement-rules">
+      <h3>The Rules</h3>
+      <ol>
+        <li><strong>y</strong> next to an activity = that person took part; they owe a share of it.</li>
+        <li><strong>n</strong> = didn't take part; owe nothing for it.</li>
+        <li><strong>A number</strong> = that person has <em>already paid</em> that amount toward the activity. It does <strong>not</strong> add to the total cost — it counts as credit against their share.</li>
+        <li><strong>Julian (the stag) pays nothing.</strong> His share for each activity is spread equally across the others who took part in it. So everyone with a <em>y</em> or a number picks up a slice of Julian's share too.</li>
+        <li><strong>Share each</strong> = activity total ÷ paying participants (everyone with y or a number, minus Julian).</li>
+        <li><strong>Outstanding per person</strong> = their total fair share minus everything they've already paid (in-kind contributions + cash sent to Elliot).</li>
+        <li><strong>Money flows one way: to Elliot.</strong> If someone has overpaid on one activity, that absorbs into their other shares — nobody is reimbursed.</li>
+      </ol>
+    </div>
+
+    <h3 class="settlement-subheading">Who took part in what</h3>
+    <div class="settlement-table-wrap">
+      <table class="settlement-table">
+        <thead>
+          <tr>
+            <th>Person</th>
+            <th class="num">Clays</th>
+            <th class="num">Smoko</th>
+            <th class="num">Strippers</th>
+            <th class="num">Mortadella</th>
+            <th class="num">Life Drawing</th>
+            <th class="num">BBQ</th>
+            <th class="num">Cakes</th>
+            <th class="num">Flowers</th>
+            <th class="num">Fun Guys</th>
+            <th class="num">Smiles</th>
+            <th class="num">Cash to Elliot</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="total-row">
+            <td class="name">Elliot spent</td>
+            <td class="num">£98</td>
+            <td class="num">£100</td>
+            <td class="num">£40</td>
+            <td class="num">£30</td>
+            <td class="num">£150</td>
+            <td class="num">£6</td>
+            <td class="num">£80</td>
+            <td class="num">£60</td>
+            <td class="num">£60</td>
+            <td class="num">£30</td>
+            <td class="num">—</td>
+          </tr>
+          <tr class="row-julian">
+            <td class="name">Julian (stag)</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr class="row-elliot">
+            <td class="name">Elliot</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Alesh</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="paid-in">£50</td>
+          </tr>
+          <tr>
+            <td class="name">Paddy</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="paid-in">£15</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Rob</td>
+            <td class="paid-in">£14</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="paid-in">£15</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="yes">y</td><td class="no">n</td>
+            <td class="paid-in">£50</td>
+          </tr>
+          <tr>
+            <td class="name">Andreas</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="paid-in">£20</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="paid-in">£40</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Oli Kassman</td>
+            <td class="no">n</td><td class="yes">y</td><td class="yes">y</td><td class="paid-in">£15</td><td class="paid-in">£15</td><td class="yes">y</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Mathew</td>
+            <td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="paid-in">£15</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Louis</td>
+            <td class="no">n</td><td class="yes">y</td><td class="yes">y</td><td class="yes">y</td><td class="paid-in">£15</td><td class="yes">y</td><td class="paid-in">£20</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Joe</td>
+            <td class="no">n</td><td class="no">n</td><td class="no">n</td><td class="yes">y</td><td class="paid-in">£15</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+          <tr>
+            <td class="name">Sean</td>
+            <td class="no">n</td><td class="no">n</td><td class="no">n</td><td class="yes">y</td><td class="no">n</td><td class="yes">y</td><td class="no">n</td><td class="no">n</td><td class="no">n</td><td class="no">n</td>
+            <td class="num">—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3 class="settlement-subheading">Per activity</h3>
+    <div class="settlement-table-wrap">
+      <table class="settlement-table">
+        <thead>
+          <tr>
+            <th>Activity</th>
+            <th class="num">Total cost</th>
+            <th class="num">Paying (excl. Julian)</th>
+            <th class="num">Share each</th>
+            <th class="num">Already paid in</th>
+            <th class="num">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td class="name">Clays</td><td class="num">£98.00</td><td class="num">6</td><td class="num">£16.33</td><td class="num">£14.00</td><td class="num outstanding">£84.00</td></tr>
+          <tr><td class="name">Smokoloko</td><td class="num">£100.00</td><td class="num">8</td><td class="num">£12.50</td><td class="num">£0.00</td><td class="num outstanding">£100.00</td></tr>
+          <tr><td class="name">Strippers</td><td class="num">£40.00</td><td class="num">8</td><td class="num">£5.00</td><td class="num">£20.00</td><td class="num outstanding">£20.00</td></tr>
+          <tr><td class="name">Mortadella</td><td class="num">£30.00</td><td class="num">10</td><td class="num">£3.00</td><td class="num">£15.00</td><td class="num outstanding">£15.00</td></tr>
+          <tr><td class="name">Life Drawing</td><td class="num">£150.00</td><td class="num">9</td><td class="num">£16.67</td><td class="num">£90.00</td><td class="num outstanding">£60.00</td></tr>
+          <tr><td class="name">BBQ</td><td class="num">£6.00</td><td class="num">10</td><td class="num">£0.60</td><td class="num">£0.00</td><td class="num outstanding">£6.00</td></tr>
+          <tr><td class="name">Cakes</td><td class="num">£80.00</td><td class="num">6</td><td class="num">£13.33</td><td class="num">£20.00</td><td class="num outstanding">£60.00</td></tr>
+          <tr><td class="name">Flowers</td><td class="num">£60.00</td><td class="num">2</td><td class="num">£30.00</td><td class="num">£40.00</td><td class="num outstanding">£20.00</td></tr>
+          <tr><td class="name">Fun Guys</td><td class="num">£60.00</td><td class="num">2</td><td class="num">£30.00</td><td class="num">£0.00</td><td class="num outstanding">£60.00</td></tr>
+          <tr><td class="name">Smiles</td><td class="num">£30.00</td><td class="num">1</td><td class="num">£30.00</td><td class="num">£0.00</td><td class="num outstanding">£30.00</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td class="name">TOTAL</td><td class="num">£654.00</td><td class="num">—</td><td class="num">—</td><td class="num">£199.00</td><td class="num outstanding">£455.00</td></tr>
+        </tfoot>
+      </table>
+    </div>
+
+    <h3 class="settlement-subheading">What each man still owes Elliot</h3>
+    <div class="settlement-table-wrap">
+      <table class="settlement-table">
+        <thead>
+          <tr>
+            <th>Person</th>
+            <th class="num">Fair share</th>
+            <th class="num">Already paid</th>
+            <th class="num">Outstanding</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="row-julian"><td class="name">Julian</td><td class="num">£0.00</td><td class="num">—</td><td class="num">£0.00</td></tr>
+          <tr class="row-elliot"><td class="name">Elliot</td><td class="num">£157.43</td><td class="num">paid £654 up front</td><td class="num">to be reimbursed</td></tr>
+          <tr><td class="name">Alesh</td><td class="num">£67.43</td><td class="num">£50.00 cash</td><td class="num outstanding">£17.43</td></tr>
+          <tr><td class="name">Paddy</td><td class="num">£67.43</td><td class="num">£15.00</td><td class="num outstanding">£52.43</td></tr>
+          <tr><td class="name">Rob</td><td class="num">£97.43</td><td class="num">£29.00 + £50.00 cash</td><td class="num outstanding">£18.43</td></tr>
+          <tr><td class="name">Andreas</td><td class="num">£84.10</td><td class="num">£60.00</td><td class="num outstanding">£24.10</td></tr>
+          <tr><td class="name">Oli Kassman</td><td class="num">£51.10</td><td class="num">£30.00</td><td class="num outstanding">£21.10</td></tr>
+          <tr><td class="name">Mathew</td><td class="num">£54.10</td><td class="num">£15.00</td><td class="num outstanding">£39.10</td></tr>
+          <tr><td class="name">Louis</td><td class="num">£51.10</td><td class="num">£35.00</td><td class="num outstanding">£16.10</td></tr>
+          <tr><td class="name">Joe</td><td class="num">£20.27</td><td class="num">£15.00</td><td class="num outstanding">£5.27</td></tr>
+          <tr><td class="name">Sean</td><td class="num">£3.60</td><td class="num">—</td><td class="num outstanding">£3.60</td></tr>
+        </tbody>
+        <tfoot>
+          <tr><td class="name">TOTAL OWED TO ELLIOT</td><td class="num">—</td><td class="num">£100.00 received</td><td class="num outstanding">£197.56</td></tr>
+        </tfoot>
+      </table>
     </div>
   </div>
 </section>
