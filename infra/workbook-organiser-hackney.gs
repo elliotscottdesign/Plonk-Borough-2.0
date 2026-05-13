@@ -51,10 +51,10 @@ const HACKNEY_SHEET_ID = '1ICwGynpIMGDZHS4C0dJ0GUilZRgD1UdTmTGWAe7m5bg'
 const CATEGORIES = [
   {
     code:  'guide',
-    label: 'Sheet Guide',
-    emoji: '📖',
+    label: 'How to Use',
+    emoji: '🚀',
     color: '#C9A84C', // gold
-    desc:  'Legend for this workbook. Read this first.',
+    desc:  'Welcome page + colour legend + where-to-start guide. Read this first.',
   },
   {
     code:  'investor_input',
@@ -195,56 +195,221 @@ function _setTabColor(sheet, hex) {
 
 // ─── Guide sheet content ──────────────────────────────────────────
 function _refreshGuideSheet(ss) {
-  var GUIDE_NAME = '📖 Sheet Guide'
-  var sh = ss.getSheetByName(GUIDE_NAME)
-  if (!sh) sh = ss.insertSheet(GUIDE_NAME, 0)
+  var SHEET_NAME = '🚀 How to Use'
+
+  // Migration: delete the old 📖 Sheet Guide if it exists separately
+  var oldGuide = ss.getSheetByName('📖 Sheet Guide')
+  if (oldGuide && oldGuide.getName() !== SHEET_NAME) ss.deleteSheet(oldGuide)
+
+  var sh = ss.getSheetByName(SHEET_NAME)
+  if (!sh) sh = ss.insertSheet(SHEET_NAME, 0)
   sh.clear()
   sh.setTabColor(CAT_BY_CODE.guide.color)
-
-  // ─── Top banner ───
-  sh.getRange('A1').setValue('No Dice Hackney — Workbook Sheet Guide').setFontSize(18).setFontWeight('bold').setFontFamily('Inter')
-  sh.getRange('A2').setValue('Every tab in this workbook is colour-coded by what it does. Use this legend to navigate.').setFontSize(11).setFontStyle('italic').setFontColor('#6B7280')
-  sh.getRange('A3').setValue('Last refreshed: ' + new Date().toISOString().replace('T',' ').slice(0,16) + ' (re-run organiseHackneyWorkbook in Apps Script to refresh)').setFontSize(9).setFontColor('#9CA3AF')
-
-  // ─── Legend table ───
-  sh.getRange('A5').setValue('Colour key').setFontSize(13).setFontWeight('bold')
-  var legendStart = 7
-  sh.getRange(legendStart - 1, 1, 1, 3)
-    .setValues([['Category', 'Tab colour', 'What it means']])
-    .setFontWeight('bold').setBackground('#F3F4F6').setFontColor('#111827')
-
-  var legendRows = CATEGORIES.map(function(c) {
-    return [c.emoji + ' ' + c.label, c.color, c.desc]
-  })
-  sh.getRange(legendStart, 1, legendRows.length, 3).setValues(legendRows).setVerticalAlignment('top').setWrap(true)
-
-  // Paint each "Tab colour" cell with that category's colour
-  CATEGORIES.forEach(function(c, i) {
-    var cell = sh.getRange(legendStart + i, 2)
-    cell.setBackground(c.color).setFontColor('#FFFFFF').setFontWeight('bold').setHorizontalAlignment('center')
-  })
-
-  // ─── Footer ───
-  var footerRow = legendStart + legendRows.length + 2
-  sh.getRange(footerRow, 1).setValue('Notes for investors').setFontSize(13).setFontWeight('bold')
-  var notes = [
-    ['• Green (Investor Input) is where your notes land when you save them in the deck. The deck writes here automatically — you do not need to open this workbook to use the Notes feature.'],
-    ['• Blue (Deck Source of Truth) sheets are the financial figures behind the React deck. If a number changes here it changes in the deck too (after the founder ships an update).'],
-    ['• Some Blue sheets are MANUALLY-MAINTAINED REFERENCE SHEETS — they have no formula links inside this workbook but are still the canonical source for figures published in the React deck. Weekly Merged 2024-2026 is the primary one. Do not delete a Blue sheet on the basis that nothing inside the workbook reads it — the deck reads it directly via constants exported into the React codebase.'],
-    ['• Purple (Raw Data) sheets are the underlying till exports — they are kept untouched as an audit trail. The numbers in the deck come from the cleaned, deduplicated versions of these files.'],
-    ['• Amber (System / Backups) sheets are written automatically by the back-end scripts. Treat them as read-only — they protect your data against accidental loss.'],
-    ['• Dark-grey (Archive) sheets are retained for audit but no longer in use. Safe to delete manually if you do not need the historical content.'],
-  ]
-  sh.getRange(footerRow + 1, 1, notes.length, 1).setValues(notes).setFontSize(10).setFontColor('#374151').setWrap(true)
-
-  // ─── Layout ───
-  sh.setColumnWidth(1, 280)
-  sh.setColumnWidth(2, 140)
-  sh.setColumnWidth(3, 720)
-  sh.setFrozenRows(1)
   sh.setHiddenGridlines(true)
 
+  // Layout
+  var FONT      = 'Inter'
+  var INK       = '#111827'
+  var INK_DIM   = '#6B7280'
+  var INK_FADED = '#9CA3AF'
+  var BAND2     = '#F3F4F6'
+  var ACCENT    = '#C9A84C'
+
+  sh.setColumnWidth(1, 280)
+  sh.setColumnWidth(2, 140)
+  sh.setColumnWidth(3, 700)
+
+  var nextRow = 1
+  function title(text, size, color, italic) {
+    sh.getRange(nextRow, 1, 1, 3).merge()
+      .setValue(text)
+      .setFontFamily(FONT).setFontSize(size || 14).setFontWeight('bold').setFontColor(color || INK)
+      .setVerticalAlignment('middle').setWrap(true)
+    if (italic) {
+      sh.getRange(nextRow, 1).setFontStyle('italic').setFontWeight('normal')
+    }
+    sh.setRowHeight(nextRow, size && size >= 18 ? 36 : 24)
+    nextRow++
+  }
+  function body(text, color) {
+    sh.getRange(nextRow, 1, 1, 3).merge()
+      .setValue(text)
+      .setFontFamily(FONT).setFontSize(11).setFontColor(color || INK)
+      .setVerticalAlignment('top').setWrap(true)
+    sh.setRowHeight(nextRow, 22)
+    nextRow++
+  }
+  function spacer(h) { sh.setRowHeight(nextRow, h || 14); nextRow++ }
+  function divider() {
+    sh.getRange(nextRow, 1, 1, 3).merge().setBackground(ACCENT)
+    sh.setRowHeight(nextRow, 2)
+    nextRow++
+    spacer(10)
+  }
+  function sectionHead(text) {
+    sh.getRange(nextRow, 1, 1, 3).merge()
+      .setValue(text.toUpperCase())
+      .setFontFamily(FONT).setFontSize(10).setFontWeight('bold').setFontColor(ACCENT)
+      .setVerticalAlignment('middle').setHorizontalAlignment('left')
+    sh.setRowHeight(nextRow, 22)
+    nextRow++
+  }
+
+  // HERO
+  title('No Dice Hackney — Investor Workbook', 22, INK)
+  title('How to use this workbook · welcome, navigation, and where to start', 12, INK_DIM, true)
+  body('Last refreshed ' + new Date().toISOString().slice(0, 10) + '. Re-run polishHackneyWorkbook in Apps Script to refresh.', INK_FADED)
+  spacer(8)
+  divider()
+
+  // WELCOME
+  sectionHead('Welcome')
+  body('This workbook is the financial source-of-truth behind the No Dice Hackney investor deck at nodice.bar/hackney. Every figure shown to investors in the deck — weekly revenue, monthly P&L, cash flow forecast, projected returns — is calculated here.')
+  body('You do not need to dig through every tab. The deck presents the key views in a friendlier format. This workbook exists so the numbers are auditable, the methodology is visible, and the founder has a single canonical place to maintain them.')
+  spacer(10)
+
+  // COLOUR LEGEND
+  sectionHead('Colour key — every tab is colour-coded')
+  body('The tab strip at the bottom of this window groups sheets by what they do. Read left to right.')
+  spacer(6)
+
+  var legendStart = nextRow
+  sh.getRange(legendStart, 1, 1, 3)
+    .setValues([['Category', 'Tab colour', 'What it means']])
+    .setFontFamily(FONT).setFontSize(10).setFontWeight('bold')
+    .setBackground(BAND2).setFontColor(INK).setVerticalAlignment('middle')
+  sh.setRowHeight(legendStart, 24)
+  nextRow++
+
+  CATEGORIES.forEach(function(c) {
+    sh.getRange(nextRow, 1, 1, 3).setValues([[c.emoji + '  ' + c.label, c.color, c.desc]])
+      .setFontFamily(FONT).setFontSize(11).setVerticalAlignment('top').setWrap(true)
+    sh.getRange(nextRow, 1).setFontColor(INK).setHorizontalAlignment('left')
+    sh.getRange(nextRow, 2).setBackground(c.color).setFontColor('#FFFFFF').setFontWeight('bold').setHorizontalAlignment('center').setVerticalAlignment('middle')
+    sh.getRange(nextRow, 3).setFontColor(INK).setHorizontalAlignment('left')
+    sh.setRowHeight(nextRow, 42)
+    nextRow++
+  })
+  spacer(10)
+
+  // WHERE TO START
+  sectionHead('Where to start — the five sheets investors usually want')
+  var starts = [
+    { name: 'Investor Summary',   note: 'The headline view — top-line revenue, costs, profit, returns, all on one page.' },
+    { name: 'Monthly Summary',    note: 'Month-by-month P&L. The central hub — almost everything else flows from this.' },
+    { name: 'Cash Flow Forecast', note: 'Quarterly cash position, including the rent-free period and the deposit instalments.' },
+    { name: 'Investor Returns',   note: 'Projected dividends and IRR under the deal structure shown in the deck.' },
+    { name: 'Scenario Planning',  note: 'Base / upside / downside scenarios — what changes if revenue under- or over-performs.' },
+  ]
+  starts.forEach(function(s, i) {
+    sh.getRange(nextRow, 1).setValue((i + 1) + '. ' + s.name)
+      .setFontFamily(FONT).setFontSize(11).setFontWeight('bold').setFontColor(INK).setVerticalAlignment('top')
+    sh.getRange(nextRow, 2, 1, 2).merge().setValue(s.note)
+      .setFontFamily(FONT).setFontSize(11).setFontColor(INK).setVerticalAlignment('top').setWrap(true)
+    sh.setRowHeight(nextRow, 36)
+    nextRow++
+  })
+  spacer(10)
+
+  // REFERENCE SHEETS NOTE
+  sectionHead('A note on manually-maintained reference sheets')
+  body('Some blue sheets — most notably Weekly Merged 2024-2026 — have no formula links inside this workbook but are still the canonical source for figures published in the deck. The deck reads them directly via constants exported into the React codebase. Do not delete a blue sheet on the basis that nothing inside the workbook references it.')
+  spacer(10)
+
+  // NOTES FEATURE
+  sectionHead('Have a question? Leave a note in the deck')
+  body('On every slide of the investor deck at nodice.bar/hackney you can leave a private note. Look for the Notes panel in the top right of any slide. Notes are private to your access code; the founder is notified by email when you save one.')
+  body('You will see any reply from the founder appear in the same Notes panel next time you refresh the page. You do not need to open this workbook to use the Notes feature.')
+  spacer(10)
+
+  // CONTACT
+  sectionHead('Need help?')
+  body('Questions about the figures or the deal — Elliot Scott, elliotscottdesign@gmail.com.')
+  body('Technical issues with the deck — same address. The deck is at nodice.bar/hackney; the Borough sister deck is at nodice.bar.')
+  spacer(14)
+  divider()
+
+  // FOOTER
+  body('Subject to contract. All figures are management estimates unless explicitly sourced. The numbers in this workbook flow into the React investor deck; the deck is the canonical investor-facing surface.', INK_FADED)
+
+  sh.setFrozenRows(0)
   return sh
+}
+
+// ─── Polish run: How-to-Use sheet + Sales widths + uniform headers ─
+// One-call cleanup that the founder runs whenever the workbook needs
+// re-tidied. Idempotent — safe to re-run any time.
+function polishHackneyWorkbook() {
+  var ss = SpreadsheetApp.openById(HACKNEY_SHEET_ID)
+
+  var howToUse = _refreshGuideSheet(ss)
+  var salesReport = _polishSalesSheet(ss)
+  var polishCount = _lightlyPolishAllSheets(ss, howToUse.getSheetId())
+  var orgLog = organiseHackneyWorkbook()
+
+  var lines = []
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push(' Workbook polish · ' + new Date().toISOString())
+  lines.push('═══════════════════════════════════════════════════════')
+  lines.push('')
+  lines.push('✓ Refreshed sheet: 🚀 How to Use (at position 1)')
+  lines.push('✓ ' + salesReport)
+  lines.push('✓ Applied uniform header polish to ' + polishCount + ' sheets (header row frozen + bold + dark band)')
+  lines.push('')
+  lines.push('Existing cell-level formatting in compute sheets has been preserved — only row 1 was touched.')
+  lines.push('')
+  lines.push(orgLog)
+  Logger.log(lines.join('\n'))
+  return lines.join('\n')
+}
+
+// Auto-resize every column in Sales + bold/style the header + freeze.
+function _polishSalesSheet(ss) {
+  var sales = ss.getSheetByName('Sales')
+  if (!sales) return 'Sales sheet not found — skipped'
+  var cols = sales.getLastColumn()
+  if (cols === 0) return 'Sales sheet has 0 columns — skipped'
+  for (var c = 1; c <= cols; c++) sales.autoResizeColumn(c)
+  sales.setFrozenRows(1)
+  sales.getRange(1, 1, 1, cols)
+    .setFontWeight('bold')
+    .setBackground('#1F2937')
+    .setFontColor('#FFFFFF')
+    .setFontFamily('Inter')
+    .setFontSize(10)
+    .setVerticalAlignment('middle')
+  sales.setRowHeight(1, 28)
+  return 'Sales: auto-resized ' + cols + ' columns, froze + styled header row'
+}
+
+// Apply consistent header treatment to every sheet that has data.
+// Skips: the guide sheet, system sheets, archive sheets, Sales (handled
+// separately). Only row 1 is touched — body formatting is preserved.
+function _lightlyPolishAllSheets(ss, guideSheetId) {
+  var count = 0
+  var sheets = ss.getSheets()
+  sheets.forEach(function(sh) {
+    if (sh.getSheetId() === guideSheetId) return
+    var name = sh.getName()
+    if (/^_ARCHIVE_/i.test(name)) return
+    if (/^Notes(_Backup_|History|$)/i.test(name)) return
+    if (/^Lock State$/i.test(name)) return
+    if (name === 'Sales') return
+    var rows = sh.getLastRow()
+    var cols = sh.getLastColumn()
+    if (rows < 1 || cols < 1) return
+    sh.setFrozenRows(1)
+    sh.getRange(1, 1, 1, cols)
+      .setFontWeight('bold')
+      .setBackground('#1F2937')
+      .setFontColor('#FFFFFF')
+      .setFontFamily('Inter')
+      .setFontSize(10)
+      .setVerticalAlignment('middle')
+    sh.setRowHeight(1, 28)
+    count++
+  })
+  return count
 }
 
 // ─── Main entrypoint ──────────────────────────────────────────────
