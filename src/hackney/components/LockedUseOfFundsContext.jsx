@@ -129,7 +129,7 @@ const isValidForecast = (v) =>
 // FundingSlider models the INDIVIDUAL INVESTOR'S stake (not the total
 // round). Range 1k → 25k covers the band from the smallest entry cheque
 // up to taking the full REMAINING available stake (£30k original − £5k
-// already sold to LEONIE = £25k remaining). Step 1k so investors
+// already sold to Investor #1 = £25k remaining). Step 1k so investors
 // land exactly on a £1k boundary (1% equity per £1k at the fixed £100k
 // post-money valuation).
 export const FUNDING_RANGE = { min: 1000, max: 25000, step: 1000 }
