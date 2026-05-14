@@ -71,24 +71,27 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // £100k, entry 1.62× the £30,896 verified 2025 profit — well below the
 // 4.1× sector average, reflecting the hurried sale.
 //
-// Cap table (post-round):
+// Cap table — live state of the round:
 //   Founder retained (pre-money holdback)   50%   £0    — not for sale
-//   Founder buyback (this round)            20%   £20k  — SOLD
-//   External investors (this round)         30%   £30k  — FOR SALE
+//   Founder buyback                         20%   £20k  — SOLD (founder)
+//   External investor #1                     5%    £5k  — SOLD (Investor #1)
+//   Available to external investors         25%   £25k  — FOR SALE
 //                                          ----   ----
 //                                          100%   £50k
 //
-// Returns shown on the deck assume an individual investor takes their
-// own slice of the available £30k. The default models a single investor
-// taking the full £30k (= 30% equity). The FundingSlider on Cover lets
+// Returns shown on the deck assume a NEW external investor takes their
+// own slice of the remaining £25k. The default models a single investor
+// taking the full £25k (= 25% equity). The FundingSlider on Cover lets
 // them model a smaller stake (£5k → 5%, £10k → 10%, etc.). Equity is
 // always investment / £100k post-money. Founder slice of profits =
-// 70% (= founder retained 50% + buyback 20%).
+// 70% (= founder retained 50% + buyback 20%); the other committed
+// external investor takes 5%; the new investor takes whatever they
+// subscribe for, up to the £25k remaining.
 export const DEAL = {
   // Single-investor view (drives the deck's headline numbers / returns)
-  investment: 30000,
-  investorEq: 0.30,              // investor takes the full available £30k = 30%
-  founderEq: 0.70,               // 50% retained + 20% buyback
+  investment: 25000,             // max a NEW investor can take = remaining available
+  investorEq: 0.25,              // 25% if they take the full remaining stake
+  founderEq: 0.70,               // 50% retained + 20% buyback (other 5% sits with Investor #1)
 
   // Round-level breakdown (informational — shown on Investment Summary)
   roundSize:        50000,       // total raise this round
@@ -96,10 +99,19 @@ export const DEAL = {
   founderRetained:  0.50,        // pre-money holdback — never sold
   founderBuyback:   20000,
   founderBuybackEq: 0.20,
-  availableAmount:  30000,
-  availableEq:      0.30,
+
+  // Commitments already SOLD this round — add new entries here as cheques
+  // arrive. The Investment Summary's RoundProgressBlock iterates over
+  // this list to render the cap-table + progress bar.
+  commitments: [
+    { label: 'Founder buyback',        amount: 20000, equity: 0.20, type: 'founder',  status: 'sold' },
+    { label: 'External investor · #1', amount:  5000, equity: 0.05, type: 'external', status: 'sold' },
+  ],
+
+  availableAmount:  25000,       // = roundSize - sum(commitments)
+  availableEq:      0.25,        // = roundEquity - sum(committed equity)
   founderTotalPost: 0.70,        // 50% + 20%
-  externalPostEq:   0.30,
+  externalPostEq:   0.30,        // 5% (committed) + 25% (available) = 30% external pool
 
   // Share / governance
   shareClass: 'Ordinary',        // standard ordinary shares — voting + economic
@@ -110,12 +122,12 @@ export const DEAL = {
   preferred: 0,                  // no preferred return
   aSharePriority: 0,             // no founder priority slice
 
-  // Defaults reflect Y1 base case profit £85,181 × 30% = £25,554 (single
-  // investor taking the full £30k available).
-  investorDividend: 25554,
-  totalInvestorReturn: 25554,
-  coc: 0.8518,                   // 85.18% on £30k invested
-  payback: 1.17,                 // years (30,000 / 25,554)
+  // Defaults reflect Y1 base case profit £85,181 × 25% = £21,295 (a new
+  // investor taking the full £25k remaining stake).
+  investorDividend: 21295,
+  totalInvestorReturn: 21295,
+  coc: 0.8518,                   // 85.18% on £25k invested
+  payback: 1.17,                 // years (25,000 / 21,295)
   aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
 }
 
@@ -553,29 +565,33 @@ export const WATERFALL = {
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
-    investorEq:      0.30,
-    investorReturn:  25554,
+    investorEq:      0.25,
+    investorReturn:  21295,
     coc:              0.8518,
     paybackYears:     1.17,
   },
+  // 'investorShare' = a NEW investor taking the full £25k remaining
+  // stake (= 25% of the company). 'founderShare' here bundles the
+  // founder's 70% (50% retained + 20% buyback) plus the £5k Investor
+  // #1 commitment (5%) = 75% of profits going to everyone-else.
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 25554.42, founderShare:  59626.99 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 29057.06, founderShare:  67799.80 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 37478.60, founderShare:  87450.06 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 46557.89, founderShare: 108635.08 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 56345.48, founderShare: 131472.79 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 21295.35, founderShare:  63886.06 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 24214.21, founderShare:  72642.64 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 31232.16, founderShare:  93696.49 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 38798.24, founderShare: 116394.73 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 46954.57, founderShare: 140863.70 },
   ],
-  cumulativeDividends: 194993.45,     // Sum of investor shares Y1–Y5 (30% of cumulative profit £649,978.15)
+  cumulativeDividends: 162494.53,     // Sum of investor shares Y1–Y5 (25% of cumulative profit £649,978.15)
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
     businessValue:    751273.08,
-    investorProceeds: 225381.92,      // 30% of business value
-    founderProceeds:  525891.16,      // 70% of business value
+    investorProceeds: 187818.27,      // 25% of business value (new investor at £25k stake)
+    founderProceeds:  563454.81,      // 75% of business value (founder 70% + Investor #1 5%)
   },
-  totalReturned:      420375.37,      // cumulativeDividends + exit.investorProceeds
-  multipleOfMoney:   14.0125,         // totalReturned / 30,000
-  irr:                1.155,          // IRR on flows: -30000, +25554, +29057, +37479, +46558, +281727 (Y5 div + exit)
+  totalReturned:      350312.80,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.0125,         // totalReturned / 25,000 (per-£ returns unchanged at fixed £100k post-money)
+  irr:                1.157,          // IRR on flows: -25000, +21295, +24214, +31232, +38798, +234772 (Y5 div + exit)
 }
 
 // === GOVERNANCE ===
@@ -606,7 +622,7 @@ export const GOVERNANCE = {
 // Drag stock down → working capital up. Drag everything to minimum → working
 // capital is the bulk of the raise. The total raised stays at this target;
 // only the allocation between explicit spend and working-capital float varies.
-export const HACKNEY_RAISE_TARGET = 30000
+export const HACKNEY_RAISE_TARGET = 25000
 
 // === USE OF FUNDS ===
 // Six EXPLICIT slider categories (stock, rent, garden, interior, marketing,

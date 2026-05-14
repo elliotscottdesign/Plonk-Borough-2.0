@@ -162,19 +162,31 @@ function Section({ title, items }) {
 }
 
 // ─── Round progress + cap-table block ──────────────────────────────
-// Shows the live state of the £50k hurried-sale round so investors can
-// see at a glance: how much has been sold (£20k founder buyback), how
-// much is still on offer (£30k external), and the post-round cap-table
-// split (50% founder retained / 20% founder buyback / 30% available).
+// Live state of the £50k hurried-sale round. Reads DEAL.commitments
+// (an array of {label, amount, equity, type}) so new commitments show
+// up here as they're added to the DEAL constant — no UI change needed.
+// Visible blocks:
+//   1) Two-segment progress bar (sold green / available gold)
+//   2) Cap table — Founder retained + every commitment + Available
 function RoundProgressBlock() {
   const round       = DEAL.roundSize        ?? 50000
-  const sold        = DEAL.founderBuyback   ?? 20000
-  const available   = DEAL.availableAmount  ?? (round - sold)
-  const pctSold     = (sold / round) * 100
-  const pctAvail    = (available / round) * 100
+  const commitments = Array.isArray(DEAL.commitments) ? DEAL.commitments : []
   const retainedEq  = (DEAL.founderRetained ?? 0.50) * 100
-  const buybackEq   = (DEAL.founderBuybackEq ?? 0.20) * 100
-  const availEq     = (DEAL.availableEq ?? 0.30) * 100
+
+  // Derive sold / available from the commitments array so a new entry
+  // in DEAL.commitments propagates here automatically.
+  const sold       = commitments.reduce((s, c) => s + (c.amount || 0), 0)
+  const soldEq     = commitments.reduce((s, c) => s + (c.equity || 0), 0) * 100
+  const available  = DEAL.availableAmount ?? (round - sold)
+  const availEq    = (DEAL.availableEq    ?? Math.max(0, 0.50 - (sold / round) * 0.50)) * 100
+  const pctSold    = (sold      / round) * 100
+  const pctAvail   = (available / round) * 100
+
+  // Tone palette per commitment type
+  const colorFor = (type) =>
+    type === 'founder'  ? '#34D399' :   // green
+    type === 'external' ? '#A78BFA' :   // purple
+                          '#22D3EE'     // fallback teal
 
   return (
     <div style={{
@@ -208,12 +220,12 @@ function RoundProgressBlock() {
         <span style={{ color: 'var(--gold)', fontWeight: 600 }}>● Available · {fmt(available)} ({pctAvail.toFixed(0)}%)</span>
       </div>
 
-      {/* Cap-table breakdown — three rows */}
+      {/* Cap-table breakdown — iterates commitments */}
       <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, fontWeight: 600 }}>
         Post-round cap table
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 120px', gap: 10, alignItems: 'center' }}>
-        {/* Founder retained */}
+        {/* Founder retained — never sold, ALWAYS first row */}
         <div style={{ width: 16, height: 16, borderRadius: 4, background: '#10B981' }} />
         <div style={{ color: 'var(--cream)', fontSize: 13 }}>
           <strong>Founder retained</strong> — pre-money holdback (not for sale)
@@ -221,15 +233,19 @@ function RoundProgressBlock() {
         <div style={{ textAlign: 'right', color: 'var(--cream)', fontWeight: 600 }}>{retainedEq.toFixed(0)}%</div>
         <div style={{ textAlign: 'right', color: 'var(--cream-dim)', fontSize: 12 }}>—</div>
 
-        {/* Founder buyback */}
-        <div style={{ width: 16, height: 16, borderRadius: 4, background: '#34D399' }} />
-        <div style={{ color: 'var(--cream)', fontSize: 13 }}>
-          <strong>Founder buyback</strong> — purchased this round (SOLD)
-        </div>
-        <div style={{ textAlign: 'right', color: 'var(--cream)', fontWeight: 600 }}>{buybackEq.toFixed(0)}%</div>
-        <div style={{ textAlign: 'right', color: 'var(--cream-dim)', fontSize: 12 }}>{fmt(sold)}</div>
+        {/* Each committed stake */}
+        {commitments.map((c, i) => (
+          <React.Fragment key={i}>
+            <div style={{ width: 16, height: 16, borderRadius: 4, background: colorFor(c.type) }} />
+            <div style={{ color: 'var(--cream)', fontSize: 13 }}>
+              <strong>{c.label}</strong> — <span style={{ color: '#86EFAC', fontWeight: 600 }}>SOLD</span>
+            </div>
+            <div style={{ textAlign: 'right', color: 'var(--cream)', fontWeight: 600 }}>{(c.equity * 100).toFixed(0)}%</div>
+            <div style={{ textAlign: 'right', color: 'var(--cream-dim)', fontSize: 12 }}>{fmt(c.amount)}</div>
+          </React.Fragment>
+        ))}
 
-        {/* Available */}
+        {/* Available — ALWAYS last row */}
         <div style={{ width: 16, height: 16, borderRadius: 4, background: 'var(--gold)' }} />
         <div style={{ color: 'var(--cream)', fontSize: 13 }}>
           <strong style={{ color: 'var(--gold)' }}>Available to external investors</strong> — FOR SALE
@@ -239,7 +255,7 @@ function RoundProgressBlock() {
       </div>
 
       <div style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        The founder retains <strong style={{ color: 'var(--cream)' }}>{retainedEq.toFixed(0)}%</strong> of the company as pre-money holdback and has personally bought <strong style={{ color: 'var(--cream)' }}>{fmt(sold)}</strong> of the round (locking in another <strong style={{ color: 'var(--cream)' }}>{buybackEq.toFixed(0)}%</strong>). Post-round founder holding: <strong style={{ color: 'var(--cream)' }}>{(retainedEq + buybackEq).toFixed(0)}%</strong>. External investors share the remaining <strong style={{ color: 'var(--gold)' }}>{availEq.toFixed(0)}%</strong> in proportion to their cheque size.
+        Founder retains <strong style={{ color: 'var(--cream)' }}>{retainedEq.toFixed(0)}%</strong> as pre-money holdback. <strong style={{ color: 'var(--cream)' }}>{fmt(sold)}</strong> of the round ({soldEq.toFixed(0)}%) is already committed across {commitments.length} cheque{commitments.length === 1 ? '' : 's'}. The remaining <strong style={{ color: 'var(--gold)' }}>{fmt(available)}</strong> ({availEq.toFixed(0)}%) is open to new investors at the same valuation — pro-rata cheque size to equity.
       </div>
     </div>
   )
