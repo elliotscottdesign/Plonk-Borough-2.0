@@ -114,7 +114,7 @@ export const DEAL = {
   externalPostEq:   0.30,        // 5% (committed) + 25% (available) = 30% external pool
 
   // Share / governance
-  shareClass: 'Ordinary',        // standard ordinary shares — voting + economic
+  shareClass: 'B (non-voting)',  // Round 1: B shares only. Founder retains 100% of A shares.
   multiple: 1.6184,              // entry multiple — preMoney / 2025 EBITDA (50000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
   preMoney: 50000,

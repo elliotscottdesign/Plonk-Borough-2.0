@@ -102,7 +102,8 @@ export default function InvestmentSummary() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, marginBottom: 36 }}>
         <Section title={`🏢 Deal Structure${isLocked ? ' · LOCKED' : ''}`} items={[
           ['Investment Sought',   fmt(effective.investment), isLocked],
-          ['Share Class',         DEAL.shareClass || 'Ordinary'],
+          ['Share Class · Round 1', DEAL.shareClass || 'Ordinary'],
+          ['Voting Rights',       'Founder retains 100% via A shares'],
           ['Investor Equity',    `${(effective.investorEq*100).toFixed(0)}%`],
           ['Founder Equity',     `${(effective.founderEq*100).toFixed(0)}%`],
           ['Pre-Money Valuation', fmt(effective.preMoney)],
