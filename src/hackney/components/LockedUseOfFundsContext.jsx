@@ -127,11 +127,11 @@ const isValidForecast = (v) =>
 // reads this directly. Consumers should treat values outside the range
 // as legitimate (e.g. legacy snapshots) and clamp visually only.
 // FundingSlider models the INDIVIDUAL INVESTOR'S stake (not the total
-// round). Range 5k → 30k covers the band from minimum interest size up
-// to taking the full available external slice. Step 1k so investors can
+// round). Range 1k → 30k covers the band from the smallest entry cheque
+// up to taking the full available external slice. Step 1k so investors
 // land exactly on a £1k boundary (1% equity per £1k at the fixed £100k
 // post-money valuation).
-export const FUNDING_RANGE = { min: 5000, max: 30000, step: 1000 }
+export const FUNDING_RANGE = { min: 1000, max: 30000, step: 1000 }
 
 // Build the default live values from the static USE_OF_FUNDS list.
 function buildDefaults() {
