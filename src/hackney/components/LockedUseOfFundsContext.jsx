@@ -126,7 +126,7 @@ const isValidForecast = (v) =>
 // Funding amount slider range. Single source of truth — FundingSlider
 // reads this directly. Consumers should treat values outside the range
 // as legitimate (e.g. legacy snapshots) and clamp visually only.
-export const FUNDING_RANGE = { min: 50000, max: 100000, step: 5000 }
+export const FUNDING_RANGE = { min: 30000, max: 100000, step: 5000 }
 
 // Build the default live values from the static USE_OF_FUNDS list.
 function buildDefaults() {
