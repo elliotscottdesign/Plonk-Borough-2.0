@@ -27,9 +27,10 @@ function calcReturns(multiplier, deal, baseProfit) {
   // until a per-scenario cost-rule split is wired in. baseProfit already
   // reflects the locked wage calculator if the founder has locked one.
   const opProfit = Math.round(baseProfit * (multiplier / 1.15))   // 1.15 = base
-  // Investor dividend now includes the £5,000 B-class preferred dividend
-  // (Round 1 mechanic — preferred goes pro-rata to B holders by B-slice).
-  const investorDiv = computeInvestorDividend(Math.max(0, opProfit), deal.investorEq)
+  // Investor dividend includes the 10% preferred yield on the investor's
+  // invested capital, paid before the pro-rata residual split. External
+  // B-only — founder's buyback does not get preferred.
+  const investorDiv = computeInvestorDividend(Math.max(0, opProfit), deal.investment)
   const total = investorDiv
   const coc = total / deal.investment
   const payback = total > 0 ? deal.investment / total : Infinity
@@ -120,12 +121,12 @@ export default function InvestmentSummary() {
           ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
         <Section title="💰 Investor Returns" items={[
-          ['Distribution Model', 'Preferred → pro-rata', true],
-          ['B-class Preferred (annual)', fmt(DEAL.preferredDividend || 0), true],
-          [`Equity Dividend (${investorEqPct}%)`, fmt(r.investorDiv), true],
-          ['Total Year 1 Return', fmt(r.total), true],
-          ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],
-          ['Payback Period', paybackVal],
+          ['Distribution Model',         'Preferred → pro-rata', true],
+          ['Preferred Yield (External B)', `${((DEAL.preferredYield || 0)*100).toFixed(0)}% on capital invested`, true],
+          [`Your Annual Preferred`,        fmt(Math.round((effective.investment || 0) * (DEAL.preferredYield || 0))), true],
+          [`Total Year 1 (Preferred + Residual)`, fmt(r.total), true],
+          ['Cash-on-Cash',                `${(r.coc*100).toFixed(1)}%`, true],
+          ['Payback Period',              paybackVal],
         ]} />
       </div>
 

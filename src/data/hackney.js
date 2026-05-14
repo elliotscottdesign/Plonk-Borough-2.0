@@ -116,9 +116,13 @@ export const DEAL = {
   // Share / governance
   shareClass: 'B (non-voting)',  // Round 1: B shares only. Founder retains 100% of A shares.
   totalBEquity:     0.50,        // 50% of the company is B-class (everyone selling/holding in this round)
-  preferredDividend: 5000,       // First £5,000 of profit each year is preferred to B-class
-                                 // (pro-rata to each B holder's slice of the B-class).
-                                 // Compensates the non-voting B-class for the lack of governance rights.
+  preferredYield:   0.10,        // 10% preferred yield on EXTERNAL B-class capital invested.
+                                 // Paid each year BEFORE the pro-rata residual split. Funded
+                                 // from operating profit AFTER director salary + working-capital
+                                 // top-up. Founder's £20k B-class BUYBACK does NOT receive
+                                 // preferred — external B holders rank ahead of founder B in
+                                 // the dividend queue. Non-cumulative (unpaid preferred does
+                                 // not roll forward).
   multiple: 1.6184,              // entry multiple — preMoney / 2025 EBITDA (50000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
   preMoney: 50000,
@@ -126,14 +130,18 @@ export const DEAL = {
   preferred: 0,                  // no preferred return
   aSharePriority: 0,             // no founder priority slice
 
-  // Defaults reflect Y1 base case profit £85,181 with the preferred
-  // dividend applied: £2,500 preferred (25% of B-class slice of the
-  // £5,000 preferred pool) + £20,045 residual (25% of £80,181) =
-  // £22,545 for a new investor taking the full £25k remaining stake.
-  investorDividend: 22545,
-  totalInvestorReturn: 22545,
-  coc: 0.9018,                   // 90.18% on £25k invested
-  payback: 1.11,                 // years (25,000 / 22,545)
+  // Defaults reflect Y1 base case profit £85,181 with the 10% preferred
+  // yield applied to external B-class capital:
+  //   Total external B (Investor #1 £5k + new investor £25k) = £30k
+  //   Total preferred (10%) = £3,000/yr funded from profit
+  //   New investor's preferred share = £2,500 (25k of 30k external)
+  //   Residual (£82,181) split pro-rata across all equity:
+  //     New investor (25%) = £20,545
+  //   New investor Y1 dividend = £23,045
+  investorDividend: 23045,
+  totalInvestorReturn: 23045,
+  coc: 0.9218,                   // 92.18% on £25k invested
+  payback: 1.085,                // years (25,000 / 23,045)
   aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
 }
 
@@ -526,25 +534,28 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
-// Hurried-sale round with a £5,000/yr preferred dividend to B-class.
-// First £5,000 of profit → pro-rata to B holders by their B-class slice.
-// Residual £80,181 (Y1) → pro-rata across all equity (A + B).
-// New investor at the full £25k stake (= 25% of company / 50% of B):
-//   • Preferred share:   £5,000 × 0.25 / 0.50 = £2,500
-//   • Residual share:    £80,181 × 0.25       = £20,045
-//   • Y1 dividend:       £22,545
-// Everyone-else (founder 70% + Investor #1 5%) splits the £62,636
-// remainder (£85,181 − £22,545). Slides recompute live via
-// computeInvestorDividend(); this is the un-locked fallback only.
+// Hurried-sale round with a 10% preferred yield on EXTERNAL B-class
+// capital. Each year, after director salary + working-capital top-up:
+//   1. External B holders receive 10% × their invested capital as
+//      preferred dividend. Founder B does NOT get preferred.
+//   2. Residual splits pro-rata across all equity (A + B).
+// Assuming full subscription (Investor #1 £5k + new investor £25k):
+//   • Total external B:          £30,000
+//   • Annual preferred pool:     £3,000  (Investor #1 £500 + new £2,500)
+//   • Residual (Y1):             £82,181
+//   • New investor (25%) Y1:     £2,500 preferred + £20,545 residual = £23,045
+//   • Everyone-else Y1:          £62,136
+// Slides recompute live via computeInvestorDividend(); this constant
+// is the un-locked fallback only.
 export const WATERFALL = {
   operatingProfit: 85181,
-  preferred: 5000,                 // first £5k of profit → preferred to B-class
+  preferred: 3000,                 // 10% × £30k external B at full subscription
   aSharePriority: 0,
-  remainingPool: 80181,            // = operatingProfit - preferred
-  investorDividend: 22545,         // new investor at 25% (= £2,500 preferred + £20,045 residual)
-  founderDividend: 62636,          // = 85,181 - 22,545 (founder 70% A+B + Investor #1 5% B)
-  totalInvestor: 22545,
-  totalFounder: 62636,
+  remainingPool: 82181,            // = operatingProfit - preferred
+  investorDividend: 23045,         // new investor at 25% (£2,500 preferred + £20,545 residual)
+  founderDividend: 62136,          // = 85,181 - 23,045
+  totalInvestor: 23045,
+  totalFounder: 62136,
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
@@ -576,23 +587,24 @@ export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
     investorEq:      0.25,
-    investorReturn:  22545,           // preferred £2,500 + residual £20,045
-    coc:              0.9018,         // 22545 / 25000
-    paybackYears:     1.11,           // 25000 / 22545
+    investorReturn:  23045,           // preferred £2,500 + residual £20,545
+    coc:              0.9218,         // 23045 / 25000
+    paybackYears:     1.085,          // 25000 / 23045
   },
   // 'investorShare' = a NEW investor taking the full £25k remaining
-  // stake (= 25% of company / 50% of B-class). Each year includes
-  // £2,500 of preferred dividend (= 25/50 of the £5,000 B-class
-  // preferred) + 25% of the residual profit. 'founderShare' bundles
-  // everyone-else (founder 70% + Investor #1 5%, both B and A).
+  // stake (= 25% of company). Each year:
+  //   • Preferred:  £2,500   (10% × £25k invested capital — fixed)
+  //   • Residual:   25% × (profit − £3,000 total external B preferred)
+  // 'founderShare' bundles everyone-else (founder 70% A+B residual +
+  // Investor #1 5% residual + Investor #1's £500 annual preferred).
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 22545.35, founderShare:  62636.06 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 25464.21, founderShare:  71392.64 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 32482.16, founderShare:  92446.49 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 40048.24, founderShare: 115144.73 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 48204.57, founderShare: 139613.70 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 23045.35, founderShare:  62136.06 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 25964.21, founderShare:  70892.64 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 32982.16, founderShare:  91946.49 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 40548.24, founderShare: 114644.73 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 48704.57, founderShare: 139113.70 },
   ],
-  cumulativeDividends: 168744.53,     // = base £162,494.53 + 5 × £2,500 preferred = +£12,500 vs pure pro-rata
+  cumulativeDividends: 171244.53,     // = base £162,494.53 + 5 × £2,500 preferred = +£12,500 over 5 yrs
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
@@ -600,9 +612,9 @@ export const HACKNEY_INVESTOR_RETURNS = {
     investorProceeds: 187818.27,      // 25% of business value (exit is pro-rata, no preferred at exit)
     founderProceeds:  563454.81,      // 75% of business value
   },
-  totalReturned:      356562.80,      // cumulativeDividends + exit.investorProceeds (was 350,313 without preferred)
-  multipleOfMoney:   14.2625,         // totalReturned / 25,000 (was 14.01× without preferred)
-  irr:                1.195,          // IRR on flows: -25000, +22545, +25464, +32482, +40048, +236023 (Y5 div + exit)
+  totalReturned:      359062.80,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.3625,         // totalReturned / 25,000 (was 14.26× under flat-£5k preferred)
+  irr:                1.210,          // IRR on flows: -25000, +23045, +25964, +32982, +40548, +236523 (Y5 div + exit)
 }
 
 // === GOVERNANCE ===
@@ -973,39 +985,54 @@ export function computeDealFromInvestment(investment) {
   return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult }
 }
 
-// computeInvestorDividend — Round 1 B-class share of operating profit
-// INCLUDING the preferred dividend.
+// computeInvestorDividend — Round 1 B-class share of annual operating
+// profit including the EXTERNAL-B-only preferred dividend.
 //
-// Mechanic:
-//   1. First £preferredDividend (£5,000) of annual operating profit
-//      goes pro-rata to B-class holders only, weighted by each
-//      holder's slice of the B-class (totalBEquity).
-//   2. Residual profit splits pro-rata across all equity (A + B).
+// Mechanic (each year, after director salary + working-capital top-up):
+//   1. EXTERNAL B-class holders receive a preferred dividend equal to
+//      preferredYield × their invested capital. Founder's £20k B-class
+//      buyback does NOT receive preferred — external B ranks ahead of
+//      founder B in the dividend queue.
+//   2. Remaining profit splits pro-rata across ALL equity (founder A +
+//      founder B + Investor #1 + new investor).
 //
-// For a Round-1 external investor (all in B-class), this returns
-// their full annual dividend. The founder's combined A+B dividend
-// requires summing the A residual and the B (preferred + residual).
+// `investmentAmount` is the new investor's £ cheque (drives both their
+// preferred entitlement and their equity %, since postMoney is fixed at
+// £100k). Investor #1's preferred contribution is read from
+// DEAL.commitments where type === 'external'.
 //
-//   investorEqInB = the investor's % of the company held in B-class
-//                   (= their total stake, since Round 1 investors are
-//                   B-only)
-//
-// Examples (at the £85,181 Y1 base profit, with default £5k preferred
-// and 50% total B):
-//   Invest 25% → preferred share £2,500 + residual £20,045 = £22,545
-//   Invest 10% → preferred share £1,000 + residual  £8,018 = £9,018
-//   Invest  5% → preferred share   £500 + residual  £4,009 = £4,509
-//   Invest  1% → preferred share   £100 + residual    £802 = £902
-export function computeInvestorDividend(profit, investorEqInB, opts) {
+// Examples (Y1 profit £85,181, 10% yield, Investor #1 already £5k in):
+//   Invest £25k → preferred £2,500 + residual £20,545 = £23,045
+//   Invest £10k → preferred £1,000 + residual  £8,368 = £9,368
+//   Invest  £5k → preferred   £500 + residual  £4,209 = £4,709
+//   Invest  £1k → preferred   £100 + residual    £846 = £946
+export function computeInvestorDividend(profit, investmentAmount, opts) {
   opts = opts || {}
-  const PREF    = opts.preferred    ?? DEAL.preferredDividend ?? 0
-  const TOTAL_B = opts.totalBEquity ?? DEAL.totalBEquity      ?? 0.50
+  const yieldPct = opts.preferredYield ?? DEAL.preferredYield ?? 0
+  const POST_MONEY = 100000
+  const inv = Math.max(0, investmentAmount || 0)
+
+  // External B capital already committed (excludes founder buyback)
+  const committedExternal = (DEAL.commitments || [])
+    .filter(c => c.type === 'external')
+    .reduce((s, c) => s + (c.amount || 0), 0)
+
+  // Total external B capital this round = committed + the new investor
+  const totalExternalCapital = committedExternal + inv
+  const grossPreferred       = totalExternalCapital * yieldPct
+
   const p = Math.max(0, profit || 0)
-  const preferred = Math.min(PREF, p)
+  const preferred = Math.min(grossPreferred, p)
   const residual  = p - preferred
-  const prefShare = TOTAL_B > 0 ? preferred * (investorEqInB / TOTAL_B) : 0
-  const rataShare = residual * investorEqInB
-  return prefShare + rataShare
+
+  // New investor's slice of preferred (pro-rata to capital within external B)
+  const investorPref = totalExternalCapital > 0
+    ? preferred * (inv / totalExternalCapital)
+    : 0
+  // New investor's residual share (pro-rata to equity)
+  const investorEq    = inv / POST_MONEY
+  const residualShare = residual * investorEq
+  return investorPref + residualShare
 }
 
 // === HARDWARE FROM LIQUIDATORS — itemised breakdown ===

@@ -19,12 +19,10 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 function calcWaterfall(profit, deal) {
-  // New investor's dividend (preferred + pro-rata residual)
-  const investorDiv = computeInvestorDividend(profit, deal.investorEq)
-  // Everyone-else's dividend = profit - new investor's dividend
-  // (this bundles founder 70% + Investor #1 5% B-share, both of which
-  // also receive a slice of the preferred but stay outside the slider
-  // calculator).
+  // New investor's dividend = 10% preferred on their capital + pro-rata
+  // residual on their equity. External B-only — founder buyback does
+  // not get preferred.
+  const investorDiv = computeInvestorDividend(profit, deal.investment)
   const founderDiv = Math.max(0, profit - investorDiv)
   const totalInvestor = investorDiv
   const coc = deal.investment > 0 ? totalInvestor / deal.investment : 0

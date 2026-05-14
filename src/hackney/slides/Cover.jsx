@@ -101,12 +101,13 @@ export default function Cover() {
   const deal          = { ...DEAL, ...dealLive }
 
   // Operating profit cascades from the locked wage calculator (if locked)
-  // through computeForecastProfit. Y1 investor return now includes the
-  // £5,000 B-class preferred dividend, applied pro-rata to each B holder's
-  // slice of the B-class. Residual splits pro-rata across all equity.
+  // through computeForecastProfit. Y1 investor return includes the 10%
+  // preferred yield on the investor's invested capital (paid before the
+  // residual split). External B-only — founder's £20k buyback does not
+  // receive preferred.
   const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
   const liveProfit     = computeForecastProfit(wagesOverride)
-  const investorReturn = computeInvestorDividend(liveProfit, deal.investorEq)
+  const investorReturn = computeInvestorDividend(liveProfit, fundingAmount)
   const coc            = fundingAmount > 0 ? investorReturn / fundingAmount : 0
   const payback        = investorReturn > 0 ? fundingAmount / investorReturn : Infinity
 
