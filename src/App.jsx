@@ -39,7 +39,7 @@ const SLIDE_DEFS = [
 ]
 
 // Plonk top-tab is PRIVATE — only the founder (888999) and VALEX investor
-// codes see it. TEST1 and BRAZIL get the 3-tab investor view.
+// codes see it. TEST1, BRAZIL, JOHN1 and LEONIE get the 3-tab investor view.
 const TOP_TAB_KEYS_BASE = ['investorDeck', 'venueInfo', 'businessExplorer']
 const TOP_TAB_KEYS_PLONK = [...TOP_TAB_KEYS_BASE, 'plonk']
 
