@@ -74,7 +74,7 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // Cap table — live state of the round:
 //   Founder retained (pre-money holdback)   50%   £0    — not for sale
 //   Founder buyback                         20%   £20k  — SOLD (founder)
-//   External investor #1                     5%    £5k  — SOLD (Investor #1)
+//   LEONIE                                   5%    £5k  — SOLD (external)
 //   Available to external investors         25%   £25k  — FOR SALE
 //                                          ----   ----
 //                                          100%   £50k
@@ -84,14 +84,14 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // taking the full £25k (= 25% equity). The FundingSlider on Cover lets
 // them model a smaller stake (£5k → 5%, £10k → 10%, etc.). Equity is
 // always investment / £100k post-money. Founder slice of profits =
-// 70% (= founder retained 50% + buyback 20%); the other committed
-// external investor takes 5%; the new investor takes whatever they
-// subscribe for, up to the £25k remaining.
+// 70% (= founder retained 50% + buyback 20%); LEONIE (committed) takes
+// 5%; the new investor takes whatever they subscribe for, up to the
+// £25k remaining.
 export const DEAL = {
   // Single-investor view (drives the deck's headline numbers / returns)
   investment: 25000,             // max a NEW investor can take = remaining available
   investorEq: 0.25,              // 25% if they take the full remaining stake
-  founderEq: 0.70,               // 50% retained + 20% buyback (other 5% sits with Investor #1)
+  founderEq: 0.70,               // 50% retained + 20% buyback (other 5% sits with LEONIE)
 
   // Round-level breakdown (informational — shown on Investment Summary)
   roundSize:        50000,       // total raise this round
@@ -104,8 +104,8 @@ export const DEAL = {
   // arrive. The Investment Summary's RoundProgressBlock iterates over
   // this list to render the cap-table + progress bar.
   commitments: [
-    { label: 'Founder buyback',        amount: 20000, equity: 0.20, type: 'founder',  status: 'sold' },
-    { label: 'External investor · #1', amount:  5000, equity: 0.05, type: 'external', status: 'sold' },
+    { label: 'Founder buyback', amount: 20000, equity: 0.20, type: 'founder',  status: 'sold' },
+    { label: 'LEONIE',          amount:  5000, equity: 0.05, type: 'external', status: 'sold' },
   ],
 
   availableAmount:  25000,       // = roundSize - sum(commitments)
@@ -132,7 +132,7 @@ export const DEAL = {
 
   // Defaults reflect Y1 base case profit £85,181 with the 10% preferred
   // yield applied to external B-class capital:
-  //   Total external B (Investor #1 £5k + new investor £25k) = £30k
+  //   Total external B (LEONIE £5k + new investor £25k) = £30k
   //   Total preferred (10%) = £3,000/yr funded from profit
   //   New investor's preferred share = £2,500 (25k of 30k external)
   //   Residual (£82,181) split pro-rata across all equity:
@@ -539,9 +539,9 @@ export const MARKETING = {
 //   1. External B holders receive 10% × their invested capital as
 //      preferred dividend. Founder B does NOT get preferred.
 //   2. Residual splits pro-rata across all equity (A + B).
-// Assuming full subscription (Investor #1 £5k + new investor £25k):
+// Assuming full subscription (LEONIE £5k + new investor £25k):
 //   • Total external B:          £30,000
-//   • Annual preferred pool:     £3,000  (Investor #1 £500 + new £2,500)
+//   • Annual preferred pool:     £3,000  (LEONIE £500 + new £2,500)
 //   • Residual (Y1):             £82,181
 //   • New investor (25%) Y1:     £2,500 preferred + £20,545 residual = £23,045
 //   • Everyone-else Y1:          £62,136
@@ -596,7 +596,7 @@ export const HACKNEY_INVESTOR_RETURNS = {
   //   • Preferred:  £2,500   (10% × £25k invested capital — fixed)
   //   • Residual:   25% × (profit − £3,000 total external B preferred)
   // 'founderShare' bundles everyone-else (founder 70% A+B residual +
-  // Investor #1 5% residual + Investor #1's £500 annual preferred).
+  // LEONIE 5% residual + LEONIE's £500 annual preferred).
   fiveYear: [
     { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 23045.35, founderShare:  62136.06 },
     { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 25964.21, founderShare:  70892.64 },
@@ -994,14 +994,14 @@ export function computeDealFromInvestment(investment) {
 //      buyback does NOT receive preferred — external B ranks ahead of
 //      founder B in the dividend queue.
 //   2. Remaining profit splits pro-rata across ALL equity (founder A +
-//      founder B + Investor #1 + new investor).
+//      founder B + LEONIE + new investor).
 //
 // `investmentAmount` is the new investor's £ cheque (drives both their
 // preferred entitlement and their equity %, since postMoney is fixed at
-// £100k). Investor #1's preferred contribution is read from
+// £100k). LEONIE's preferred contribution is read from
 // DEAL.commitments where type === 'external'.
 //
-// Examples (Y1 profit £85,181, 10% yield, Investor #1 already £5k in):
+// Examples (Y1 profit £85,181, 10% yield, LEONIE already £5k in):
 //   Invest £25k → preferred £2,500 + residual £20,545 = £23,045
 //   Invest £10k → preferred £1,000 + residual  £8,368 = £9,368
 //   Invest  £5k → preferred   £500 + residual  £4,209 = £4,709
