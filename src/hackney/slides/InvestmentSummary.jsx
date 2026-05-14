@@ -95,6 +95,9 @@ export default function InvestmentSummary() {
         ))}
       </div>
 
+      {/* Round progress + cap table — hurried-sale round */}
+      <RoundProgressBlock />
+
       {/* 3-section snapshot grid */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, marginBottom: 36 }}>
         <Section title={`🏢 Deal Structure${isLocked ? ' · LOCKED' : ''}`} items={[
@@ -102,7 +105,6 @@ export default function InvestmentSummary() {
           ['Share Class',         DEAL.shareClass || 'Ordinary'],
           ['Investor Equity',    `${(effective.investorEq*100).toFixed(0)}%`],
           ['Founder Equity',     `${(effective.founderEq*100).toFixed(0)}%`],
-          ['Voting Rights',       'Founder retains 100% (A shares)'],
           ['Pre-Money Valuation', fmt(effective.preMoney)],
           ['Post-Money Valuation', fmt(effective.postMoney)],
           ['Implied Multiple',    effective.impliedMult ? `${effective.impliedMult.toFixed(2)}× EBITDA` : `${DEAL.multiple.toFixed(2)}× EBITDA`],
@@ -155,6 +157,90 @@ function Section({ title, items }) {
           <span style={{ color: gold ? 'var(--gold)' : 'var(--cream)', fontWeight: gold ? 600 : 400, fontVariantNumeric: 'tabular-nums' }}>{value}</span>
         </div>
       ))}
+    </div>
+  )
+}
+
+// ─── Round progress + cap-table block ──────────────────────────────
+// Shows the live state of the £50k hurried-sale round so investors can
+// see at a glance: how much has been sold (£20k founder buyback), how
+// much is still on offer (£30k external), and the post-round cap-table
+// split (50% founder retained / 20% founder buyback / 30% available).
+function RoundProgressBlock() {
+  const round       = DEAL.roundSize        ?? 50000
+  const sold        = DEAL.founderBuyback   ?? 20000
+  const available   = DEAL.availableAmount  ?? (round - sold)
+  const pctSold     = (sold / round) * 100
+  const pctAvail    = (available / round) * 100
+  const retainedEq  = (DEAL.founderRetained ?? 0.50) * 100
+  const buybackEq   = (DEAL.founderBuybackEq ?? 0.20) * 100
+  const availEq     = (DEAL.availableEq ?? 0.30) * 100
+
+  return (
+    <div style={{
+      background: 'linear-gradient(135deg, rgba(201,168,76,0.08), rgba(167,139,250,0.05))',
+      border: '1px solid rgba(201,168,76,0.28)',
+      borderRadius: 14,
+      padding: '20px 24px',
+      marginBottom: 28,
+    }}>
+      {/* Eyebrow */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12, marginBottom: 14 }}>
+        <span style={{ fontSize: 11, color: 'var(--gold)', letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700 }}>
+          First investment round · hurried sale
+        </span>
+        <span style={{ fontSize: 12, color: 'var(--cream-dim)' }}>
+          {fmt(sold)} of {fmt(round)} committed
+          <span style={{ color: 'var(--cream)', marginLeft: 8, fontWeight: 600 }}>· {fmt(available)} still available</span>
+        </span>
+      </div>
+
+      {/* Headline + progress bar */}
+      <div className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 14, lineHeight: 1.2 }}>
+        {fmt(round)} for 50% of the company. {fmt(available)} remains on offer.
+      </div>
+      <div style={{ width: '100%', height: 18, background: 'rgba(255,255,255,0.06)', borderRadius: 9, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
+        <div style={{ width: `${pctSold}%`, background: 'linear-gradient(90deg, #10B981, #34D399)', height: '100%' }} title={`Sold: ${fmt(sold)}`} />
+        <div style={{ width: `${pctAvail}%`, background: 'rgba(201,168,76,0.45)', height: '100%' }} title={`Available: ${fmt(available)}`} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--cream-dim)', marginBottom: 18 }}>
+        <span style={{ color: '#34D399', fontWeight: 600 }}>● Sold · {fmt(sold)} ({pctSold.toFixed(0)}%)</span>
+        <span style={{ color: 'var(--gold)', fontWeight: 600 }}>● Available · {fmt(available)} ({pctAvail.toFixed(0)}%)</span>
+      </div>
+
+      {/* Cap-table breakdown — three rows */}
+      <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8, fontWeight: 600 }}>
+        Post-round cap table
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: '40px 1fr 80px 120px', gap: 10, alignItems: 'center' }}>
+        {/* Founder retained */}
+        <div style={{ width: 16, height: 16, borderRadius: 4, background: '#10B981' }} />
+        <div style={{ color: 'var(--cream)', fontSize: 13 }}>
+          <strong>Founder retained</strong> — pre-money holdback (not for sale)
+        </div>
+        <div style={{ textAlign: 'right', color: 'var(--cream)', fontWeight: 600 }}>{retainedEq.toFixed(0)}%</div>
+        <div style={{ textAlign: 'right', color: 'var(--cream-dim)', fontSize: 12 }}>—</div>
+
+        {/* Founder buyback */}
+        <div style={{ width: 16, height: 16, borderRadius: 4, background: '#34D399' }} />
+        <div style={{ color: 'var(--cream)', fontSize: 13 }}>
+          <strong>Founder buyback</strong> — purchased this round (SOLD)
+        </div>
+        <div style={{ textAlign: 'right', color: 'var(--cream)', fontWeight: 600 }}>{buybackEq.toFixed(0)}%</div>
+        <div style={{ textAlign: 'right', color: 'var(--cream-dim)', fontSize: 12 }}>{fmt(sold)}</div>
+
+        {/* Available */}
+        <div style={{ width: 16, height: 16, borderRadius: 4, background: 'var(--gold)' }} />
+        <div style={{ color: 'var(--cream)', fontSize: 13 }}>
+          <strong style={{ color: 'var(--gold)' }}>Available to external investors</strong> — FOR SALE
+        </div>
+        <div style={{ textAlign: 'right', color: 'var(--gold)', fontWeight: 700 }}>{availEq.toFixed(0)}%</div>
+        <div style={{ textAlign: 'right', color: 'var(--gold)', fontWeight: 600, fontSize: 12 }}>{fmt(available)}</div>
+      </div>
+
+      <div style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+        The founder retains <strong style={{ color: 'var(--cream)' }}>{retainedEq.toFixed(0)}%</strong> of the company as pre-money holdback and has personally bought <strong style={{ color: 'var(--cream)' }}>{fmt(sold)}</strong> of the round (locking in another <strong style={{ color: 'var(--cream)' }}>{buybackEq.toFixed(0)}%</strong>). Post-round founder holding: <strong style={{ color: 'var(--cream)' }}>{(retainedEq + buybackEq).toFixed(0)}%</strong>. External investors share the remaining <strong style={{ color: 'var(--gold)' }}>{availEq.toFixed(0)}%</strong> in proportion to their cheque size.
+      </div>
     </div>
   )
 }

@@ -62,37 +62,61 @@ export const NOTES_SYNC_SECRET = ''
 export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 
 // === DEAL STRUCTURE ===
-// MICRO-SHARES MODEL · £30,000 raise for 10% B-class (non-voting) equity.
-// Founder retains 90% and 100% of voting control. Pre-money = investment ×
-// 9 (£270k) → post-money £300k. Implied 8.74× EBITDA on £30,896 verified
-// 2025 profit — above the 4.1× sector average but justified by the
-// non-voting structure (investor gets economics, founder keeps control).
-// Pure pro-rata on the 10% slice — no preferred return, no founder
-// priority slice. Equity slider range is 5%-10%; default sits at the
-// investor-friendly 10%. The 5% end gives the founder maximum retention
-// (95%) at a steeper implied multiple (~18.4× EBITDA).
+// HURRIED-SALE ROUND · £50,000 total raised for 50% of the company.
+// Founder retains 50% pre-money (not for sale) AND personally buys back
+// £20,000 of the round (= 20% of the company) — so post-round the founder
+// holds 70% (50% retained + 20% bought back). The remaining £30,000 of
+// the round (= 30% of the company) is the only portion available to
+// external investors. £50k for 50% implies pre-money £50k, post-money
+// £100k, entry 1.62× the £30,896 verified 2025 profit — well below the
+// 4.1× sector average, reflecting the hurried sale.
+//
+// Cap table (post-round):
+//   Founder retained (pre-money holdback)   50%   £0    — not for sale
+//   Founder buyback (this round)            20%   £20k  — SOLD
+//   External investors (this round)         30%   £30k  — FOR SALE
+//                                          ----   ----
+//                                          100%   £50k
+//
+// Returns shown on the deck assume an individual investor takes their
+// own slice of the available £30k. The default models a single investor
+// taking the full £30k (= 30% equity). The FundingSlider on Cover lets
+// them model a smaller stake (£5k → 5%, £10k → 10%, etc.). Equity is
+// always investment / £100k post-money. Founder slice of profits =
+// 70% (= founder retained 50% + buyback 20%).
 export const DEAL = {
+  // Single-investor view (drives the deck's headline numbers / returns)
   investment: 30000,
-  founderEq: 0.90,
-  investorEq: 0.10,
-  shareClass: 'B (non-voting)',  // founder retains 100% voting rights via A shares
-  equityRangeMin: 0.05,          // 5% — founder-favoured end of the micro-share band
-  equityRangeMax: 0.10,          // 10% — investor-favoured end
-  multiple: 8.7390,              // entry multiple — preMoney / 2025 EBITDA (270000 / 30896.17)
+  investorEq: 0.30,              // investor takes the full available £30k = 30%
+  founderEq: 0.70,               // 50% retained + 20% buyback
+
+  // Round-level breakdown (informational — shown on Investment Summary)
+  roundSize:        50000,       // total raise this round
+  roundEquity:      0.50,        // half the company is being sold
+  founderRetained:  0.50,        // pre-money holdback — never sold
+  founderBuyback:   20000,
+  founderBuybackEq: 0.20,
+  availableAmount:  30000,
+  availableEq:      0.30,
+  founderTotalPost: 0.70,        // 50% + 20%
+  externalPostEq:   0.30,
+
+  // Share / governance
+  shareClass: 'Ordinary',        // standard ordinary shares — voting + economic
+  multiple: 1.6184,              // entry multiple — preMoney / 2025 EBITDA (50000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
-  preMoney: 270000,
-  postMoney: 300000,
+  preMoney: 50000,
+  postMoney: 100000,
   preferred: 0,                  // no preferred return
-  aSharePriority: 0,             // no founder priority slice (A shares hold voting only)
-  // Defaults reflect the latest Y1 base case profit £85,181 × 10% = £8,518.
-  // Slides that consume the locked Use-of-Funds snapshot override these
-  // via computeDealFromInvestment(snapshot.total); these constants are
-  // the un-locked fallback only.
-  investorDividend: 8518,
-  totalInvestorReturn: 8518,
-  coc: 0.2839,                   // 28.39% on £30k invested
-  payback: 3.52,                 // years (30,000 / 8,518)
-  aShareThreshold: 15000,        // 5% of post-money £300k — governance floor
+  aSharePriority: 0,             // no founder priority slice
+
+  // Defaults reflect Y1 base case profit £85,181 × 30% = £25,554 (single
+  // investor taking the full £30k available).
+  investorDividend: 25554,
+  totalInvestorReturn: 25554,
+  coc: 0.8518,                   // 85.18% on £30k invested
+  payback: 1.17,                 // years (30,000 / 25,554)
+  aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
 }
 
 // === 2025 ACTUALS (BAR-ONLY, MINI GOLF EXCLUDED) ===
@@ -484,33 +508,35 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
-// Pure pro-rata 10/90 (investor / founder) under the micro-shares model.
-// No preferred, no founder priority slice. Y1 base profit £85,181 →
-// £8,518 investor, £76,663 founder. Slides that consume a locked Use-of-
-// Funds snapshot recompute these live; this constant is the un-locked
-// fallback.
+// Pure pro-rata 30/70 (investor / founder) under the hurried-sale round
+// — investor at full £30k available stake gets 30%, founder ends at 70%
+// (50% retained + 20% buyback). No preferred, no founder priority slice.
+// Y1 base profit £85,181 → £25,554 investor, £59,627 founder. Slides that
+// consume a locked Use-of-Funds snapshot recompute these live; this is
+// the un-locked fallback.
 export const WATERFALL = {
   operatingProfit: 85181,
   preferred: 0,
   aSharePriority: 0,
   remainingPool: 85181,
-  investorDividend: 8518,
-  founderDividend: 76663,
-  totalInvestor: 8518,
-  totalFounder: 76663,
+  investorDividend: 25554,
+  founderDividend: 59627,
+  totalInvestor: 25554,
+  totalFounder: 59627,
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// MICRO-SHARES MODEL · 10/90 pro-rata (investor / founder), no preferred
-// return. Year-1 profit £85,181 from the 2026 cost model (£65k+VAT pa
-// lease with 3-mo rent-free Y1 start + 10% uplift on stock and other
-// fixed lines). Y2 onwards rent steps up to the £65,000 headline; Y3+
-// grows at +3% pa per the lease uplift clause. Revenue and variable
-// costs grow at 7.5% YoY; wages, fixed (other), rates and director are
-// held flat. Investor share = 10% × profit each year (founder retains
-// 90%). On a £30k investment basis: Y1 dividend £8,518 = 28.4% cash-on-
-// cash, 3.5-year payback, ~4.7× money-on-money over the full 5-year
-// hold (dividends + Y5 exit at 4× EBITDA). Powers the multi-year payout
+// HURRIED-SALE ROUND · 30/70 pro-rata (investor / founder) at the full
+// £30k available stake, no preferred return. Year-1 profit £85,181 from
+// the 2026 cost model (£65k+VAT pa lease with 3-mo rent-free Y1 start +
+// 10% uplift on stock and other fixed lines). Y2 onwards rent steps up
+// to the £65,000 headline; Y3+ grows at +3% pa per the lease uplift
+// clause. Revenue and variable costs grow at 7.5% YoY; wages, fixed
+// (other), rates and director are held flat. Investor share = 30% ×
+// profit each year (founder retains 70% = 50% pre-money + 20% buyback).
+// On a £30k investment basis: Y1 dividend £25,554 = 85% cash-on-cash,
+// 1.2-year payback, ~14× money-on-money over the full 5-year hold
+// (dividends + Y5 exit at 4× EBITDA). Powers the multi-year payout
 // schedule on the WaterfallReturns slide.
 //
 // vs the old £45,632 forecast (which assumed the legacy Plonk rent of
@@ -527,29 +553,29 @@ export const WATERFALL = {
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
-    investorEq:      0.10,
-    investorReturn:  8518,
-    coc:              0.2839,
-    paybackYears:     3.52,
+    investorEq:      0.30,
+    investorReturn:  25554,
+    coc:              0.8518,
+    paybackYears:     1.17,
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare:  8518.14, founderShare:  76663.27 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare:  9685.69, founderShare:  87171.17 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 12492.87, founderShare: 112435.79 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 15519.30, founderShare: 139673.67 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 18781.83, founderShare: 169036.44 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 25554.42, founderShare:  59626.99 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 29057.06, founderShare:  67799.80 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 37478.60, founderShare:  87450.06 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 46557.89, founderShare: 108635.08 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 56345.48, founderShare: 131472.79 },
   ],
-  cumulativeDividends: 64997.83,      // Sum of investor shares Y1–Y5 (10% of cumulative profit £649,978.15)
+  cumulativeDividends: 194993.45,     // Sum of investor shares Y1–Y5 (30% of cumulative profit £649,978.15)
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
     businessValue:    751273.08,
-    investorProceeds: 75127.31,       // 10% of business value
-    founderProceeds:  676145.77,      // 90% of business value
+    investorProceeds: 225381.92,      // 30% of business value
+    founderProceeds:  525891.16,      // 70% of business value
   },
-  totalReturned:      140125.14,      // cumulativeDividends + exit.investorProceeds
-  multipleOfMoney:    4.6708,         // totalReturned / 30,000
-  irr:                0.4850,         // IRR on flows: -30000, +8518, +9686, +12493, +15519, +93909 (Y5 div + exit)
+  totalReturned:      420375.37,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.0125,         // totalReturned / 30,000
+  irr:                1.155,          // IRR on flows: -30000, +25554, +29057, +37479, +46558, +281727 (Y5 div + exit)
 }
 
 // === GOVERNANCE ===
@@ -901,19 +927,22 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
   }
 }
 
-export function computeDealFromInvestment(investment, equityPct) {
-  // MICRO-SHARES MODEL — founder retains 90% (and 100% voting control)
-  // across every investment amount; investor gets 10% non-voting B-class
-  // by default. equityPct can be passed to model the 5%-10% band:
-  //   5% → preMoney = investment × 19, postMoney = investment × 20
-  //  10% → preMoney = investment × 9,  postMoney = investment × 10
-  // Implied entry multiple scales with the raise + equity choice.
-  const investorEq    = (typeof equityPct === 'number' && equityPct > 0 && equityPct <= 1) ? equityPct : 0.10
-  const founderEq     = 1 - investorEq
-  const postMoney     = investorEq > 0 ? investment / investorEq : investment
-  const preMoney      = postMoney - investment
-  const ebitda        = 30896.17                    // = ACTUALS_2025.profit
-  const impliedMult   = ebitda > 0 ? preMoney / ebitda : 0
+export function computeDealFromInvestment(investment) {
+  // HURRIED-SALE ROUND — post-money valuation is FIXED at £100k (the
+  // company is selling 50% for £50k). Any investor's equity slice is
+  // their cash / £100k. Founder retained slice is 50% (pre-money
+  // holdback) plus 20% (£20k founder buyback) = 70%, leaving 30%
+  // (£30k) available externally.
+  //   £5k  → 5%  equity
+  //   £10k → 10% equity
+  //   £30k → 30% equity (full available external slice)
+  const POST_MONEY = 100000
+  const postMoney  = POST_MONEY
+  const investorEq = Math.min(0.30, Math.max(0, investment / postMoney))
+  const founderEq  = 1 - investorEq
+  const preMoney   = postMoney - investment
+  const ebitda     = 30896.17                       // = ACTUALS_2025.profit
+  const impliedMult = ebitda > 0 ? preMoney / ebitda : 0
   return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult }
 }
 
