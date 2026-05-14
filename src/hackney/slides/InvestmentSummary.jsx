@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit, computeInvestorDividend } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // InvestmentSummary — Hackney deal summary slide.
@@ -27,7 +27,9 @@ function calcReturns(multiplier, deal, baseProfit) {
   // until a per-scenario cost-rule split is wired in. baseProfit already
   // reflects the locked wage calculator if the founder has locked one.
   const opProfit = Math.round(baseProfit * (multiplier / 1.15))   // 1.15 = base
-  const investorDiv = Math.max(0, opProfit) * deal.investorEq
+  // Investor dividend now includes the £5,000 B-class preferred dividend
+  // (Round 1 mechanic — preferred goes pro-rata to B holders by B-slice).
+  const investorDiv = computeInvestorDividend(Math.max(0, opProfit), deal.investorEq)
   const total = investorDiv
   const coc = total / deal.investment
   const payback = total > 0 ? deal.investment / total : Infinity
@@ -118,7 +120,8 @@ export default function InvestmentSummary() {
           ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
         <Section title="💰 Investor Returns" items={[
-          ['Distribution Model', 'Pro-rata · no tiers', true],
+          ['Distribution Model', 'Preferred → pro-rata', true],
+          ['B-class Preferred (annual)', fmt(DEAL.preferredDividend || 0), true],
           [`Equity Dividend (${investorEqPct}%)`, fmt(r.investorDiv), true],
           ['Total Year 1 Return', fmt(r.total), true],
           ['Cash-on-Cash', `${(r.coc*100).toFixed(1)}%`, true],

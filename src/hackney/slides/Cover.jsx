@@ -1,5 +1,5 @@
 import React from 'react'
-import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit, computeInvestorDividend } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import FundingSlider from '../components/FundingSlider.jsx'
 
@@ -101,10 +101,12 @@ export default function Cover() {
   const deal          = { ...DEAL, ...dealLive }
 
   // Operating profit cascades from the locked wage calculator (if locked)
-  // through computeForecastProfit. Y1 investor return = 50% × profit.
+  // through computeForecastProfit. Y1 investor return now includes the
+  // £5,000 B-class preferred dividend, applied pro-rata to each B holder's
+  // slice of the B-class. Residual splits pro-rata across all equity.
   const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
   const liveProfit     = computeForecastProfit(wagesOverride)
-  const investorReturn = liveProfit * deal.investorEq
+  const investorReturn = computeInvestorDividend(liveProfit, deal.investorEq)
   const coc            = fundingAmount > 0 ? investorReturn / fundingAmount : 0
   const payback        = investorReturn > 0 ? fundingAmount / investorReturn : Infinity
 

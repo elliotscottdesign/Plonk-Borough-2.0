@@ -1,27 +1,33 @@
 import React, { useState } from 'react'
 import {
-  DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, PL_WAGE_BASE,
+  DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, computeInvestorDividend, PL_WAGE_BASE,
   computeDistributionCalendar, HACKNEY_WORKING_CAPITAL_RESERVE,
   HACKNEY_WORKING_CAPITAL_FLOOR, HACKNEY_WORKING_CAPITAL_TARGET,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // WaterfallReturns — clones Borough's structure: 4-button scenario selector +
-// 3-step waterfall (Operating Profit → Investor Dividend → Founder Dividend) +
-// summary cards (Total Return / Cash-on-Cash / Founder Position).
+// 3-step waterfall (Operating Profit → B-class Preferred → Pro-rata Residual)
+// + summary cards (Total Return / Cash-on-Cash / Founder Position).
 //
-// Pure pro-rata. When the founder has locked the Use of Funds slider tool,
-// the deal terms here recompute off the locked total — investor / founder
-// equity %, total raise, cash-on-cash all flex. Otherwise the static DEAL
-// constants in data/hackney.js carry the defaults.
+// Round 1 mechanic: B-class shareholders receive a £5,000/yr preferred
+// dividend (pro-rata to each B holder's slice of the B-class) BEFORE the
+// residual profit is shared pro-rata across all equity. The investor
+// calculator below routes through computeInvestorDividend() so the
+// headline figures reflect the preferred uplift.
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 function calcWaterfall(profit, deal) {
-  const investorDiv = profit * deal.investorEq
-  const founderDiv = profit * deal.founderEq
+  // New investor's dividend (preferred + pro-rata residual)
+  const investorDiv = computeInvestorDividend(profit, deal.investorEq)
+  // Everyone-else's dividend = profit - new investor's dividend
+  // (this bundles founder 70% + Investor #1 5% B-share, both of which
+  // also receive a slice of the preferred but stay outside the slider
+  // calculator).
+  const founderDiv = Math.max(0, profit - investorDiv)
   const totalInvestor = investorDiv
-  const coc = totalInvestor / deal.investment
+  const coc = deal.investment > 0 ? totalInvestor / deal.investment : 0
   return { investorDiv, founderDiv, totalInvestor, coc }
 }
 
