@@ -909,33 +909,62 @@ export function computeForecastMonthly(wagesOverride) {
 }
 
 // === DISTRIBUTION CALENDAR (12-month, quarterly dividends) ============
-// Working-capital-first model: every month's operating profit refills
-// the £30k working-capital reserve before any distribution. Once the
-// reserve is full, surplus profit accrues into a quarterly dividend
-// pool. At the end of each calendar quarter (Mar / Jun / Sep / Dec)
-// the accrued surplus pays out — investor takes 50%, founder 50%
-// (pure pro-rata, single share class). Months that run a loss are
-// netted against the reserve before any subsequent dividend.
+// Working-capital-first model with investor-priority quarterly draws:
+//
+//   1. Every month's operating profit refills the working-capital
+//      reserve toward `reserveTarget` (default £30k). Anything beyond
+//      the target accrues into the quarterly dividend pool.
+//   2. At each calendar quarter-end (Mar/Jun/Sep/Dec):
+//        - If reserve ≥ floor AND there's positive accrual to distribute:
+//          investor is paid their pro-rata share FIRST, founder draws
+//          their pro-rata share AFTER.
+//        - If reserve < floor: the quarter is deferred. The investor's
+//          share is tracked in `deferredInvestor` and is paid down on
+//          a later quarter where the reserve has rebuilt to target.
+//          Founder also waits (founder is paid AFTER the investor —
+//          if the investor doesn't get paid this quarter, neither does
+//          the founder; tracked in `deferredFounder`).
+//        - Catch-up: when reserve ≥ target at quarter-end, any
+//          deferred investor amount is paid down on top of the current
+//          quarter's investor share (founder catch-up follows the same
+//          rule — deferred founder paid after deferred investor is
+//          cleared).
+//   3. A loss month eats into the reserve before it eats into accrued
+//      surplus, identical to the prior model.
+//
+// Numerical equivalence with the prior model: in the Y1 base case the
+// reserve fills inside the first few months, never dips below the
+// floor, and every quarter pays both shares — so totalInvestor /
+// totalFounder are unchanged. The deferral path only activates in
+// stress scenarios (loss months that dip the reserve below floor).
 //
 // Output:
 //   calendar    — 12 rows, one per month, with reserveBalance,
 //                  reserveAdd, surplus, cumulativeAccrual,
 //                  isQuarterEnd, dividendPaid, investorShare,
-//                  founderShare.
+//                  founderShare, investorCatchup, founderCatchup,
+//                  deferredInvestor, deferredFounder (running totals).
 //   quarterly   — 4 rows (Q1–Q4) summarising each payout.
-//   summary     — { totalDividends, totalInvestor, totalFounder,
-//                    reserveFullMonth, annualProfit }.
+//   summary     — totals + reserveFloor, reserveTarget, reserveFullMonth,
+//                  deferredInvestor / deferredFounder still owed at
+//                  year-end, yearEndAccrual, yearEndReserve.
 export const HACKNEY_WORKING_CAPITAL_RESERVE = 30000
 
 export function computeDistributionCalendar(wagesOverride, opts = {}) {
   const reserveTarget = opts.reserveTarget ?? HACKNEY_WORKING_CAPITAL_RESERVE
+  // reserveFloor defaults to reserveTarget so the legacy single-number
+  // model is preserved when callers don't pass a separate floor. To
+  // model the £30k floor / £45k target band, pass both explicitly.
+  const reserveFloor  = opts.reserveFloor  ?? reserveTarget
   const investorEq    = opts.investorEq    ?? 0.5
   const founderEq     = opts.founderEq     ?? (1 - investorEq)
   const monthly       = computeForecastMonthly(wagesOverride)
 
-  let reserveBalance  = 0
-  let cumulativeAccrual = 0   // surplus accrued since last dividend payout
-  let reserveFullMonth = null
+  let reserveBalance     = 0
+  let cumulativeAccrual  = 0     // surplus accrued since last quarter
+  let deferredInvestor   = 0     // investor share owed from skipped quarters
+  let deferredFounder    = 0     // founder share owed from skipped quarters
+  let reserveFullMonth   = null
 
   // Quarter-end indices using calendar months (Mar, Jun, Sep, Dec → indices 2, 5, 8, 11)
   const QUARTER_END_IDX = new Set([2, 5, 8, 11])
@@ -965,16 +994,58 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
     if (reserveBalance >= reserveTarget && !reserveFullMonth) reserveFullMonth = row.month
 
     const isQuarterEnd = QUARTER_END_IDX.has(i)
-    let dividendPaid  = 0
-    let investorShare = 0
-    let founderShare  = 0
+    let dividendPaid    = 0
+    let investorShare   = 0
+    let founderShare    = 0
+    let investorCatchup = 0
+    let founderCatchup  = 0
+
     if (isQuarterEnd) {
-      // Only positive cumulative accrual pays out; if Q ran a net loss
-      // the deficit carries into the next quarter (no clawback).
-      dividendPaid  = Math.max(0, cumulativeAccrual)
-      investorShare = dividendPaid * investorEq
-      founderShare  = dividendPaid * founderEq
-      cumulativeAccrual -= dividendPaid
+      // Only positive cumulative accrual is distributable; a quarter
+      // that ran a net loss carries the deficit forward (no clawback).
+      const distributable = Math.max(0, cumulativeAccrual)
+
+      if (distributable > 0) {
+        if (reserveBalance >= reserveFloor) {
+          // Investor paid FIRST. Founder takes their pro-rata share
+          // AFTER the investor's share has come out.
+          investorShare = distributable * investorEq
+          founderShare  = distributable * founderEq
+
+          // Catch-up: once reserve is at target, drain owed amounts.
+          // Investor catch-up runs first (priority is preserved during
+          // catch-up too), then founder catch-up. Each catch-up is
+          // capped at the catch-up source — the reserve buffer above
+          // target. We model this as drawing from the reserve's
+          // post-target headroom: take min(deferred, reserve − target).
+          if (reserveBalance >= reserveTarget) {
+            const headroom = Math.max(0, reserveBalance - reserveTarget)
+            investorCatchup = Math.min(deferredInvestor, headroom)
+            reserveBalance  -= investorCatchup
+            deferredInvestor -= investorCatchup
+            investorShare    += investorCatchup
+
+            const headroom2 = Math.max(0, reserveBalance - reserveTarget)
+            founderCatchup   = Math.min(deferredFounder, headroom2)
+            reserveBalance  -= founderCatchup
+            deferredFounder -= founderCatchup
+            founderShare    += founderCatchup
+          }
+
+          dividendPaid     = investorShare + founderShare
+          cumulativeAccrual -= distributable
+        } else {
+          // Reserve below floor → defer the entire quarter. Investor's
+          // pro-rata share is owed (deferredInvestor) and the founder's
+          // share is owed too (deferredFounder) since the founder is
+          // paid AFTER the investor and the investor wasn't paid. The
+          // physical cash sits in the reserve to help rebuild it.
+          deferredInvestor  += distributable * investorEq
+          deferredFounder   += distributable * founderEq
+          reserveBalance    += distributable
+          cumulativeAccrual -= distributable
+        }
+      }
     }
 
     return {
@@ -988,6 +1059,10 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
       dividendPaid,
       investorShare,
       founderShare,
+      investorCatchup,
+      founderCatchup,
+      deferredInvestor,
+      deferredFounder,
       reservePct: Math.min(1, reserveBalance / reserveTarget),
     }
   })
@@ -1000,6 +1075,8 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
       dividend: q.dividendPaid,
       investorShare: q.investorShare,
       founderShare: q.founderShare,
+      investorCatchup: q.investorCatchup,
+      founderCatchup: q.founderCatchup,
     }))
 
   const totalDividends = quarterly.reduce((s, q) => s + q.dividend, 0)
@@ -1012,13 +1089,18 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
     quarterly,
     summary: {
       reserveTarget,
+      reserveFloor,
       reserveFullMonth: reserveFullMonth ?? 'not reached in Y1',
       annualProfit,
       totalDividends,
       totalInvestor,
       totalFounder,
-      // Surplus that's still accrued at year-end (didn't pay out as a
-      // quarterly dividend — usually £0 if Dec is a quarter-end).
+      // Deferred amounts still owed at year-end. Non-zero only when a
+      // loss month dipped the reserve below floor before a quarter end.
+      deferredInvestor,
+      deferredFounder,
+      // Surplus still accrued at year-end (didn't pay out as a quarterly
+      // dividend — usually £0 if Dec is a quarter-end).
       yearEndAccrual: cumulativeAccrual,
       yearEndReserve: reserveBalance,
     },
