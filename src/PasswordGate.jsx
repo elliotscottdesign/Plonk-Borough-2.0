@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next'
 //               else is read-only by default for non-founders too)
 //
 // Plonk is now PRIVATE — only 888999 (founder) and JOHN1 see it.
-// TEST1, BRAZIL, VALEX and LEONIE get the standard 3-tab investor view
+// TEST1, BRAZIL and LEONIE get the standard 3-tab investor view
 // (Investor Deck · Venue Info · Business Explorer). Brazilian
 // Portuguese remains an in-app EN | PT toggle (no code).
 //
@@ -27,7 +27,6 @@ import { useTranslation } from 'react-i18next'
 const ACCESS_CODES = {
   '888999': { plonk: true,  founder: true,  role: 'founder'  },
   'JOHN1':  { plonk: true,  founder: true,  role: 'observer' },
-  'VALEX':  { plonk: false, founder: false, role: 'valex'    },
   'TEST1':  { plonk: false, founder: false, role: 'test'     },
   'BRAZIL': { plonk: false, founder: false, role: 'brazil'   },
   'LEONIE': { plonk: false, founder: true,  role: 'leonie'   },
@@ -40,7 +39,7 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (VALEX, TEST1, BRAZIL) accept any case for friendliness.
+    // codes (TEST1, BRAZIL, JOHN1, LEONIE) accept any case for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {

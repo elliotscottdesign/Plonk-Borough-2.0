@@ -389,8 +389,8 @@ export default function IPLicensing() {
 
   // 'Plonk × No Dice' is a Plonk-Golf-side P&L view (company costing for
   // Plonk Golf Ltd, not for the venue). Only the canonical founder code
-  // 888999 should see it — VALEX gets the Plonk top-tab to view IP &
-  // Licensing economics but is intentionally excluded from this view.
+  // 888999 should see it — JOHN1 gets the Plonk top-tab (observer-founder
+  // tier) but is intentionally excluded from this view.
   const isCanonicalFounder = getAccessCode() === '888999'
 
   const [activeSection, setActiveSection] = useState('commissions')

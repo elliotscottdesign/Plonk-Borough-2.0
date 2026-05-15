@@ -39,7 +39,7 @@ const SLIDE_DEFS = [
 ]
 
 // Plonk top-tab is PRIVATE — only the founder (888999) and JOHN1 see it.
-// TEST1, BRAZIL, VALEX and LEONIE get the 3-tab investor view.
+// TEST1, BRAZIL and LEONIE get the 3-tab investor view.
 const TOP_TAB_KEYS_BASE = ['investorDeck', 'venueInfo', 'businessExplorer']
 const TOP_TAB_KEYS_PLONK = [...TOP_TAB_KEYS_BASE, 'plonk']
 
@@ -96,8 +96,8 @@ export default function App() {
       sessionStorage.setItem('ndb_founder', '1')
       if (founder) sessionStorage.setItem('ndb_role_founder', '1')
       else         sessionStorage.removeItem('ndb_role_founder')
-      // Plonk visibility — 888999 and VALEX get the Plonk top-tab; TEST1
-      // and BRAZIL do not. Stripped from the tab array below.
+      // Plonk visibility — 888999 and JOHN1 get the Plonk top-tab; TEST1,
+      // BRAZIL and LEONIE do not. Stripped from the tab array below.
       if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
       else       sessionStorage.removeItem('ndb_plonk_access')
       // Role tag — components can branch on this for role-specific UI
@@ -111,7 +111,7 @@ export default function App() {
   }
 
   // After unlock, dispatch by path. All access codes unlock the Hackney deck;
-  // only 888999 / VALEX additionally see the Plonk top-tab on Borough.
+  // only 888999 / JOHN1 additionally see the Plonk top-tab on Borough.
   if (isHackneyPath()) {
     return <HackneyApp />
   }
