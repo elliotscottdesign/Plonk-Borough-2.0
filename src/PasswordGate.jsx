@@ -12,8 +12,8 @@ import { useTranslation } from 'react-i18next'
 //               sees the ticket slider locked even though everything
 //               else is read-only by default for non-founders too)
 //
-// Plonk is now PRIVATE — only 888999 (founder), VALEX and LEONIE see
-// it. TEST1, BRAZIL and JOHN1 get the standard 3-tab investor view
+// Plonk is now PRIVATE — only 888999 (founder) and VALEX see it.
+// TEST1, BRAZIL, JOHN1 and LEONIE get the standard 3-tab investor view
 // (Investor Deck · Venue Info · Business Explorer). Brazilian
 // Portuguese remains an in-app EN | PT toggle (no code).
 //
@@ -31,7 +31,7 @@ const ACCESS_CODES = {
   'VALEX':  { plonk: true,  founder: false, role: 'valex'    },
   'TEST1':  { plonk: false, founder: false, role: 'test'     },
   'BRAZIL': { plonk: false, founder: false, role: 'brazil'   },
-  'LEONIE': { plonk: true,  founder: true,  role: 'leonie'   },
+  'LEONIE': { plonk: false, founder: true,  role: 'leonie'   },
 }
 
 export default function PasswordGate({ onUnlock }) {
