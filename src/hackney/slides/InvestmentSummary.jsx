@@ -139,7 +139,7 @@ export default function InvestmentSummary() {
         {[
           `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
-          'All shareholders paid at the same time · pro-rata on operating profit (no preferred, no priority tiers)',
+          `Investor paid first each quarter · 10% preferred yield on External B capital + ${investorEqPct}% of residual profit · deferred quarters catch up from reserve headroom`,
         ].map((text, i) => (
           <div key={i} className="card" style={{ display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' }}>
             <span className="serif" style={{ fontSize: 28, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>

@@ -118,7 +118,7 @@ export default function Cover() {
     { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: '50% equity · 50% retained by founder · controlled by the slider above' },
     { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
     { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% cash-on-cash · payback ${paybackText} yrs` },
-    { label: 'Distribution Model',     value: 'Pro-rata',                           sub: 'All shareholders paid by equity % at the same time' },
+    { label: 'Distribution Model',     value: 'Investor-first',                    sub: 'Investor paid before founder each quarter · 50/50 long-run' },
     { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · May 2026–Apr 2027' },
     { label: 'Valuation Entry',        value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]

@@ -154,7 +154,7 @@ export default function MarketContext() {
         <div style={{ background:'#13131A', border:'2px solid #C9A84C', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>→ The Deal in One Line</div>
           <p style={{ fontSize:14, color:'#F5F0E8', lineHeight:1.7, marginBottom:20 }}>
-            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{dealMultiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>pure pro-rata on operating profit</span> (all shareholders paid at the same time by equity %), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
+            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{dealMultiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>investor-first quarterly draws</span> (10% preferred yield on External B + investor's pro-rata residual paid before the founder each quarter), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
           </p>
           {checks.map((c, i) => (
             <div key={i} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, padding:'10px 14px', marginBottom:8 }}>

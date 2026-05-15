@@ -619,7 +619,10 @@ export const WATERFALL = {
 
 // === 5-YEAR INVESTOR RETURNS ===
 // HURRIED-SALE ROUND · 30/70 pro-rata (investor / founder) at the full
-// £30k available stake, no preferred return. Year-1 profit £85,181 from
+// £30k available stake, plus the 10% non-cumulative preferred yield on
+// External B capital paid before the residual split each year (investor
+// is also paid first each quarter; see DistributionProcess on the
+// WaterfallReturns slide). Year-1 profit £85,181 from
 // the 2026 cost model (£65k+VAT pa lease with 3-mo rent-free Y1 start +
 // 10% uplift on stock and other fixed lines). Y2 onwards rent steps up
 // to the £65,000 headline; Y3+ grows at +3% pa per the lease uplift
@@ -739,11 +742,13 @@ export const USE_OF_FUNDS_RANGES = {
   legals:    { min: 1000, max:  3000, step: 500, label: 'Legals & Restart' },
 }
 
-// 50/50 split is the fixed structural decision (pure pro-rata, single share
-// class). The slider tool varies the investment size; pre-money flexes to
-// equal the investment so the 50/50 split holds, and the implied EBITDA
-// multiple is the derived result. Helper exported so the calculator and
-// downstream slides share a single computation path.
+// 50/50 long-run split is the fixed structural decision (B-class shares for
+// the round; founder retains A-class for voting). Distribution mechanics on
+// top: 10% preferred yield on External B + investor-first quarterly draws
+// with deferred-quarter catch-up. The slider tool varies the investment
+// size; pre-money flexes to equal the investment so the 50/50 holds, and
+// the implied EBITDA multiple is the derived result. Helper exported so
+// the calculator and downstream slides share a single computation path.
 //
 //   investorEq = 0.5 (fixed)
 //   founderEq  = 0.5 (fixed)
