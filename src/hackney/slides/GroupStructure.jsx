@@ -1,12 +1,16 @@
 import React from 'react'
 
 // GroupStructure — corporate / group-level context for No Dice Hackney
-// investors. Lays out the four entities involved in the wider business,
+// investors. Lays out the three entities involved in the wider business,
 // who owns whom, and how they relate operationally to the venue under
 // consideration. The Hackney investment is into No Dice Hackney Limited
 // directly; this page exists so investors understand what sits above
 // (the holding company) and what sits next door (the Wacky Works golf
 // course that drives cross-traffic into the Hackney bar).
+//
+// Note: No Dice Borough Limited (the original Borough Market venue) was
+// previously shown here as a sister subsidiary. That project is no
+// longer going ahead and has been removed from the structure.
 
 const cs = {
   background: 'var(--ink-2)',
@@ -54,36 +58,31 @@ function EntityCard({ name, suffix, tone, bullets }) {
 function OwnershipDiagram() {
   const w = 900
   const h = 380
-  // Box geometry — top parent, two children below, sister to the right.
-  const parent = { x: 330, y: 14,  w: 240, h: 70 }
-  const left   = { x: 100, y: 196, w: 240, h: 80 }
-  const right  = { x: 380, y: 196, w: 240, h: 80 }
-  const sister = { x: 660, y: 196, w: 230, h: 80 }
+  // Box geometry — parent top-left, single Hackney subsidiary directly below,
+  // Wacky Works sister company to the right of Hackney. Borough subsidiary
+  // removed (project not going ahead).
+  const parent  = { x: 200, y: 14,  w: 280, h: 70 }
+  const hackney = { x: 200, y: 196, w: 280, h: 80 }
+  const sister  = { x: 580, y: 196, w: 280, h: 80 }
   return (
     <svg viewBox={`0 0 ${w} ${h}`} style={{ width: '100%', height: 'auto', maxHeight: 380 }} role="img" aria-label="Group ownership diagram">
-      {/* Parent → children ownership lines (solid, gold, with 100% labels) */}
+      {/* Parent → Hackney 100% ownership line */}
       <line x1={parent.x + parent.w / 2} y1={parent.y + parent.h}
-            x2={left.x  + left.w  / 2}   y2={left.y}
+            x2={hackney.x + hackney.w / 2} y2={hackney.y}
             stroke="var(--gold)" strokeWidth="2" />
-      <line x1={parent.x + parent.w / 2} y1={parent.y + parent.h}
-            x2={right.x + right.w / 2}   y2={right.y}
-            stroke="var(--gold)" strokeWidth="2" />
-      <text x={(parent.x + parent.w / 2 + left.x  + left.w  / 2) / 2 - 22}
-            y={(parent.y + parent.h + left.y) / 2 - 4}
-            fontSize="11" fill="var(--gold)" fontWeight="600">100%</text>
-      <text x={(parent.x + parent.w / 2 + right.x + right.w / 2) / 2 + 6}
-            y={(parent.y + parent.h + right.y) / 2 - 4}
+      <text x={parent.x + parent.w / 2 + 8}
+            y={(parent.y + parent.h + hackney.y) / 2 + 4}
             fontSize="11" fill="var(--gold)" fontWeight="600">100%</text>
 
-      {/* No Dice Hackney → Wacky Works operational link (dashed, teal) */}
-      <line x1={right.x + right.w}      y1={right.y + right.h / 2}
-            x2={sister.x}                y2={sister.y + sister.h / 2}
+      {/* Hackney → Wacky Works operational link (dashed, purple) */}
+      <line x1={hackney.x + hackney.w} y1={hackney.y + hackney.h / 2}
+            x2={sister.x}              y2={sister.y + sister.h / 2}
             stroke="#A78BFA" strokeWidth="2" strokeDasharray="6 4" />
-      <text x={(right.x + right.w + sister.x) / 2 - 50}
-            y={right.y + right.h / 2 - 8}
+      <text x={(hackney.x + hackney.w + sister.x) / 2 - 32}
+            y={hackney.y + hackney.h / 2 - 8}
             fontSize="10" fill="#C4B5FD" letterSpacing="0.06em" textTransform="uppercase">cross-traffic</text>
-      <text x={(right.x + right.w + sister.x) / 2 - 50}
-            y={right.y + right.h / 2 + 22}
+      <text x={(hackney.x + hackney.w + sister.x) / 2 - 38}
+            y={hackney.y + hackney.h / 2 + 22}
             fontSize="10" fill="#C4B5FD" letterSpacing="0.06em">(operational link)</text>
 
       {/* Parent box */}
@@ -96,28 +95,16 @@ function OwnershipDiagram() {
         No Dice Bars Limited
       </text>
 
-      {/* Left child — Borough */}
-      <rect x={left.x} y={left.y} width={left.w} height={left.h}
+      {/* Hackney — sole operating subsidiary */}
+      <rect x={hackney.x} y={hackney.y} width={hackney.w} height={hackney.h}
             rx="8" fill="var(--ink-3)" stroke="#22D3EE" strokeWidth="1.5" />
-      <text x={left.x + left.w / 2} y={left.y + 22} textAnchor="middle"
+      <text x={hackney.x + hackney.w / 2} y={hackney.y + 22} textAnchor="middle"
             fontSize="9" fill="#22D3EE" letterSpacing="0.14em">OPERATING SUBSIDIARY</text>
-      <text x={left.x + left.w / 2} y={left.y + 46} textAnchor="middle"
-            fontSize="15" fill="var(--cream)" fontWeight="600" fontFamily="DM Serif Display, serif">
-        No Dice Borough Limited
-      </text>
-      <text x={left.x + left.w / 2} y={left.y + 65} textAnchor="middle"
-            fontSize="11" fill="var(--cream-dim)">Borough Market venue · bar, games, golf</text>
-
-      {/* Right child — Hackney */}
-      <rect x={right.x} y={right.y} width={right.w} height={right.h}
-            rx="8" fill="var(--ink-3)" stroke="#22D3EE" strokeWidth="1.5" />
-      <text x={right.x + right.w / 2} y={right.y + 22} textAnchor="middle"
-            fontSize="9" fill="#22D3EE" letterSpacing="0.14em">OPERATING SUBSIDIARY</text>
-      <text x={right.x + right.w / 2} y={right.y + 46} textAnchor="middle"
+      <text x={hackney.x + hackney.w / 2} y={hackney.y + 46} textAnchor="middle"
             fontSize="15" fill="var(--cream)" fontWeight="600" fontFamily="DM Serif Display, serif">
         No Dice Hackney Limited
       </text>
-      <text x={right.x + right.w / 2} y={right.y + 65} textAnchor="middle"
+      <text x={hackney.x + hackney.w / 2} y={hackney.y + 65} textAnchor="middle"
             fontSize="11" fill="var(--cream-dim)">London Fields venue · bar with games</text>
 
       {/* Sister — Wacky Works */}
@@ -154,7 +141,7 @@ export default function GroupStructure() {
         </div>
         <div className="gold-rule" style={{ marginTop: 14, marginBottom: 14 }} />
         <div style={{ fontSize: 14, color: 'var(--cream-dim)', maxWidth: 820, lineHeight: 1.6 }}>
-          Four entities make up the No Dice ecosystem. The Hackney investment
+          Three entities make up the No Dice ecosystem. The Hackney investment
           sits in <strong style={{ color: 'var(--cream)' }}>No Dice Hackney Limited</strong>, a
           wholly-owned subsidiary of <strong style={{ color: 'var(--cream)' }}>No Dice Bars Limited</strong>.
           A sister company — <strong style={{ color: 'var(--cream)' }}>Wacky Works</strong> — operates
@@ -171,14 +158,14 @@ export default function GroupStructure() {
         <OwnershipDiagram />
       </div>
 
-      {/* Entity detail cards — 2-up grid, fourth card sits below by itself */}
+      {/* Entity detail cards — 2-up grid (parent + sister on top, Hackney spans below) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
         <EntityCard
           tone="parent"
           name="No Dice Bars Limited"
           suffix="Parent / holding company · UK-incorporated"
           bullets={[
-            'Owns 100% of the share capital of No Dice Borough Limited and No Dice Hackney Limited.',
+            'Owns 100% of the share capital of No Dice Hackney Limited.',
             'Holds no operating trade in its own right — corporate, brand, and IP layer only.',
             'Group-level reporting and inter-company arrangements sit at this level.',
           ]}
@@ -194,27 +181,19 @@ export default function GroupStructure() {
             'Not a subsidiary of No Dice Bars Limited; relationship is operational, not equity.',
           ]}
         />
-        <EntityCard
-          tone="operating"
-          name="No Dice Borough Limited"
-          suffix="Borough Market venue · bar, games and crazy golf under one roof"
-          bullets={[
-            '100% owned by No Dice Bars Limited.',
-            'Operates the original No Dice venue at Borough Market — bar revenue plus in-house mini-golf and games.',
-            'Separate financial accounts, separate licence, separate lease — ring-fenced from Hackney.',
-          ]}
-        />
-        <EntityCard
-          tone="operating"
-          name="No Dice Hackney Limited"
-          suffix="London Fields venue · bar-led, with games on site"
-          bullets={[
-            '100% owned by No Dice Bars Limited.',
-            'Operates the No Dice Hackney bar at 407 Mentmore Terrace, E8 — the venue and trade you are investing in.',
-            'Bar-led offering with games (pool, arcade, tokens) on site. Crazy golf next door is run by Wacky Works, not by this company.',
-            'Separate financial accounts, separate licence, separate lease — ring-fenced from Borough.',
-          ]}
-        />
+        <div style={{ gridColumn: '1 / -1' }}>
+          <EntityCard
+            tone="operating"
+            name="No Dice Hackney Limited"
+            suffix="London Fields venue · bar-led, with games on site"
+            bullets={[
+              '100% owned by No Dice Bars Limited — the sole operating subsidiary of the group.',
+              'Operates the No Dice Hackney bar at 407 Mentmore Terrace, E8 — the venue and trade you are investing in.',
+              'Bar-led offering with games (pool, arcade, tokens) on site. Crazy golf next door is run by Wacky Works, not by this company.',
+              'Separate financial accounts, separate licence, separate lease — ring-fenced at the entity level.',
+            ]}
+          />
+        </div>
       </div>
 
       {/* Cross-traffic value note — directly tied to the diagram's dashed line */}
