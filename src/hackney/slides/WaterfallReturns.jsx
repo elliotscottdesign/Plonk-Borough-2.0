@@ -97,8 +97,8 @@ export default function WaterfallReturns() {
 
   const steps = [
     { label: 'Operating Profit',                          amount: s.profit,    color: '#1565C0', note: s.badge },
-    { label: `Investor Dividend (${investorPct}%)`,       amount: w.investorDiv, color: '#C9A84C', note: `${investorPct}% × operating profit · paid pro-rata` },
-    { label: `Founder Dividend (${founderPct}%)`,         amount: w.founderDiv,  color: '#4A5568', note: `${founderPct}% × operating profit · paid pro-rata` },
+    { label: `Investor Dividend (${investorPct}%)`,       amount: w.investorDiv, color: '#C9A84C', note: `${investorPct}% of operating profit · paid first each quarter once reserve ≥ £${(HACKNEY_WORKING_CAPITAL_FLOOR/1000)|0}k` },
+    { label: `Founder Dividend (${founderPct}%)`,         amount: w.founderDiv,  color: '#4A5568', note: `${founderPct}% of operating profit · paid after the investor each quarter` },
   ]
 
   return (
@@ -107,7 +107,7 @@ export default function WaterfallReturns() {
         Investor Returns
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        Pure pro-rata 50/50 between the founder side and the investor pool. <strong style={{ color: 'var(--cream)' }}>Within the investor pool, two share classes</strong> — A-shares (≥ £10k cheques · full voting · paid first) and B-shares (&lt; £10k cheques · limited voting · paid after the A-share allocation completes). Founder draws their 50% pro-rata share each quarter regardless.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
+        Long-run 50/50 split between investor and founder, but <strong style={{ color: 'var(--cream)' }}>investor is paid first each quarter</strong> — once the £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} working-capital floor is at the floor, the investor takes their pro-rata share before the founder draws anything. Quarters where the reserve sits below the floor are deferred for the investor and caught up once the reserve hits the £{HACKNEY_WORKING_CAPITAL_TARGET.toLocaleString('en-GB')} target, so the 50/50 economics hold over the life of the deal.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
 
       {/* Scenario selector */}
@@ -137,7 +137,7 @@ export default function WaterfallReturns() {
             {fmt(w.totalInvestor)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
-            {investorPct}% pro-rata dividend on operating profit
+            {investorPct}% of operating profit · investor paid first each quarter
           </div>
         </div>
 
@@ -150,12 +150,12 @@ export default function WaterfallReturns() {
         <HeroStat
           label="Payback Period"
           value={w.totalInvestor > 0 ? `${(effective.investment / w.totalInvestor).toFixed(2)} years` : 'N/A'}
-          sub="Distribution timing: same as founder"
+          sub="Investor paid before founder each quarter"
         />
         <HeroStat
           label={`Founder Position (${founderPct}%)`}
           value={fmt(w.founderDiv)}
-          sub="Paid alongside investor, pro-rata"
+          sub="Paid after investor each quarter"
           muted
         />
       </div>
@@ -538,8 +538,8 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <SummaryTile label="Annual operating profit" value={fmt(summary.annualProfit)} sub="Sum of 12 monthly forecasts" />
         <SummaryTile label="Total Y1 dividends" value={fmt(summary.totalDividends)} sub="After £30k reserve refill" />
-        <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)}`} colour="#10B981" />
-        <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid alongside investor" />
+        <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)} · paid first each quarter`} colour="#10B981" />
+        <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid after the investor each quarter" />
       </div>
       </>}
     </div>
@@ -575,7 +575,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
       />
       {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
-        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. Each year's profit splits 50/50 with the founder. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend. No preferred return, no priority tiers — investor and founder track exactly together.
+        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. The long-run split is 50/50 with the founder, but inside each year the investor is paid first each quarter — the founder draws their share only after the investor's quarterly allocation lands. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend.
       </p>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
@@ -622,7 +622,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
 
       {/* Headline summary cards under the table */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginTop: 16 }}>
-        <SummaryTile label="Cumulative dividends Y1–Y5"  value={fmt(r.cumulativeDividends)}    sub="Pure pro-rata, paid annually" />
+        <SummaryTile label="Cumulative dividends Y1–Y5"  value={fmt(r.cumulativeDividends)}    sub="Investor paid first each quarter" />
         <SummaryTile label="Y5 exit proceeds"             value={fmt(r.exit.investorProceeds)} sub={`50% of £${(r.exit.businessValue/1000).toFixed(0)}k business value`} />
         <SummaryTile label="Total returned · MoM"          value={`${multipleOfMoney.toFixed(2)}×`}             sub={`${fmt(totalReturned)} on ${fmt(investment)}`} colour="#10B981" />
         <SummaryTile label="IRR"                            value={isFinite(irr) ? `${(irr*100).toFixed(1)}%` : '—'} sub="5-year internal rate of return" colour="#10B981" />
