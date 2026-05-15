@@ -143,6 +143,65 @@ export const DEAL = {
   coc: 0.9218,                   // 92.18% on £25k invested
   payback: 1.085,                // years (25,000 / 23,045)
   aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
+
+  // === Y3 BUYBACK RIGHT (put option) ===
+  // Each external B-class investor has the right to require the company
+  // to repurchase their shares at the end of Year 3, capped to protect
+  // the business from open-ended cash drain if it performs strongly.
+  //
+  // Buyback price = LOWER of:
+  //   (a) fair market value × investor's equity %, OR
+  //   (b) buybackCap × original cash invested
+  //
+  // For LEONIE @ £5k:  max £15k payout (3× cap), plus Y1–Y3 dividends.
+  // For new investor @ £25k:  max £75k payout (3× cap).
+  // Total worst-case Round-1 buyback liability = 3 × £30k external = £90k.
+  //
+  // Two protective clauses on top of the cap:
+  //   • Simultaneous-exercise stagger: payments spread over up to 12
+  //     months if multiple investors put in the same window — never
+  //     bleeds more than ~£7.5k/month from operating cash.
+  //   • Round-2 conversion waiver: an investor who converts their Round-1
+  //     B-class into Round-2 equity (loan-note holders' path) waives the
+  //     Y3 put — stops a "convert + immediately put" arbitrage.
+  //
+  // Y5 exit (everyone's exit) is uncapped pro-rata — the cap only applies
+  // to the optional Y3 put.
+  buybackYear:           3,
+  buybackCap:            3,        // multiple of original cash invested
+  buybackStaggerMonths: 12,        // simultaneous exercises stagger over up to 12 months
+  buybackWaiverOnRound2: true,     // converting to Round 2 waives the Y3 put
+}
+
+// computeBuybackValue — Y3 put-option payout for an external B-class
+// investor exercising the buyback right. Returns the LOWER of fair-value
+// pro-rata or the multiple-of-money cap.
+//
+//   investment = original cash invested (£)
+//   fairValue  = total business value at exercise year (£)
+//   opts.cap         — overrides DEAL.buybackCap
+//   opts.investorEq  — overrides equity % (default = investment / postMoney)
+//   opts.postMoney   — overrides £100k post-money
+//
+// Returns { fairShare, capped, payout, hitCap } for UI display.
+//
+// Examples (Y3 fair value ~£100k, 25% equity):
+//   £25k invested → fairShare £25,000, capped £75,000, payout £25,000
+//   £5k invested  → fairShare  £5,000, capped £15,000, payout  £5,000
+// At higher fair values the cap binds:
+//   £25k invested, fairValue £400k → fairShare £100k, capped £75k, payout £75k (HIT CAP)
+export function computeBuybackValue(investment, fairValue, opts) {
+  opts = opts || {}
+  const inv = Math.max(0, investment || 0)
+  const fv  = Math.max(0, fairValue  || 0)
+  const cap = opts.cap        ?? DEAL.buybackCap     ?? 3
+  const pm  = opts.postMoney  ?? 100000
+  const eq  = opts.investorEq ?? (pm > 0 ? inv / pm : 0)
+  const fairShare = fv * eq
+  const capped    = inv * cap
+  const payout    = Math.min(fairShare, capped)
+  const hitCap    = capped < fairShare
+  return { fairShare, capped, payout, hitCap }
 }
 
 // === 2025 ACTUALS (BAR-ONLY, MINI GOLF EXCLUDED) ===

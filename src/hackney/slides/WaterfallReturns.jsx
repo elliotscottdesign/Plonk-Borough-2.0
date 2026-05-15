@@ -3,6 +3,7 @@ import {
   DEAL, HACKNEY_INVESTOR_RETURNS, computeDealFromInvestment, computeInvestorDividend, PL_WAGE_BASE,
   computeDistributionCalendar, HACKNEY_WORKING_CAPITAL_RESERVE,
   HACKNEY_WORKING_CAPITAL_FLOOR, HACKNEY_WORKING_CAPITAL_TARGET,
+  computeBuybackValue,
 } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
@@ -195,6 +196,12 @@ export default function WaterfallReturns() {
           better visual treatment (numbered step cards with arrows). */}
       <DistributionProcess />
 
+      {/* Y3 Buyback Right — put-option card. Capped at multiple-of-money. */}
+      <BuybackRightsCard
+        investment={effective.investment}
+        investorEq={effective.investorEq}
+      />
+
       {/* 12-month Distribution Calendar — quarterly dividends */}
       <DistributionCalendar
         wagesOverride={isWageLocked ? wageEffective.loadedAnnual : null}
@@ -302,6 +309,102 @@ function DistributionProcess() {
             )}
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Y3 Buyback Right — put option card ───────────────────────────────
+// Optional Y3 exit route: investor can require the company to repurchase
+// their B-class shares. Price = LOWER of (a) fair value × equity %, or
+// (b) 3× original cash invested. Cap protects the business from
+// open-ended cash drain if it overperforms. Y5 pro-rata exit is
+// uncapped (everyone's exit, not a put).
+//
+// Y3 fair value is sourced from HACKNEY_INVESTOR_RETURNS.fiveYear[2]
+// (Y3 EBITDA) × DEAL.exitMultiple — same multiple used at Y5 so the
+// model is internally consistent. Investor's personal max scales with
+// the locked Use-of-Funds investment amount via the helper.
+function BuybackRightsCard({ investment, investorEq }) {
+  // Y3 fair value = Y3 profit × exit multiple (consistent with Y5 model)
+  const y3 = HACKNEY_INVESTOR_RETURNS.fiveYear[2]   // Y3 row
+  const y3FairValue = y3.profit * (DEAL.exitMultiple || 4)
+
+  // Investor's personal buyback math (driven by locked investment)
+  const bb = computeBuybackValue(investment, y3FairValue, { investorEq })
+
+  // Round-1 worst-case liability = sum across all external B holders if
+  // every one exercises simultaneously and hits the cap.
+  const totalExternalCommitted = (DEAL.commitments || [])
+    .filter(c => c.type === 'external')
+    .reduce((s, c) => s + (c.amount || 0), 0)
+  const totalExternalRound = totalExternalCommitted + investment   // committed + new
+  const worstCaseLiability = totalExternalRound * (DEAL.buybackCap || 3)
+  const monthlyDrain = worstCaseLiability / (DEAL.buybackStaggerMonths || 12)
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <h3 className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 8, lineHeight: 1.25 }}>
+        Y{DEAL.buybackYear} Buyback Right · Optional Put Option
+      </h3>
+      <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 18 }}>
+        Each external B-class investor has the right to require the company to repurchase their shares at the end of Year {DEAL.buybackYear}. Price is the <strong style={{ color: 'var(--cream)' }}>lower</strong> of (a) fair-market value × your equity %, or (b) <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackCap}× your original cash invested</strong>. The cap protects operating cash if the bar overperforms. Year 5 pro-rata exit is uncapped — the cap only applies to this optional Y{DEAL.buybackYear} put.
+      </p>
+
+      {/* Investor's personal buyback at the locked slider position */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
+        <div className="card-highlight" style={{ padding: '20px 22px' }}>
+          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
+            Your Y{DEAL.buybackYear} buyback payout
+          </div>
+          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
+            {fmt(bb.payout)}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
+            On {fmt(investment)} invested · {bb.hitCap ? <strong style={{ color: 'var(--gold)' }}>cap binds ({DEAL.buybackCap}×)</strong> : 'fair value below cap'}
+          </div>
+        </div>
+        <SummaryTile
+          label="Fair value × your equity"
+          value={fmt(bb.fairShare)}
+          sub={`${(investorEq * 100).toFixed(0)}% of Y${DEAL.buybackYear} business value ${fmt(y3FairValue)}`}
+        />
+        <SummaryTile
+          label={`${DEAL.buybackCap}× cap on your cash`}
+          value={fmt(bb.capped)}
+          sub={`${DEAL.buybackCap} × ${fmt(investment)} maximum`}
+          colour={bb.hitCap ? 'var(--gold)' : undefined}
+        />
+        <SummaryTile
+          label="Y3 fair value (basis)"
+          value={fmt(y3FairValue)}
+          sub={`Y${DEAL.buybackYear} EBITDA ${fmt(y3.profit)} × ${DEAL.exitMultiple || 4}× exit multiple`}
+        />
+      </div>
+
+      {/* Two protective clauses */}
+      <div className="card" style={{ padding: '16px 20px', marginBottom: 8 }}>
+        <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>
+          Cap formula + protective clauses
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--cream)', lineHeight: 1.7 }}>
+          <div style={{ marginBottom: 10 }}>
+            <strong style={{ color: 'var(--gold)' }}>Buyback price = </strong>
+            min(fair-market value × investor's equity %, <strong style={{ color: 'var(--gold)' }}>{DEAL.buybackCap}×</strong> original cash invested)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
+            <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
+              <strong style={{ color: 'var(--cream)' }}>Simultaneous-exercise stagger.</strong> If multiple investors exercise the put in the same window, payments stagger over up to <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackStaggerMonths || 12} months</strong>. Worst-case Round-1 liability ≈ <strong style={{ color: 'var(--gold)' }}>{fmt(worstCaseLiability)}</strong> ({DEAL.buybackCap}× £{(totalExternalRound/1000).toFixed(0)}k external) → max ≈ <strong style={{ color: 'var(--cream)' }}>{fmt(monthlyDrain)}/month</strong> from operating cash.
+            </div>
+            <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
+              <strong style={{ color: 'var(--cream)' }}>Round-2 conversion waiver.</strong> {DEAL.buybackWaiverOnRound2 ? 'An investor who converts their Round-1 B-class into Round-2 equity (the loan-note holders\' path) waives the Y' + DEAL.buybackYear + ' put. Stops a "convert + immediately put" arbitrage.' : 'No waiver — investors keep the put even after Round-2 conversion.'}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+        Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>exercise the put</strong> for a certain capped exit ({fmt(bb.payout)}), or <strong style={{ color: 'var(--cream)' }}>hold to Y5</strong> for the uncapped pro-rata exit at sector-multiple business value. Y1–Y{DEAL.buybackYear} dividends are kept in either case.
       </div>
     </div>
   )
