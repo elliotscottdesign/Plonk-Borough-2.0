@@ -220,17 +220,19 @@ export default function WaterfallReturns() {
 // ─── Distribution Process — explanatory waterfall flow ────────────────
 // Shows the 5-step rule book in plain language so an investor understands
 // the priority order:
-//   1) Director salary       → already inside the cost base; paid first
-//   2) Working-capital pot   → refilled to a £30k–£45k safe-zone band
-//   3) Founder quarterly draw → founder takes their share every quarter
-//                                regardless (cannot wait for the pot to
-//                                build)
-//   4) Investor quarterly draw → only paid once the pot is at or above
-//                                the £30k floor; otherwise the investor's
-//                                share for that quarter is deferred
+//   1) Director salary        → already inside the cost base; paid first
+//   2) Working-capital pot    → refilled to a £30k–£45k safe-zone band
+//   3) Investor quarterly draw → investor's pro-rata share pays out first
+//                                each quarter, but only once the closing
+//                                balance is at or above the £30k floor;
+//                                quarters below the floor are deferred
+//   4) Founder quarterly draw → founder takes their pro-rata share AFTER
+//                                the investor has been paid. Investor
+//                                priority sits ahead of the founder in
+//                                the dividend queue.
 //   5) Investor catch-up      → once the pot reaches £45k target, the
-//                                deferred quarters are paid down so
-//                                long-run pro-rata equality is preserved
+//                                deferred investor quarters are paid down
+//                                so long-run pro-rata equality is preserved
 const FLOOR  = HACKNEY_WORKING_CAPITAL_FLOOR    // £30,000
 const TARGET = HACKNEY_WORKING_CAPITAL_TARGET   // £45,000
 const fmtK   = (n) => '£' + Math.round(n / 1000) + 'k'
@@ -253,17 +255,17 @@ function DistributionProcess() {
     },
     {
       n: '3',
-      title: 'Founder Quarterly Draw',
-      sub: 'Every quarter · regardless of reserve',
-      detail: 'The founder draws their pro-rata share every calendar quarter from positive trading profit. They cannot wait for the working-capital pot to build.',
-      colour: '#A78BFA',
+      title: 'Investor Quarterly Draw',
+      sub: `Priority claim · once balance ≥ ${fmtK(FLOOR)}`,
+      detail: `Investor's pro-rata share is paid first each quarter, ahead of the founder, once the closing balance is at or above the ${fmtK(FLOOR)} floor. Quarters below the floor are deferred (not lost — see step 5).`,
+      colour: '#C9A84C',
     },
     {
       n: '4',
-      title: 'Investor Quarterly Draw',
-      sub: `Only once balance ≥ ${fmtK(FLOOR)}`,
-      detail: `Investor's pro-rata share pays out only when the closing balance is at or above the ${fmtK(FLOOR)} floor. Quarters below the floor are deferred (not lost — see step 5).`,
-      colour: '#C9A84C',
+      title: 'Founder Quarterly Draw',
+      sub: 'After the investor · from remaining surplus',
+      detail: 'The founder draws their pro-rata share AFTER the investor has been paid. Investor sits ahead of the founder in the dividend queue — the founder waits.',
+      colour: '#A78BFA',
     },
     {
       n: '5',
@@ -279,7 +281,7 @@ function DistributionProcess() {
         Distribution Process · Priority Order
       </h3>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 20 }}>
-        How operating profit becomes a dividend cheque. Director salary first, then the {fmtK(FLOOR)}–{fmtK(TARGET)} working-capital reserve, then quarterly distributions — founder paid every quarter, investor paid once the reserve hits the floor with deferred quarters caught up later.
+        How operating profit becomes a dividend cheque. Director salary first, then the {fmtK(FLOOR)}–{fmtK(TARGET)} working-capital reserve, then quarterly distributions — <strong style={{ color: 'var(--cream)' }}>investor paid first</strong> each quarter (once the reserve is at the floor), then the founder draws their pro-rata share from the remaining surplus. Deferred investor quarters are caught up once the reserve hits target.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         {steps.map((s, i) => (
