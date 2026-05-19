@@ -3,6 +3,7 @@ import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
 import LoanNotes from './tabs/LoanNotes.jsx'
+import LeonieAgreement from './tabs/LeonieAgreement.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
@@ -44,12 +45,17 @@ const SLIDE_DEFS = [
 // PasswordGate sets sessionStorage.ndb_founder='1' on that unlock; the
 // tab list filters on it before rendering so other access codes never
 // see the tab in the header at all.
+//
+// `roleOnly: '<role>'` flags a tab as gated to one specific role tag
+// (e.g. 'leonie' — set on the LEONIE access code via PasswordGate).
+// The founder role always sees role-gated tabs too so Elliot can review.
 const TOP_TABS = [
-  { key:'investorDeck',     label:'Investor Deck' },
-  { key:'businessExplorer', label:'Business Explorer' },
-  { key:'venueInfo',        label:'Venue Info' },
-  { key:'loanNotes',        label:'Loan Notes' },
-  { key:'plonk',            label:'Plonk' },
+  { key:'investorDeck',      label:'Investor Deck' },
+  { key:'businessExplorer',  label:'Business Explorer' },
+  { key:'venueInfo',         label:'Venue Info' },
+  { key:'loanNotes',         label:'Loan Notes' },
+  { key:'leonieAgreement',   label:"Your Agreement", roleOnly:'leonie' },
+  { key:'plonk',             label:'Plonk' },
 ]
 
 // Build the notes "active page" descriptor from the current top tab and
@@ -64,6 +70,7 @@ function deriveActivePage(topTab, slideId) {
   if (topTab === 'businessExplorer')  return { id: 'explorer', label: 'Business Explorer' }
   if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
   if (topTab === 'loanNotes')         return { id: 'loanNotes', label: 'Loan Notes' }
+  if (topTab === 'leonieAgreement')   return { id: 'leonieAgreement', label: 'Your Agreement' }
   if (topTab === 'notes')             return null   // master view
   return null
 }
@@ -74,6 +81,12 @@ function deriveActivePage(topTab, slideId) {
 // flag), so we use 'ndb_role_founder' here for true 888999-only gating.
 function readIsFounder() {
   try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false }
+}
+
+// Read the role tag (set in App.jsx PasswordGate unlock as 'ndb_role').
+// Used for role-gated tabs (e.g. Leonie's private Investors' Agreement).
+function readRole() {
+  try { return sessionStorage.getItem('ndb_role') || '' } catch { return '' }
 }
 
 export default function HackneyApp() {
@@ -131,7 +144,12 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
   const { Component } = SLIDE_DEFS[slideIdx]
   const notes = useNotes()
   const isFounder = readIsFounder()
-  const visibleTabs = TOP_TABS.filter(t => !t.founderOnly || isFounder)
+  const role = readRole()
+  const visibleTabs = TOP_TABS.filter(t => {
+    if (t.founderOnly && !isFounder) return false
+    if (t.roleOnly && role !== t.roleOnly && !isFounder) return false
+    return true
+  })
 
   // Keep NotesContext.activePage in lockstep with the current view so
   // the side panel's textarea binds to the right note.
@@ -205,6 +223,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
         {topTab === 'loanNotes' && <div style={{ flex:1, overflowY:'auto' }}><LoanNotes /></div>}
+        {topTab === 'leonieAgreement' && <div style={{ flex:1, overflowY:'auto' }}><LeonieAgreement /></div>}
         {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
       <NotesPanel />
