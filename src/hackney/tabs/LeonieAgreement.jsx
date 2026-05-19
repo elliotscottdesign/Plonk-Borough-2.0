@@ -8,7 +8,8 @@ import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
 //   • 5% B-class non-voting equity
 //   • 10% non-cumulative preferred yield on her £5k = £500/yr
 //   • Investor-priority quarterly draws with deferred catch-up
-//   • Y3 Put option: lower of fair-value pro-rata or 3× cash (£15k cap)
+//   • Y3 Put option: fair market value × her 5% equity — NO multiple-of-money
+//     cap (Leonie specifically: she can sell at market value on exercise)
 //   • Y5 exit: pro-rata, uncapped (illustrative 5% of £751k = £37.5k)
 //
 // Gated to access codes:
@@ -156,20 +157,16 @@ export default function LeonieAgreement() {
           The Investor is granted the right, exercisable in the 30-day window following the issue of the Year-3 audited (or director-certified) accounts, to require the Company to repurchase all (but not part) of her B shares.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>Y3 Put price</strong> = the <em>lower</em> of:
+          <strong style={{ color:CREAM }}>Y3 Put price</strong> = <strong style={{ color:GOLD }}>Fair Market Value</strong> of the Company at the exercise date × the Investor's 5% equity. <strong style={{ color:CREAM }}>No multiple-of-money cap applies</strong> — the Investor can sell her shares at full market value on exercise.
         </P>
-        <ul style={ulStyle}>
-          <li><strong style={{ color:CREAM }}>(a)</strong> Fair Market Value of the Company at the exercise date × the Investor's 5% equity; or</li>
-          <li><strong style={{ color:CREAM }}>(b)</strong> 3× the original cash subscribed (= <strong style={{ color:GOLD }}>£15,000 cap</strong> for the Investor's £5,000).</li>
-        </ul>
         <P>
-          Fair Market Value is determined by the directors acting reasonably; the Investor may, at her cost, require an independent valuation by a chartered accountant if she disputes the figure.
+          Fair Market Value is determined by the directors acting reasonably (by reference to a multiple of trailing-12-month EBITDA consistent with sector comparables). The Investor may, at her cost, require an independent valuation by a chartered accountant if she disputes the figure; the independent valuation binds both parties.
         </P>
         <P>
           If multiple Investors exercise in the same window, payments are <strong style={{ color:CREAM }}>staggered over up to 12 months</strong> to protect the Company's operating cash.
         </P>
         <P>
-          If the Investor elects to convert her Round 1 B shares into Round 2 equity (where Round 2 is offered), she <strong style={{ color:CREAM }}>waives the Y3 Put</strong>. The Y3 Put cap applies <em>only</em> to the optional Y3 Put — the Year-5 exit is uncapped and pro-rata for everyone.
+          If the Investor elects to convert her Round 1 B shares into Round 2 equity (where Round 2 is offered), she <strong style={{ color:CREAM }}>waives the Y3 Put</strong> — this prevents a "convert + immediately put" arbitrage. The Year-5 exit remains uncapped and pro-rata for everyone.
         </P>
       </Section>
 
