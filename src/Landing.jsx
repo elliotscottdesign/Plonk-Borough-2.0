@@ -12,7 +12,7 @@ import CookieBanner from './components/CookieBanner.jsx'
 //     by dropping /public/nodice-logo.png — the <img> falls back to
 //     the SVG when the PNG is absent, no rebuild needed)
 //   • Headline: "OPEN 28/5"
-//   • Subhead: "FKA PLONK · E8 3PH"
+//   • Subhead: "407 Mentmore Terrace, Hackney, E8 3PH"
 //   • Email signup form
 //   • Tiny "Investor area" link bottom-right that routes to /borough
 //
@@ -82,7 +82,7 @@ export default function Landing() {
         Open 28 / 5
       </h1>
 
-      {/* FKA PLONK · E8 3PH */}
+      {/* 407 Mentmore Terrace, Hackney, E8 3PH */}
       <div style={{
         fontSize: 'clamp(0.85rem, 1.6vw, 1rem)',
         letterSpacing: '0.32em',
@@ -92,7 +92,7 @@ export default function Landing() {
         textAlign: 'center',
         opacity: 0.92,
       }}>
-        FKA Plonk · E8 3PH
+        407 Mentmore Terrace, Hackney, E8 3PH
       </div>
 
       {/* Email signup */}
