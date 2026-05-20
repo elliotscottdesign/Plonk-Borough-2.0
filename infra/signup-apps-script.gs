@@ -48,7 +48,7 @@
  * The same URL persists across deployments.
  */
 
-const SHEET_ID          = ''                              // ← paste the workbook ID here
+const SHEET_ID          = '14gsy9cpuaUs22tQWg1P9l29xGFfYwIC0kB4pOvjuZDs'  // No Dice — Signups workbook
 const SHEET_NAME        = 'Signups'
 const HEADER_ROW        = ['email', 'first_seen', 'last_seen', 'count', 'user_agent', 'referrer']
 const FOUNDER_EMAIL     = 'elliotscottdesign@gmail.com'   // notification recipient
