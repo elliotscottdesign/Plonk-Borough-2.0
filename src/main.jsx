@@ -19,23 +19,26 @@ if (stashed) {
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
-// Brief loading indicator while we sync from the live Google Sheet.
-// If sync takes >4s or fails, we render anyway with data.js defaults.
-document.getElementById('root').innerHTML =
-  '<div style="height:100vh;display:flex;align-items:center;justify-content:center;' +
-  'background:#0A0A0F;color:#9CA3AF;font-family:system-ui,sans-serif;font-size:13px;' +
-  'letter-spacing:0.08em">syncing live data…</div>'
-
-// Path-based bootstrap dispatch. Hackney has its own lock-sync endpoint
-// (separate Apps Script + workbook), so visiting /hackney hydrates its
-// own window globals and skips Borough's gviz Sheet fetch (which targets
-// the Borough workbook). Borough's bootstrap also runs the lock-sync
-// fetch alongside the Sheet hydration; for Hackney we fetch only the
-// lock container.
+// Path-based bootstrap dispatch.
+//   /                → public Landing page (no Sheet sync needed)
+//   /hackney         → Hackney lock-sync only (separate workbook)
+//   /borough (and anything else) → Borough gviz Sheet + lock-sync
+// The "syncing live data…" placeholder only paints when we actually
+// have something to fetch, so the public landing renders instantly.
 const isHackneyPath = /^\/hackney(\/|$)/.test(location.pathname)
-const bootstrap = isHackneyPath
-  ? bootstrapHackneyLocks()
-  : bootstrapDataFromSheet()
+const isBoroughPath = /^\/borough(\/|$)/.test(location.pathname)
+const needsBootstrap = isHackneyPath || isBoroughPath
+
+if (needsBootstrap) {
+  document.getElementById('root').innerHTML =
+    '<div style="height:100vh;display:flex;align-items:center;justify-content:center;' +
+    'background:#0A0A0F;color:#9CA3AF;font-family:system-ui,sans-serif;font-size:13px;' +
+    'letter-spacing:0.08em">syncing live data…</div>'
+}
+
+const bootstrap = needsBootstrap
+  ? (isHackneyPath ? bootstrapHackneyLocks() : bootstrapDataFromSheet())
+  : Promise.resolve()
 
 bootstrap.finally(() => {
   root.render(

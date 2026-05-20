@@ -13,6 +13,7 @@ import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthDrivers from './slides/GrowthDrivers.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
+import Landing from './Landing.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -20,13 +21,23 @@ import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
 
-// Path-based deck dispatch. /hackney (and any nested path under it) renders
-// the Hackney deck; everything else stays on the Borough shell.
+// Path-based deck dispatch.
+//   /                     → public Landing page (marketing, no gate)
+//   /borough  (and nested)→ Borough investor deck (PasswordGate)
+//   /hackney  (and nested)→ Hackney investor deck (PasswordGate)
 // Combined with public/404.html (SPA fallback) this works on GitHub Pages
 // without a router dependency.
 const isHackneyPath = () =>
   typeof window !== 'undefined' &&
   /^\/hackney(\/|$)/.test(window.location.pathname)
+
+const isBoroughPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/borough(\/|$)/.test(window.location.pathname)
+
+const isRootPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/?$/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -76,6 +87,14 @@ export default function App() {
   // Top tabs depend on plonk access. Tabs the user can't see are stripped
   // from the array so the "plonk" key can never become the active tab.
   const topTabKeys = plonkAccess ? TOP_TAB_KEYS_PLONK : TOP_TAB_KEYS_BASE
+
+  // Public landing page — served at the root. No password gate.
+  // The investor deck moved to /borough; Hackney remains at /hackney.
+  // Any unrecognised path (incl. the SPA fallback) also lands here so
+  // the public site has a clean entry point.
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath())) {
+    return <Landing />
+  }
 
   if (!unlocked) {
     return <PasswordGate onUnlock={({ plonk, founder, role, lang: chosenLang, accessCode }) => {
