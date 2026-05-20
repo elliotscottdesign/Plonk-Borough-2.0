@@ -23,7 +23,7 @@ import React, { useEffect, useState } from 'react'
 //     infra/signup-apps-script.gs.
 //   • No external dependencies (no Formspree, no Mailchimp).
 
-const SIGNUP_SYNC_URL  = '' // ← paste deployed Apps Script URL here
+const SIGNUP_SYNC_URL  = 'https://script.google.com/macros/s/AKfycbwLehtnnnSy3e8H7_9Vxs7VIHeQGD4_LV6-G7h8ZnZA8tCCg2m2h7o86UoyNSB7XD7C/exec'
 const FOUNDER_EMAIL    = 'elliotscottdesign@gmail.com'
 const BRAND_RED        = '#FF3D1F'
 const INK              = '#000000'
