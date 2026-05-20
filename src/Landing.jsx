@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import CookieBanner from './components/CookieBanner.jsx'
 
 // Landing — public-facing page at nodice.bar/ (the root).
 //
@@ -97,22 +98,50 @@ export default function Landing() {
       {/* Email signup */}
       <SignupForm />
 
-      {/* Tiny investor-area shortcut (bottom-right) */}
-      <a
-        href="/borough"
-        style={{
-          position: 'absolute',
-          bottom: 16,
-          right: 20,
-          fontSize: 10,
-          color: 'rgba(255,255,255,0.35)',
-          textDecoration: 'none',
-          letterSpacing: '0.18em',
-          textTransform: 'uppercase',
-        }}
-      >
-        Investor area →
-      </a>
+      {/* Footer links — bottom-right cluster. Sits above the cookie
+          banner (which floats centred at bottom) so they never overlap. */}
+      <div style={{
+        position: 'absolute',
+        bottom: 16,
+        right: 20,
+        display: 'flex',
+        gap: 18,
+        fontSize: 10,
+        letterSpacing: '0.18em',
+        textTransform: 'uppercase',
+      }}>
+        <button
+          onClick={() => {
+            const reopen = window.__nodiceReopenCookieBanner
+            if (typeof reopen === 'function') reopen()
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            color: 'rgba(255,255,255,0.35)',
+            fontSize: 10,
+            letterSpacing: '0.18em',
+            textTransform: 'uppercase',
+            fontFamily: 'inherit',
+          }}
+        >
+          Cookie settings
+        </button>
+        <a
+          href="/borough"
+          style={{
+            color: 'rgba(255,255,255,0.35)',
+            textDecoration: 'none',
+          }}
+        >
+          Investor area →
+        </a>
+      </div>
+
+      {/* GDPR cookie / privacy banner — first visit only, persists choice */}
+      <CookieBanner />
     </div>
   )
 }
