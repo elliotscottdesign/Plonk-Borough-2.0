@@ -38,7 +38,7 @@ export default function Terms() {
 
       <H2>1. Who we are</H2>
       <P>
-        nodice.bar is operated by <Strong>No Dice Hackney Ltd</Strong> (company number <Strong>[COMPANY NUMBER TBC]</Strong>), trading as <Em>No Dice</Em>. Our registered office is <Strong>[REGISTERED ADDRESS TBC]</Strong>, London E8 3PH. You can contact us at <A href="mailto:elliot@nodice.bar">elliot@nodice.bar</A>.
+        nodice.bar is operated by <Strong>No Dice Bars Ltd</Strong> (company number <Strong>[COMPANY NUMBER TBC]</Strong>), trading as <Em>No Dice</Em>. Our registered office is <Strong>[REGISTERED ADDRESS TBC]</Strong>. Our first trading venue is at London Fields, E8 3PH. You can contact us at <A href="mailto:elliot@nodice.bar">elliot@nodice.bar</A>.
       </P>
 
       <H2>2. What these terms cover</H2>
@@ -72,7 +72,7 @@ export default function Terms() {
 
       <H2>5. Intellectual property</H2>
       <P>
-        All content on nodice.bar — the "No Dice" name and logo, the dice mark, all photography, design, copy, and code — is owned by No Dice Hackney Ltd or used under licence, and is protected by UK copyright, trade mark, and unregistered design rights.
+        All content on nodice.bar — the "No Dice" name and logo, the dice mark, all photography, design, copy, and code — is owned by No Dice Bars Ltd or used under licence, and is protected by UK copyright, trade mark, and unregistered design rights.
       </P>
       <P>
         You may not reproduce, distribute, modify, or create derivative works from any of it without our prior written permission. The grant of permission to <Em>view</Em> the site does not grant permission to <Em>copy</Em> from it.

@@ -13,7 +13,7 @@ import LegalLayout, { H2, H3, P, UL, LI, Strong, A, Table } from './LegalLayout.
 //   • Cookie footprint = one local-storage preference (banner choice)
 //
 // Placeholders that need the founder to fill in before going live:
-//   • [COMPANY NUMBER]  — Companies House number for No Dice Hackney Ltd
+//   • [COMPANY NUMBER]  — Companies House number for No Dice Bars Ltd
 //   • [REGISTERED ADDRESS] — registered office address
 //
 // ICO registration: any UK business processing personal data must
@@ -39,10 +39,10 @@ export default function PrivacyPolicy() {
 
       <H2>1. Who we are</H2>
       <P>
-        nodice.bar is operated by <Strong>No Dice Hackney Ltd</Strong> ("we", "us", "our"), a company registered in England and Wales (company number <Strong>[COMPANY NUMBER TBC]</Strong>). Our registered office is <Strong>[REGISTERED ADDRESS TBC]</Strong>, London E8 3PH.
+        nodice.bar is operated by <Strong>No Dice Bars Ltd</Strong> ("we", "us", "our"), a company registered in England and Wales (company number <Strong>[COMPANY NUMBER TBC]</Strong>). Our registered office is <Strong>[REGISTERED ADDRESS TBC]</Strong>. Our first trading venue is at London Fields, E8 3PH.
       </P>
       <P>
-        For the purposes of the UK GDPR and the Data Protection Act 2018, No Dice Hackney Ltd is the <Em>data controller</Em> for personal data collected through this website.
+        For the purposes of the UK GDPR and the Data Protection Act 2018, No Dice Bars Ltd is the <Em>data controller</Em> for personal data collected through this website.
       </P>
 
       <H2>2. What this policy covers</H2>
