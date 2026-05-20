@@ -152,8 +152,11 @@ export default function CookieBanner() {
           <div style={{ marginBottom: 8 }}>
             <strong style={{ color: '#FFFFFF' }}>Third parties:</strong> The site is hosted on GitHub Pages and serves fonts from Google Fonts — neither receives any signup data. Form submissions go to a Google Apps Script endpoint we control.
           </div>
-          <div>
+          <div style={{ marginBottom: 8 }}>
             <strong style={{ color: '#FFFFFF' }}>Your rights (UK GDPR):</strong> You can request a copy of your data, ask us to delete it, or unsubscribe at any time by emailing <span style={{ color: BRAND_RED }}>elliot@nodice.bar</span>. We'll action it within 30 days.
+          </div>
+          <div>
+            Full detail in our <a href="/privacy" style={{ color: BRAND_RED, textDecoration: 'underline' }}>Privacy Policy</a> and <a href="/terms" style={{ color: BRAND_RED, textDecoration: 'underline' }}>Terms of Use</a>.
           </div>
         </div>
       )}

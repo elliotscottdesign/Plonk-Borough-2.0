@@ -98,18 +98,24 @@ export default function Landing() {
       {/* Email signup */}
       <SignupForm />
 
-      {/* Footer links — bottom-right cluster. Sits above the cookie
-          banner (which floats centred at bottom) so they never overlap. */}
+      {/* Footer links — bottom cluster. Sits above the cookie banner
+          (which floats centred at bottom) so they never overlap. */}
       <div style={{
         position: 'absolute',
         bottom: 16,
-        right: 20,
+        left: 0,
+        right: 0,
         display: 'flex',
+        justifyContent: 'center',
         gap: 18,
+        flexWrap: 'wrap',
+        padding: '0 20px',
         fontSize: 10,
         letterSpacing: '0.18em',
         textTransform: 'uppercase',
       }}>
+        <a href="/privacy" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>Privacy</a>
+        <a href="/terms"   style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>Terms</a>
         <button
           onClick={() => {
             const reopen = window.__nodiceReopenCookieBanner

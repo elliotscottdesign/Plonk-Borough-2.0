@@ -14,6 +14,8 @@ import GrowthDrivers from './slides/GrowthDrivers.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
+import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
+import Terms from './legal/Terms.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -38,6 +40,14 @@ const isBoroughPath = () =>
 const isRootPath = () =>
   typeof window !== 'undefined' &&
   /^\/?$/.test(window.location.pathname)
+
+const isPrivacyPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/privacy\/?$/.test(window.location.pathname)
+
+const isTermsPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/terms\/?$/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -87,6 +97,10 @@ export default function App() {
   // Top tabs depend on plonk access. Tabs the user can't see are stripped
   // from the array so the "plonk" key can never become the active tab.
   const topTabKeys = plonkAccess ? TOP_TAB_KEYS_PLONK : TOP_TAB_KEYS_BASE
+
+  // Public legal pages — no gate, indexable.
+  if (isPrivacyPath()) return <PrivacyPolicy />
+  if (isTermsPath())   return <Terms />
 
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.

@@ -21,10 +21,11 @@ const root = ReactDOM.createRoot(document.getElementById('root'))
 
 // Path-based bootstrap dispatch.
 //   /                → public Landing page (no Sheet sync needed)
+//   /privacy, /terms → public legal pages (no Sheet sync needed)
 //   /hackney         → Hackney lock-sync only (separate workbook)
 //   /borough (and anything else) → Borough gviz Sheet + lock-sync
 // The "syncing live data…" placeholder only paints when we actually
-// have something to fetch, so the public landing renders instantly.
+// have something to fetch, so the public pages render instantly.
 const isHackneyPath = /^\/hackney(\/|$)/.test(location.pathname)
 const isBoroughPath = /^\/borough(\/|$)/.test(location.pathname)
 const needsBootstrap = isHackneyPath || isBoroughPath
