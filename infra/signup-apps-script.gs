@@ -115,13 +115,13 @@ function doPost(e) {
       const subject = isNew
         ? '🎲 No Dice — new signup: ' + email
         : '🎲 No Dice — repeat signup: ' + email
-      const body =
+      const mailBody =
         'Email:        ' + email + '\n' +
         'Time:         ' + now.toISOString() + '\n' +
-        'User agent:   ' + (body && body.ua ? body.ua : '(none)') + '\n' +
-        'Referrer:     ' + (body && body.ref ? body.ref : '(none)') + '\n' +
+        'User agent:   ' + (body.ua || '(none)') + '\n' +
+        'Referrer:     ' + (body.ref || '(none)') + '\n' +
         'Status:       ' + (isNew ? 'NEW' : 'repeat (count ' + (prevCount + 1) + ')')
-      try { MailApp.sendEmail(FOUNDER_EMAIL, subject, body) } catch (mailErr) { /* don't block the signup on a mail failure */ }
+      try { MailApp.sendEmail(FOUNDER_EMAIL, subject, mailBody) } catch (mailErr) { /* don't block the signup on a mail failure */ }
     }
 
     return _json({ ok: true, isNew: isNew })
