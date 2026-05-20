@@ -51,7 +51,7 @@
 const SHEET_ID          = '14gsy9cpuaUs22tQWg1P9l29xGFfYwIC0kB4pOvjuZDs'  // No Dice — Signups workbook
 const SHEET_NAME        = 'Signups'
 const HEADER_ROW        = ['email', 'first_seen', 'last_seen', 'count', 'user_agent', 'referrer']
-const FOUNDER_EMAIL     = 'eeliot@nodice.bar'             // notification recipient — Workspace account that owns the Signups sheet
+const FOUNDER_EMAIL     = 'elliot@nodice.bar'             // notification recipient — Workspace account that owns the Signups sheet
 const EMAIL_THROTTLE_MS = 24 * 60 * 60 * 1000             // one founder email per address per day
 const ALLOW_LIST_SECRET = ''                              // optional: require ?secret=<value> for the GET ?all=1 export
 
