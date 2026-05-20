@@ -16,6 +16,7 @@
   "slideNav": {
     "cover": "CAPA",
     "summary": "RESUMO DO INVESTIMENTO",
+    "group": "ESTRUTURA DO GRUPO",
     "funds": "USO DOS FUNDOS",
     "drivers": "DRIVERS DE CRESCIMENTO",
     "market": "CONTEXTO DE MERCADO",

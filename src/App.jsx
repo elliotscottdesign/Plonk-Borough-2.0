@@ -12,6 +12,7 @@ import MarketContext from './slides/MarketContext.jsx'
 import WaterfallReturns from './slides/WaterfallReturns.jsx'
 import GrowthDrivers from './slides/GrowthDrivers.jsx'
 import InvestmentCase from './slides/InvestmentCase.jsx'
+import GroupStructure from './slides/GroupStructure.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
@@ -57,6 +58,7 @@ const isIPLicencePath = () =>
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
   { id:'summary',    labelKey:'summary',   Component: InvestmentSummary },
+  { id:'group',      labelKey:'group',     Component: GroupStructure },
   { id:'funds',      labelKey:'funds',     Component: UseOfFunds },
   { id:'drivers',    labelKey:'drivers',   Component: GrowthDrivers },
   { id:'market',     labelKey:'market',    Component: MarketContext },
