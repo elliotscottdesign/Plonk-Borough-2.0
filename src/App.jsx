@@ -16,6 +16,7 @@ import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
+import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -48,6 +49,10 @@ const isPrivacyPath = () =>
 const isTermsPath = () =>
   typeof window !== 'undefined' &&
   /^\/terms\/?$/.test(window.location.pathname)
+
+const isIPLicencePath = () =>
+  typeof window !== 'undefined' &&
+  /^\/templates\/ip-licence\/?$/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -101,6 +106,11 @@ export default function App() {
   // Public legal pages — no gate, indexable.
   if (isPrivacyPath()) return <PrivacyPolicy />
   if (isTermsPath())   return <Terms />
+
+  // Internal templates — unlinked from the public site but reachable
+  // by direct URL so the founder can preview + download legal drafts.
+  if (isIPLicencePath()) return <IPLicenceTemplate />
+
 
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.
