@@ -60,8 +60,11 @@ export default function Landing() {
     }}>
 
       {/* Logo */}
+      {/* Real hand-drawn dice logo (PNG in /public). If the asset ever
+          fails to load, we fall back to the inline SVG approximation
+          so the page never renders without a logo. */}
       <div style={{ width: 'min(280px, 60vw)', marginBottom: 36 }}>
-        <DiceLogo />
+        <DiceLogoImg />
       </div>
 
       {/* OPEN 28/5 — the headline */}
@@ -298,11 +301,26 @@ function SignupForm() {
 }
 
 // ─── Dice logo ─────────────────────────────────────────────────────────
-// Two hand-drawn isometric cubes in red, sitting side-by-side with the
-// right cube slightly behind & overlapping. Renders inline so the page
-// works with no asset uploads. If a designer drops a final PNG at
-// /public/nodice-logo.png, swap this <DiceLogo /> for <img src="/nodice-logo.png" />.
+// Primary path: <DiceLogoImg /> renders the real hand-drawn PNG that
+// sits at /public/nodice-logo.png. If the asset 404s for any reason
+// (CDN hiccup, bad deploy), we transparently fall back to the inline
+// SVG <DiceLogo /> below so the page never paints empty.
 
+function DiceLogoImg() {
+  const [errored, setErrored] = React.useState(false)
+  if (errored) return <DiceLogo />
+  return (
+    <img
+      src="/nodice-logo.png"
+      alt="No Dice"
+      onError={() => setErrored(true)}
+      style={{ width: '100%', height: 'auto', display: 'block' }}
+    />
+  )
+}
+
+// SVG fallback — two hand-drawn isometric cubes in red, sitting
+// side-by-side with the right cube slightly behind & overlapping.
 function DiceLogo() {
   const stroke = BRAND_RED
   const sw     = 14         // stroke width — chunky like the source sketch
