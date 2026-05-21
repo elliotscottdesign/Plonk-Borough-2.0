@@ -67,14 +67,15 @@ export default function Landing() {
         <DiceLogoImg />
       </div>
 
-      {/* OPEN 28/5 — the headline */}
+      {/* OPENS 28 / 5 — the headline. Bebas Neue is a condensed
+          all-caps display font; smaller px size than the previous
+          DM Serif Display because Bebas reads tighter. */}
       <h1
-        className="serif"
         style={{
-          fontFamily: "'DM Serif Display', serif",
-          fontSize: 'clamp(3rem, 12vw, 7.5rem)',
-          lineHeight: 0.95,
-          letterSpacing: '0.02em',
+          fontFamily: "'Bebas Neue', 'Impact', sans-serif",
+          fontSize: 'clamp(2.2rem, 7vw, 4.5rem)',
+          lineHeight: 1,
+          letterSpacing: '0.08em',
           color: BRAND_RED,
           margin: '0 0 14px 0',
           textAlign: 'center',
@@ -82,7 +83,7 @@ export default function Landing() {
           fontWeight: 400,
         }}
       >
-        Open 28 / 5
+        Opens 28 / 5
       </h1>
 
       {/* 407 Mentmore Terrace, Hackney, E8 3PH */}
