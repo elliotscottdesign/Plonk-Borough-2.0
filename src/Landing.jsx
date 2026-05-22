@@ -210,7 +210,7 @@ function SignupForm() {
         width: '100%',
         textAlign: 'center',
         padding: '20px 24px',
-        border: '1px solid rgba(255,61,31,0.45)',
+        border: '1px solid rgba(218,27,51,0.45)',
         borderRadius: 10,
       }}>
         <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: BRAND_RED, marginBottom: 8, fontWeight: 700 }}>
@@ -265,7 +265,7 @@ function SignupForm() {
             padding: '14px 26px',
             fontSize: 13,
             borderRadius: 8,
-            background: isValidEmail ? BRAND_RED : 'rgba(255,61,31,0.35)',
+            background: isValidEmail ? BRAND_RED : 'rgba(218,27,51,0.45)',
             color: '#FFFFFF',
             border: 'none',
             cursor: isValidEmail ? 'pointer' : 'default',
