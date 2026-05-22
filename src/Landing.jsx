@@ -8,10 +8,8 @@ import CookieBanner from './components/CookieBanner.jsx'
 // PasswordGate. Hackney's deck stays at /hackney.
 //
 // What's on the page:
-//   • Two-cube dice logo in red on black (inline SVG; can be replaced
-//     by dropping /public/nodice-logo.png — the <img> falls back to
-//     the SVG when the PNG is absent, no rebuild needed)
-//   • Headline: "OPEN 28/5"
+//   • "No Dice" wordmark in red on black (PNG at /public/nodice-wordmark.png) — hero
+//   • Supporting line: "OPENS 28 / 5"
 //   • Subhead: "407 Mentmore Terrace, Hackney, E8 3PH"
 //   • Email signup form
 //   • Tiny "Investor area" link bottom-right that routes to /borough
@@ -59,33 +57,25 @@ export default function Landing() {
       overflow: 'hidden',
     }}>
 
-      {/* Logo lockup — dice cubes on top, "No Dice" wordmark below.
-          Both are PNGs in /public (founder-supplied artwork; do not
-          replace with generated SVG approximations). */}
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, marginBottom: 36 }}>
-        <img
-          src="/nodice-logo.png"
-          alt="No Dice dice"
-          style={{ width: 'min(240px, 52vw)', height: 'auto', display: 'block' }}
-        />
+      {/* "No Dice" wordmark — hero element, sized larger now that the
+          dice cubes have been removed from the lockup. PNG in /public. */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: 36 }}>
         <img
           src="/nodice-wordmark.png"
           alt="No Dice"
-          style={{ width: 'min(340px, 70vw)', height: 'auto', display: 'block' }}
+          style={{ width: 'min(560px, 88vw)', height: 'auto', display: 'block' }}
         />
       </div>
 
-      {/* OPENS 28 / 5 — the headline. Bebas Neue is a condensed
-          all-caps display font; smaller px size than the previous
-          DM Serif Display because Bebas reads tighter. */}
+      {/* OPENS 28 / 5 — supporting line, set smaller than the wordmark. */}
       <h1
         style={{
           fontFamily: "'Bebas Neue', 'Impact', sans-serif",
-          fontSize: 'clamp(2.2rem, 7vw, 4.5rem)',
+          fontSize: 'clamp(1.4rem, 4vw, 2.6rem)',
           lineHeight: 1,
           letterSpacing: '0.08em',
           color: BRAND_RED,
-          margin: '0 0 14px 0',
+          margin: '0 0 10px 0',
           textAlign: 'center',
           textTransform: 'uppercase',
           fontWeight: 400,
@@ -96,13 +86,13 @@ export default function Landing() {
 
       {/* 407 Mentmore Terrace, Hackney, E8 3PH */}
       <div style={{
-        fontSize: 'clamp(0.85rem, 1.6vw, 1rem)',
+        fontSize: 'clamp(0.65rem, 1.1vw, 0.78rem)',
         letterSpacing: '0.32em',
         color: '#FFFFFF',
         textTransform: 'uppercase',
         marginBottom: 56,
         textAlign: 'center',
-        opacity: 0.92,
+        opacity: 0.85,
       }}>
         407 Mentmore Terrace, Hackney, E8 3PH
       </div>
