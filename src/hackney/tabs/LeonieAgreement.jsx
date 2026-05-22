@@ -1,5 +1,6 @@
 import React from 'react'
 import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
+import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
 // LeonieAgreement — private investor's agreement tab.
 //
@@ -55,6 +56,12 @@ const LEONIE_TOTAL_RET = LEONIE_CUM_DIV + LEONIE_Y5_EXIT
 const LEONIE_MOM       = LEONIE_TOTAL_RET / LEONIE_CASH
 
 export default function LeonieAgreement() {
+  // Live read of the founder's Use of Funds state — when 888999 drags
+  // the sliders on the Use of Funds slide (or locks a snapshot), the
+  // Schedule 2 table + the preamble figures in this agreement update
+  // automatically. Investor never sees stale numbers.
+  const { effective, isLocked } = useLockedUseOfFunds()
+
   return (
     <div style={{ padding:'32px 48px', maxWidth:1100, margin:'0 auto', color:CREAM, lineHeight:1.6 }}>
 
@@ -105,9 +112,9 @@ export default function LeonieAgreement() {
       {/* 3. Use of funds */}
       <Section number="3" title="Use of funds">
         <P>
-          Round proceeds are applied substantially in accordance with the Use of Funds tool published on the live deck (Use of Funds slide). Headline allocation across the £25k externally raised + £20k Founder buyback:
+          Round proceeds are applied substantially in accordance with the Use of Funds tool published on the live deck (Use of Funds slide). Headline allocation across the <strong style={{ color:CREAM }}>{fmt(effective.investment + effective.committedExternal)}</strong> externally raised + <strong style={{ color:CREAM }}>{fmt(effective.founderBuyback)}</strong> Founder buyback (total capital pool <strong style={{ color:CREAM }}>{fmt(effective.capitalPool)}</strong>):
         </P>
-        <UseOfFundsTable />
+        <UseOfFundsTable effective={effective} isLocked={isLocked} />
         <P style={{ marginTop:12 }}>
           The Founder may reallocate within the ranges shown on the live Use of Funds tool. The £19,500 inc-VAT rent deposit is paid monthly out of trading cash during the three-month rent-free period — it does not consume Day-1 Round proceeds.
         </P>
@@ -368,18 +375,48 @@ function CapTable() {
   )
 }
 
-function UseOfFundsTable() {
+// UseOfFundsTable — Schedule 2 of Leonie's agreement.
+//
+// Live-reads from useLockedUseOfFunds.effective (passed in as a prop so
+// the parent owns the hook subscription). When the founder (888999)
+// drags the sliders on the Use of Funds slide, these rows update; when
+// they lock a snapshot, the rows snap to the locked numbers and we
+// show a green "Locked snapshot" pill. Otherwise an amber "Live"
+// indicator makes clear the figures are working drafts.
+function UseOfFundsTable({ effective, isLocked }) {
   const lines = [
-    ['Assets — Liquidator (all bar fit-out, inc VAT)', fmt(12000)],
-    ['Garden Refurbishment (inc VAT)',                 fmt(12000)],
-    ['Interior Completion & Signage (inc VAT)',        fmt(10000)],
-    ['Marketing — Pre-launch & Year 1 (inc VAT)',       fmt(3000)],
-    ['Legals & Restart',                                fmt(2000)],
-    ['Rent Deposit (paid monthly from trading cash)',   '£0 from Round'],
-    ['Working Capital (derived residual)',              'balancing figure'],
+    ['Assets — Liquidator (all bar fit-out, inc VAT)', fmt(effective.stock)],
+    ['Garden Refurbishment (inc VAT)',                 fmt(effective.garden)],
+    ['Interior Completion & Signage (inc VAT)',        fmt(effective.interior)],
+    ['Marketing — Pre-launch & Year 1 (inc VAT)',       fmt(effective.marketing)],
+    ['Legals & Restart',                                fmt(effective.legals)],
+    ['Rent Deposit (paid monthly from trading cash)',
+      effective.rent > 0 ? `${fmt(effective.rent)} ring-fenced` : '£0 from Round'],
+    ['Working Capital (derived residual)',
+      effective.overAllocated > 0
+        ? `Over-allocated by ${fmt(effective.overAllocated)}`
+        : fmt(effective.workingCapital)],
   ]
   return (
     <div style={{ background:INK_BG, border:BORDER, borderRadius:10, padding:'4px 8px', marginTop:8, overflow:'hidden' }}>
+      <div style={{
+        display:'flex', justifyContent:'space-between', alignItems:'center',
+        padding:'8px 12px 6px 12px',
+        borderBottom:'1px solid rgba(255,255,255,0.05)',
+      }}>
+        <span style={{ fontSize:10, color:CREAM_D, letterSpacing:'0.14em', textTransform:'uppercase', fontWeight:600 }}>
+          Schedule 2 · Use of funds (per line)
+        </span>
+        <span style={{
+          fontSize:9, letterSpacing:'0.14em', textTransform:'uppercase', fontWeight:700,
+          padding:'3px 8px', borderRadius:4,
+          color: isLocked ? '#10B981' : '#FCD34D',
+          background: isLocked ? 'rgba(16,185,129,0.10)' : 'rgba(252,211,77,0.10)',
+          border: `1px solid ${isLocked ? 'rgba(16,185,129,0.35)' : 'rgba(252,211,77,0.35)'}`,
+        }}>
+          {isLocked ? '● Locked snapshot' : '● Live · drag sliders on Use of Funds slide'}
+        </span>
+      </div>
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
         <thead>
           <tr><Th>Line</Th><Th align="right">Headline £</Th></tr>
@@ -391,6 +428,10 @@ function UseOfFundsTable() {
               <Td align="right">{v}</Td>
             </tr>
           ))}
+          <tr style={{ borderTop:'2px solid rgba(201,168,76,0.4)' }}>
+            <Td bold>Total capital pool</Td>
+            <Td align="right" bold>{fmt(effective.capitalPool)}</Td>
+          </tr>
         </tbody>
       </table>
     </div>
