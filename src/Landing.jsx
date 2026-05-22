@@ -26,7 +26,7 @@ import CookieBanner from './components/CookieBanner.jsx'
 
 const SIGNUP_SYNC_URL  = 'https://script.google.com/macros/s/AKfycbwLehtnnnSy3e8H7_9Vxs7VIHeQGD4_LV6-G7h8ZnZA8tCCg2m2h7o86UoyNSB7XD7C/exec'
 const FOUNDER_EMAIL    = 'elliotscottdesign@gmail.com'
-const BRAND_RED        = '#FF3D1F'
+const BRAND_RED        = '#DA1B33'   // sampled from the No Dice wordmark artwork (cherry red)
 const INK              = '#000000'
 
 export default function Landing() {
@@ -59,12 +59,20 @@ export default function Landing() {
       overflow: 'hidden',
     }}>
 
-      {/* Logo */}
-      {/* Real hand-drawn dice logo (PNG in /public). If the asset ever
-          fails to load, we fall back to the inline SVG approximation
-          so the page never renders without a logo. */}
-      <div style={{ width: 'min(280px, 60vw)', marginBottom: 36 }}>
-        <DiceLogoImg />
+      {/* Logo lockup — dice cubes on top, "No Dice" wordmark below.
+          Both are PNGs in /public (founder-supplied artwork; do not
+          replace with generated SVG approximations). */}
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 18, marginBottom: 36 }}>
+        <img
+          src="/nodice-logo.png"
+          alt="No Dice dice"
+          style={{ width: 'min(240px, 52vw)', height: 'auto', display: 'block' }}
+        />
+        <img
+          src="/nodice-wordmark.png"
+          alt="No Dice"
+          style={{ width: 'min(340px, 70vw)', height: 'auto', display: 'block' }}
+        />
       </div>
 
       {/* OPENS 28 / 5 — the headline. Bebas Neue is a condensed
