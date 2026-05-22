@@ -8,6 +8,7 @@ import {
   WAGE_OVERHEAD_MULT,
   LOCK_SYNC_URL,
   LOCK_SYNC_SECRET,
+  DEAL,
 } from '../../data/hackney.js'
 import { getAccessCode, namespacedKey } from '../../lib/access-code.js'
 
@@ -155,17 +156,46 @@ function rentAmountForMonths(months) {
   return snap ? snap.amount : USE_OF_FUNDS_RANGES.rent.snaps[0].amount
 }
 
-// Compute the derived snapshot shape from a values map. `total`,
-// `allocated`, `workingCapital`, `overAllocated` are all derived.
+// Compute the derived snapshot shape from a values map.
+//
+// `total`           = the NEW investor's cash stake (drives the per-investor
+//                     equity calc + headline). Kept as `investment` for
+//                     backward-compat with downstream consumers.
+// `capitalPool`     = the FULL pool of cash going into the business this
+//                     round: new investor + founder buyback (£20k) + every
+//                     externally-committed cheque (Investor #1 / Leonie at
+//                     £5k). The Use-of-Funds spend + Working Capital are
+//                     drawn against this pool — NOT against the new
+//                     investor's stake alone.
+// `workingCapital`  = capitalPool − sum of the 6 use-of-funds sliders.
+// `overAllocated`   = sum of the 6 sliders − capitalPool (when negative WC).
+//
+// Why this matters: defaults to date sum to ~£39k+ across the six lines.
+// If we measure against just the new investor's stake (max £25k), the
+// calculator says "Over-allocated by £14k+" even though the business
+// actually has £45k–£50k of capital landing (the £20k founder buyback +
+// £5k Leonie don't disappear — they fund the build alongside the new
+// investor).
 function deriveSnapshot(v) {
-  const total = v.investment
-  const allocated = v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals
+  const investment = v.investment
+  const allocated  = v.stock + v.rent + v.garden + v.interior + v.marketing + v.legals
+
+  const founderBuyback   = DEAL.founderBuyback || 0
+  const committedExternal = (DEAL.commitments || [])
+    .filter(c => c.type === 'external')
+    .reduce((s, c) => s + (c.amount || 0), 0)
+  const capitalPool = investment + founderBuyback + committedExternal
+
   return {
     ...v,
-    workingCapital: Math.max(0, total - allocated),
-    overAllocated:  Math.max(0, allocated - total),
-    total,
+    total: investment,                                          // backward-compat
+    investment,                                                 // explicit alias
     allocated,
+    capitalPool,
+    founderBuyback,
+    committedExternal,
+    workingCapital: Math.max(0, capitalPool - allocated),
+    overAllocated:  Math.max(0, allocated - capitalPool),
   }
 }
 
@@ -733,8 +763,14 @@ export function LockedUseOfFundsProvider({ children }) {
 
   // The "effective" surface — locked snapshot if locked, else live derived.
   // Every consumer slide reads from this so values cascade live.
+  //
+  // Even when locked, we always re-derive through deriveSnapshot() so any
+  // newly-added fields (e.g. capitalPool, founderBuyback) get backfilled
+  // on snapshots that were persisted before those fields existed. The
+  // base slider values (investment, stock, rent, etc.) come straight
+  // from the locked snapshot — only the derived figures are recomputed.
   const effective = useMemo(
-    () => (isLocked ? snapshot : deriveSnapshot(values)),
+    () => deriveSnapshot(isLocked ? snapshot : values),
     [isLocked, snapshot, values],
   )
 

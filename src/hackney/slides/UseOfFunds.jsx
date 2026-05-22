@@ -42,10 +42,10 @@ export default function UseOfFunds() {
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 12, color: '#4FC3F7', letterSpacing: '0.15em', textTransform: 'uppercase', marginBottom: 8 }}>Use of Investment Funds</div>
         <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
-          {fmt(display.total)} Investment · 50/50 Equity Split
+          {fmt(display.capitalPool)} Total Raise · 50/50 Equity Split
         </h2>
         <p style={{ fontSize: 14, color: '#9CA3AF', maxWidth: 760, lineHeight: 1.6 }}>
-          The funding amount is set by the slider on the <strong style={{ color: 'var(--cream)' }}>Cover slide</strong> — drag it there to size the raise. This page breaks the spend down across stock, rent, garden, interior, marketing, and legals; Working Capital absorbs whatever's left, sitting as float for early trading. Whatever the investor puts in, the founder matches with 50% equity. Pure pro-rata between founder and investor side; within the investor pool, <strong style={{ color: 'var(--cream)' }}>A-shares (≥ £10k cheques) are paid first</strong> and <strong style={{ color: 'var(--cream)' }}>B-shares (&lt; £10k cheques) are paid after</strong> the A-share allocation is complete.
+          The new investor stake is set by the slider on the <strong style={{ color: 'var(--cream)' }}>Cover slide</strong> ({fmt(display.investment)} at full subscription). The full capital pool funding the spend below = your stake <strong style={{ color: 'var(--cream)' }}>+ {fmt(display.founderBuyback)} founder buyback</strong> + <strong style={{ color: 'var(--cream)' }}>{fmt(display.committedExternal)} already committed externally</strong>. This page breaks that pool down across stock, rent, garden, interior, marketing, and legals; Working Capital absorbs whatever's left as float for early trading.
         </p>
       </div>
 
@@ -53,15 +53,15 @@ export default function UseOfFunds() {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap: 12, marginBottom: 20 }}>
         <HeadlineCard
           label="TOTAL RAISE"
-          value={fmt(display.total)}
+          value={fmt(display.capitalPool)}
           colour={isLocked ? '#10B981' : '#C9A84C'}
-          sub={isLocked ? 'Locked snapshot · from Cover slider' : 'Live · drag the slider on Cover'}
+          sub={`${fmt(display.investment)} new + ${fmt(display.founderBuyback)} founder + ${fmt(display.committedExternal)} committed`}
         />
         <HeadlineCard
           label="ALLOCATED"
           value={fmt(display.allocated)}
           colour="#4FC3F7"
-          sub={`${display.total > 0 ? ((display.allocated/display.total)*100).toFixed(1) : '0.0'}% of raise · 6 sliders below`}
+          sub={`${display.capitalPool > 0 ? ((display.allocated/display.capitalPool)*100).toFixed(1) : '0.0'}% of raise · 6 sliders below`}
         />
         <HeadlineCard
           label="WORKING CAPITAL"
@@ -69,7 +69,7 @@ export default function UseOfFunds() {
           colour={display.overAllocated > 0 ? '#E53935' : '#2DD4BF'}
           sub={display.overAllocated > 0
             ? `Over-allocated by ${fmt(display.overAllocated)}`
-            : `${display.total > 0 ? ((display.workingCapital/display.total)*100).toFixed(1) : '0.0'}% of raise · residual float`}
+            : `${display.capitalPool > 0 ? ((display.workingCapital/display.capitalPool)*100).toFixed(1) : '0.0'}% of raise · residual float`}
         />
         <HeadlineCard
           label="50/50 SPLIT"
@@ -134,7 +134,7 @@ export default function UseOfFunds() {
       </div>
 
       {/* Working Capital — full-width residual slider, always disabled */}
-      <WorkingCapitalSlider amount={display.workingCapital} target={display.total} allocated={display.allocated} />
+      <WorkingCapitalSlider amount={display.workingCapital} target={display.capitalPool} allocated={display.allocated} />
     </div>
   )
 }
