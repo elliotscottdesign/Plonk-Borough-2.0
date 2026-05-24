@@ -217,6 +217,16 @@ function Row({ label, value }) {
   )
 }
 
+// Extract the lead "HH:MM" from a SLOTS string. Example:
+//   SLOTS.prime = '20:00 / 21:00 BST'  →  '20:00'
+// Used on the collapsed calendar row so kick-off times are visible
+// at a glance without expanding the day.
+function leadTime(slotKey) {
+  const s = SLOTS[slotKey] || ''
+  const m = s.match(/(\d{1,2}:\d{2})/)
+  return m ? m[1] : slotKey
+}
+
 function DayRow({ day }) {
   const [open, setOpen] = useState(false)
   const color = intensityColor(day.intensity)
@@ -235,15 +245,34 @@ function DayRow({ day }) {
       <button
         onClick={() => setOpen(!open)}
         style={{
-          width: '100%', display: 'grid', gridTemplateColumns: '70px 1fr 110px 90px 28px',
+          width: '100%', display: 'grid', gridTemplateColumns: '70px 140px 1fr 100px 80px 28px',
           gap: 16, alignItems: 'center', padding: '14px 14px 14px 16px',
           background: 'transparent', border: 'none', color: CREAM, cursor: 'pointer', textAlign: 'left',
         }}
       >
+        {/* Date */}
         <div>
-          <div className="serif" style={{ fontSize: 22, color: isRest ? CREAM_D : GOLD, lineHeight: 1 }}>{dayNum}</div>
-          <div style={{ fontSize: 9, color: CREAM_D, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>{monthShort} · {day.weekday.slice(0,3)}</div>
+          <div className="serif" style={{ fontSize: 26, color: isRest ? CREAM_D : GOLD, lineHeight: 1 }}>{dayNum}</div>
+          <div style={{ fontSize: 9, color: CREAM_D, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 3 }}>{monthShort} · {day.weekday.slice(0,3)}</div>
         </div>
+
+        {/* Kick-off times — stacked large gold serif numbers, one per match. */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {isRest && (
+            <span style={{ fontSize: 14, color: CREAM_D, letterSpacing: '0.18em' }}>—</span>
+          )}
+          {!isRest && (day.matches || []).map((m, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'baseline', gap: 8, lineHeight: 1 }}>
+              <span className="serif" style={{ fontSize: 24, color: GOLD, lineHeight: 1, letterSpacing: '-0.01em' }}>{leadTime(m.slot)}</span>
+              <span style={{ fontSize: 8, color: CREAM_D, letterSpacing: '0.18em', textTransform: 'uppercase' }}>{m.slot}</span>
+            </div>
+          ))}
+          {!isRest && (day.matches || []).length > 0 && (
+            <span style={{ fontSize: 8, color: GOLD_D, letterSpacing: '0.18em', marginTop: 2 }}>BST · KICK-OFF</span>
+          )}
+        </div>
+
+        {/* Phase + community */}
         <div>
           <div style={{ fontSize: 13, color: CREAM, marginBottom: 3 }}>{flagify(day.phase)}</div>
           <div style={{ fontSize: 11, color: CREAM_D }}>
