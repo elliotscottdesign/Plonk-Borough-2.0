@@ -97,8 +97,8 @@ export default function WaterfallReturns() {
 
   const steps = [
     { label: 'Operating Profit',                          amount: s.profit,    color: '#1565C0', note: s.badge },
-    { label: `Investor Dividend (${investorPct}%)`,       amount: w.investorDiv, color: '#C9A84C', note: `${investorPct}% of operating profit · paid first each quarter once reserve ≥ £${(HACKNEY_WORKING_CAPITAL_FLOOR/1000)|0}k` },
-    { label: `Founder Dividend (${founderPct}%)`,         amount: w.founderDiv,  color: '#4A5568', note: `${founderPct}% of operating profit · paid after the investor each quarter` },
+    { label: `Investor Dividend (${investorPct}%)`,       amount: w.investorDiv, color: '#C9A84C', note: `${investorPct}% of operating profit · paid semi-annually once reserve ≥ £${(HACKNEY_WORKING_CAPITAL_FLOOR/1000)|0}k floor` },
+    { label: `Founder Dividend (${founderPct}%)`,         amount: w.founderDiv,  color: '#4A5568', note: `${founderPct}% of operating profit · same semi-annual window, pro-rata to equity` },
   ]
 
   return (
@@ -107,7 +107,7 @@ export default function WaterfallReturns() {
         Investor Returns
       </h2>
       <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        Long-run 50/50 split between investor and founder, but <strong style={{ color: 'var(--cream)' }}>investor is paid first each quarter</strong> — once the £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} working-capital floor is at the floor, the investor takes their pro-rata share before the founder draws anything. Quarters where the reserve sits below the floor are deferred for the investor and caught up once the reserve hits the £{HACKNEY_WORKING_CAPITAL_TARGET.toLocaleString('en-GB')} target, so the 50/50 economics hold over the life of the deal.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
+        Cap table is 76 / 24 (Founder 51% A + 25% B = 76%, external 24% B). Distributions are <strong style={{ color: 'var(--cream)' }}>semi-annual to all holders</strong> with a <strong style={{ color: 'var(--cream)' }}>Year-1 lockup</strong> — first window lands at the end of Y1 (month 12), then every 6 months thereafter. Each window pays pro-rata to equity, gated by the £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} reserve floor; windows below floor are skipped and roll forward. Founder retains a Y3 buyback right (CALL OPTION) capped at 3× original cash invested.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
 
       {/* Scenario selector */}
@@ -137,25 +137,25 @@ export default function WaterfallReturns() {
             {fmt(w.totalInvestor)}
           </div>
           <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
-            {investorPct}% of operating profit · investor paid first each quarter
+            {investorPct}% of operating profit · paid semi-annually from end of Y1
           </div>
         </div>
 
         <HeroStat
           label="Cash-on-Cash"
           value={`${(w.coc * 100).toFixed(1)}%`}
-          sub={`On ${fmt(effective.investment)} invested`}
+          sub={`Annual entitlement on ${fmt(effective.investment)} invested`}
           gold
         />
         <HeroStat
           label="Payback Period"
           value={w.totalInvestor > 0 ? `${(effective.investment / w.totalInvestor).toFixed(2)} years` : 'N/A'}
-          sub="Investor paid before founder each quarter"
+          sub="Cumulative entitlement basis (cash arrives semi-annually post Y1 lockup)"
         />
         <HeroStat
           label={`Founder Position (${founderPct}%)`}
           value={fmt(w.founderDiv)}
-          sub="Paid after investor each quarter"
+          sub="Pro-rata, same semi-annual window"
           muted
         />
       </div>
@@ -250,38 +250,38 @@ function DistributionProcess() {
       n: '2',
       title: `Working Capital · ${fmtK(FLOOR)}–${fmtK(TARGET)}`,
       sub: 'Safe-zone reserve',
-      detail: `${fmtK(FLOOR)} floor (≈ 3 months' rent) and ${fmtK(TARGET)} target (floor + ${fmtK(TARGET-FLOOR)} cushion for VAT bills, supplier swings, repairs). The bank balance refills toward this band before any investor dividend pays out.`,
+      detail: `${fmtK(FLOOR)} floor (≈ 3 months' rent) and ${fmtK(TARGET)} target (floor + ${fmtK(TARGET-FLOOR)} cushion for VAT bills, supplier swings, repairs). All Y1 operating profit accrues into this reserve — Year 1 is a hard distribution lockup for every holder.`,
       colour: '#10B981',
     },
     {
       n: '3',
-      title: 'Investor Quarterly Draw',
-      sub: `Priority claim · once balance ≥ ${fmtK(FLOOR)}`,
-      detail: `Investor's pro-rata share is paid first each quarter, ahead of the founder, once the closing balance is at or above the ${fmtK(FLOOR)} floor. Quarters below the floor are deferred (not lost — see step 5).`,
+      title: 'Semi-Annual Window',
+      sub: `Every 6 months from month 12 · gated by ${fmtK(FLOOR)} floor`,
+      detail: `First distribution window lands at the end of Y1 (month 12). Semi-annual thereafter (months 18, 24, 30, 36, …). Each window only pays out if the reserve is at or above the ${fmtK(FLOOR)} floor — below floor = window skipped, amounts roll forward to the next eligible window.`,
       colour: '#C9A84C',
     },
     {
       n: '4',
-      title: 'Founder Quarterly Draw',
-      sub: 'After the investor · from remaining surplus',
-      detail: 'The founder draws their pro-rata share AFTER the investor has been paid. Investor sits ahead of the founder in the dividend queue — the founder waits.',
+      title: 'Pro-Rata Split',
+      sub: 'Founder A 51% + Founder B 25% + external 24%',
+      detail: 'Within each distribution window all holders draw pro-rata to their equity slice. Preferred dividend (10% on external B capital) comes off the top first; residual splits pro-rata across all equity. No within-window priority — Founder A, Founder B and external B all paid at the same time.',
       colour: '#A78BFA',
     },
     {
       n: '5',
-      title: 'Investor Catch-Up',
-      sub: `Once balance ≥ ${fmtK(TARGET)}`,
-      detail: `Once the reserve is fully built (${fmtK(TARGET)}), missed investor quarters are paid down on top of the normal quarterly share. Long-run pro-rata equality is preserved.`,
+      title: 'Y3 Founder Call',
+      sub: `Optional founder buyback · ${DEAL.buybackCap || 3}× cap`,
+      detail: `At end of Y3 the Founder may call back any external B holder at LOWER of (a) fair value × their equity %, or (b) ${DEAL.buybackCap || 3}× original cash invested. Caps founder dilution. Investor keeps every dividend already paid; Round-2 conversion makes shares non-callable.`,
       colour: '#22D3EE',
     },
   ]
   return (
     <div style={{ marginTop: 24 }}>
       <h3 className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 8, lineHeight: 1.25 }}>
-        Distribution Process · Priority Order
+        Distribution Process · How profit becomes a dividend
       </h3>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 20 }}>
-        How operating profit becomes a dividend cheque. Director salary first, then the {fmtK(FLOOR)}–{fmtK(TARGET)} working-capital reserve, then quarterly distributions — <strong style={{ color: 'var(--cream)' }}>investor paid first</strong> each quarter (once the reserve is at the floor), then the founder draws their pro-rata share from the remaining surplus. Deferred investor quarters are caught up once the reserve hits target.
+        Director salary first, then the {fmtK(FLOOR)}–{fmtK(TARGET)} working-capital reserve, then semi-annual distributions to all holders pro-rata to their equity slice. Year 1 is a hard distribution lockup — first window lands at the end of Y1 (month 12), then every 6 months. Below-floor windows are skipped and roll forward.
       </p>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: 12 }}>
         {steps.map((s, i) => (
@@ -316,17 +316,19 @@ function DistributionProcess() {
   )
 }
 
-// ─── Y3 Buyback Right — put option card ───────────────────────────────
-// Optional Y3 exit route: investor can require the company to repurchase
-// their B-class shares. Price = LOWER of (a) fair value × equity %, or
-// (b) 3× original cash invested. Cap protects the business from
-// open-ended cash drain if it overperforms. Y5 pro-rata exit is
-// uncapped (everyone's exit, not a put).
+// ─── Y3 Founder Buyback Right — CALL OPTION card ──────────────────────
+// Flipped from "investor put" to "founder call" in the May 2026
+// restructure. The FOUNDER (not the investor) holds the right to call
+// back any external B-share holder at the end of Y3. Caps the
+// founder's long-term equity dilution.
 //
-// Y3 fair value is sourced from HACKNEY_INVESTOR_RETURNS.fiveYear[2]
-// (Y3 EBITDA) × DEAL.exitMultiple — same multiple used at Y5 so the
-// model is internally consistent. Investor's personal max scales with
-// the locked Use-of-Funds investment amount via the helper.
+// Price = LOWER of (a) fair value × investor's equity %, or
+// (b) 3× original cash invested. From the INVESTOR's perspective the
+// numbers are the same — the difference is who triggers exercise.
+//
+// Investor protection: cumulative dividends Y1-Y3 are kept regardless;
+// fair-value floor protects against a lowball buyback when business
+// is weak; Round-2 conversion makes shares non-callable.
 function BuybackRightsCard({ investment, investorEq }) {
   // Y3 fair value = Y3 profit × exit multiple (consistent with Y5 model)
   const y3 = HACKNEY_INVESTOR_RETURNS.fiveYear[2]   // Y3 row
@@ -335,8 +337,8 @@ function BuybackRightsCard({ investment, investorEq }) {
   // Investor's personal buyback math (driven by locked investment)
   const bb = computeBuybackValue(investment, y3FairValue, { investorEq })
 
-  // Round-1 worst-case liability = sum across all external B holders if
-  // every one exercises simultaneously and hits the cap.
+  // Round-1 worst-case CASH OUT = sum across all external B holders if
+  // founder calls everyone simultaneously and the cap binds.
   const totalExternalCommitted = (DEAL.commitments || [])
     .filter(c => c.type === 'external')
     .reduce((s, c) => s + (c.amount || 0), 0)
@@ -347,17 +349,17 @@ function BuybackRightsCard({ investment, investorEq }) {
   return (
     <div style={{ marginTop: 32 }}>
       <h3 className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 8, lineHeight: 1.25 }}>
-        Y{DEAL.buybackYear} Buyback Right · Optional Put Option
+        Y{DEAL.buybackYear} Founder Buyback Right · Call Option
       </h3>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 18 }}>
-        Each external B-class investor has the right to require the company to repurchase their shares at the end of Year {DEAL.buybackYear}. Price is the <strong style={{ color: 'var(--cream)' }}>lower</strong> of (a) fair-market value × your equity %, or (b) <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackCap}× your original cash invested</strong>. The cap protects operating cash if the bar overperforms. Year 5 pro-rata exit is uncapped — the cap only applies to this optional Y{DEAL.buybackYear} put.
+        At the end of Year {DEAL.buybackYear}, the <strong style={{ color: 'var(--cream)' }}>Founder</strong> may call back any external B-share holder. Price is the <strong style={{ color: 'var(--cream)' }}>lower</strong> of (a) fair-market value × the investor's equity %, or (b) <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackCap}× their original cash invested</strong>. Caps the founder's long-term dilution; investor keeps every dividend already paid. Year 5 pro-rata exit only applies if the founder chose not to call at Y3.
       </p>
 
-      {/* Investor's personal buyback at the locked slider position */}
+      {/* Investor's exposure at the locked slider position */}
       <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
         <div className="card-highlight" style={{ padding: '20px 22px' }}>
           <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Your Y{DEAL.buybackYear} buyback payout
+            Your Y{DEAL.buybackYear} buyback payout (if called)
           </div>
           <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
             {fmt(bb.payout)}
@@ -391,33 +393,35 @@ function BuybackRightsCard({ investment, investorEq }) {
         </div>
         <div style={{ fontSize: 13, color: 'var(--cream)', lineHeight: 1.7 }}>
           <div style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--gold)' }}>Buyback price = </strong>
+            <strong style={{ color: 'var(--gold)' }}>Founder Call price = </strong>
             min(fair-market value × investor's equity %, <strong style={{ color: 'var(--gold)' }}>{DEAL.buybackCap}×</strong> original cash invested)
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-              <strong style={{ color: 'var(--cream)' }}>Simultaneous-exercise stagger.</strong> If multiple investors exercise the put in the same window, payments stagger over up to <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackStaggerMonths || 12} months</strong>. Worst-case Round-1 liability ≈ <strong style={{ color: 'var(--gold)' }}>{fmt(worstCaseLiability)}</strong> ({DEAL.buybackCap}× £{(totalExternalRound/1000).toFixed(0)}k external) → max ≈ <strong style={{ color: 'var(--cream)' }}>{fmt(monthlyDrain)}/month</strong> from operating cash.
+              <strong style={{ color: 'var(--cream)' }}>Simultaneous-exercise stagger.</strong> If the founder calls multiple investors in the same window, payments stagger over up to <strong style={{ color: 'var(--cream)' }}>{DEAL.buybackStaggerMonths || 12} months</strong>. Worst-case Round-1 cash-out ≈ <strong style={{ color: 'var(--gold)' }}>{fmt(worstCaseLiability)}</strong> ({DEAL.buybackCap}× £{(totalExternalRound/1000).toFixed(0)}k external) → max ≈ <strong style={{ color: 'var(--cream)' }}>{fmt(monthlyDrain)}/month</strong> from operating cash.
             </div>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-              <strong style={{ color: 'var(--cream)' }}>Round-2 conversion waiver.</strong> {DEAL.buybackWaiverOnRound2 ? 'An investor who converts their Round-1 B-class into Round-2 equity (the loan-note holders\' path) waives the Y' + DEAL.buybackYear + ' put. Stops a "convert + immediately put" arbitrage.' : 'No waiver — investors keep the put even after Round-2 conversion.'}
+              <strong style={{ color: 'var(--cream)' }}>Round-2 conversion waiver.</strong> {DEAL.buybackWaiverOnRound2 ? 'An investor who converts their Round-1 B-class into Round-2 equity is no longer callable under this clause — the founder\'s call right falls away. Investor keeps the upside if they roll into Round 2.' : 'No waiver — shares remain callable even after Round-2 conversion.'}
             </div>
           </div>
         </div>
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>exercise the put</strong> for a certain capped exit ({fmt(bb.payout)}), or <strong style={{ color: 'var(--cream)' }}>hold to Y5</strong> for the uncapped pro-rata exit at sector-multiple business value. Y1–Y{DEAL.buybackYear} dividends are kept in either case.
+        Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>founder calls</strong> → investor exits for {fmt(bb.payout)} (capped) plus everything already paid in Y1-Y3 dividends; <strong style={{ color: 'var(--cream)' }}>founder doesn't call</strong> → investor holds to Y5 for the uncapped pro-rata exit at sector-multiple business value. Either way, dividends paid Y1-Y3 are not clawed back.
       </div>
     </div>
   )
 }
 
-// ─── 12-Month Distribution Calendar — quarterly dividends ─────────────
+// ─── 12-Month Distribution Calendar — semi-annual + Y1 lockup ─────────
 // Per-month visualisation: operating profit → reserve fill → surplus
-// → quarter-end dividend payout. Reads the same buildForecastMonthly
-// logic that powers the 2026 Performance tab, so monthly figures are
-// consistent end-to-end. Surfaces the reserve build timeline + four
-// quarter cards so investors see exactly when each dividend lands.
+// → end-of-Y1 distribution window. Under the May 2026 restructure there
+// is exactly ONE distribution window in Y1 (month 12 = Dec, end of
+// trading year), followed by semi-annual windows from month 18 onwards
+// (not shown in this Y1-only calendar — see HACKNEY_INVESTOR_RETURNS.
+// fiveYear for the multi-year schedule). Reads the same
+// buildForecastMonthly logic that powers the 2026 Performance tab.
 function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq, isWageLocked }) {
   const dist = computeDistributionCalendar(wagesOverride, { investorEq, founderEq })
   const { calendar, quarterly, summary } = dist
@@ -434,7 +438,7 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
       />
       {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
-        Each month's operating profit refills the £{summary.reserveTarget.toLocaleString('en-GB')} working-capital reserve first. Once the reserve is full, surplus profit accrues for three months and pays out at the end of the calendar quarter. Reserve hit full in <strong style={{ color: 'var(--cream)' }}>{summary.reserveFullMonth}</strong>.
+        Each month's operating profit refills the £{summary.reserveTarget.toLocaleString('en-GB')} working-capital reserve first. Surplus profit accrues across the full year and pays out in a single end-of-Y1 distribution window (semi-annual cadence from month 18 onwards). Reserve hit full in <strong style={{ color: 'var(--cream)' }}>{summary.reserveFullMonth}</strong>.
       </p>
 
       {/* Reserve build-up bar — shows month-by-month fill */}
@@ -537,9 +541,9 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
       {/* Annual summary tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <SummaryTile label="Annual operating profit" value={fmt(summary.annualProfit)} sub="Sum of 12 monthly forecasts" />
-        <SummaryTile label="Total Y1 dividends" value={fmt(summary.totalDividends)} sub="After £30k reserve refill" />
-        <SummaryTile label="Investor 50% share" value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)} · paid first each quarter`} colour="#10B981" />
-        <SummaryTile label="Founder 50% share" value={fmt(summary.totalFounder)} sub="Paid after the investor each quarter" />
+        <SummaryTile label="Total Y1 dividends" value={fmt(summary.totalDividends)} sub="Paid at end-of-Y1 window (after £30k reserve refill)" />
+        <SummaryTile label={`Investor ${(investorEq*100).toFixed(0)}% share`} value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)} · paid at end-of-Y1 window`} colour="#10B981" />
+        <SummaryTile label={`Founder ${(founderEq*100).toFixed(0)}% share`} value={fmt(summary.totalFounder)} sub="Same window · pro-rata to equity" />
       </div>
       </>}
     </div>
@@ -575,7 +579,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
       />
       {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
-        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back. The long-run split is 50/50 with the founder, but inside each year the investor is paid first each quarter — the founder draws their share only after the investor's quarterly allocation lands. Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend.
+        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back under the 76/24 cap table. Founder 76% (51% A + 25% B) and external B 24% all draw pro-rata at semi-annual distribution windows, with a hard Y1 lockup (first window = end of Y1). Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend — unless the Founder has called the shares back at Y3 under the buyback right above.
       </p>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
