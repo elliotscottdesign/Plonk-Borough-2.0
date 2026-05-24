@@ -2,6 +2,9 @@ node_modules
 dist
 .DS_Store
 
+# Claude Code internal state — local worktrees + cache, not for the repo.
+.claude/
+
 # Hackney handover materials — Excel model is sensitive financial data,
 # and the local handover docs aren't part of the deployed app.
 _hackney-handover/
