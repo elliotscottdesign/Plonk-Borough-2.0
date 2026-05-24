@@ -17,7 +17,7 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 //   • LEONIE — the investor herself
 //   • 888999 — Elliot, for review before sharing
 // All other codes filter this tab out of the top-tab list entirely so it
-// never appears for TEST1 / BRAZIL / JOHN1 / new investors.
+// never appears for BRAZIL / JOHN1 / new investors.
 //
 // This is a DRAFT for solicitor review — banner at the top makes that
 // explicit. Live numbers pulled from data/hackney.js so they stay in

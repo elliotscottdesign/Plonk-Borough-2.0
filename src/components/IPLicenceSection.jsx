@@ -6,7 +6,7 @@ import { IP_LICENCE_DOC, downloadIPLicence } from '../templates/ipLicenceDoc.js'
 //
 // Visibility: returns null unless sessionStorage.ndb_role_founder === '1'
 // (set by the 888999 access code in PasswordGate.jsx). Other access codes
-// — TEST1, BRAZIL, JOHN1, LEONIE — see nothing at all.
+// — BRAZIL, JOHN1, LEONIE — see nothing at all.
 //
 // Render shape:
 //   • Compact "Founder-only · Group Templates" header card

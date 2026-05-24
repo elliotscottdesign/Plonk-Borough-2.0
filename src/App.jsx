@@ -72,7 +72,7 @@ const SLIDE_DEFS = [
 ]
 
 // Plonk top-tab is PRIVATE — only the founder (888999) and JOHN1 see it.
-// TEST1, BRAZIL and LEONIE get the 3-tab investor view.
+// BRAZIL and LEONIE get the 3-tab investor view.
 const TOP_TAB_KEYS_BASE = ['investorDeck', 'venueInfo', 'businessExplorer']
 const TOP_TAB_KEYS_PLONK = [...TOP_TAB_KEYS_BASE, 'plonk']
 
@@ -148,13 +148,13 @@ export default function App() {
       sessionStorage.setItem('ndb_founder', '1')
       if (founder) sessionStorage.setItem('ndb_role_founder', '1')
       else         sessionStorage.removeItem('ndb_role_founder')
-      // Plonk visibility — 888999 and JOHN1 get the Plonk top-tab; TEST1,
+      // Plonk visibility — 888999 and JOHN1 get the Plonk top-tab;
       // BRAZIL and LEONIE do not. Stripped from the tab array below.
       if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
       else       sessionStorage.removeItem('ndb_plonk_access')
       // Hackney deck visibility — NODICE88 is the dedicated Hackney
       // investor code. Founder-tier (888999, JOHN1) and LEONIE also
-      // hold it. TEST1 and BRAZIL are Borough-only.
+      // hold it. BRAZIL is Borough-only.
       if (hackney) sessionStorage.setItem('ndb_hackney_access', '1')
       else         sessionStorage.removeItem('ndb_hackney_access')
       // Role tag — components can branch on this for role-specific UI

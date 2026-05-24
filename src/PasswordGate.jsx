@@ -9,7 +9,7 @@ import { useTranslation } from 'react-i18next'
 //               canEdit on every slider/input via LockedForecastContext
 //   - hackney:  can view the /hackney deck. NODICE88 is the dedicated
 //               Hackney-investor code; founder-tier (888999/JOHN1) and
-//               LEONIE retain access. TEST1 and BRAZIL are Borough-only.
+//               LEONIE retain access. BRAZIL is Borough-only.
 //   - role:     a string tag persisted to sessionStorage so individual
 //               components can branch behaviour (e.g. a BRAZIL viewer
 //               sees the ticket slider locked even though everything
@@ -17,7 +17,7 @@ import { useTranslation } from 'react-i18next'
 //
 // Plonk is PRIVATE — only 888999 (founder) and JOHN1 see it.
 // Hackney is PRIVATE — only NODICE88, 888999, JOHN1 and LEONIE see it.
-// TEST1 and BRAZIL get the standard 3-tab Borough investor view only
+// BRAZIL gets the standard 3-tab Borough investor view only
 // (Investor Deck · Venue Info · Business Explorer). Brazilian
 // Portuguese remains an in-app EN | PT toggle (no code).
 //
@@ -31,7 +31,6 @@ const ACCESS_CODES = {
   'JOHN1':    { plonk: true,  founder: true,  hackney: true,  role: 'observer' },
   'LEONIE':   { plonk: false, founder: true,  hackney: true,  role: 'leonie'   },
   'NODICE88': { plonk: false, founder: false, hackney: true,  role: 'nodice88' },
-  'TEST1':    { plonk: false, founder: false, hackney: false, role: 'test'     },
   'BRAZIL':   { plonk: false, founder: false, hackney: false, role: 'brazil'   },
 }
 
@@ -42,7 +41,7 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (TEST1, BRAZIL, JOHN1, LEONIE) accept any case for friendliness.
+    // codes (BRAZIL, JOHN1, LEONIE, NODICE88) accept any case for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
