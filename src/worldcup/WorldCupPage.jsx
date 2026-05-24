@@ -26,34 +26,45 @@ const TEAL    = '#2DD4BF'
 // Skips insertion if a flag emoji already appears within the 6 chars
 // before the match — so data fields that already include a flag (e.g.
 // "🏴 England — sell-out target") don't double up.
+// Home-nations use subdivision (ZWJ) flag sequences — these render as the
+// proper St George's Cross / Saltire / Y Ddraig Goch on iOS, macOS, Android
+// and Chromium-family browsers. On the few platforms that don't support
+// them (older Windows, some Linux fonts) they fall back to a plain black
+// flag — acceptable.
+const ENG_FLAG = '🏴\u{E0067}\u{E0062}\u{E0065}\u{E006E}\u{E0067}\u{E007F}'
+const SCT_FLAG = '🏴\u{E0067}\u{E0062}\u{E0073}\u{E0063}\u{E0074}\u{E007F}'
+const WLS_FLAG = '🏴\u{E0067}\u{E0062}\u{E0077}\u{E006C}\u{E0073}\u{E007F}'
+
 const COUNTRY_FLAGS = {
-  England: '🏴',
-  English: '🏴',
-  Brazil: '🇧🇷',
-  Brazilian: '🇧🇷',
+  England:    ENG_FLAG,
+  English:    ENG_FLAG,
+  Brazil:     '🇧🇷',
+  Brazilian:  '🇧🇷',
   Brazilians: '🇧🇷',
-  Spain: '🇪🇸',
-  Spanish: '🇪🇸',
-  Australia: '🇦🇺',
+  Spain:      '🇪🇸',
+  Spanish:    '🇪🇸',
+  Australia:  '🇦🇺',
   Australian: '🇦🇺',
-  Australians: '🇦🇺',
-  Aussie: '🇦🇺',
-  Aussies: '🇦🇺',
-  Matildas: '🇦🇺',
-  Mexico: '🇲🇽',
-  Mexican: '🇲🇽',
-  USA: '🇺🇸',
-  America: '🇺🇸',
-  American: '🇺🇸',
-  Canada: '🇨🇦',
-  Canadian: '🇨🇦',
-  UK: '🇬🇧',
-  British: '🇬🇧',
-  Britain: '🇬🇧',
-  Wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
-  Welsh: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
-  Scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
-  Scottish: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  Australians:'🇦🇺',
+  Aussie:     '🇦🇺',
+  Aussies:    '🇦🇺',
+  Matildas:   '🇦🇺',
+  Mexico:     '🇲🇽',
+  Mexican:    '🇲🇽',
+  USA:        '🇺🇸',
+  America:    '🇺🇸',
+  American:   '🇺🇸',
+  Canada:     '🇨🇦',
+  Canadian:   '🇨🇦',
+  UK:         '🇬🇧',
+  British:    '🇬🇧',
+  Britain:    '🇬🇧',
+  Wales:      WLS_FLAG,
+  Welsh:      WLS_FLAG,
+  Scotland:   SCT_FLAG,
+  Scottish:   SCT_FLAG,
+  Ireland:    '🇮🇪',
+  Irish:      '🇮🇪',
 }
 const FLAG_NAMES = Object.keys(COUNTRY_FLAGS).sort((a, b) => b.length - a.length)
 const FLAG_VALUES = Object.values(COUNTRY_FLAGS)
@@ -71,8 +82,12 @@ function flagify(text) {
     if (m.index > lastIdx) parts.push(text.slice(lastIdx, m.index))
     const canonical = FLAG_NAMES.find(n => n.toLowerCase() === m[0].toLowerCase())
     const flag = COUNTRY_FLAGS[canonical]
-    const lookbehind = text.slice(Math.max(0, m.index - 6), m.index)
-    const alreadyFlagged = FLAG_VALUES.some(f => lookbehind.includes(f))
+    const lookbehind = text.slice(Math.max(0, m.index - 8), m.index)
+    // A bare 🏴 (no ZWJ tags) is treated as "already flagged" too so
+    // legacy source strings that prefix England rows with plain 🏴
+    // don't end up double-tagged after flagify runs.
+    const alreadyFlagged = lookbehind.includes('🏴') ||
+      FLAG_VALUES.some(f => lookbehind.includes(f))
     if (alreadyFlagged) {
       parts.push(m[0])
     } else {
@@ -335,8 +350,64 @@ function formatDate(iso) {
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' })
 }
 
+// ─── Tabs ────────────────────────────────────────────────────────────
+// Five top-of-page tabs — replaces what was previously a single long
+// scroll with five stacked accordion sections. Each tab shows the
+// matching section's content; Summary stays visible above the tab strip
+// so the planning dashboard is always one glance away.
+const PAGE_TABS = [
+  { id: 'strategy',    kicker: '01', label: 'Strategy',    title: 'Strategy at a glance' },
+  { id: 'licensing',   kicker: '02', label: 'Licensing',   title: 'Licensing & permissions' },
+  { id: 'communities', kicker: '03', label: 'Communities', title: 'Community nights' },
+  { id: 'packages',    kicker: '04', label: 'Packages',    title: 'Package menu' },
+  { id: 'calendar',    kicker: '05', label: 'Calendar',    title: 'Tournament calendar' },
+]
+
+function TabStrip({ active, onChange }) {
+  return (
+    <div style={{
+      display: 'flex', gap: 2, marginBottom: 28, overflowX: 'auto',
+      borderBottom: `1px solid ${GOLD_D}`,
+    }}>
+      {PAGE_TABS.map(t => {
+        const isActive = t.id === active
+        return (
+          <button
+            key={t.id}
+            onClick={() => onChange(t.id)}
+            style={{
+              padding: '14px 22px', background: isActive ? 'rgba(201,168,76,0.08)' : 'transparent',
+              border: 'none',
+              borderBottom: `2px solid ${isActive ? GOLD : 'transparent'}`,
+              color: isActive ? GOLD : CREAM_D, cursor: 'pointer',
+              display: 'flex', flexDirection: 'column', alignItems: 'flex-start',
+              gap: 4, marginBottom: -1, whiteSpace: 'nowrap',
+              fontFamily: 'inherit',
+              transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+            }}
+          >
+            <span style={{ fontSize: 9, letterSpacing: '0.18em', opacity: 0.75 }}>{t.kicker}</span>
+            <span style={{ fontSize: 13, letterSpacing: '0.08em', fontWeight: isActive ? 600 : 400 }}>{t.label}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+function TabHeading({ kicker, title }) {
+  return (
+    <div style={{ marginBottom: 22 }}>
+      <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>{kicker}</div>
+      <div className="serif" style={{ fontSize: 30, color: GOLD, lineHeight: 1.1 }}>{title}</div>
+      <div className="gold-rule" style={{ marginTop: 14 }} />
+    </div>
+  )
+}
+
 // ─── Page ────────────────────────────────────────────────────────────
 export default function WorldCupPage() {
+  const [tab, setTab] = useState('strategy')
   const [filter, setFilter] = useState('all')
   const filtered = useMemo(() => {
     if (filter === 'all') return SCHEDULE
@@ -372,76 +443,88 @@ export default function WorldCupPage() {
 
         <Summary />
 
-        {/* Strategy overview */}
-        <Section title="Strategy at a glance" kicker="01" defaultOpen={true}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <Row label="Time-zone gift" value={flagify("Host = USA / Canada / Mexico. UK gets evening kick-offs. Three slots: early (17:00–18:00), prime (20:00–21:00), late (23:00–00:00), graveyard (02:00+).")} />
-            <Row label="Free-to-air advantage" value={flagify("BBC + ITV share UK rights. NO Sky / TNT subscription needed. Budget that saving on screens, sound, decor.")} />
-            <Row label="Tournament arc" value={flagify("Group stage builds awareness. Knockouts peak. Treat every England game as a ticketed event, not a booking.")} />
-            <Row label="Communities" value="🏴 England (sell-out target every match) · 🇧🇷 Brazilian (Borough/Bermondsey draw) · 🇪🇸 Spanish · 🇦🇺 Australian (late-night)" />
-            <Row label="Booking model" value={flagify("Pre-paid deposits only for England + knockouts. £25/head minimum spend on standard tables. Walk-in standing-room £10 door on sell-outs. Bookings via OWN system (not Design My Night).")} />
-            <Row label="Capacity" value={flagify("10 tables × ~6 covers = 60 seated. Add ~30 standing for England / knockout overflow if SIA can manage the door. Hard cap defined by fire safety.")} />
-          </div>
-        </Section>
+        <TabStrip active={tab} onChange={setTab} />
 
-        {/* Licensing checklist */}
-        <Section title="Licensing & permissions" kicker="02" defaultOpen={true}>
-          <div style={{ background: INK_2, borderRadius: 10, padding: '0 18px' }}>
-            {LICENSING.map(item => <LicensingRow key={item.id} item={item} />)}
-          </div>
-          <div style={{ marginTop: 14, fontSize: 12, color: CREAM_D, lineHeight: 1.6 }}>
-            <strong style={{ color: GOLD }}>TEN summary:</strong> ~{SCHEDULE.filter(d => d.ten?.required).length} TENs needed across the tournament at £21 each = ~£{SCHEDULE.filter(d => d.ten?.required).length * 21} total. Well below the 15-per-year statutory cap. File the batch by end of May 2026.
-          </div>
-        </Section>
+        {tab === 'strategy' && (
+          <>
+            <TabHeading kicker="01" title="Strategy at a glance" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
+              <Row label="Time-zone gift" value={flagify("Host = USA / Canada / Mexico. UK gets evening kick-offs. Three slots: early (17:00–18:00), prime (20:00–21:00), late (23:00–00:00), graveyard (02:00+).")} />
+              <Row label="Free-to-air advantage" value={flagify("BBC + ITV share UK rights. NO Sky / TNT subscription needed. Budget that saving on screens, sound, decor.")} />
+              <Row label="Tournament arc" value={flagify("Group stage builds awareness. Knockouts peak. Treat every England game as a ticketed event, not a booking.")} />
+              <Row label="Communities" value={`${ENG_FLAG} England (sell-out target every match) · 🇧🇷 Brazilian (Borough/Bermondsey draw) · 🇪🇸 Spanish · 🇦🇺 Australian (late-night)`} />
+              <Row label="Booking model" value={flagify("Pre-paid deposits only for England + knockouts. £25/head minimum spend on standard tables. Walk-in standing-room £10 door on sell-outs. Bookings via OWN system (not Design My Night).")} />
+              <Row label="Capacity" value={flagify("10 tables × ~6 covers = 60 seated. Add ~30 standing for England / knockout overflow if SIA can manage the door. Hard cap defined by fire safety.")} />
+            </div>
+          </>
+        )}
 
-        {/* Community plans */}
-        <Section title="Community nights" kicker="03" defaultOpen={true}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
-            {COMMUNITIES.map(c => <CommunityCard key={c.id} c={c} />)}
-          </div>
-        </Section>
+        {tab === 'licensing' && (
+          <>
+            <TabHeading kicker="02" title="Licensing & permissions" />
+            <div style={{ background: INK_2, borderRadius: 10, padding: '0 18px' }}>
+              {LICENSING.map(item => <LicensingRow key={item.id} item={item} />)}
+            </div>
+            <div style={{ marginTop: 14, fontSize: 12, color: CREAM_D, lineHeight: 1.6 }}>
+              <strong style={{ color: GOLD }}>TEN summary:</strong> ~{SCHEDULE.filter(d => d.ten?.required).length} TENs needed across the tournament at £21 each = ~£{SCHEDULE.filter(d => d.ten?.required).length * 21} total. Well below the 15-per-year statutory cap. File the batch by end of May 2026.
+            </div>
+          </>
+        )}
 
-        {/* Package menu */}
-        <Section title="Package menu" kicker="04" defaultOpen={true}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
-            {PACKAGES.map(p => <PackageCard key={p.id} p={p} />)}
-          </div>
-          <div style={{ marginTop: 14, fontSize: 12, color: CREAM_D, lineHeight: 1.6 }}>
-            <strong style={{ color: GOLD }}>Deposit rules:</strong> 100% up-front for {flagify('England')} + knockouts. Non-refundable BUT transferable to another match if the team is eliminated before the booked date. Standard tables: 50% deposit, balance against minimum spend. Captures email at booking — future-events list.
-          </div>
-        </Section>
+        {tab === 'communities' && (
+          <>
+            <TabHeading kicker="03" title="Community nights" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
+              {COMMUNITIES.map(c => <CommunityCard key={c.id} c={c} />)}
+            </div>
+          </>
+        )}
 
-        {/* Calendar */}
-        <Section title="Tournament calendar" kicker="05" defaultOpen={true}>
-          <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
-            {[
-              { id: 'all', label: 'All dates' },
-              { id: 'match', label: 'Match days only' },
-              { id: 'england', label: '🏴 England' },
-              { id: 'brazil', label: '🇧🇷 Brazil' },
-              { id: 'sellout', label: 'Sell-out targets' },
-              { id: 'ten', label: 'TEN required' },
-            ].map(opt => (
-              <button
-                key={opt.id}
-                onClick={() => setFilter(opt.id)}
-                style={{
-                  padding: '8px 14px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
-                  background: filter === opt.id ? 'rgba(201,168,76,0.15)' : 'transparent',
-                  border: `1px solid ${filter === opt.id ? GOLD : 'rgba(255,255,255,0.15)'}`,
-                  color: filter === opt.id ? GOLD : CREAM_D,
-                  letterSpacing: '0.1em',
-                }}
-              >{opt.label}</button>
-            ))}
-          </div>
-          <div style={{ background: INK_2, borderRadius: 10, overflow: 'hidden' }}>
-            {filtered.map(day => <DayRow key={day.date} day={day} />)}
-          </div>
-          <div style={{ marginTop: 12, fontSize: 11, color: CREAM_D, lineHeight: 1.6 }}>
-            Time slots: <strong style={{ color: CREAM }}>early</strong> {SLOTS.early} · <strong style={{ color: CREAM }}>prime</strong> {SLOTS.prime} · <strong style={{ color: CREAM }}>late</strong> {SLOTS.late} · <strong style={{ color: CREAM }}>graveyard</strong> {SLOTS.graveyard}. All times approximate — confirm against final FIFA schedule.
-          </div>
-        </Section>
+        {tab === 'packages' && (
+          <>
+            <TabHeading kicker="04" title="Package menu" />
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 14 }}>
+              {PACKAGES.map(p => <PackageCard key={p.id} p={p} />)}
+            </div>
+            <div style={{ marginTop: 14, fontSize: 12, color: CREAM_D, lineHeight: 1.6 }}>
+              <strong style={{ color: GOLD }}>Deposit rules:</strong> 100% up-front for {flagify('England')} + knockouts. Non-refundable BUT transferable to another match if the team is eliminated before the booked date. Standard tables: 50% deposit, balance against minimum spend. Captures email at booking — future-events list.
+            </div>
+          </>
+        )}
+
+        {tab === 'calendar' && (
+          <>
+            <TabHeading kicker="05" title="Tournament calendar" />
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap' }}>
+              {[
+                { id: 'all', label: 'All dates' },
+                { id: 'match', label: 'Match days only' },
+                { id: 'england', label: `${ENG_FLAG} England` },
+                { id: 'brazil', label: '🇧🇷 Brazil' },
+                { id: 'sellout', label: 'Sell-out targets' },
+                { id: 'ten', label: 'TEN required' },
+              ].map(opt => (
+                <button
+                  key={opt.id}
+                  onClick={() => setFilter(opt.id)}
+                  style={{
+                    padding: '8px 14px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
+                    background: filter === opt.id ? 'rgba(201,168,76,0.15)' : 'transparent',
+                    border: `1px solid ${filter === opt.id ? GOLD : 'rgba(255,255,255,0.15)'}`,
+                    color: filter === opt.id ? GOLD : CREAM_D,
+                    letterSpacing: '0.1em',
+                  }}
+                >{opt.label}</button>
+              ))}
+            </div>
+            <div style={{ background: INK_2, borderRadius: 10, overflow: 'hidden' }}>
+              {filtered.map(day => <DayRow key={day.date} day={day} />)}
+            </div>
+            <div style={{ marginTop: 12, fontSize: 11, color: CREAM_D, lineHeight: 1.6 }}>
+              Time slots: <strong style={{ color: CREAM }}>early</strong> {SLOTS.early} · <strong style={{ color: CREAM }}>prime</strong> {SLOTS.prime} · <strong style={{ color: CREAM }}>late</strong> {SLOTS.late} · <strong style={{ color: CREAM }}>graveyard</strong> {SLOTS.graveyard}. All times approximate — confirm against final FIFA schedule.
+            </div>
+          </>
+        )}
 
         {/* Footer */}
         <div style={{ paddingTop: 24, marginTop: 24, borderTop: `1px solid ${GOLD_D}`, fontSize: 11, color: CREAM_D, lineHeight: 1.6 }}>
