@@ -103,7 +103,7 @@ export default function Cover() {
   // Operating profit cascades from the locked wage calculator (if locked)
   // through computeForecastProfit. Y1 investor return includes the 10%
   // preferred yield on the investor's invested capital (paid before the
-  // residual split). External B-only — founder's £20k buyback does not
+  // residual split). External B-only — founder's £25k buyback does not
   // receive preferred.
   const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
   const liveProfit     = computeForecastProfit(wagesOverride)
@@ -115,10 +115,10 @@ export default function Cover() {
   const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
 
   const stats = [
-    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: '50% equity · 50% retained by founder · controlled by the slider above' },
+    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19% B-class equity · founder retains 76% (51% A + 25% B)' },
     { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% cash-on-cash · payback ${paybackText} yrs` },
-    { label: 'Distribution Model',     value: 'Investor-first',                    sub: 'Investor paid before founder each quarter · 50/50 long-run' },
+    { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% annual entitlement · paid end of Y1 (Y1 lockup)` },
+    { label: 'Distribution Model',     value: 'Semi-annual',                        sub: 'All holders pro-rata · Y1 lockup · first window end of Y1' },
     { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · May 2026–Apr 2027' },
     { label: 'Valuation Entry',        value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]

@@ -62,31 +62,33 @@ export const NOTES_SYNC_SECRET = ''
 export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 
 // === DEAL STRUCTURE ===
-// HURRIED-SALE ROUND · £50,000 total raised for 50% of the company.
-// Founder retains 50% pre-money (not for sale) AND personally buys back
-// £20,000 of the round (= 20% of the company) — so post-round the founder
-// holds 70% (50% retained + 20% bought back). The remaining £30,000 of
-// the round (= 30% of the company) is the only portion available to
-// external investors. £50k for 50% implies pre-money £50k, post-money
-// £100k, entry 1.62× the £30,896 verified 2025 profit — well below the
-// 4.1× sector average, reflecting the hurried sale.
+// RESTRUCTURED MAY 2026 · £49,000 total round for 49% of the company.
+// Founder retains 51% A-shares pre-money (voting, not for sale) AND
+// personally buys back £25,000 of the round (= 25% of the company) —
+// so post-round the founder holds 76% (51% A + 25% B). The remaining
+// 24% of the company (£24k) is the available external pool, of which
+// 5% (£5k) is intended for Leonie Sands (pending — see DEAL.commitments)
+// and 19% (£19k) is open for new investors. £49k for 49% implies
+// pre-money £51k, post-money £100k, entry 1.65× the £30,896 verified
+// 2025 profit — well below the 4.1× sector average, reflecting the
+// hurried-sale / post-liquidation restart.
 //
 // Cap table — live state of the round:
-//   Founder retained (pre-money holdback)   50%   £0    — not for sale
-//   Founder buyback                         20%   £20k  — SOLD (founder)
-//   Investor #1                                   5%    £5k  — SOLD (external)
-//   Available to external investors         25%   £25k  — FOR SALE
-//                                          ----   ----
-//                                          100%   £50k
+//   Founder retained (pre-money holdback, A-shares) 51%   £0    — not for sale
+//   Founder buyback                  (B-shares)     25%   £25k  — SOLD (founder)
+//   Leonie Sands                     (B-shares)      5%   £5k   — PENDING (external)
+//   Available to new investors       (B-shares)     19%   £19k  — FOR SALE
+//                                                  ----   ----
+//                                                  100%   £49k
 //
 // Returns shown on the deck assume a NEW external investor takes their
-// own slice of the remaining £25k. The default models a single investor
-// taking the full £25k (= 25% equity). The FundingSlider on Cover lets
+// own slice of the available £19k. The default models a single investor
+// taking the full £19k (= 19% equity). The FundingSlider on Cover lets
 // them model a smaller stake (£5k → 5%, £10k → 10%, etc.). Equity is
 // always investment / £100k post-money. Founder slice of profits =
-// 70% (= founder retained 50% + buyback 20%); Investor #1 (committed) takes
-// 5%; the new investor takes whatever they subscribe for, up to the
-// £25k remaining.
+// 76% (= retained 51% A + 25% buyback B); Leonie (if she subscribes)
+// takes 5%; the new investor takes whatever they subscribe for, up to
+// the £19k available.
 export const DEAL = {
   // === ROUND 1 — RESTRUCTURED MAY 2026 ===
   //

@@ -139,7 +139,7 @@ export default function InvestmentSummary() {
         {[
           `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
-          `Investor paid first each quarter · 10% preferred yield on External B capital + ${investorEqPct}% of residual profit · deferred quarters catch up from reserve headroom`,
+          `Semi-annual pro-rata distributions to all holders · 10% preferred yield on External B + ${investorEqPct}% of residual profit · Y1 lockup, then every 6 months from end of Y1`,
         ].map((text, i) => (
           <div key={i} className="card" style={{ display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' }}>
             <span className="serif" style={{ fontSize: 28, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>
@@ -215,7 +215,7 @@ function RoundProgressBlock() {
 
       {/* Headline + progress bar */}
       <div className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 14, lineHeight: 1.2 }}>
-        {fmt(round)} for 50% of the company. {fmt(available)} remains on offer.
+        {fmt(round)} for 49% of the company. {fmt(available)} remains on offer.
       </div>
       <div style={{ width: '100%', height: 18, background: 'rgba(255,255,255,0.06)', borderRadius: 9, overflow: 'hidden', display: 'flex', marginBottom: 6 }}>
         <div style={{ width: `${pctSold}%`, background: 'linear-gradient(90deg, #10B981, #34D399)', height: '100%' }} title={`Sold: ${fmt(sold)}`} />
