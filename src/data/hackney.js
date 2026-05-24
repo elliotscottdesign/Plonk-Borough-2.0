@@ -88,89 +88,136 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // 5%; the new investor takes whatever they subscribe for, up to the
 // £25k remaining.
 export const DEAL = {
+  // === ROUND 1 — RESTRUCTURED MAY 2026 ===
+  //
+  // STANDARD TEMPLATE for every external B-class cheque. No bespoke side
+  // deals — every investor (Leonie, future small cheques, future larger
+  // cheques up to the £19k available cap) signs the same one-pager.
+  //
+  // Cap table (76 / 24, full subscription):
+  //   Founder retained A (voting)     51%     £0       — pre-money holdback
+  //   Founder buyback B (non-voting)  25%     £25,000  — sold (founder)
+  //   Available externally B          24%     £24,000  — for sale, any cheque
+  //                                  ----    --------
+  //                                  100%     £49,000  total round
+  //
+  // Implied entry: post-money £100k, pre-money £51k, multiple 1.65×
+  // verified 2025 EBITDA of £30,896. Still well below the 4.1× sector
+  // average — reflects the hurried-sale / post-liquidation restart.
+  //
+  // ── DISTRIBUTION SCHEDULE ─────────────────────────────────────────
+  //
+  // Single cadence, single rule: SEMI-ANNUAL distributions to EVERYONE
+  // (Founder A, Founder B, external B alike), GATED by the £30k working-
+  // capital reserve floor.
+  //
+  //   Y1 (mo 1-11)  → lockup, all profit accrues into reserve
+  //   Mo 12         → first distribution window IF reserve ≥ £30k floor
+  //   Mo 18         → second
+  //   Mo 24         → third
+  //   …continuing every 6 months
+  //
+  // Per window (when reserve is at floor):
+  //   1. 10% preferred dividend (annualised) to EXTERNAL B holders only
+  //      (Founder's £25k buyback B does NOT receive preferred)
+  //   2. Residual = profit − preferred − working-capital top-up
+  //   3. Residual paid pro-rata to ALL equity holders (Founder A 51% +
+  //      Founder B 25% + every external B-share holder)
+  //
+  // If reserve below floor: window is skipped, amounts simply roll into
+  // the next eligible window. No catch-up complexity, no investor-vs-
+  // founder priority within a window.
+  //
+  // ── Y3 FOUNDER BUYBACK RIGHT (CALL OPTION) ────────────────────────
+  //
+  // Founder has the right (NOT the investor — this is reversed from the
+  // earlier model) to call back any external B-share holder at the end
+  // of Y3. Caps founder's long-term equity dilution.
+  //
+  //   Buyback price = LOWER of:
+  //     (a) fair market value × investor's equity %, OR
+  //     (b) 3× original cash invested
+  //
+  // For full subscription (£19k cheque): max buyback £57k + ~£35k
+  // cumulative dividends Y2-Y3 = ~£92k total return. MoM ~4.8×, IRR ~45%
+  // at Y3 if founder calls. If held to Y5 (no call): ~£100k dividends +
+  // ~£142k pro-rata exit = ~£242k = ~12.7× MoM, ~30% IRR.
+
   // Single-investor view (drives the deck's headline numbers / returns)
-  investment: 25000,             // max a NEW investor can take = remaining available
-  investorEq: 0.25,              // 25% if they take the full remaining stake
-  founderEq: 0.70,               // 50% retained + 20% buyback (other 5% sits with Investor #1)
+  investment: 19000,             // max a NEW investor can take = full available external slice
+  investorEq: 0.19,              // 19% at full subscription
+  founderEq: 0.76,               // 51% A + 25% B = 76% post-round
 
   // Round-level breakdown (informational — shown on Investment Summary)
-  roundSize:        50000,       // total raise this round
-  roundEquity:      0.50,        // half the company is being sold
-  founderRetained:  0.50,        // pre-money holdback — never sold
-  founderBuyback:   20000,
-  founderBuybackEq: 0.20,
+  roundSize:        49000,       // total raise this round (founder buyback + external)
+  roundEquity:      0.49,        // 49% of the company is being sold this round
+  founderRetained:  0.51,        // pre-money holdback A-shares — never sold
+  founderBuyback:   25000,
+  founderBuybackEq: 0.25,
 
-  // Commitments already SOLD this round — add new entries here as cheques
-  // arrive. The Investment Summary's RoundProgressBlock iterates over
-  // this list to render the cap-table + progress bar.
+  // Commitments — Leonie has NOT yet signed/paid (May 2026). She remains
+  // in active discussion at the standard terms below; her £5k is held in
+  // the available external pool until she countersigns. The Investment
+  // Summary's RoundProgressBlock iterates over `commitments` to render
+  // the cap-table + progress bar — only entries with status === 'sold'
+  // are treated as locked in.
   commitments: [
-    { label: 'Founder buyback', amount: 20000, equity: 0.20, type: 'founder',  status: 'sold' },
-    { label: 'Investor #1',          amount:  5000, equity: 0.05, type: 'external', status: 'sold' },
+    { label: 'Founder buyback', amount: 25000, equity: 0.25, type: 'founder',  status: 'sold'    },
+    { label: 'Leonie Sands',    amount:  5000, equity: 0.05, type: 'external', status: 'pending' },
   ],
 
-  availableAmount:  25000,       // = roundSize - sum(commitments)
-  availableEq:      0.25,        // = roundEquity - sum(committed equity)
-  founderTotalPost: 0.70,        // 50% + 20%
-  externalPostEq:   0.30,        // 5% (committed) + 25% (available) = 30% external pool
+  availableAmount:  24000,       // = roundSize - founder buyback (Leonie counted as pending in pool)
+  availableEq:      0.24,        // = roundEquity - founder buyback equity
+  founderTotalPost: 0.76,        // 51% A + 25% B
+  externalPostEq:   0.24,        // available externally (5% intended for Leonie + 19% open)
 
   // Share / governance
-  shareClass: 'B (non-voting)',  // Round 1: B shares only. Founder retains 100% of A shares.
-  totalBEquity:     0.50,        // 50% of the company is B-class (everyone selling/holding in this round)
+  shareClass: 'B (non-voting)',  // Round 1: external + founder buyback are all B-class. Founder retains 100% of A.
+  totalBEquity:     0.49,        // 49% of the company is B-class
   preferredYield:   0.10,        // 10% preferred yield on EXTERNAL B-class capital invested.
-                                 // Paid each year BEFORE the pro-rata residual split. Funded
-                                 // from operating profit AFTER director salary + working-capital
-                                 // top-up. Founder's £20k B-class BUYBACK does NOT receive
+                                 // Paid each semi-annual window BEFORE the pro-rata residual
+                                 // split. Founder's £25k B-class BUYBACK does NOT receive
                                  // preferred — external B holders rank ahead of founder B in
                                  // the dividend queue. Non-cumulative (unpaid preferred does
                                  // not roll forward).
-  multiple: 1.6184,              // entry multiple — preMoney / 2025 EBITDA (50000 / 30896.17)
+  multiple: 1.6507,              // entry multiple — preMoney / 2025 EBITDA (51000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
-  preMoney: 50000,
+  preMoney: 51000,
   postMoney: 100000,
-  preferred: 0,                  // no preferred return
+  preferred: 0,                  // no preferred return outside the 10% yield mechanism
   aSharePriority: 0,             // no founder priority slice
-
-  // Defaults reflect Y1 base case profit £85,181 with the 10% preferred
-  // yield applied to external B-class capital:
-  //   Total external B (Investor #1 £5k + new investor £25k) = £30k
-  //   Total preferred (10%) = £3,000/yr funded from profit
-  //   New investor's preferred share = £2,500 (25k of 30k external)
-  //   Residual (£82,181) split pro-rata across all equity:
-  //     New investor (25%) = £20,545
-  //   New investor Y1 dividend = £23,045
-  investorDividend: 23045,
-  totalInvestorReturn: 23045,
-  coc: 0.9218,                   // 92.18% on £25k invested
-  payback: 1.085,                // years (25,000 / 23,045)
   aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
 
-  // === Y3 BUYBACK RIGHT (put option) ===
-  // Each external B-class investor has the right to require the company
-  // to repurchase their shares at the end of Year 3, capped to protect
-  // the business from open-ended cash drain if it performs strongly.
-  //
-  // Buyback price = LOWER of:
-  //   (a) fair market value × investor's equity %, OR
-  //   (b) buybackCap × original cash invested
-  //
-  // For LEONIE @ £5k:  max £15k payout (3× cap), plus Y1–Y3 dividends.
-  // For new investor @ £25k:  max £75k payout (3× cap).
-  // Total worst-case Round-1 buyback liability = 3 × £30k external = £90k.
-  //
-  // Two protective clauses on top of the cap:
-  //   • Simultaneous-exercise stagger: payments spread over up to 12
-  //     months if multiple investors put in the same window — never
-  //     bleeds more than ~£7.5k/month from operating cash.
-  //   • Round-2 conversion waiver: an investor who converts their Round-1
-  //     B-class into Round-2 equity (loan-note holders' path) waives the
-  //     Y3 put — stops a "convert + immediately put" arbitrage.
-  //
-  // Y5 exit (everyone's exit) is uncapped pro-rata — the cap only applies
-  // to the optional Y3 put.
+  // === DISTRIBUTION CADENCE ====================================
+  distributionCadenceMonths: 6,  // semi-annual — every 6 months for every holder
+  y1LockupMonths:          12,   // months 1-11 = no distributions; window 1 lands at month 12
+  reserveFloorPounds:      30000,// distribution window is SKIPPED if reserve < floor at window date
+
+  // === Y3 FOUNDER BUYBACK RIGHT (CALL OPTION) ================
+  // Replaces the previous "investor Y3 put" model. Founder may call any
+  // external B-share holder back at the end of Y3 to cap dilution.
+  founderBuybackYear:        3,
+  founderBuybackCap:         3,        // multiple of original cash invested (£3k per £1k cheque)
+  founderBuybackStaggerMonths: 12,     // simultaneous exercises stagger over up to 12 months
+  founderBuybackWaiverOnRound2: true,  // an investor who converts to Round 2 is not callable
+
+  // === LEGACY FIELDS — kept for back-compat with consumers that read
+  // them; new code should use the founderBuyback* fields above. The
+  // semantic flip (investor put → founder call) is described in
+  // computeBuybackValue() and the WaterfallReturns slide narrative.
   buybackYear:           3,
-  buybackCap:            3,        // multiple of original cash invested
-  buybackStaggerMonths: 12,        // simultaneous exercises stagger over up to 12 months
-  buybackWaiverOnRound2: true,     // converting to Round 2 waives the Y3 put
+  buybackCap:            3,
+  buybackStaggerMonths: 12,
+  buybackWaiverOnRound2: true,
+
+  // Headline numbers for the single-investor view — recomputed in
+  // HACKNEY_INVESTOR_RETURNS below under the new semi-annual + Y1
+  // lockup schedule. Kept here so older slides that read DEAL.*
+  // don't blow up before they're updated.
+  investorDividend:    0,         // Y1 = 0 (lockup); first window at month 12 → see HACKNEY_INVESTOR_RETURNS
+  totalInvestorReturn: 0,
+  coc:                 0,         // not meaningful in Y1 under lockup
+  payback:             3,         // approximate — investor recovers cash ~end of Y3
 }
 
 // computeBuybackValue — Y3 put-option payout for an external B-class
@@ -593,90 +640,107 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
-// Hurried-sale round with a 10% preferred yield on EXTERNAL B-class
-// capital. Each year, after director salary + working-capital top-up:
-//   1. External B holders receive 10% × their invested capital as
-//      preferred dividend. Founder B does NOT get preferred.
-//   2. Residual splits pro-rata across all equity (A + B).
-// Assuming full subscription (Investor #1 £5k + new investor £25k):
-//   • Total external B:          £30,000
-//   • Annual preferred pool:     £3,000  (Investor #1 £500 + new £2,500)
-//   • Residual (Y1):             £82,181
-//   • New investor (25%) Y1:     £2,500 preferred + £20,545 residual = £23,045
-//   • Everyone-else Y1:          £62,136
+// Round 1 restructured (May 2026). 10% preferred yield on EXTERNAL B
+// capital, then pro-rata residual across all equity (Founder A 51% +
+// Founder B 25% + Leonie 5% + new investor up to 19%).
+//
+// Semi-annual distributions with Y1 lockup — see computeDistributionCalendar()
+// for the cash-timing calendar. This constant captures the ANNUAL
+// ENTITLEMENT split, not the within-year cash timing.
+//
+// Assuming full subscription (Leonie £5k + new investor £19k):
+//   • Total external B:          £24,000
+//   • Annual preferred pool:     £2,400  (Leonie £500 + new £1,900)
+//   • Residual (Y1):             £82,781
+//   • New investor (19%) Y1:     £1,900 preferred + £15,728 residual = £17,628
+//   • Everyone-else Y1:          £67,553 (founder £62,914 + Leonie £4,639)
 // Slides recompute live via computeInvestorDividend(); this constant
 // is the un-locked fallback only.
 export const WATERFALL = {
-  operatingProfit: 85181,
-  preferred: 3000,                 // 10% × £30k external B at full subscription
-  aSharePriority: 0,
-  remainingPool: 82181,            // = operatingProfit - preferred
-  investorDividend: 23045,         // new investor at 25% (£2,500 preferred + £20,545 residual)
-  founderDividend: 62136,          // = 85,181 - 23,045
-  totalInvestor: 23045,
-  totalFounder: 62136,
+  operatingProfit:  85181,
+  preferred:         2400,         // 10% × £24k external B at full subscription
+  aSharePriority:       0,
+  remainingPool:    82781,         // = operatingProfit - preferred
+  investorDividend: 17628,         // new investor at 19% (£1,900 preferred + £15,728 residual)
+  founderDividend:  62914,         // Founder A 51% + Founder B 25% (Leonie's £4,639 reported separately)
+  totalInvestor:    17628,
+  totalFounder:     62914,
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// HURRIED-SALE ROUND · 30/70 pro-rata (investor / founder) at the full
-// £30k available stake, plus the 10% non-cumulative preferred yield on
-// External B capital paid before the residual split each year (investor
-// is also paid first each quarter; see DistributionProcess on the
-// WaterfallReturns slide). Year-1 profit £85,181 from
-// the 2026 cost model (£65k+VAT pa lease with 3-mo rent-free Y1 start +
-// 10% uplift on stock and other fixed lines). Y2 onwards rent steps up
-// to the £65,000 headline; Y3+ grows at +3% pa per the lease uplift
-// clause. Revenue and variable costs grow at 7.5% YoY; wages, fixed
-// (other), rates and director are held flat. Investor share = 30% ×
-// profit each year (founder retains 70% = 50% pre-money + 20% buyback).
-// On a £30k investment basis: Y1 dividend £25,554 = 85% cash-on-cash,
-// 1.2-year payback, ~14× money-on-money over the full 5-year hold
-// (dividends + Y5 exit at 4× EBITDA). Powers the multi-year payout
-// schedule on the WaterfallReturns slide.
+// ROUND 1 RESTRUCTURED (May 2026). 76/24 cap table (Founder 51% A + 25% B,
+// external 24% B), £49k round, semi-annual distributions with Y1 lockup,
+// 10% preferred yield on external B, Founder Y3 call-option to buyback
+// external B at LOWER of fair value × equity % or 3× cash invested.
 //
-// vs the old £45,632 forecast (which assumed the legacy Plonk rent of
-// £94,146): the new £65k lease saves ~£29k/yr at steady state, plus
-// another ~£16,250 in Y1 from the 3-month rent-free start. Combined
-// with the +15% revenue assumption, that flows straight through to
-// operating profit and compounds over the 5-year exit.
+// Two scenarios per investor:
 //
-// Note (May 2026 lease change): rent-free period reduced from 4 months
-// to 3 months. Y1 only is affected — adds £5,417 of rent in Aug 26 and
-// drops Y1 op profit by the same amount. Y2-Y5 unchanged (always full
-// rent). Cumulative dividends and total-returned re-summed; IRR is the
-// same flow shape but Y1 inflow drops by £2,708 — recomputed below.
+//   (A) HELD TO Y5 — founder does NOT exercise the Y3 call. Investor
+//       collects every semi-annual distribution + their pro-rata slice of
+//       the Y5 exit at 4× EBITDA. Headline numbers shown in fiveYear[]
+//       below.
+//
+//   (B) FOUNDER CALLS AT Y3 — investor exits at the end of Y3 for the
+//       3× cash cap plus cumulative dividends Y1-Y3. Cap binds in every
+//       reasonable scenario (fair value × 19% at Y3 = ~£100k vs cap £57k).
+//       See callScenario for the worked numbers.
+//
+// Full-subscription assumptions:
+//   • Founder A 51% + Founder B 25% = 76% (£25k buyback cash)
+//   • Leonie 5% (£5k, pending signature) — counted in shares but in
+//     practice may not subscribe
+//   • New investor 19% (£19k cheque)
+//   • External B pool: £24k → annual preferred £2,400
+//
+// Per year, for the £19k new investor at 19%:
+//   • Preferred:  £1,900   (10% × £19k invested capital — fixed)
+//   • Residual:   19% × (profit − £2,400 total external B preferred)
+//
+// 'founderShare' bundles Founder A 51% + Founder B 25% residual (does
+// NOT include Leonie's 5% which is reported in the external pool).
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
-    investorEq:      0.25,
-    investorReturn:  23045,           // preferred £2,500 + residual £20,545
-    coc:              0.9218,         // 23045 / 25000
-    paybackYears:     1.085,          // 25000 / 23045
+    investorEq:      0.19,
+    investorReturn:  17628,           // preferred £1,900 + residual £15,728 (annual entitlement; cash paid at month 12)
+    coc:              0.9278,         // 17628 / 19000
+    paybackYears:     1.078,          // 19000 / 17628 (entitlement basis; cash basis ~2.1 yrs incl Y1 lockup)
   },
-  // 'investorShare' = a NEW investor taking the full £25k remaining
-  // stake (= 25% of company). Each year:
-  //   • Preferred:  £2,500   (10% × £25k invested capital — fixed)
-  //   • Residual:   25% × (profit − £3,000 total external B preferred)
-  // 'founderShare' bundles everyone-else (founder 70% A+B residual +
-  // Investor #1 5% residual + Investor #1's £500 annual preferred).
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 23045.35, founderShare:  62136.06 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 25964.21, founderShare:  70892.64 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 32982.16, founderShare:  91946.49 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 40548.24, founderShare: 114644.73 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 48704.57, founderShare: 139113.70 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 17627.92, founderShare:  62913.66 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 19846.81, founderShare:  71786.84 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 25180.44, founderShare:  93122.27 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 30930.67, founderShare: 116122.86 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 37128.42, founderShare: 140918.59 },
   ],
-  cumulativeDividends: 171244.53,     // = base £162,494.53 + 5 × £2,500 preferred = +£12,500 over 5 yrs
+  cumulativeDividends: 130714.26,     // Y1+Y2+Y3+Y4+Y5 investor entitlements
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
     businessValue:    751273.08,
-    investorProceeds: 187818.27,      // 25% of business value (exit is pro-rata, no preferred at exit)
-    founderProceeds:  563454.81,      // 75% of business value
+    investorProceeds: 142741.89,      // 19% of business value (held-to-Y5, no founder call)
+    founderProceeds:  571167.54,      // 76% of business value
+    leonieProceeds:    37563.65,      // 5% of business value (reported separately)
   },
-  totalReturned:      359062.80,      // cumulativeDividends + exit.investorProceeds
-  multipleOfMoney:   14.3625,         // totalReturned / 25,000 (was 14.26× under flat-£5k preferred)
-  irr:                1.210,          // IRR on flows: -25000, +23045, +25964, +32982, +40548, +236523 (Y5 div + exit)
+  totalReturned:      273456.15,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.3924,         // 273,456 / 19,000 (held-to-Y5 case)
+  irr:                1.209,          // IRR on annual flows with Y1 lockup at month 12
+
+  // === Y3 FOUNDER-CALL SCENARIO ===
+  // If founder exercises the Y3 buyback right (likely whenever fair value
+  // is materially above the £57k cap — i.e. in any reasonable trajectory):
+  //   - Investor receives cumulative Y1-Y3 dividends: ~£62,655
+  //   - Plus 3× cash buyback at Y3: £57,000
+  //   - Total returned: ~£119,655 = ~6.30× MoM on £19k
+  //   - IRR compresses to ~80% (lump £57k at Y3 amplifies time-weighted return)
+  // Investor's downside is capped, founder regains 19% equity for £57k.
+  callScenario: {
+    cumulativeDividendsToY3: 62655.17,
+    buybackPrice:            57000,        // 3× £19k
+    totalReturned:          119655.17,
+    multipleOfMoney:         6.30,
+    irrApprox:               0.80,
+  },
 }
 
 // === GOVERNANCE ===
@@ -701,13 +765,14 @@ export const GOVERNANCE = {
 }
 
 // === RAISE TARGET ===
-// Fixed total investment ask. The slider tool allocates this across explicit
-// use-of-funds buckets; whatever's left after the 6 explicit sliders becomes
-// Working Capital (a derived residual line, displayed but not user-editable).
-// Drag stock down → working capital up. Drag everything to minimum → working
-// capital is the bulk of the raise. The total raised stays at this target;
-// only the allocation between explicit spend and working-capital float varies.
-export const HACKNEY_RAISE_TARGET = 25000
+// Default for the new-investor slider — the max single cheque available
+// (£19k, assuming Leonie subscribes for her intended £5k slice). The
+// Use-of-Funds capital pool is computed in deriveSnapshot (see
+// LockedUseOfFundsContext) as investment + founder buyback (£25k) +
+// committed external (Leonie £5k), so the total spending pool is up to
+// £49k — not just the new investor's £19k. Slider allocates across
+// explicit buckets; Working Capital absorbs the residual.
+export const HACKNEY_RAISE_TARGET = 19000
 
 // === USE OF FUNDS ===
 // Six EXPLICIT slider categories (stock, rent, garden, interior, marketing,
@@ -956,23 +1021,54 @@ export function computeForecastMonthly(wagesOverride) {
 export const HACKNEY_WORKING_CAPITAL_RESERVE = 30000
 
 export function computeDistributionCalendar(wagesOverride, opts = {}) {
+  // ── DISTRIBUTION MODEL (May 2026 restructure) ─────────────────────
+  //
+  // Single rule, single cadence: SEMI-ANNUAL distributions to all
+  // holders, GATED by the £30k working-capital reserve floor, with a
+  // hard Y1 LOCKUP (first window lands at month 12 = end of Y1, not
+  // before).
+  //
+  // The 12-month Y1 calendar that this function returns therefore has
+  // exactly ONE distribution window: month 11 (the 12th forecast row,
+  // = Apr 2027 under the May 2026 → Apr 2027 trading year).
+  //
+  //   Months 0-10  →  accrue only (lockup)
+  //   Month 11     →  if reserve ≥ floor: pay full Y1 accrual; else defer
+  //   Month 12+    →  out of scope for the Y1 calendar; the calling
+  //                   slide draws the year-2 schedule from
+  //                   HACKNEY_INVESTOR_RETURNS.fiveYear[]
+  //
+  // Investor / founder split within a distribution window: pro-rata to
+  // the equity percentages passed in `opts`. There is no within-window
+  // priority any more (Founder A 51% + Founder B 25% + external B 24%
+  // all draw at the same time, in proportion to their slices).
+  //
+  // For backward compatibility the function still returns:
+  //   • a 12-row monthly calendar (same shape as before)
+  //   • a `quarterly` array — but it now contains a single row for the
+  //     month-11 distribution window. Renamed semantically to
+  //     `distributions` (alias kept on `quarterly` for old consumers).
+  //   • summary totals (yearEndReserve, deferred amounts, totals)
+
   const reserveTarget = opts.reserveTarget ?? HACKNEY_WORKING_CAPITAL_RESERVE
   // reserveFloor defaults to reserveTarget so the legacy single-number
-  // model is preserved when callers don't pass a separate floor. To
-  // model the £30k floor / £45k target band, pass both explicitly.
+  // model is preserved when callers don't pass a separate floor.
   const reserveFloor  = opts.reserveFloor  ?? reserveTarget
   const investorEq    = opts.investorEq    ?? 0.5
   const founderEq     = opts.founderEq     ?? (1 - investorEq)
   const monthly       = computeForecastMonthly(wagesOverride)
 
   let reserveBalance     = 0
-  let cumulativeAccrual  = 0     // surplus accrued since last quarter
-  let deferredInvestor   = 0     // investor share owed from skipped quarters
-  let deferredFounder    = 0     // founder share owed from skipped quarters
+  let cumulativeAccrual  = 0     // surplus accrued since last distribution window
+  let deferredInvestor   = 0     // investor share owed from skipped windows
+  let deferredFounder    = 0     // founder share owed from skipped windows
   let reserveFullMonth   = null
 
-  // Quarter-end indices using calendar months (Mar, Jun, Sep, Dec → indices 2, 5, 8, 11)
-  const QUARTER_END_IDX = new Set([2, 5, 8, 11])
+  // Distribution-window indices within the 12-month Y1 calendar. Under
+  // the semi-annual + Y1-lockup model there is exactly ONE window in
+  // Y1: month index 11 (Dec / the 12th row), being the end of Y1.
+  // Months 0-10 are pure accrual.
+  const WINDOW_END_IDX = new Set([11])
 
   const calendar = monthly.map((row, i) => {
     const monthlyProfit = row.profit
@@ -998,31 +1094,33 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
     cumulativeAccrual += surplus
     if (reserveBalance >= reserveTarget && !reserveFullMonth) reserveFullMonth = row.month
 
-    const isQuarterEnd = QUARTER_END_IDX.has(i)
+    const isDistributionWindow = WINDOW_END_IDX.has(i)
+    // Backward-compat alias for consumers that haven't migrated yet.
+    const isQuarterEnd = isDistributionWindow
     let dividendPaid    = 0
     let investorShare   = 0
     let founderShare    = 0
     let investorCatchup = 0
     let founderCatchup  = 0
 
-    if (isQuarterEnd) {
-      // Only positive cumulative accrual is distributable; a quarter
-      // that ran a net loss carries the deficit forward (no clawback).
+    if (isDistributionWindow) {
+      // Only positive cumulative accrual is distributable; a deficit
+      // carries forward (no clawback).
       const distributable = Math.max(0, cumulativeAccrual)
 
       if (distributable > 0) {
         if (reserveBalance >= reserveFloor) {
-          // Investor paid FIRST. Founder takes their pro-rata share
-          // AFTER the investor's share has come out.
+          // Pro-rata split. No within-window priority any more — all
+          // holders draw at the same time in proportion to their
+          // equity slice (Founder A 51% + Founder B 25% bundled into
+          // `founderEq`; external B 24% in `investorEq`).
           investorShare = distributable * investorEq
           founderShare  = distributable * founderEq
 
-          // Catch-up: once reserve is at target, drain owed amounts.
-          // Investor catch-up runs first (priority is preserved during
-          // catch-up too), then founder catch-up. Each catch-up is
-          // capped at the catch-up source — the reserve buffer above
-          // target. We model this as drawing from the reserve's
-          // post-target headroom: take min(deferred, reserve − target).
+          // Catch-up for previously deferred windows. When the reserve
+          // is above target, drain any owed amounts from the post-target
+          // headroom (investor first, then founder — purely a
+          // book-keeping order, not a payment priority).
           if (reserveBalance >= reserveTarget) {
             const headroom = Math.max(0, reserveBalance - reserveTarget)
             investorCatchup = Math.min(deferredInvestor, headroom)
@@ -1040,11 +1138,9 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
           dividendPaid     = investorShare + founderShare
           cumulativeAccrual -= distributable
         } else {
-          // Reserve below floor → defer the entire quarter. Investor's
-          // pro-rata share is owed (deferredInvestor) and the founder's
-          // share is owed too (deferredFounder) since the founder is
-          // paid AFTER the investor and the investor wasn't paid. The
-          // physical cash sits in the reserve to help rebuild it.
+          // Reserve below floor → defer the entire window. Owed amounts
+          // tracked in deferredInvestor / deferredFounder; the physical
+          // cash sits in the reserve to help rebuild it.
           deferredInvestor  += distributable * investorEq
           deferredFounder   += distributable * founderEq
           reserveBalance    += distributable
@@ -1060,7 +1156,8 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
       reserveBalance,
       surplus,
       cumulativeAccrual,
-      isQuarterEnd,
+      isDistributionWindow,
+      isQuarterEnd,             // backward-compat alias
       dividendPaid,
       investorShare,
       founderShare,
@@ -1072,10 +1169,13 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
     }
   })
 
-  const quarterly = calendar
-    .filter(c => c.isQuarterEnd)
+  // New semantic name: `distributions`. Backward-compat alias `quarterly`
+  // preserved so existing slides keep rendering until they're updated.
+  const distributions = calendar
+    .filter(c => c.isDistributionWindow)
     .map((q, i) => ({
-      quarter: `Q${i + 1}`,
+      window: `W${i + 1}`,             // "W1", "W2", ... — semi-annual windows
+      quarter: `H${i + 1}`,            // backward-compat label (H = half-year)
       endMonth: q.month,
       dividend: q.dividendPaid,
       investorShare: q.investorShare,
@@ -1083,6 +1183,7 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
       investorCatchup: q.investorCatchup,
       founderCatchup: q.founderCatchup,
     }))
+  const quarterly = distributions   // alias for backward compat
 
   const totalDividends = quarterly.reduce((s, q) => s + q.dividend, 0)
   const totalInvestor  = quarterly.reduce((s, q) => s + q.investorShare, 0)
@@ -1091,7 +1192,8 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
 
   return {
     calendar,
-    quarterly,
+    quarterly,         // backward-compat alias
+    distributions,
     summary: {
       reserveTarget,
       reserveFloor,
@@ -1113,17 +1215,25 @@ export function computeDistributionCalendar(wagesOverride, opts = {}) {
 }
 
 export function computeDealFromInvestment(investment) {
-  // HURRIED-SALE ROUND — post-money valuation is FIXED at £100k (the
-  // company is selling 50% for £50k). Any investor's equity slice is
-  // their cash / £100k. Founder retained slice is 50% (pre-money
-  // holdback) plus 20% (£20k founder buyback) = 70%, leaving 30%
-  // (£30k) available externally.
-  //   £5k  → 5%  equity
+  // ROUND 1 RESTRUCTURED (May 2026). Post-money valuation FIXED at £100k.
+  // Cap table: Founder retains 51% A + 25% B buyback = 76%. Available
+  // externally = 24% (£24k pool, of which 5% intended for Leonie + 19%
+  // open for new investors).
+  //
+  //   £5k  → 5%  equity (Leonie's intended slice)
   //   £10k → 10% equity
-  //   £30k → 30% equity (full available external slice)
+  //   £19k → 19% equity (max for a single new investor — full external slice
+  //                       remaining after Leonie if she subscribes)
+  //   £24k → 24% equity (full external pool if Leonie doesn't subscribe)
+  //
+  // The cap below is `DEAL.externalPostEq` (0.24) — the total externally-
+  // available equity. Any single cheque is capped at that total since
+  // there's no scenario where one investor takes more than the full
+  // external pool.
   const POST_MONEY = 100000
   const postMoney  = POST_MONEY
-  const investorEq = Math.min(0.30, Math.max(0, investment / postMoney))
+  const externalCap = DEAL.externalPostEq ?? 0.24
+  const investorEq = Math.min(externalCap, Math.max(0, investment / postMoney))
   const founderEq  = 1 - investorEq
   const preMoney   = postMoney - investment
   const ebitda     = 30896.17                       // = ACTUALS_2025.profit
@@ -1136,22 +1246,29 @@ export function computeDealFromInvestment(investment) {
 //
 // Mechanic (each year, after director salary + working-capital top-up):
 //   1. EXTERNAL B-class holders receive a preferred dividend equal to
-//      preferredYield × their invested capital. Founder's £20k B-class
+//      preferredYield × their invested capital. Founder's £25k B-class
 //      buyback does NOT receive preferred — external B ranks ahead of
 //      founder B in the dividend queue.
-//   2. Remaining profit splits pro-rata across ALL equity (founder A +
-//      founder B + Investor #1 + new investor).
+//   2. Remaining profit splits pro-rata across ALL equity (founder A 51% +
+//      founder B 25% + Leonie 5% + new investor up to 19%).
 //
 // `investmentAmount` is the new investor's £ cheque (drives both their
 // preferred entitlement and their equity %, since postMoney is fixed at
-// £100k). Investor #1's preferred contribution is read from
-// DEAL.commitments where type === 'external'.
+// £100k). Leonie's preferred contribution is read from DEAL.commitments
+// where type === 'external' (regardless of 'sold' vs 'pending' status —
+// we assume full subscription for the forecast).
 //
-// Examples (Y1 profit £85,181, 10% yield, Investor #1 already £5k in):
-//   Invest £25k → preferred £2,500 + residual £20,545 = £23,045
-//   Invest £10k → preferred £1,000 + residual  £8,368 = £9,368
-//   Invest  £5k → preferred   £500 + residual  £4,209 = £4,709
-//   Invest  £1k → preferred   £100 + residual    £846 = £946
+// Examples (Y1 profit £85,181, 10% yield, Leonie £5k in the external pool):
+//   Invest £19k → preferred £1,900 + residual £15,728 = £17,628
+//   Invest £10k → preferred £1,000 + residual £8,278  = £9,278
+//   Invest  £5k → preferred   £500 + residual £4,139  = £4,639
+//   Invest  £1k → preferred   £100 + residual   £828  = £928
+//
+// Y1 LOCKUP REMINDER: this function returns the ANNUAL ENTITLEMENT. With
+// the semi-annual + Y1-lockup distribution model, no cash actually
+// reaches the investor in Y1 — the first window opens at month 12 and
+// pays the full Y1 accrual then. See computeDistributionCalendar() for
+// the timing-of-cash calendar.
 export function computeInvestorDividend(profit, investmentAmount, opts) {
   opts = opts || {}
   const yieldPct = opts.preferredYield ?? DEAL.preferredYield ?? 0
