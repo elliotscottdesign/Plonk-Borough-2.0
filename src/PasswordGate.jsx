@@ -2,34 +2,37 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // ─── Access codes ──────────────────────────────────────────────────────
-// Each code grants a role with three orthogonal flags:
+// Each code grants a role with four orthogonal flags:
 //   - plonk:    can see the Plonk top-tab (IP & Licensing + Digital
 //               Marketing + How It Works + Cover + SEO Marketing)
 //   - founder:  full edit access on the 2026 Performance tab — drives
 //               canEdit on every slider/input via LockedForecastContext
+//   - hackney:  can view the /hackney deck. NODICE88 is the dedicated
+//               Hackney-investor code; founder-tier (888999/JOHN1) and
+//               LEONIE retain access. TEST1 and BRAZIL are Borough-only.
 //   - role:     a string tag persisted to sessionStorage so individual
 //               components can branch behaviour (e.g. a BRAZIL viewer
 //               sees the ticket slider locked even though everything
 //               else is read-only by default for non-founders too)
 //
-// Plonk is now PRIVATE — only 888999 (founder) and JOHN1 see it.
-// TEST1, BRAZIL and LEONIE get the standard 3-tab investor view
+// Plonk is PRIVATE — only 888999 (founder) and JOHN1 see it.
+// Hackney is PRIVATE — only NODICE88, 888999, JOHN1 and LEONIE see it.
+// TEST1 and BRAZIL get the standard 3-tab Borough investor view only
 // (Investor Deck · Venue Info · Business Explorer). Brazilian
 // Portuguese remains an in-app EN | PT toggle (no code).
 //
 // JOHN1 is an "observer-founder" tier — same slider + lock access as
-// the real founder (can drag every slider, lock every value) AND now
-// has Plonk-tab visibility. Role tag stays 'observer' so any future
-// external-sheet-write or document-edit flow gates against it. The
-// deck itself doesn't currently push to external sheets from the UI,
-// so JOHN1's in-app permissions are functionally equivalent to 888999.
+// the real founder (can drag every slider, lock every value) AND has
+// Plonk + Hackney visibility. Role tag stays 'observer' so any future
+// external-sheet-write or document-edit flow gates against it.
 // ───────────────────────────────────────────────────────────────────────
 const ACCESS_CODES = {
-  '888999': { plonk: true,  founder: true,  role: 'founder'  },
-  'JOHN1':  { plonk: true,  founder: true,  role: 'observer' },
-  'TEST1':  { plonk: false, founder: false, role: 'test'     },
-  'BRAZIL': { plonk: false, founder: false, role: 'brazil'   },
-  'LEONIE': { plonk: false, founder: true,  role: 'leonie'   },
+  '888999':   { plonk: true,  founder: true,  hackney: true,  role: 'founder'  },
+  'JOHN1':    { plonk: true,  founder: true,  hackney: true,  role: 'observer' },
+  'LEONIE':   { plonk: false, founder: true,  hackney: true,  role: 'leonie'   },
+  'NODICE88': { plonk: false, founder: false, hackney: true,  role: 'nodice88' },
+  'TEST1':    { plonk: false, founder: false, hackney: false, role: 'test'     },
+  'BRAZIL':   { plonk: false, founder: false, hackney: false, role: 'brazil'   },
 }
 
 export default function PasswordGate({ onUnlock }) {

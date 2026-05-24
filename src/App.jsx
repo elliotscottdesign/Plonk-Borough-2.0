@@ -102,6 +102,7 @@ export default function App() {
     !!sessionStorage.getItem('ndb_access_code')
   )
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
+  const [hackneyAccess, setHackneyAccess] = useState(() => sessionStorage.getItem('ndb_hackney_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
@@ -129,7 +130,7 @@ export default function App() {
   }
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, founder, role, lang: chosenLang, accessCode }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, hackney, role, lang: chosenLang, accessCode }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
       // Per-tenant access code — every signed-in user gets their own
@@ -151,19 +152,37 @@ export default function App() {
       // BRAZIL and LEONIE do not. Stripped from the tab array below.
       if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
       else       sessionStorage.removeItem('ndb_plonk_access')
+      // Hackney deck visibility — NODICE88 is the dedicated Hackney
+      // investor code. Founder-tier (888999, JOHN1) and LEONIE also
+      // hold it. TEST1 and BRAZIL are Borough-only.
+      if (hackney) sessionStorage.setItem('ndb_hackney_access', '1')
+      else         sessionStorage.removeItem('ndb_hackney_access')
       // Role tag — components can branch on this for role-specific UI
       // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
       sessionStorage.setItem('ndb_role', role || 'investor')
       const targetLang = chosenLang && chosenLang !== 'en' ? chosenLang : 'en'
       i18n.changeLanguage(targetLang)
       setPlonkAccess(!!plonk)
+      setHackneyAccess(!!hackney)
       setUnlocked(true)
     }} />
   }
 
-  // After unlock, dispatch by path. All access codes unlock the Hackney deck;
-  // only 888999 / JOHN1 additionally see the Plonk top-tab on Borough.
+  // After unlock, dispatch by path. Hackney is restricted to codes that
+  // hold the `hackney` flag (NODICE88, founder-tier and LEONIE).
+  // Plonk top-tab on Borough requires 888999 / JOHN1.
   if (isHackneyPath()) {
+    if (!hackneyAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            The Hackney deck is restricted. Sign in with the dedicated Hackney access code to view.
+          </div>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
+        </div>
+      )
+    }
     return <HackneyApp />
   }
 
