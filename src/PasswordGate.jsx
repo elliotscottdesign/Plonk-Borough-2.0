@@ -8,18 +8,16 @@ import { useTranslation } from 'react-i18next'
 //   - founder:  full edit access on the 2026 Performance tab — drives
 //               canEdit on every slider/input via LockedForecastContext
 //   - hackney:  can view the /hackney deck. NODICE88 is the dedicated
-//               Hackney-investor code; founder-tier (888999/JOHN1) and
-//               LEONIE retain access. BRAZIL is Borough-only.
+//               Hackney-investor code; founder-tier (888999/JOHN1),
+//               LEONIE and BRAZIL also hold it.
 //   - role:     a string tag persisted to sessionStorage so individual
 //               components can branch behaviour (e.g. a BRAZIL viewer
 //               sees the ticket slider locked even though everything
 //               else is read-only by default for non-founders too)
 //
 // Plonk is PRIVATE — only 888999 (founder) and JOHN1 see it.
-// Hackney is PRIVATE — only NODICE88, 888999, JOHN1 and LEONIE see it.
-// BRAZIL gets the standard 3-tab Borough investor view only
-// (Investor Deck · Venue Info · Business Explorer). Brazilian
-// Portuguese remains an in-app EN | PT toggle (no code).
+// Hackney is gated to NODICE88, 888999, JOHN1, LEONIE and BRAZIL.
+// Brazilian Portuguese remains an in-app EN | PT toggle (no code).
 //
 // JOHN1 is an "observer-founder" tier — same slider + lock access as
 // the real founder (can drag every slider, lock every value) AND has
@@ -31,7 +29,7 @@ const ACCESS_CODES = {
   'JOHN1':    { plonk: true,  founder: true,  hackney: true,  role: 'observer' },
   'LEONIE':   { plonk: false, founder: true,  hackney: true,  role: 'leonie'   },
   'NODICE88': { plonk: false, founder: false, hackney: true,  role: 'nodice88' },
-  'BRAZIL':   { plonk: false, founder: false, hackney: false, role: 'brazil'   },
+  'BRAZIL':   { plonk: false, founder: false, hackney: true,  role: 'brazil'   },
 }
 
 export default function PasswordGate({ onUnlock }) {

@@ -153,8 +153,8 @@ export default function App() {
       if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
       else       sessionStorage.removeItem('ndb_plonk_access')
       // Hackney deck visibility — NODICE88 is the dedicated Hackney
-      // investor code. Founder-tier (888999, JOHN1) and LEONIE also
-      // hold it. BRAZIL is Borough-only.
+      // investor code. Founder-tier (888999, JOHN1), LEONIE and BRAZIL
+      // also hold it.
       if (hackney) sessionStorage.setItem('ndb_hackney_access', '1')
       else         sessionStorage.removeItem('ndb_hackney_access')
       // Role tag — components can branch on this for role-specific UI
