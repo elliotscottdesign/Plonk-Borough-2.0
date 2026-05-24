@@ -273,6 +273,14 @@ export default function WorldCupPage() {
     if (filter === 'sellout') return SCHEDULE.filter(d => d.intensity === 'sellout')
     if (filter === 'ten') return SCHEDULE.filter(d => d.ten?.required)
     if (filter === 'match') return SCHEDULE.filter(d => d.intensity !== 'rest')
+    if (filter === 'england') return SCHEDULE.filter(d =>
+      (d.community || '').includes('England') ||
+      (d.matches || []).some(m => /ENGLAND/i.test(m.fixture))
+    )
+    if (filter === 'brazil') return SCHEDULE.filter(d =>
+      (d.community || '').includes('Brazil') ||
+      (d.matches || []).some(m => /Brazil/i.test(m.fixture))
+    )
     return SCHEDULE
   }, [filter])
 
@@ -339,6 +347,8 @@ export default function WorldCupPage() {
             {[
               { id: 'all', label: 'All dates' },
               { id: 'match', label: 'Match days only' },
+              { id: 'england', label: '🏴 England' },
+              { id: 'brazil', label: '🇧🇷 Brazil' },
               { id: 'sellout', label: 'Sell-out targets' },
               { id: 'ten', label: 'TEN required' },
             ].map(opt => (
