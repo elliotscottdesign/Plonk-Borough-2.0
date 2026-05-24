@@ -17,6 +17,76 @@ const CREAM   = '#F5F0E8'
 const CREAM_D = '#B8B0A0'
 const TEAL    = '#2DD4BF'
 
+// ─── flagify ─────────────────────────────────────────────────────────
+// Walk a string and prepend a country flag emoji wherever a known
+// nation / nationality term appears. Returns either the original string
+// (no matches) or a React fragment of mixed strings + <span>s. Used to
+// make community focus obvious at a glance across the planning sheet.
+//
+// Skips insertion if a flag emoji already appears within the 6 chars
+// before the match — so data fields that already include a flag (e.g.
+// "🏴 England — sell-out target") don't double up.
+const COUNTRY_FLAGS = {
+  England: '🏴',
+  English: '🏴',
+  Brazil: '🇧🇷',
+  Brazilian: '🇧🇷',
+  Brazilians: '🇧🇷',
+  Spain: '🇪🇸',
+  Spanish: '🇪🇸',
+  Australia: '🇦🇺',
+  Australian: '🇦🇺',
+  Australians: '🇦🇺',
+  Aussie: '🇦🇺',
+  Aussies: '🇦🇺',
+  Matildas: '🇦🇺',
+  Mexico: '🇲🇽',
+  Mexican: '🇲🇽',
+  USA: '🇺🇸',
+  America: '🇺🇸',
+  American: '🇺🇸',
+  Canada: '🇨🇦',
+  Canadian: '🇨🇦',
+  UK: '🇬🇧',
+  British: '🇬🇧',
+  Britain: '🇬🇧',
+  Wales: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  Welsh: '🏴󠁧󠁢󠁷󠁬󠁳󠁿',
+  Scotland: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+  Scottish: '🏴󠁧󠁢󠁳󠁣󠁴󠁿',
+}
+const FLAG_NAMES = Object.keys(COUNTRY_FLAGS).sort((a, b) => b.length - a.length)
+const FLAG_VALUES = Object.values(COUNTRY_FLAGS)
+
+function flagify(text) {
+  if (text == null) return text
+  if (typeof text !== 'string') return text
+  if (!text) return text
+  const rx = new RegExp(`\\b(${FLAG_NAMES.join('|')})\\b`, 'gi')
+  const parts = []
+  let lastIdx = 0
+  let m
+  let key = 0
+  while ((m = rx.exec(text)) !== null) {
+    if (m.index > lastIdx) parts.push(text.slice(lastIdx, m.index))
+    const canonical = FLAG_NAMES.find(n => n.toLowerCase() === m[0].toLowerCase())
+    const flag = COUNTRY_FLAGS[canonical]
+    const lookbehind = text.slice(Math.max(0, m.index - 6), m.index)
+    const alreadyFlagged = FLAG_VALUES.some(f => lookbehind.includes(f))
+    if (alreadyFlagged) {
+      parts.push(m[0])
+    } else {
+      parts.push(
+        <span key={`f${key++}`} style={{ whiteSpace: 'nowrap' }}>{flag} {m[0]}</span>
+      )
+    }
+    lastIdx = m.index + m[0].length
+  }
+  if (lastIdx < text.length) parts.push(text.slice(lastIdx))
+  if (parts.length === 0) return text
+  return <>{parts}</>
+}
+
 function Section({ title, kicker, children, defaultOpen = true }) {
   const [open, setOpen] = useState(defaultOpen)
   return (
@@ -78,8 +148,8 @@ function LicensingRow({ item }) {
       </button>
       {open && (
         <div style={{ padding: '0 0 16px 26px', fontSize: 14, color: CREAM_D, lineHeight: 1.55 }}>
-          <p style={{ marginBottom: 10 }}>{item.detail}</p>
-          <p style={{ color: GOLD }}><strong style={{ color: GOLD }}>Action:</strong> {item.action}</p>
+          <p style={{ marginBottom: 10 }}>{flagify(item.detail)}</p>
+          <p style={{ color: GOLD }}><strong style={{ color: GOLD }}>Action:</strong> {flagify(item.action)}</p>
         </div>
       )}
     </div>
@@ -97,9 +167,9 @@ function PackageCard({ p }) {
         <div style={{ fontSize: 16, color: CREAM }}>{p.price}</div>
       </div>
       <div style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-        For: {p.forMatch} · Covers: {p.covers}
+        For: {flagify(p.forMatch)} · Covers: {p.covers}
       </div>
-      <div style={{ fontSize: 13, color: CREAM_D, lineHeight: 1.5 }}>{p.includes}</div>
+      <div style={{ fontSize: 13, color: CREAM_D, lineHeight: 1.5 }}>{flagify(p.includes)}</div>
     </div>
   )
 }
@@ -115,10 +185,10 @@ function CommunityCard({ c }) {
         <div className="serif" style={{ fontSize: 18, color: c.sellOut ? GOLD : TEAL }}>{c.name}</div>
         {c.sellOut && <span style={{ fontSize: 9, letterSpacing: '0.14em', padding: '2px 6px', background: 'rgba(201,168,76,0.15)', color: GOLD, borderRadius: 3 }}>SELL-OUT TARGET</span>}
       </div>
-      <Row label="Hook" value={c.hook} />
-      <Row label="Drinks" value={c.drinks} />
-      <Row label="Food" value={c.food} />
-      <Row label="Package" value={c.package} />
+      <Row label="Hook" value={flagify(c.hook)} />
+      <Row label="Drinks" value={flagify(c.drinks)} />
+      <Row label="Food" value={flagify(c.food)} />
+      <Row label="Package" value={flagify(c.package)} />
     </div>
   )
 }
@@ -160,11 +230,11 @@ function DayRow({ day }) {
           <div style={{ fontSize: 9, color: CREAM_D, letterSpacing: '0.14em', textTransform: 'uppercase', marginTop: 2 }}>{monthShort} · {day.weekday.slice(0,3)}</div>
         </div>
         <div>
-          <div style={{ fontSize: 13, color: CREAM, marginBottom: 3 }}>{day.phase}</div>
+          <div style={{ fontSize: 13, color: CREAM, marginBottom: 3 }}>{flagify(day.phase)}</div>
           <div style={{ fontSize: 11, color: CREAM_D }}>
             {isRest
               ? '— no matches'
-              : `${matchCount} match${matchCount === 1 ? '' : 'es'} · ${day.community || '—'}`}
+              : <>{matchCount} match{matchCount === 1 ? '' : 'es'} · {flagify(day.community || '—')}</>}
           </div>
         </div>
         <div style={{ fontSize: 10, color, letterSpacing: '0.14em', fontWeight: 600 }}>{label}</div>
@@ -183,10 +253,10 @@ function DayRow({ day }) {
                 {day.matches.map((m, i) => (
                   <div key={i} style={{ background: INK_3, borderRadius: 6, padding: '10px 12px' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                      <div style={{ fontSize: 13, color: CREAM }}>{m.fixture}</div>
+                      <div style={{ fontSize: 13, color: CREAM }}>{flagify(m.fixture)}</div>
                       <div style={{ fontSize: 11, color: GOLD, letterSpacing: '0.08em' }}>{SLOTS[m.slot] || m.slot}</div>
                     </div>
-                    {m.notes && <div style={{ fontSize: 11, color: CREAM_D, marginTop: 4, lineHeight: 1.5 }}>{m.notes}</div>}
+                    {m.notes && <div style={{ fontSize: 11, color: CREAM_D, marginTop: 4, lineHeight: 1.5 }}>{flagify(m.notes)}</div>}
                   </div>
                 ))}
               </div>
@@ -196,24 +266,24 @@ function DayRow({ day }) {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
             <Row label="TEN" value={
               day.ten?.required
-                ? <><span style={{ color: '#FF6B68', fontWeight: 600 }}>YES · {day.ten.cost}</span><br/><span style={{ color: CREAM_D }}>{day.ten.reason}</span></>
-                : <span style={{ color: CREAM_D }}>Not required. {day.ten?.reason}</span>
+                ? <><span style={{ color: '#FF6B68', fontWeight: 600 }}>YES · {day.ten.cost}</span><br/><span style={{ color: CREAM_D }}>{flagify(day.ten.reason)}</span></>
+                : <span style={{ color: CREAM_D }}>Not required. {flagify(day.ten?.reason)}</span>
             } />
             <Row label="Staff" value={
               <>
                 <span style={{ color: CREAM }}>Bar {day.staff.bar} · Floor {day.staff.floor} · Door {day.staff.door}</span><br/>
-                <span style={{ color: CREAM_D, fontSize: 12 }}>{day.staff.notes}</span>
+                <span style={{ color: CREAM_D, fontSize: 12 }}>{flagify(day.staff.notes)}</span>
               </>
             } />
-            <Row label="Drinks pairing" value={day.drinks} />
-            <Row label="Community" value={day.community || '—'} />
-            <Row label="Regular events" value={day.regulars || '—'} />
-            <Row label="Packages active" value={
+            <Row label="Drinks pairing" value={flagify(day.drinks)} />
+            <Row label="Community" value={flagify(day.community || '—')} />
+            <Row label="Regular events" value={flagify(day.regulars || '—')} />
+            <Row label="Packages active" value={flagify(
               (day.packages || []).map(pid => {
                 const p = packageById(pid)
                 return p ? p.name : pid
               }).join(' · ') || '—'
-            } />
+            )} />
           </div>
 
           {day.actions && day.actions.length > 0 && (
@@ -221,7 +291,7 @@ function DayRow({ day }) {
               <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 8 }}>Actions</div>
               <ul style={{ paddingLeft: 20, margin: 0 }}>
                 {day.actions.map((a, i) => (
-                  <li key={i} style={{ fontSize: 13, color: CREAM_D, lineHeight: 1.6 }}>{a}</li>
+                  <li key={i} style={{ fontSize: 13, color: CREAM_D, lineHeight: 1.6 }}>{flagify(a)}</li>
                 ))}
               </ul>
             </div>
@@ -292,7 +362,7 @@ export default function WorldCupPage() {
           <div>
             <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>No Dice Borough · Planning</div>
             <div className="serif" style={{ fontSize: 36, color: GOLD, lineHeight: 1 }}>World Cup 2026</div>
-            <div style={{ fontSize: 13, color: CREAM_D, marginTop: 6 }}>{TOURNAMENT.host} · 11 Jun – 19 Jul 2026 · {TOURNAMENT.teams} teams</div>
+            <div style={{ fontSize: 13, color: CREAM_D, marginTop: 6 }}>{flagify(TOURNAMENT.host)} · 11 Jun – 19 Jul 2026 · {TOURNAMENT.teams} teams</div>
           </div>
           <a href="/" style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.14em', textDecoration: 'none' }}>← back to nodice.bar</a>
         </div>
@@ -305,12 +375,12 @@ export default function WorldCupPage() {
         {/* Strategy overview */}
         <Section title="Strategy at a glance" kicker="01" defaultOpen={true}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16 }}>
-            <Row label="Time-zone gift" value="Host = USA/Canada/Mexico. UK gets evening kick-offs. Three slots: early (17:00–18:00), prime (20:00–21:00), late (23:00–00:00), graveyard (02:00+)." />
-            <Row label="Free-to-air advantage" value="BBC + ITV share UK rights. NO Sky / TNT subscription needed. Budget that saving on screens, sound, decor." />
-            <Row label="Tournament arc" value="Group stage builds awareness. Knockouts peak. Treat every England game as a ticketed event, not a booking." />
+            <Row label="Time-zone gift" value={flagify("Host = USA / Canada / Mexico. UK gets evening kick-offs. Three slots: early (17:00–18:00), prime (20:00–21:00), late (23:00–00:00), graveyard (02:00+).")} />
+            <Row label="Free-to-air advantage" value={flagify("BBC + ITV share UK rights. NO Sky / TNT subscription needed. Budget that saving on screens, sound, decor.")} />
+            <Row label="Tournament arc" value={flagify("Group stage builds awareness. Knockouts peak. Treat every England game as a ticketed event, not a booking.")} />
             <Row label="Communities" value="🏴 England (sell-out target every match) · 🇧🇷 Brazilian (Borough/Bermondsey draw) · 🇪🇸 Spanish · 🇦🇺 Australian (late-night)" />
-            <Row label="Booking model" value="Pre-paid deposits only for England + knockouts. £25/head minimum spend on standard tables. Walk-in standing-room £10 door on sell-outs. Bookings via OWN system (not Design My Night)." />
-            <Row label="Capacity" value="10 tables × ~6 covers = 60 seated. Add ~30 standing for England/knockout overflow if SIA can manage the door. Hard cap defined by fire safety." />
+            <Row label="Booking model" value={flagify("Pre-paid deposits only for England + knockouts. £25/head minimum spend on standard tables. Walk-in standing-room £10 door on sell-outs. Bookings via OWN system (not Design My Night).")} />
+            <Row label="Capacity" value={flagify("10 tables × ~6 covers = 60 seated. Add ~30 standing for England / knockout overflow if SIA can manage the door. Hard cap defined by fire safety.")} />
           </div>
         </Section>
 
@@ -337,7 +407,7 @@ export default function WorldCupPage() {
             {PACKAGES.map(p => <PackageCard key={p.id} p={p} />)}
           </div>
           <div style={{ marginTop: 14, fontSize: 12, color: CREAM_D, lineHeight: 1.6 }}>
-            <strong style={{ color: GOLD }}>Deposit rules:</strong> 100% up-front for England + knockouts. Non-refundable BUT transferable to another match if the team is eliminated before the booked date. Standard tables: 50% deposit, balance against minimum spend. Captures email at booking — future-events list.
+            <strong style={{ color: GOLD }}>Deposit rules:</strong> 100% up-front for {flagify('England')} + knockouts. Non-refundable BUT transferable to another match if the team is eliminated before the booked date. Standard tables: 50% deposit, balance against minimum spend. Captures email at booking — future-events list.
           </div>
         </Section>
 
@@ -375,7 +445,7 @@ export default function WorldCupPage() {
 
         {/* Footer */}
         <div style={{ paddingTop: 24, marginTop: 24, borderTop: `1px solid ${GOLD_D}`, fontSize: 11, color: CREAM_D, lineHeight: 1.6 }}>
-          <p>Page generated 2026-05-22. Fixture details marked TBC need confirming against the official FIFA / BBC Sport schedule before printing customer-facing materials. England fixtures + likely knockout dates are placed on the most probable slots — adjust as the bracket fills in.</p>
+          <p>Page generated 2026-05-22. Fixture details marked TBC need confirming against the official FIFA / BBC Sport schedule before printing customer-facing materials. {flagify('England')} fixtures + likely knockout dates are placed on the most probable slots — adjust as the bracket fills in.</p>
           <p style={{ marginTop: 6 }}>Founder-only view. URL: nodice.bar/worldcup · Access code: 888999.</p>
         </div>
       </div>
