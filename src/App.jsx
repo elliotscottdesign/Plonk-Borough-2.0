@@ -18,6 +18,7 @@ import Landing from './Landing.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
 import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
+import WorldCupPage from './worldcup/WorldCupPage.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -54,6 +55,10 @@ const isTermsPath = () =>
 const isIPLicencePath = () =>
   typeof window !== 'undefined' &&
   /^\/templates\/ip-licence\/?$/.test(window.location.pathname)
+
+const isWorldCupPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/worldcup\/?$/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -117,8 +122,9 @@ export default function App() {
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.
   // Any unrecognised path (incl. the SPA fallback) also lands here so
-  // the public site has a clean entry point.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath())) {
+  // the public site has a clean entry point. /worldcup is an exception
+  // — gated below, founder-only planning sheet.
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath())) {
     return <Landing />
   }
 
@@ -159,6 +165,23 @@ export default function App() {
   // only 888999 / JOHN1 additionally see the Plonk top-tab on Borough.
   if (isHackneyPath()) {
     return <HackneyApp />
+  }
+
+  // /worldcup — founder-only planning sheet. Plonk-tier access only
+  // (888999 / JOHN1). Other unlocked users get a polite kick-back.
+  if (isWorldCupPath()) {
+    if (!plonkAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            The World Cup planning page is founder-only. Sign in with the founder code to view.
+          </div>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
+        </div>
+      )
+    }
+    return <WorldCupPage />
   }
 
   return (
