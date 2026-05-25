@@ -232,6 +232,7 @@ function DayRow({ day }) {
   const color = intensityColor(day.intensity)
   const label = intensityLabel(day.intensity)
   const isRest = day.intensity === 'rest'
+  const isClash = day.clash === 'eng-bra'
   const matchCount = day.matches?.length || 0
   const dateObj = new Date(day.date + 'T12:00:00Z')
   const dayNum = dateObj.getUTCDate()
@@ -239,7 +240,9 @@ function DayRow({ day }) {
 
   return (
     <div style={{
-      borderLeft: `3px solid ${color}`, background: open ? INK_2 : 'transparent',
+      borderLeft: isClash ? `4px solid ${GOLD}` : `3px solid ${color}`,
+      background: isClash ? 'rgba(201,168,76,0.08)' : (open ? INK_2 : 'transparent'),
+      boxShadow: isClash ? 'inset 0 0 0 1px rgba(201,168,76,0.3)' : 'none',
       borderBottom: '1px solid rgba(255,255,255,0.05)', transition: 'background 0.15s',
     }}>
       <button
@@ -275,6 +278,13 @@ function DayRow({ day }) {
         {/* Phase + community */}
         <div>
           <div style={{ fontSize: 13, color: CREAM, marginBottom: 3 }}>{flagify(day.phase)}</div>
+          {isClash && (
+            <span style={{
+              display: 'inline-block', margin: '2px 0 4px', fontSize: 9, letterSpacing: '0.14em',
+              padding: '3px 8px', borderRadius: 4, background: 'rgba(218,27,51,0.18)',
+              color: '#FF6B68', fontWeight: 700, whiteSpace: 'nowrap',
+            }}>⚔️ ENGLAND v BRAZIL POSSIBLE</span>
+          )}
           <div style={{ fontSize: 11, color: CREAM_D }}>
             {isRest
               ? '— no matches'
@@ -451,6 +461,7 @@ export default function WorldCupPage() {
       (d.community || '').includes('Brazil') ||
       (d.matches || []).some(m => /Brazil/i.test(m.fixture))
     )
+    if (filter === 'engbra') return SCHEDULE.filter(d => d.clash === 'eng-bra')
     return SCHEDULE
   }, [filter])
 
@@ -530,6 +541,7 @@ export default function WorldCupPage() {
                 { id: 'match', label: 'Match days only' },
                 { id: 'england', label: `${ENG_FLAG} England` },
                 { id: 'brazil', label: '🇧🇷 Brazil' },
+                { id: 'engbra', label: '⚔️ England v Brazil' },
                 { id: 'sellout', label: 'Sell-out targets' },
                 { id: 'ten', label: 'TEN required' },
               ].map(opt => (
@@ -557,7 +569,8 @@ export default function WorldCupPage() {
 
         {/* Footer */}
         <div style={{ paddingTop: 24, marginTop: 24, borderTop: `1px solid ${GOLD_D}`, fontSize: 11, color: CREAM_D, lineHeight: 1.6 }}>
-          <p>Page generated 2026-05-22. Fixture details marked TBC need confirming against the official FIFA / BBC Sport schedule before printing customer-facing materials. {flagify('England')} fixtures + likely knockout dates are placed on the most probable slots — adjust as the bracket fills in.</p>
+          <p>Updated for the 5 Dec 2025 final draw. Confirmed group fixtures + opponents are in for {flagify('England')} (Group L), {flagify('Brazil')} (Group C), {flagify('Spain')} (Group H) and {flagify('Australia')} (Group D). Knockout-round opponents are bracket projections (which group winner/runner-up feeds each slot) — the actual teams depend on results. Minor group-stage slots + some exact UK kick-off times still need confirming against the official FIFA / BBC Sport schedule.</p>
+          <p style={{ marginTop: 6 }}>The headline tie: if {flagify('England')} win Group L and {flagify('Brazil')} win Group C, they meet in the quarter-final on Sat 11 Jul (Miami, 22:00 BST). FIFA's seeding keeps {flagify('Spain')} / Argentina away from England until the semis and France until the final — but not 5th-ranked Brazil, so the QF is the earliest they can clash.</p>
           <p style={{ marginTop: 6 }}>Founder-only view. URL: nodice.bar/worldcup · Access code: 888999.</p>
         </div>
       </div>
