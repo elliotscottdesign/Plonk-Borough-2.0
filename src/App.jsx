@@ -19,6 +19,7 @@ import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
 import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 import WorldCupPage from './worldcup/WorldCupPage.jsx'
+import WorldCupBookings from './worldcup/WorldCupBookings.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -59,6 +60,13 @@ const isIPLicencePath = () =>
 const isWorldCupPath = () =>
   typeof window !== 'undefined' &&
   /^\/worldcup\/?$/.test(window.location.pathname)
+
+// Public customer-facing World Cup bookings holding page. Note the hyphen:
+// /world-cup is the PUBLIC page; /worldcup (no hyphen) is the gated founder
+// planning sheet handled separately below.
+const isWorldCupBookingsPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/world-cup\/?$/.test(window.location.pathname)
 
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
@@ -118,6 +126,10 @@ export default function App() {
   // Internal templates — unlinked from the public site but reachable
   // by direct URL so the founder can preview + download legal drafts.
   if (isIPLicencePath()) return <IPLicenceTemplate />
+
+  // Public World Cup bookings holding page — no gate, customer-facing.
+  // Returned before the Landing fallback so /world-cup resolves to it.
+  if (isWorldCupBookingsPath()) return <WorldCupBookings />
 
 
   // Public landing page — served at the root. No password gate.
