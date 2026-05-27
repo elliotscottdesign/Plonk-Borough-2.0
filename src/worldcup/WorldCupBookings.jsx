@@ -43,7 +43,7 @@ export default function WorldCupBookings() {
     const prevTitle = document.title
     document.body.style.background = BG
     document.body.style.color      = WHITE
-    document.title = 'No Dice Borough — World Cup 2026 Bookings'
+    document.title = 'No Dice London Fields — World Cup 2026 Bookings'
 
     const robots = document.createElement('meta')
     robots.name = 'robots'
@@ -71,7 +71,7 @@ export default function WorldCupBookings() {
           />
 
           <div style={{ fontSize: 11, letterSpacing: '0.3em', textTransform: 'uppercase', color: MUTED, marginBottom: 18 }}>
-            No Dice Borough · Borough Market
+            No Dice · In the Heart of London Fields
           </div>
 
           <h1 style={{
@@ -91,9 +91,9 @@ export default function WorldCupBookings() {
           </div>
 
           <p style={{ maxWidth: 540, margin: '24px auto 30px', fontSize: 15, lineHeight: 1.65, color: MUTED }}>
-            Every match, live on the big screens — in the heart of Borough Market. Reserve a
-            table, book a package, or grab a spot for the nights that matter. Online bookings
-            open soon.
+            Every match, live on big screens indoors and out — in the Heart of London Fields.
+            Reserve a table, book a package, or grab a spot for the nights that matter. Online
+            bookings open soon.
           </p>
 
           {/* Status pill */}
