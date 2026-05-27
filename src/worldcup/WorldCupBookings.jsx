@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { TOURNAMENT, PACKAGES, COMMUNITIES } from './data.js'
+import { TOURNAMENT, PACKAGES } from './data.js'
 
 // Public, customer-facing World Cup 2026 bookings HOLDING page.
 // Served at nodice.bar/world-cup (no gate — see App.jsx). This is the
@@ -22,7 +22,6 @@ const FOUNDER_EMAIL   = 'elliotscottdesign@gmail.com'
 
 const BG      = '#000000'
 const PANEL   = '#101014'
-const PANEL_2 = '#17171F'
 const RED     = '#DA1B33'   // No Dice brand red (sampled from the wordmark)
 const CREAM   = '#F5F0E8'
 const WHITE   = '#FFFFFF'
@@ -157,17 +156,6 @@ export default function WorldCupBookings() {
           </div>
         </section>
 
-        {/* ─── Community nights ───────────────────────────────────────── */}
-        <section style={{ padding: '52px 0', borderBottom: `1px solid ${LINE}` }}>
-          <SectionHeading kicker="The atmosphere" title="Community nights" />
-          <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, maxWidth: 560, marginTop: 12 }}>
-            We're throwing the party for every footballing nation in Borough. Find your people.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16, marginTop: 28 }}>
-            {COMMUNITIES.map(c => <CommunityCard key={c.id} c={c} />)}
-          </div>
-        </section>
-
         {/* ─── Closing CTA ────────────────────────────────────────────── */}
         <section style={{ padding: '60px 0', textAlign: 'center' }}>
           <h2 className="serif" style={{ fontSize: 'clamp(1.8rem, 5vw, 2.6rem)', color: WHITE, margin: '0 0 12px' }}>
@@ -235,33 +223,6 @@ function PackageCard({ p }) {
       <div style={{ fontSize: 10, color: FAINT, letterSpacing: '0.16em', textTransform: 'uppercase', paddingTop: 4 }}>
         Booking opens soon
       </div>
-    </div>
-  )
-}
-
-// ─── Community card ────────────────────────────────────────────────────
-function CommunityCard({ c }) {
-  return (
-    <div style={{
-      background: PANEL_2, border: `1px solid ${LINE}`, borderRadius: 14,
-      padding: 20, display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span style={{ fontSize: 30, lineHeight: 1 }}>{c.flag}</span>
-        <div className="serif" style={{ fontSize: 19, color: WHITE }}>{c.name}</div>
-      </div>
-      <div style={{ fontSize: 13.5, color: CREAM, lineHeight: 1.55, fontStyle: 'italic' }}>{c.hook}</div>
-      <CommunityRow label="Drinks" value={c.drinks} />
-      <CommunityRow label="Food" value={c.food} />
-    </div>
-  )
-}
-
-function CommunityRow({ label, value }) {
-  return (
-    <div>
-      <div style={{ fontSize: 9.5, color: FAINT, letterSpacing: '0.16em', textTransform: 'uppercase', marginBottom: 3 }}>{label}</div>
-      <div style={{ fontSize: 13, color: MUTED, lineHeight: 1.5 }}>{value}</div>
     </div>
   )
 }
