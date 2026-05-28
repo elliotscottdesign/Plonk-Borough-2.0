@@ -471,7 +471,7 @@ export default function WorldCupPage() {
       <div style={{ borderBottom: `1px solid ${GOLD_D}`, padding: '20px 32px', background: INK_2 }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
           <div>
-            <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>No Dice Borough · Planning</div>
+            <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>No Dice London Fields · Planning</div>
             <div className="serif" style={{ fontSize: 36, color: GOLD, lineHeight: 1 }}>World Cup 2026</div>
             <div style={{ fontSize: 13, color: CREAM_D, marginTop: 6 }}>{flagify(TOURNAMENT.host)} · 11 Jun – 19 Jul 2026 · {TOURNAMENT.teams} teams</div>
           </div>
@@ -492,7 +492,7 @@ export default function WorldCupPage() {
               <Row label="Time-zone gift" value={flagify("Host = USA / Canada / Mexico. UK gets evening kick-offs. Three slots: early (17:00–18:00), prime (20:00–21:00), late (23:00–00:00), graveyard (02:00+).")} />
               <Row label="Free-to-air advantage" value={flagify("BBC + ITV share UK rights. NO Sky / TNT subscription needed. Budget that saving on screens, sound, decor.")} />
               <Row label="Tournament arc" value={flagify("Group stage builds awareness. Knockouts peak. Treat every England game as a ticketed event, not a booking.")} />
-              <Row label="Communities" value={`${ENG_FLAG} England (sell-out target every match) · 🇧🇷 Brazilian (Borough/Bermondsey draw) · 🇪🇸 Spanish · 🇦🇺 Australian (late-night)`} />
+              <Row label="Communities" value={`${ENG_FLAG} England (sell-out target every match) · 🇧🇷 Brazilian (London-wide community draw) · 🇪🇸 Spanish · 🇦🇺 Australian (late-night)`} />
               <Row label="Booking model" value={flagify("Pre-paid deposits only for England + knockouts. £25/head minimum spend on standard tables. Walk-in standing-room £10 door on sell-outs. Bookings via OWN system (not Design My Night).")} />
               <Row label="Capacity" value={flagify("10 tables × ~6 covers = 60 seated. Add ~30 standing for England / knockout overflow if SIA can manage the door. Hard cap defined by fire safety.")} />
             </div>

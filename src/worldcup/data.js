@@ -18,9 +18,11 @@ export const TOURNAMENT = {
   estCovers: 60,
 }
 
-// Communities we cater to in London. Borough Market sits in a part of
-// SE1 with strong Brazilian + Spanish footfall, plus the usual English /
-// Aussie expat presence.
+// Communities we cater to in London. The London Fields venue (E8) draws
+// the local Hackney/East-London crowd plus England's wider football
+// community; London's Brazilian community is concentrated further south
+// (Borough/Bermondsey) but will travel for the big games. Aussie + Spanish
+// expat presence pulls from across the city.
 export const COMMUNITIES = [
   {
     id: 'eng',
@@ -81,14 +83,14 @@ export const LICENSING = [
     status: 'check',
     cost: '—',
     detail: 'Your operating schedule must permit "exhibition of a film" (covers televised matches) and "performance of recorded music" (covers pre / post-match playlists). Most pub licences include both — check yours.',
-    action: 'Pull the licence from your records and re-read the operating schedule. If missing, file a minor variation with Southwark Council (£89, 28-day consultation).',
+    action: 'Pull the licence from your records and re-read the operating schedule. If missing, file a minor variation with Hackney Council (£89, 28-day consultation).',
   },
   {
     id: 'ten',
     title: 'Temporary Event Notices (TENs)',
     status: 'file-now',
     cost: '£21 each · max 15/yr',
-    detail: 'A TEN extends licensable activities beyond your premises licence — late hours, higher capacity, anything not normally permitted. 10 working-days minimum notice. Submit via Southwark Council\'s licensing portal.',
+    detail: 'A TEN extends licensable activities beyond your premises licence — late hours, higher capacity, anything not normally permitted. 10 working-days minimum notice. Submit via Hackney Council\'s licensing portal.',
     action: 'See per-date schedule below for which dates need a TEN. File the batch by end of May 2026 to cover late kick-offs (post-23:00 finishes).',
   },
   {
@@ -100,12 +102,12 @@ export const LICENSING = [
     action: 'No action — just confirm the annual standing order is up to date.',
   },
   {
-    id: 'borough-trust',
-    title: 'Borough Market Trustees permission',
+    id: 'hackney-outside-trade',
+    title: 'Hackney Council pavement / outside-trade licence',
     status: 'check',
     cost: '—',
-    detail: 'If trade spills onto Trustees-owned land (outside seating, A-boards) you need their approval in addition to Southwark Council. Tournament crowds will spill — get this in writing now.',
-    action: 'Email the Trustees this week with proposed outside trade plan + match dates.',
+    detail: 'If trade spills onto the pavement on Mentmore Terrace (outside seating, A-boards, queue management) you need a pavement licence from Hackney Council in addition to the premises licence. Tournament crowds will spill — get this in writing now. Outdoor screens are explicitly licensable too, so flag those on the application.',
+    action: 'Apply for / confirm the Hackney pavement licence covering all match dates by end of May 2026.',
   },
   {
     id: 'capacity',
@@ -210,9 +212,9 @@ export const SCHEDULE = [
     staff: { bar: 4, floor: 3, door: 2, notes: 'First proper Saturday of tournament + Brazil opener — busy. SIA on door from 18:00.' },
     packages: ['selecao', 'standard'],
     drinks: 'Caipirinha jugs prepped at scale · Brahma if sourced, else Estrella · samba playlist · beer buckets',
-    community: '🇧🇷 Brazil — opening night for the Brazilian Borough/Bermondsey community',
+    community: '🇧🇷 Brazil — opening night for the wider London Brazilian community (Borough/Bermondsey core travels in)',
     regulars: 'Saturday brunch service ends 16:00 to flip room for matches',
-    actions: ['Pre-batch caipirinha mix from 14:00', 'Brazilian-community outreach (Instagram, Olá Londres)', 'Sandwich-board outside Borough Market with day fixtures'],
+    actions: ['Pre-batch caipirinha mix from 14:00', 'Brazilian-community outreach (Instagram, Olá Londres)', 'Sandwich-board on Mentmore Terrace with day fixtures'],
   },
   {
     date: '2026-06-14', weekday: 'Sunday', phase: 'Group stage — Day 4',
@@ -314,12 +316,12 @@ export const SCHEDULE = [
     ],
     intensity: intensity('high'),
     ten: { required: true, reason: 'Saturday late match', cost: '£21' },
-    staff: { bar: 4, floor: 3, door: 2, notes: 'Big Saturday — Borough Market full. Walk-in conversion key.' },
+    staff: { bar: 4, floor: 3, door: 2, notes: 'Big Saturday — London Fields heaving in summer. Walk-in conversion key.' },
     packages: ['standard', 'selecao', 'la-roja'],
     drinks: 'Cocktail jugs across the board',
     community: 'Mixed — depends on fixtures',
     regulars: 'Saturday brunch ends 15:00',
-    actions: ['Borough Market footfall conversion plan — sandwich-board + greeter from 14:00'],
+    actions: ['London Fields footfall conversion plan — sandwich-board + greeter on Mentmore Terrace from 14:00'],
   },
   {
     date: '2026-06-21', weekday: 'Sunday', phase: 'Group stage — Day 11',
@@ -737,7 +739,7 @@ export const SCHEDULE = [
     drinks: 'Captain\'s Table at every table · Final-whistle bottle of champagne included in package · half-time shot round',
     community: 'Depends on finalists — plan A: England · plan B: Brazil/Spain · plan C: neutrals + South American',
     regulars: 'Roast cancelled or runs 12:00–15:00 only',
-    actions: ['Ticketed Final package live 14 days out (5 July)', 'Coordinate closing time with Trustees + neighbours', 'TfL taxi-rank confirmation', 'Press pack — invite local press to cover the room', 'Post-match clean crew booked for 02:00'],
+    actions: ['Ticketed Final package live 14 days out (5 July)', 'Coordinate closing time with Hackney Council + neighbours', 'TfL taxi-rank confirmation', 'Press pack — invite local press to cover the room', 'Post-match clean crew booked for 02:00'],
   },
 ]
 
