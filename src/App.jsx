@@ -15,6 +15,8 @@ import InvestmentCase from './slides/InvestmentCase.jsx'
 import GroupStructure from './slides/GroupStructure.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
+import SiteSplash from './site/SiteSplash.jsx'
+import SiteHome from './site/SiteHome.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
 import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
@@ -68,6 +70,18 @@ const isWorldCupBookingsPath = () =>
   typeof window !== 'undefined' &&
   /^\/world-cup\/?$/.test(window.location.pathname)
 
+// New No Dice bar website — hidden behind the public Landing during dev.
+//   /site          → Schmuck-style splash (logo + portrait video + ENTER)
+//   /site/inside   → All-My-Friends-style main page (sections, bookings)
+// Type the URL directly to preview; not linked from the public landing.
+const isSiteSplashPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/site\/?$/.test(window.location.pathname)
+
+const isSiteInsidePath = () =>
+  typeof window !== 'undefined' &&
+  /^\/site\/inside\/?$/.test(window.location.pathname)
+
 const SLIDE_DEFS = [
   { id:'cover',      labelKey:'cover',     Component: Cover },
   { id:'summary',    labelKey:'summary',   Component: InvestmentSummary },
@@ -115,6 +129,19 @@ export default function App() {
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
 
+  // Path-change subscription. App.jsx reads location.pathname inline on
+  // each render to decide which screen to mount; without a popstate
+  // listener, history.pushState() inside child components (e.g. the new
+  // SiteSplash → SiteHome handoff) would change the URL silently without
+  // re-rendering. The counter is a deliberate no-op state — its only job
+  // is to trigger React to re-evaluate the path-based dispatch below.
+  const [, setPathTick] = useState(0)
+  useEffect(() => {
+    const onPath = () => setPathTick(n => n + 1)
+    window.addEventListener('popstate', onPath)
+    return () => window.removeEventListener('popstate', onPath)
+  }, [])
+
   // Top tabs depend on plonk access. Tabs the user can't see are stripped
   // from the array so the "plonk" key can never become the active tab.
   const topTabKeys = plonkAccess ? TOP_TAB_KEYS_PLONK : TOP_TAB_KEYS_BASE
@@ -131,13 +158,19 @@ export default function App() {
   // Returned before the Landing fallback so /world-cup resolves to it.
   if (isWorldCupBookingsPath()) return <WorldCupBookings />
 
+  // New No Dice bar website — both screens served public, no gate.
+  // /site = splash, /site/inside = the full site. These sit BEFORE the
+  // Landing fallback so the path dispatcher picks them up.
+  if (isSiteSplashPath()) return <SiteSplash />
+  if (isSiteInsidePath()) return <SiteHome />
 
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.
   // Any unrecognised path (incl. the SPA fallback) also lands here so
   // the public site has a clean entry point. /worldcup is an exception
-  // — gated below, founder-only planning sheet.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath())) {
+  // — gated below, founder-only planning sheet. /site is also excluded
+  // because it's a public dev preview of the new bar website.
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath())) {
     return <Landing />
   }
 
