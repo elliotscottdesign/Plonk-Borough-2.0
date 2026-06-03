@@ -1,22 +1,22 @@
 import React, { useState, useEffect } from 'react'
-import { TOURNAMENT, PACKAGES } from './data.js'
+import { TOURNAMENT } from './data.js'
 
-// Public, customer-facing World Cup 2026 bookings HOLDING page.
-// Served at nodice.bar/world-cup (no gate — see App.jsx). This is the
-// "bookings opening soon" page: it previews the packages + community
-// nights, foreshadows the booking flow, and captures emails for the
-// waitlist. The live tickets/slots/availability/Stripe flow (mirroring
-// the Plonk Golf booking system) lands here later — this page is the
-// placeholder until then.
+// Public, customer-facing World Cup 2026 bookings page.
+// Served at nodice.bar/world-cup (no gate — see App.jsx). Lets visitors
+// pick an England match (group stage through to the Final), choose a
+// table size (1–4 people), and pre-register their interest. The actual
+// reservation-fee charge is taken via Stripe; that plug-in is still in
+// development, so until it lands the "Reserve table" button captures
+// match + party-size + email via the existing waitlist Apps Script so
+// the founder sees per-match demand and can email the secure Stripe
+// link the moment it goes live.
 //
 // Distinct from src/worldcup/WorldCupPage.jsx, which is the FOUNDER-only
-// planning sheet at /worldcup (888999-gated). This page deliberately
-// shows only customer-safe copy — no TENs, staffing, licensing or
-// internal sell-out targets.
+// planning sheet at /worldcup (888999-gated).
 
-// Reuses the same Apps Script endpoint as the homepage signup form
-// (infra/signup-apps-script.gs). World Cup signups are tagged in the
-// `ref` field so the founder can tell them apart in the Signups sheet.
+// Reuses the homepage signup Apps Script endpoint
+// (infra/signup-apps-script.gs). Reservations are tagged in the `ref`
+// field so the founder can tell them apart in the Signups sheet.
 const SIGNUP_SYNC_URL = 'https://script.google.com/macros/s/AKfycbwLehtnnnSy3e8H7_9Vxs7VIHeQGD4_LV6-G7h8ZnZA8tCCg2m2h7o86UoyNSB7XD7C/exec'
 const FOUNDER_EMAIL   = 'elliotscottdesign@gmail.com'
 
@@ -29,9 +29,80 @@ const MUTED   = 'rgba(255,255,255,0.60)'
 const FAINT   = 'rgba(255,255,255,0.40)'
 const LINE    = 'rgba(255,255,255,0.12)'
 
+// Every England match that can be booked — three confirmed group games
+// plus four knockout rounds and the Final. Knockouts are conditional on
+// progression; pre-bookings work as transferable deposits per the
+// founder strategy (so listing them is correct).
+const ENGLAND_MATCHES = [
+  {
+    id: 'eng-cro', date: '2026-06-17', day: 'Wed',
+    title: 'England v Croatia', phase: 'Group L',
+    kickoff: '21:00 BST', arrival: '20:00 BST',
+    venue: 'AT&T Stadium, Arlington',
+    confirmed: true,
+  },
+  {
+    id: 'eng-gha', date: '2026-06-23', day: 'Tue',
+    title: 'England v Ghana', phase: 'Group L',
+    kickoff: '21:00 BST', arrival: '20:00 BST',
+    venue: 'Gillette Stadium, Boston',
+    confirmed: true,
+  },
+  {
+    id: 'eng-pan', date: '2026-06-27', day: 'Sat',
+    title: 'England v Panama', phase: 'Group L',
+    kickoff: '22:00 BST', arrival: '21:00 BST',
+    venue: 'MetLife Stadium, New Jersey',
+    confirmed: true,
+  },
+  {
+    id: 'eng-r32', date: '2026-07-01', day: 'Wed',
+    title: 'England — Round of 32', phase: 'Knockout · R32',
+    kickoff: '17:00 BST', arrival: '16:00 BST',
+    venue: 'Mercedes-Benz Stadium, Atlanta',
+    confirmed: false, note: 'If England top Group L',
+  },
+  {
+    id: 'eng-r16', date: '2026-07-05', day: 'Sun',
+    title: 'England — Round of 16', phase: 'Knockout · R16',
+    kickoff: '01:00 BST', arrival: '00:00 BST (Sat night)',
+    venue: 'Estadio Azteca, Mexico City',
+    confirmed: false, note: 'Overnight kick-off — Sat 4 Jul night → Sun 5 Jul',
+  },
+  {
+    id: 'eng-qf', date: '2026-07-11', day: 'Sat',
+    title: 'England — Quarter-final', phase: 'Knockout · QF',
+    kickoff: '22:00 BST', arrival: '21:00 BST',
+    venue: 'Hard Rock Stadium, Miami',
+    confirmed: false, note: 'Possible v Brazil — the blockbuster',
+    marquee: true,
+  },
+  {
+    id: 'eng-sf', date: '2026-07-15', day: 'Wed',
+    title: 'England — Semi-final', phase: 'Knockout · SF',
+    kickoff: 'Late BST (TBC)', arrival: '1 hour before',
+    venue: 'Mercedes-Benz Stadium, Atlanta',
+    confirmed: false, note: 'If England progress',
+  },
+  {
+    id: 'eng-fin', date: '2026-07-19', day: 'Sun',
+    title: 'World Cup Final', phase: 'Final',
+    kickoff: '20:00 BST', arrival: '19:00 BST',
+    venue: 'MetLife Stadium, New Jersey',
+    confirmed: true, note: 'England in the Final = the night of all nights',
+  },
+]
+
 function formatDate(iso) {
   const d = new Date(iso + 'T12:00:00Z')
   return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', timeZone: 'UTC' })
+}
+function formatDayMonth(iso) {
+  const d = new Date(iso + 'T12:00:00Z')
+  return {
+    day: d.getUTCDate(),
+    month: d.toLocaleString('en-GB', { month: 'short', timeZone: 'UTC' }),
+  }
 }
 
 export default function WorldCupBookings() {
@@ -91,9 +162,8 @@ export default function WorldCupBookings() {
           </div>
 
           <p style={{ maxWidth: 540, margin: '24px auto 30px', fontSize: 15, lineHeight: 1.65, color: MUTED }}>
-            Every match, live on big screens indoors and out — in the Heart of London Fields.
-            Reserve a table, book a package, or grab a spot for the nights that matter. Online
-            bookings open soon.
+            Every England match, live on big screens indoors and out — in the Heart of London
+            Fields. Pick the match, lock in your table for 1–4, arrive an hour before kick-off.
           </p>
 
           {/* Status pill */}
@@ -121,40 +191,14 @@ export default function WorldCupBookings() {
             <h2 className="serif" style={{ fontSize: 28, color: WHITE, margin: '0 0 8px' }}>Be first to book</h2>
             <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, margin: '0 0 24px' }}>
               England nights and the knockouts will sell out. Join the list and we'll email
-              you the moment tables and packages go live — before they're announced anywhere else.
+              you the moment online payment goes live — before it's announced anywhere else.
             </p>
             <WaitlistForm />
           </div>
         </section>
 
-        {/* ─── How it will work ───────────────────────────────────────── */}
-        <section style={{ padding: '52px 0', borderBottom: `1px solid ${LINE}` }}>
-          <SectionHeading kicker="The plan" title="How booking will work" />
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 18, marginTop: 28 }}>
-            {[
-              { n: '01', t: 'Pick your match', d: 'Choose the fixture and kick-off slot you want to watch — from group-stage nights to the Final.' },
-              { n: '02', t: 'Choose a table or package', d: 'Reserve a table for your group or upgrade to a match package with drinks and sharing food included.' },
-              { n: '03', t: 'Secure it online', d: 'Pay securely to lock in your spot. Instant confirmation — no phone calls, no waiting.' },
-            ].map(step => (
-              <div key={step.n} style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 12, padding: 22 }}>
-                <div style={{ fontFamily: "'Bebas Neue', sans-serif", fontSize: 34, color: RED, lineHeight: 1 }}>{step.n}</div>
-                <div className="serif" style={{ fontSize: 19, color: WHITE, margin: '8px 0 6px' }}>{step.t}</div>
-                <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.6 }}>{step.d}</div>
-              </div>
-            ))}
-          </div>
-        </section>
-
-        {/* ─── Packages ───────────────────────────────────────────────── */}
-        <section style={{ padding: '52px 0', borderBottom: `1px solid ${LINE}` }}>
-          <SectionHeading kicker="The menu" title="Match-night packages" />
-          <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, maxWidth: 560, marginTop: 12 }}>
-            A taste of what you'll be able to book. Final pricing and availability confirmed when bookings open.
-          </p>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: 16, marginTop: 28 }}>
-            {PACKAGES.map(p => <PackageCard key={p.id} p={p} />)}
-          </div>
-        </section>
+        {/* ─── England matches ───────────────────────────────────────── */}
+        <EnglandMatchesSection />
 
         {/* ─── Closing CTA ────────────────────────────────────────────── */}
         <section style={{ padding: '60px 0', textAlign: 'center' }}>
@@ -162,18 +206,22 @@ export default function WorldCupBookings() {
             Don't miss kick-off
           </h2>
           <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, maxWidth: 480, margin: '0 auto 28px' }}>
-            Bookings open soon. Get on the list now so you're ready when tables go live.
+            Pick your England match and lock in a table for 1–4.
           </p>
           <a
-            href="#waitlist-top"
-            onClick={(e) => { e.preventDefault(); window.scrollTo({ top: 0, behavior: 'smooth' }) }}
+            href="#england-matches"
+            onClick={(e) => {
+              e.preventDefault()
+              const el = document.getElementById('england-matches')
+              if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+            }}
             style={{
               display: 'inline-block', padding: '15px 34px', borderRadius: 999,
               background: RED, color: WHITE, textDecoration: 'none',
               fontSize: 13, fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase',
             }}
           >
-            Join the waitlist
+            Choose a match
           </a>
         </section>
       </main>
@@ -205,33 +253,250 @@ function SectionHeading({ kicker, title }) {
   )
 }
 
-// ─── Package card ──────────────────────────────────────────────────────
-function PackageCard({ p }) {
+// ─── England matches section ───────────────────────────────────────────
+// Selectable list of every bookable England fixture, plus a reservation
+// panel (party size + email) that posts to the same signup endpoint with
+// a per-match tag. Replaces the Stripe checkout step until the payment
+// plug-in is built.
+function EnglandMatchesSection() {
+  const [selectedId, setSelectedId] = useState(null)
+  const [guests, setGuests]         = useState(2)
+  const [email, setEmail]           = useState('')
+  const [state, setState]           = useState('idle')   // 'idle' | 'sending' | 'ok' | 'err'
+  const [error, setError]           = useState('')
+
+  const selected = ENGLAND_MATCHES.find(m => m.id === selectedId) || null
+  const isValidEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+
+  const submit = async (e) => {
+    e.preventDefault()
+    if (!selected || !isValidEmail || state === 'sending') return
+    setState('sending'); setError('')
+
+    const refTag = `worldcup-reserve · ${selected.title} · ${selected.date} · ${guests} guest${guests === 1 ? '' : 's'}`
+
+    try {
+      const res = await fetch(SIGNUP_SYNC_URL, {
+        method: 'POST',
+        mode: 'cors',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify({
+          email: email.trim(),
+          ts: new Date().toISOString(),
+          ua: navigator.userAgent,
+          ref: refTag,
+        }),
+      })
+      if (!res.ok) throw new Error('HTTP ' + res.status)
+      setState('ok')
+    } catch (err) {
+      setState('err'); setError(err.message || 'Network error')
+    }
+  }
+
   return (
-    <div style={{
-      background: PANEL, border: `1px solid ${LINE}`, borderRadius: 14,
-      padding: 22, display: 'flex', flexDirection: 'column', gap: 12,
-    }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 12 }}>
-        <div className="serif" style={{ fontSize: 21, color: WHITE, lineHeight: 1.1 }}>{p.name}</div>
-        <div style={{ fontSize: 16, color: RED, whiteSpace: 'nowrap', fontWeight: 600 }}>{p.price}</div>
+    <section id="england-matches" style={{ padding: '52px 0', borderBottom: `1px solid ${LINE}` }}>
+      <SectionHeading kicker="Book your table" title="England matches" />
+      <p style={{ fontSize: 14, color: MUTED, lineHeight: 1.6, maxWidth: 640, marginTop: 12 }}>
+        Pick the match you want a table for — group stage through to the Final. Knockout
+        rounds are listed in case England progress; pre-bookings transfer if they don't.
+      </p>
+
+      {/* Policy strip */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
+        gap: 12, marginTop: 22, marginBottom: 28,
+      }}>
+        <PolicyCard label="Table size" value="1–4 people" />
+        <PolicyCard label="Arrival" value="1 hour before kick-off" />
+        <PolicyCard label="Late / no-show" value="Table released 1 hour before the match" />
       </div>
-      <div style={{ fontSize: 10.5, color: FAINT, letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-        {p.forMatch}{p.covers && p.covers !== '—' ? ` · seats ${p.covers}` : ''}
+
+      {/* Match list */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {ENGLAND_MATCHES.map(m => (
+          <MatchListItem key={m.id} m={m} selected={m.id === selectedId} onSelect={() => setSelectedId(m.id)} />
+        ))}
       </div>
-      <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.6, flex: 1 }}>{p.includes}</div>
-      <div style={{ fontSize: 10, color: FAINT, letterSpacing: '0.16em', textTransform: 'uppercase', paddingTop: 4 }}>
-        Booking opens soon
+
+      {/* Reservation panel */}
+      <div style={{
+        marginTop: 28, background: PANEL,
+        border: `1px solid ${selected ? RED : LINE}`,
+        borderRadius: 14, padding: '24px 22px',
+      }}>
+        {!selected && (
+          <div style={{ textAlign: 'center', color: MUTED, fontSize: 13.5, lineHeight: 1.6 }}>
+            Pick a match above to reserve your table.
+          </div>
+        )}
+
+        {selected && state !== 'ok' && (
+          <form onSubmit={submit}>
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>You're reserving</div>
+              <div className="serif" style={{ fontSize: 22, color: WHITE, lineHeight: 1.15 }}>{selected.title}</div>
+              <div style={{ fontSize: 12.5, color: MUTED, marginTop: 6, lineHeight: 1.55 }}>
+                {formatDate(selected.date)} · kick-off {selected.kickoff} · arrive {selected.arrival}
+              </div>
+            </div>
+
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: FAINT, marginBottom: 8 }}>Guests (1–4)</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[1, 2, 3, 4].map(n => (
+                  <button
+                    key={n}
+                    type="button"
+                    onClick={() => setGuests(n)}
+                    style={{
+                      flex: '1 1 0', padding: '12px 0', borderRadius: 8,
+                      background: guests === n ? RED : 'rgba(255,255,255,0.05)',
+                      border: `1px solid ${guests === n ? RED : LINE}`,
+                      color: WHITE, cursor: 'pointer',
+                      fontFamily: 'inherit', fontSize: 15, fontWeight: guests === n ? 700 : 400,
+                      transition: 'background 0.15s',
+                    }}
+                  >{n}</button>
+                ))}
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input
+                type="email" value={email} onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@email.com" autoComplete="email" required
+                style={{
+                  flex: '1 1 240px', minWidth: 0, padding: '14px 18px', fontSize: 15, borderRadius: 8,
+                  background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: WHITE,
+                  outline: 'none', fontFamily: 'inherit', letterSpacing: '0.02em',
+                }}
+              />
+              <button
+                type="submit"
+                disabled={!isValidEmail || state === 'sending'}
+                style={{
+                  padding: '14px 26px', fontSize: 13, borderRadius: 8,
+                  background: isValidEmail ? RED : 'rgba(218,27,51,0.45)', color: WHITE, border: 'none',
+                  cursor: isValidEmail ? 'pointer' : 'default', fontWeight: 700, letterSpacing: '0.18em',
+                  textTransform: 'uppercase', fontFamily: 'inherit', transition: 'background 0.15s',
+                }}
+              >
+                {state === 'sending' ? 'Sending…' : 'Reserve table'}
+              </button>
+            </div>
+
+            {state === 'err' && (
+              <div style={{ marginTop: 12, fontSize: 12, color: RED }}>
+                Couldn't send — {error}. Try again, or email {FOUNDER_EMAIL}.
+              </div>
+            )}
+
+            <div style={{ marginTop: 14, fontSize: 11, color: FAINT, lineHeight: 1.55 }}>
+              Secure online payment (Stripe) is being built. Reserving now locks in your match
+              and party size — we'll email you the secure payment link the moment Stripe goes
+              live, and you confirm there to hold the table.
+            </div>
+          </form>
+        )}
+
+        {selected && state === 'ok' && (
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: RED, marginBottom: 8, fontWeight: 700 }}>
+              You're in
+            </div>
+            <div className="serif" style={{ fontSize: 22, color: WHITE, marginBottom: 6 }}>{selected.title}</div>
+            <div style={{ fontSize: 13.5, color: MUTED, lineHeight: 1.6 }}>
+              {formatDate(selected.date)} · {guests} guest{guests === 1 ? '' : 's'} · arrive {selected.arrival}.
+            </div>
+            <div style={{ marginTop: 14, fontSize: 12.5, color: CREAM, lineHeight: 1.6 }}>
+              We'll email you the secure payment link the moment Stripe checkout goes live —
+              confirm there to lock in your table. Tables are released 1 hour before kick-off if
+              not confirmed.
+            </div>
+          </div>
+        )}
       </div>
+    </section>
+  )
+}
+
+// ─── Policy strip card ─────────────────────────────────────────────────
+function PolicyCard({ label, value }) {
+  return (
+    <div style={{ background: PANEL, border: `1px solid ${LINE}`, borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: 14, color: WHITE, lineHeight: 1.4 }}>{value}</div>
     </div>
   )
 }
 
+// ─── Match list item (clickable row) ───────────────────────────────────
+function MatchListItem({ m, selected, onSelect }) {
+  const d = formatDayMonth(m.date)
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      style={{
+        display: 'grid',
+        gridTemplateColumns: '64px 1fr auto 24px',
+        gap: 16, alignItems: 'center',
+        padding: '16px 18px', textAlign: 'left',
+        background: selected ? 'rgba(218,27,51,0.08)' : PANEL,
+        border: `1px solid ${selected ? RED : LINE}`,
+        borderRadius: 12, color: WHITE, cursor: 'pointer',
+        fontFamily: 'inherit', transition: 'background 0.15s, border-color 0.15s',
+      }}
+    >
+      {/* Date */}
+      <div>
+        <div className="serif" style={{ fontSize: 24, color: m.marquee ? RED : WHITE, lineHeight: 1 }}>{d.day}</div>
+        <div style={{ fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: FAINT, marginTop: 4 }}>{d.month} · {m.day}</div>
+      </div>
+
+      {/* Title + phase + note */}
+      <div style={{ minWidth: 0 }}>
+        <div className="serif" style={{ fontSize: 17, color: WHITE, lineHeight: 1.2 }}>{m.title}</div>
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 6 }}>
+          <span style={{
+            fontSize: 9.5, letterSpacing: '0.16em', textTransform: 'uppercase',
+            color: m.confirmed ? CREAM : RED,
+            padding: '3px 7px', borderRadius: 4,
+            background: m.confirmed ? 'rgba(255,255,255,0.06)' : 'rgba(218,27,51,0.12)',
+            whiteSpace: 'nowrap',
+          }}>{m.phase}</span>
+          {m.note && <span style={{ fontSize: 11.5, color: MUTED, lineHeight: 1.4 }}>{m.note}</span>}
+        </div>
+      </div>
+
+      {/* Kick-off + arrival */}
+      <div style={{ textAlign: 'right' }}>
+        <div style={{ fontSize: 12, color: WHITE, fontWeight: 600, whiteSpace: 'nowrap' }}>Kick-off {m.kickoff}</div>
+        <div style={{ fontSize: 11, color: MUTED, marginTop: 3, whiteSpace: 'nowrap' }}>Arrive {m.arrival}</div>
+      </div>
+
+      {/* Selection indicator */}
+      <div style={{
+        width: 22, height: 22, borderRadius: '50%',
+        border: `1.5px solid ${selected ? RED : LINE}`,
+        background: selected ? RED : 'transparent',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+      }}>
+        {selected && (
+          <svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true">
+            <path d="M2 6.5 L5 9 L10 3.5" stroke="white" strokeWidth="1.8" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        )}
+      </div>
+    </button>
+  )
+}
+
 // ─── Waitlist form ─────────────────────────────────────────────────────
-// Mirrors the homepage signup form (Landing.jsx) but tags submissions
-// with a worldcup marker in the `ref` field so the founder can filter
-// them in the shared Signups sheet. Falls back to a mailto: if the
-// endpoint is unset or errors.
+// General "join the list" form for users who don't want to pick a match
+// yet. Tagged worldcup-bookings in the ref so it's distinguishable from
+// per-match reservations (worldcup-reserve) in the Signups sheet.
 function WaitlistForm() {
   const [email, setEmail] = useState('')
   const [state, setState] = useState('idle')   // 'idle' | 'sending' | 'ok' | 'err'
