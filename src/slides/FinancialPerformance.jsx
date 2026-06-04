@@ -10,6 +10,9 @@ import {
 import { formatCurrency, formatNumber } from '../i18n/format.js'
 import { useChartTooltip } from '../components/ChartTooltip.jsx'
 import BoroughTillSales2025 from '../tabs/BoroughTillSales2025.jsx'
+import TillSalesByCategory from '../tabs/TillSalesByCategory.jsx'
+import { META_2026 } from '../tabs/tillSalesMeta.jsx'
+import { BOROUGH_2026_TILL_SALES } from '../data/borough2026TillSales.js'
 
 // Named exports — imported by BusinessExplorer's 2026 Performance tab as the 2025
 // baseline for scenario-adjusted forecasts. `labelKey` points at
@@ -208,7 +211,8 @@ function TicketMonthlyStacked() {
 const SECTIONS = [
   { key: 'income',      labelKey: 'performance2025.income',          fallback: 'Income',       icon: '💰' },
   { key: 'outgoings',   labelKey: 'performance2025.costs',           fallback: 'Outgoings',    icon: '💸' },
-  { key: 'tillsales',   labelKey: null,                               fallback: 'Till Sales',   icon: '🧾' },
+  { key: 'tillsales',   labelKey: null,                               fallback: 'Till Sales · 2025', icon: '🧾' },
+  { key: 'tillsales2026', labelKey: null,                             fallback: 'Till Sales · 2026', icon: '🧾' },
   { key: 'discounts',   labelKey: null,                               fallback: 'Discounts',    icon: '🏷' },
   { key: 'tickets',     labelKey: 'performance2025.ticketBreakdown',  fallback: 'Ticket Sales', icon: '🎟' },
 ]
@@ -418,6 +422,7 @@ export default function FinancialPerformance() {
           )}
 
           {section === 'tillsales'  && <BoroughTillSales2025 section="till" />}
+          {section === 'tillsales2026' && <TillSalesByCategory data={BOROUGH_2026_TILL_SALES} meta={META_2026} />}
           {section === 'discounts' && <BoroughTillSales2025 section="discounts" />}
 
           {section === 'tickets' && (

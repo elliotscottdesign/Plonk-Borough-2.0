@@ -1,381 +1,155 @@
-// Borough 2025 till sales — aggregated from data/borough_2025_till_sales.csv
-// (Goodtill export, COMPLETED orders only, 3 Jan 2025 → 14 Sep 2025).
+// Borough till sales — 2025 (backfilled to full year).
 //
-// ⚠ DATA GAP: No till data from 15 Sep 2025 onwards. Borough migrated off
-// Goodtill to Lightspeed shortly after this date — Q4 2025 figures live in
-// Lightspeed reports, not in this dataset.
+// Jan 3 → 14 Sep 2025: Goodtill export (COMPLETED orders only).
+// 16 Sep → 31 Dec 2025: Lightspeed export (plonkgolfltd · London Bridge — the
+//   same physical venue, after the mid-Sep 2025 till migration). 15 Sep is the
+//   one missing day (the migration cut-over). September is now near-complete:
+//   Goodtill (1–14) + Lightspeed (16–30) combined into the one month bar.
 //
-// Categories are sorted descending by total revenue. `monthly` is a 9-element
-// array aligned to `months` (Jan … Sep). The Sep figure is partial — only
-// 14 days, hence the visual 'data ends here' treatment in the chart.
+// Goodtill figures are gross customer payments inc-VAT (after till discounts,
+// before refund/comp/restatement). Lightspeed figures are NET inc-VAT — every
+// till line netted together (sales minus the voids/comps/corrections that
+// reverse them) — i.e. the same "what came through the till" basis.
 //
-// Source CSV: 32,156 rows · 31,617 COMPLETED · £263,588 inc-VAT · 14,091
-// transactions (unique Sale IDs). 141 previously-blank Category cells were
-// filled per the cleanup playbook (38 by Product Name → Category lookup, 103
-// by MISC-by-order-context fallback).
+// For the Lightspeed period (Oct–Dec + the Sep tail) categories are derived
+// from the Lightspeed SKU product-type code, mapped onto the original 21
+// Goodtill categories so the full year reads on one taxonomy. Spirit / cocktail
+// sub-splits in that period are best-effort from item names.
+//
+// `monthly` is a 12-element array aligned to `months` (Jan … Dec).
 export const BOROUGH_2025_TILL_SALES = {
-  "totalRevenue": 263588,
-  "totalTxns": 14091,
-  "lastDate": "2025-09-14",
-  "months": [
-    "Jan",
-    "Feb",
-    "Mar",
-    "Apr",
-    "May",
-    "Jun",
-    "Jul",
-    "Aug",
-    "Sep"
-  ],
-  "monthlyTotals": [
-    25205,
-    32038,
-    32700,
-    29273,
-    31618,
-    27653,
-    31056,
-    38852,
-    15193
-  ],
+  "totalRevenue": 390479,
+  "totalTxns": 20821,
+  "lastDate": "2025-12-31",
+  "months": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  "monthlyTotals": [25205, 32038, 32700, 29273, 31618, 27653, 31056, 38852, 29922, 38047, 34562, 39552],
   "categories": [
     {
       "name": "BEER - DRAUGHT",
-      "total": 59356,
-      "qty": 8466,
-      "monthly": [
-        6124,
-        8102,
-        7256,
-        6723,
-        6770,
-        6850,
-        6504,
-        7136,
-        3892
-      ]
+      "total": 97264,
+      "qty": 18394,
+      "monthly": [6124, 8102, 7256, 6723, 6770, 6850, 6504, 7136, 7525, 10563, 9103, 14609]
     },
     {
       "name": "OTHER - GOLF",
-      "total": 59266,
-      "qty": 5324,
-      "monthly": [
-        4812,
-        5208,
-        6390,
-        5496,
-        6833,
-        6389,
-        8194,
-        12064,
-        3879
-      ]
+      "total": 84181,
+      "qty": 7549,
+      "monthly": [4812, 5208, 6390, 5496, 6833, 6389, 8194, 12064, 7234, 9453, 7047, 5061]
     },
     {
       "name": "COCKTAILS - HOUSE",
-      "total": 34654,
-      "qty": 2925,
-      "monthly": [
-        2247,
-        5274,
-        4542,
-        3795,
-        4187,
-        3334,
-        3575,
-        5732,
-        1968
-      ]
+      "total": 46337,
+      "qty": 3936,
+      "monthly": [2247, 5274, 4542, 3795, 4187, 3334, 3575, 5732, 4413, 4643, 3851, 744]
     },
     {
       "name": "OTHER - GOLF & GAMES",
-      "total": 26918,
-      "qty": 3122,
-      "monthly": [
-        2721,
-        3716,
-        3929,
-        4120,
-        4716,
-        2053,
-        2688,
-        2176,
-        799
-      ]
+      "total": 32305,
+      "qty": 4040,
+      "monthly": [2721, 3716, 3929, 4120, 4716, 2053, 2688, 2176, 1452, 1976, 1639, 1118]
     },
     {
       "name": "BEER & CIDER - BOTTLED",
-      "total": 20167,
-      "qty": 4414,
-      "monthly": [
-        2115,
-        2475,
-        2269,
-        2122,
-        2118,
-        2290,
-        2385,
-        3033,
-        1362
-      ]
+      "total": 30982,
+      "qty": 7628,
+      "monthly": [2115, 2475, 2269, 2122, 2118, 2290, 2385, 3033, 2701, 2193, 2883, 4400]
     },
     {
       "name": "COCKTAILS - CLASSIC",
-      "total": 15275,
-      "qty": 1326,
-      "monthly": [
-        1572,
-        1064,
-        1862,
-        1416,
-        1700,
-        2178,
-        2030,
-        2375,
-        1079
-      ]
+      "total": 20176,
+      "qty": 1733,
+      "monthly": [1572, 1064, 1862, 1416, 1700, 2178, 2030, 2375, 1721, 1629, 2040, 590]
     },
     {
       "name": "SPIRITS - GIN & VODKA",
-      "total": 12880,
-      "qty": 1682,
-      "monthly": [
-        1627,
-        1948,
-        1652,
-        1386,
-        1306,
-        1213,
-        1595,
-        1644,
-        509
-      ]
+      "total": 19613,
+      "qty": 3855,
+      "monthly": [1627, 1948, 1652, 1386, 1306, 1213, 1595, 1644, 1110, 1561, 1807, 2765]
     },
     {
       "name": "WINE & PROSECCO",
-      "total": 11444,
-      "qty": 1233,
-      "monthly": [
-        1538,
-        1488,
-        1825,
-        1505,
-        1341,
-        942,
-        1191,
-        976,
-        638
-      ]
+      "total": 19229,
+      "qty": 3322,
+      "monthly": [1538, 1488, 1825, 1505, 1341, 942, 1191, 976, 1363, 1553, 1813, 3694]
     },
     {
       "name": "SOFT DRINKS",
-      "total": 7097,
-      "qty": 3196,
-      "monthly": [
-        761,
-        764,
-        697,
-        691,
-        767,
-        818,
-        882,
-        1212,
-        505
-      ]
+      "total": 12087,
+      "qty": 6259,
+      "monthly": [761, 764, 697, 691, 767, 818, 882, 1212, 1066, 1364, 1438, 1628]
     },
     {
       "name": "SPIRITS - RUM & BRANDY",
-      "total": 4316,
-      "qty": 530,
-      "monthly": [
-        345,
-        487,
-        320,
-        546,
-        602,
-        380,
-        477,
-        1008,
-        150
-      ]
+      "total": 7924,
+      "qty": 1651,
+      "monthly": [345, 487, 320, 546, 602, 380, 477, 1008, 391, 677, 1180, 1510]
     },
     {
       "name": "SPIRITS - TEQUILA & SHOTS",
-      "total": 3755,
-      "qty": 693,
-      "monthly": [
-        334,
-        453,
-        601,
-        377,
-        571,
-        339,
-        502,
-        427,
-        150
-      ]
+      "total": 6841,
+      "qty": 1301,
+      "monthly": [334, 453, 601, 377, 571, 339, 502, 427, 331, 814, 460, 1631]
     },
     {
       "name": "SPIRITS - WHISKEY & BOURBON",
-      "total": 2191,
-      "qty": 263,
-      "monthly": [
-        165,
-        344,
-        260,
-        434,
-        171,
-        143,
-        254,
-        322,
-        97
-      ]
-    },
-    {
-      "name": "COCKTAILS - MOCKTAILS",
-      "total": 2081,
-      "qty": 363,
-      "monthly": [
-        396,
-        384,
-        552,
-        120,
-        137,
-        84,
-        156,
-        174,
-        78
-      ]
+      "total": 4602,
+      "qty": 921,
+      "monthly": [165, 344, 260, 434, 171, 143, 254, 322, 195, 264, 573, 1477]
     },
     {
       "name": "OTHER - MISC",
-      "total": 1440,
-      "qty": 104,
-      "monthly": [
-        178,
-        18,
-        193,
-        238,
-        250,
-        100,
-        84,
-        360,
-        20
-      ]
+      "total": 2486,
+      "qty": 219,
+      "monthly": [178, 18, 193, 238, 250, 100, 84, 360, 20, 773, 273, 0]
+    },
+    {
+      "name": "COCKTAILS - MOCKTAILS",
+      "total": 2414,
+      "qty": 424,
+      "monthly": [396, 384, 552, 120, 137, 84, 156, 174, 128, 152, 100, 31]
     },
     {
       "name": "OTHER - BAR SNACKS",
-      "total": 673,
-      "qty": 359,
-      "monthly": [
-        92,
-        171,
-        74,
-        87,
-        54,
-        58,
-        56,
-        54,
-        26
-      ]
-    },
-    {
-      "name": "SPIRITS - LIQUEURS & APERITIFS",
-      "total": 669,
-      "qty": 107,
-      "monthly": [
-        119,
-        47,
-        160,
-        76,
-        24,
-        80,
-        97,
-        59,
-        7
-      ]
+      "total": 1177,
+      "qty": 743,
+      "monthly": [92, 171, 74, 87, 54, 58, 56, 54, 119, 140, 148, 123]
     },
     {
       "name": "SOFT DRINKS - JUICE",
-      "total": 600,
-      "qty": 225,
-      "monthly": [
-        45,
-        95,
-        81,
-        66,
-        73,
-        75,
-        33,
-        99,
-        33
-      ]
+      "total": 1070,
+      "qty": 398,
+      "monthly": [45, 95, 81, 66, 73, 75, 33, 99, 92, 148, 115, 148]
+    },
+    {
+      "name": "SPIRITS - LIQUEURS & APERITIFS",
+      "total": 985,
+      "qty": 247,
+      "monthly": [119, 47, 160, 76, 24, 80, 97, 59, 61, 145, 93, 25]
     },
     {
       "name": "Pizza",
       "total": 576,
       "qty": 57,
-      "monthly": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        253,
-        323,
-        0,
-        0
-      ]
+      "monthly": [0, 0, 0, 0, 0, 253, 323, 0, 0, 0, 0, 0]
     },
     {
       "name": "FOOD - HOT DOGS",
       "total": 169,
       "qty": 23,
-      "monthly": [
-        0,
-        0,
-        0,
-        63,
-        0,
-        75,
-        31,
-        0,
-        0
-      ]
+      "monthly": [0, 0, 0, 63, 0, 75, 31, 0, 0, 0, 0, 0]
     },
     {
       "name": "COCKTAIL INGREDIENTS",
       "total": 48,
       "qty": 4,
-      "monthly": [
-        12,
-        0,
-        36,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ]
+      "monthly": [12, 0, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0]
     },
     {
       "name": "SPIRITS - PREMIXED",
       "total": 12,
       "qty": 2,
-      "monthly": [
-        0,
-        0,
-        0,
-        12,
-        0,
-        0,
-        0,
-        0,
-        0
-      ]
-    }
+      "monthly": [0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0]
+    },
   ]
 }
 
