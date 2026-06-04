@@ -1,0 +1,425 @@
+{
+  "venue": "Plonk \u00b7 London Bridge",
+  "period": "December 2025",
+  "source": "Plonk Golf Ltd POS export \u00b7 01 Dec 2025 \u2013 01 Jan 2026",
+  "headline": {
+    "netInclVat": 39551.62,
+    "netExVat": 32280.36,
+    "vat": 7271.26,
+    "grossSale": 46300.35,
+    "itemsSold": 10772,
+    "transactions": 1998,
+    "avgSpend": 19.8,
+    "tradingDays": 25,
+    "comps": 2172.99,
+    "voids": 346.96,
+    "corrections": 6440.27,
+    "busiestDay": "2025-12-06",
+    "busiestDayNet": 3321.01,
+    "topItem": "Camden Hells Pint",
+    "topItemQty": 966,
+    "avgPerTradingDay": 1582.06
+  },
+  "daily": [
+    {
+      "day": 1,
+      "date": "2025-12-01",
+      "dow": 0,
+      "net": -0.0
+    },
+    {
+      "day": 2,
+      "date": "2025-12-02",
+      "dow": 1,
+      "net": 819.39
+    },
+    {
+      "day": 3,
+      "date": "2025-12-03",
+      "dow": 2,
+      "net": 1222.69
+    },
+    {
+      "day": 4,
+      "date": "2025-12-04",
+      "dow": 3,
+      "net": 2790.23
+    },
+    {
+      "day": 5,
+      "date": "2025-12-05",
+      "dow": 4,
+      "net": 3212.46
+    },
+    {
+      "day": 6,
+      "date": "2025-12-06",
+      "dow": 5,
+      "net": 3321.01
+    },
+    {
+      "day": 7,
+      "date": "2025-12-07",
+      "dow": 6,
+      "net": 472.9
+    },
+    {
+      "day": 8,
+      "date": "2025-12-08",
+      "dow": 0,
+      "net": 106.1
+    },
+    {
+      "day": 9,
+      "date": "2025-12-09",
+      "dow": 1,
+      "net": 2044.37
+    },
+    {
+      "day": 10,
+      "date": "2025-12-10",
+      "dow": 2,
+      "net": 3193.85
+    },
+    {
+      "day": 11,
+      "date": "2025-12-11",
+      "dow": 3,
+      "net": 1697.71
+    },
+    {
+      "day": 12,
+      "date": "2025-12-12",
+      "dow": 4,
+      "net": 2103.8
+    },
+    {
+      "day": 13,
+      "date": "2025-12-13",
+      "dow": 5,
+      "net": 2386.0
+    },
+    {
+      "day": 14,
+      "date": "2025-12-14",
+      "dow": 6,
+      "net": 641.3
+    },
+    {
+      "day": 15,
+      "date": "2025-12-15",
+      "dow": 0,
+      "net": 0.0
+    },
+    {
+      "day": 16,
+      "date": "2025-12-16",
+      "dow": 1,
+      "net": 1835.94
+    },
+    {
+      "day": 17,
+      "date": "2025-12-17",
+      "dow": 2,
+      "net": 1695.58
+    },
+    {
+      "day": 18,
+      "date": "2025-12-18",
+      "dow": 3,
+      "net": 3158.06
+    },
+    {
+      "day": 19,
+      "date": "2025-12-19",
+      "dow": 4,
+      "net": 2289.62
+    },
+    {
+      "day": 20,
+      "date": "2025-12-20",
+      "dow": 5,
+      "net": 1627.13
+    },
+    {
+      "day": 21,
+      "date": "2025-12-21",
+      "dow": 6,
+      "net": 355.25
+    },
+    {
+      "day": 22,
+      "date": "2025-12-22",
+      "dow": 0,
+      "net": 0.0
+    },
+    {
+      "day": 23,
+      "date": "2025-12-23",
+      "dow": 1,
+      "net": 1145.8
+    },
+    {
+      "day": 24,
+      "date": "2025-12-24",
+      "dow": 2,
+      "net": 373.95
+    },
+    {
+      "day": 25,
+      "date": "2025-12-25",
+      "dow": 3,
+      "net": 0.0
+    },
+    {
+      "day": 26,
+      "date": "2025-12-26",
+      "dow": 4,
+      "net": 0.0
+    },
+    {
+      "day": 27,
+      "date": "2025-12-27",
+      "dow": 5,
+      "net": 384.7
+    },
+    {
+      "day": 28,
+      "date": "2025-12-28",
+      "dow": 6,
+      "net": 853.01
+    },
+    {
+      "day": 29,
+      "date": "2025-12-29",
+      "dow": 0,
+      "net": 0.0
+    },
+    {
+      "day": 30,
+      "date": "2025-12-30",
+      "dow": 1,
+      "net": 1399.97
+    },
+    {
+      "day": 31,
+      "date": "2025-12-31",
+      "dow": 2,
+      "net": 420.8
+    }
+  ],
+  "group": [
+    {
+      "name": "Drinks",
+      "value": 33249.59
+    },
+    {
+      "name": "Games",
+      "value": 6179.48
+    },
+    {
+      "name": "Bar Food",
+      "value": 122.55
+    }
+  ],
+  "profile": [
+    {
+      "name": "Bar Service",
+      "value": 35254.77
+    },
+    {
+      "name": "Table Service",
+      "value": 4296.85
+    }
+  ],
+  "staff": [
+    {
+      "name": "Angie",
+      "value": 8376.42
+    },
+    {
+      "name": "Clyde",
+      "value": 7219.78
+    },
+    {
+      "name": "Nikki",
+      "value": 4660.88
+    },
+    {
+      "name": "Kian",
+      "value": 4634.24
+    },
+    {
+      "name": "John",
+      "value": 4221.37
+    },
+    {
+      "name": "Chloe",
+      "value": 3939.87
+    },
+    {
+      "name": "Rem",
+      "value": 3421.01
+    },
+    {
+      "name": "Johanna",
+      "value": 1541.88
+    }
+  ],
+  "items": [
+    {
+      "name": "Camden Hells Pint",
+      "value": 7369.38,
+      "qty": 966
+    },
+    {
+      "name": "Peak Golf- Adult",
+      "value": 2947.1,
+      "qty": 228
+    },
+    {
+      "name": "Camden Pale Pint",
+      "value": 2654.1,
+      "qty": 337
+    },
+    {
+      "name": "Camden Stout Pint",
+      "value": 2169.0,
+      "qty": 287
+    },
+    {
+      "name": "Corona Extra",
+      "value": 1936.35,
+      "qty": 441
+    },
+    {
+      "name": "Camden Eazy Pint",
+      "value": 1923.9,
+      "qty": 238
+    },
+    {
+      "name": "Off Peak Golf- Adult",
+      "value": 1684.98,
+      "qty": 171
+    },
+    {
+      "name": "Budweiser",
+      "value": 1444.55,
+      "qty": 295
+    },
+    {
+      "name": "175ml House White",
+      "value": 1133.42,
+      "qty": 156
+    },
+    {
+      "name": "Baby Guiness",
+      "value": 1040.07,
+      "qty": 152
+    },
+    {
+      "name": "Mini Prosecco",
+      "value": 984.31,
+      "qty": 138
+    },
+    {
+      "name": "RedFin Apple Pint",
+      "value": 969.0,
+      "qty": 120
+    }
+  ],
+  "hours": [
+    {
+      "hour": 11,
+      "value": 18.81
+    },
+    {
+      "hour": 12,
+      "value": 1977.05
+    },
+    {
+      "hour": 13,
+      "value": 3579.21
+    },
+    {
+      "hour": 14,
+      "value": 4542.86
+    },
+    {
+      "hour": 15,
+      "value": 5840.21
+    },
+    {
+      "hour": 16,
+      "value": 5321.3
+    },
+    {
+      "hour": 17,
+      "value": 5419.82
+    },
+    {
+      "hour": 18,
+      "value": 6066.21
+    },
+    {
+      "hour": 19,
+      "value": 4951.42
+    },
+    {
+      "hour": 20,
+      "value": 4068.6
+    },
+    {
+      "hour": 21,
+      "value": 3344.13
+    },
+    {
+      "hour": 22,
+      "value": 1170.73
+    }
+  ],
+  "dow": [
+    {
+      "name": "Mon",
+      "total": 106.1,
+      "days": 2,
+      "avg": 53.05
+    },
+    {
+      "name": "Tue",
+      "total": 7245.47,
+      "days": 5,
+      "avg": 1449.09
+    },
+    {
+      "name": "Wed",
+      "total": 6906.87,
+      "days": 5,
+      "avg": 1381.37
+    },
+    {
+      "name": "Thu",
+      "total": 7646.0,
+      "days": 3,
+      "avg": 2548.67
+    },
+    {
+      "name": "Fri",
+      "total": 7605.88,
+      "days": 3,
+      "avg": 2535.29
+    },
+    {
+      "name": "Sat",
+      "total": 7718.84,
+      "days": 4,
+      "avg": 1929.71
+    },
+    {
+      "name": "Sun",
+      "total": 2322.46,
+      "days": 4,
+      "avg": 580.62
+    }
+  ]
+}

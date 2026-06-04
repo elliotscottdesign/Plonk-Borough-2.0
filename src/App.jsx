@@ -22,6 +22,7 @@ import Terms from './legal/Terms.jsx'
 import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 import WorldCupPage from './worldcup/WorldCupPage.jsx'
 import WorldCupBookings from './worldcup/WorldCupBookings.jsx'
+import DecemberSales from './borough/DecemberSales.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -42,6 +43,13 @@ const isHackneyPath = () =>
 const isBoroughPath = () =>
   typeof window !== 'undefined' &&
   /^\/borough(\/|$)/.test(window.location.pathname)
+
+// Founder-only December sales report (POS export dashboard). Sits under
+// /borough so it inherits the Borough unlock, but is gated a step further
+// to the Plonk/founder tier below.
+const isBoroughDecemberPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/borough\/december-sales\/?$/.test(window.location.pathname)
 
 const isRootPath = () =>
   typeof window !== 'undefined' &&
@@ -246,6 +254,25 @@ export default function App() {
       )
     }
     return <WorldCupPage />
+  }
+
+  // /borough/december-sales — founder-only POS sales dashboard. Requires the
+  // Plonk/founder tier (888999 / JOHN1); other unlocked Borough users get a
+  // polite kick-back. Checked before the BoroughShell fall-through because
+  // the path also matches isBoroughPath().
+  if (isBoroughDecemberPath()) {
+    if (!plonkAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            The December sales report is founder-only. Sign in with the founder code to view.
+          </div>
+          <a href="/borough" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to deck</a>
+        </div>
+      )
+    }
+    return <DecemberSales />
   }
 
   return (
