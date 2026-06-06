@@ -1,93 +1,58 @@
-// Hackney 2025 till sales — aggregated from data/hackney_2025_till_sales_clean.csv
-// (cleaned Goodtill export, COMPLETED orders only, 1 Jan 2025 → 23 Sep 2025).
+// Hackney till sales — 2025 (backfilled to full year). BAR-LED venue; the
+// render layer (TabTillSales2025) restates every aggregate bar-only.
 //
-// ⚠ DATA GAP: No till data from 24 Sep 2025 onwards. On that date Hackney
-// migrated off Goodtill to Lightspeed. Q4 2025 figures live in Lightspeed
-// reports, not in this dataset.
+// 1 Jan → 23 Sep 2025: Goodtill export (COMPLETED orders, cleaned/deduped).
+// 24 Sep → 31 Dec 2025: Lightspeed export (plonkgolfltd · London Fields — the
+//   same venue, after the 24 Sep 2025 till migration). The 16–23 Sep overlap
+//   in the Lightspeed file is excluded so Goodtill remains the source for that
+//   window. September combines Goodtill (1–23) + Lightspeed (24–30).
 //
-// ─── Source: cleaned dataset (deduplicated) ──────────────────────────
-// Numbers below come from data/hackney_2025_till_sales_clean.csv, which is a
-// dedupe of the raw Goodtill export at data/hackney_2025_till_sales.csv. The
-// raw file is preserved untouched for audit; the clean file removes 25,796
-// exact-duplicate rows (≈26.7% of the export) where every identity-bearing
-// field — Sale ID + Sale Time + Order Status + Product + Quantity + Unit
-// Price + Sale Discount + Total + Eat-in/Takeaway + Item Notes — matched an
-// earlier row exactly. Genuine 2-unit purchases would appear in Goodtill as
-// a single qty=2 line; repeated qty=1 lines at the same Sale ID + second +
-// product + price are not legitimate distinct purchases.
+// Goodtill = gross customer payments inc-VAT (after till discounts). Lightspeed
+// = NET inc-VAT (sales minus voids/comps/corrections). For the Lightspeed
+// period categories are mapped from item names onto the original Goodtill
+// 31-category scheme so the full year reads on one taxonomy (best-effort on the
+// spirit/cocktail and beer draught/bottled sub-splits).
 //
-// Headline impact of the dedup:
-//   COMPLETED revenue:   £628,227 → £513,686  (−£114,541, −18.2%)
-//   COMPLETED line count:  86,822 → 69,164    (−17,658, −20.3%)
-//   Distinct Sale IDs:     43,784 → 43,784    (unchanged — same sales,
-//                                              fewer line items per sale)
-// See data/README.md and the header block in
-// data/hackney_2025_till_sales_clean.csv for full provenance.
-//
-// ─── Reclassification of OTHER - GOLF / OTHER - GOLF & GAMES ──────────
-// Goodtill's two ambiguous activity buckets are split per-product into
-// seven clean categories so the deck shows real product mix instead of
-// an opaque catch-all (totals tie to the cleaned source):
-//   GOLF - Rounds          £48,123   (Peak / Off-Peak + legacy £5/£6 button)
-//   POOL - Reservations    £24,183
-//   ARCADE - Tokens        £11,706
-//   GOLF + TOKEN BUNDLES   £10,187
-//   GAME & DRINK BUNDLES   £1,255    (Tuesday Drink & Game etc.)
-//   TOURNAMENTS            £15       (2 pool entries · 0 golf)
-//   OTHER - MISC fragment  £163      (folded into the existing OTHER - MISC line)
-//
-// Per-SKU label cleanups applied to the raw CSV before dedup:
-//   • "Six Arcade Tokens"   → merged into "6 Tokens"
-//   • "Golf Tournament Entry" (1 line, 8 Jan 2025) → relabelled
-//     "Pool Tournament Entry" (founder confirmed Hackney does not
-//     run golf tournaments)
-//
-// Token-pricing note: per-token unit price changed during 2025 (founder
-// adjusted the bundle prices over the year). Per-token avg drifts
-// ~£0.77–£0.85 across SKUs.
-//
-// Categories are sorted descending by units sold. `monthly` is a 9-element
-// array aligned to `months` (Jan … Sep). The Sep figure is partial — only
-// 23 days, hence the visual "data ends here" treatment in the chart.
+// `monthly` is a 12-element array aligned to `months` (Jan … Dec).
 export const HACKNEY_2025_TILL_SALES = {
-  totalRevenue: 513686,
-  totalTxns: 43784,
-  lastDate: "2025-09-23",
-  months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep"],
-  monthlyTotals: [50747, 63004, 64570, 59634, 64169, 57173, 58219, 70544, 25626],
+  totalRevenue: 611670,
+  totalTxns: 52073,
+  lastDate: "2025-12-31",
+  months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+  monthlyTotals: [50747, 63004, 64570, 59634, 64169, 57173, 58219, 70544, 32466, 34439, 29642, 27063],
   categories: [
-    { name: "BEER - DRAUGHT", total: 153012, qty: 23391, monthly: [14840, 18083, 19316, 17627, 18909, 18523, 17427, 20027, 8260] },
-    { name: "BEER & CIDER - BOTTLED", total: 38771, qty: 7966, monthly: [3959, 4797, 4034, 4005, 4849, 4524, 4838, 5527, 2237] },
-    { name: "SOFT DRINKS", total: 16265, qty: 6195, monthly: [1786, 1675, 1766, 1773, 2038, 1920, 2019, 2380, 909] },
-    { name: "GOLF - Rounds", total: 48123, qty: 5500, monthly: [3506, 4396, 5208, 4706, 5717, 5403, 6686, 9561, 2940] },
-    { name: "COCKTAILS - HOUSE", total: 56850, qty: 5114, monthly: [4166, 7165, 6598, 5941, 7788, 6752, 6545, 9361, 2535] },
-    { name: "COCKTAILS - CLASSIC", total: 43448, qty: 3877, monthly: [3298, 3794, 6174, 6202, 5383, 5366, 5431, 5838, 1962] },
-    { name: "POOL - Reservations", total: 24183, qty: 3837, monthly: [3371, 3418, 3063, 2690, 3056, 2265, 2380, 2880, 1061] },
-    { name: "SPIRITS - GIN & VODKA", total: 26761, qty: 3528, monthly: [2899, 3796, 3838, 3297, 3150, 2743, 2635, 3127, 1276] },
-    { name: "WINE & PROSECCO", total: 29398, qty: 3196, monthly: [3098, 3471, 4593, 4032, 3611, 2660, 2948, 3589, 1397] },
-    { name: "ARCADE - Tokens", total: 11706, qty: 2290, monthly: [1218, 1572, 1512, 1438, 1252, 984, 1331, 1668, 732] },
-    { name: "SPIRITS - TEQUILA & SHOTS", total: 11077, qty: 1836, monthly: [1437, 1513, 1902, 1370, 1289, 925, 1112, 1057, 473] },
-    { name: "SPIRITS - RUM & BRANDY", total: 11125, qty: 1386, monthly: [1027, 1545, 1115, 1413, 1493, 1430, 1035, 1668, 401] },
-    { name: "OTHER - BAR SNACKS", total: 2316, qty: 1244, monthly: [289, 244, 266, 378, 322, 174, 275, 243, 125] },
-    { name: "BEER CANS", total: 4475, qty: 887, monthly: [599, 395, 529, 471, 585, 530, 599, 498, 268] },
-    { name: "SPIRITS - WHISKEY & BOURBON", total: 5873, qty: 746, monthly: [537, 803, 961, 848, 615, 513, 689, 689, 218] },
-    { name: "GOLF + TOKEN BUNDLES", total: 10187, qty: 737, monthly: [1139, 1683, 1696, 1657, 2271, 717, 678, 257, 88] },
-    { name: "SOFT DRINKS - JUICE", total: 1703, qty: 640, monthly: [130, 209, 214, 216, 213, 176, 157, 288, 100] },
-    { name: "COCKTAILS - MOCKTAILS", total: 3472, qty: 633, monthly: [526, 578, 718, 254, 261, 337, 335, 339, 125] },
-    { name: "OTHER - MISC", total: 3335, qty: 347, monthly: [148, 112, 296, 477, 612, 388, 308, 869, 125] },
-    { name: "SPEED PAGE", total: 2138, qty: 341, monthly: [22, 615, 250, 295, 321, 269, 98, 68, 200] },
-    { name: "SPIRITS - LIQUEURS & APERITIFS", total: 1817, qty: 320, monthly: [306, 283, 223, 192, 134, 157, 201, 195, 128] },
-    { name: "FOOD - HOT DOGS", total: 2018, qty: 218, monthly: [1011, 851, 10, 50, 0, 75, 21, 0, 0] },
-    { name: "FOOD TACOS", total: 1517, qty: 167, monthly: [585, 932, 0, 0, 0, 0, 0, 0, 0] },
-    { name: "FOOD SIDES", total: 1389, qty: 156, monthly: [541, 826, 0, 0, 0, 23, 0, 0, 0] },
-    { name: "OTHER - TEA & COFFEE", total: 413, qty: 154, monthly: [122, 87, 67, 47, 27, 0, 21, 18, 24] },
-    { name: "GAME & DRINK BUNDLES", total: 1255, qty: 127, monthly: [35, 68, 68, 236, 248, 80, 170, 320, 30] },
-    { name: "Pizza", total: 489, qty: 49, monthly: [0, 0, 0, 0, 0, 220, 269, 0, 0] },
-    { name: "COCKTAILS - PRIVATE HIRE", total: 367, qty: 37, monthly: [125, 88, 99, 0, 0, 0, 11, 33, 11] },
-    { name: "OTHER - ID CHECK", total: 0, qty: 36, monthly: [0, 0, 0, 0, 0, 0, 0, 0, 0] },
-    { name: "COCKTAIL INGREDIENTS", total: 48, qty: 4, monthly: [12, 0, 36, 0, 0, 0, 0, 0, 0] },
-    { name: "TOURNAMENTS", total: 15, qty: 3, monthly: [10, 5, 0, 0, 0, 0, 0, 0, 0] },
-    { name: "SPIRITS - PREMIXED", total: 12, qty: 2, monthly: [0, 0, 0, 12, 0, 0, 0, 0, 0] },
+    { name: "BEER - DRAUGHT", total: 193837, qty: 35332, monthly: [14840, 18083, 19316, 17627, 18909, 18523, 17427, 20027, 11388, 14173, 13047, 10476] },
+    { name: "COCKTAILS - HOUSE", total: 69294, qty: 6700, monthly: [4166, 7165, 6598, 5941, 7788, 6752, 6545, 9361, 3219, 4384, 3204, 4172] },
+    { name: "GOLF - Rounds", total: 53181, qty: 6442, monthly: [3506, 4396, 5208, 4706, 5717, 5403, 6686, 9561, 3282, 1960, 1585, 1171] },
+    { name: "COCKTAILS - CLASSIC", total: 47134, qty: 4434, monthly: [3298, 3794, 6174, 6202, 5383, 5366, 5431, 5838, 2111, 1368, 1051, 1118] },
+    { name: "BEER & CIDER - BOTTLED", total: 44086, qty: 9257, monthly: [3959, 4797, 4034, 4005, 4849, 4524, 4838, 5527, 2543, 1687, 1701, 1621] },
+    { name: "WINE & PROSECCO", total: 35634, qty: 4610, monthly: [3098, 3471, 4593, 4032, 3611, 2660, 2948, 3589, 1562, 2280, 2019, 1771] },
+    { name: "SPIRITS - GIN & VODKA", total: 31000, qty: 4874, monthly: [2899, 3796, 3838, 3297, 3150, 2743, 2635, 3127, 1604, 1660, 1106, 1145] },
+    { name: "POOL - Reservations", total: 29522, qty: 4646, monthly: [3371, 3418, 3063, 2690, 3056, 2265, 2380, 2880, 1420, 1670, 1810, 1501] },
+    { name: "SOFT DRINKS", total: 18696, qty: 7678, monthly: [1786, 1675, 1766, 1773, 2038, 1920, 2019, 2380, 1136, 833, 704, 667] },
+    { name: "ARCADE - Tokens", total: 14113, qty: 2982, monthly: [1218, 1572, 1512, 1438, 1252, 984, 1331, 1668, 850, 634, 854, 802] },
+    { name: "SPIRITS - TEQUILA & SHOTS", total: 13973, qty: 2600, monthly: [1437, 1513, 1902, 1370, 1289, 925, 1112, 1057, 701, 1247, 660, 761] },
+    { name: "SPIRITS - RUM & BRANDY", total: 13094, qty: 2120, monthly: [1027, 1545, 1115, 1413, 1493, 1430, 1035, 1668, 572, 806, 575, 417] },
+    { name: "GOLF + TOKEN BUNDLES", total: 10282, qty: 751, monthly: [1139, 1683, 1696, 1657, 2271, 717, 678, 257, 88, 38, 57, 0] },
+    { name: "SPIRITS - WHISKEY & BOURBON", total: 6635, qty: 1029, monthly: [537, 803, 961, 848, 615, 513, 689, 689, 273, 338, 124, 245] },
+    { name: "BEER CANS", total: 4497, qty: 893, monthly: [599, 395, 529, 471, 585, 530, 599, 498, 281, 9, 0, 0] },
+    { name: "OTHER - MISC", total: 3999, qty: 531, monthly: [148, 112, 296, 477, 612, 388, 308, 869, 285, 149, 236, 119] },
+    { name: "COCKTAILS - MOCKTAILS", total: 3724, qty: 687, monthly: [526, 578, 718, 254, 261, 337, 335, 339, 213, 131, 33, 0] },
+    { name: "OTHER - BAR SNACKS", total: 2877, qty: 1543, monthly: [289, 244, 266, 378, 322, 174, 275, 243, 169, 193, 206, 118] },
+    { name: "SOFT DRINKS - JUICE", total: 2725, qty: 957, monthly: [130, 209, 214, 216, 213, 176, 157, 288, 156, 420, 244, 302] },
+    { name: "SPIRITS - LIQUEURS & APERITIFS", total: 2274, qty: 427, monthly: [306, 283, 223, 192, 134, 157, 201, 195, 128, 58, 168, 231] },
+    { name: "SPEED PAGE", total: 2138, qty: 341, monthly: [22, 615, 250, 295, 321, 269, 98, 68, 200, 0, 0, 0] },
+    { name: "FOOD - HOT DOGS", total: 2018, qty: 218, monthly: [1011, 851, 10, 50, 0, 75, 21, 0, 0, 0, 0, 0] },
+    { name: "FOOD SIDES", total: 1788, qty: 172, monthly: [541, 826, 0, 0, 0, 23, 0, 0, 142, 0, 4, 253] },
+    { name: "GAME & DRINK BUNDLES", total: 1705, qty: 175, monthly: [35, 68, 68, 236, 248, 80, 170, 320, 90, 260, 70, 60] },
+    { name: "FOOD TACOS", total: 1517, qty: 167, monthly: [585, 932, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "OTHER - TEA & COFFEE", total: 868, qty: 316, monthly: [122, 87, 67, 47, 27, 0, 21, 18, 43, 140, 182, 113] },
+    { name: "Pizza", total: 489, qty: 49, monthly: [0, 0, 0, 0, 0, 220, 269, 0, 0, 0, 0, 0] },
+    { name: "COCKTAILS - PRIVATE HIRE", total: 367, qty: 37, monthly: [125, 88, 99, 0, 0, 0, 11, 33, 11, 0, 0, 0] },
+    { name: "COCKTAIL INGREDIENTS", total: 48, qty: 4, monthly: [12, 0, 36, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "TOURNAMENTS", total: 15, qty: 3, monthly: [10, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "SPIRITS - PREMIXED", total: 12, qty: 2, monthly: [0, 0, 0, 12, 0, 0, 0, 0, 0, 0, 0, 0] },
+    { name: "OTHER - ID CHECK", total: 0, qty: 44, monthly: [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0] },
   ],
 }
 

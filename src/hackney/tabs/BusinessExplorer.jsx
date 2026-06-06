@@ -28,6 +28,7 @@ import {
   HACKNEY_DMN_SKUS_ONLINE_2025,
 } from '../../data/hackney.js'
 import { HACKNEY_2025_TILL_SALES, HACKNEY_2025_DISCOUNTS, HACKNEY_2025_DISCOUNT_CODES } from '../../data/hackney2025TillSales.js'
+import { HACKNEY_2026_TILL_SALES } from '../../data/hackney2026TillSales.js'
 import { HACKNEY_PREV_TILL_SALES, HACKNEY_PREV_TILL_YEAR_TOTALS, HACKNEY_PREV_TILL_YEARS, HACKNEY_GOLF_CATEGORIES, hackneyTotalsForYear } from '../../data/hackneyPrevTillSales.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 
@@ -83,7 +84,8 @@ const PERF_2025_SECTIONS = [
   { id: 'income',   label: 'Income by Source', icon: '💰' },
   { id: 'costs',    label: 'Costs by Category', icon: '💸' },
   { id: 'monthly',  label: 'Monthly Performance', icon: '📈' },
-  { id: 'till',     label: 'Till Sales',       icon: '🧾' },
+  { id: 'till',     label: 'Till Sales · 2025', icon: '🧾' },
+  { id: 'till2026', label: 'Till Sales · 2026', icon: '🧾' },
   { id: 'hours',    label: 'Hours & Wages',    icon: '👥' },
 ]
 
@@ -151,8 +153,14 @@ function Tab2025() {
         )}
         {activeSection === 'till' && (
           <>
-            <STitle>2025 Till Sales — Goodtill (cleaned)</STitle>
+            <STitle>2025 Till Sales — Goodtill + Lightspeed (full year)</STitle>
             <TabTillSales2025 />
+          </>
+        )}
+        {activeSection === 'till2026' && (
+          <>
+            <STitle>2026 Till Sales — Lightspeed</STitle>
+            <TabTillSales2026 />
           </>
         )}
         {activeSection === 'hours' && (
@@ -1833,7 +1841,7 @@ function TabTillSales2025() {
       {/* Slide title — serif, white, mixed-case (matches the new STitle treatment) */}
       <div style={{ marginBottom:4 }}>
         <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2025 · Till Sales by Category</div>
-        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill till data, COMPLETED orders only, 1 Jan → 23 Sep 2025 · <span style={{ color:'var(--gold)' }}>bar-only</span></div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Goodtill (1 Jan–23 Sep) + Lightspeed (24 Sep–31 Dec) 2025 · <span style={{ color:'var(--gold)' }}>bar-only</span></div>
       </div>
 
       {/* Two compact alert bars — headline + one-line summary visible at all
@@ -1873,27 +1881,27 @@ function TabTillSales2025() {
           <div style={{ fontSize:18, color:'#F87171', flexShrink:0 }}>⚠</div>
           <div style={{ flex:1, minWidth:0 }}>
             <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5' }}>
-              Data ends 23 Sep 2025 · Till migration to Lightspeed
+              Backfilled · Goodtill → Lightspeed migration, 24 Sep 2025
             </div>
             <div style={{ fontSize:12, color:'#FECACA', marginTop:2 }}>
-              September bar is partial · Q4 lives in Lightspeed, not here
+              Full year now shown · Goodtill to 23 Sep, Lightspeed 24 Sep–31 Dec
             </div>
           </div>
           <span style={{ fontSize:18, color:'#FCA5A5', transform:gapNoteOpen?'rotate(90deg)':'rotate(0deg)', transition:'transform 0.15s', flexShrink:0 }}>›</span>
         </button>
         {gapNoteOpen && (
           <div style={{ padding:'0 18px 14px 48px', fontSize:12, color:'#FECACA', lineHeight:1.6 }}>
-            No till data is available from 24 Sep 2025 onwards. Hackney migrated off Goodtill to Lightspeed on that date — Q4 2025 figures live in Lightspeed reports, not in this dataset. The September bar in any monthly chart is partial (1–23 Sep only).
+            Hackney migrated off Goodtill to Lightspeed on 24 Sep 2025. The year is now backfilled: Goodtill covers 1 Jan–23 Sep, Lightspeed covers 24 Sep–31 Dec (the 16–23 Sep overlap in the Lightspeed file is excluded so Goodtill stays the source for that window). September combines both tills. For the Lightspeed period, categories are derived from item names mapped onto the original Goodtill 31-category scheme, so the whole year reads on one taxonomy (best-effort on the spirit/cocktail and beer draught/bottled sub-splits).
           </div>
         )}
       </div>
 
       {/* KPI strip — bar-only (golf SKUs filtered out) */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
-        <KpiCard2026 label="Bar till sales"   value={fmtMoney(barTotalRevenue)} sub="Jan → 23 Sep 2025 · inc-VAT · bar-only" color="var(--gold)" />
+        <KpiCard2026 label="Bar till sales"   value={fmtMoney(barTotalRevenue)} sub="Jan → Dec 2025 · inc-VAT · bar-only" color="var(--gold)" />
         <KpiCard2026 label="Transactions"     value={fmtN(totalTxns)}            sub={`${fmtMoney(Math.round(barAvgSpend))} avg bar spend`} color="#22D3EE" />
         <KpiCard2026 label="Peak month"       value={barPeakMonth}               sub={`${fmtMoney(barPeakValue)} · bar-only`} color="#A78BFA" />
-        <KpiCard2026 label="Coverage"         value="Goodtill only"              sub={`ends ${lastDate}`} color="#F87171" />
+        <KpiCard2026 label="Coverage"         value="Full year"                  sub="Goodtill + Lightspeed" color="#34D399" />
       </div>
 
       {/* Donut hero + category table — donut promoted as the main visual */}
@@ -2256,6 +2264,139 @@ function TabTillSales2025() {
         Total COMPLETED revenue dropped £628k → <strong style={{ color:'var(--cream)' }}>£514k</strong> (−18.2%) after dedup.
         Raw export preserved untouched at
         <code style={{ background:'rgba(255,255,255,0.06)', padding:'1px 5px', borderRadius:3 }}>data/hackney_2025_till_sales.csv</code> for audit.
+      </div>
+    </div>
+  )
+}
+
+// ─── Till Sales 2026 — Lightspeed (bar-only) ─────────────────────────
+// Same visual language as TabTillSales2025 (bar-only KPIs + hero donut +
+// category table) for the 2026 Lightspeed period. No discount analysis
+// (that block is Goodtill-2025-specific). January was a part-closure, so
+// it carries an explicit caveat and March is flagged partial.
+function TabTillSales2026() {
+  const [showMinor, setShowMinor] = useState(false)
+  const data = HACKNEY_2026_TILL_SALES
+  const { categories, months, monthlyTotals, totalRevenue, totalTxns } = data
+  const fmtN = (n) => n.toLocaleString('en-GB')
+
+  // Bar-only filter — mirror the 2025 tab (golf rounds + golf bundles out).
+  const GOLF_CATS = new Set(['GOLF - Rounds', 'GOLF + TOKEN BUNDLES'])
+  const isBar = (c) => !GOLF_CATS.has(c.name)
+  const barCategories    = categories.filter(isBar)
+  const barTotalRevenue  = barCategories.reduce((s, c) => s + c.total, 0)
+  const barMonthlyTotals = months.map((_, i) => barCategories.reduce((s, c) => s + (c.monthly?.[i] || 0), 0))
+  // Peak month ignoring the part-closed January (Feb is the only full month).
+  const barPeakIdx       = barMonthlyTotals.reduce((bi, v, i, arr) => v > arr[bi] ? i : bi, 0)
+  const barAvgSpend      = barTotalRevenue / Math.max(1, totalTxns)
+
+  const threshold = barTotalRevenue * 0.01
+  const major = barCategories.filter(c => c.total >= threshold)
+  const minor = barCategories.filter(c => c.total < threshold)
+  const minorTotal = minor.reduce((s, c) => s + c.total, 0)
+  const donutCats = minorTotal > 0
+    ? [...major, { name: 'Other (<1% combined)', total: minorTotal, qty: minor.reduce((s,c)=>s+c.qty,0) }]
+    : major
+  const donutTotal = donutCats.reduce((s, c) => s + c.total, 0)
+  const R_OUT = 140, R_IN = 86, CX = 160, CY = 160
+  let cumAngle = -Math.PI / 2
+  const arcs = donutCats.map((c, i) => {
+    const frac = c.total / donutTotal
+    const start = cumAngle, end = cumAngle + frac * Math.PI * 2
+    cumAngle = end
+    const large = end - start > Math.PI ? 1 : 0
+    const sx = CX + R_OUT * Math.cos(start), sy = CY + R_OUT * Math.sin(start)
+    const ex = CX + R_OUT * Math.cos(end),   ey = CY + R_OUT * Math.sin(end)
+    const sxi = CX + R_IN * Math.cos(end),   syi = CY + R_IN * Math.sin(end)
+    const exi = CX + R_IN * Math.cos(start), eyi = CY + R_IN * Math.sin(start)
+    return { d: `M ${sx} ${sy} A ${R_OUT} ${R_OUT} 0 ${large} 1 ${ex} ${ey} L ${sxi} ${syi} A ${R_IN} ${R_IN} 0 ${large} 0 ${exi} ${eyi} Z`,
+             color: TILL_CAT_PALETTE[i % TILL_CAT_PALETTE.length], cat: c }
+  })
+
+  return (
+    <div style={{ display:'flex', flexDirection:'column', gap:24 }}>
+      <div style={{ marginBottom:4 }}>
+        <div className="serif" style={{ fontSize:24, color:'var(--cream)', lineHeight:1.2 }}>Hackney 2026 · Till Sales by Category</div>
+        <div style={{ fontSize:12, color:'#9CA3AF', marginTop:2 }}>No Dice Hackney · London Fields, E8 · Lightspeed till data · 1 Jan → 10 Mar 2026 · <span style={{ color:'var(--gold)' }}>bar-only</span></div>
+      </div>
+
+      {/* Part-period caveat */}
+      <div style={{ background:'rgba(239,68,68,0.08)', border:'1px solid rgba(239,68,68,0.35)', borderRadius:6, padding:'12px 16px', display:'flex', gap:14, alignItems:'flex-start' }}>
+        <div style={{ fontSize:18, color:'#F87171', flexShrink:0 }}>⚠</div>
+        <div style={{ flex:1, minWidth:0 }}>
+          <div style={{ fontSize:11, fontWeight:700, letterSpacing:'0.1em', textTransform:'uppercase', color:'#FCA5A5' }}>2026 in progress · January part-closed · March partial</div>
+          <div style={{ fontSize:12, color:'#FECACA', marginTop:4, lineHeight:1.6 }}>
+            The venue was closed for most of January (sales on 1 Jan, then nothing until 23 Jan) so the January figure reflects ~10 trading days, not a full month — don't read it as a sales drop. February is a complete month; March runs to the 10th only. Figures are net inc-VAT, bar-only, categories mapped from item names onto the 2025 scheme.
+          </div>
+        </div>
+      </div>
+
+      {/* KPI strip — bar-only */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12 }}>
+        <KpiCard2026 label="Bar till sales" value={fmtMoney(barTotalRevenue)} sub="1 Jan → 10 Mar 2026 · inc-VAT · bar-only" color="var(--gold)" />
+        <KpiCard2026 label="Transactions"   value={fmtN(totalTxns)}           sub={`${fmtMoney(Math.round(barAvgSpend))} avg bar spend`} color="#22D3EE" />
+        <KpiCard2026 label="February"       value={fmtMoney(barMonthlyTotals[1])} sub="only full month · bar-only" color="#A78BFA" />
+        <KpiCard2026 label="Coverage"       value="Lightspeed"                sub="Jan part-closed · Mar partial" color="#F87171" />
+      </div>
+
+      {/* Hero donut + category table */}
+      <div style={{ display:'grid', gridTemplateColumns:'minmax(360px, 480px) 1fr', gap:32, alignItems:'flex-start' }}>
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:8, padding:'24px 20px' }}>
+          <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.12em', textTransform:'uppercase', marginBottom:14, textAlign:'center', fontWeight:600 }}>Category mix</div>
+          <svg viewBox="0 0 320 320" style={{ width:'100%', height:'auto' }}>
+            {arcs.map((a, i) => (
+              <path key={i} d={a.d} fill={a.color} stroke="var(--ink-2)" strokeWidth="1.5">
+                <title>{`${a.cat.name} · ${fmtMoney(a.cat.total)} (${((a.cat.total/barTotalRevenue)*100).toFixed(1)}%)`}</title>
+              </path>
+            ))}
+            <text x="160" y="155" textAnchor="middle" fontSize="11" fill="#9CA3AF" letterSpacing="0.12em">BAR TILL SALES</text>
+            <text x="160" y="185" textAnchor="middle" fontSize="26" fill="var(--cream)" fontWeight="700" fontFamily="DM Serif Display, serif">{fmtMoney(barTotalRevenue)}</text>
+          </svg>
+          <div style={{ textAlign:'center', marginTop:8, fontSize:11, color:'#9CA3AF', letterSpacing:'0.04em' }}>1 Jan → 10 Mar 2026 · inc-VAT · bar-only</div>
+        </div>
+
+        <div style={{ background:'var(--ink-2)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:6, padding:'14px 18px' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:10 }}>
+            <div style={{ fontSize:11, color:'var(--gold)', letterSpacing:'0.1em', textTransform:'uppercase' }}>By category · descending · bar-only</div>
+            <div style={{ fontSize:10, color:'#6B7280' }}>{showMinor ? `${barCategories.length} categories` : `${major.length} of ${barCategories.length} · over 1% only`}</div>
+          </div>
+          <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+            {(showMinor ? barCategories : major).map((c) => {
+              const pct = (c.total / barTotalRevenue) * 100
+              const barW = (c.total / barCategories[0].total) * 100
+              const isMinor = c.total < threshold
+              const color = isMinor ? '#475569' : TILL_CAT_PALETTE[major.indexOf(c) % TILL_CAT_PALETTE.length]
+              return (
+                <div key={c.name} style={{ display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, alignItems:'center', fontSize:11 }}>
+                  <div style={{ display:'flex', alignItems:'center', gap:8, minWidth:0 }}>
+                    <div style={{ width:8, height:8, background:color, borderRadius:2, flexShrink:0 }} />
+                    <div style={{ color:'var(--cream)', whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{c.name}</div>
+                  </div>
+                  <div style={{ height:6, background:'rgba(255,255,255,0.04)', borderRadius:3, overflow:'hidden' }}>
+                    <div style={{ width:`${barW}%`, height:'100%', background:color }} />
+                  </div>
+                  <div style={{ textAlign:'right', color:'var(--cream)', fontWeight:600, fontVariantNumeric:'tabular-nums' }}>{fmtMoney(c.total)}</div>
+                  <div style={{ textAlign:'right', color:'#9CA3AF', fontVariantNumeric:'tabular-nums' }}>{pct.toFixed(1)}%</div>
+                </div>
+              )
+            })}
+          </div>
+          {minor.length > 0 && (
+            <button onClick={() => setShowMinor(s => !s)} style={{ width:'100%', marginTop:10, padding:'8px 10px', background:'rgba(201,168,76,0.06)', border:'1px dashed rgba(201,168,76,0.35)', borderRadius:4, cursor:'pointer', fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', textTransform:'uppercase', fontWeight:600 }}>
+              {showMinor ? `Hide ${minor.length} smaller categories` : `Show ${minor.length} smaller categories (under 1% — ${fmtMoney(minorTotal)} combined)`}
+            </button>
+          )}
+          <div style={{ marginTop:12, paddingTop:10, borderTop:'1px solid rgba(201,168,76,0.12)', display:'grid', gridTemplateColumns:'1fr 90px 60px 60px', gap:10, fontSize:11, fontWeight:700 }}>
+            <div style={{ color:'var(--gold)', textTransform:'uppercase', letterSpacing:'0.06em' }}>Total (bar)</div>
+            <div />
+            <div style={{ textAlign:'right', color:'var(--cream)', fontVariantNumeric:'tabular-nums' }}>{fmtMoney(barTotalRevenue)}</div>
+            <div style={{ textAlign:'right', color:'#9CA3AF' }}>100%</div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ fontSize:10, color:'#6B7280', lineHeight:1.6 }}>
+        Source · Lightspeed export (plonkgolfltd · London Fields), 1 Jan → 10 Mar 2026. Bar-only restatement at render time; golf rounds &amp; golf bundles excluded.
       </div>
     </div>
   )
