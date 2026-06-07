@@ -71,20 +71,20 @@ export default function StockOrder() {
     L.push('NO DICE HACKNEY · STOCK ORDER')
     L.push(`Week estimate: ~${money(weekRev)}  (${Math.round(mult * 100)}% of a Feb average)`)
     L.push('')
-    L.push('DRAUGHT (kegs)')
+    L.push('DRAUGHT (kegs) · Drinks Club')
     draught.forEach(d => {
       const note = d.kegsRaw < 0.6 ? `   [1 keg lasts ~${Math.round(1 / Math.max(d.kegsRaw, 0.01))} wks]` : ''
       L.push(`  ${d.label} — ${d.brand} (${d.kegL}L):  ${d.order} keg${d.order > 1 ? 's' : ''}${note}`)
     })
     L.push('')
-    L.push('SPIRITS (700ml bottles · ~4-week cover)')
+    L.push('SPIRITS (700ml bottles · ~4-week cover) · Drinks Club')
     spiritGroups.forEach(g => {
       L.push(`  [${g.group}]`)
       g.items.forEach(s => L.push(`    ${s.name}:  ${s.order > 0 ? s.order + ' × 700ml' : '— (top up as needed)'}`))
     })
     L.push(`  + Cocktails draw ~${Math.round(cocktailBottles)} btl/wk of base spirits (not brand-split): ${COCKTAIL_BASES.brands}`)
     L.push('')
-    L.push('SOFT DRINKS')
+    L.push('SOFT DRINKS · Drinks Club')
     softGroups.forEach(g => {
       L.push(`  [${g.group}]`)
       g.items.forEach(s => {

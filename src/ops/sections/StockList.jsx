@@ -13,11 +13,17 @@ const COVERS = [
   { key: 'cycle',   label: 'Delivery cycle', share: 0.29, hint: '~2 days' },
   { key: 'week',    label: 'Full week', share: 1.0, hint: '7 days' },
 ]
+const SUPPLIERS = ['Drinks Club', 'Brakes', 'Top Cuvee', 'Goodwine Good People', 'SNACK', 'Club Mate (direct)']
+const SUP_COLOR = {
+  'Drinks Club': '#67E8F9', 'Brakes': '#A3E635', 'Top Cuvee': '#C084FC',
+  'Goodwine Good People': '#FB7185', 'SNACK': '#FBBF24', 'Club Mate (direct)': '#6EE7B7',
+}
 const ONHAND_KEY = 'ndb_ops_onhand_v1'
 
 export default function StockList() {
   const [q, setQ] = useState('')
   const [filter, setFilter] = useState('all') // all | movers | never | below
+  const [sup, setSup] = useState('all')       // supplier filter
   const [coverKey, setCoverKey] = useState('weekend')
   const [buffer, setBuffer] = useState(0.25)
   const [onhand, setOnhand] = useState(() => {
@@ -38,12 +44,13 @@ export default function StockList() {
         if (filter === 'movers' && !it.sold) return false
         if (filter === 'never' && it.sold) return false
         if (filter === 'below' && toOrder(it) <= 0) return false
+        if (sup !== 'all' && it.supplier !== sup) return false
         if (needle && !it.name.toLowerCase().includes(needle)) return false
         return true
       })
       return { ...c, items }
     }).filter(c => c.items.length > 0)
-  }, [q, filter, onhand, coverKey, buffer])
+  }, [q, filter, sup, onhand, coverKey, buffer])
 
   const allItems = STOCK_CATEGORIES.flatMap(c => c.items)
   const belowCount = allItems.filter(it => toOrder(it) > 0).length
@@ -51,14 +58,16 @@ export default function StockList() {
 
   const setHand = (name, v) => setOnhand(o => ({ ...o, [name]: v }))
 
+  // Reorder export, SPLIT BY SUPPLIER so each supplier gets their own list.
   const copyOrder = () => {
     const L = [`NO DICE HACKNEY · REORDER (to par · ${COVERS.find(c => c.key === coverKey).label} +${Math.round(buffer * 100)}%)`, '']
-    STOCK_CATEGORIES.forEach(c => {
-      const due = c.items.filter(it => toOrder(it) > 0)
-      if (!due.length) return
-      L.push(c.label)
-      due.forEach(it => L.push(`  ${it.name}: ${toOrder(it)} × ${it.size}`))
-      L.push('')
+    SUPPLIERS.forEach(supName => {
+      const lines = []
+      STOCK_CATEGORIES.forEach(c => {
+        c.items.filter(it => it.supplier === supName && toOrder(it) > 0)
+          .forEach(it => lines.push(`  ${it.name}: ${toOrder(it)} × ${it.size}`))
+      })
+      if (lines.length) { L.push(`═══ ${supName} ═══`, ...lines, '') }
     })
     navigator.clipboard?.writeText(L.join('\n')).catch(() => {})
   }
@@ -130,7 +139,24 @@ export default function StockList() {
         })}
         <button onClick={copyOrder} style={{ padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, background: 'var(--gold)', color: 'var(--ink)', border: 'none', fontWeight: 600 }}>Copy reorder</button>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{shown} shown · enter on-hand to get “to order”</div>
+
+      {/* Supplier filter — isolate one supplier's order */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+        <span style={{ fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cream-dim)', marginRight: 2 }}>Supplier</span>
+        {['all', ...SUPPLIERS].map(s => {
+          const on = sup === s
+          const col = s === 'all' ? 'var(--gold)' : SUP_COLOR[s]
+          return (
+            <button key={s} onClick={() => setSup(s)} style={{
+              padding: '6px 11px', borderRadius: 7, cursor: 'pointer', fontSize: 11,
+              background: on ? `${col}22` : 'rgba(255,255,255,0.04)',
+              border: `1px solid ${on ? col : 'rgba(255,255,255,0.12)'}`,
+              color: on ? col : 'var(--cream)', fontWeight: on ? 600 : 400,
+            }}>{s === 'all' ? 'All suppliers' : s.replace(' (direct)', '')}</button>
+          )
+        })}
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{shown} shown · enter on-hand to get “to order” · Copy reorder splits by supplier</div>
 
       {/* Categories — par sheet rows */}
       {cats.map(c => (
@@ -147,8 +173,9 @@ export default function StockList() {
             return (
               <div key={it.name} style={{ display: 'grid', gridTemplateColumns: '1fr 52px 70px 60px', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ color: it.sold ? 'var(--cream)' : '#FCD34D', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  <span title={it.supplier} style={{ display: 'inline-block', width: 7, height: 7, borderRadius: 2, background: SUP_COLOR[it.supplier] || '#94A3B8', marginRight: 7, verticalAlign: 'middle' }} />
                   {!it.sold && <span style={{ marginRight: 5 }} title="Stocked but no recorded sales">○</span>}{it.name}
-                  <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}> · {it.size}</span>
+                  <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}> · {it.size}{sup === 'all' ? ` · ${it.supplier.replace(' (direct)', '')}` : ''}</span>
                 </div>
                 <div style={{ textAlign: 'center', color: 'var(--cream-dim)', fontVariantNumeric: 'tabular-nums' }}>{par}</div>
                 <input
