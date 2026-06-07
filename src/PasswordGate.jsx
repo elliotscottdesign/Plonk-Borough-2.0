@@ -24,12 +24,16 @@ import { useTranslation } from 'react-i18next'
 // Plonk + Hackney visibility. Role tag stays 'observer' so any future
 // external-sheet-write or document-edit flow gates against it.
 // ───────────────────────────────────────────────────────────────────────
+// `ops` grants the internal team Operations hub at /ops (Stock Orders,
+// Reports, Documentation). Founder-tier holds it; NDTEAM is the dedicated
+// staff code — ops-only, no investor decks.
 const ACCESS_CODES = {
-  '888999':   { plonk: true,  founder: true,  hackney: true,  role: 'founder'  },
-  'JOHN1':    { plonk: true,  founder: true,  hackney: true,  role: 'observer' },
-  'LEONIE':   { plonk: false, founder: true,  hackney: true,  role: 'leonie'   },
-  'NODICE88': { plonk: false, founder: false, hackney: true,  role: 'nodice88' },
-  'BRAZIL':   { plonk: false, founder: false, hackney: true,  role: 'brazil'   },
+  '888999':   { plonk: true,  founder: true,  hackney: true,  ops: true,  role: 'founder'  },
+  'JOHN1':    { plonk: true,  founder: true,  hackney: true,  ops: true,  role: 'observer' },
+  'LEONIE':   { plonk: false, founder: true,  hackney: true,  ops: false, role: 'leonie'   },
+  'NODICE88': { plonk: false, founder: false, hackney: true,  ops: false, role: 'nodice88' },
+  'BRAZIL':   { plonk: false, founder: false, hackney: true,  ops: false, role: 'brazil'   },
+  'NDTEAM':   { plonk: false, founder: false, hackney: false, ops: true,  role: 'team'     },
 }
 
 export default function PasswordGate({ onUnlock }) {

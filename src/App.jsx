@@ -23,6 +23,7 @@ import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 import WorldCupPage from './worldcup/WorldCupPage.jsx'
 import WorldCupBookings from './worldcup/WorldCupBookings.jsx'
 import DecemberSales from './borough/DecemberSales.jsx'
+import OpsApp from './ops/OpsApp.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -54,6 +55,12 @@ const isBoroughDecemberPath = () =>
 const isRootPath = () =>
   typeof window !== 'undefined' &&
   /^\/?$/.test(window.location.pathname)
+
+// Internal team Operations hub. Gated to the `ops` flag (founder-tier + the
+// dedicated NDTEAM staff code).
+const isOpsPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/ops(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&
@@ -133,6 +140,7 @@ export default function App() {
   )
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
   const [hackneyAccess, setHackneyAccess] = useState(() => sessionStorage.getItem('ndb_hackney_access') === '1')
+  const [opsAccess, setOpsAccess] = useState(() => sessionStorage.getItem('ndb_ops_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
@@ -178,12 +186,12 @@ export default function App() {
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath())) {
     return <Landing />
   }
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, founder, hackney, role, lang: chosenLang, accessCode }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, hackney, ops, role, lang: chosenLang, accessCode }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
       // Per-tenant access code — every signed-in user gets their own
@@ -210,6 +218,9 @@ export default function App() {
       // also hold it.
       if (hackney) sessionStorage.setItem('ndb_hackney_access', '1')
       else         sessionStorage.removeItem('ndb_hackney_access')
+      // Ops hub visibility — founder-tier + the dedicated NDTEAM staff code.
+      if (ops) sessionStorage.setItem('ndb_ops_access', '1')
+      else     sessionStorage.removeItem('ndb_ops_access')
       // Role tag — components can branch on this for role-specific UI
       // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
       sessionStorage.setItem('ndb_role', role || 'investor')
@@ -217,6 +228,7 @@ export default function App() {
       i18n.changeLanguage(targetLang)
       setPlonkAccess(!!plonk)
       setHackneyAccess(!!hackney)
+      setOpsAccess(!!ops)
       setUnlocked(true)
     }} />
   }
@@ -256,6 +268,23 @@ export default function App() {
     return <WorldCupPage />
   }
 
+  // /ops — internal team Operations hub. Requires the `ops` flag (founder-tier
+  // or the NDTEAM staff code); others get a polite kick-back.
+  if (isOpsPath()) {
+    if (!opsAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            The Operations hub is for the No Dice team. Sign in with the team access code to view.
+          </div>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
+        </div>
+      )
+    }
+    return <OpsApp />
+  }
+
   // /borough/december-sales — founder-only POS sales dashboard. Requires the
   // Plonk/founder tier (888999 / JOHN1); other unlocked Borough users get a
   // polite kick-back. Checked before the BoroughShell fall-through because
@@ -273,6 +302,20 @@ export default function App() {
       )
     }
     return <DecemberSales />
+  }
+
+  // Pure-team users (NDTEAM: ops only, no investor flags) shouldn't land on
+  // the Borough investor deck if they type the URL — point them to /ops.
+  if (opsAccess && !hackneyAccess && !plonkAccess) {
+    return (
+      <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+        <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>No Dice · Team</div>
+        <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+          Your access is the team Operations hub. The investor decks are a separate login.
+        </div>
+        <a href="/ops" style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.1em', textDecoration:'none', marginTop:8, border:'1px solid var(--gold)', borderRadius:8, padding:'10px 20px' }}>→ Go to Operations</a>
+      </div>
+    )
   }
 
   return (
