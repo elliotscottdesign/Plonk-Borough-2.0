@@ -35,7 +35,7 @@ export default function Landing() {
     const prevColor = document.body.style.color
     document.body.style.background = INK
     document.body.style.color      = '#FFFFFF'
-    document.title = 'No Dice — London Fields · OPEN 4/6'
+    document.title = 'No Dice — London Fields · OPENS 17 JUNE'
     return () => {
       document.body.style.background = prevBg
       document.body.style.color      = prevColor
@@ -67,7 +67,9 @@ export default function Landing() {
         />
       </div>
 
-      {/* OPENS 4 / 6 — supporting line, set smaller than the wordmark. */}
+      {/* OPENS 17 JUNE — supporting line, set smaller than the wordmark.
+          (Originally launched as "4 / 6"; pushed to 17 June to line up
+          with the World Cup opening England fixture.) */}
       <h1
         style={{
           fontFamily: "'Bebas Neue', 'Impact', sans-serif",
@@ -81,7 +83,7 @@ export default function Landing() {
           fontWeight: 400,
         }}
       >
-        Opens 4 / 6
+        Opens 17 June
       </h1>
 
       {/* 407 Mentmore Terrace, Hackney, E8 3PH */}
@@ -196,7 +198,7 @@ function SignupForm() {
       // pre-filled; one click + send and we're done.
       const subject = encodeURIComponent('No Dice · waitlist signup')
       const body    = encodeURIComponent(
-        'Add me to the No Dice waitlist for the 4/6 opening.\n\nEmail: ' + email.trim()
+        'Add me to the No Dice waitlist for the 17 June opening.\n\nEmail: ' + email.trim()
       )
       window.location.href = `mailto:${FOUNDER_EMAIL}?subject=${subject}&body=${body}`
       setState('ok')
@@ -217,7 +219,7 @@ function SignupForm() {
           You're on the list
         </div>
         <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.85)' }}>
-          We'll let you know the moment doors open. 4 / 6.
+          We'll let you know the moment doors open. 17 June.
         </div>
       </div>
     )
