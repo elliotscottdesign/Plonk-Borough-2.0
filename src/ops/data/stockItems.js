@@ -8,7 +8,7 @@
 // computed from it in the UI (weekend-safe cover + buffer). `supplier` routes
 // each line to its supplier (Drinks Club / Brakes / Top Cuvee / Goodwine / SNACK
 // / Club Mate) so reorders can be split per supplier.
-export const STOCK_META = { totalProducts: 215, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
+export const STOCK_META = { totalProducts: 235, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
 
 export const STOCK_CATEGORIES = [
   { label: "SPIRITS - GIN", unit: "700ml bottle", items: [
@@ -259,5 +259,33 @@ export const STOCK_CATEGORIES = [
     { name: "shroom", sold: true, use: 0.0, size: "pack", supplier: "SNACK" },
     { name: "Snackalami", sold: true, use: 0.5, size: "pack", supplier: "SNACK" },
     { name: "Salty Dog Crisps", sold: false, use: 0.0, size: "pack", supplier: "SNACK" },
+  ] },
+  { label: "FRUIT \u00b7 CITRUS", unit: "Brakes pack", items: [
+    { name: "Limes", sold: true, use: 2.86, size: "4kg case", supplier: "Brakes" },
+    { name: "Grapefruit", sold: true, use: 1.06, size: "each", supplier: "Brakes" },
+    { name: "Oranges", sold: true, use: 0.53, size: "box of 10", supplier: "Brakes" },
+    { name: "Lemons", sold: true, use: 0.44, size: "box of 20", supplier: "Brakes" },
+  ] },
+  { label: "FRUIT \u00b7 OTHER", unit: "Brakes pack", items: [
+    { name: "Pineapple", sold: true, use: 0.37, size: "each", supplier: "Brakes" },
+    { name: "Strawberries", sold: true, use: 0.07, size: "400g", supplier: "Brakes" },
+    { name: "Watermelon", sold: true, use: 0.05, size: "each", supplier: "Brakes" },
+    { name: "Cranberries (frozen)", sold: true, use: 0.05, size: "1kg", supplier: "Brakes" },
+    { name: "Apples", sold: true, use: 0.02, size: "pack of 8", supplier: "Brakes" },
+  ] },
+  { label: "VEG / GARNISH", unit: "Brakes pack", items: [
+    { name: "Cucumber", sold: true, use: 1.34, size: "each", supplier: "Brakes" },
+    { name: "Celery", sold: true, use: 0.23, size: "each", supplier: "Brakes" },
+    { name: "Green Chillies", sold: true, use: 0.23, size: "250g", supplier: "Brakes" },
+    { name: "Red Chillies", sold: true, use: 0.18, size: "250g", supplier: "Brakes" },
+    { name: "Padron Peppers", sold: true, use: 0.09, size: "500g", supplier: "Brakes" },
+    { name: "Ginger", sold: true, use: 0.05, size: "300g", supplier: "Brakes" },
+  ] },
+  { label: "HERBS", unit: "bunch", items: [
+    { name: "Mint", sold: true, use: 0.69, size: "100g bunch", supplier: "Brakes" },
+    { name: "Sage", sold: true, use: 0.12, size: "100g bunch", supplier: "Brakes" },
+    { name: "Rosemary", sold: true, use: 0.09, size: "100g bunch", supplier: "Brakes" },
+    { name: "Basil", sold: true, use: 0.02, size: "100g bunch", supplier: "Brakes" },
+    { name: "Thyme", sold: true, use: 0.02, size: "100g bunch", supplier: "Brakes" },
   ] },
 ]

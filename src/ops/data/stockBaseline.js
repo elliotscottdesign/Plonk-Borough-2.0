@@ -106,17 +106,36 @@ export const SNACK_SALES_WEEK = 50
 export const SNACK_PACKS_WEEK = 31
 export const SNACK_COGS = 0.45            // ≈45% cost of sale — placeholder
 
-// Fruit — REAL quantities from the Brakes order history (31 invoices, Jun 2025
-// – Mar 2026), in Brakes pack units, averaged to per week. Limes dominate (~11
-// kg/wk ≈ 3 × 4kg cases — fresh juice for margaritas/daiquiris + garnish).
-// `unitCost` = actual Brakes £ per pack. Scales with the busy dial; summer runs
-// higher (Jul/Aug limes ~double). See brakesData.js for the full breakdown.
-export const FRUIT = [
-  { name: 'Limes',      perWeek: 2.75, unit: '4kg case',  unitCost: 8.70, note: 'fresh juice (margaritas, daiquiris) + garnish — biggest line; ~double in summer' },
-  { name: 'Lemons',     perWeek: 0.50, unit: 'box of 20', unitCost: 3.61, note: 'sours, lemonade, garnish' },
-  { name: 'Oranges',    perWeek: 0.55, unit: 'box of 10', unitCost: 2.83, note: 'negronis, spritzes — Beericano pushes this up for summer' },
-  { name: 'Grapefruit', perWeek: 1.10, unit: 'each',      unitCost: 0.51, note: 'palomas' },
-  { name: 'Pineapple',  perWeek: 0.35, unit: 'each',      unitCost: 1.89, note: 'tropical / colada serves' },
+// FRESH PRODUCE — fruit, veg & herbs — REAL quantities from the Brakes order
+// history (31 invoices, Jun 2025 – Mar 2026), in Brakes pack units, averaged to
+// per week. Limes dominate (~3 × 4kg cases — fresh juice + garnish). `unitCost`
+// = actual Brakes £ per pack. Scales with the busy dial; summer runs higher
+// (Jul/Aug limes ~double). All from Brakes. See brakesData.js for the breakdown.
+export const FRESH = [
+  // Citrus
+  { name: 'Limes',          group: 'Citrus',        perWeek: 2.86, unit: '4kg case',   unitCost: 8.53, note: 'fresh juice (margaritas, daiquiris) + garnish — biggest line; ~double in summer' },
+  { name: 'Grapefruit',     group: 'Citrus',        perWeek: 1.06, unit: 'each',       unitCost: 0.51, note: 'palomas' },
+  { name: 'Oranges',        group: 'Citrus',        perWeek: 0.53, unit: 'box of 10',  unitCost: 2.83, note: 'negronis, spritzes — Beericano pushes up for summer' },
+  { name: 'Lemons',         group: 'Citrus',        perWeek: 0.44, unit: 'box of 20',  unitCost: 3.61, note: 'sours, lemonade, garnish' },
+  // Other fruit
+  { name: 'Pineapple',      group: 'Other fruit',   perWeek: 0.37, unit: 'each',       unitCost: 2.99, note: 'colada / tropical serves' },
+  { name: 'Strawberries',   group: 'Other fruit',   perWeek: 0.07, unit: '400g',       unitCost: 3.96, note: 'garnish / specials' },
+  { name: 'Watermelon',     group: 'Other fruit',   perWeek: 0.05, unit: 'each',       unitCost: 5.57, note: 'summer specials' },
+  { name: 'Cranberries (frozen)', group: 'Other fruit', perWeek: 0.05, unit: '1kg',    unitCost: 5.59, note: 'garnish / winter' },
+  { name: 'Apples',         group: 'Other fruit',   perWeek: 0.02, unit: 'pack of 8',  unitCost: 2.22, note: 'occasional' },
+  // Veg / garnish
+  { name: 'Cucumber',       group: 'Veg / garnish', perWeek: 1.34, unit: 'each',       unitCost: 1.72, note: 'G&Ts, spritzes, Pimms' },
+  { name: 'Celery',         group: 'Veg / garnish', perWeek: 0.23, unit: 'each',       unitCost: 1.88, note: 'Bloody Marys' },
+  { name: 'Green Chillies', group: 'Veg / garnish', perWeek: 0.23, unit: '250g',       unitCost: 2.06, note: 'spicy margaritas / micheladas' },
+  { name: 'Red Chillies',   group: 'Veg / garnish', perWeek: 0.18, unit: '250g',       unitCost: 4.69, note: 'spicy margaritas / micheladas' },
+  { name: 'Padron Peppers', group: 'Veg / garnish', perWeek: 0.09, unit: '500g',       unitCost: 3.97, note: 'bar snack' },
+  { name: 'Ginger',         group: 'Veg / garnish', perWeek: 0.05, unit: '300g',       unitCost: 1.99, note: 'fresh ginger for cocktails' },
+  // Herbs
+  { name: 'Mint',           group: 'Herbs',         perWeek: 0.69, unit: '100g bunch',  unitCost: 1.25, note: 'mojitos — perishable, order little & often' },
+  { name: 'Sage',           group: 'Herbs',         perWeek: 0.12, unit: '100g bunch',  unitCost: 1.48, note: 'sage smash / specials' },
+  { name: 'Rosemary',       group: 'Herbs',         perWeek: 0.09, unit: '100g bunch',  unitCost: 1.17, note: 'garnish / specials' },
+  { name: 'Basil',          group: 'Herbs',         perWeek: 0.02, unit: '100g bunch',  unitCost: 2.10, note: 'occasional' },
+  { name: 'Thyme',          group: 'Herbs',         perWeek: 0.02, unit: '100g bunch',  unitCost: 1.39, note: 'occasional' },
 ]
 
 // Scaling presets — multiplier vs the average Feb week.

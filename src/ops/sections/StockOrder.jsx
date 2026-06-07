@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   PINT_LITRES, WASTAGE, AVG_WEEK_REVENUE, DOW_SHARE, WEEKEND_SHARE,
-  DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, FRUIT, PRESETS,
+  DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, FRESH, PRESETS,
 } from '../data/stockBaseline.js'
 
 // ─── Stock Order calculator ──────────────────────────────────────────────
@@ -59,9 +59,10 @@ export default function StockOrder() {
   const softGroups = groupOrdered(softs, 'group')
   const cansWkTotal = Math.round(softs.filter(s => s.group.startsWith('Cans')).reduce((s, x) => s + x.qty, 0))
 
-  // Fruit (garnish) — scales with the busy dial.
-  const fruit = FRUIT.map(f => ({ ...f, order: ceil(f.perWeek * mult) }))
-  const fruitSpend = fruit.reduce((s, f) => s + f.order * f.unitCost, 0)
+  // Fresh produce (fruit / veg / herbs, all Brakes) — scales with the busy dial.
+  const fresh = FRESH.map(f => ({ ...f, order: ceil(f.perWeek * mult) }))
+  const freshGroups = groupOrdered(fresh, 'group')
+  const freshSpend = fresh.reduce((s, f) => s + f.order * f.unitCost, 0)
 
   const weekendKegs = draught.map(d => ({ label: d.label, kegs: d.kegsRaw * WEEKEND_SHARE }))
 
@@ -93,8 +94,11 @@ export default function StockOrder() {
       })
     })
     L.push('')
-    L.push('FRUIT (garnish + fresh juice · Brakes)')
-    fruit.forEach(f => L.push(`  ${f.name}:  ${f.order} × ${f.unit}`))
+    L.push('FRESH — FRUIT / VEG / HERBS · Brakes')
+    freshGroups.forEach(g => {
+      L.push(`  [${g.group}]`)
+      g.items.forEach(f => L.push(`    ${f.name}:  ${f.order} × ${f.unit}`))
+    })
     return L.join('\n')
   }
 
@@ -103,7 +107,7 @@ export default function StockOrder() {
     draught.forEach(d => rows.push(['Draught', `${d.label} (${d.brand})`, d.order, `keg ${d.kegL}L`]))
     spirits.forEach(s => rows.push([`Spirits · ${s.cat}`, s.name, s.order, '700ml bottle · ~4wk cover']))
     softs.forEach(s => rows.push([`Soft · ${s.group}`, s.name, s.group.startsWith('Cans') ? s.order : s.qty.toFixed(1), `${s.unit}/wk`]))
-    fruit.forEach(f => rows.push(['Fruit (garnish)', f.name, f.order, 'per week']))
+    fresh.forEach(f => rows.push([`Fresh · ${f.group} (Brakes)`, f.name, f.order, f.unit]))
     return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
   }
 
@@ -287,20 +291,23 @@ export default function StockOrder() {
         ))}
       </Panel>
 
-      {/* Fruit (garnish) */}
-      <Panel title="Fruit — garnish" sub={`per week · ~£${fruitSpend.toFixed(2)} est.`} accent="#A3E635">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {fruit.map(f => (
-            <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '120px 110px 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '7px 4px 0' }}>
-              <div style={{ fontSize: 13, color: 'var(--cream)' }}>{f.name}</div>
-              <div style={{ fontSize: 16, color: '#A3E635', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.order} <span style={{ fontSize: 11, color: 'var(--cream-dim)', fontWeight: 400 }}>× {f.unit}</span></div>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.4 }}>{f.note}</div>
-            </div>
-          ))}
-        </div>
-        <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 8, fontStyle: 'italic' }}>
-          From your <strong>real Brakes order history</strong> (Jun 2025–Mar 2026), in Brakes pack sizes — covers fresh
-          juice (the bigger use) + garnish. Limes run ~double in summer. See the Perishables tab for the full picture.
+      {/* Fresh produce — fruit / veg / herbs (Brakes) */}
+      <Panel title="Fresh — fruit, veg & herbs" sub={`Brakes · per week · ~£${freshSpend.toFixed(2)}`} accent="#A3E635">
+        {freshGroups.map(g => (
+          <div key={g.group} style={{ marginBottom: 12 }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#A3E635', fontWeight: 700, marginBottom: 4 }}>{g.group}</div>
+            {g.items.map(f => (
+              <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '130px 120px 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '6px 4px 0' }}>
+                <div style={{ fontSize: 13, color: 'var(--cream)' }}>{f.name}</div>
+                <div style={{ fontSize: 15, color: '#A3E635', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.order} <span style={{ fontSize: 11, color: 'var(--cream-dim)', fontWeight: 400 }}>× {f.unit}</span></div>
+                <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.4 }}>{f.note}</div>
+              </div>
+            ))}
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 4, fontStyle: 'italic' }}>
+          From your <strong>real Brakes order history</strong> (Jun 2025–Mar 2026), in Brakes pack sizes. Limes lead (juice +
+          garnish) and run ~double in summer. Herbs are perishable — order little &amp; often. Full picture on the Perishables tab.
         </div>
       </Panel>
 
