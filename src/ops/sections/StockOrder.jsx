@@ -28,6 +28,7 @@ const head = { padding: '6px', fontSize: 10, letterSpacing: '0.08em', textTransf
 
 export default function StockOrder() {
   const [mult, setMult] = useState(1.0)
+  const [copied, setCopied] = useState(false)
   const weekRev = AVG_WEEK_REVENUE * mult
 
   // Draught: pints → litres (+wastage) → kegs
@@ -49,6 +50,56 @@ export default function StockOrder() {
 
   // Weekend load: how many kegs of the headline taps you want IN before Friday.
   const weekendKegs = draught.map(d => ({ label: d.label, kegs: d.kegsRaw * WEEKEND_SHARE }))
+
+  // ─── Export — a plain checklist to set against the Drinks Club saved basket ─
+  const orderText = () => {
+    const L = []
+    L.push('NO DICE HACKNEY · STOCK ORDER')
+    L.push(`Week estimate: ~${money(weekRev)}  (${Math.round(mult * 100)}% of a Feb average)`)
+    L.push('')
+    L.push('DRAUGHT (kegs)')
+    draught.forEach(d => {
+      const note = d.kegsRaw < 0.6 ? `   [1 keg lasts ~${Math.round(1 / Math.max(d.kegsRaw, 0.01))} wks]` : ''
+      L.push(`  ${d.label} — ${d.brand} (${d.kegL}L):  ${d.order} keg${d.order > 1 ? 's' : ''}${note}`)
+    })
+    L.push('')
+    L.push('SPIRITS (700ml bottles)')
+    spirits.forEach(s => L.push(`  ${s.label}:  ${s.order}`))
+    L.push('')
+    L.push('SOFT DRINKS')
+    softs.forEach(s => L.push(`  ${s.label} (${s.detail}):  ${s.qty} ${s.unit} — ${s.order}`))
+    return L.join('\n')
+  }
+
+  const orderCsv = () => {
+    const rows = [['Category', 'Item', 'Quantity', 'Unit / note']]
+    draught.forEach(d => rows.push(['Draught', `${d.label} (${d.brand})`, d.order, `keg ${d.kegL}L`]))
+    spirits.forEach(s => rows.push(['Spirits', s.label, s.order, '700ml bottle']))
+    softs.forEach(s => rows.push(['Soft drinks', s.label, s.qty, s.unit]))
+    return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+  }
+
+  const copyOrder = async () => {
+    const text = orderText()
+    try {
+      await navigator.clipboard.writeText(text)
+    } catch {
+      const ta = document.createElement('textarea')
+      ta.value = text; document.body.appendChild(ta); ta.select()
+      try { document.execCommand('copy') } catch { /* ignore */ }
+      document.body.removeChild(ta)
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 2000)
+  }
+
+  const downloadCsv = () => {
+    const blob = new Blob([orderCsv()], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = 'nodice-hackney-stock-order.csv'
+    document.body.appendChild(a); a.click(); document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
@@ -103,6 +154,19 @@ export default function StockOrder() {
             <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{s}</div>
           </div>
         ))}
+      </div>
+
+      {/* Export — copy/CSV for the Drinks Club basket */}
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: '14px 16px' }}>
+        <div style={{ flex: '1 1 240px', fontSize: 13, color: 'var(--cream)', lineHeight: 1.5 }}>
+          <strong>Order ready.</strong> Copy it, then set these quantities against your saved Drinks Club basket.
+        </div>
+        <button onClick={copyOrder} style={{ padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600, background: copied ? '#34D399' : 'var(--gold)', color: 'var(--ink)', border: 'none', transition: 'background 0.15s' }}>
+          {copied ? '✓ Copied' : 'Copy order'}
+        </button>
+        <button onClick={downloadCsv} style={{ padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, background: 'rgba(255,255,255,0.05)', color: 'var(--cream)', border: '1px solid rgba(201,168,76,0.4)' }}>
+          Download CSV
+        </button>
       </div>
 
       {/* Draught */}
