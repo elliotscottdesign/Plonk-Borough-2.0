@@ -8,16 +8,10 @@ import WorldCupPage from '../../worldcup/WorldCupPage.jsx'
 // customer-facing site in the nodice.bar repo, so the standalone
 // routes here were removed — see App.jsx.)
 //
-// We render WorldCupPage exactly as it was. It carries its own header
-// chrome ("World Cup 2026 · No Dice London Fields") which now reads
-// as a section banner. The component is fully self-contained — no
-// shared state with the investor deck.
+// `embedded` tells WorldCupPage to drop its standalone-page chrome
+// (full-screen background, "World Cup 2026" wordmark header, "back to
+// nodice.bar" link) so it sits flush inside the OpsApp shell, which
+// already supplies its own header and outer padding.
 export default function WorldCup() {
-  return (
-    <div style={{ margin: '-28px -24px -64px' }}>
-      {/* Cancel the OpsApp body padding so WorldCupPage can use its
-          own full-bleed gold-bordered header without a gutter. */}
-      <WorldCupPage />
-    </div>
-  )
+  return <WorldCupPage embedded />
 }

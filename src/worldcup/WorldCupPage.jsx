@@ -445,7 +445,11 @@ function TabHeading({ kicker, title }) {
 }
 
 // ─── Page ────────────────────────────────────────────────────────────
-export default function WorldCupPage() {
+// `embedded` strips the standalone-page chrome (full-screen background,
+// gold-bordered header bar with "World Cup 2026" wordmark, "back to
+// nodice.bar" link) so the component nests cleanly inside another
+// layout. Used by /ops where the OpsApp shell already supplies a header.
+export default function WorldCupPage({ embedded = false } = {}) {
   const [tab, setTab] = useState('strategy')
   const [filter, setFilter] = useState('all')
   const filtered = useMemo(() => {
@@ -466,20 +470,27 @@ export default function WorldCupPage() {
   }, [filter])
 
   return (
-    <div style={{ minHeight: '100vh', background: INK, color: CREAM, fontFamily: "'DM Sans', sans-serif" }}>
-      {/* Header */}
-      <div style={{ borderBottom: `1px solid ${GOLD_D}`, padding: '20px 32px', background: INK_2 }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
-          <div>
-            <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>No Dice London Fields · Planning</div>
-            <div className="serif" style={{ fontSize: 36, color: GOLD, lineHeight: 1 }}>World Cup 2026</div>
-            <div style={{ fontSize: 13, color: CREAM_D, marginTop: 6 }}>{flagify(TOURNAMENT.host)} · 11 Jun – 19 Jul 2026 · {TOURNAMENT.teams} teams</div>
+    <div style={embedded
+      ? { background: 'transparent', color: CREAM, fontFamily: "'DM Sans', sans-serif" }
+      : { minHeight: '100vh', background: INK, color: CREAM, fontFamily: "'DM Sans', sans-serif" }
+    }>
+      {!embedded && (
+        <div style={{ borderBottom: `1px solid ${GOLD_D}`, padding: '20px 32px', background: INK_2 }}>
+          <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <div style={{ fontSize: 10, color: GOLD, letterSpacing: '0.22em', textTransform: 'uppercase', marginBottom: 4 }}>No Dice London Fields · Planning</div>
+              <div className="serif" style={{ fontSize: 36, color: GOLD, lineHeight: 1 }}>World Cup 2026</div>
+              <div style={{ fontSize: 13, color: CREAM_D, marginTop: 6 }}>{flagify(TOURNAMENT.host)} · 11 Jun – 19 Jul 2026 · {TOURNAMENT.teams} teams</div>
+            </div>
+            <a href="/" style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.14em', textDecoration: 'none' }}>← back to nodice.bar</a>
           </div>
-          <a href="/" style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.14em', textDecoration: 'none' }}>← back to nodice.bar</a>
         </div>
-      </div>
+      )}
 
-      <div style={{ maxWidth: 1100, margin: '0 auto', padding: '32px' }}>
+      <div style={embedded
+        ? { maxWidth: 1100, margin: '0 auto', padding: 0 }
+        : { maxWidth: 1100, margin: '0 auto', padding: '32px' }
+      }>
 
         <Summary />
 
