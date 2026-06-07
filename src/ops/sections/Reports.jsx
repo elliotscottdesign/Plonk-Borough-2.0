@@ -4,6 +4,7 @@ import {
   ACTUAL_2025, BAR_REVENUE, GOLF_TICKETS, RECOST_Y1, RECOST_STEADY, BRIDGE,
   Y1_RENT_FREE_BONUS, DECK_FORECAST, MONTHLY_2025,
 } from '../data/reportPL.js'
+import { SNACK_SALES_WEEK, SNACK_PACKS_WEEK, SNACK_COGS, FRUIT } from '../data/stockBaseline.js'
 
 const money = (n) => (n < 0 ? '−£' : '£') + Math.abs(Math.round(n)).toLocaleString('en-GB')
 const pct = (n) => (n * 100).toFixed(1) + '%'
@@ -102,6 +103,37 @@ export default function Reports() {
           <li><strong>Sales growth is the lever.</strong> The investor deck's 2026 forecast is now bar-only (revenue rebased to ~£602k, golf moved to Plonk Golf with its costs; profit/returns held). This internal view strips 2025 too for a clean like-for-like — the reopening plan (weekends, events, the new community push) is what carries it.</li>
         </ul>
       </div>
+
+      {/* Snacks & fruit — running operational spend */}
+      {(() => {
+        const snackCostWk = SNACK_SALES_WEEK * SNACK_COGS
+        const fruitPiecesWk = FRUIT.reduce((s, f) => s + f.perWeek, 0)
+        const fruitCostWk = FRUIT.reduce((s, f) => s + f.perWeek * f.unitCost, 0)
+        const totMo = (snackCostWk + fruitCostWk) * 4.33
+        return (
+          <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: 18 }}>
+            <div className="serif" style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 2 }}>Snacks &amp; fruit — running spend</div>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginBottom: 14 }}>The small-but-regular ops spend that's easy to lose track of. Snack cost is estimated (no supplier price in the data yet).</div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12 }}>
+              <Tile label="Snacks · sales" value={money(SNACK_SALES_WEEK)} sub={`${SNACK_PACKS_WEEK} packs / wk`} accent="var(--cream)" />
+              <Tile label="Snacks · est. spend" value={`${money(snackCostWk)}/wk`} sub={`≈ ${money(snackCostWk * 4.33)}/mo · ${Math.round(SNACK_COGS * 100)}% of sales`} accent="#F87171" />
+              <Tile label="Fruit · est. spend" value={`${money(fruitCostWk)}/wk`} sub={`${fruitPiecesWk} pieces / wk`} accent="#A3E635" />
+              <Tile label="Combined" value={`${money(totMo)}/mo`} sub="snacks + fruit cost" accent="var(--gold)" />
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+              {FRUIT.map(f => (
+                <span key={f.name} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 7, background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.3)', color: '#D9F99D' }}>
+                  {f.name}: {f.perWeek}/wk
+                </span>
+              ))}
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 12, lineHeight: 1.55 }}>
+              Snacks order on the Stock List par sheet; fruit on the order calculator (garnish-driven). To turn estimated snack
+              spend into the real figure, send me your supplier cost prices. Oranges climb as the Beericano push builds.
+            </div>
+          </div>
+        )
+      })()}
 
       {/* Monthly 2025 revenue shape */}
       <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: 18 }}>

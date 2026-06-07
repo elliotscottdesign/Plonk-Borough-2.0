@@ -1,7 +1,7 @@
 import React, { useState } from 'react'
 import {
   PINT_LITRES, WASTAGE, AVG_WEEK_REVENUE, DOW_SHARE, WEEKEND_SHARE,
-  DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, PRESETS,
+  DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, FRUIT, PRESETS,
 } from '../data/stockBaseline.js'
 
 // ─── Stock Order calculator ──────────────────────────────────────────────
@@ -59,6 +59,10 @@ export default function StockOrder() {
   const softGroups = groupOrdered(softs, 'group')
   const cansWkTotal = Math.round(softs.filter(s => s.group.startsWith('Cans')).reduce((s, x) => s + x.qty, 0))
 
+  // Fruit (garnish) — scales with the busy dial.
+  const fruit = FRUIT.map(f => ({ ...f, order: ceil(f.perWeek * mult) }))
+  const fruitSpend = fruit.reduce((s, f) => s + f.order * f.unitCost, 0)
+
   const weekendKegs = draught.map(d => ({ label: d.label, kegs: d.kegsRaw * WEEKEND_SHARE }))
 
   // ─── Export — a product-level checklist for the Drinks Club basket ────────
@@ -88,6 +92,9 @@ export default function StockOrder() {
         L.push(`    ${s.name}:  ${val}`)
       })
     })
+    L.push('')
+    L.push('FRUIT (garnish)')
+    fruit.forEach(f => L.push(`  ${f.name}:  ${f.order}`))
     return L.join('\n')
   }
 
@@ -96,6 +103,7 @@ export default function StockOrder() {
     draught.forEach(d => rows.push(['Draught', `${d.label} (${d.brand})`, d.order, `keg ${d.kegL}L`]))
     spirits.forEach(s => rows.push([`Spirits · ${s.cat}`, s.name, s.order, '700ml bottle · ~4wk cover']))
     softs.forEach(s => rows.push([`Soft · ${s.group}`, s.name, s.group.startsWith('Cans') ? s.order : s.qty.toFixed(1), `${s.unit}/wk`]))
+    fruit.forEach(f => rows.push(['Fruit (garnish)', f.name, f.order, 'per week']))
     return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
   }
 
@@ -277,6 +285,23 @@ export default function StockOrder() {
             {g.group.startsWith('Juice') && <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 6, fontStyle: 'italic' }}>~1 carton covers a week of each at this volume.</div>}
           </div>
         ))}
+      </Panel>
+
+      {/* Fruit (garnish) */}
+      <Panel title="Fruit — garnish" sub={`per week · ~£${fruitSpend.toFixed(2)} est.`} accent="#A3E635">
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {fruit.map(f => (
+            <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '120px auto 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '7px 4px 0' }}>
+              <div style={{ fontSize: 13, color: 'var(--cream)' }}>{f.name}</div>
+              <div style={{ fontSize: 18, color: '#A3E635', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.order}</div>
+              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.4 }}>{f.note}</div>
+            </div>
+          ))}
+        </div>
+        <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 8, fontStyle: 'italic' }}>
+          Estimated from drink volumes × standard garnish ratios (≈6 wedges/lime). Order regularly — fruit is perishable;
+          don't over-buy beyond the week. Oranges climb as the Beericano push builds.
+        </div>
       </Panel>
 
       {/* Caveat */}

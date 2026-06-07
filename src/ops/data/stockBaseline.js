@@ -98,6 +98,25 @@ export const SOFTS = [
   { group: 'Juice (cartons)',      name: 'Pineapple Juice',         perWeek:  1.5, unit: 'glasses' },
 ]
 
+// Snacks (bar food) — Feb 2026: ~31 packs / £50 of sales per week. The stock
+// tracker has no supplier cost (Cost Price column is blank), so snack SPEND is
+// estimated at SNACK_COGS of sales until real costs land. Snack *ordering* is on
+// the Stock List par sheet (BAR SNACKS); this is for the spend read-out.
+export const SNACK_SALES_WEEK = 50
+export const SNACK_PACKS_WEEK = 31
+export const SNACK_COGS = 0.45            // ≈45% cost of sale — placeholder
+
+// Fruit (garnish) — estimated from Feb drink volumes × standard garnish ratios
+// (≈6 wedges/lime, 6/lemon, 5 wheels/orange). Not a till item, so it lives here.
+// `unitCost` = rough wholesale £ each. Tune as the menu shifts (Beericano will
+// push oranges up over summer).
+export const FRUIT = [
+  { name: 'Limes',      perWeek: 15, unitCost: 0.15, note: 'margaritas, mojitos, G&Ts, Coronas, soda & lime' },
+  { name: 'Lemons',     perWeek:  4, unitCost: 0.20, note: 'sours, lemonade, some G&Ts' },
+  { name: 'Oranges',    perWeek:  3, unitCost: 0.25, note: 'negronis, spritzes — Beericano pushes this up for summer' },
+  { name: 'Grapefruit', perWeek:  1, unitCost: 0.40, note: 'palomas' },
+]
+
 // Scaling presets — multiplier vs the average Feb week.
 export const PRESETS = [
   { key: 'quiet',   label: 'Quiet week',      mult: 0.8 },
