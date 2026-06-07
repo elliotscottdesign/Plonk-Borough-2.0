@@ -1,68 +1,64 @@
-// First live Report — "2025 sales on the 2026 cost base" (Hackney).
+// First live Report — "Bar-only 2025 sales on the 2026 cost base" (Hackney).
 //
-// Takes 2025 ACTUAL sales & P&L (canonical Monthly Summary basis — ties to the
-// £30,896 actual profit) and re-costs it with the 2026 PREDICTED cost rules,
-// so the founder sees what last year's trade would earn under the new lease
-// and predicted costs. Two rent scenarios: Year-1 (3-month rent-free start)
-// and steady state (full £65k lease).
+// Re-cuts 2025 to the BAR-ONLY basis the venue runs on going forward: golf
+// tickets are handed to Plonk Golf (no longer No Dice revenue) and the golf
+// running-costs leave with them. Then it applies the 2026 predicted cost base
+// (new £65k lease, +10% inflation, new director line).
 //
-// 2026 cost rules (per src/data/hackney.js):
-//   • Rent: 2025 £94,146 → new lease £65,000/yr net. Year 1 = £48,750
-//     (3 months rent-free). Wages: unchanged. VAT: scales with sales, so
-//     unchanged at 2025 sales level. Variable & other-fixed: +10% inflation.
-//     Director: new separate £15,885 line in 2026.
+// Why golf comes out: the lower rent is the counterpart to giving up golf —
+// crediting the rent cut while still counting golf income would double-count
+// the upside. Founder-confirmed: strip all £70,315 golf tickets + ~£31,423
+// golf costs.
+//
+// ⚠ The source figures don't fully reconcile at line level (Monthly Summary
+// £538k vs the bar-only income breakdown £523k vs golf ticket totals), so this
+// is built as a transparent BRIDGE off the audited £30,896 actual profit — a
+// planning view, not a re-audited P&L. Re-cut cleanly from the weekly P&L when
+// a hard bar-only attribution is needed.
 import { ACTUALS_2025, MONTHLY_INCOME, FORECAST, HACKNEY_FIXED_COSTS_2026 } from '../../data/hackney.js'
 
 const A = ACTUALS_2025
-export const RENT_2025 = 94146                         // old Plonk lease
-const OTHER_FIXED_2025 = A.fixedCosts - RENT_2025      // Monthly-Summary residual
+export const RENT_2025 = 94146
+export const GOLF_TICKETS = 70315          // £44,812 online (DMN) + £25,503 walk-in till
+export const GOLF_COSTS   = 31423          // course lease £24k + host wages £4.4k + maintenance £3k
+const OTHER_FIXED_2025 = A.fixedCosts - RENT_2025
 const VAR_INFLATION = 0.10
 const OTHER_FIXED_INFLATION = 0.10
-const DIRECTOR = FORECAST.director                     // 15,885 — new 2026 line
+const DIRECTOR = FORECAST.director          // 15,885
 
-const variable2026   = A.variableCosts * (1 + VAR_INFLATION)
-const otherFixed2026 = OTHER_FIXED_2025 * (1 + OTHER_FIXED_INFLATION)
+export const BAR_REVENUE = A.revenue - GOLF_TICKETS                 // ≈ £467,776
+// Bar-only 2025 profit on the OLD cost base (golf gone, old £94k rent):
+const BAR_2025_OLD = A.profit - GOLF_TICKETS + GOLF_COSTS           // ≈ −£7,996
 
-function pnl(label, rent) {
-  const fixed  = rent + otherFixed2026
-  const costs  = A.wages + variable2026 + fixed + A.vatNet + DIRECTOR
-  const profit = A.revenue - costs
+const varInflation   = A.variableCosts * VAR_INFLATION             // £16,745
+const otherInflation = OTHER_FIXED_2025 * OTHER_FIXED_INFLATION    // £2,073
+
+function scenario(label, rent) {
+  const profit = BAR_2025_OLD + (RENT_2025 - rent) - varInflation - otherInflation - DIRECTOR
   return {
-    label, revenue: A.revenue, wages: A.wages, variable: variable2026,
-    rent, otherFixed: otherFixed2026, fixed, vat: A.vatNet, director: DIRECTOR,
-    profit, profitBeforeDirector: profit + DIRECTOR,
-    margin: profit / A.revenue,
+    label, revenue: BAR_REVENUE, rent, profit,
+    profitBeforeDirector: profit + DIRECTOR,
+    margin: profit / BAR_REVENUE,
   }
 }
 
-export const ACTUAL_2025 = {
-  label: '2025 actual',
-  revenue: A.revenue, wages: A.wages, variable: A.variableCosts,
-  rent: RENT_2025, otherFixed: OTHER_FIXED_2025, fixed: A.fixedCosts,
-  vat: A.vatNet, director: 0,
-  profit: A.profit, profitBeforeDirector: A.profit, margin: A.profit / A.revenue,
+export const ACTUAL_2025 = {                 // as reported, golf included (context)
+  label: '2025 actual (golf included)',
+  revenue: A.revenue, profit: A.profit, margin: A.profit / A.revenue,
 }
-export const RECOST_Y1     = pnl('2025 sales · 2026 costs · Year 1 (rent-free start)', HACKNEY_FIXED_COSTS_2026.rentY1)
-export const RECOST_STEADY = pnl('2025 sales · 2026 costs · steady state', HACKNEY_FIXED_COSTS_2026.rentSteady)
-
-// Bridge: 2025 actual profit → steady-state recosted profit
-export const BRIDGE = [
-  { label: 'Rent saving (new £65k lease vs old £94k)', delta: RENT_2025 - HACKNEY_FIXED_COSTS_2026.rentSteady },
-  { label: 'Variable cost inflation (+10%)',           delta: -(variable2026 - A.variableCosts) },
-  { label: 'Other fixed inflation (+10%)',             delta: -(otherFixed2026 - OTHER_FIXED_2025) },
-  { label: 'New director salary',                      delta: -DIRECTOR },
-]
-
+export const RECOST_Y1     = scenario('Bar-only · 2026 costs · Year 1 (rent-free start)', HACKNEY_FIXED_COSTS_2026.rentY1)
+export const RECOST_STEADY = scenario('Bar-only · 2026 costs · steady state', HACKNEY_FIXED_COSTS_2026.rentSteady)
 export const Y1_RENT_FREE_BONUS = HACKNEY_FIXED_COSTS_2026.rentSteady - HACKNEY_FIXED_COSTS_2026.rentY1
 
-export const DECK_FORECAST = {   // context: the deck's full +15%-sales forecast
-  revenue: FORECAST.revenue, profit: FORECAST.profit, margin: FORECAST.margin,
-}
+// Bridge: audited 2025 actual → bar-only steady-state, every step visible.
+export const BRIDGE = [
+  { label: 'Golf tickets — handed to Plonk Golf', delta: -GOLF_TICKETS, note: 'no longer No Dice revenue' },
+  { label: 'Golf running-costs removed',          delta: +GOLF_COSTS,   note: 'course lease, host, maintenance' },
+  { label: 'Bar rent saving (£94k → £65k lease)', delta: RENT_2025 - HACKNEY_FIXED_COSTS_2026.rentSteady },
+  { label: 'Variable cost inflation (+10%)',      delta: -varInflation },
+  { label: 'Other fixed inflation (+10%)',        delta: -otherInflation },
+  { label: 'New director salary',                 delta: -DIRECTOR },
+]
 
-export const MONTHLY_2025 = MONTHLY_INCOME
-export const PL_LINES = ['revenue', 'wages', 'variable', 'fixed', 'vat', 'director', 'profit']
-export const PL_LABELS = {
-  revenue: 'Revenue (sales)', wages: 'Wages', variable: 'Variable costs (stock, gas…)',
-  fixed: 'Fixed costs (rent, rates, utilities…)', vat: 'VAT (net)',
-  director: 'Director salary', profit: 'Profit',
-}
+export const DECK_FORECAST = { revenue: FORECAST.revenue, profit: FORECAST.profit, margin: FORECAST.margin }
+export const MONTHLY_2025 = MONTHLY_INCOME   // golf-inclusive monthly shape (context)
