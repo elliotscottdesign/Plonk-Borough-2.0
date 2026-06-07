@@ -128,8 +128,9 @@ export default function Reports() {
               ))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 12, lineHeight: 1.55 }}>
-              Snacks order on the Stock List par sheet; fruit on the order calculator (garnish-driven). To turn estimated snack
-              spend into the real figure, send me your supplier cost prices. Oranges climb as the Beericano push builds.
+              Snacks order on the Stock List par sheet; fruit on the order calculator. Fruit covers <strong>garnish + fresh
+              juice for cocktails</strong> (juice is the bigger use — limes lead). Both spends are estimates — your Brakes
+              orders (fruit) and snack supplier costs will replace them with the real figures.
             </div>
           </div>
         )

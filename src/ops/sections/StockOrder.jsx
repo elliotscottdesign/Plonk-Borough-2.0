@@ -299,8 +299,8 @@ export default function StockOrder() {
           ))}
         </div>
         <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 8, fontStyle: 'italic' }}>
-          Estimated from drink volumes × standard garnish ratios (≈6 wedges/lime). Order regularly — fruit is perishable;
-          don't over-buy beyond the week. Oranges climb as the Beericano push builds.
+          Includes <strong>fresh juice for cocktails</strong> (the bigger use — ~25ml per citrus cocktail) plus garnish.
+          Estimated from drink volumes; will be calibrated to your Brakes orders. Order regularly — fruit is perishable.
         </div>
       </Panel>
 

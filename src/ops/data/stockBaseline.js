@@ -106,15 +106,17 @@ export const SNACK_SALES_WEEK = 50
 export const SNACK_PACKS_WEEK = 31
 export const SNACK_COGS = 0.45            // ≈45% cost of sale — placeholder
 
-// Fruit (garnish) — estimated from Feb drink volumes × standard garnish ratios
-// (≈6 wedges/lime, 6/lemon, 5 wheels/orange). Not a till item, so it lives here.
-// `unitCost` = rough wholesale £ each. Tune as the menu shifts (Beericano will
-// push oranges up over summer).
+// Fruit — GARNISH + FRESH JUICE for cocktails (the bigger use). Estimated from
+// Feb drink volumes: ~25ml fresh juice per citrus cocktail ÷ ~28ml yield/lime,
+// 45ml/lemon, plus garnish wedges/wheels. Limes dominate (159 fresh-lime-juice
+// cocktails in Feb + Coronas + G&Ts). Not a till item, so it lives here.
+// `unitCost` = rough wholesale £ each — TO BE REPLACED with the real Brakes
+// order figures. Oranges climb as the Beericano push builds.
 export const FRUIT = [
-  { name: 'Limes',      perWeek: 15, unitCost: 0.15, note: 'margaritas, mojitos, G&Ts, Coronas, soda & lime' },
-  { name: 'Lemons',     perWeek:  4, unitCost: 0.20, note: 'sours, lemonade, some G&Ts' },
-  { name: 'Oranges',    perWeek:  3, unitCost: 0.25, note: 'negronis, spritzes — Beericano pushes this up for summer' },
-  { name: 'Grapefruit', perWeek:  1, unitCost: 0.40, note: 'palomas' },
+  { name: 'Limes',      perWeek: 53, unitCost: 0.15, note: 'fresh lime juice (margaritas, daiquiris) + garnish (Coronas, G&Ts, soda & lime) — by far the biggest' },
+  { name: 'Lemons',     perWeek:  6, unitCost: 0.20, note: 'fresh lemon juice (sours) + garnish + lemonade' },
+  { name: 'Oranges',    perWeek:  6, unitCost: 0.25, note: 'garnish + some fresh OJ — Beericano pushes this up for summer' },
+  { name: 'Grapefruit', perWeek:  1, unitCost: 0.40, note: 'palomas (fresh grapefruit juice)' },
 ]
 
 // Scaling presets — multiplier vs the average Feb week.
