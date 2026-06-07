@@ -20,8 +20,10 @@ import SiteHome from './site/SiteHome.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
 import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
-import WorldCupPage from './worldcup/WorldCupPage.jsx'
-import WorldCupBookings from './worldcup/WorldCupBookings.jsx'
+// WorldCupPage is now mounted inside OpsApp's "World Cup" tab, not as a
+// standalone route — see src/ops/sections/WorldCup.jsx.
+// WorldCupBookings was a holding page superseded by the real customer
+// schedule in the nodice.bar repo.
 import DecemberSales from './borough/DecemberSales.jsx'
 import OpsApp from './ops/OpsApp.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
@@ -74,16 +76,15 @@ const isIPLicencePath = () =>
   typeof window !== 'undefined' &&
   /^\/templates\/ip-licence\/?$/.test(window.location.pathname)
 
-const isWorldCupPath = () =>
-  typeof window !== 'undefined' &&
-  /^\/worldcup\/?$/.test(window.location.pathname)
-
-// Public customer-facing World Cup bookings holding page. Note the hyphen:
-// /world-cup is the PUBLIC page; /worldcup (no hyphen) is the gated founder
-// planning sheet handled separately below.
-const isWorldCupBookingsPath = () =>
-  typeof window !== 'undefined' &&
-  /^\/world-cup\/?$/.test(window.location.pathname)
+// /worldcup and /world-cup are no longer served by THIS app.
+// • The founder strategy planner moved into /ops as the "World Cup"
+//   tab (src/ops/sections/WorldCup.jsx).
+// • The customer-facing match schedule lives in the separate
+//   nodice.bar repo and owns the /world-cup URL on the live domain.
+// Both path checks below kept as no-ops in case any router code
+// elsewhere still references them.
+const isWorldCupPath = () => false
+const isWorldCupBookingsPath = () => false
 
 // New No Dice bar website — hidden behind the public Landing during dev.
 //   /site          → Schmuck-style splash (logo + portrait video + ENTER)
@@ -170,9 +171,9 @@ export default function App() {
   // by direct URL so the founder can preview + download legal drafts.
   if (isIPLicencePath()) return <IPLicenceTemplate />
 
-  // Public World Cup bookings holding page — no gate, customer-facing.
-  // Returned before the Landing fallback so /world-cup resolves to it.
-  if (isWorldCupBookingsPath()) return <WorldCupBookings />
+  // /world-cup used to render a holding-page bookings widget. Now that
+  // the real customer schedule lives in the nodice.bar repo, this app no
+  // longer claims the URL. (See note at the top of file.)
 
   // New No Dice bar website — both screens served public, no gate.
   // /site = splash, /site/inside = the full site. These sit BEFORE the
@@ -251,22 +252,9 @@ export default function App() {
     return <HackneyApp />
   }
 
-  // /worldcup — founder-only planning sheet. Plonk-tier access only
-  // (888999 / JOHN1). Other unlocked users get a polite kick-back.
-  if (isWorldCupPath()) {
-    if (!plonkAccess) {
-      return (
-        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
-          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
-          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
-            The World Cup planning page is founder-only. Sign in with the founder code to view.
-          </div>
-          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
-        </div>
-      )
-    }
-    return <WorldCupPage />
-  }
+  // /worldcup — old standalone strategy planner route. Moved into
+  // /ops as the "World Cup" tab to free the URL for the customer site
+  // in the nodice.bar repo. (See note at the top of file.)
 
   // /ops — internal team Operations hub. Requires the `ops` flag (founder-tier
   // or the NDTEAM staff code); others get a polite kick-back.

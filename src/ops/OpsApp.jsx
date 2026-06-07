@@ -2,16 +2,21 @@ import React, { useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
+import WorldCup from './sections/WorldCup.jsx'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
-// Internal team area, separate from the investor decks. Three sections:
+// Internal team area, separate from the investor decks. Sections:
 //   Operations    — day-to-day tools (Stock Orders live; pool nights / CRM next)
 //   Reports       — weekly/monthly/yearly business read-out (roadmap)
 //   Documentation — live operational docs to download / link-share (roadmap)
+//   World Cup     — founder strategy planner for World Cup 2026 (moved
+//                   here from its standalone /worldcup route, which
+//                   collided with the customer-site /world-cup page)
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
   { key: 'reports',       label: 'Reports',       Component: Reports },
   { key: 'documentation', label: 'Documentation', Component: Documentation },
+  { key: 'worldcup',      label: 'World Cup',     Component: WorldCup },
 ]
 
 export default function OpsApp() {
