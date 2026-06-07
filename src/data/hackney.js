@@ -302,8 +302,17 @@ export const ACTUALS_2025 = {
 // grows at +3% pa (lease uplift clause). Old Plonk arrangement was
 // £94,146/yr — the new lease saves ~£29k/yr at steady state, plus an
 // additional ~£16,250 in Y1 from the rent-free start.
+// REVENUE — BAR-ONLY basis. Golf is a separate operator entity going forward
+// (legal separation; venue operates the same), so its turnover is OUT of the
+// 2026 forecast: base = the bar-only 2025 income (HACKNEY_SCENARIO_LEVERS sum
+// = £523,398, golf excluded) × 1.15 = £601,908. 2025 ACTUALS stay as-traded
+// (with golf) — history is not restated. Profit/returns are HELD: golf
+// transferred with its own costs, so it was net-neutral to the bar's bottom
+// line — only the top-line turnover changes. Consequently margin rises (~14%)
+// as the lower-margin golf turnover drops out. (Was 538,090 × 1.15 = 618,804
+// on the old golf-inclusive basis.)
 export const FORECAST = {
-  revenue:    618804.17,
+  revenue:    601908,           // BAR-ONLY: £523,398 × 1.15 (golf turnover removed)
   wages:      179872,
   variable:   194704,           // sum of stock + operational variable, all × 1.10
   fixed:       91419,           // rent £48,750 + rates £16,830 + other fixed × 1.10
@@ -311,8 +320,8 @@ export const FORECAST = {
   director:    15885,           // separate line (inc £885 employer NI)
   rent:        48750,           // Y1 with 3-mo rent-free; £65,000 / 12 × 9 paying months (net)
   rates:       16830,           // 2025 × 1.10 — Hackney Council confirmation pending
-  profit:      85181,           // revenue − wages − variable − fixed − VAT − director
-  margin:       0.1377,         // profit / revenue
+  profit:      85181,           // HELD — golf moved out with its costs (net-neutral to the bar)
+  margin:       0.1415,         // profit / bar-only revenue (↑ from 0.1377 as golf turnover drops out)
 }
 
 // === INCOME BY SOURCE (Jan–Dec 2025, BAR-ONLY VIEW) ===

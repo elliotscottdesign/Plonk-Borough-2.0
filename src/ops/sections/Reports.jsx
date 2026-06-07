@@ -99,7 +99,7 @@ export default function Reports() {
           <li><strong>Golf was carrying the headline.</strong> Strip it out and the bar's 2025 sales ({money(BAR_REVENUE)}) only just cover the cost base — even with the rent cut. Golf contributed roughly {money(GOLF_TICKETS - 31423)} net to the old P&L.</li>
           <li><strong>The rent-free start is what keeps Year 1 above water.</strong> It adds {money(Y1_RENT_FREE_BONUS)}, lifting bar-only Year-1 to <strong style={{ color: '#34D399' }}>{money(RECOST_Y1.profit)}</strong> ({pct(RECOST_Y1.margin)}). At steady state, on flat sales, it's a small loss of {money(RECOST_STEADY.profit)} — so the rent saving alone doesn't cover losing golf.</li>
           <li><strong>Before any director draw,</strong> the bar clears {money(RECOST_STEADY.profitBeforeDirector)}–{money(RECOST_Y1.profitBeforeDirector)} — so the director salary is the swing between profit and loss. It's a choice, not a fixed cost.</li>
-          <li><strong>Sales growth is now non-negotiable.</strong> The deck's £{Math.round(DECK_FORECAST.profit / 1000)}k forecast was built on golf-inclusive revenue — it needs rebasing to the {money(BAR_REVENUE)} bar. The reopening plan (weekends, events, the new community push) has to do the heavy lifting.</li>
+          <li><strong>Sales growth is the lever.</strong> The investor deck's 2026 forecast is now bar-only (revenue rebased to ~£602k, golf moved to Plonk Golf with its costs; profit/returns held). This internal view strips 2025 too for a clean like-for-like — the reopening plan (weekends, events, the new community push) is what carries it.</li>
         </ul>
       </div>
 

@@ -119,7 +119,7 @@ export default function Cover() {
     { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
     { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% annual entitlement · paid end of Y1 (Y1 lockup)` },
     { label: 'Distribution Model',     value: 'Semi-annual',                        sub: 'All holders pro-rata · Y1 lockup · first window end of Y1' },
-    { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · May 2026–Apr 2027' },
+    { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · bar-only · May 2026–Apr 2027' },
     { label: 'Valuation Entry',        value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]
 
