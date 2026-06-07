@@ -106,17 +106,17 @@ export const SNACK_SALES_WEEK = 50
 export const SNACK_PACKS_WEEK = 31
 export const SNACK_COGS = 0.45            // ≈45% cost of sale — placeholder
 
-// Fruit — GARNISH + FRESH JUICE for cocktails (the bigger use). Estimated from
-// Feb drink volumes: ~25ml fresh juice per citrus cocktail ÷ ~28ml yield/lime,
-// 45ml/lemon, plus garnish wedges/wheels. Limes dominate (159 fresh-lime-juice
-// cocktails in Feb + Coronas + G&Ts). Not a till item, so it lives here.
-// `unitCost` = rough wholesale £ each — TO BE REPLACED with the real Brakes
-// order figures. Oranges climb as the Beericano push builds.
+// Fruit — REAL quantities from the Brakes order history (31 invoices, Jun 2025
+// – Mar 2026), in Brakes pack units, averaged to per week. Limes dominate (~11
+// kg/wk ≈ 3 × 4kg cases — fresh juice for margaritas/daiquiris + garnish).
+// `unitCost` = actual Brakes £ per pack. Scales with the busy dial; summer runs
+// higher (Jul/Aug limes ~double). See brakesData.js for the full breakdown.
 export const FRUIT = [
-  { name: 'Limes',      perWeek: 53, unitCost: 0.15, note: 'fresh lime juice (margaritas, daiquiris) + garnish (Coronas, G&Ts, soda & lime) — by far the biggest' },
-  { name: 'Lemons',     perWeek:  6, unitCost: 0.20, note: 'fresh lemon juice (sours) + garnish + lemonade' },
-  { name: 'Oranges',    perWeek:  6, unitCost: 0.25, note: 'garnish + some fresh OJ — Beericano pushes this up for summer' },
-  { name: 'Grapefruit', perWeek:  1, unitCost: 0.40, note: 'palomas (fresh grapefruit juice)' },
+  { name: 'Limes',      perWeek: 2.75, unit: '4kg case',  unitCost: 8.70, note: 'fresh juice (margaritas, daiquiris) + garnish — biggest line; ~double in summer' },
+  { name: 'Lemons',     perWeek: 0.50, unit: 'box of 20', unitCost: 3.61, note: 'sours, lemonade, garnish' },
+  { name: 'Oranges',    perWeek: 0.55, unit: 'box of 10', unitCost: 2.83, note: 'negronis, spritzes — Beericano pushes this up for summer' },
+  { name: 'Grapefruit', perWeek: 1.10, unit: 'each',      unitCost: 0.51, note: 'palomas' },
+  { name: 'Pineapple',  perWeek: 0.35, unit: 'each',      unitCost: 1.89, note: 'tropical / colada serves' },
 ]
 
 // Scaling presets — multiplier vs the average Feb week.

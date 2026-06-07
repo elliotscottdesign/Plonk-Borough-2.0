@@ -93,8 +93,8 @@ export default function StockOrder() {
       })
     })
     L.push('')
-    L.push('FRUIT (garnish)')
-    fruit.forEach(f => L.push(`  ${f.name}:  ${f.order}`))
+    L.push('FRUIT (garnish + fresh juice · Brakes)')
+    fruit.forEach(f => L.push(`  ${f.name}:  ${f.order} × ${f.unit}`))
     return L.join('\n')
   }
 
@@ -291,16 +291,16 @@ export default function StockOrder() {
       <Panel title="Fruit — garnish" sub={`per week · ~£${fruitSpend.toFixed(2)} est.`} accent="#A3E635">
         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
           {fruit.map(f => (
-            <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '120px auto 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '7px 4px 0' }}>
+            <div key={f.name} style={{ display: 'grid', gridTemplateColumns: '120px 110px 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '7px 4px 0' }}>
               <div style={{ fontSize: 13, color: 'var(--cream)' }}>{f.name}</div>
-              <div style={{ fontSize: 18, color: '#A3E635', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.order}</div>
+              <div style={{ fontSize: 16, color: '#A3E635', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{f.order} <span style={{ fontSize: 11, color: 'var(--cream-dim)', fontWeight: 400 }}>× {f.unit}</span></div>
               <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.4 }}>{f.note}</div>
             </div>
           ))}
         </div>
         <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 8, fontStyle: 'italic' }}>
-          Includes <strong>fresh juice for cocktails</strong> (the bigger use — ~25ml per citrus cocktail) plus garnish.
-          Estimated from drink volumes; will be calibrated to your Brakes orders. Order regularly — fruit is perishable.
+          From your <strong>real Brakes order history</strong> (Jun 2025–Mar 2026), in Brakes pack sizes — covers fresh
+          juice (the bigger use) + garnish. Limes run ~double in summer. See the Perishables tab for the full picture.
         </div>
       </Panel>
 

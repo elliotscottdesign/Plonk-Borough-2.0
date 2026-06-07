@@ -4,7 +4,8 @@ import {
   ACTUAL_2025, BAR_REVENUE, GOLF_TICKETS, RECOST_Y1, RECOST_STEADY, BRIDGE,
   Y1_RENT_FREE_BONUS, DECK_FORECAST, MONTHLY_2025,
 } from '../data/reportPL.js'
-import { SNACK_SALES_WEEK, SNACK_PACKS_WEEK, SNACK_COGS, FRUIT } from '../data/stockBaseline.js'
+import { SNACK_SALES_WEEK, SNACK_PACKS_WEEK, SNACK_COGS } from '../data/stockBaseline.js'
+import { BRAKES } from '../data/brakesData.js'
 
 const money = (n) => (n < 0 ? '−£' : '£') + Math.abs(Math.round(n)).toLocaleString('en-GB')
 const pct = (n) => (n * 100).toFixed(1) + '%'
@@ -104,33 +105,34 @@ export default function Reports() {
         </ul>
       </div>
 
-      {/* Snacks & fruit — running operational spend */}
+      {/* Snacks & perishables — running operational spend */}
       {(() => {
         const snackCostWk = SNACK_SALES_WEEK * SNACK_COGS
-        const fruitPiecesWk = FRUIT.reduce((s, f) => s + f.perWeek, 0)
-        const fruitCostWk = FRUIT.reduce((s, f) => s + f.perWeek * f.unitCost, 0)
-        const totMo = (snackCostWk + fruitCostWk) * 4.33
+        const perishWk = BRAKES.meta.weekly
+        const fruitVegWk = BRAKES.meta.fruitVegWeekly
+        const totMo = (snackCostWk + perishWk) * 4.33
+        const pct = (BRAKES.forecast.fruitVegPctOfDrinkSales * 100).toFixed(2)
         return (
           <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: 18 }}>
-            <div className="serif" style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 2 }}>Snacks &amp; fruit — running spend</div>
-            <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginBottom: 14 }}>The small-but-regular ops spend that's easy to lose track of. Snack cost is estimated (no supplier price in the data yet).</div>
+            <div className="serif" style={{ fontSize: 16, color: 'var(--gold)', marginBottom: 2 }}>Snacks &amp; perishables — running spend</div>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginBottom: 14 }}>The small-but-regular ops spend that's easy to lose track of. Perishables are now from real Brakes invoices; snack cost is still estimated (no supplier price yet).</div>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px,1fr))', gap: 12 }}>
-              <Tile label="Snacks · sales" value={money(SNACK_SALES_WEEK)} sub={`${SNACK_PACKS_WEEK} packs / wk`} accent="var(--cream)" />
-              <Tile label="Snacks · est. spend" value={`${money(snackCostWk)}/wk`} sub={`≈ ${money(snackCostWk * 4.33)}/mo · ${Math.round(SNACK_COGS * 100)}% of sales`} accent="#F87171" />
-              <Tile label="Fruit · est. spend" value={`${money(fruitCostWk)}/wk`} sub={`${fruitPiecesWk} pieces / wk`} accent="#A3E635" />
-              <Tile label="Combined" value={`${money(totMo)}/mo`} sub="snacks + fruit cost" accent="var(--gold)" />
+              <Tile label="Brakes · total" value={`${money(perishWk)}/wk`} sub={`≈ ${money(perishWk * 4.33)}/mo · real invoices`} accent="#A3E635" />
+              <Tile label="Fruit &amp; veg" value={`${money(fruitVegWk)}/wk`} sub={`≈ ${pct}% of drink sales`} accent="#A3E635" />
+              <Tile label="Snacks · est. spend" value={`${money(snackCostWk)}/wk`} sub={`${SNACK_PACKS_WEEK} packs · ${Math.round(SNACK_COGS * 100)}% of sales`} accent="#F87171" />
+              <Tile label="Combined" value={`${money(totMo)}/mo`} sub="perishables + snacks" accent="var(--gold)" />
             </div>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
-              {FRUIT.map(f => (
-                <span key={f.name} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 7, background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.3)', color: '#D9F99D' }}>
-                  {f.name}: {f.perWeek}/wk
+              {BRAKES.categories.slice(0, 5).map(c => (
+                <span key={c.name} style={{ fontSize: 12, padding: '5px 10px', borderRadius: 7, background: 'rgba(163,230,53,0.08)', border: '1px solid rgba(163,230,53,0.3)', color: '#D9F99D' }}>
+                  {c.name}: {money(c.weekly)}/wk
                 </span>
               ))}
             </div>
             <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 12, lineHeight: 1.55 }}>
-              Snacks order on the Stock List par sheet; fruit on the order calculator. Fruit covers <strong>garnish + fresh
-              juice for cocktails</strong> (juice is the bigger use — limes lead). Both spends are estimates — your Brakes
-              orders (fruit) and snack supplier costs will replace them with the real figures.
+              Full breakdown + a sales→spend forecast on the <strong>Operations → Perishables</strong> tab. Fruit &amp; veg
+              tracks drink sales tightly (~{pct}%), so it forecasts cleanly. Limes are the big line (juice + garnish) and run
+              ~double in summer. Snack spend still needs your supplier cost prices to firm up.
             </div>
           </div>
         )
