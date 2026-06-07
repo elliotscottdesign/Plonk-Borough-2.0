@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react'
 import { STOCK_CATEGORIES, STOCK_META } from '../data/stockItems.js'
+import GlassBreakage from './GlassBreakage.jsx'
 
 // ─── Stock List + Par / reorder sheet ────────────────────────────────────
 // Every physical product behind the bar (by product), with a par level
@@ -191,6 +192,8 @@ export default function StockList() {
           })}
         </div>
       ))}
+
+      <GlassBreakage />
 
       <div style={{ fontSize: 10, color: 'var(--gold-dim)', lineHeight: 1.6 }}>
         Par = ceil( weekly usage × cover × (1 + buffer) ), floor 1. Usage from {STOCK_META.source}; cocktail-base spirits
