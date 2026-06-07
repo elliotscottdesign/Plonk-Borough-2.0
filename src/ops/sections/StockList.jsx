@@ -13,10 +13,10 @@ const COVERS = [
   { key: 'cycle',   label: 'Delivery cycle', share: 0.29, hint: '~2 days' },
   { key: 'week',    label: 'Full week', share: 1.0, hint: '7 days' },
 ]
-const SUPPLIERS = ['Drinks Club', 'Brakes', 'Top Cuvee', 'Goodwine Good People', 'SNACK', 'Club Mate (direct)', 'BOC']
+const SUPPLIERS = ['Drinks Club', 'Brakes', 'Top Cuvee', 'Goodwine Good People', 'SNACK', 'Club Mate (direct)', 'BOC', 'BCS']
 const SUP_COLOR = {
   'Drinks Club': '#67E8F9', 'Brakes': '#A3E635', 'Top Cuvee': '#C084FC',
-  'Goodwine Good People': '#FB7185', 'SNACK': '#FBBF24', 'Club Mate (direct)': '#6EE7B7', 'BOC': '#FB923C',
+  'Goodwine Good People': '#FB7185', 'SNACK': '#FBBF24', 'Club Mate (direct)': '#6EE7B7', 'BOC': '#FB923C', 'BCS': '#818CF8',
 }
 const ONHAND_KEY = 'ndb_ops_onhand_v1'
 
@@ -198,6 +198,8 @@ export default function StockList() {
         (revise once it's selling). On-hand saved on this device only. Re-baseline usage as fresher Lightspeed exports land.
         {' '}<strong>Gas (BOC)</strong> holds a fixed par of 2 — 1 connected + 1 spare per blend (70/30 stout · 60/40 lager &amp; IPA · CO2 post-mix);
         BOC delivers 6 days/wk, so order <strong>Mon–Fri to dodge the Saturday surcharge</strong>.
+        {' '}<strong>Consumables (BCS)</strong> — cleaning, paper, glassware — use a fixed par (~3 weeks of cover from your 2025
+        invoices; BCS orders run ~fortnightly). Glassware par is a placeholder spare-for-breakage — set your real target glass count per type.
         {' '}{STOCK_META.serves} cocktails/serves + games/kitchen/deals excluded (not bar stock).
       </div>
     </div>

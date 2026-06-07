@@ -9,7 +9,7 @@
 // each line to its supplier (Drinks Club / Brakes / Top Cuvee / Goodwine / SNACK
 // / Club Mate / BOC) so reorders can be split per supplier. An optional `par`
 // overrides the usage-computed par (used for gas: keep 1 connected + 1 spare).
-export const STOCK_META = { totalProducts: 238, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
+export const STOCK_META = { totalProducts: 281, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
 
 export const STOCK_CATEGORIES = [
   { label: "SPIRITS - GIN", unit: "700ml bottle", items: [
@@ -293,5 +293,56 @@ export const STOCK_CATEGORIES = [
     { name: "70/30 mixed gas — Stout", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
     { name: "60/40 mixed gas — Lager & IPA", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
     { name: "CO2 — post-mix", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
+  ] },
+  { label: "BCS \u00b7 PAPER & HYGIENE", unit: "pack", items: [
+    { name: "Centrefeed", sold: true, use: 0.71, size: "2Ply, Blue, enov, 150m", supplier: "BCS", par: 3 },
+    { name: "Toilet Roll", sold: true, use: 0.65, size: "2 Ply, Desna, Eco 320", supplier: "BCS", par: 2 },
+    { name: "Sip Straw", sold: true, use: 0.62, size: "Black, Paper, 5.5\"", supplier: "BCS", par: 2 },
+    { name: "Straw", sold: true, use: 0.19, size: "Black, Paper, 8\"", supplier: "BCS", par: 1 },
+    { name: "JanSan Linen Union Glass Cloth", sold: true, use: 0.06, size: "\u2014", supplier: "BCS", par: 1 },
+    { name: "Plasters", sold: true, use: 0.06, size: "Food Area Blue, Assorted", supplier: "BCS", par: 1 },
+    { name: "Date Labels (Detailed)", sold: true, use: 0.04, size: "Detailed", supplier: "BCS", par: 1 },
+    { name: "Cling Film", sold: true, use: 0.02, size: "300mm x 300m", supplier: "BCS", par: 1 },
+    { name: "Date Labels", sold: true, use: 0.02, size: "Day Dots, Tuesday", supplier: "BCS", par: 1 },
+    { name: "Sponge Scourer", sold: true, use: 0.02, size: "Green & Yellow", supplier: "BCS", par: 1 },
+    { name: "Napkin", sold: true, use: 0.02, size: "24cm, 2 ply, 4 Fold, Cocktail, Bla", supplier: "BCS", par: 1 },
+    { name: "J Cloth", sold: true, use: 0.02, size: "Ocean Wipe, Green", supplier: "BCS", par: 1 },
+  ] },
+  { label: "BCS \u00b7 CLEANING", unit: "unit", items: [
+    { name: "Drain Unblocker Gel", sold: true, use: 0.19, size: "Mr Muscle, 1L", supplier: "BCS", par: 1 },
+    { name: "Toilet Cleaner", sold: true, use: 0.15, size: "Apple, 750ml", supplier: "BCS", par: 1 },
+    { name: "Floor Cleaner", sold: true, use: 0.1, size: "Bactericidal, 5L", supplier: "BCS", par: 1 },
+    { name: "JanSan Water Softener Salt Granules 25Kg", sold: true, use: 0.06, size: "\u2014", supplier: "BCS", par: 1 },
+    { name: "Hand Soap", sold: true, use: 0.06, size: "Peach, 5L", supplier: "BCS", par: 1 },
+    { name: "Washing Up Liquid", sold: true, use: 0.04, size: "Enov, 15%, 5L", supplier: "BCS", par: 1 },
+    { name: "Bleach", sold: true, use: 0.04, size: "Thick, 5L", supplier: "BCS", par: 1 },
+    { name: "enov W079 FreshWave Ocean Urinal Channel", sold: true, use: 0.02, size: "Blocks (3 Kg)", supplier: "BCS", par: 1 },
+    { name: "Renovating Powder", sold: true, use: 0.02, size: "Glass, 10Kg", supplier: "BCS", par: 1 },
+    { name: "Dishwash and Glasswash Detergent", sold: true, use: 0.02, size: "5L", supplier: "BCS", par: 1 },
+    { name: "Rinse Aid", sold: true, use: 0.02, size: "Dishwash & Glasswash, 5L", supplier: "BCS", par: 1 },
+    { name: "Degreaser", sold: true, use: 0.02, size: "Spray On, 750ml", supplier: "BCS", par: 1 },
+    { name: "Degreaser (Spray On)", sold: true, use: 0.02, size: "Spray On, 5L", supplier: "BCS", par: 1 },
+    { name: "Descaler and Sanitizer", sold: true, use: 0.02, size: "750ml", supplier: "BCS", par: 1 },
+  ] },
+  { label: "BCS \u00b7 GLASSWARE", unit: "each", items: [
+    { name: "Shot Glass", sold: true, use: 0.1, size: "American, 1oz", supplier: "BCS", par: 6 },
+    { name: "Old Fashioned", sold: true, use: 0.04, size: "Symphony, 11.25oz", supplier: "BCS", par: 6 },
+    { name: "Wine Glass", sold: true, use: 0.04, size: "Vino, 16.5oz, LCE @250ml", supplier: "BCS", par: 6 },
+  ] },
+  { label: "BCS \u00b7 BAR EQUIPMENT", unit: "each", items: [
+    { name: "Ashtray", sold: true, use: 0.15, size: "Melamine, Black, 100mm", supplier: "BCS", par: 1 },
+    { name: "Wine Sealer", sold: true, use: 0.12, size: "Vacu Vin, Tops Only", supplier: "BCS", par: 1 },
+    { name: "Dust Cap", sold: true, use: 0.06, size: "Beaumont", supplier: "BCS", par: 1 },
+    { name: "Champagne Stopper", sold: true, use: 0.04, size: "\u2014", supplier: "BCS", par: 1 },
+    { name: "Bar Knife", sold: true, use: 0.04, size: "8\"", supplier: "BCS", par: 1 },
+    { name: "Cork Screw", sold: true, use: 0.04, size: "Double Reach", supplier: "BCS", par: 1 },
+    { name: "Speed Pourer Caps", sold: true, use: 0.04, size: "\u2014", supplier: "BCS", par: 1 },
+    { name: "Spirit Pour", sold: true, use: 0.04, size: "Free Flow", supplier: "BCS", par: 1 },
+    { name: "Boston Shaker Can", sold: true, use: 0.04, size: "18oz (Single)", supplier: "BCS", par: 1 },
+    { name: "Cocktail Mixing Spoon", sold: true, use: 0.04, size: "11\"", supplier: "BCS", par: 1 },
+    { name: "Jigger", sold: true, use: 0.04, size: "25ml CA", supplier: "BCS", par: 1 },
+    { name: "Jigger (Banded)", sold: true, use: 0.04, size: "Banded, 25/50ml", supplier: "BCS", par: 1 },
+    { name: "Lime Squeezer", sold: true, use: 0.02, size: "Handheld", supplier: "BCS", par: 1 },
+    { name: "Mesh Strainer", sold: true, use: 0.02, size: "9''", supplier: "BCS", par: 1 },
   ] },
 ]
