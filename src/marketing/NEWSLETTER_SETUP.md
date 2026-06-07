@@ -1,9 +1,9 @@
-# Newsletter & members backend — setup (Supabase + Resend)
+# Newsletter backend — Route A setup (you keep the keys)
 
-Deploy-ready. ~20 minutes. Once done, paste 4 values into `src/marketing/data/backend.js` and the Newsletter section goes live (capture sign-ups, see the list, one-click send). Far cheaper than Mailchimp — Resend is free to ~3k emails/mo, then a few £.
+Supabase (list) + Resend (sending). ~20 min. You never share a secret key with anyone — you run the steps and paste 4 public-safe values into `src/marketing/data/backend.js`. Far cheaper than Mailchimp.
 
-## 1. Supabase — table + RLS
-In your Supabase project → SQL editor, run:
+## 1 · Supabase — tables + RLS
+Dashboard → **SQL Editor → New query** → paste → **Run**:
 
 ```sql
 create table public.subscribers (
@@ -15,13 +15,10 @@ create table public.subscribers (
   created_at timestamptz default now()
 );
 alter table public.subscribers enable row level security;
+-- anon can ONLY insert (sign up) — never read the list with the public key
+create policy "anon can subscribe" on public.subscribers
+  for insert to anon with check (true);
 
--- Anonymous can ONLY insert (sign up). No anon read/update/delete — the list
--- is never exposed via the public anon key.
-create policy "anon can subscribe"
-  on public.subscribers for insert to anon with check (true);
-
--- (Members/loyalty later)
 create table public.members (
   id uuid primary key default gen_random_uuid(),
   email text not null unique,
@@ -34,65 +31,41 @@ create table public.members (
 alter table public.members enable row level security;
 ```
 
-## 2. Resend — sender
-1. Create a Resend account, **verify the `nodice.bar` domain** (add the DNS records they give you).
-2. Create an **API key**.
+## 2 · Get the 2 Supabase values
+Dashboard → **Project Settings → API**: copy the **Project URL** and the **anon `public`** key.
 
-## 3. Supabase Edge Function — `send-newsletter`
-`supabase/functions/send-newsletter/index.ts`:
+## 3 · Resend — account, key, domain
+1. Sign up: https://resend.com
+2. **Domains → Add Domain** `nodice.bar` → it shows DNS records → add them at your domain's DNS (registrar / Cloudflare). Wait for "Verified".
+3. **API Keys → Create** → copy the `re_…` key (used as a server secret, step 5).
 
-```ts
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-
-Deno.serve(async (req) => {
-  if (req.method !== "POST") return new Response("Method not allowed", { status: 405 });
-  const { subject, html, secret } = await req.json();
-  if (secret !== Deno.env.get("SEND_SECRET"))
-    return new Response(JSON.stringify({ error: "unauthorized" }), { status: 401, headers: { "Content-Type": "application/json" } });
-
-  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const { data: subs, error } = await sb.from("subscribers").select("email").eq("consent", true).eq("unsubscribed", false);
-  if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500 });
-
-  const RESEND = Deno.env.get("RESEND_API_KEY")!;
-  let sent = 0;
-  // Resend supports up to 100 recipients per batch call.
-  for (const s of subs ?? []) {
-    const personalised = html.replace(
-      "{{unsubscribe}}",
-      `https://nodice.bar/unsubscribe?e=${encodeURIComponent(s.email)}`,
-    );
-    const r = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to: s.email, subject, html: personalised }),
-    });
-    if (r.ok) sent++;
-  }
-  return new Response(JSON.stringify({ sent, total: subs?.length ?? 0 }), { headers: { "Content-Type": "application/json" } });
-});
-```
-
-Deploy + set the function secrets:
+## 4 · Install the Supabase CLI + log in
 ```bash
-supabase functions deploy send-newsletter --no-verify-jwt
-supabase secrets set RESEND_API_KEY=re_xxx SEND_SECRET=<make-a-long-random-string>
-# SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY are provided to functions automatically.
+brew install supabase/tap/supabase   # macOS (or: npm i -g supabase)
+supabase login                        # opens your browser to authorise
 ```
-*(`--no-verify-jwt` because the page isn't a Supabase-auth user; the `secret` body field is the auth instead.)*
 
-## 4. Wire the front-end
-Paste into `src/marketing/data/backend.js`:
-```js
-export const SUPABASE_URL     = 'https://xxxx.supabase.co'
-export const SUPABASE_ANON_KEY= 'eyJ...'                 // Settings → API → anon public
-export const NEWSLETTER_FN_URL = 'https://xxxx.supabase.co/functions/v1/send-newsletter'
-export const SEND_SECRET       = '<the same long random string>'
+## 5 · Deploy the two functions (run from the repo root)
+The function code is in `supabase/functions/`.
+```bash
+supabase link --project-ref <YOUR_PROJECT_REF>     # ref is in your project URL
+supabase functions deploy send-newsletter --no-verify-jwt
+supabase functions deploy unsubscribe     --no-verify-jwt
+supabase secrets set RESEND_API_KEY=re_xxxxxxxx SEND_SECRET=$(openssl rand -hex 24)
 ```
-Commit + push. Done — sign-ups land in Supabase, the Newsletter tab shows the count and the **Send to list** button works.
+Copy the `SEND_SECRET` value it sets (run `supabase secrets list` if needed — or just generate one yourself and reuse it below).
+*(SUPABASE_URL + SERVICE_ROLE_KEY are injected into functions automatically — don't set those.)*
+
+## 6 · Paste 4 values into `src/marketing/data/backend.js`
+```js
+export const SUPABASE_URL      = 'https://<ref>.supabase.co'
+export const SUPABASE_ANON_KEY = 'eyJ...'   // step 2 anon key
+export const NEWSLETTER_FN_URL = 'https://<ref>.supabase.co/functions/v1/send-newsletter'
+export const SEND_SECRET       = '<the SEND_SECRET from step 5>'
+```
+Commit + push. Live: sign-ups land in Supabase, **Newsletter → Send to list** works, footer unsubscribe works.
 
 ## Notes
-- **Security:** the anon key is insert-only (RLS), so the public key can't read the list. `SEND_SECRET` lives in the (password-gated) marketing bundle — a speed-bump, not Fort Knox; fine for a venue list. Rotate it if needed.
-- **Unsubscribe:** the email footer links to `/unsubscribe?e=…`. We'll add a tiny unsubscribe handler (one more edge function) when you're ready.
-- **Scale:** sends are sequential for simplicity. Past a few hundred subscribers, switch to Resend's batch endpoint (100/call) — quick change.
-- **Members/loyalty:** the `members` table is created above; the loyalty logic (points, tiers, check-in) builds on the same project.
+- **Security:** anon key is insert-only (RLS) → the public key can't read your list. Service-role + Resend keys live only as Supabase function secrets. `SEND_SECRET` gates the send and is the only thing in the bundle (rotate any time).
+- **From address:** `hello@nodice.bar` — must be on the verified domain. Change it in `supabase/functions/send-newsletter/index.ts` if you want a different sender.
+- **Scale:** sends are sequential (fine for a few hundred). Past that, switch to Resend's batch endpoint — quick change.
