@@ -2,6 +2,15 @@ import React, { useState } from 'react'
 import { MARKETING_SECTIONS, WINDSOR_SOURCES, WINDSOR_CONNECTED } from './data/windsor.js'
 import { useWindsorFeed } from './useWindsorFeed.js'
 import MarketingSection from './sections/MarketingSection.jsx'
+import Newsletter from './sections/Newsletter.jsx'
+import Members from './sections/Members.jsx'
+
+// Sub-nav = the Windsor/GA4 dashboards + the in-house tools (Newsletter, Members).
+const NAV = [
+  ...MARKETING_SECTIONS.map(s => ({ key: s.key, label: s.label, icon: s.icon, kind: 'dash' })),
+  { key: 'newsletter', label: 'Newsletter', icon: '✉️', kind: 'tool' },
+  { key: 'members', label: 'Members & Loyalty', icon: '🪪', kind: 'tool' },
+]
 
 // ─── No Dice Marketing hub (/marketing) ──────────────────────────────────
 // Own gated area, separate from /ops. GA4 / Google Ads / Search Console / Meta
@@ -56,11 +65,12 @@ export default function MarketingApp() {
 
       {/* Sub-nav */}
       <div style={{ display: 'flex', gap: 4, padding: '10px 24px 0', background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.1)', overflowX: 'auto', flexShrink: 0 }}>
-        {MARKETING_SECTIONS.map(s => (
+        {NAV.map(s => (
           <button key={s.key} onClick={() => setActive(s.key)} style={{
             padding: '8px 16px', fontSize: 12, border: 'none', borderBottom: `2px solid ${active === s.key ? 'var(--gold)' : 'transparent'}`,
             background: 'transparent', color: active === s.key ? 'var(--gold)' : 'var(--cream-dim)', cursor: 'pointer',
             whiteSpace: 'nowrap', fontWeight: active === s.key ? 600 : 400, letterSpacing: '0.03em',
+            marginLeft: s.kind === 'tool' && NAV[NAV.indexOf(s) - 1]?.kind === 'dash' ? 16 : 0,
           }}>{s.icon} {s.label}</button>
         ))}
       </div>
@@ -68,8 +78,9 @@ export default function MarketingApp() {
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 64px', display: 'flex', flexDirection: 'column', gap: 18 }}>
-          <ConnectBanner feed={feed} />
-          <MarketingSection section={section} data={feed.data} />
+          {active === 'newsletter' ? <Newsletter />
+            : active === 'members' ? <Members />
+            : <><ConnectBanner feed={feed} /><MarketingSection section={section} data={feed.data} /></>}
         </div>
       </div>
     </div>
