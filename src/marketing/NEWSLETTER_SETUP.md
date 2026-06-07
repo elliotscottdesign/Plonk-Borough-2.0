@@ -65,6 +65,13 @@ export const SEND_SECRET       = '<the SEND_SECRET from step 5>'
 ```
 Commit + push. Live: sign-ups land in Supabase, **Newsletter → Send to list** works, footer unsubscribe works.
 
+## 7 · Keep the free project awake (separate No Dice project)
+A free project sleeps after ~7 days idle, which would break the signup form. The repo already has a daily keep-alive Action — just add two repo secrets (**Settings → Secrets and variables → Actions**), both public-safe:
+- `SUPABASE_URL` = your `https://<ref>.supabase.co`
+- `SUPABASE_ANON_KEY` = the anon key from Step 2
+
+It pings the project daily so it never pauses. (Until the secrets are set, it no-ops.)
+
 ## Notes
 - **Security:** anon key is insert-only (RLS) → the public key can't read your list. Service-role + Resend keys live only as Supabase function secrets. `SEND_SECRET` gates the send and is the only thing in the bundle (rotate any time).
 - **From address:** `hello@nodice.bar` — must be on the verified domain. Change it in `supabase/functions/send-newsletter/index.ts` if you want a different sender.

@@ -1,0 +1,31 @@
+# Keeps the free-tier No Dice Supabase project awake so it never pauses
+# (free projects sleep after ~7 days idle, which would break the signup form).
+# A daily lightweight request to the REST API counts as activity.
+#
+# Activate: add two repo secrets (Settings → Secrets and variables → Actions):
+#   SUPABASE_URL        e.g. https://xxxx.supabase.co   (public-safe)
+#   SUPABASE_ANON_KEY   the anon public key             (public-safe)
+# Until both are set, the job no-ops (no failures).
+name: Supabase keep-alive
+
+on:
+  schedule:
+    - cron: '17 7 * * *'    # ~daily, 07:17 UTC
+  workflow_dispatch: {}      # run manually any time
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Supabase REST
+        env:
+          URL: ${{ secrets.SUPABASE_URL }}
+          KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          if [ -z "$URL" ] || [ -z "$KEY" ]; then
+            echo "Supabase secrets not set yet — skipping (configure them after creating the project)."
+            exit 0
+          fi
+          curl -fsS "$URL/rest/v1/subscribers?limit=1" \
+            -H "apikey: $KEY" -H "Authorization: Bearer $KEY" > /dev/null \
+            && echo "Pinged $URL — project kept awake."
