@@ -7,8 +7,9 @@
 // the product's stock unit (Feb 2026 Lightspeed; cocktail bases bumped) — par is
 // computed from it in the UI (weekend-safe cover + buffer). `supplier` routes
 // each line to its supplier (Drinks Club / Brakes / Top Cuvee / Goodwine / SNACK
-// / Club Mate) so reorders can be split per supplier.
-export const STOCK_META = { totalProducts: 235, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
+// / Club Mate / BOC) so reorders can be split per supplier. An optional `par`
+// overrides the usage-computed par (used for gas: keep 1 connected + 1 spare).
+export const STOCK_META = { totalProducts: 238, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
 
 export const STOCK_CATEGORIES = [
   { label: "SPIRITS - GIN", unit: "700ml bottle", items: [
@@ -287,5 +288,10 @@ export const STOCK_CATEGORIES = [
     { name: "Rosemary", sold: true, use: 0.09, size: "100g bunch", supplier: "Brakes" },
     { name: "Basil", sold: true, use: 0.02, size: "100g bunch", supplier: "Brakes" },
     { name: "Thyme", sold: true, use: 0.02, size: "100g bunch", supplier: "Brakes" },
+  ] },
+  { label: "GAS · BOC", unit: "cylinder", items: [
+    { name: "70/30 mixed gas — Stout", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
+    { name: "60/40 mixed gas — Lager & IPA", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
+    { name: "CO2 — post-mix", sold: true, use: 0, size: "cylinder", supplier: "BOC", par: 2 },
   ] },
 ]

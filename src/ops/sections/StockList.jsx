@@ -13,10 +13,10 @@ const COVERS = [
   { key: 'cycle',   label: 'Delivery cycle', share: 0.29, hint: '~2 days' },
   { key: 'week',    label: 'Full week', share: 1.0, hint: '7 days' },
 ]
-const SUPPLIERS = ['Drinks Club', 'Brakes', 'Top Cuvee', 'Goodwine Good People', 'SNACK', 'Club Mate (direct)']
+const SUPPLIERS = ['Drinks Club', 'Brakes', 'Top Cuvee', 'Goodwine Good People', 'SNACK', 'Club Mate (direct)', 'BOC']
 const SUP_COLOR = {
   'Drinks Club': '#67E8F9', 'Brakes': '#A3E635', 'Top Cuvee': '#C084FC',
-  'Goodwine Good People': '#FB7185', 'SNACK': '#FBBF24', 'Club Mate (direct)': '#6EE7B7',
+  'Goodwine Good People': '#FB7185', 'SNACK': '#FBBF24', 'Club Mate (direct)': '#6EE7B7', 'BOC': '#FB923C',
 }
 const ONHAND_KEY = 'ndb_ops_onhand_v1'
 
@@ -34,8 +34,9 @@ export default function StockList() {
   }, [onhand])
 
   const cover = COVERS.find(c => c.key === coverKey).share
-  const parOf = (use) => (use <= 0 ? 1 : Math.max(1, Math.ceil(use * cover * (1 + buffer))))
-  const toOrder = (it) => Math.max(0, parOf(it.use) - (Number(onhand[it.name]) || 0))
+  // `par` overrides the usage-computed par (gas = fixed "1 connected + 1 spare").
+  const parOf = (it) => (it.par != null ? it.par : (it.use <= 0 ? 1 : Math.max(1, Math.ceil(it.use * cover * (1 + buffer)))))
+  const toOrder = (it) => Math.max(0, parOf(it) - (Number(onhand[it.name]) || 0))
 
   const cats = useMemo(() => {
     const needle = q.trim().toLowerCase()
@@ -169,7 +170,7 @@ export default function StockList() {
             <div>Product</div><div style={{ textAlign: 'center' }}>Par</div><div style={{ textAlign: 'center' }}>On hand</div><div style={{ textAlign: 'right' }}>Order</div>
           </div>
           {c.items.map(it => {
-            const par = parOf(it.use), ord = toOrder(it)
+            const par = parOf(it), ord = toOrder(it)
             return (
               <div key={it.name} style={{ display: 'grid', gridTemplateColumns: '1fr 52px 70px 60px', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ color: it.sold ? 'var(--cream)' : '#FCD34D', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -195,6 +196,8 @@ export default function StockList() {
         Par = ceil( weekly usage × cover × (1 + buffer) ), floor 1. Usage from {STOCK_META.source}; cocktail-base spirits
         bumped for cocktail draw the till can't brand-split. Campari is lifted ahead of demand for the summer Beericano push
         (revise once it's selling). On-hand saved on this device only. Re-baseline usage as fresher Lightspeed exports land.
+        {' '}<strong>Gas (BOC)</strong> holds a fixed par of 2 — 1 connected + 1 spare per blend (70/30 stout · 60/40 lager &amp; IPA · CO2 post-mix);
+        BOC delivers 6 days/wk, so order <strong>Mon–Fri to dodge the Saturday surcharge</strong>.
         {' '}{STOCK_META.serves} cocktails/serves + games/kitchen/deals excluded (not bar stock).
       </div>
     </div>
