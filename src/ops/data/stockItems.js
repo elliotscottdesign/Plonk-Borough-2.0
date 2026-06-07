@@ -9,7 +9,7 @@
 // each line to its supplier (Drinks Club / Brakes / Top Cuvee / Goodwine / SNACK
 // / Club Mate / BOC) so reorders can be split per supplier. An optional `par`
 // overrides the usage-computed par (used for gas: keep 1 connected + 1 spare).
-export const STOCK_META = { totalProducts: 281, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
+export const STOCK_META = { totalProducts: 283, neverSold: 37, serves: 52, source: 'Wet stock tracker × Lightspeed sales · Feb 2026' }
 
 export const STOCK_CATEGORIES = [
   { label: "SPIRITS - GIN", unit: "700ml bottle", items: [
@@ -324,10 +324,12 @@ export const STOCK_CATEGORIES = [
     { name: "Degreaser (Spray On)", sold: true, use: 0.02, size: "Spray On, 5L", supplier: "BCS", par: 1 },
     { name: "Descaler and Sanitizer", sold: true, use: 0.02, size: "750ml", supplier: "BCS", par: 1 },
   ] },
-  { label: "BCS \u00b7 GLASSWARE", unit: "each", items: [
-    { name: "Shot Glass", sold: true, use: 0.1, size: "American, 1oz", supplier: "BCS", par: 6 },
-    { name: "Old Fashioned", sold: true, use: 0.04, size: "Symphony, 11.25oz", supplier: "BCS", par: 6 },
-    { name: "Wine Glass", sold: true, use: 0.04, size: "Vino, 16.5oz, LCE @250ml", supplier: "BCS", par: 6 },
+  { label: "BCS \u00b7 GLASSWARE", unit: "each (target holding)", items: [
+    { name: "Tall / highball", sold: true, use: 0, size: "highball", supplier: "BCS", par: 100 },
+    { name: "Rocks / Old Fashioned", sold: true, use: 0, size: "Symphony 11.25oz", supplier: "BCS", par: 100 },
+    { name: "Shot", sold: true, use: 0, size: "American 1oz", supplier: "BCS", par: 100 },
+    { name: "Wine", sold: true, use: 0, size: "Vino 16.5oz / 250ml", supplier: "BCS", par: 60 },
+    { name: "Prosecco / flute", sold: true, use: 0, size: "flute", supplier: "BCS", par: 50 },
   ] },
   { label: "BCS \u00b7 BAR EQUIPMENT", unit: "each", items: [
     { name: "Ashtray", sold: true, use: 0.15, size: "Melamine, Black, 100mm", supplier: "BCS", par: 1 },

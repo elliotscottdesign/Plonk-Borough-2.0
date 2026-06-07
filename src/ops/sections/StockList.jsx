@@ -198,8 +198,9 @@ export default function StockList() {
         (revise once it's selling). On-hand saved on this device only. Re-baseline usage as fresher Lightspeed exports land.
         {' '}<strong>Gas (BOC)</strong> holds a fixed par of 2 — 1 connected + 1 spare per blend (70/30 stout · 60/40 lager &amp; IPA · CO2 post-mix);
         BOC delivers 6 days/wk, so order <strong>Mon–Fri to dodge the Saturday surcharge</strong>.
-        {' '}<strong>Consumables (BCS)</strong> — cleaning, paper, glassware — use a fixed par (~3 weeks of cover from your 2025
-        invoices; BCS orders run ~fortnightly). Glassware par is a placeholder spare-for-breakage — set your real target glass count per type.
+        {' '}<strong>Consumables (BCS)</strong> — cleaning &amp; paper — use a fixed par (~3 weeks of cover from your 2025
+        invoices; BCS orders run ~fortnightly). <strong>Glassware par = your target holding</strong> (Tall 100 · Rocks 100 ·
+        Shot 100 · Wine 60 · Prosecco 50), so count intact glasses and “to order” = breakages to replace back to full.
         {' '}{STOCK_META.serves} cocktails/serves + games/kitchen/deals excluded (not bar stock).
       </div>
     </div>
