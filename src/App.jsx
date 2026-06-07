@@ -26,6 +26,7 @@ import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 // schedule in the nodice.bar repo.
 import DecemberSales from './borough/DecemberSales.jsx'
 import OpsApp from './ops/OpsApp.jsx'
+import MarketingApp from './marketing/MarketingApp.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -63,6 +64,12 @@ const isRootPath = () =>
 const isOpsPath = () =>
   typeof window !== 'undefined' &&
   /^\/ops(\/|$)/.test(window.location.pathname)
+
+// Marketing hub — own gated area (GA4 / Ads / Search / social via Windsor.ai).
+// Gated to the `marketing` flag (founder-tier + NDTEAM team code).
+const isMarketingPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/marketing(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&
@@ -142,6 +149,7 @@ export default function App() {
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
   const [hackneyAccess, setHackneyAccess] = useState(() => sessionStorage.getItem('ndb_hackney_access') === '1')
   const [opsAccess, setOpsAccess] = useState(() => sessionStorage.getItem('ndb_ops_access') === '1')
+  const [marketingAccess, setMarketingAccess] = useState(() => sessionStorage.getItem('ndb_marketing_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
@@ -187,12 +195,12 @@ export default function App() {
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath())) {
     return <Landing />
   }
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, founder, hackney, ops, role, lang: chosenLang, accessCode }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, hackney, ops, marketing, role, lang: chosenLang, accessCode }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
       // Per-tenant access code — every signed-in user gets their own
@@ -222,6 +230,9 @@ export default function App() {
       // Ops hub visibility — founder-tier + the dedicated NDTEAM staff code.
       if (ops) sessionStorage.setItem('ndb_ops_access', '1')
       else     sessionStorage.removeItem('ndb_ops_access')
+      // Marketing hub visibility — founder-tier + the NDTEAM team code.
+      if (marketing) sessionStorage.setItem('ndb_marketing_access', '1')
+      else           sessionStorage.removeItem('ndb_marketing_access')
       // Role tag — components can branch on this for role-specific UI
       // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
       sessionStorage.setItem('ndb_role', role || 'investor')
@@ -230,6 +241,7 @@ export default function App() {
       setPlonkAccess(!!plonk)
       setHackneyAccess(!!hackney)
       setOpsAccess(!!ops)
+      setMarketingAccess(!!marketing)
       setUnlocked(true)
     }} />
   }
@@ -271,6 +283,23 @@ export default function App() {
       )
     }
     return <OpsApp />
+  }
+
+  // /marketing — own gated area (GA4/Ads/Search/social via Windsor.ai).
+  // Requires the `marketing` flag (founder-tier + NDTEAM); others kicked back.
+  if (isMarketingPath()) {
+    if (!marketingAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            The Marketing hub is for the No Dice team. Sign in with the team access code to view.
+          </div>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
+        </div>
+      )
+    }
+    return <MarketingApp />
   }
 
   // /borough/december-sales — founder-only POS sales dashboard. Requires the
