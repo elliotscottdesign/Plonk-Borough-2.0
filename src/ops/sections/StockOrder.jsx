@@ -1,15 +1,20 @@
 import React, { useState } from 'react'
 import {
   PINT_LITRES, WASTAGE, AVG_WEEK_REVENUE, DOW_SHARE, WEEKEND_SHARE,
-  DRAUGHT, SPIRITS, SOFTS, PRESETS,
+  DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, PRESETS,
 } from '../data/stockBaseline.js'
 
 // ─── Stock Order calculator ──────────────────────────────────────────────
 // Scales the February baseline by a single "how busy" multiplier and prints
-// kegs / bottles / cans to order for the week, plus the weekend-loading split.
+// kegs / bottles (by product) / cans to order, plus the weekend-loading split.
 
 const money = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 const ceil = (n) => Math.ceil(n - 1e-9)
+const groupOrdered = (arr, key) => {
+  const order = [], map = {}
+  arr.forEach(x => { if (!map[x[key]]) { map[x[key]] = []; order.push(x[key]) } map[x[key]].push(x) })
+  return order.map(g => ({ group: g, items: map[g] }))
+}
 
 function Panel({ title, sub, accent, children }) {
   return (
@@ -31,7 +36,7 @@ export default function StockOrder() {
   const [copied, setCopied] = useState(false)
   const weekRev = AVG_WEEK_REVENUE * mult
 
-  // Draught: pints → litres (+wastage) → kegs
+  // Draught: pints → litres (+wastage) → kegs (weekly)
   const draught = DRAUGHT.map(d => {
     const pints = d.pintsPerWeek * mult
     const litres = pints * PINT_LITRES * (1 + WASTAGE)
@@ -40,18 +45,23 @@ export default function StockOrder() {
   })
   const totalKegs = draught.reduce((s, d) => s + d.order, 0)
 
+  // Spirits BY PRODUCT — slow movers, ordered to cover ~4 weeks.
   const spirits = SPIRITS.map(s => {
-    const bottlesRaw = s.bottlesPerWeek * mult
-    return { ...s, bottlesRaw, order: ceil(bottlesRaw) }
+    const per4wk = s.bpw * mult * 4
+    return { ...s, perWeek: s.bpw * mult, per4wk, order: Math.round(per4wk) }
   })
-  const totalBottles = spirits.reduce((s, x) => s + x.order, 0)
+  const spiritGroups = groupOrdered(spirits, 'cat')
+  const spirit4wkTotal = Math.round(spirits.reduce((s, x) => s + x.per4wk, 0))
+  const cocktailBottles = COCKTAIL_BASES.bottlesPerWeek * mult
 
-  const softs = SOFTS.map(s => ({ ...s, qty: Math.round(s.perWeek * mult) }))
+  // Softs BY PRODUCT, grouped.
+  const softs = SOFTS.map(s => ({ ...s, qty: s.perWeek * mult, order: ceil(s.perWeek * mult) }))
+  const softGroups = groupOrdered(softs, 'group')
+  const cansWkTotal = Math.round(softs.filter(s => s.group.startsWith('Cans')).reduce((s, x) => s + x.qty, 0))
 
-  // Weekend load: how many kegs of the headline taps you want IN before Friday.
   const weekendKegs = draught.map(d => ({ label: d.label, kegs: d.kegsRaw * WEEKEND_SHARE }))
 
-  // ─── Export — a plain checklist to set against the Drinks Club saved basket ─
+  // ─── Export — a product-level checklist for the Drinks Club basket ────────
   const orderText = () => {
     const L = []
     L.push('NO DICE HACKNEY · STOCK ORDER')
@@ -63,27 +73,36 @@ export default function StockOrder() {
       L.push(`  ${d.label} — ${d.brand} (${d.kegL}L):  ${d.order} keg${d.order > 1 ? 's' : ''}${note}`)
     })
     L.push('')
-    L.push('SPIRITS (700ml bottles)')
-    spirits.forEach(s => L.push(`  ${s.label}:  ${s.order}`))
+    L.push('SPIRITS (700ml bottles · ~4-week cover)')
+    spiritGroups.forEach(g => {
+      L.push(`  [${g.group}]`)
+      g.items.forEach(s => L.push(`    ${s.name}:  ${s.order > 0 ? s.order : '— (top up as needed)'}`))
+    })
+    L.push(`  + Cocktails draw ~${Math.round(cocktailBottles)} btl/wk of base spirits (not brand-split): ${COCKTAIL_BASES.brands}`)
     L.push('')
     L.push('SOFT DRINKS')
-    softs.forEach(s => L.push(`  ${s.label} (${s.detail}):  ${s.qty} ${s.unit} — ${s.order}`))
+    softGroups.forEach(g => {
+      L.push(`  [${g.group}]`)
+      g.items.forEach(s => {
+        const val = g.group.startsWith('Cans') ? `${s.order} ${s.unit}/wk` : `~${s.qty.toFixed(1)} ${s.unit}/wk`
+        L.push(`    ${s.name}:  ${val}`)
+      })
+    })
     return L.join('\n')
   }
 
   const orderCsv = () => {
-    const rows = [['Category', 'Item', 'Quantity', 'Unit / note']]
+    const rows = [['Category', 'Product', 'Order', 'Unit / note']]
     draught.forEach(d => rows.push(['Draught', `${d.label} (${d.brand})`, d.order, `keg ${d.kegL}L`]))
-    spirits.forEach(s => rows.push(['Spirits', s.label, s.order, '700ml bottle']))
-    softs.forEach(s => rows.push(['Soft drinks', s.label, s.qty, s.unit]))
+    spirits.forEach(s => rows.push([`Spirits · ${s.cat}`, s.name, s.order, '700ml bottle · ~4wk cover']))
+    softs.forEach(s => rows.push([`Soft · ${s.group}`, s.name, s.group.startsWith('Cans') ? s.order : s.qty.toFixed(1), `${s.unit}/wk`]))
     return rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
   }
 
   const copyOrder = async () => {
     const text = orderText()
-    try {
-      await navigator.clipboard.writeText(text)
-    } catch {
+    try { await navigator.clipboard.writeText(text) }
+    catch {
       const ta = document.createElement('textarea')
       ta.value = text; document.body.appendChild(ta); ta.select()
       try { document.execCommand('copy') } catch { /* ignore */ }
@@ -104,11 +123,10 @@ export default function StockOrder() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
 
-      {/* Intro */}
       <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, maxWidth: 760 }}>
-        Order quantities for <strong style={{ color: 'var(--cream)' }}>one week</strong>, scaled from your February
-        baseline. Drag the dial to match how busy you expect the week to be, then read the kegs, bottles and cans to order.
-        Everything rounds up to whole units and includes a {Math.round(WASTAGE * 100)}% draught wastage allowance.
+        Order quantities for <strong style={{ color: 'var(--cream)' }}>one week</strong>, by product, scaled from your
+        February baseline. Drag the dial to match how busy you expect the week to be. Draught & soft cans are weekly;
+        spirits are slow per line, so they're shown to cover ~4 weeks. {Math.round(WASTAGE * 100)}% draught wastage included.
       </div>
 
       {/* Busy dial */}
@@ -143,9 +161,9 @@ export default function StockOrder() {
       {/* Headline tiles */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 12 }}>
         {[
-          ['Draught', `${totalKegs} kegs`, 'across 4 taps'],
-          ['Spirits', `${totalBottles} bottles`, '700ml'],
-          ['Cans/bottles', `${softs[1].qty} units`, 'soft drinks'],
+          ['Draught', `${totalKegs} kegs`, 'this week'],
+          ['Spirits', `${spirit4wkTotal} btl`, '≈4-week order · + cocktails'],
+          ['Soft cans', `${cansWkTotal}/wk`, 'per week'],
           ['Est. week', money(weekRev), 'till sales'],
         ].map(([l, v, s]) => (
           <div key={l} style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '14px 16px' }}>
@@ -156,7 +174,7 @@ export default function StockOrder() {
         ))}
       </div>
 
-      {/* Export — copy/CSV for the Drinks Club basket */}
+      {/* Export */}
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.3)', borderRadius: 10, padding: '14px 16px' }}>
         <div style={{ flex: '1 1 240px', fontSize: 13, color: 'var(--cream)', lineHeight: 1.5 }}>
           <strong>Order ready.</strong> Copy it, then set these quantities against your saved Drinks Club basket.
@@ -186,7 +204,7 @@ export default function StockOrder() {
                 <td style={{ ...cell, textAlign: 'right', color: 'var(--cream-dim)' }}>{d.kegL}L</td>
                 <td style={{ ...cell, textAlign: 'right', color: 'var(--cream-dim)' }}>{d.kegsRaw.toFixed(1)}</td>
                 <td style={{ ...cell, textAlign: 'right', color: 'var(--gold)', fontWeight: 700 }}>
-                  {d.order}{d.kegsRaw < 0.6 ? <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--cream-dim)' }}> (≈1 / {Math.round(1 / Math.max(d.kegsRaw, 0.01))} wks)</span> : ''}
+                  {d.order}{d.kegsRaw < 0.6 ? <span style={{ fontSize: 10, fontWeight: 400, color: 'var(--cream-dim)' }}> (1 / {Math.round(1 / Math.max(d.kegsRaw, 0.01))} wks)</span> : ''}
                 </td>
               </tr>
             ))}
@@ -208,61 +226,65 @@ export default function StockOrder() {
           On your 2-day order cycle, make the <strong>Thursday delivery the big one</strong>. For this week, have roughly{' '}
           <strong style={{ color: 'var(--gold)' }}>{Math.ceil(weekendKegs[0].kegs)} lager</strong> +{' '}
           <strong style={{ color: 'var(--gold)' }}>{Math.ceil(weekendKegs[1].kegs)} pale</strong> kegs connected/spare for the weekend,
-          plus the tequila and the canned softs. Mon–Thu is only ~23% of the week — keep midweek top-ups small.
+          plus the Cazcabel and the canned softs. Mon–Thu is only ~23% of the week — keep midweek top-ups small.
         </div>
       </div>
 
-      {/* Spirits */}
-      <Panel title="Liquor — 700ml bottles/week" sub="direct measures + cocktail usage" accent="#4FD1C5">
+      {/* Spirits by product */}
+      <Panel title="Liquor — by product" sub="700ml bottles · order ≈ 4-week cover" accent="#4FD1C5">
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead><tr>
-            <th style={{ ...head, textAlign: 'left' }}>Spirit</th>
-            <th style={head}>Bottles/wk</th><th style={{ ...head, color: '#4FD1C5' }}>Order</th>
-            <th style={{ ...head, textAlign: 'left', width: '46%' }}>Notes</th>
+            <th style={{ ...head, textAlign: 'left' }}>Product</th>
+            <th style={head}>Bottles/wk</th><th style={head}>/ 4 wks</th><th style={{ ...head, color: '#4FD1C5' }}>Order</th>
           </tr></thead>
           <tbody>
-            {spirits.map(s => (
-              <tr key={s.key} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-                <td style={{ ...cell, textAlign: 'left' }}>{s.label}</td>
-                <td style={{ ...cell, textAlign: 'right', color: 'var(--cream-dim)' }}>{s.bottlesRaw.toFixed(1)}</td>
-                <td style={{ ...cell, textAlign: 'right', color: '#4FD1C5', fontWeight: 700 }}>{s.order}</td>
-                <td style={{ ...cell, textAlign: 'left', fontSize: 11, color: 'var(--cream-dim)' }}>{s.note}</td>
-              </tr>
+            {spiritGroups.map(g => (
+              <React.Fragment key={g.group}>
+                <tr><td colSpan={4} style={{ padding: '10px 6px 4px', fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#4FD1C5', fontWeight: 700 }}>{g.group}</td></tr>
+                {g.items.map(s => (
+                  <tr key={s.name} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                    <td style={{ ...cell, textAlign: 'left' }}>{s.name}</td>
+                    <td style={{ ...cell, textAlign: 'right', color: 'var(--cream-dim)' }}>{s.perWeek.toFixed(2)}</td>
+                    <td style={{ ...cell, textAlign: 'right', color: 'var(--cream-dim)' }}>{s.per4wk.toFixed(1)}</td>
+                    <td style={{ ...cell, textAlign: 'right', color: s.order > 0 ? '#4FD1C5' : 'var(--cream-dim)', fontWeight: s.order > 0 ? 700 : 400 }}>{s.order > 0 ? s.order : '—'}</td>
+                  </tr>
+                ))}
+              </React.Fragment>
             ))}
-            <tr style={{ borderTop: '1px solid rgba(79,209,197,0.25)' }}>
-              <td style={{ ...cell, textAlign: 'left', fontWeight: 700, color: '#4FD1C5' }}>Total</td>
-              <td />
-              <td style={{ ...cell, textAlign: 'right', fontWeight: 700, color: '#4FD1C5' }}>{totalBottles}</td>
-              <td />
-            </tr>
           </tbody>
         </table>
+        <div style={{ marginTop: 12, padding: '10px 12px', background: 'rgba(79,209,197,0.07)', border: '1px solid rgba(79,209,197,0.3)', borderRadius: 6, fontSize: 12, color: '#A7F3EB', lineHeight: 1.55 }}>
+          <strong>+ Cocktails:</strong> add ~{Math.round(cocktailBottles)} bottles/wk of base spirits beyond the measures above — the till can't split these to a brand, so top up by feel: {COCKTAIL_BASES.brands}.
+        </div>
       </Panel>
 
-      {/* Softs */}
-      <Panel title="Soft drinks" sub="per week" accent="#6FA8DC">
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-          {softs.map(s => (
-            <div key={s.key} style={{ display: 'grid', gridTemplateColumns: '160px 90px 1fr', gap: 12, alignItems: 'baseline', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 10 }}>
-              <div>
-                <div style={{ fontSize: 13, color: 'var(--cream)' }}>{s.label}</div>
-                <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{s.detail}</div>
-              </div>
-              <div style={{ fontSize: 18, color: '#6FA8DC', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>
-                {s.qty} <span style={{ fontSize: 11, color: 'var(--cream-dim)', fontWeight: 400 }}>{s.unit}</span>
-              </div>
-              <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>→ {s.order}</div>
+      {/* Softs by product */}
+      <Panel title="Soft drinks — by product" sub="per week" accent="#6FA8DC">
+        {softGroups.map(g => (
+          <div key={g.group} style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#6FA8DC', fontWeight: 700, marginBottom: 6 }}>{g.group}</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              {g.items.map(s => (
+                <div key={s.name} style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 12, fontSize: 13, borderTop: '1px solid rgba(255,255,255,0.05)', padding: '6px 4px 0' }}>
+                  <div style={{ color: 'var(--cream)' }}>{s.name}</div>
+                  <div style={{ color: '#6FA8DC', fontWeight: 600, fontVariantNumeric: 'tabular-nums' }}>
+                    {g.group.startsWith('Cans') ? `${s.order} ${s.unit}` : `~${s.qty.toFixed(1)} ${s.unit}`}
+                  </div>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+            {g.group.startsWith('Post-mix') && <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 6, fontStyle: 'italic' }}>From BIB syrup — one box per line lasts well over a week; just keep Coke + tonic topped up before the weekend.</div>}
+            {g.group.startsWith('Juice') && <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginTop: 6, fontStyle: 'italic' }}>~1 carton covers a week of each at this volume.</div>}
+          </div>
+        ))}
       </Panel>
 
       {/* Caveat */}
       <div style={{ fontSize: 11, color: 'var(--gold-dim)', lineHeight: 1.6 }}>
-        Baseline = February 2026 (your first full post-reopening month, a quiet time of year). You're heading into summer,
-        which trades higher — use the “Going into June” preset (+35%) for the fast movers and recalibrate after the first
-        couple of weekends. Kegs are whole units; a tapped keg of pasteurised lager/pale keeps well under gas for a week+,
-        so rounding up is safe — just don't stack up stout & cider (one keg of each covers 1½–2 weeks).
+        Baseline = February 2026 (first full post-reopening month, a quiet time of year). You're heading into summer, which
+        trades higher — use the “Going into June” preset (+35%) for the fast movers and recalibrate after the first couple of
+        weekends. Spirit lines are direct-measure rates; cocktails add the base-spirit top-up noted above. Kegs are whole
+        units; don't stack up stout & cider (one keg of each covers 1½–2 weeks).
       </div>
     </div>
   )

@@ -38,21 +38,64 @@ export const DRAUGHT = [
   { key: 'cider', label: 'Cider',  brand: 'Apple Cider',  pintsPerWeek: 38, kegL: 50 },
 ]
 
-// Spirits — 700ml bottles/week (direct measures + cocktail allowance folded in).
+// Spirits — BY PRODUCT (700ml bottles). `bpw` = bottles/week from the Feb
+// DIRECT measures (25/50ml line items). Cocktails draw additional base spirit
+// that the till can't split to a brand — see COCKTAIL_BASES. Slow movers, so
+// the calculator orders spirits to cover ~4 weeks (a bottle lasts).
 export const SPIRITS = [
-  { key: 'tequila',  label: 'Tequila / Mezcal',           bottlesPerWeek: 5,   note: 'Top seller — Cazcabel + Madre Mezcal, margarita-led menu' },
-  { key: 'vodka',    label: 'Vodka',                       bottlesPerWeek: 2,   note: 'Absolut Blue' },
-  { key: 'gin',      label: 'Gin',                         bottlesPerWeek: 1.5, note: 'Beefeater + negronis / spritzes' },
-  { key: 'rum',      label: 'Rum',                         bottlesPerWeek: 1.5, note: 'Mojitos, daiquiris, coladas' },
-  { key: 'whiskey',  label: 'Whiskey / Bourbon',           bottlesPerWeek: 1,   note: 'Sours, old fashioneds' },
-  { key: 'liqueurs', label: 'Liqueurs / aperitifs / brandy', bottlesPerWeek: 2, note: 'Aperol, Campari, vermouth, Cointreau, Courvoisier' },
+  { cat: 'Tequila / Mezcal',     name: 'Cazcabel Blanco',         bpw: 0.97 },
+  { cat: 'Tequila / Mezcal',     name: 'Madre Mezcal',            bpw: 0.37 },
+  { cat: 'Tequila / Mezcal',     name: 'Cazcabel Reposado',       bpw: 0.23 },
+  { cat: 'Tequila / Mezcal',     name: 'Cazcabel Coffee',         bpw: 0.07 },
+  { cat: 'Tequila / Mezcal',     name: 'Tequila Rose Strawberry', bpw: 0.03 },
+  { cat: 'Vodka',                name: 'Absolut Blue',            bpw: 1.20 },
+  { cat: 'Vodka',                name: 'Grey Goose',              bpw: 0.02 },
+  { cat: 'Gin',                  name: 'Beefeater London Dry',    bpw: 0.56 },
+  { cat: 'Gin',                  name: 'Beefeater Orange',        bpw: 0.04 },
+  { cat: 'Rum',                  name: 'Cut Spiced Rum',          bpw: 0.22 },
+  { cat: 'Rum',                  name: 'Havana Club 3yo White',   bpw: 0.15 },
+  { cat: 'Rum',                  name: 'Kraken Black Spiced',     bpw: 0.04 },
+  { cat: 'Rum',                  name: 'Havana Especial',         bpw: 0.04 },
+  { cat: 'Rum',                  name: 'Wray & Nephew Overproof', bpw: 0.04 },
+  { cat: 'Rum',                  name: 'Havana Club 7yo Dark',    bpw: 0.02 },
+  { cat: 'Whiskey / Bourbon',    name: 'Jameson Irish',           bpw: 0.17 },
+  { cat: 'Whiskey / Bourbon',    name: 'Bulleit Bourbon',         bpw: 0.09 },
+  { cat: 'Whiskey / Bourbon',    name: 'Jack Daniels',            bpw: 0.07 },
+  { cat: 'Whiskey / Bourbon',    name: 'Four Roses Bourbon',      bpw: 0.06 },
+  { cat: 'Whiskey / Bourbon',    name: 'Chivas Regal',            bpw: 0.02 },
+  { cat: 'Whiskey / Bourbon',    name: 'Laphroaig 10yo',          bpw: 0.02 },
+  { cat: 'Liqueurs / aperitifs', name: 'Antica Classic Sambuca',  bpw: 0.08 },
+  { cat: 'Liqueurs / aperitifs', name: 'Disaronno Amaretto',      bpw: 0.06 },
+  { cat: 'Liqueurs / aperitifs', name: 'Baileys',                 bpw: 0.05 },
+  { cat: 'Liqueurs / aperitifs', name: 'Top Cuvee Vermouth',      bpw: 0.04 },
+  { cat: 'Brandy / Cognac',      name: 'Courvoisier VSOP',        bpw: 0.12 },
+  { cat: 'Brandy / Cognac',      name: 'Hennessy',                bpw: 0.10 },
+  { cat: 'Other',                name: 'Jägermeister',            bpw: 0.05 },
 ]
 
-// Soft drinks. Mixed order-units, so each carries its own guidance.
+// Cocktails consume ~8 bottles/week of base spirit on top of the measures
+// above, but the till can't attribute it to a brand — top these up by feel.
+export const COCKTAIL_BASES = {
+  bottlesPerWeek: 8,
+  brands: 'Cazcabel Blanco & Madre Mezcal (margaritas lead), then Beefeater gin, Cut Spiced / Havana rum, Absolut vodka, plus Aperol & Campari for spritzes / negronis',
+}
+
+// Soft drinks — BY PRODUCT. Post-mix lines come from BIB syrup (a box lasts
+// well over a week); cans/bottles and juice cartons are real order units.
 export const SOFTS = [
-  { key: 'postmix', label: 'Post-mix / fountain', detail: 'Coke, Coke Zero, lemonade, tonic — from the gun', perWeek: 55, unit: 'servings', order: '1 BIB syrup box per line lasts well over a week — just keep Coke + tonic topped up before the weekend' },
-  { key: 'cans',    label: 'Cans / bottles',      detail: 'Ting, Fanta, Red Bull, ginger beer, Cherry Coke', perWeek: 19, unit: 'units', order: '~1 mixed case (24) per week' },
-  { key: 'juice',   label: 'Juices',              detail: 'Apple, pineapple, cranberry, orange', perWeek: 14, unit: 'units', order: '1–2 cartons of each per week' },
+  { group: 'Post-mix (BIB syrup)', name: 'Coke',                    perWeek: 23.5, unit: 'servings' },
+  { group: 'Post-mix (BIB syrup)', name: 'Schweppes Lemonade',      perWeek: 15.0, unit: 'servings' },
+  { group: 'Post-mix (BIB syrup)', name: 'Coke Zero',               perWeek: 10.2, unit: 'servings' },
+  { group: 'Post-mix (BIB syrup)', name: 'Schweppes Tonic',         perWeek:  6.0, unit: 'servings' },
+  { group: 'Cans / bottles',       name: 'Ting',                    perWeek:  5.8, unit: 'cans' },
+  { group: 'Cans / bottles',       name: 'Fanta',                   perWeek:  4.8, unit: 'cans' },
+  { group: 'Cans / bottles',       name: 'Old Jamaica Ginger Beer', perWeek:  3.2, unit: 'cans' },
+  { group: 'Cans / bottles',       name: 'Cherry Coke',             perWeek:  2.5, unit: 'cans' },
+  { group: 'Cans / bottles',       name: 'Red Bull',                perWeek:  2.5, unit: 'cans' },
+  { group: 'Juice (cartons)',      name: 'Apple Juice',             perWeek:  6.2, unit: 'glasses' },
+  { group: 'Juice (cartons)',      name: 'Cranberry Juice',         perWeek:  2.5, unit: 'glasses' },
+  { group: 'Juice (cartons)',      name: 'Orange Juice',            perWeek:  2.3, unit: 'glasses' },
+  { group: 'Juice (cartons)',      name: 'Pineapple Juice',         perWeek:  1.5, unit: 'glasses' },
 ]
 
 // Scaling presets — multiplier vs the average Feb week.
