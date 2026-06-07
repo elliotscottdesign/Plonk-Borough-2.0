@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react'
+import { BACKEND_READY, SEND_READY, sendNewsletter } from '../data/backend.js'
+import SignupForm from './SignupForm.jsx'
 
 // ─── Newsletter — simple block email builder (Mailchimp-style) ───────────
 // Pure client-side: build an email from blocks, live-preview, export the HTML.
@@ -105,17 +107,50 @@ export default function Newsletter() {
         </div>
       </div>
 
-      {/* Subscribers & sending — next phase */}
-      <div style={{ background: 'rgba(103,232,249,0.06)', border: '1px solid rgba(103,232,249,0.3)', borderRadius: 10, padding: 18 }}>
-        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#67E8F9', marginBottom: 8 }}>Subscribers &amp; sending — next phase</div>
-        <div style={{ fontSize: 13, color: '#A5F3FC', lineHeight: 1.65 }}>
-          Building the email is free and done. To <strong>own the list and send</strong> (and bin Mailchimp) we add two pieces:
-          <ul style={{ margin: '8px 0 0', paddingLeft: 18 }}>
-            <li><strong>The list (your database):</strong> sign-ups POST to a store you own — a Google Sheet (free, fits this site's setup) or Supabase (more robust; you already run it for Plonk Golf). Captures email + consent + source.</li>
-            <li><strong>The sender:</strong> a low-cost email API — <strong>Resend</strong> or Amazon SES — pennies per thousand vs Mailchimp's monthly fee. The HTML above is what it sends.</li>
-          </ul>
-          Tell me which list store and sender you want and I'll wire signup capture, a subscriber view here, and one-click send.
-        </div>
+      {/* Subscribers & sending */}
+      <Sending html={fullHtml(blocks)} />
+    </div>
+  )
+}
+
+function Sending({ html }) {
+  const [subject, setSubject] = useState('')
+  const [status, setStatus] = useState(null) // null | 'sending' | result | error
+  const send = async () => {
+    if (!subject.trim()) { setStatus('Add a subject line'); return }
+    if (!window.confirm('Send this newsletter to your whole list?')) return
+    setStatus('sending')
+    try { const r = await sendNewsletter({ subject, html }); setStatus(`✓ Sent to ${r.sent} of ${r.total ?? r.sent} subscribers`) }
+    catch (e) { setStatus(String(e.message || e)) }
+  }
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px,1fr))', gap: 14 }}>
+      {/* Sign-up */}
+      <div style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 4 }}>Sign-up form</div>
+        <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginBottom: 12 }}>This is the form to drop on the site / in-bar tablet — it writes to your Supabase list.</div>
+        <SignupForm source="marketing" />
+      </div>
+      {/* Send */}
+      <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: 18 }}>
+        <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#34D399', marginBottom: 4 }}>Send to your list</div>
+        {SEND_READY ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>Sends the email above (Resend) to all consented subscribers.</div>
+            <input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject line" style={{ padding: '9px 12px', fontSize: 14, borderRadius: 8, background: 'var(--ink)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--cream)', outline: 'none' }} />
+            <button onClick={send} disabled={status === 'sending'} style={{ padding: '10px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#34D399', color: 'var(--ink)', border: 'none' }}>
+              {status === 'sending' ? 'Sending…' : 'Send to list'}
+            </button>
+            {status && status !== 'sending' && <div style={{ fontSize: 12, color: status.startsWith('✓') ? '#34D399' : '#F87171' }}>{status}</div>}
+          </div>
+        ) : (
+          <div style={{ fontSize: 13, color: '#A7F3EB', lineHeight: 1.6 }}>
+            Not connected yet. Backend = <strong>Supabase + Resend</strong> (your picks). Follow{' '}
+            <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>src/marketing/NEWSLETTER_SETUP.md</code> (≈20 min) —
+            run the SQL, deploy the send function, paste 4 values into <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>data/backend.js</code>.
+            Then this button sends. {BACKEND_READY ? 'List store connected ✓' : ''}
+          </div>
+        )}
       </div>
     </div>
   )
