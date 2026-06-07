@@ -4,10 +4,10 @@
 // instead of going live. The anon key is insert-only via RLS (safe to ship);
 // reading the list + sending happen in the edge function (service role),
 // gated by SEND_SECRET so the password-gated marketing page can trigger it.
-export const SUPABASE_URL = ''            // https://xxxx.supabase.co
-export const SUPABASE_ANON_KEY = ''       // anon public key (RLS: insert-only)
-export const NEWSLETTER_FN_URL = ''       // .../functions/v1/send-newsletter
-export const SEND_SECRET = ''             // shared secret the page sends to the fn
+export const SUPABASE_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co'
+export const SUPABASE_ANON_KEY = ''       // ← still needed: Settings → API → anon public
+export const NEWSLETTER_FN_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/send-newsletter'
+export const SEND_SECRET = ''             // ← still needed: the SEND_SECRET you set on deploy
 export const BACKEND_READY = !!(SUPABASE_URL && SUPABASE_ANON_KEY)
 export const SEND_READY = !!(NEWSLETTER_FN_URL && SEND_SECRET)
 
