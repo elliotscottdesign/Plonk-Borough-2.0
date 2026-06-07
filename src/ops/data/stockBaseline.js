@@ -77,7 +77,7 @@ export const SPIRITS = [
 // above, but the till can't attribute it to a brand — top these up by feel.
 export const COCKTAIL_BASES = {
   bottlesPerWeek: 8,
-  brands: 'Cazcabel Blanco & Madre Mezcal (margaritas lead), then Beefeater gin, Cut Spiced / Havana rum, Absolut vodka, plus Aperol & Campari for spritzes / negronis',
+  brands: 'Cazcabel Blanco & Madre Mezcal (margaritas lead), then Beefeater gin, Cut Spiced / Havana rum, Absolut vodka, plus Aperol & Campari for spritzes / negronis. Summer: push more Campari (new Beericano) — order it ahead of demand.',
 }
 
 // Soft drinks — BY PRODUCT. Post-mix lines come from BIB syrup (a box lasts

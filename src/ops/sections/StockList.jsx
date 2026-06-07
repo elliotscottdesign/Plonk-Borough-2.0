@@ -56,8 +56,8 @@ export default function StockList() {
     STOCK_CATEGORIES.forEach(c => {
       const due = c.items.filter(it => toOrder(it) > 0)
       if (!due.length) return
-      L.push(`${c.label}  (${c.unit})`)
-      due.forEach(it => L.push(`  ${it.name}: ${toOrder(it)}`))
+      L.push(c.label)
+      due.forEach(it => L.push(`  ${it.name}: ${toOrder(it)} × ${it.size}`))
       L.push('')
     })
     navigator.clipboard?.writeText(L.join('\n')).catch(() => {})
@@ -148,6 +148,7 @@ export default function StockList() {
               <div key={it.name} style={{ display: 'grid', gridTemplateColumns: '1fr 52px 70px 60px', gap: 8, alignItems: 'center', fontSize: 13, padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
                 <div style={{ color: it.sold ? 'var(--cream)' : '#FCD34D', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                   {!it.sold && <span style={{ marginRight: 5 }} title="Stocked but no recorded sales">○</span>}{it.name}
+                  <span style={{ color: 'var(--cream-dim)', fontSize: 11 }}> · {it.size}</span>
                 </div>
                 <div style={{ textAlign: 'center', color: 'var(--cream-dim)', fontVariantNumeric: 'tabular-nums' }}>{par}</div>
                 <input
@@ -165,8 +166,9 @@ export default function StockList() {
 
       <div style={{ fontSize: 10, color: 'var(--gold-dim)', lineHeight: 1.6 }}>
         Par = ceil( weekly usage × cover × (1 + buffer) ), floor 1. Usage from {STOCK_META.source}; cocktail-base spirits
-        bumped for cocktail draw the till can't brand-split. On-hand saved on this device only. Re-baseline usage as fresher
-        Lightspeed exports land. {STOCK_META.serves} cocktails/serves + games/kitchen/deals excluded (not bar stock).
+        bumped for cocktail draw the till can't brand-split. Campari is lifted ahead of demand for the summer Beericano push
+        (revise once it's selling). On-hand saved on this device only. Re-baseline usage as fresher Lightspeed exports land.
+        {' '}{STOCK_META.serves} cocktails/serves + games/kitchen/deals excluded (not bar stock).
       </div>
     </div>
   )

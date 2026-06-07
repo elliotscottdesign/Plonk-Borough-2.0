@@ -76,7 +76,7 @@ export default function StockOrder() {
     L.push('SPIRITS (700ml bottles · ~4-week cover)')
     spiritGroups.forEach(g => {
       L.push(`  [${g.group}]`)
-      g.items.forEach(s => L.push(`    ${s.name}:  ${s.order > 0 ? s.order : '— (top up as needed)'}`))
+      g.items.forEach(s => L.push(`    ${s.name}:  ${s.order > 0 ? s.order + ' × 700ml' : '— (top up as needed)'}`))
     })
     L.push(`  + Cocktails draw ~${Math.round(cocktailBottles)} btl/wk of base spirits (not brand-split): ${COCKTAIL_BASES.brands}`)
     L.push('')
