@@ -5,13 +5,16 @@ import React, { useState, useEffect } from 'react'
 // time you re-count, enter glasses received (replacements bought) + the current
 // count → breakage = baseline + received − current. Tracks the count and an
 // estimated replacement cost, persisted locally. Per-glass costs are rough
-// estimates until a BCS glass invoice (with case sizes) firms them up.
+// Per-glass costs from the BCS invoices (prices are per CASE):
+//   Old Fashioned £11.58/case ÷ 12 = £0.97   ·   Shot £12.73/case ÷ 24 = £0.53
+//   Wine Vino £53.14/case ÷ 24 = £2.21
+// Tall & Prosecco weren't in those invoices — estimated until an invoice lands.
 const GLASSES = [
-  { key: 'tall',     label: 'Tall / highball',      target: 100, cost: 1.50 },
-  { key: 'rocks',    label: 'Rocks / Old Fashioned', target: 100, cost: 2.00 },
-  { key: 'shot',     label: 'Shot',                  target: 100, cost: 0.80 },
-  { key: 'wine',     label: 'Wine',                  target: 60,  cost: 2.50 },
-  { key: 'prosecco', label: 'Prosecco / flute',      target: 50,  cost: 2.00 },
+  { key: 'tall',     label: 'Tall / highball',       target: 100, cost: 1.50, est: true },
+  { key: 'rocks',    label: 'Rocks / Old Fashioned',  target: 100, cost: 0.97 },
+  { key: 'shot',     label: 'Shot',                   target: 100, cost: 0.53 },
+  { key: 'wine',     label: 'Wine',                   target: 60,  cost: 2.21 },
+  { key: 'prosecco', label: 'Prosecco / flute',       target: 50,  cost: 2.00, est: true },
 ]
 const KEY = 'ndb_ops_glass_breakage_v1'
 const money = (n) => '£' + (Math.round(n * 100) / 100).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
@@ -63,7 +66,7 @@ export default function GlassBreakage() {
         const b = breakageOf(g)
         return (
           <div key={g.key} style={{ display: 'grid', gridTemplateColumns: '1fr 60px 70px 70px 70px 90px', gap: 8, alignItems: 'center', padding: '5px 0', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-            <div style={{ fontSize: 13, color: 'var(--cream)' }}>{g.label}</div>
+            <div style={{ fontSize: 13, color: 'var(--cream)' }}>{g.label}{g.est && <span title="cost estimated — not in BCS invoices" style={{ color: 'var(--gold-dim)' }}>*</span>}</div>
             <div style={{ fontSize: 13, color: 'var(--cream-dim)', textAlign: 'center', fontVariantNumeric: 'tabular-nums' }}>{g.target}</div>
             <input type="number" min="0" style={inp} placeholder={String(g.target)} value={field(g.key, 'base') ?? ''} onChange={e => setField(g.key, 'base', e.target.value)} />
             <input type="number" min="0" style={inp} placeholder="0" value={field(g.key, 'recv') ?? ''} onChange={e => setField(g.key, 'recv', e.target.value)} />
@@ -79,8 +82,9 @@ export default function GlassBreakage() {
         <button onClick={setBaselineToTarget} style={{ padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12, background: 'rgba(129,140,248,0.16)', border: '1px solid #818CF8', color: '#C7D2FE', fontWeight: 600 }}>
           Set baseline = target (reopen audit)
         </button>
-        <div style={{ fontSize: 10, color: 'var(--gold-dim)', lineHeight: 1.5, textAlign: 'right' }}>
-          Replacement costs are rough per-glass estimates — refine from a BCS glass invoice (with case sizes).
+        <div style={{ fontSize: 10, color: 'var(--gold-dim)', lineHeight: 1.5, textAlign: 'right', maxWidth: 320 }}>
+          Costs from BCS invoices (per case ÷ size): Rocks £0.97 · Shot £0.53 · Wine £2.21.
+          Tall &amp; Prosecco* estimated (not in those invoices) — send one to firm up.
         </div>
       </div>
     </div>
