@@ -16,27 +16,32 @@ const BLOCKS = {
   spacer:  { label: 'Spacer',  make: () => ({ type: 'spacer' }) },
 }
 const KEY = 'ndb_newsletter_draft_v1'
-const GOLD = '#C9A84C', INK = '#0E1116', CREAM = '#EFE7D2'
+// Email palette — pulled from the public nodice.bar site (red on black, white
+// text, the wordmark), NOT the gold/cream investor deck.
+const RED = '#DA1B33', BLACK = '#000000', CARD = '#0A0A0A', BODY = 'rgba(255,255,255,0.84)'
 
 function blockHtml(b) {
   switch (b.type) {
-    case 'heading': return `<tr><td style="padding:8px 24px;font-family:Georgia,serif;font-size:26px;color:${INK};font-weight:bold;">${esc(b.text)}</td></tr>`
-    case 'text':    return `<tr><td style="padding:8px 24px;font-family:Arial,sans-serif;font-size:15px;line-height:1.6;color:#333;">${esc(b.text).replace(/\n/g, '<br>')}</td></tr>`
-    case 'button':  return `<tr><td style="padding:14px 24px;"><a href="${esc(b.url)}" style="background:${GOLD};color:${INK};text-decoration:none;padding:12px 26px;border-radius:8px;font-family:Arial,sans-serif;font-size:15px;font-weight:bold;display:inline-block;">${esc(b.text)}</a></td></tr>`
-    case 'image':   return b.url ? `<tr><td style="padding:8px 24px;"><img src="${esc(b.url)}" alt="${esc(b.alt)}" style="width:100%;max-width:552px;border-radius:8px;display:block;"></td></tr>` : ''
-    case 'divider': return `<tr><td style="padding:8px 24px;"><hr style="border:none;border-top:1px solid #E5E0D0;"></td></tr>`
+    case 'heading': return `<tr><td style="padding:12px 28px 4px;font-family:Georgia,'Times New Roman',serif;font-size:27px;line-height:1.2;color:#FFFFFF;font-weight:bold;">${esc(b.text)}</td></tr>`
+    case 'text':    return `<tr><td style="padding:8px 28px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.65;color:${BODY};">${esc(b.text).replace(/\n/g, '<br>')}</td></tr>`
+    case 'button':  return `<tr><td style="padding:16px 28px;"><a href="${esc(b.url)}" style="background:${RED};color:#FFFFFF;text-decoration:none;padding:14px 30px;border-radius:8px;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;letter-spacing:0.12em;text-transform:uppercase;display:inline-block;">${esc(b.text)}</a></td></tr>`
+    case 'image':   return b.url ? `<tr><td style="padding:8px 28px;"><img src="${esc(b.url)}" alt="${esc(b.alt)}" style="width:100%;max-width:544px;border-radius:8px;display:block;"></td></tr>` : ''
+    case 'divider': return `<tr><td style="padding:10px 28px;"><hr style="border:none;border-top:1px solid rgba(255,255,255,0.12);"></td></tr>`
     case 'spacer':  return `<tr><td style="height:24px;"></td></tr>`
     default: return ''
   }
 }
 const esc = (s = '') => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]))
 function fullHtml(blocks) {
-  return `<!doctype html><html><body style="margin:0;background:#f4f1ea;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea;padding:24px 0;"><tr><td align="center">
-<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background:#fff;border-radius:12px;overflow:hidden;">
-<tr><td style="background:${INK};padding:18px 24px;font-family:Georgia,serif;font-size:20px;color:${GOLD};">No Dice · Hackney</td></tr>
+  return `<!doctype html><html><body style="margin:0;background:${BLACK};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${BLACK};padding:24px 0;"><tr><td align="center">
+<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:600px;max-width:94%;background:${CARD};border:1px solid rgba(218,27,51,0.40);border-radius:14px;overflow:hidden;">
+<tr><td style="background:${BLACK};padding:28px 24px 20px;text-align:center;border-bottom:1px solid rgba(255,255,255,0.07);">
+<img src="https://nodice.bar/nodice-wordmark.png" alt="No Dice" width="160" style="display:inline-block;width:160px;max-width:62%;height:auto;">
+<div style="font-family:Arial,Helvetica,sans-serif;font-size:10px;letter-spacing:0.30em;text-transform:uppercase;color:rgba(255,255,255,0.6);margin-top:10px;">London Fields · Hackney</div>
+</td></tr>
 ${blocks.map(blockHtml).join('\n')}
-<tr><td style="padding:18px 24px;font-family:Arial,sans-serif;font-size:11px;color:#999;border-top:1px solid #eee;">No Dice, 407 Mentmore Terrace, London E8 3PH · <a href="{{unsubscribe}}" style="color:#999;">Unsubscribe</a></td></tr>
+<tr><td style="padding:22px 28px;font-family:Arial,Helvetica,sans-serif;font-size:11px;line-height:1.6;color:rgba(255,255,255,0.45);border-top:1px solid rgba(255,255,255,0.07);">No Dice Hackney Ltd · 407 Mentmore Terrace, London Fields, E8 3PH<br><a href="{{unsubscribe}}" style="color:rgba(255,255,255,0.6);text-decoration:underline;">Unsubscribe</a></td></tr>
 </table></td></tr></table></body></html>`
 }
 
@@ -101,9 +106,9 @@ export default function Newsletter() {
         </div>
 
         {/* Preview */}
-        <div style={{ background: '#f4f1ea', borderRadius: 12, padding: 16, position: 'sticky', top: 12 }}>
+        <div style={{ background: '#141414', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 12, padding: 16, position: 'sticky', top: 12 }}>
           <div style={{ fontSize: 10, letterSpacing: '0.1em', textTransform: 'uppercase', color: '#888', marginBottom: 8 }}>Live preview</div>
-          <iframe title="preview" srcDoc={fullHtml(blocks)} style={{ width: '100%', height: 560, border: 'none', borderRadius: 8, background: '#fff' }} />
+          <iframe title="preview" srcDoc={fullHtml(blocks)} style={{ width: '100%', height: 560, border: 'none', borderRadius: 8, background: '#000' }} />
         </div>
       </div>
 
