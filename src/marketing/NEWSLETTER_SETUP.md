@@ -76,3 +76,4 @@ It pings the project daily so it never pauses. (Until the secrets are set, it no
 - **Security:** anon key is insert-only (RLS) → the public key can't read your list. Service-role + Resend keys live only as Supabase function secrets. `SEND_SECRET` gates the send and is the only thing in the bundle (rotate any time).
 - **From address:** `hello@nodice.bar` — must be on the verified domain. Change it in `supabase/functions/send-newsletter/index.ts` if you want a different sender.
 - **Scale:** sends are sequential (fine for a few hundred). Past that, switch to Resend's batch endpoint — quick change.
+- **Importing old lists** (Mailchimp, Design My Night, events): see [IMPORT_LISTS.md](IMPORT_LISTS.md). Bulk import runs through the `import-subscribers` edge function (service role, dedupes on email, honours unsubscribes) — deployed with `supabase functions deploy import-subscribers --no-verify-jwt`, reuses `SEND_SECRET`.

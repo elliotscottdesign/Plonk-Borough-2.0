@@ -7,6 +7,7 @@
 export const SUPABASE_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co'
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJudGN1amNwc296dnV4dm1sZWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0Nzk0MDIsImV4cCI6MjA5NjA1NTQwMn0.cUMy2GWme7quwDKns_sXq8OY-9SqWaIuZqhYSz3ZwrY'
 export const NEWSLETTER_FN_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/send-newsletter'
+export const IMPORT_FN_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/import-subscribers'
 export const SEND_SECRET = '33394275513216b85489a6f16f61fb6646ace49365b12f74'
 export const BACKEND_READY = !!(SUPABASE_URL && SUPABASE_ANON_KEY)
 export const SEND_READY = !!(NEWSLETTER_FN_URL && SEND_SECRET)
@@ -41,5 +42,22 @@ export async function sendNewsletter({ subject, html }) {
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `Send failed (${res.status})`)
+  return data
+}
+
+// Bulk import old lists (Mailchimp export, booking CSVs, event guest lists)
+// into the subscribers table. Goes through the import-subscribers edge function
+// (service role) so it can dedupe on email and never resurrect unsubscribers.
+// rows = [{ email, source?, consent?, unsubscribed? }]. Returns { inserted, skipped, total }.
+// Intended for a one-off run from a trusted machine, not the public bundle.
+export async function importSubscribers({ rows }) {
+  if (!SEND_READY) throw new Error('Import function not configured')
+  const res = await fetch(IMPORT_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ rows, secret: SEND_SECRET }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `Import failed (${res.status})`)
   return data
 }

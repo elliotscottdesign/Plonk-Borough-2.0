@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import CookieBanner from './components/CookieBanner.jsx'
+import NewsletterPopup from './components/NewsletterPopup.jsx'
+import { insertSubscriber, BACKEND_READY } from './marketing/data/backend.js'
 
 // Landing — public-facing page at nodice.bar/ (the root).
 //
@@ -152,6 +154,9 @@ export default function Landing() {
 
       {/* GDPR cookie / privacy banner — first visit only, persists choice */}
       <CookieBanner />
+
+      {/* First-visit newsletter popup → writes to the central Supabase list */}
+      <NewsletterPopup />
     </div>
   )
 }
@@ -169,6 +174,13 @@ function SignupForm() {
     e.preventDefault()
     if (!isValidEmail || state === 'sending') return
     setState('sending'); setError('')
+
+    // Add to the central subscriber list (Supabase) — fire-and-forget so it
+    // never slows or blocks the signup. The Apps Script notification below
+    // still runs regardless (founder gets the per-signup email ping).
+    if (BACKEND_READY) {
+      insertSubscriber({ email: email.trim(), source: 'landing', consent: true }).catch(() => {})
+    }
 
     if (SIGNUP_SYNC_URL) {
       try {
