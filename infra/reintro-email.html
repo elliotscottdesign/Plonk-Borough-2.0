@@ -1,0 +1,36 @@
+<!--
+  No Dice — reactivation / re-introduction email (DRAFT for founder approval).
+  Sent ONLY to the warm slice of the old Plonk/Mailchimp list, in small
+  batches, via the send-campaign edge function.
+    {{confirm}}     → "Yes, keep me in" (flips them to consent=true)
+    {{unsubscribe}} → one-click opt-out
+  Plain inline styles + table layout for broad email-client support.
+-->
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#000000;margin:0;padding:0;">
+  <tr><td align="center" style="padding:32px 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;background:#0A0A0A;border:1px solid rgba(218,27,51,0.45);border-radius:14px;">
+      <tr><td style="padding:40px 36px 8px;text-align:center;">
+        <div style="font-family:'Bebas Neue',Arial,sans-serif;font-size:13px;letter-spacing:0.28em;text-transform:uppercase;color:#DA1B33;font-weight:bold;">No Dice · London Fields</div>
+      </td></tr>
+      <tr><td style="padding:8px 36px 0;text-align:center;">
+        <h1 style="font-family:Georgia,'Times New Roman',serif;font-size:30px;line-height:1.15;color:#FFFFFF;margin:8px 0 0;">We've moved — and we'd love you back</h1>
+      </td></tr>
+      <tr><td style="padding:18px 36px 0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:rgba(255,255,255,0.82);">
+        You once signed up with us at Plonk. We've grown up into <strong style="color:#fff;">No Dice</strong> — a new bar opening on <strong style="color:#fff;">17 June</strong> at 407 Mentmore Terrace, London Fields (Hackney, E8 3PH). Cocktails, big-screen football, very good times.
+      </td></tr>
+      <tr><td style="padding:14px 36px 0;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:16px;line-height:1.6;color:rgba(255,255,255,0.82);">
+        We won't email you again unless you say so. Want the opening invite, events and new-drink news?
+      </td></tr>
+      <tr><td align="center" style="padding:28px 36px 8px;">
+        <a href="{{confirm}}" style="display:inline-block;background:#DA1B33;color:#FFFFFF;text-decoration:none;font-family:Arial,Helvetica,sans-serif;font-size:14px;font-weight:bold;letter-spacing:0.16em;text-transform:uppercase;padding:16px 34px;border-radius:8px;">Yes — keep me in</a>
+      </td></tr>
+      <tr><td style="padding:8px 36px 36px;text-align:center;font-family:Arial,Helvetica,sans-serif;font-size:12px;line-height:1.6;color:rgba(255,255,255,0.4);">
+        If we don't hear from you, that's the last you'll hear from us — no hard feelings.<br>
+        <a href="{{unsubscribe}}" style="color:rgba(255,255,255,0.5);text-decoration:underline;">Unsubscribe / don't email me</a>
+      </td></tr>
+    </table>
+    <div style="font-family:Arial,Helvetica,sans-serif;font-size:11px;color:rgba(255,255,255,0.3);padding:18px 16px 0;max-width:520px;">
+      No Dice Hackney Ltd · 407 Mentmore Terrace, London Fields, E8 3PH
+    </div>
+  </td></tr>
+</table>
