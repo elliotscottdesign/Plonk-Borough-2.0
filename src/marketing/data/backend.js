@@ -7,7 +7,7 @@
 export const SUPABASE_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co'
 export const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJudGN1amNwc296dnV4dm1sZWp2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA0Nzk0MDIsImV4cCI6MjA5NjA1NTQwMn0.cUMy2GWme7quwDKns_sXq8OY-9SqWaIuZqhYSz3ZwrY'
 export const NEWSLETTER_FN_URL = 'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/send-newsletter'
-export const SEND_SECRET = ''             // ← still needed: the SEND_SECRET you set on deploy
+export const SEND_SECRET = '33394275513216b85489a6f16f61fb6646ace49365b12f74'
 export const BACKEND_READY = !!(SUPABASE_URL && SUPABASE_ANON_KEY)
 export const SEND_READY = !!(NEWSLETTER_FN_URL && SEND_SECRET)
 
