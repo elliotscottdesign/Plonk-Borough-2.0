@@ -15,6 +15,7 @@ import InvestmentCase from './slides/InvestmentCase.jsx'
 import GroupStructure from './slides/GroupStructure.jsx'
 import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
+import TeamLanding from './TeamLanding.jsx'
 import SiteSplash from './site/SiteSplash.jsx'
 import SiteHome from './site/SiteHome.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
@@ -196,7 +197,11 @@ export default function App() {
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
   if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath())) {
-    return <Landing />
+    // This repo now lives at team.nodice.bar (the public customer site owns
+    // nodice.bar). Root + any unrecognised path shows the branded team hub —
+    // four gated doors: Operations, Marketing, Investors Hackney/Borough.
+    // (Landing.jsx, the old public "coming soon" page, is retired here.)
+    return <TeamLanding />
   }
 
   if (!unlocked) {

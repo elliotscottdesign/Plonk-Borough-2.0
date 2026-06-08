@@ -60,24 +60,23 @@ export default function PasswordGate({ onUnlock }) {
   return (
     <div style={{
       height:'100vh', display:'flex', alignItems:'center', justifyContent:'center',
-      background:'var(--ink)', flexDirection:'column', gap:32,
+      background:'#000000', flexDirection:'column', gap:30, padding:24,
+      fontFamily:"'DM Sans', sans-serif",
     }}>
-      {/* Logo — shared gate for both decks (Borough at /, Hackney at /hackney).
-           Stays brand-neutral so the venue name only resolves after unlock. */}
+      {/* Logo — shared gate for the team hub + both decks. Public brand:
+           the No Dice wordmark on black, red accents. */}
       <div style={{ textAlign:'center' }}>
-        <div className="serif" style={{ fontSize:52, color:'var(--gold)', lineHeight:1, marginBottom:12 }}>
-          No Dice
-        </div>
-        <div style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
+        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width:'min(260px, 70vw)', height:'auto', display:'block', margin:'0 auto 14px' }} />
+        <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
           {t('eyebrow')}
         </div>
       </div>
 
-      <div className="gold-rule" style={{ width:200 }} />
+      <div style={{ width:200, height:2, background:'linear-gradient(90deg, transparent, #DA1B33, transparent)' }} />
 
       {/* Password input */}
       <div style={{ display:'flex', flexDirection:'column', gap:12, alignItems:'center' }}>
-        <div style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.1em' }}>
+        <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', letterSpacing:'0.1em' }}>
           {t('prompt')}
         </div>
         <div style={{ display:'flex', gap:8 }}>
@@ -89,16 +88,16 @@ export default function PasswordGate({ onUnlock }) {
             autoFocus
             style={{
               padding:'10px 16px', fontSize:14, borderRadius:8, width:200,
-              background:'var(--ink-2)', border:`1px solid ${error ? '#E53935' : 'rgba(201,168,76,0.3)'}`,
-              color:'var(--cream)', outline:'none', letterSpacing:'0.1em',
+              background:'#0A0A0A', border:`1px solid ${error ? '#E53935' : 'rgba(255,255,255,0.18)'}`,
+              color:'#FFFFFF', outline:'none', letterSpacing:'0.1em',
               transition:'border-color 0.2s',
             }}
             placeholder="••••••••••"
           />
           <button onClick={attempt} style={{
             padding:'10px 20px', borderRadius:8, fontSize:13,
-            background:'var(--gold)', color:'var(--ink)', border:'none',
-            cursor:'pointer', fontWeight:500,
+            background:'#DA1B33', color:'#FFFFFF', border:'none',
+            cursor:'pointer', fontWeight:700, letterSpacing:'0.06em',
           }}>{t('enter')}</button>
         </div>
         {error && (
@@ -106,7 +105,7 @@ export default function PasswordGate({ onUnlock }) {
         )}
       </div>
 
-      <div style={{ fontSize:10, color:'var(--gold-dim)', letterSpacing:'0.08em', marginTop:16 }}>
+      <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', letterSpacing:'0.08em', marginTop:16 }}>
         {t('footer')}
       </div>
     </div>
