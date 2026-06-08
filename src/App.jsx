@@ -151,6 +151,7 @@ export default function App() {
   const [hackneyAccess, setHackneyAccess] = useState(() => sessionStorage.getItem('ndb_hackney_access') === '1')
   const [opsAccess, setOpsAccess] = useState(() => sessionStorage.getItem('ndb_ops_access') === '1')
   const [marketingAccess, setMarketingAccess] = useState(() => sessionStorage.getItem('ndb_marketing_access') === '1')
+  const [boroughAccess, setBoroughAccess] = useState(() => sessionStorage.getItem('ndb_borough_access') === '1')
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
@@ -205,7 +206,7 @@ export default function App() {
   }
 
   if (!unlocked) {
-    return <PasswordGate onUnlock={({ plonk, founder, hackney, ops, marketing, role, lang: chosenLang, accessCode }) => {
+    return <PasswordGate onUnlock={({ plonk, founder, hackney, borough, ops, marketing, role, lang: chosenLang, accessCode }) => {
       sessionStorage.setItem('ndb_unlocked', '1')
       sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
       // Per-tenant access code — every signed-in user gets their own
@@ -238,6 +239,9 @@ export default function App() {
       // Marketing hub visibility — founder-tier + the NDTEAM team code.
       if (marketing) sessionStorage.setItem('ndb_marketing_access', '1')
       else           sessionStorage.removeItem('ndb_marketing_access')
+      // Borough deck visibility — founder (888999) + the NODICE99 Borough code.
+      if (borough) sessionStorage.setItem('ndb_borough_access', '1')
+      else         sessionStorage.removeItem('ndb_borough_access')
       // Role tag — components can branch on this for role-specific UI
       // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
       sessionStorage.setItem('ndb_role', role || 'investor')
@@ -247,6 +251,7 @@ export default function App() {
       setHackneyAccess(!!hackney)
       setOpsAccess(!!ops)
       setMarketingAccess(!!marketing)
+      setBoroughAccess(!!borough)
       setUnlocked(true)
     }} />
   }
@@ -326,16 +331,29 @@ export default function App() {
     return <DecemberSales />
   }
 
-  // Pure-team users (NDTEAM: ops only, no investor flags) shouldn't land on
-  // the Borough investor deck if they type the URL — point them to /ops.
-  if (opsAccess && !hackneyAccess && !plonkAccess) {
+  // Borough deck — gated to the `borough` flag (888999 + the NODICE99
+  // Borough-investor code). Anyone without it is kicked back: team users
+  // (NDTEAM) to Operations, Hackney-only investors (NODICE88) to a restricted
+  // notice. Keeps the Hackney and Borough investor groups cleanly separated.
+  if (!boroughAccess) {
+    if (opsAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>No Dice · Team</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            Your access is the team Operations &amp; Marketing hubs. The investor decks are a separate login.
+          </div>
+          <a href="/ops" style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.1em', textDecoration:'none', marginTop:8, border:'1px solid var(--gold)', borderRadius:8, padding:'10px 20px' }}>→ Go to Operations</a>
+        </div>
+      )
+    }
     return (
       <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
-        <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>No Dice · Team</div>
+        <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
         <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
-          Your access is the team Operations hub. The investor decks are a separate login.
+          The Borough deck is for Borough investors. Sign in with the Borough access code to view.
         </div>
-        <a href="/ops" style={{ fontSize:13, color:'var(--gold)', letterSpacing:'0.1em', textDecoration:'none', marginTop:8, border:'1px solid var(--gold)', borderRadius:8, padding:'10px 20px' }}>→ Go to Operations</a>
+        <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to the hub</a>
       </div>
     )
   }

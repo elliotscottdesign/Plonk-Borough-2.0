@@ -2,38 +2,32 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // ─── Access codes ──────────────────────────────────────────────────────
-// Each code grants a role with four orthogonal flags:
-//   - plonk:    can see the Plonk top-tab (IP & Licensing + Digital
-//               Marketing + How It Works + Cover + SEO Marketing)
-//   - founder:  full edit access on the 2026 Performance tab — drives
-//               canEdit on every slider/input via LockedForecastContext
-//   - hackney:  can view the /hackney deck. NODICE88 is the dedicated
-//               Hackney-investor code; founder-tier (888999/JOHN1),
-//               LEONIE and BRAZIL also hold it.
-//   - role:     a string tag persisted to sessionStorage so individual
-//               components can branch behaviour (e.g. a BRAZIL viewer
-//               sees the ticket slider locked even though everything
-//               else is read-only by default for non-founders too)
+// Four live codes (cleaned up June 2026 — old codes JOHN1 / LEONIE / BRAZIL /
+// ALEX1 retired). Each grants a role with these orthogonal flags:
+//   - plonk:     Plonk top-tab on the Borough deck (PRIVATE — founder only)
+//   - founder:   full edit access (drives canEdit on every slider/input)
+//   - hackney:   view the /hackney (London Fields) investor deck
+//   - borough:   view the /borough investor deck
+//   - ops:       the internal Operations hub at /ops
+//   - marketing: the internal Marketing hub at /marketing
+//   - role:      a string tag persisted to sessionStorage for any component
+//                that branches on it
 //
-// Plonk is PRIVATE — only 888999 (founder) and JOHN1 see it.
-// Hackney is gated to NODICE88, 888999, JOHN1, LEONIE and BRAZIL.
-// Brazilian Portuguese remains an in-app EN | PT toggle (no code).
+//   888999   — founder: opens EVERYTHING.
+//   NDTEAM   — team staff: Operations + Marketing only (no investor decks).
+//   NODICE88 — Hackney investors: the Hackney deck ONLY.
+//   NODICE99 — Borough investors: the Borough deck ONLY.
 //
-// JOHN1 is an "observer-founder" tier — same slider + lock access as
-// the real founder (can drag every slider, lock every value) AND has
-// Plonk + Hackney visibility. Role tag stays 'observer' so any future
-// external-sheet-write or document-edit flow gates against it.
+// Retiring a code does NOT delete any saved notes/locks/drags — those persist
+// in localStorage and on the lock-sync server keyed by the code STRING (see
+// lib/access-code.js · namespacedKey). Removing a code only disables LOGIN;
+// the data stays intact and recoverable.
 // ───────────────────────────────────────────────────────────────────────
-// `ops` grants the internal team Operations hub at /ops (Stock Orders,
-// Reports, Documentation). Founder-tier holds it; NDTEAM is the dedicated
-// staff code — ops-only, no investor decks.
 const ACCESS_CODES = {
-  '888999':   { plonk: true,  founder: true,  hackney: true,  ops: true,  marketing: true,  role: 'founder'  },
-  'JOHN1':    { plonk: true,  founder: true,  hackney: true,  ops: true,  marketing: true,  role: 'observer' },
-  'LEONIE':   { plonk: false, founder: true,  hackney: true,  ops: false, marketing: false, role: 'leonie'   },
-  'NODICE88': { plonk: false, founder: false, hackney: true,  ops: false, marketing: false, role: 'nodice88' },
-  'BRAZIL':   { plonk: false, founder: false, hackney: true,  ops: false, marketing: false, role: 'brazil'   },
-  'NDTEAM':   { plonk: false, founder: false, hackney: false, ops: true,  marketing: true,  role: 'team'     },
+  '888999':   { plonk: true,  founder: true,  hackney: true,  borough: true,  ops: true,  marketing: true,  role: 'founder'          },
+  'NDTEAM':   { plonk: false, founder: false, hackney: false, borough: false, ops: true,  marketing: true,  role: 'team'             },
+  'NODICE88': { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'hackney-investor' },
+  'NODICE99': { plonk: false, founder: false, hackney: false, borough: true,  ops: false, marketing: false, role: 'borough-investor' },
 }
 
 export default function PasswordGate({ onUnlock }) {
@@ -43,7 +37,7 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (BRAZIL, JOHN1, LEONIE, NODICE88) accept any case for friendliness.
+    // codes (NDTEAM, NODICE88, NODICE99) accept any case for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
