@@ -1,6 +1,4 @@
 import React, { useEffect, useState } from 'react'
-import CookieBanner from './components/CookieBanner.jsx'
-import NewsletterPopup from './components/NewsletterPopup.jsx'
 import { insertSubscriber, BACKEND_READY } from './marketing/data/backend.js'
 
 // Landing — public-facing page at nodice.bar/ (the root).
@@ -122,25 +120,6 @@ export default function Landing() {
       }}>
         <a href="/privacy" style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>Privacy</a>
         <a href="/terms"   style={{ color: 'rgba(255,255,255,0.35)', textDecoration: 'none' }}>Terms</a>
-        <button
-          onClick={() => {
-            const reopen = window.__nodiceReopenCookieBanner
-            if (typeof reopen === 'function') reopen()
-          }}
-          style={{
-            background: 'none',
-            border: 'none',
-            padding: 0,
-            cursor: 'pointer',
-            color: 'rgba(255,255,255,0.35)',
-            fontSize: 10,
-            letterSpacing: '0.18em',
-            textTransform: 'uppercase',
-            fontFamily: 'inherit',
-          }}
-        >
-          Cookie settings
-        </button>
         <a
           href="/borough"
           style={{
@@ -152,11 +131,6 @@ export default function Landing() {
         </a>
       </div>
 
-      {/* GDPR cookie / privacy banner — first visit only, persists choice */}
-      <CookieBanner />
-
-      {/* First-visit newsletter popup → writes to the central Supabase list */}
-      <NewsletterPopup />
     </div>
   )
 }
