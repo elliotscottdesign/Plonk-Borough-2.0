@@ -19,16 +19,16 @@ export default function SignupForm({ source = 'marketing-preview' }) {
     catch (err) { setStatus(String(err.message || err)) }
   }
 
-  const inp = { flex: 1, minWidth: 180, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--cream)', outline: 'none' }
+  const inp = { flex: 1, minWidth: 180, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.4)', color: '#FFFFFF', outline: 'none' }
   return (
     <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" style={inp} />
-        <button type="submit" style={{ padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, background: 'var(--gold)', color: 'var(--ink)', border: 'none' }}>
+        <button type="submit" style={{ padding: '10px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 14, fontWeight: 600, background: '#DA1B33', color: '#FFFFFF', border: 'none' }}>
           {status === 'sending' ? 'Joining…' : 'Sign up'}
         </button>
       </div>
-      <label style={{ fontSize: 11, color: 'var(--cream-dim)', display: 'flex', gap: 6, alignItems: 'center' }}>
+      <label style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', display: 'flex', gap: 6, alignItems: 'center' }}>
         <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)} />
         I agree to receive emails from No Dice (unsubscribe anytime).
       </label>

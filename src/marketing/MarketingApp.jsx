@@ -31,7 +31,7 @@ function ConnectBanner({ feed }) {
       </div>
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
         {WINDSOR_SOURCES.map(s => (
-          <span key={s.name} title={s.note} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--cream-dim)' }}>
+          <span key={s.name} title={s.note} style={{ fontSize: 11, padding: '5px 10px', borderRadius: 999, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}>
             ◌ {s.name}
           </span>
         ))}
@@ -46,29 +46,29 @@ export default function MarketingApp() {
   const section = MARKETING_SECTIONS.find(s => s.key === active)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--ink)', color: 'var(--cream)', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', background: '#000000', color: '#FFFFFF', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: 56, background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0, gap: 16, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: 56, background: '#0A0A0A', borderBottom: '1px solid rgba(255,255,255,0.10)', flexShrink: 0, gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <div className="serif" style={{ fontSize: 17, color: 'var(--gold)' }}>No Dice · Marketing</div>
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · GA4 via Windsor.ai</div>
+          <div className="serif" style={{ fontSize: 17, color: '#DA1B33' }}>No Dice · Marketing</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · GA4 via Windsor.ai</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: WINDSOR_CONNECTED ? '#34D399' : 'var(--cream-dim)' }}>
+          <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: WINDSOR_CONNECTED ? '#34D399' : 'rgba(255,255,255,0.6)' }}>
             <span style={{ width: 8, height: 8, borderRadius: 999, background: WINDSOR_CONNECTED ? '#34D399' : '#6B7280', display: 'inline-block' }} />
             {WINDSOR_CONNECTED ? (feed.loading ? 'Syncing…' : 'Connected') : 'Not connected'}
           </span>
-          <a href="/ops" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.1em', textDecoration: 'none' }}>Ops →</a>
-          <a href="/" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.1em', textDecoration: 'none' }}>← nodice.bar</a>
+          <a href="/ops" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>Ops →</a>
+          <a href="/" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>← nodice.bar</a>
         </div>
       </div>
 
       {/* Sub-nav */}
-      <div style={{ display: 'flex', gap: 4, padding: '10px 24px 0', background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.1)', overflowX: 'auto', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: 4, padding: '10px 24px 0', background: '#0A0A0A', borderBottom: '1px solid rgba(218,27,51,0.12)', overflowX: 'auto', flexShrink: 0 }}>
         {NAV.map(s => (
           <button key={s.key} onClick={() => setActive(s.key)} style={{
-            padding: '8px 16px', fontSize: 12, border: 'none', borderBottom: `2px solid ${active === s.key ? 'var(--gold)' : 'transparent'}`,
-            background: 'transparent', color: active === s.key ? 'var(--gold)' : 'var(--cream-dim)', cursor: 'pointer',
+            padding: '8px 16px', fontSize: 12, border: 'none', borderBottom: `2px solid ${active === s.key ? '#DA1B33' : 'transparent'}`,
+            background: 'transparent', color: active === s.key ? '#DA1B33' : 'rgba(255,255,255,0.6)', cursor: 'pointer',
             whiteSpace: 'nowrap', fontWeight: active === s.key ? 600 : 400, letterSpacing: '0.03em',
             marginLeft: s.kind === 'tool' && NAV[NAV.indexOf(s) - 1]?.kind === 'dash' ? 16 : 0,
           }}>{s.icon} {s.label}</button>
