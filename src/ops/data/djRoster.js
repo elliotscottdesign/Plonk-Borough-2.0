@@ -44,26 +44,6 @@ export const DJ_ROSTER_SEED = [
     "source": "import"
   },
   {
-    "id": "ash",
-    "djName": "Ash",
-    "realName": "Ash",
-    "genres": [
-      "House",
-      "Breaks",
-      "Electro"
-    ],
-    "genresText": "House / Breaks / Electro",
-    "instagram": "@fourtybelowzero",
-    "format": "CDJ",
-    "phone": "07875588080",
-    "email": "",
-    "labels": "",
-    "bioLink": "",
-    "notes": "",
-    "image": "",
-    "source": "import"
-  },
-  {
     "id": "beats-kebab",
     "djName": "Beats Kebab",
     "realName": "Babi Jani",
@@ -640,8 +620,12 @@ export const DJ_ROSTER_SEED = [
 export const ROSTER_KEY = 'ndb_dj_roster_v1'
 
 export function loadRoster() {
-  try { const s = JSON.parse(localStorage.getItem(ROSTER_KEY)); if (Array.isArray(s)) return s } catch {}
-  return DJ_ROSTER_SEED
+  let list
+  try { const s = JSON.parse(localStorage.getItem(ROSTER_KEY)); if (Array.isArray(s)) list = s } catch {}
+  if (!list) list = DJ_ROSTER_SEED
+  // One-off cleanup (Jun 2026): drop the retired duplicate "Ash" (@fourtybelowzero);
+  // the @ashlikeschips profile is the one we keep. Self-heals localStorage on next save.
+  return list.filter(d => d.instagram !== '@fourtybelowzero')
 }
 
 export function saveRoster(list) {
