@@ -27,6 +27,7 @@ export default function DJPortal() {
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
   const [msg, setMsg] = useState('')
+  const [photoErr, setPhotoErr] = useState('')
   const [claiming, setClaiming] = useState(null)
   const [night, setNight] = useState('')
   const [subs, setSubs] = useState([])   // sub-genre names selected for the claim (max 4)
@@ -55,14 +56,14 @@ export default function DJPortal() {
   }
   const onPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
-    setBusy(true); setMsg('Saving…')
+    setBusy(true); setPhotoErr(''); setMsg('Saving photo…')
     try {
       await djPortal(token, 'save', { profile: form })   // persist typed details FIRST
-      const dataUrl = await resizeImage(file)            // may throw (e.g. HEIC) — details already saved
+      const dataUrl = await resizeImage(file)            // HEIC auto-converts; details already saved
       refresh(await djPortal(token, 'photo', { dataUrl }))
-      flash('Saved ✓')
+      flash('Photo saved ✓')
     } catch (er) {
-      flash((er.message || 'Photo upload failed') + ' — your details were saved.')
+      setPhotoErr(er.message || 'Photo upload failed — try a JPG or PNG.')
     } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
@@ -138,6 +139,7 @@ export default function DJPortal() {
                 {form.image_url ? 'Change photo' : 'Upload a photo'}
                 <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
               </label>
+              {photoErr && <div style={{ fontSize: 11, color: '#F87171', marginTop: 6, lineHeight: 1.4 }}>{photoErr}</div>}
             </div>
           </div>
 

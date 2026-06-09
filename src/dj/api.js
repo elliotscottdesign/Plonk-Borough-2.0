@@ -49,6 +49,15 @@ export const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.sta
 // back to <img>. Throws a friendly error for formats the browser can't read
 // (e.g. a HEIC photo opened on a desktop browser).
 export async function resizeImage(file, maxPx = 1000, quality = 0.85) {
+  // HEIC/HEIF (iPhone & Mac photos) can't be drawn to a canvas — convert to JPEG
+  // first via heic2any, loaded on demand from a CDN only when a HEIC is picked.
+  if (/heic|heif/i.test(file.type) || /\.hei[cf]$/i.test(file.name || '')) {
+    try {
+      const mod = await import(/* @vite-ignore */ 'https://esm.sh/heic2any@0.0.4')
+      const out = await mod.default({ blob: file, toType: 'image/jpeg', quality: 0.9 })
+      file = new File([Array.isArray(out) ? out[0] : out], 'photo.jpg', { type: 'image/jpeg' })
+    } catch { throw new Error("Couldn't convert that HEIC photo — please try a JPG or PNG.") }
+  }
   let src
   try {
     src = await createImageBitmap(file)
@@ -57,7 +66,7 @@ export async function resizeImage(file, maxPx = 1000, quality = 0.85) {
       const img = new Image()
       const url = URL.createObjectURL(file)
       img.onload = () => { URL.revokeObjectURL(url); res(img) }
-      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Couldn't read that photo — please use a JPG or PNG. (iPhone 'HEIC' photos may not work on a computer.)")) }
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error('Couldn’t read that photo — please use a JPG or PNG.')) }
       img.src = url
     })
   }
