@@ -45,9 +45,15 @@ export default function DJPortal() {
   }
   const onPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
-    setBusy(true); setMsg('Uploading photo…')
-    try { const dataUrl = await resizeImage(file); refresh(await djPortal(token, 'photo', { dataUrl })); flash('Photo updated ✓') }
-    catch (er) { flash(er.message || 'Upload failed') } finally { setBusy(false) }
+    setBusy(true); setMsg('Saving…')
+    try {
+      await djPortal(token, 'save', { profile: form })   // persist typed details FIRST
+      const dataUrl = await resizeImage(file)            // may throw (e.g. HEIC) — details already saved
+      refresh(await djPortal(token, 'photo', { dataUrl }))
+      flash('Saved ✓')
+    } catch (er) {
+      flash((er.message || 'Photo upload failed') + ' — your details were saved.')
+    } finally { setBusy(false) }
   }
   const claim = async (date) => {
     setBusy(true)
