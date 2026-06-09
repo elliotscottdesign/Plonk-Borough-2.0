@@ -37,9 +37,9 @@ Deno.serve(async (req) => {
       continue;
     }
 
-    if (age >= 22 * H && !h.reminder_sent) {
+    if (age >= 22 * H && !h.reminder_sent && RESEND) {
       const email = (h as any).dj?.email, name = (h as any).dj?.dj_name || "there", token = (h as any).dj?.token;
-      if (RESEND && email && token) {
+      if (email && token) {
         const link = `${PORTAL}?t=${encodeURIComponent(token)}`;
         const dateStr = new Date(h.date + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
         await fetch("https://api.resend.com/emails", {
@@ -58,9 +58,11 @@ Deno.serve(async (req) => {
             </div>`,
           }),
         });
-        await sb.from("dj_slots").update({ reminder_sent: true, updated_at: nowISO }).eq("date", h.date).eq("status", "held");
         reminded++;
       }
+      // Mark handled either way (RESEND is available) so we never re-check this hold
+      // every run. A held DJ always has an email, but this is safe if one doesn't.
+      await sb.from("dj_slots").update({ reminder_sent: true, updated_at: nowISO }).eq("date", h.date).eq("status", "held");
     }
   }
   return json({ reminded, released, checked: (holds || []).length });

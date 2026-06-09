@@ -77,6 +77,15 @@ export default function DJPortal() {
   const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
   const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); resetPanel() }
   const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set') }
+  const holdExpired = (heldAt) => !!heldAt && (new Date(heldAt).getTime() + 24 * 3600 * 1000 <= Date.now())
+  // If a hold lapsed mid-action, flash + reload the live state and drop the stale panel.
+  const handleErr = async (e) => {
+    flash(e.message)
+    if (/expired|just taken|isn.t being held|isn.t one of your/i.test(e.message || '')) {
+      try { refresh(await djPortal(token, 'load')) } catch { /* keep last state */ }
+      closePanel()
+    }
+  }
   // Pick a fresh open date — reserve it (24h hold) THEN open the panel.
   const startClaim = async (date) => {
     setBusy(true)
@@ -84,10 +93,17 @@ export default function DJPortal() {
       refresh(await djPortal(token, 'hold', { date }))
       setMode('claim'); setPanelAt('bottom'); setClaiming(date); resetPanel()
       flash('Date held for you — you’ve got 24h to finish.')
-    } catch (e) { flash(e.message) } finally { setBusy(false) }
+    } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
   // Pick a held draft back up (within the 24h) to keep filling it in.
-  const resumeDraft = (b) => { setMode('claim'); setPanelAt('top'); setClaiming(b.date); prefill(b) }
+  const resumeDraft = async (b) => {
+    if (holdExpired(b.held_at)) {
+      flash('That hold just expired — pick the date again from the calendar.')
+      try { refresh(await djPortal(token, 'load')) } catch { /* keep last state */ }
+      return
+    }
+    setMode('claim'); setPanelAt('top'); setClaiming(b.date); prefill(b)
+  }
   // Edit an existing pending/confirmed booking.
   const startEdit = (b) => { setMode('edit'); setPanelAt('top'); setClaiming(b.date); prefill(b) }
   const saveDraft = async (date) => {
@@ -97,7 +113,7 @@ export default function DJPortal() {
       refresh(await djPortal(token, 'draft', { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
       closePanel()
       flash('Draft saved ✓ — finish within your 24h.')
-    } catch (e) { flash(e.message) } finally { setBusy(false) }
+    } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
   const claim = async (date) => {
     const session = kindFor(date) === 'session'
@@ -111,7 +127,7 @@ export default function DJPortal() {
       refresh(await djPortal(token, action, { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
       closePanel()
       flash(mode === 'edit' ? 'Night updated ✓' : 'Date requested ✓ — No Dice will confirm.')
-    } catch (e) { flash(e.message) } finally { setBusy(false) }
+    } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
   const cancel = async (date) => {
     setBusy(true)
