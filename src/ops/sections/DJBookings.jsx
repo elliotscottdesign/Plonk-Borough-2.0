@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
-import { djAdmin, setTypeLabel } from '../../dj/api.js'
+import { djAdmin, setTypeLabel, instagramCaption } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -49,7 +49,7 @@ export default function DJBookings() {
       {/* No Dice wordmark — branding for DJs viewing this page (DJ-only access) */}
       <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 4 }} />
       <div style={{ display: 'flex', gap: 6 }}>
-        {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster']].map(([k, label]) => (
+        {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster'], ['events', '🎪 Events']].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
             padding: '7px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
             background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
@@ -69,6 +69,8 @@ export default function DJBookings() {
         <div style={{ color: '#F87171', fontSize: 13, padding: 20 }}>Couldn't load: {err}</div>
       ) : view === 'roster' ? (
         <DJRoster djs={data.djs} reload={reload} />
+      ) : view === 'events' ? (
+        <Events data={data} />
       ) : (
         <Calendar data={data} reload={reload} />
       )}
@@ -180,6 +182,46 @@ function Calendar({ data, reload }) {
           </div>
         )
       })() : <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Tap a date to open it or manage its booking.</div>}
+    </div>
+  )
+}
+
+// Events — confirmed upcoming nights (the "what's on") + Instagram captions.
+function Events({ data }) {
+  const today = new Date(); today.setHours(0, 0, 0, 0)
+  const todayStr = iso(today)
+  const events = (data.slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
+  const [copied, setCopied] = useState(null)
+  const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(s.date); setTimeout(() => setCopied(null), 1800) }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div>
+        <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎪 Events</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
+          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). Hit <em>Instagram caption</em> to copy a ready-to-post caption with the DJ's photo to hand.
+        </div>
+      </div>
+      {events.length === 0 ? (
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No confirmed nights yet — sign one off from the Calendar tab.</div>
+      ) : events.map(s => {
+        const session = SESSIONS[new Date(s.date + 'T00:00:00').getDay()]
+        return (
+          <div key={s.date} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #34D399', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+            <Avatar d={s.dj || { dj_name: '?' }} size={48} />
+            <div style={{ flex: 1, minWidth: 200 }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}</span></div>
+              <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
+              {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
+              {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
+              {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
+            </div>
+            <button onClick={() => copyCap(s)} style={btn(copied === s.date ? 'green' : 'gold')}>{copied === s.date ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+          </div>
+        )
+      })}
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
+        <strong style={{ color: '#fff' }}>Public events page:</strong> these confirmed nights are live on a public feed at <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 3 }}>/functions/v1/events-feed</code> — the customer nodice.bar site can read it to show "What's On". That page lives in the other repo; say the word and I'll coordinate wiring it in.
+      </div>
     </div>
   )
 }

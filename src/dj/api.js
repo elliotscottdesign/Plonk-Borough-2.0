@@ -3,6 +3,7 @@ import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
 export const DJ_PORTAL_FN_URL = `${SUPABASE_URL}/functions/v1/dj-portal`
 export const DJ_ADMIN_FN_URL = `${SUPABASE_URL}/functions/v1/dj-admin`
+export const EVENTS_FEED_URL = `${SUPABASE_URL}/functions/v1/events-feed`
 
 // DJ-facing calls — authed by the DJ's private token (from their invite link).
 export async function djPortal(token, action, payload = {}) {
@@ -41,6 +42,31 @@ export const SET_TYPES = [
   { value: 'listening', label: 'Album listening party' },
 ]
 export const setTypeLabel = (v) => (SET_TYPES.find(s => s.value === v) || {}).label || v
+
+// Ready-to-post Instagram caption for a confirmed night. Accepts the admin slot
+// shape ({date, dj:{dj_name,instagram}, subgenres, night_name, set_type, kind})
+// or the feed shape ({date, dj, instagram, genres, ...}).
+export function instagramCaption(ev) {
+  const dj = ev?.dj?.dj_name || ev?.dj || 'TBA'
+  const ig = ev?.dj?.instagram || ev?.instagram || ''
+  const subs = ev?.subgenres || ev?.genres || []
+  const s = sessionFor(ev.date)
+  const dateStr = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
+  const session = (ev?.kind || kindFor(ev.date)) === 'session'
+  const title = ev?.night_name ? `“${ev.night_name}”` : (session ? 'No Dice Sessions' : 'Open Decks')
+  const igTag = ig ? ig.split(/[\s/]/)[0] : ''
+  const lines = [
+    `🎧 ${title} — ${dateStr}`,
+    '',
+    `${dj}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
+  ]
+  if (subs.length) lines.push(subs.join(' · '))
+  lines.push(`${session ? '' : (setTypeLabel(ev.set_type) || 'Open Decks') + ' · free entry · '}${s?.day || ''} ${timeLabel(s)}`)
+  lines.push('📍 407 Mentmore Terrace, London Fields, E8 3PH')
+  lines.push('')
+  lines.push(['#NoDice', '#LondonFields', '#Hackney', '#DJ', ...subs.slice(0, 3).map(g => '#' + g.replace(/[^a-z0-9]/gi, ''))].join(' '))
+  return lines.join('\n')
+}
 export const fmtDate = (dateStr) => new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 export const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}` : ''
 
