@@ -27,6 +27,11 @@ const INK       = '#000000'
 // "email us" button on the page.
 const BOOKINGS_EMAIL = 'bookings@nodice.bar'
 
+// Public confirmed DJ nights — auto-listed in the "What's on" section below.
+// Same Supabase feed the team Events tab + Instagram captions read; only public
+// fields are exposed (DJ name, photo, genres, date/time) — no contact details.
+const EVENTS_FEED = 'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/events-feed'
+
 export default function SiteHome() {
   React.useEffect(() => {
     const prevBg    = document.body.style.background
@@ -58,6 +63,8 @@ export default function SiteHome() {
 
       <ThisMonth />
 
+      <Events />
+
       <BookIt />
 
       <Visit />
@@ -75,6 +82,7 @@ export default function SiteHome() {
 function StickyNav({ onLogoClick }) {
   const items = [
     { label: 'This Month',  href: '#this-month' },
+    { label: 'Events',      href: '#events' },
     { label: 'Book',        href: '#book' },
     { label: 'Visit',       href: '#visit' },
   ]
@@ -242,6 +250,80 @@ function ThisMonth() {
       </div>
     </section>
   )
+}
+
+// ─── What's On (live DJ line-up) ────────────────────────────────────────
+// Auto-pulls confirmed DJ nights from the public events feed. As the team
+// signs nights off in the back end, they appear here automatically — no
+// manual editing. Empty/loading/error states all degrade gracefully.
+
+function Events() {
+  const [events, setEvents] = React.useState(null)   // null = loading · [] = none · [...] = list
+  React.useEffect(() => {
+    let alive = true
+    fetch(EVENTS_FEED)
+      .then(r => r.ok ? r.json() : [])
+      .then(d => { if (alive) setEvents(Array.isArray(d) ? d : []) })
+      .catch(() => { if (alive) setEvents([]) })
+    return () => { alive = false }
+  }, [])
+
+  return (
+    <section id="events" style={sectionWrap()}>
+      <SectionHeading kicker="Line-up" title="What's on" />
+      {events === null ? (
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, padding: '8px 0' }}>Loading the line-up…</div>
+      ) : events.length === 0 ? (
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '24px 20px', fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.7)' }}>
+          Next line-up dropping soon. Follow <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noopener noreferrer" style={textLinkStyle()}>@nodicelondon</a> for the latest, or <a href={`mailto:${BOOKINGS_EMAIL}?subject=What's on at No Dice`} style={textLinkStyle()}>drop us a line</a>.
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
+          {events.map((e, i) => <EventRow key={(e.date || '') + '-' + i} e={e} />)}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function EventRow({ e }) {
+  const d = e.date ? new Date(e.date + 'T00:00:00') : null
+  const day = d ? d.toLocaleDateString('en-GB', { day: 'numeric' }) : '–'
+  const mon = d ? d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : ''
+  const wd  = d ? d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase() : ''
+  const genres = Array.isArray(e.genres) ? e.genres : []
+  const openDecks = e.kind === 'opendecks'
+  const initials = (e.dj || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  return (
+    <div style={{ display: 'flex', gap: 14, alignItems: 'center', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '14px 16px' }}>
+      <div style={{ textAlign: 'center', minWidth: 50, borderRight: '1px solid rgba(255,255,255,0.1)', paddingRight: 14, flexShrink: 0 }}>
+        <div style={{ fontSize: 10, letterSpacing: '0.16em', color: BRAND_RED, fontWeight: 700 }}>{wd}</div>
+        <div style={{ fontFamily: "'Bebas Neue','Impact',sans-serif", fontSize: 30, lineHeight: 1 }}>{day}</div>
+        <div style={{ fontSize: 9, letterSpacing: '0.16em', color: 'rgba(255,255,255,0.5)' }}>{mon}</div>
+      </div>
+      {e.image
+        ? <img src={e.image} alt="" style={{ width: 46, height: 46, borderRadius: '50%', objectFit: 'cover', border: `1px solid ${BRAND_RED}`, flexShrink: 0 }} />
+        : <div style={{ width: 46, height: 46, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', border: '1px solid rgba(255,255,255,0.12)', fontSize: 15, fontWeight: 700, flexShrink: 0 }}>{initials}</div>}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 15, fontWeight: 700 }}>{e.dj || 'TBA'}{e.night_name ? <span style={{ color: BRAND_RED, fontWeight: 600 }}> · “{e.night_name}”</span> : null}</div>
+        {genres.length > 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{genres.join(' · ')}</div>}
+        <div style={{ fontSize: 11, letterSpacing: '0.06em', color: 'rgba(255,255,255,0.45)', marginTop: 4, textTransform: 'uppercase' }}>{fmtTime(e.start, e.end)}{openDecks ? ' · Open Decks · Free' : ' · Free entry'}</div>
+      </div>
+    </div>
+  )
+}
+
+// 24h "HH:MM" pair → friendly "8pm–12am".
+function fmtTime(start, end) {
+  const one = (s) => {
+    if (!s) return ''
+    const h = Number(s.slice(0, 2)), m = s.slice(3, 5)
+    const ap = h < 12 ? 'am' : 'pm', hh = h % 12 === 0 ? 12 : h % 12
+    return m === '00' ? `${hh}${ap}` : `${hh}:${m}${ap}`
+  }
+  if (!start) return ''
+  const e = end === '00:00' ? '12am' : one(end)
+  return end ? `${one(start)}–${e}` : one(start)
 }
 
 // ─── Book It ────────────────────────────────────────────────────────────
