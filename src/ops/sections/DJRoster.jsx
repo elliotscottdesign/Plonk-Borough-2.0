@@ -23,7 +23,7 @@ export function Avatar({ d, size = 46 }) {
 const ext = (v) => v ? (/^https?:/.test(v) ? v : 'https://' + v) : null
 const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean).length
 // All fields required except Spotify/YouTube, and at least 5 genres.
-const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url && d.soundcloud)
+const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url)
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
 export default function DJRoster({ djs, reload }) {

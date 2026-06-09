@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
+import MonthCalendar from './MonthCalendar.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -32,6 +33,9 @@ export default function DJPortal() {
   const [promoTrack, setPromoTrack] = useState('')
   const [promoOk, setPromoOk] = useState(false)
   const [setType, setSetType] = useState('dj_set')
+  const now = new Date()
+  const [viewY, setViewY] = useState(now.getFullYear())
+  const [viewM, setViewM] = useState(now.getMonth())
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -97,11 +101,23 @@ export default function DJPortal() {
   if (!(sdj.format || '').trim()) need.push('format')
   if (!(sdj.phone || '').trim()) need.push('phone')
   if (!(sdj.email || '').trim()) need.push('email')
-  if (!(sdj.soundcloud || '').trim()) need.push('SoundCloud')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
   const monthKey = (d) => d.slice(0, 7)
   const bookedSessionMonths = new Set(st.myBookings.filter(b => kindFor(b.date) === 'session').map(b => monthKey(b.date)))
+  const openMap = Object.fromEntries(st.openSlots.map(o => [o.date, o]))
+  const mineMap = Object.fromEntries(st.myBookings.map(b => [b.date, b]))
+  const shiftMonth = (n) => { let m = viewM + n, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m) }
+  const canPrevMonth = viewY > now.getFullYear() || (viewY === now.getFullYear() && viewM > now.getMonth())
+  const cellFor = (dateStr) => {
+    const mine = mineMap[dateStr]
+    if (mine) return { tone: mine.status === 'confirmed' ? 'mine-confirmed' : 'mine-pending', kind: kindFor(dateStr), disabled: true }
+    const op = openMap[dateStr]
+    if (!op) return null
+    const session = (op.kind || kindFor(dateStr)) === 'session'
+    if (session && bookedSessionMonths.has(monthKey(dateStr))) return { tone: 'closed', kind: 'session', disabled: true }
+    return { tone: 'open', kind: session ? 'session' : 'opendecks', disabled: false }
+  }
 
   return (
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "'DM Sans',sans-serif", padding: '32px 18px 64px' }}>
@@ -142,7 +158,7 @@ export default function DJPortal() {
               <div style={{ flex: 1 }}><div style={label}>Phone</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp} /></div>
             </div>
             <div><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
-            <div><div style={label}>SoundCloud</div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
+            <div><div style={label}>SoundCloud <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}><div style={label}>Spotify <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
               <div style={{ flex: 1 }}><div style={label}>YouTube <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} placeholder="youtube.com/@you" style={inp} /></div>
@@ -176,78 +192,62 @@ export default function DJPortal() {
           </div>
         )}
 
-        {/* Open dates */}
-        <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Open dates</div>
+        {/* Pick a date — calendar */}
+        <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Pick a date</div>
         {!complete ? (
           <div style={{ background: CARD, border: `1px dashed ${LINE}`, borderRadius: 12, padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6 }}>
-            🔒 Add {need.join(' + ')} above (then tap <strong style={{ color: '#fff' }}>Save profile</strong>) to unlock your dates.
+            🔒 Add {need.join(' + ')} above (then tap <strong style={{ color: '#fff' }}>Save profile</strong>) to unlock the calendar.
           </div>
-        ) : st.openSlots.length === 0 ? (
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No open dates right now — check back soon.</div>
         ) : (
-          st.openSlots.map(slot => {
-            const date = slot.date
-            const blocked = slot.blocked || []
-            const session = (slot.kind || kindFor(date)) === 'session'
-            const s = sessionFor(date)
-            const isClaiming = claiming === date
-            const monthFull = session && bookedSessionMonths.has(monthKey(date))
-            return (
-              <div key={date} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{fmtDate(date)}
-                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 8, verticalAlign: 'middle' }}>{session ? 'Session' : 'Open Decks'}</span>
-                    </div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
-                  </div>
-                  {!isClaiming && (monthFull
-                    ? <span style={{ fontSize: 11, color: '#FCD34D', textAlign: 'right', maxWidth: 120 }}>Got a session this month</span>
-                    : <button onClick={() => startClaim(date)} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>)}
-                </div>
-                {isClaiming && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
-                    {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want. Full DJ set, record selections, or an album listening party.</div>}
-                    <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
-
-                    {session ? (
-                      <>
-                        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
-                          What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span>
-                        </div>
-                        <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
-                      </>
-                    ) : (
-                      <div>
-                        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>What kind of night?</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {SET_TYPES.map(t => (
-                            <button key={t.value} type="button" onClick={() => setSetType(t.value)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: setType === t.value ? RED : 'transparent', color: setType === t.value ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${setType === t.value ? RED : LINE}`, fontWeight: setType === t.value ? 700 : 400 }}>{t.label}</button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-
-                    <div>
-                      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'}{session ? '' : ' (optional)'} · <span style={{ color: RED }}>name or link</span></div>
-                      <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
-                      <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
-                        <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
-                        It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
-                      </label>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button onClick={() => claim(date)} disabled={busy} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
-                      <button onClick={() => setClaiming(null)} style={{ padding: '11px 16px', fontSize: 13, background: 'transparent', color: 'rgba(255,255,255,0.6)', border: `1px solid ${LINE}`, borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
-                    </div>
-                    {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
-                  </div>
-                )}
-              </div>
-            )
-          })
+          <>
+            <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth} cellFor={cellFor} onDay={startClaim} selected={claiming}
+              legend={<>
+                <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: RED, marginRight: 5, verticalAlign: 'middle' }} />Session (paid)</span>
+                <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
+                <span style={{ color: '#FCD34D' }}>your bookings highlighted</span>
+              </>} />
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to book it.</div>
+          </>
         )}
+        {claiming && (() => {
+          const date = claiming
+          const op = openMap[date] || {}
+          const blocked = op.blocked || []
+          const session = (op.kind || kindFor(date)) === 'session'
+          const s = sessionFor(date)
+          return (
+            <div style={{ marginTop: 14, background: CARD, border: '1px solid rgba(218,27,51,0.4)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ fontWeight: 700 }}>{fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? 'Session' : 'Open Decks'}</span></div>
+                <button onClick={() => setClaiming(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
+              {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
+              <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
+              {session ? (
+                <>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span></div>
+                  <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
+                </>
+              ) : (
+                <div>
+                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>What kind of night?</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{SET_TYPES.map(t => <button key={t.value} type="button" onClick={() => setSetType(t.value)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: setType === t.value ? RED : 'transparent', color: setType === t.value ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${setType === t.value ? RED : LINE}`, fontWeight: setType === t.value ? 700 : 400 }}>{t.label}</button>)}</div>
+                </div>
+              )}
+              <div>
+                <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'}{session ? '' : ' (optional)'} · <span style={{ color: RED }}>name or link</span></div>
+                <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
+                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
+                  <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
+                  It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
+                </label>
+              </div>
+              <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
+              {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
+            </div>
+          )
+        })()}
 
         <div style={{ textAlign: 'center', marginTop: 36, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>No Dice · London Fields</div>
       </div>

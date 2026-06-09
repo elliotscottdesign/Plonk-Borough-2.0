@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import { djAdmin, setTypeLabel } from '../../dj/api.js'
+import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
 // Reads/writes Supabase via dj-admin. Two views:
@@ -87,9 +88,22 @@ function Calendar({ data, reload }) {
   const startAdd = (date) => { setAdding(date); setForm({ djId: '', night: '' }) }
   const saveAdd = async (date) => { if (!form.djId) return; await act('book', { date, djId: form.djId, nightName: form.night }); setAdding(null) }
 
-  const open = sessions.filter(s => byDate[s.date]?.status === 'open').length
-  const pending = sessions.filter(s => byDate[s.date]?.status === 'pending').length
-  const confirmed = sessions.filter(s => byDate[s.date]?.status === 'confirmed').length
+  const now = new Date()
+  const [viewY, setViewY] = useState(now.getFullYear())
+  const [viewM, setViewM] = useState(now.getMonth())
+  const [selDate, setSelDate] = useState(null)
+  const shiftMonth = (n) => { let m = viewM + n, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m) }
+  const canPrevMonth = viewY > now.getFullYear() || (viewY === now.getFullYear() && viewM > now.getMonth())
+  const calCell = (dateStr) => {
+    const session = SESSIONS[new Date(dateStr + 'T00:00:00').getDay()]
+    if (!session) return null
+    const slot = byDate[dateStr]
+    return { tone: slot ? slot.status : 'closed', kind: session.kind, disabled: false }
+  }
+
+  const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id).length
+  const pending = (slots || []).filter(s => s.status === 'pending').length
+  const confirmed = (slots || []).filter(s => s.status === 'confirmed').length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -110,58 +124,62 @@ function Calendar({ data, reload }) {
         ))}
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-        {sessions.map(({ date, session }) => {
-          const slot = byDate[date]
-          const status = slot ? slot.status : 'closed'
-          const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
-          const booked = slot && slot.dj_id
-          return (
-            <div key={date} style={{ background: '#0A0A0A', border: `1px solid ${status === 'closed' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.10)'}`, borderLeft: `3px solid ${accent}`, borderRadius: 10, padding: '12px 16px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
-                <div style={{ minWidth: 150 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(date)}</div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{session.day} · {timeLabel(session)}</div>
-                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session.kind === 'session' ? '#DA1B33' : '#34D399', border: `1px solid ${session.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{session.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
-                </div>
-                <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {booked ? (
-                    <>
-                      <Avatar d={slot.dj || { dj_name: '?' }} size={34} />
-                      <div style={{ fontSize: 13, color: '#FFFFFF' }}>
-                        <div>
-                          <strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}
-                          <span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status}</span>
-                        </div>
-                        {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
-                      </div>
-                    </>
-                  ) : (
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{status === 'open' ? 'Open · waiting for a DJ' : 'Closed'}</div>
-                  )}
-                </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                  {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date })} disabled={busy} style={btn(status === 'open' ? 'ghost' : 'gold')}>{status === 'open' ? 'Close' : 'Open for DJs'}</button>}
-                  {!booked && status === 'open' && <button onClick={() => startAdd(date)} disabled={busy} style={btn('ghost')}>+ Add DJ</button>}
-                  {booked && status === 'pending' && <button onClick={() => act('signoff', { date })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
-                  {booked && status === 'confirmed' && <button onClick={() => act('unconfirm', { date })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
-                  {booked && <button onClick={() => act('removeBooking', { date })} disabled={busy} style={btn('red')}>Remove</button>}
-                </div>
-              </div>
+      <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth}
+        cellFor={calCell} onDay={(d) => { setSelDate(d); setAdding(null) }} selected={selDate}
+        legend={<>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#DA1B33', marginRight: 5, verticalAlign: 'middle' }} />Session</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
+          <span>dashed = closed · red = open · amber = pending · green = confirmed</span>
+        </>} />
 
-              {adding === date && (
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220}
-                    options={(djs || []).map(r => ({ value: r.id, label: r.dj_name }))} />
-                  <input value={form.night} onChange={e => setForm(f => ({ ...f, night: e.target.value }))} placeholder="Night name (optional)" style={inp(170)} />
-                  <button onClick={() => saveAdd(date)} disabled={busy || !form.djId} style={btn('gold')}>Save</button>
-                  <button onClick={() => setAdding(null)} style={btn('ghost')}>Cancel</button>
-                </div>
-              )}
+      {selDate ? (() => {
+        const date = selDate
+        const session = SESSIONS[new Date(date + 'T00:00:00').getDay()]
+        if (!session) return null
+        const slot = byDate[date]
+        const status = slot ? slot.status : 'closed'
+        const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
+        const booked = slot && slot.dj_id
+        return (
+          <div style={{ background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.4)', borderLeft: `3px solid ${accent}`, borderRadius: 10, padding: '14px 16px' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
+              <div style={{ minWidth: 150 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(date)}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{session.day} · {timeLabel(session)}</div>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session.kind === 'session' ? '#DA1B33' : '#34D399', border: `1px solid ${session.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{session.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
+              </div>
+              <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
+                {booked ? (
+                  <>
+                    <Avatar d={slot.dj || { dj_name: '?' }} size={34} />
+                    <div style={{ fontSize: 13, color: '#FFFFFF' }}>
+                      <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status}</span></div>
+                      {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
+                    </div>
+                  </>
+                ) : (
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{status === 'open' ? 'Open · waiting for a DJ' : 'Closed'}</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date })} disabled={busy} style={btn(status === 'open' ? 'ghost' : 'gold')}>{status === 'open' ? 'Close' : 'Open for DJs'}</button>}
+                {!booked && status === 'open' && <button onClick={() => startAdd(date)} disabled={busy} style={btn('ghost')}>+ Add DJ</button>}
+                {booked && status === 'pending' && <button onClick={() => act('signoff', { date })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
+                {booked && status === 'confirmed' && <button onClick={() => act('unconfirm', { date })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
+                {booked && <button onClick={() => act('removeBooking', { date })} disabled={busy} style={btn('red')}>Remove</button>}
+              </div>
             </div>
-          )
-        })}
-      </div>
+            {adding === date && (
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220} options={(djs || []).map(r => ({ value: r.id, label: r.dj_name }))} />
+                <input value={form.night} onChange={e => setForm(f => ({ ...f, night: e.target.value }))} placeholder="Night name (optional)" style={inp(170)} />
+                <button onClick={() => saveAdd(date)} disabled={busy || !form.djId} style={btn('gold')}>Save</button>
+                <button onClick={() => setAdding(null)} style={btn('ghost')}>Cancel</button>
+              </div>
+            )}
+          </div>
+        )
+      })() : <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Tap a date to open it or manage its booking.</div>}
     </div>
   )
 }
