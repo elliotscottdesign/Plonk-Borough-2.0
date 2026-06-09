@@ -144,10 +144,8 @@ function Calendar({ data, reload }) {
 
               {adding === date && (
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <select value={form.djId} onChange={e => setForm(f => ({ ...f, djId: e.target.value }))} style={inp(200)}>
-                    <option value="">— pick a DJ from the roster —</option>
-                    {(djs || []).map(r => <option key={r.id} value={r.id}>{r.dj_name}</option>)}
-                  </select>
+                  <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220}
+                    options={(djs || []).map(r => ({ value: r.id, label: r.dj_name }))} />
                   <input value={form.night} onChange={e => setForm(f => ({ ...f, night: e.target.value }))} placeholder="Night name (optional)" style={inp(170)} />
                   <button onClick={() => saveAdd(date)} disabled={busy || !form.djId} style={btn('gold')}>Save</button>
                   <button onClick={() => setAdding(null)} style={btn('ghost')}>Cancel</button>
@@ -157,6 +155,34 @@ function Calendar({ data, reload }) {
           )
         })}
       </div>
+    </div>
+  )
+}
+
+// Branded No Dice dropdown (replaces native <select> so the open list is on-brand).
+function Dropdown({ value, onChange, options, placeholder = 'Select…', width = 220 }) {
+  const [open, setOpen] = useState(false)
+  const sel = options.find(o => o.value === value)
+  return (
+    <div style={{ position: 'relative', width }}>
+      <button type="button" onClick={() => setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: `1px solid ${open ? '#DA1B33' : 'rgba(255,255,255,0.18)'}`, color: sel ? '#FFFFFF' : 'rgba(255,255,255,0.5)', cursor: 'pointer', textAlign: 'left' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel ? sel.label : placeholder}</span>
+        <span style={{ color: '#DA1B33', fontSize: 10 }}>▼</span>
+      </button>
+      {open && (
+        <>
+          <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
+          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 8, maxHeight: 260, overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}>
+            {options.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No DJs yet</div>}
+            {options.map(o => (
+              <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false) }}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 13, background: o.value === value ? 'rgba(218,27,51,0.18)' : 'transparent', color: o.value === value ? '#fff' : 'rgba(255,255,255,0.85)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   )
 }
