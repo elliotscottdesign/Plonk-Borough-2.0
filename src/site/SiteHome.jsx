@@ -287,7 +287,8 @@ function Events() {
 }
 
 function EventRow({ e }) {
-  const d = e.date ? new Date(e.date + 'T00:00:00') : null
+  const parsed = e.date ? new Date(e.date + 'T00:00:00') : null
+  const d = parsed && !isNaN(parsed.getTime()) ? parsed : null
   const day = d ? d.toLocaleDateString('en-GB', { day: 'numeric' }) : '–'
   const mon = d ? d.toLocaleDateString('en-GB', { month: 'short' }).toUpperCase() : ''
   const wd  = d ? d.toLocaleDateString('en-GB', { weekday: 'short' }).toUpperCase() : ''
