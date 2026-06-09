@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
-import { djAdmin, inviteLink } from '../../dj/api.js'
+import { djAdmin, inviteLink, resizeImage } from '../../dj/api.js'
+import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
 
 // ─── DJ Roster — live profile database (admin) ───────────────────────────
 // Reads/writes the Supabase `djs` table via dj-admin. Each DJ has a private
@@ -39,6 +40,17 @@ export default function DJRoster({ djs, reload }) {
   const addNew = async () => { setBusy(true); try { await djAdmin('addDj', { profile: { dj_name: 'New DJ' } }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const removeDj = async (id) => { if (!window.confirm('Remove this DJ profile?')) return; setBusy(true); try { await djAdmin('removeDj', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const copyInvite = (d) => { try { navigator.clipboard.writeText(inviteLink(d.token)) } catch { /* ignore */ } setCopied(d.id); setTimeout(() => setCopied(null), 1600) }
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file || !editing) return
+    setBusy(true)
+    try {
+      const dataUrl = await resizeImage(file)   // HEIC auto-converts
+      const snap = await djAdmin('photo', { id: editing, dataUrl })
+      const u = (snap.djs || []).find(d => d.id === editing)
+      if (u) setForm(u)
+      await reload()
+    } catch (er) { alert(er.message || 'Photo upload failed') } finally { setBusy(false) }
+  }
 
   const filtered = (djs || []).filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
   const ready = (djs || []).filter(complete).length
@@ -89,12 +101,25 @@ export default function DJRoster({ djs, reload }) {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                   <Field label="DJ name"><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Real name"><input value={form.real_name || ''} onChange={e => onField('real_name', e.target.value)} style={inp('100%')} /></Field>
-                  <Field label="Music type (use / between)" wide><input value={form.genres || ''} onChange={e => onField('genres', e.target.value)} style={inp('100%')} /></Field>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Music type — tap genres (min 5) · add your own under each</div>
+                    <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
+                  </div>
                   <Field label="Instagram"><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Format (CDJ / Vinyl)"><input value={form.format || ''} onChange={e => onField('format', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Phone"><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Email"><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp('100%')} /></Field>
-                  <Field label="Photo URL (or DJ uploads via their link)" wide><input value={form.image_url || ''} onChange={e => onField('image_url', e.target.value)} style={inp('100%')} /></Field>
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <Avatar d={form} size={48} />
+                    <div>
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Photo</div>
+                      <label style={{ display: 'inline-block', marginTop: 4, fontSize: 12, color: '#DA1B33', cursor: 'pointer', borderBottom: '1px solid #DA1B33' }}>
+                        {form.image_url ? 'Change photo' : 'Upload a photo'}
+                        <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
+                      </label>
+                      {busy && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 10 }}>working…</span>}
+                    </div>
+                  </div>
                   <Field label="SoundCloud"><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Spotify"><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="YouTube" wide><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} style={inp('100%')} /></Field>

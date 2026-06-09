@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, id, profile, djId, nightName } = await req.json().catch(() => ({}));
+  const { secret, action, date, id, profile, djId, nightName, dataUrl } = await req.json().catch(() => ({}));
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -77,6 +77,17 @@ Deno.serve(async (req) => {
         format: f.format, phone: f.phone, email: f.email, image_url: f.image_url,
         soundcloud: f.soundcloud, spotify: f.spotify, youtube: f.youtube, updated_at: now(),
       }).eq("id", id);
+      break;
+    }
+    case "photo": {
+      const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl || "");
+      if (!m) return json({ error: "bad image" }, 400);
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      const ext = m[1].includes("png") ? "png" : "jpg";
+      const up = await sb.storage.from("dj-photos").upload(`${id}.${ext}`, bytes, { contentType: m[1], upsert: true });
+      if (up.error) return json({ error: up.error.message }, 500);
+      const { data: p } = sb.storage.from("dj-photos").getPublicUrl(`${id}.${ext}`);
+      await sb.from("djs").update({ image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: now() }).eq("id", id);
       break;
     }
     case "removeDj":
