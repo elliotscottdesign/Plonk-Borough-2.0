@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import Operations from './sections/Operations.jsx'
+import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
@@ -14,6 +15,7 @@ import WorldCup from './sections/WorldCup.jsx'
 //                   collided with the customer-site /world-cup page)
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
+  { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },
   { key: 'reports',       label: 'Reports',       Component: Reports },
   { key: 'documentation', label: 'Documentation', Component: Documentation },
   { key: 'worldcup',      label: 'World Cup',     Component: WorldCup },
