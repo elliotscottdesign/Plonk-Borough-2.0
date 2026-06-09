@@ -20,7 +20,7 @@ export function igHref(ig) {
 export function Avatar({ d, size = 46 }) {
   const initials = (d.djName || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
   const hue = [...((d.id || d.djName || ''))].reduce((a, c) => a + c.charCodeAt(0), 0) % 360
-  if (d.image) return <img src={d.image} alt={d.djName} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1px solid rgba(201,168,76,0.35)' }} />
+  if (d.image) return <img src={d.image} alt={d.djName} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1px solid rgba(218,27,51,0.45)' }} />
   return (
     <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 22%)`, color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>{initials}</div>
   )
@@ -49,8 +49,8 @@ export default function DJRoster() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div className="serif" style={{ fontSize: 22, color: 'var(--cream)' }}>🎚️ DJ Roster</div>
-          <div style={{ fontSize: 12, color: 'var(--cream-dim)', marginTop: 2 }}>
+          <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
             {list.length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{list.length - ready} need a photo / details</span>
           </div>
         </div>
@@ -66,18 +66,18 @@ export default function DJRoster() {
           const ig = igHref(d.instagram)
           const isEdit = editing === d.id
           return (
-            <div key={d.id} style={{ background: 'var(--ink-2)', border: `1px solid ${done ? 'rgba(52,211,153,0.3)' : 'rgba(201,168,76,0.18)'}`, borderRadius: 12, padding: 14 }}>
+            <div key={d.id} style={{ background: '#0A0A0A', border: `1px solid ${done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Avatar d={d} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--cream)' }}>{d.djName || 'Unnamed'}</div>
-                  {d.realName && d.realName !== d.djName && <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{d.realName}</div>}
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{d.djName || 'Unnamed'}</div>
+                  {d.realName && d.realName !== d.djName && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{d.realName}</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                     {(d.genres || []).slice(0, 4).map((g, i) => <span key={i} style={chip}>{g}</span>)}
-                    {d.format && <span style={{ ...chip, color: 'var(--gold)', borderColor: 'rgba(201,168,76,0.4)' }}>{d.format}</span>}
+                    {d.format && <span style={{ ...chip, color: '#DA1B33', borderColor: 'rgba(218,27,51,0.45)' }}>{d.format}</span>}
                   </div>
-                  <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 11, color: 'var(--cream-dim)', flexWrap: 'wrap' }}>
-                    {ig && <a href={ig} target="_blank" rel="noreferrer" style={{ color: 'var(--gold)', textDecoration: 'none' }}>{d.instagram.split(/[\s/]/)[0]}</a>}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
+                    {ig && <a href={ig} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>{d.instagram.split(/[\s/]/)[0]}</a>}
                     {d.phone && <span>{d.phone}</span>}
                   </div>
                 </div>
@@ -109,8 +109,8 @@ export default function DJRoster() {
         })}
       </div>
 
-      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: 'var(--cream)' }}>Photos & invites (next step):</strong> right now you can paste a photo link. The proper version gives each DJ an <em>invite link</em> to fill their own profile and upload a photo from their phone — and only once a profile is complete do they unlock the booking calendar. That needs the shared database (Supabase + image storage); say the word and I'll wire it.
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
+        <strong style={{ color: '#FFFFFF' }}>Photos & invites (next step):</strong> right now you can paste a photo link. The proper version gives each DJ an <em>invite link</em> to fill their own profile and upload a photo from their phone — and only once a profile is complete do they unlock the booking calendar. That needs the shared database (Supabase + image storage); say the word and I'll wire it.
       </div>
     </div>
   )
@@ -119,17 +119,17 @@ export default function DJRoster() {
 function Field({ label, wide, children }) {
   return (
     <label style={{ display: 'flex', flexDirection: 'column', gap: 3, gridColumn: wide ? '1 / -1' : 'auto' }}>
-      <span style={{ fontSize: 10, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
+      <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
       {children}
     </label>
   )
 }
 
-const chip = { fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--cream)' }
+const chip = { fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.12)', color: '#FFFFFF' }
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
-  if (kind === 'gold') return { ...base, background: 'var(--gold)', color: 'var(--ink)' }
+  if (kind === 'gold') return { ...base, background: '#DA1B33', color: '#FFFFFF' }
   if (kind === 'red') return { ...base, background: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.4)' }
-  return { ...base, background: 'rgba(255,255,255,0.05)', color: 'var(--cream)', border: '1px solid rgba(201,168,76,0.3)' }
+  return { ...base, background: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
-const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: 'var(--ink)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--cream)', outline: 'none', boxSizing: 'border-box' })
+const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })

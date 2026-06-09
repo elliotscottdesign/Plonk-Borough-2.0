@@ -45,9 +45,9 @@ export default function DJBookings() {
         {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster']].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
             padding: '7px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
-            background: view === k ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
-            border: `1px solid ${view === k ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`,
-            color: view === k ? 'var(--gold)' : 'var(--cream)', fontWeight: view === k ? 600 : 400,
+            background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`,
+            color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400,
           }}>{label}</button>
         ))}
       </div>
@@ -89,18 +89,18 @@ function Calendar() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
-        <div className="serif" style={{ fontSize: 22, color: 'var(--cream)' }}>📅 Booking calendar</div>
-        <div style={{ fontSize: 13, color: 'var(--cream-dim)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
-          Open the dates you want to fill, then sign off DJs. <strong style={{ color: 'var(--cream)' }}>Pending</strong> = pre-release · <strong style={{ color: 'var(--cream)' }}>Confirmed</strong> = main events calendar.
+        <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>📅 Booking calendar</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
+          Open the dates you want to fill, then sign off DJs. <strong style={{ color: '#FFFFFF' }}>Pending</strong> = pre-release · <strong style={{ color: '#FFFFFF' }}>Confirmed</strong> = main events calendar.
           Sessions: <em>Thu {timeLabel(SESSIONS[4])} · Fri {timeLabel(SESSIONS[5])} · Sat {timeLabel(SESSIONS[6])}</em>.
         </div>
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {[['Open for DJs', open, 'var(--gold)'], ['Pending sign-off', pending, '#FCD34D'], ['Confirmed', confirmed, '#34D399']].map(([label, n, c]) => (
-          <div key={label} style={{ background: 'var(--ink-2)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10, padding: '12px 18px', minWidth: 130 }}>
+        {[['Open for DJs', open, '#DA1B33'], ['Pending sign-off', pending, '#FCD34D'], ['Confirmed', confirmed, '#34D399']].map(([label, n, c]) => (
+          <div key={label} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '12px 18px', minWidth: 130 }}>
             <div className="serif" style={{ fontSize: 26, color: c, lineHeight: 1 }}>{n}</div>
-            <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
           </div>
         ))}
       </div>
@@ -110,25 +110,25 @@ function Calendar() {
           const st = data[date] || {}
           const b = st.booking
           const status = b ? b.status : (st.open ? 'open' : 'closed')
-          const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'open' ? 'var(--gold)' : 'rgba(255,255,255,0.25)'
+          const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
           return (
-            <div key={date} style={{ background: 'var(--ink-2)', border: `1px solid ${status === 'closed' ? 'rgba(255,255,255,0.08)' : 'rgba(201,168,76,0.18)'}`, borderLeft: `3px solid ${accent}`, borderRadius: 10, padding: '12px 16px' }}>
+            <div key={date} style={{ background: '#0A0A0A', border: `1px solid ${status === 'closed' ? 'rgba(255,255,255,0.08)' : 'rgba(255,255,255,0.10)'}`, borderLeft: `3px solid ${accent}`, borderRadius: 10, padding: '12px 16px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 150 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--cream)' }}>{fmt(date)}</div>
-                  <div style={{ fontSize: 11, color: 'var(--cream-dim)' }}>{session.day} · {timeLabel(session)}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(date)}</div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{session.day} · {timeLabel(session)}</div>
                 </div>
                 <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {b ? (
                     <>
                       <Avatar d={profOf(b)} size={34} />
-                      <div style={{ fontSize: 13, color: 'var(--cream)' }}>
-                        <strong>{b.dj}</strong> · {b.genre}{b.night ? <> · <em style={{ color: 'var(--gold)' }}>"{b.night}"</em></> : null}
+                      <div style={{ fontSize: 13, color: '#FFFFFF' }}>
+                        <strong>{b.dj}</strong> · {b.genre}{b.night ? <> · <em style={{ color: '#DA1B33' }}>"{b.night}"</em></> : null}
                         <span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{b.status}</span>
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontSize: 12, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{st.open ? 'Open · waiting for a DJ' : 'Closed'}</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>{st.open ? 'Open · waiting for a DJ' : 'Closed'}</div>
                   )}
                 </div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -159,8 +159,8 @@ function Calendar() {
         })}
       </div>
 
-      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        Picking a DJ from the roster pulls their <strong style={{ color: 'var(--cream)' }}>profile + photo</strong> onto the booking — that photo is what auto-attaches to the published event. Next up: the DJ-facing portal so they claim open dates themselves.
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
+        Picking a DJ from the roster pulls their <strong style={{ color: '#FFFFFF' }}>profile + photo</strong> onto the booking — that photo is what auto-attaches to the published event. Next up: the DJ-facing portal so they claim open dates themselves.
       </div>
     </div>
   )
@@ -168,9 +168,9 @@ function Calendar() {
 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
-  if (kind === 'gold') return { ...base, background: 'var(--gold)', color: 'var(--ink)' }
-  if (kind === 'green') return { ...base, background: '#34D399', color: 'var(--ink)' }
+  if (kind === 'gold') return { ...base, background: '#DA1B33', color: '#FFFFFF' }
+  if (kind === 'green') return { ...base, background: '#34D399', color: '#06281C' }
   if (kind === 'red') return { ...base, background: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.4)' }
-  return { ...base, background: 'rgba(255,255,255,0.05)', color: 'var(--cream)', border: '1px solid rgba(201,168,76,0.3)' }
+  return { ...base, background: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
-const inp = (w) => ({ width: w, minWidth: 120, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: 'var(--ink)', border: '1px solid rgba(201,168,76,0.3)', color: 'var(--cream)', outline: 'none' })
+const inp = (w) => ({ width: w, minWidth: 120, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none' })
