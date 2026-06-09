@@ -1,14 +1,10 @@
-import React, { useState, useEffect } from 'react'
-import { loadRoster, saveRoster, profileComplete } from '../data/djRoster.js'
+import React, { useState } from 'react'
+import { djAdmin, inviteLink } from '../../dj/api.js'
 
-// ─── DJ Roster — profile database (admin v1) ─────────────────────────────
-// Every DJ who's played with us, as an editable profile: name, music, IG, photo.
-// The photo is the key bit — once set, it auto-attaches to every event that DJ
-// plays (no re-picking images on repeat dates). Seeded from the vetted CSV.
-//
-// Flow this sets up: (1) profile details complete  →  (2) calendar access.
-// v1 is founder-editable + local. Next: invite links so each DJ fills their own
-// profile + uploads their photo (Supabase storage), then auto-unlocks the calendar.
+// ─── DJ Roster — live profile database (admin) ───────────────────────────
+// Reads/writes the Supabase `djs` table via dj-admin. Each DJ has a private
+// invite link (their token) — copy it and text/email it so they fill their own
+// profile + upload a photo, which then auto-attaches to their events.
 
 export function igHref(ig) {
   if (!ig) return null
@@ -16,34 +12,33 @@ export function igHref(ig) {
   const h = ig.replace(/^@/, '').split(/[\s/.,]/)[0]
   return h ? `https://instagram.com/${h}` : null
 }
-
 export function Avatar({ d, size = 46 }) {
-  const initials = (d.djName || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const hue = [...((d.id || d.djName || ''))].reduce((a, c) => a + c.charCodeAt(0), 0) % 360
-  if (d.image) return <img src={d.image} alt={d.djName} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1px solid rgba(218,27,51,0.45)' }} />
-  return (
-    <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 22%)`, color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>{initials}</div>
-  )
+  const img = d?.image_url || d?.image
+  const name = d?.dj_name || d?.djName || '?'
+  const initials = name.split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const hue = [...((d?.id || name))].reduce((a, c) => a + c.charCodeAt(0), 0) % 360
+  if (img) return <img src={img} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1px solid rgba(218,27,51,0.45)' }} />
+  return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 22%)`, color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>{initials}</div>
 }
+const complete = (d) => !!(d && d.dj_name && d.genres && d.instagram && d.image_url)
+const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
-const split = (s) => s.split(/[/,]/).map(x => x.trim()).filter(Boolean)
-
-export default function DJRoster() {
-  const [list, setList] = useState(loadRoster)
+export default function DJRoster({ djs, reload }) {
   const [editing, setEditing] = useState(null)
+  const [form, setForm] = useState({})
   const [q, setQ] = useState('')
-  useEffect(() => saveRoster(list), [list])
+  const [copied, setCopied] = useState(null)
+  const [busy, setBusy] = useState(false)
 
-  const update = (id, patch) => setList(l => l.map(d => d.id === id ? { ...d, ...patch } : d))
-  const remove = (id) => { if (window.confirm('Remove this DJ profile?')) setList(l => l.filter(d => d.id !== id)) }
-  const addNew = () => {
-    const id = 'new-' + Date.now()
-    setList(l => [{ id, djName: 'New DJ', realName: '', genres: [], genresText: '', instagram: '', format: '', phone: '', email: '', image: '', source: 'manual' }, ...l])
-    setEditing(id)
-  }
+  const startEdit = (d) => { setEditing(d.id); setForm({ ...d }) }
+  const onField = (k, v) => setForm(f => ({ ...f, [k]: v }))
+  const saveEdit = async () => { setBusy(true); try { await djAdmin('saveDj', { id: editing, profile: form }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const addNew = async () => { setBusy(true); try { await djAdmin('addDj', { profile: { dj_name: 'New DJ' } }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const removeDj = async (id) => { if (!window.confirm('Remove this DJ profile?')) return; setBusy(true); try { await djAdmin('removeDj', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const copyInvite = (d) => { try { navigator.clipboard.writeText(inviteLink(d.token)) } catch { /* ignore */ } setCopied(d.id); setTimeout(() => setCopied(null), 1600) }
 
-  const filtered = list.filter(d => (d.djName + ' ' + d.realName + ' ' + d.genresText + ' ' + d.instagram).toLowerCase().includes(q.toLowerCase()))
-  const ready = list.filter(profileComplete).length
+  const filtered = (djs || []).filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
+  const ready = (djs || []).filter(complete).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -51,18 +46,18 @@ export default function DJRoster() {
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-            {list.length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{list.length - ready} need a photo / details</span>
+            {(djs || []).length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{(djs || []).length - ready} need a photo / details</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search DJs…" style={inp(170)} />
-          <button onClick={addNew} style={btn('gold')}>+ Add DJ</button>
+          <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add DJ</button>
         </div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {filtered.map(d => {
-          const done = profileComplete(d)
+          const done = complete(d)
           const ig = igHref(d.instagram)
           const isEdit = editing === d.id
           return (
@@ -70,14 +65,14 @@ export default function DJRoster() {
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Avatar d={d} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{d.djName || 'Unnamed'}</div>
-                  {d.realName && d.realName !== d.djName && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{d.realName}</div>}
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{d.dj_name || 'Unnamed'}</div>
+                  {d.real_name && d.real_name !== d.dj_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{d.real_name}</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
-                    {(d.genres || []).slice(0, 4).map((g, i) => <span key={i} style={chip}>{g}</span>)}
+                    {chips(d.genres).slice(0, 4).map((g, i) => <span key={i} style={chip}>{g}</span>)}
                     {d.format && <span style={{ ...chip, color: '#DA1B33', borderColor: 'rgba(218,27,51,0.45)' }}>{d.format}</span>}
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
-                    {ig && <a href={ig} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>{d.instagram.split(/[\s/]/)[0]}</a>}
+                    {ig && <a href={ig} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>{(d.instagram || '').split(/[\s/]/)[0]}</a>}
                     {d.phone && <span>{d.phone}</span>}
                   </div>
                 </div>
@@ -86,22 +81,23 @@ export default function DJRoster() {
 
               {isEdit ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                  <Field label="DJ name"><input value={d.djName} onChange={e => update(d.id, { djName: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Real name"><input value={d.realName} onChange={e => update(d.id, { realName: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Music type (use / between)" wide><input value={d.genresText} onChange={e => update(d.id, { genresText: e.target.value, genres: split(e.target.value) })} style={inp('100%')} /></Field>
-                  <Field label="Instagram"><input value={d.instagram} onChange={e => update(d.id, { instagram: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Format (CDJ / Vinyl)"><input value={d.format} onChange={e => update(d.id, { format: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Phone"><input value={d.phone} onChange={e => update(d.id, { phone: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Email"><input value={d.email} onChange={e => update(d.id, { email: e.target.value })} style={inp('100%')} /></Field>
-                  <Field label="Photo URL (upload coming soon)" wide><input value={d.image} onChange={e => update(d.id, { image: e.target.value })} placeholder="paste an image link for now" style={inp('100%')} /></Field>
+                  <Field label="DJ name"><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Real name"><input value={form.real_name || ''} onChange={e => onField('real_name', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Music type (use / between)" wide><input value={form.genres || ''} onChange={e => onField('genres', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Instagram"><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Format (CDJ / Vinyl)"><input value={form.format || ''} onChange={e => onField('format', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Phone"><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Email"><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Photo URL (or DJ uploads via their link)" wide><input value={form.image_url || ''} onChange={e => onField('image_url', e.target.value)} style={inp('100%')} /></Field>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'space-between' }}>
-                    <button onClick={() => remove(d.id)} style={btn('red')}>Remove</button>
-                    <button onClick={() => setEditing(null)} style={btn('gold')}>Done</button>
+                    <button onClick={() => removeDj(d.id)} style={btn('red')}>Remove</button>
+                    <button onClick={saveEdit} disabled={busy} style={btn('gold')}>{busy ? 'Saving…' : 'Save'}</button>
                   </div>
                 </div>
               ) : (
-                <div style={{ marginTop: 10, textAlign: 'right' }}>
-                  <button onClick={() => setEditing(d.id)} style={btn('ghost')}>Edit profile</button>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy invite link'}</button>
+                  <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
                 </div>
               )}
             </div>
@@ -110,7 +106,7 @@ export default function DJRoster() {
       </div>
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#FFFFFF' }}>Photos & invites (next step):</strong> right now you can paste a photo link. The proper version gives each DJ an <em>invite link</em> to fill their own profile and upload a photo from their phone — and only once a profile is complete do they unlock the booking calendar. That needs the shared database (Supabase + image storage); say the word and I'll wire it.
+        <strong style={{ color: '#fff' }}>Invite a DJ:</strong> hit <em>Copy invite link</em> and text/email it to them. They open it, fill their profile + upload a photo, and only then can they claim your open dates. Their photo auto-attaches to every event they play.
       </div>
     </div>
   )
@@ -129,7 +125,8 @@ const chip = { fontSize: 10, padding: '2px 8px', borderRadius: 999, background: 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
   if (kind === 'gold') return { ...base, background: '#DA1B33', color: '#FFFFFF' }
+  if (kind === 'green') return { ...base, background: '#34D399', color: '#06281C' }
   if (kind === 'red') return { ...base, background: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.4)' }
-  return { ...base, background: 'rgba(255,255,255,0.05)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
+  return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })
