@@ -44,7 +44,7 @@ export default function DJPortal() {
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const onPhoto = async (e) => {
-    const file = e.target.files?.[0]; if (!file) return
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
     setBusy(true); setMsg('Uploading photo…')
     try { const dataUrl = await resizeImage(file); refresh(await djPortal(token, 'photo', { dataUrl })); flash('Photo updated ✓') }
     catch (er) { flash(er.message || 'Upload failed') } finally { setBusy(false) }
@@ -64,6 +64,13 @@ export default function DJPortal() {
   if (err) return <Center><div><img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 200, marginBottom: 24 }} /><div style={{ color: 'rgba(255,255,255,0.8)' }}>{err}</div></div></Center>
 
   const complete = st.complete
+  // What's still missing (from the SAVED profile) — drives the status text + the dates gate.
+  const sdj = st.dj || form
+  const need = []
+  if (!(sdj.dj_name || '').trim()) need.push('your name')
+  if (!sdj.image_url) need.push('a photo')
+  if (!(sdj.genres || '').trim()) need.push('your music')
+  if (!(sdj.instagram || '').trim()) need.push('Instagram')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
 
@@ -81,7 +88,7 @@ export default function DJPortal() {
             <Photo d={form} />
             <div style={{ flex: 1 }}>
               <div className="serif" style={{ fontSize: 20, color: '#fff' }}>{form.dj_name || 'Your profile'}</div>
-              <div style={{ fontSize: 12, color: complete ? '#34D399' : '#FCD34D', marginTop: 2, fontWeight: 600 }}>{complete ? '● Profile complete' : '○ Add a photo + music to finish'}</div>
+              <div style={{ fontSize: 12, color: complete ? '#34D399' : '#FCD34D', marginTop: 2, fontWeight: 600 }}>{complete ? '● Profile complete — pick your dates below' : `○ Still needed: ${need.join(', ')}`}</div>
               <label style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: RED, cursor: 'pointer', borderBottom: `1px solid ${RED}` }}>
                 {form.image_url ? 'Change photo' : 'Upload a photo'}
                 <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
@@ -126,7 +133,7 @@ export default function DJPortal() {
         <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Open dates</div>
         {!complete ? (
           <div style={{ background: CARD, border: `1px dashed ${LINE}`, borderRadius: 12, padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6 }}>
-            🔒 Finish your profile above (a <strong style={{ color: '#fff' }}>photo</strong> and your <strong style={{ color: '#fff' }}>music</strong>) to unlock the dates you can book.
+            🔒 Add {need.join(' + ')} above (then tap <strong style={{ color: '#fff' }}>Save profile</strong>) to unlock your dates.
           </div>
         ) : st.openSlots.length === 0 ? (
           <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No open dates right now — check back soon.</div>

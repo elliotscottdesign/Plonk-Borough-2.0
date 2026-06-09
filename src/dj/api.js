@@ -32,20 +32,30 @@ export const sessionFor = (dateStr) => SESSIONS[new Date(dateStr + 'T00:00:00').
 export const fmtDate = (dateStr) => new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 export const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}` : ''
 
-// Shrink an image File to <=maxPx and return a JPEG data URL (keeps uploads small).
-export function resizeImage(file, maxPx = 800, quality = 0.82) {
-  return new Promise((resolve, reject) => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
-      const w = Math.round(img.width * scale), h = Math.round(img.height * scale)
-      const c = document.createElement('canvas'); c.width = w; c.height = h
-      c.getContext('2d').drawImage(img, 0, 0, w, h)
-      resolve(c.toDataURL('image/jpeg', quality))
-    }
-    img.onerror = reject
-    img.src = url
-  })
+// Decode an image File → downscaled JPEG data URL (keeps uploads small).
+// Tries createImageBitmap (broad format support + correct orientation), falls
+// back to <img>. Throws a friendly error for formats the browser can't read
+// (e.g. a HEIC photo opened on a desktop browser).
+export async function resizeImage(file, maxPx = 1000, quality = 0.85) {
+  let src
+  try {
+    src = await createImageBitmap(file)
+  } catch {
+    src = await new Promise((res, rej) => {
+      const img = new Image()
+      const url = URL.createObjectURL(file)
+      img.onload = () => { URL.revokeObjectURL(url); res(img) }
+      img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("Couldn't read that photo — please use a JPG or PNG. (iPhone 'HEIC' photos may not work on a computer.)")) }
+      img.src = url
+    })
+  }
+  const iw = src.width || 0, ih = src.height || 0
+  if (!iw || !ih) throw new Error('That photo looks empty — try another one.')
+  const scale = Math.min(1, maxPx / Math.max(iw, ih))
+  const w = Math.max(1, Math.round(iw * scale)), h = Math.max(1, Math.round(ih * scale))
+  const c = document.createElement('canvas'); c.width = w; c.height = h
+  c.getContext('2d').drawImage(src, 0, 0, w, h)
+  const out = c.toDataURL('image/jpeg', quality)
+  if (!out || out.length < 200) throw new Error("Couldn't process that photo — please try a different one.")
+  return out
 }
