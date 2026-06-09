@@ -41,6 +41,8 @@ export default function DJBookings() {
   const [view, setView] = useState('calendar')
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* No Dice wordmark — branding for DJs viewing this page (DJ-only access) */}
+      <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 4 }} />
       <div style={{ display: 'flex', gap: 6 }}>
         {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster']].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
