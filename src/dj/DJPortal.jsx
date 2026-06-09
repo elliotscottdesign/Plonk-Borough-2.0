@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel } from './api.js'
-import { GENRES, GENRE_NAMES } from './genres.js'
+import { genreOfSub } from './genres.js'
+import SubgenrePicker from './SubgenrePicker.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -27,8 +28,7 @@ export default function DJPortal() {
   const [msg, setMsg] = useState('')
   const [claiming, setClaiming] = useState(null)
   const [night, setNight] = useState('')
-  const [subs, setSubs] = useState([])         // [{name, genre}] selected for the claim (max 4)
-  const [customText, setCustomText] = useState({})  // { [genre]: typed text } for "add your own"
+  const [subs, setSubs] = useState([])   // sub-genre names selected for the claim (max 4)
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -59,24 +59,11 @@ export default function DJPortal() {
     } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
-  const hasSub = (name) => subs.some(s => s.name === name)
-  const toggleSub = (name, genre) => setSubs(a => {
-    if (a.some(s => s.name === name)) return a.filter(s => s.name !== name)
-    if (a.length >= MAX_SUBS) { flash(`Up to ${MAX_SUBS} sub-genres per night — deselect one first.`); return a }
-    return [...a, { name, genre }]
-  })
-  const addCustom = (genre) => {
-    const name = (customText[genre] || '').trim()
-    if (!name) return
-    if (subs.length >= MAX_SUBS) { flash(`Up to ${MAX_SUBS} sub-genres per night.`); return }
-    if (!hasSub(name)) setSubs(a => [...a, { name, genre }])
-    setCustomText(t => ({ ...t, [genre]: '' }))
-  }
   const claim = async (date) => {
     if (!subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
     setBusy(true)
-    const genres = [...new Set(subs.map(s => s.genre))]
-    try { refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs.map(s => s.name) })); setClaiming(null); setNight(''); setSubs([]); setCustomText({}); flash('Date requested ✓ — No Dice will confirm.') }
+    const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
+    try { refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs })); setClaiming(null); setNight(''); setSubs([]); flash('Date requested ✓ — No Dice will confirm.') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const cancel = async (date) => {
@@ -123,7 +110,12 @@ export default function DJPortal() {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><div style={label}>DJ / artist name</div><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={inp} /></div>
-            <div><div style={label}>Music you play</div><input value={form.genres || ''} onChange={e => onField('genres', e.target.value)} placeholder="e.g. Disco / Funk / House" style={inp} /></div>
+            <div>
+              <div style={label}>Music you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— tap your sounds</span></div>
+              <div style={{ marginTop: 8 }}>
+                <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
+              </div>
+            </div>
             <div><div style={label}>Instagram</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}><div style={label}>Format</div><input value={form.format || ''} onChange={e => onField('format', e.target.value)} placeholder="CDJ / Vinyl" style={inp} /></div>
@@ -181,7 +173,7 @@ export default function DJPortal() {
                     <div style={{ fontWeight: 600 }}>{fmtDate(date)}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}</div>
                   </div>
-                  {!isClaiming && <button onClick={() => { setClaiming(date); setNight(''); setSubs([]); setCustomText({}) }} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>}
+                  {!isClaiming && <button onClick={() => { setClaiming(date); setNight(''); setSubs([]) }} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>}
                 </div>
                 {isClaiming && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -189,35 +181,7 @@ export default function DJPortal() {
                     <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
                       What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span>
                     </div>
-                    {GENRE_NAMES.map(g => {
-                      const customs = subs.filter(s => s.genre === g && !GENRES[g].includes(s.name))
-                      return (
-                        <div key={g}>
-                          <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: '4px 0 6px' }}>{g}</div>
-                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {GENRES[g].map(sub => {
-                              const isB = blocked.includes(sub), isSel = hasSub(sub), full = subs.length >= MAX_SUBS && !isSel
-                              return (
-                                <button key={sub} disabled={isB || full} onClick={() => toggleSub(sub, g)} title={isB ? 'Booked the night before/after' : (full ? `Max ${MAX_SUBS}` : '')}
-                                  style={{ padding: '6px 11px', borderRadius: 999, fontSize: 12, cursor: (isB || full) ? 'not-allowed' : 'pointer',
-                                    background: isSel ? RED : 'transparent', color: isB ? 'rgba(255,255,255,0.25)' : (isSel ? '#fff' : (full ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.82)')),
-                                    border: `1px solid ${isSel ? RED : isB ? 'rgba(255,255,255,0.08)' : LINE}`,
-                                    textDecoration: isB ? 'line-through' : 'none', fontWeight: isSel ? 700 : 400 }}>
-                                  {sub}{isB ? ' 🔒' : ''}
-                                </button>
-                              )
-                            })}
-                            {customs.map(s => (
-                              <button key={s.name} onClick={() => toggleSub(s.name, g)} style={{ padding: '6px 11px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: RED, color: '#fff', border: `1px solid ${RED}`, fontWeight: 700 }}>{s.name} ✕</button>
-                            ))}
-                          </div>
-                          <div style={{ display: 'flex', gap: 6, marginTop: 6 }}>
-                            <input value={customText[g] || ''} onChange={e => setCustomText(t => ({ ...t, [g]: e.target.value }))} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addCustom(g) } }} placeholder={`Add your own ${g} sub-genre…`} style={{ flex: 1, minWidth: 0, padding: '7px 10px', fontSize: 12, borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                            <button onClick={() => addCustom(g)} disabled={subs.length >= MAX_SUBS || !(customText[g] || '').trim()} style={{ padding: '7px 12px', fontSize: 12, borderRadius: 7, background: 'transparent', color: RED, border: `1px solid ${RED}`, cursor: 'pointer', whiteSpace: 'nowrap' }}>+ Add</button>
-                          </div>
-                        </div>
-                      )
-                    })}
+                    <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
                       <button onClick={() => claim(date)} disabled={busy || !subs.length} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: subs.length ? RED : 'rgba(218,27,51,0.4)', color: '#fff', border: 'none', borderRadius: 8, cursor: subs.length ? 'pointer' : 'default' }}>{busy ? '…' : `Confirm request${subs.length ? ` (${subs.length})` : ''}`}</button>
                       <button onClick={() => setClaiming(null)} style={{ padding: '11px 16px', fontSize: 13, background: 'transparent', color: 'rgba(255,255,255,0.6)', border: `1px solid ${LINE}`, borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
