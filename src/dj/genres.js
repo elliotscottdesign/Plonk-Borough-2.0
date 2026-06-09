@@ -1,18 +1,17 @@
 // Genre → sub-genre taxonomy for the DJ portal.
-// STARTER list derived from the vetted DJs' music styles. When the founder
-// sends their genres CSV, replace just this GENRES object — nothing else changes.
+// Collated from the music styles across the vetted-DJ roster (DJ DETAILS CSV) —
+// typos/variants merged (Brazillian→Brazilian, Sould→Soul, Afro→Afrobeat, etc.),
+// compound tags split, and grouped under No Dice genre headers.
 export const GENRES = {
-  'House':            ['Deep House', 'Disco House', 'Organic House', 'Jazzy House', 'Vocal House', 'UK Funky'],
-  'Disco':            ['Italo Disco', 'Nu-Disco', 'Disco Edits', 'Rare Disco', 'Shimmer Disco'],
-  'Funk & Soul':      ['Funk', 'Soul', 'Rare Groove', 'Jazz Funk', 'Boogie', 'High Life'],
-  'Hip-Hop':          ['Old School Hip-Hop', 'Boom Bap', 'B-Boy Breaks', 'UK Bass'],
-  'Garage':           ['UK Garage', '2-Step', 'Speed Garage', 'Bassline'],
-  'Techno & Tech':    ['Techno', 'Tech House', 'Jazz Tech', 'Minimal'],
-  'Breaks & Electro': ['Breaks', 'Electro', 'EBM', 'Indie Dance', 'Broken Beat'],
-  'Global & World':   ['Afrobeat', 'Amapiano', 'Brazilian Grooves', 'Caribbean', 'Zouk', 'Arabic / Middle Eastern', 'Global Beats', 'Down Tempo'],
-  'Jazz & Latin':     ['Jazz', 'High-Tech Jazz', 'Latin', 'Bossa'],
-  'Reggae & Dub':     ['Reggae', 'Dub', 'Dubstep'],
-  'Bass & Jungle':    ['Jungle', 'Drum & Bass', 'Wobblecore'],
+  'House':            ['House', 'Deep House', 'Disco House', 'Organic House', 'Jazzy House', 'Vocal House', 'UK Funky', 'Amapiano'],
+  'Disco':            ['Disco', 'Italo Disco', 'Disco Edits', 'Rare Disco', 'Shimmer Disco'],
+  'Funk & Soul':      ['Funk', 'Soul', 'Groove Funk', 'Jazz Funk', 'Rare Groove', 'Boogie', 'High Life'],
+  'Hip-Hop & Breaks': ['Hip-Hop', 'Old School Hip-Hop', 'B-Boy Breaks', 'Breaks', 'Broken Beat'],
+  'Garage':           ['Garage', 'UK Garage'],
+  'Techno & Tech':    ['Techno', 'Tech House', 'Jazz Tech', 'High-Tech Jazz'],
+  'Electro & Bass':   ['Electro', 'EBM', 'Indie Dance', 'UK Bass', 'Jungle', 'Wobblecore', 'Dubstep'],
+  'Global & World':   ['Afrobeat', 'Brazilian Grooves', 'Caribbean', 'Zouk', 'Arabic', 'Middle Eastern', 'Global Beats', 'Down Tempo', 'Latin'],
+  'Reggae & Dub':     ['Reggae', 'Dub'],
 }
 
 export const GENRE_NAMES = Object.keys(GENRES)
