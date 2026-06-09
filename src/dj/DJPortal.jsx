@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel } from './api.js'
+import { GENRES, GENRE_NAMES, genreOfSub } from './genres.js'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -26,6 +27,7 @@ export default function DJPortal() {
   const [msg, setMsg] = useState('')
   const [claiming, setClaiming] = useState(null)
   const [night, setNight] = useState('')
+  const [subs, setSubs] = useState([])   // sub-genres selected for the claim in progress
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -55,9 +57,12 @@ export default function DJPortal() {
       flash((er.message || 'Photo upload failed') + ' — your details were saved.')
     } finally { setBusy(false) }
   }
+  const toggleSub = (s) => setSubs(a => a.includes(s) ? a.filter(x => x !== s) : [...a, s])
   const claim = async (date) => {
+    if (!subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
     setBusy(true)
-    try { refresh(await djPortal(token, 'claim', { date, nightName: night })); setClaiming(null); setNight(''); flash('Date requested ✓ — No Dice will confirm.') }
+    const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
+    try { refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs })); setClaiming(null); setNight(''); setSubs([]); flash('Date requested ✓ — No Dice will confirm.') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const cancel = async (date) => {
@@ -111,6 +116,11 @@ export default function DJPortal() {
               <div style={{ flex: 1 }}><div style={label}>Phone</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp} /></div>
             </div>
             <div><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
+            <div><div style={label}>SoundCloud</div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}><div style={label}>Spotify</div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
+              <div style={{ flex: 1 }}><div style={label}>YouTube</div><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} placeholder="youtube.com/@you" style={inp} /></div>
+            </div>
             <button onClick={save} disabled={busy} style={{ marginTop: 4, padding: '13px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save profile'}</button>
           </div>
         </div>
@@ -126,6 +136,7 @@ export default function DJPortal() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
+                    {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: b.status === 'confirmed' ? '#34D399' : '#FCD34D' }}>{b.status === 'confirmed' ? 'Confirmed' : 'Requested'}</span>
                   {b.status === 'pending' && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>cancel</button>}
@@ -144,7 +155,9 @@ export default function DJPortal() {
         ) : st.openSlots.length === 0 ? (
           <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No open dates right now — check back soon.</div>
         ) : (
-          st.openSlots.map(date => {
+          st.openSlots.map(slot => {
+            const date = slot.date
+            const blocked = slot.blocked || []
             const s = sessionFor(date)
             const isClaiming = claiming === date
             return (
@@ -154,15 +167,36 @@ export default function DJPortal() {
                     <div style={{ fontWeight: 600 }}>{fmtDate(date)}</div>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}</div>
                   </div>
-                  {!isClaiming && <button onClick={() => { setClaiming(date); setNight('') }} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>}
+                  {!isClaiming && <button onClick={() => { setClaiming(date); setNight(''); setSubs([]) }} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>}
                 </div>
                 {isClaiming && (
-                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => claim(date)} disabled={busy} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
+                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap your sub-genres</span></div>
+                    {GENRE_NAMES.map(g => (
+                      <div key={g}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', margin: '4px 0 6px' }}>{g}</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {GENRES[g].map(sub => {
+                            const isB = blocked.includes(sub), isSel = subs.includes(sub)
+                            return (
+                              <button key={sub} disabled={isB} onClick={() => toggleSub(sub)} title={isB ? 'Booked the night before/after' : ''}
+                                style={{ padding: '6px 11px', borderRadius: 999, fontSize: 12, cursor: isB ? 'not-allowed' : 'pointer',
+                                  background: isSel ? RED : 'transparent', color: isB ? 'rgba(255,255,255,0.25)' : (isSel ? '#fff' : 'rgba(255,255,255,0.82)'),
+                                  border: `1px solid ${isSel ? RED : isB ? 'rgba(255,255,255,0.08)' : LINE}`,
+                                  textDecoration: isB ? 'line-through' : 'none', fontWeight: isSel ? 700 : 400 }}>
+                                {sub}{isB ? ' 🔒' : ''}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button onClick={() => claim(date)} disabled={busy || !subs.length} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: subs.length ? RED : 'rgba(218,27,51,0.4)', color: '#fff', border: 'none', borderRadius: 8, cursor: subs.length ? 'pointer' : 'default' }}>{busy ? '…' : `Confirm request${subs.length ? ` (${subs.length})` : ''}`}</button>
                       <button onClick={() => setClaiming(null)} style={{ padding: '11px 16px', fontSize: 13, background: 'transparent', color: 'rgba(255,255,255,0.6)', border: `1px solid ${LINE}`, borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
                     </div>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 sounds are already booked the night before or after — same day is fine.</div>
                   </div>
                 )}
               </div>

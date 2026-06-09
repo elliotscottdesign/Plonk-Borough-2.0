@@ -20,6 +20,7 @@ export function Avatar({ d, size = 46 }) {
   if (img) return <img src={img} alt={name} style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', display: 'block', border: '1px solid rgba(218,27,51,0.45)' }} />
   return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 22%)`, color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>{initials}</div>
 }
+const ext = (v) => v ? (/^https?:/.test(v) ? v : 'https://' + v) : null
 const complete = (d) => !!(d && d.dj_name && d.genres && d.instagram && d.image_url)
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
@@ -73,6 +74,9 @@ export default function DJRoster({ djs, reload }) {
                   </div>
                   <div style={{ display: 'flex', gap: 10, marginTop: 8, fontSize: 11, color: 'rgba(255,255,255,0.6)', flexWrap: 'wrap' }}>
                     {ig && <a href={ig} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>{(d.instagram || '').split(/[\s/]/)[0]}</a>}
+                    {d.soundcloud && <a href={ext(d.soundcloud)} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>SoundCloud</a>}
+                    {d.spotify && <a href={ext(d.spotify)} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>Spotify</a>}
+                    {d.youtube && <a href={ext(d.youtube)} target="_blank" rel="noreferrer" style={{ color: '#DA1B33', textDecoration: 'none' }}>YouTube</a>}
                     {d.phone && <span>{d.phone}</span>}
                   </div>
                 </div>
@@ -89,6 +93,9 @@ export default function DJRoster({ djs, reload }) {
                   <Field label="Phone"><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Email"><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Photo URL (or DJ uploads via their link)" wide><input value={form.image_url || ''} onChange={e => onField('image_url', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="SoundCloud"><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Spotify"><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="YouTube" wide><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} style={inp('100%')} /></Field>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'space-between' }}>
                     <button onClick={() => removeDj(d.id)} style={btn('red')}>Remove</button>
                     <button onClick={saveEdit} disabled={busy} style={btn('gold')}>{busy ? 'Saving…' : 'Save'}</button>

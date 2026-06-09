@@ -72,7 +72,8 @@ Deno.serve(async (req) => {
       const f = profile || {};
       await sb.from("djs").update({
         dj_name: f.dj_name, real_name: f.real_name, genres: f.genres, instagram: f.instagram,
-        format: f.format, phone: f.phone, email: f.email, image_url: f.image_url, updated_at: now(),
+        format: f.format, phone: f.phone, email: f.email, image_url: f.image_url,
+        soundcloud: f.soundcloud, spotify: f.spotify, youtube: f.youtube, updated_at: now(),
       }).eq("id", id);
       break;
     }
