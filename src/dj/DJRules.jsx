@@ -54,6 +54,15 @@ export default function DJRules() {
         <Li>If something's locked when you pick a date, you'll see it crossed out — just choose another sub-genre or another night.</Li>
       </Section>
 
+      <Section tag="⏳" title="Picking a date holds it for 24 hours" accent="#FCD34D">
+        The moment you tap a date, it's <B>yours</B> — it comes off the marketplace so no one
+        else can grab it while you sort the details.
+        <Li>You've got <R>24 hours</R> to fill it in and hit <B>Confirm request</B>.</Li>
+        <Li><B>Save draft</B> any time — your progress is kept, so you can come back and finish later.</Li>
+        <Li>We'll <B>email you a 2-hour warning</B> before the time's up.</Li>
+        <Li>If you don't finish in time, the date goes <B>back on the marketplace</B> for other DJs — just grab it again if it's free.</Li>
+      </Section>
+
       <Section tag="🎵" title="Promo track — required every night">
         Every booking needs a <R>track to promote it</R> — a name or a link (SoundCloud / YouTube etc.).
         <Li>We use it for the <B>Instagram post</B> for your night.</Li>

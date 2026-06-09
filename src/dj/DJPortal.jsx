@@ -43,6 +43,7 @@ export default function DJPortal() {
   const [tab, setTab] = useState('portal')   // 'portal' = profile + nights · 'rules' = how it works
   const [showPast, setShowPast] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
+  const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -74,12 +75,29 @@ export default function DJPortal() {
   }
   const MAX_SUBS = 4
   const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
-  const closePanel = () => { setClaiming(null); setMode('claim'); resetPanel() }
-  const startClaim = (date) => { setMode('claim'); setClaiming(date); resetPanel() }
-  const startEdit = (b) => {
-    setMode('edit'); setClaiming(b.date)
-    setNight(b.night_name || ''); setSubs(b.subgenres || [])
-    setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set')
+  const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); resetPanel() }
+  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set') }
+  // Pick a fresh open date — reserve it (24h hold) THEN open the panel.
+  const startClaim = async (date) => {
+    setBusy(true)
+    try {
+      refresh(await djPortal(token, 'hold', { date }))
+      setMode('claim'); setPanelAt('bottom'); setClaiming(date); resetPanel()
+      flash('Date held for you — you’ve got 24h to finish.')
+    } catch (e) { flash(e.message) } finally { setBusy(false) }
+  }
+  // Pick a held draft back up (within the 24h) to keep filling it in.
+  const resumeDraft = (b) => { setMode('claim'); setPanelAt('top'); setClaiming(b.date); prefill(b) }
+  // Edit an existing pending/confirmed booking.
+  const startEdit = (b) => { setMode('edit'); setPanelAt('top'); setClaiming(b.date); prefill(b) }
+  const saveDraft = async (date) => {
+    setBusy(true)
+    const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
+    try {
+      refresh(await djPortal(token, 'draft', { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      closePanel()
+      flash('Draft saved ✓ — finish within your 24h.')
+    } catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const claim = async (date) => {
     const session = kindFor(date) === 'session'
@@ -118,6 +136,14 @@ export default function DJPortal() {
   if (!(sdj.email || '').trim()) need.push('email')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
+  // Time left on a 24h hold (drafts). held_at + 24h − now.
+  const holdLeft = (heldAt) => {
+    if (!heldAt) return ''
+    const ms = new Date(heldAt).getTime() + 24 * 3600 * 1000 - Date.now()
+    if (ms <= 0) return 'expiring…'
+    const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000)
+    return h > 0 ? `${h}h ${m}m left` : `${m}m left`
+  }
   const monthKey = (d) => d.slice(0, 7)
   const bookedSessionMonths = new Set(st.myBookings.filter(b => kindFor(b.date) === 'session').map(b => monthKey(b.date)))
   const openMap = Object.fromEntries(st.openSlots.map(o => [o.date, o]))
@@ -174,7 +200,17 @@ export default function DJPortal() {
             It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
           </label>
         </div>
-        <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : (editing ? 'Save changes' : 'Confirm request')}</button>
+        {editing ? (
+          <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Save changes'}</button>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => saveDraft(date)} disabled={busy} style={{ flex: 1, padding: '12px', fontSize: 13, fontWeight: 600, background: 'transparent', color: '#fff', border: `1px solid ${LINE}`, borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Save draft'}</button>
+              <button onClick={() => claim(date)} disabled={busy} style={{ flex: 1, padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
+            </div>
+            <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.45)', textAlign: 'center', lineHeight: 1.5 }}>⏳ This date is held just for you — you've got <strong style={{ color: '#fff' }}>24h</strong> to confirm. <strong>Save draft</strong> keeps your progress so you can finish later.</div>
+          </>
+        )}
         {editing && mine?.status === 'confirmed' && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>This night is already confirmed — your changes go live straight away.</div>}
         {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
       </div>
@@ -256,19 +292,22 @@ export default function DJPortal() {
             <div style={{ ...label, marginBottom: 8 }}>Your dates</div>
             {st.myBookings.map(b => {
               const s = sessionFor(b.date)
+              const held = b.status === 'held'
+              const statusColor = b.status === 'confirmed' ? '#34D399' : '#FCD34D'
               return (
-                <div key={b.date} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${b.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div key={b.date} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
                     {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
-                    {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
+                    {b.kind === 'opendecks' && !held && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
+                    {held && <div style={{ fontSize: 11, color: '#FCD34D', marginTop: 3, fontWeight: 600 }}>⏳ Draft — finish to confirm · {holdLeft(b.held_at)}</div>}
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: b.status === 'confirmed' ? '#34D399' : '#FCD34D' }}>{b.status === 'confirmed' ? 'Confirmed' : 'Requested'}</span>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: statusColor }}>{b.status === 'confirmed' ? 'Confirmed' : held ? 'Draft' : 'Requested'}</span>
                     <div style={{ display: 'flex', gap: 12 }}>
-                      <button onClick={() => startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>edit</button>
-                      {b.status === 'pending' && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>cancel</button>}
+                      <button onClick={() => held ? resumeDraft(b) : startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{held ? 'continue' : 'edit'}</button>
+                      {(held || b.status === 'pending') && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
                     </div>
                   </div>
                 </div>
@@ -334,8 +373,8 @@ export default function DJPortal() {
           </div>
         )}
 
-        {/* Edit panel for one of my dates (renders here, next to "Your dates") */}
-        {claiming && mode === 'edit' && renderPanel()}
+        {/* Panel for editing/resuming one of my dates (renders here, next to "Your dates") */}
+        {claiming && panelAt === 'top' && renderPanel()}
 
         {/* Pick a date — calendar */}
         <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Pick a date</div>
@@ -351,10 +390,10 @@ export default function DJPortal() {
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
                 <span style={{ color: '#FCD34D' }}>your bookings highlighted</span>
               </>} />
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to book it.</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to hold it — you'll then have 24h to fill in the details.</div>
           </>
         )}
-        {claiming && mode !== 'edit' && renderPanel()}
+        {claiming && panelAt === 'bottom' && renderPanel()}
         </>)}
 
         <div style={{ textAlign: 'center', marginTop: 36, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>No Dice · London Fields</div>

@@ -21,6 +21,13 @@ const SESSIONS = {
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 const timeLabel = (s) => `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}`
+const heldLeft = (heldAt) => {
+  if (!heldAt) return ''
+  const ms = new Date(heldAt).getTime() + 24 * 3600 * 1000 - Date.now()
+  if (ms <= 0) return 'expiring'
+  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000)
+  return h > 0 ? `${h}h ${m}m left` : `${m}m left`
+}
 function upcomingSessions(weeks) {
   const out = []
   const today = new Date(); today.setHours(0, 0, 0, 0)
@@ -100,10 +107,11 @@ function Calendar({ data, reload }) {
     const session = SESSIONS[new Date(dateStr + 'T00:00:00').getDay()]
     if (!session) return null
     const slot = byDate[dateStr]
-    return { tone: slot ? slot.status : 'closed', kind: session.kind, disabled: false }
+    return { tone: slot ? (slot.status === 'held' ? 'pending' : slot.status) : 'closed', kind: session.kind, disabled: false }
   }
 
   const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id).length
+  const held = (slots || []).filter(s => s.status === 'held').length
   const pending = (slots || []).filter(s => s.status === 'pending').length
   const confirmed = (slots || []).filter(s => s.status === 'confirmed').length
 
@@ -118,7 +126,7 @@ function Calendar({ data, reload }) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {[['Open for DJs', open, '#DA1B33'], ['Pending sign-off', pending, '#FCD34D'], ['Confirmed', confirmed, '#34D399']].map(([label, n, c]) => (
+        {[['Open for DJs', open, '#DA1B33'], ['Holding (draft)', held, '#F59E0B'], ['Pending sign-off', pending, '#FCD34D'], ['Confirmed', confirmed, '#34D399']].map(([label, n, c]) => (
           <div key={label} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '12px 18px', minWidth: 130 }}>
             <div className="serif" style={{ fontSize: 26, color: c, lineHeight: 1 }}>{n}</div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
@@ -140,7 +148,7 @@ function Calendar({ data, reload }) {
         if (!session) return null
         const slot = byDate[date]
         const status = slot ? slot.status : 'closed'
-        const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
+        const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'held' ? '#F59E0B' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
         const booked = slot && slot.dj_id
         return (
           <div style={{ background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.4)', borderLeft: `3px solid ${accent}`, borderRadius: 10, padding: '14px 16px' }}>
@@ -155,8 +163,9 @@ function Calendar({ data, reload }) {
                   <>
                     <Avatar d={slot.dj || { dj_name: '?' }} size={34} />
                     <div style={{ fontSize: 13, color: '#FFFFFF' }}>
-                      <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status}</span></div>
+                      <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status === 'held' ? 'draft' : status}</span></div>
                       {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
+                      {status === 'held' && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 3, fontWeight: 600 }}>⏳ Draft — DJ is filling in details{slot.held_at ? ` · ${heldLeft(slot.held_at)}` : ''}</div>}
                     </div>
                   </>
                 ) : (

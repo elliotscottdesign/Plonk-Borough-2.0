@@ -42,6 +42,9 @@ alter table public.dj_slots add column if not exists kind text;          -- sess
 alter table public.dj_slots add column if not exists promo_track text;   -- required for every night (drives the IG post)
 alter table public.dj_slots add column if not exists promo_ok boolean default false;
 alter table public.dj_slots add column if not exists set_type text;      -- open decks: dj_set | records | listening
+-- Date-hold reservation: a DJ picks an open date (status='held') and has 24h to finish.
+alter table public.dj_slots add column if not exists held_at timestamptz;        -- when the hold started (deadline = +24h)
+alter table public.dj_slots add column if not exists reminder_sent boolean default false;  -- 2h-warning email sent
 
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)

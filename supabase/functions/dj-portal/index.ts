@@ -10,9 +10,11 @@
 //   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...], schedule:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
-//   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}
+//   hold   {date}            reserve an open date off the marketplace (24h to finish)
+//   draft  {date, ...}       save partial progress on a held date (no timer reset)
+//   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (held → pending)
 //   edit   {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (existing booking)
-//   cancel {date}
+//   cancel {date}            release a held draft or pending request
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -44,7 +46,7 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const cols = "date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type";
+  const cols = "date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at";
   const { data: mine } = await sb.from("dj_slots").select(cols).eq("dj_id", id).gte("date", today).order("date");
   const myBookings = (mine || []).map((b: any) => ({ ...b, blocked: neighBlocked(b.date) }));
   const { data: past } = await sb.from("dj_slots").select(cols).eq("dj_id", id).lt("date", today).order("date", { ascending: false });
@@ -96,6 +98,43 @@ Deno.serve(async (req) => {
     return state(sb, dj.id);
   }
 
+  if (action === "hold") {
+    // DJ picks an open date — reserve it off the marketplace immediately and give
+    // them 24h to fill in the details (status='held').
+    if (!isComplete(dj)) return json({ error: "Finish your profile first" }, 400);
+    if (!date) return json({ error: "missing date" }, 400);
+    const session = isSession(date);
+    if (session) {
+      const { start, next } = monthRange(date);
+      const { data: existing } = await sb.from("dj_slots").select("date").eq("dj_id", dj.id).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).gte("date", start).lt("date", next);
+      if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
+    }
+    const { data: updated, error } = await sb.from("dj_slots").update({
+      dj_id: dj.id, status: "held", kind: session ? "session" : "opendecks",
+      held_at: new Date().toISOString(), reminder_sent: false, updated_at: new Date().toISOString(),
+    }).eq("date", date).eq("status", "open").select("date");
+    if (error) return json({ error: error.message }, 500);
+    if (!updated || !updated.length) return json({ error: "That date was just taken — pick another." }, 409);
+    return state(sb, dj.id);
+  }
+
+  if (action === "draft") {
+    // Save partial progress on a held date (no validation) so the DJ can pick it
+    // back up within their 24h window. Does NOT reset the timer.
+    if (!date) return json({ error: "missing date" }, 400);
+    const { data: held } = await sb.from("dj_slots").select("date").eq("date", date).eq("dj_id", dj.id).eq("status", "held").maybeSingle();
+    if (!held) return json({ error: "That date isn't being held by you (your hold may have expired)." }, 404);
+    const session = isSession(date);
+    const subs = arr(subgenres).slice(0, 4);
+    const upd: Record<string, unknown> = {
+      night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_ok: !!promoOk, updated_at: new Date().toISOString(),
+    };
+    if (session) { upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
+    else { upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
+    await sb.from("dj_slots").update(upd).eq("date", date).eq("dj_id", dj.id).eq("status", "held");
+    return state(sb, dj.id);
+  }
+
   if (action === "claim") {
     if (!isComplete(dj)) return json({ error: "Finish your profile first" }, 400);
     if (!date) return json({ error: "missing date" }, 400);
@@ -108,16 +147,16 @@ Deno.serve(async (req) => {
     const upd: Record<string, unknown> = {
       dj_id: dj.id, status: "pending", night_name: nightName || null,
       promo_track: track, promo_ok: true, kind: session ? "session" : "opendecks",
-      updated_at: new Date().toISOString(),
+      held_at: null, updated_at: new Date().toISOString(),
     };
 
     if (session) {
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
       if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
-      // one paid session per DJ per calendar month
+      // one paid session per DJ per calendar month (counts other holds too; not this date)
       const { start, next } = monthRange(date);
-      const { data: existing } = await sb.from("dj_slots").select("date").eq("dj_id", dj.id).eq("kind", "session").in("status", ["pending", "confirmed"]).gte("date", start).lt("date", next);
+      const { data: existing } = await sb.from("dj_slots").select("date").eq("dj_id", dj.id).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
       // adjacency: sub-genre booked the day before/after
       const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
@@ -131,9 +170,10 @@ Deno.serve(async (req) => {
       upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
     }
 
-    const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("status", "open").select("date");
+    // The DJ must be holding this date (they picked it first). Confirms held → pending.
+    const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("status", "held").eq("dj_id", dj.id).select("date");
     if (error) return json({ error: error.message }, 500);
-    if (!updated || !updated.length) return json({ error: "That date was just taken — pick another." }, 409);
+    if (!updated || !updated.length) return json({ error: "Your hold on that date has expired — pick it again from the calendar." }, 409);
     return state(sb, dj.id);
   }
 
@@ -141,7 +181,7 @@ Deno.serve(async (req) => {
     // Edit an existing booking (pending OR confirmed) live — keeps the date, dj
     // and current status; re-validates promo + sub-genre adjacency.
     if (!date) return json({ error: "missing date" }, 400);
-    const { data: existing } = await sb.from("dj_slots").select("date,status,kind").eq("date", date).eq("dj_id", dj.id).maybeSingle();
+    const { data: existing } = await sb.from("dj_slots").select("date,status,kind").eq("date", date).eq("dj_id", dj.id).in("status", ["pending", "confirmed"]).maybeSingle();
     if (!existing) return json({ error: "That date isn't one of your bookings." }, 404);
     const session = isSession(date);
     const track = (promoTrack || "").trim();
@@ -168,8 +208,9 @@ Deno.serve(async (req) => {
   }
 
   if (action === "cancel") {
-    await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, updated_at: new Date().toISOString() })
-      .eq("date", date).eq("dj_id", dj.id).eq("status", "pending");
+    // Release a held draft OR a pending request back to the open marketplace.
+    await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, updated_at: new Date().toISOString() })
+      .eq("date", date).eq("dj_id", dj.id).in("status", ["held", "pending"]);
     return state(sb, dj.id);
   }
 
