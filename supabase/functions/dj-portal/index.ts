@@ -7,7 +7,7 @@
 // rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
-//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}] }
+//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}
@@ -44,9 +44,11 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const { data: mine } = await sb.from("dj_slots").select("date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type").eq("dj_id", id).gte("date", today).order("date");
+  const cols = "date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type";
+  const { data: mine } = await sb.from("dj_slots").select(cols).eq("dj_id", id).gte("date", today).order("date");
   const myBookings = (mine || []).map((b: any) => ({ ...b, blocked: neighBlocked(b.date) }));
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings });
+  const { data: past } = await sb.from("dj_slots").select(cols).eq("dj_id", id).lt("date", today).order("date", { ascending: false });
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: past || [] });
 }
 
 Deno.serve(async (req) => {

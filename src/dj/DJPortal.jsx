@@ -4,6 +4,7 @@ import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
 import MonthCalendar from './MonthCalendar.jsx'
+import DJRules from './DJRules.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -39,6 +40,8 @@ export default function DJPortal() {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
+  const [tab, setTab] = useState('portal')   // 'portal' = profile + nights · 'rules' = how it works
+  const [showPast, setShowPast] = useState(false)
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -181,10 +184,24 @@ export default function DJPortal() {
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "'DM Sans',sans-serif", padding: '32px 18px 64px' }}>
       <div style={{ maxWidth: 520, margin: '0 auto' }}>
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 170, display: 'block', margin: '0 auto 6px' }} />
-        <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 26 }}>DJ Portal</div>
+        <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 18 }}>DJ Portal</div>
+
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
+          {[['portal', 'My nights'], ['rules', 'How it works']].map(([k, lbl]) => (
+            <button key={k} onClick={() => setTab(k)} style={{
+              flex: 1, padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
+              background: tab === k ? RED : 'transparent', color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)',
+              border: `1px solid ${tab === k ? RED : LINE}`, fontWeight: tab === k ? 700 : 500,
+            }}>{lbl}</button>
+          ))}
+        </div>
 
         {msg && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{msg}</div>}
 
+        {tab === 'rules' && <DJRules />}
+
+        {tab === 'portal' && (<>
         {/* Profile */}
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>
@@ -259,6 +276,32 @@ export default function DJPortal() {
           </div>
         )}
 
+        {/* Past events — collapsible history */}
+        {(st.pastBookings || []).length > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            <button onClick={() => setShowPast(s => !s)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '11px 14px', cursor: 'pointer', color: '#fff' }}>
+              <span style={{ color: RED, fontSize: 11, transform: showPast ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block', width: 10 }}>▶</span>
+              <span style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Past events</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{st.pastBookings.length}</span>
+            </button>
+            {showPast && (
+              <div style={{ marginTop: 8 }}>
+                {st.pastBookings.map(b => {
+                  const s = sessionFor(b.date)
+                  return (
+                    <div key={b.date} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 8, opacity: 0.85 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
+                      {b.night_name && <div style={{ fontSize: 11, color: RED }}>"{b.night_name}"</div>}
+                      {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
+                      {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Edit panel for one of my dates (renders here, next to "Your dates") */}
         {claiming && mode === 'edit' && renderPanel()}
 
@@ -280,6 +323,7 @@ export default function DJPortal() {
           </>
         )}
         {claiming && mode !== 'edit' && renderPanel()}
+        </>)}
 
         <div style={{ textAlign: 'center', marginTop: 36, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>No Dice · London Fields</div>
       </div>
