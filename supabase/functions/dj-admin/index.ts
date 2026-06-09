@@ -54,11 +54,20 @@ Deno.serve(async (req) => {
       await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date);
       break;
     case "removeBooking":
-      await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, updated_at: now() }).eq("date", date);
+      // Free the date AND wipe all booking detail (matches the DJ portal's cancel).
+      await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, updated_at: now() }).eq("date", date);
       break;
     case "book": {
+      // Admin manually assigns a DJ. Seed kind + display genres from their profile
+      // so the Events view / public feed render; the DJ can refine via their portal.
       const { data: dj } = await sb.from("djs").select("genres").eq("id", djId).maybeSingle();
-      await sb.from("dj_slots").upsert({ date, dj_id: djId, status: "pending", night_name: nightName || null, genre: dj?.genres || null, updated_at: now() }, { onConflict: "date" });
+      const subs = String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
+      const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
+      await sb.from("dj_slots").upsert({
+        date, dj_id: djId, status: "pending", night_name: nightName || null,
+        genre: dj?.genres || null, genres: subs, subgenres: subs, kind: k,
+        set_type: k === "opendecks" ? "dj_set" : null, promo_track: null, promo_ok: false, updated_at: now(),
+      }, { onConflict: "date" });
       break;
     }
     case "addDj": {
