@@ -50,6 +50,7 @@ export function instagramCaption(ev) {
   const dj = ev?.dj?.dj_name || ev?.dj || 'TBA'
   const ig = ev?.dj?.instagram || ev?.instagram || ''
   const subs = ev?.subgenres || ev?.genres || []
+  const fmt = ev?.dj?.format || ev?.format || ''
   const s = sessionFor(ev.date)
   const dateStr = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
   const session = (ev?.kind || kindFor(ev.date)) === 'session'
@@ -61,6 +62,7 @@ export function instagramCaption(ev) {
     `${dj}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
   ]
   if (subs.length) lines.push(subs.join(' · '))
+  if (fmt) lines.push(`🎛️ ${fmt}`)
   lines.push(`${session ? '' : (setTypeLabel(ev.set_type) || 'Open Decks') + ' · free entry · '}${s?.day || ''} ${timeLabel(s)}`)
   lines.push('📍 407 Mentmore Terrace, London Fields, E8 3PH')
   lines.push('')

@@ -24,7 +24,7 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await sb.from("dj_slots")
-    .select("date,night_name,subgenres,kind,set_type,promo_track, dj:djs(dj_name,image_url,instagram)")
+    .select("date,night_name,subgenres,kind,set_type,promo_track, dj:djs(dj_name,image_url,instagram,format)")
     .eq("status", "confirmed").gte("date", today).order("date");
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   const events = (data || []).map((s: any) => {
@@ -32,6 +32,7 @@ Deno.serve(async (req) => {
     return {
       date: s.date, weekday: sess.day, start: sess.start, end: sess.end, kind: s.kind || sess.kind,
       dj: s.dj?.dj_name || null, image: s.dj?.image_url || null, instagram: s.dj?.instagram || null,
+      format: s.dj?.format || null,
       night_name: s.night_name || null, genres: Array.isArray(s.subgenres) ? s.subgenres : [],
       set_type: s.set_type || null, promo_track: s.promo_track || null,
     };

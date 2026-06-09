@@ -2,14 +2,16 @@
 // DJ-facing API. Auth = the DJ's private `token`. Deploy --no-verify-jwt.
 //
 // Session kinds (by weekday): Thu/Fri/Sat = paid sessions (genre picker,
-// adjacent-day rule, ONE per DJ per calendar month, promo track required).
-// Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited, set-type).
+// adjacent-day rule, ONE per DJ per calendar month). Mon/Tue/Wed = Open Decks
+// (unpaid, no genre rules, unlimited, set-type). A promo track (name/link) +
+// rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
-//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings }
+//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}] }
 //   save   {profile}
 //   photo  {dataUrl}
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}
+//   edit   {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (existing booking)
 //   cancel {date}
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -36,13 +38,15 @@ async function state(sb: any, id: string) {
   const { data: booked } = await sb.from("dj_slots").select("date, subgenres").not("dj_id", "is", null).gte("date", shift(today, -1));
   const map: Record<string, string[]> = {};
   for (const s of booked || []) map[s.date] = arr(s.subgenres);
+  // Sub-genres locked for a session date because they're booked the night before/after.
+  const neighBlocked = (d: string) => isSession(d) ? [...new Set([...(map[shift(d, -1)] || []), ...(map[shift(d, 1)] || [])])] : [];
   const { data: openRows } = await sb.from("dj_slots").select("date, kind").eq("status", "open").gte("date", today).order("date");
   const openSlots = (openRows || []).map((s: any) => ({
-    date: s.date, kind: s.kind || (isSession(s.date) ? "session" : "opendecks"),
-    blocked: isSession(s.date) ? [...new Set([...(map[shift(s.date, -1)] || []), ...(map[shift(s.date, 1)] || [])])] : [],
+    date: s.date, kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const { data: mine } = await sb.from("dj_slots").select("date,status,night_name,genres,subgenres,kind,promo_track,set_type").eq("dj_id", id).gte("date", today).order("date");
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings: mine || [] });
+  const { data: mine } = await sb.from("dj_slots").select("date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type").eq("dj_id", id).gte("date", today).order("date");
+  const myBookings = (mine || []).map((b: any) => ({ ...b, blocked: neighBlocked(b.date) }));
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings });
 }
 
 Deno.serve(async (req) => {
@@ -85,16 +89,17 @@ Deno.serve(async (req) => {
     if (!date) return json({ error: "missing date" }, 400);
     const session = isSession(date);
     const track = (promoTrack || "").trim();
-    if (track && !promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
+    // A promo track is now required for EVERY night (it drives the Instagram post).
+    if (!track) return json({ error: "Add a track (name or link) we'll use to promote your night on Instagram." }, 400);
+    if (!promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
 
     const upd: Record<string, unknown> = {
       dj_id: dj.id, status: "pending", night_name: nightName || null,
-      promo_track: track || null, promo_ok: !!promoOk, kind: session ? "session" : "opendecks",
+      promo_track: track, promo_ok: true, kind: session ? "session" : "opendecks",
       updated_at: new Date().toISOString(),
     };
 
     if (session) {
-      if (!track) return json({ error: "Add a track (name or link) we'll use to promote your session." }, 400);
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
       if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
@@ -117,6 +122,36 @@ Deno.serve(async (req) => {
     const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("status", "open").select("date");
     if (error) return json({ error: error.message }, 500);
     if (!updated || !updated.length) return json({ error: "That date was just taken — pick another." }, 409);
+    return state(sb, dj.id);
+  }
+
+  if (action === "edit") {
+    // Edit an existing booking (pending OR confirmed) live — keeps the date, dj
+    // and current status; re-validates promo + sub-genre adjacency.
+    if (!date) return json({ error: "missing date" }, 400);
+    const { data: existing } = await sb.from("dj_slots").select("date,status,kind").eq("date", date).eq("dj_id", dj.id).maybeSingle();
+    if (!existing) return json({ error: "That date isn't one of your bookings." }, 404);
+    const session = isSession(date);
+    const track = (promoTrack || "").trim();
+    if (!track) return json({ error: "Add a track (name or link) we'll use to promote your night on Instagram." }, 400);
+    if (!promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
+
+    const upd: Record<string, unknown> = { night_name: nightName || null, promo_track: track, promo_ok: true, updated_at: new Date().toISOString() };
+    if (session) {
+      const subs = arr(subgenres);
+      if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
+      if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
+      // adjacency: a sub-genre booked the day before/after (excludes this date)
+      const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
+      const blocked = new Set<string>();
+      for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
+      const clash = subs.filter((s: string) => blocked.has(s));
+      if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres.`, conflicts: clash }, 409);
+      upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / "); upd.set_type = null;
+    } else {
+      upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
+    }
+    await sb.from("dj_slots").update(upd).eq("date", date).eq("dj_id", dj.id);
     return state(sb, dj.id);
   }
 

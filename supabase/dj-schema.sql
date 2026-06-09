@@ -31,6 +31,18 @@ create table if not exists public.dj_slots (
 );
 alter table public.dj_slots enable row level security;
 
+-- Columns added after the first release (kept here so a fresh run matches live).
+-- djs.format holds " / "-joined tick-box values: CDJ / Vinyl / Live.
+alter table public.djs add column if not exists soundcloud text;
+alter table public.djs add column if not exists spotify text;
+alter table public.djs add column if not exists youtube text;
+alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
+alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;
+alter table public.dj_slots add column if not exists kind text;          -- session | opendecks
+alter table public.dj_slots add column if not exists promo_track text;   -- required for every night (drives the IG post)
+alter table public.dj_slots add column if not exists promo_ok boolean default false;
+alter table public.dj_slots add column if not exists set_type text;      -- open decks: dj_set | records | listening
+
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)
   on conflict (id) do nothing;

@@ -212,6 +212,7 @@ function Events({ data }) {
               <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}</span></div>
               <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
               {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
+              {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
               {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
               {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
             </div>

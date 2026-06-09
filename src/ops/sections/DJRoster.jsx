@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { djAdmin, inviteLink, resizeImage } from '../../dj/api.js'
 import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
+import FormatPicker, { parseFormats, joinFormats } from '../../dj/FormatPicker.jsx'
 
 // ─── DJ Roster — live profile database (admin) ───────────────────────────
 // Reads/writes the Supabase `djs` table via dj-admin. Each DJ has a private
@@ -105,10 +106,13 @@ export default function DJRoster({ djs, reload }) {
                     <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Music type — tap genres (min 5) · add your own under each</div>
                     <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
                   </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Format — how they play (tap any)</div>
+                    <FormatPicker selected={parseFormats(form.format)} onChange={a => onField('format', joinFormats(a))} />
+                  </div>
                   <Field label="Instagram"><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} style={inp('100%')} /></Field>
-                  <Field label="Format (CDJ / Vinyl)"><input value={form.format || ''} onChange={e => onField('format', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Phone"><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp('100%')} /></Field>
-                  <Field label="Email"><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp('100%')} /></Field>
+                  <Field label="Email" wide><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp('100%')} /></Field>
                   <div style={{ gridColumn: '1 / -1', display: 'flex', alignItems: 'center', gap: 12 }}>
                     <Avatar d={form} size={48} />
                     <div>

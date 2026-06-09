@@ -25,7 +25,7 @@ const now = () => new Date().toISOString();
 async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
   if (error) return json({ error: error.message }, 500);  // e.g. tables not created yet
-  const { data: slots } = await sb.from("dj_slots").select("*, dj:djs(id,dj_name,image_url,instagram,genres)").order("date");
+  const { data: slots } = await sb.from("dj_slots").select("*, dj:djs(id,dj_name,image_url,instagram,genres,format)").order("date");
   return json({ djs: djs || [], slots: slots || [] });
 }
 

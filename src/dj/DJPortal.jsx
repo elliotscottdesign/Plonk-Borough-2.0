@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
+import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
 import MonthCalendar from './MonthCalendar.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
@@ -29,6 +30,7 @@ export default function DJPortal() {
   const [msg, setMsg] = useState('')
   const [photoErr, setPhotoErr] = useState('')
   const [claiming, setClaiming] = useState(null)
+  const [mode, setMode] = useState('claim')   // 'claim' = booking a new open date · 'edit' = changing one of my bookings
   const [night, setNight] = useState('')
   const [subs, setSubs] = useState([])   // sub-genre names selected for the claim (max 4)
   const [promoTrack, setPromoTrack] = useState('')
@@ -67,18 +69,26 @@ export default function DJPortal() {
     } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
-  const startClaim = (date) => { setClaiming(date); setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
+  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
+  const closePanel = () => { setClaiming(null); setMode('claim'); resetPanel() }
+  const startClaim = (date) => { setMode('claim'); setClaiming(date); resetPanel() }
+  const startEdit = (b) => {
+    setMode('edit'); setClaiming(b.date)
+    setNight(b.night_name || ''); setSubs(b.subgenres || [])
+    setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set')
+  }
   const claim = async (date) => {
     const session = kindFor(date) === 'session'
     if (session && !subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
-    if (session && !promoTrack.trim()) { flash('Add a track (name or link) to promote your session.'); return }
-    if (promoTrack.trim() && !promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }
+    if (!promoTrack.trim()) { flash('Add a track (name or link) to promote your night.'); return }
+    if (!promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
-      refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
-      setClaiming(null); setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set')
-      flash('Date requested ✓ — No Dice will confirm.')
+      const action = mode === 'edit' ? 'edit' : 'claim'
+      refresh(await djPortal(token, action, { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      closePanel()
+      flash(mode === 'edit' ? 'Night updated ✓' : 'Date requested ✓ — No Dice will confirm.')
     } catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const cancel = async (date) => {
@@ -99,7 +109,7 @@ export default function DJPortal() {
   if (!sdj.image_url) need.push('a photo')
   if (genreCount(sdj.genres) < 5) need.push('5+ genres')
   if (!(sdj.instagram || '').trim()) need.push('Instagram')
-  if (!(sdj.format || '').trim()) need.push('format')
+  if (!(sdj.format || '').trim()) need.push('how you play')
   if (!(sdj.phone || '').trim()) need.push('phone')
   if (!(sdj.email || '').trim()) need.push('email')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
@@ -118,6 +128,53 @@ export default function DJPortal() {
     const session = (op.kind || kindFor(dateStr)) === 'session'
     if (session && bookedSessionMonths.has(monthKey(dateStr))) return { tone: 'closed', kind: 'session', disabled: true }
     return { tone: 'open', kind: session ? 'session' : 'opendecks', disabled: false }
+  }
+
+  // Booking panel — shared by "claim a new open date" and "edit one of my dates".
+  const renderPanel = () => {
+    const date = claiming
+    const op = openMap[date] || mineMap[date] || {}
+    const blocked = op.blocked || []
+    const session = (op.kind || kindFor(date)) === 'session'
+    const s = sessionFor(date)
+    const editing = mode === 'edit'
+    const mine = mineMap[date]
+    return (
+      <div style={{ marginTop: 14, background: CARD, border: '1px solid rgba(218,27,51,0.4)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ fontWeight: 700 }}>
+            {editing && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 999, padding: '1px 7px', marginRight: 6 }}>Editing</span>}
+            {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? 'Session' : 'Open Decks'}</span>
+          </div>
+          <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+        </div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
+        {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
+        <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
+        {session ? (
+          <>
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span></div>
+            <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
+          </>
+        ) : (
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>What kind of night?</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{SET_TYPES.map(t => <button key={t.value} type="button" onClick={() => setSetType(t.value)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: setType === t.value ? RED : 'transparent', color: setType === t.value ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${setType === t.value ? RED : LINE}`, fontWeight: setType === t.value ? 700 : 400 }}>{t.label}</button>)}</div>
+          </div>
+        )}
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'} · <span style={{ color: RED }}>name or link · required</span></div>
+          <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
+          <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
+            <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
+            It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
+          </label>
+        </div>
+        <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : (editing ? 'Save changes' : 'Confirm request')}</button>
+        {editing && mine?.status === 'confirmed' && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>This night is already confirmed — your changes go live straight away.</div>}
+        {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
+      </div>
+    )
   }
 
   return (
@@ -155,11 +212,14 @@ export default function DJPortal() {
               </div>
             </div>
             <div><div style={label}>Instagram</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={inp} /></div>
-            <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}><div style={label}>Format</div><input value={form.format || ''} onChange={e => onField('format', e.target.value)} placeholder="CDJ / Vinyl" style={inp} /></div>
-              <div style={{ flex: 1 }}><div style={label}>Phone</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp} /></div>
+            <div>
+              <div style={label}>How you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— tap any that apply</span></div>
+              <div style={{ marginTop: 8 }}><FormatPicker selected={parseFormats(form.format)} onChange={a => onField('format', joinFormats(a))} /></div>
             </div>
-            <div><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
+            <div style={{ display: 'flex', gap: 12 }}>
+              <div style={{ flex: 1 }}><div style={label}>Phone</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp} /></div>
+              <div style={{ flex: 1 }}><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
+            </div>
             <div><div style={label}>SoundCloud <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}><div style={label}>Spotify <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
@@ -186,13 +246,21 @@ export default function DJPortal() {
                     {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                     {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                   </div>
-                  <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: b.status === 'confirmed' ? '#34D399' : '#FCD34D' }}>{b.status === 'confirmed' ? 'Confirmed' : 'Requested'}</span>
-                  {b.status === 'pending' && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>cancel</button>}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                    <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: b.status === 'confirmed' ? '#34D399' : '#FCD34D' }}>{b.status === 'confirmed' ? 'Confirmed' : 'Requested'}</span>
+                    <div style={{ display: 'flex', gap: 12 }}>
+                      <button onClick={() => startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>edit</button>
+                      {b.status === 'pending' && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>cancel</button>}
+                    </div>
+                  </div>
                 </div>
               )
             })}
           </div>
         )}
+
+        {/* Edit panel for one of my dates (renders here, next to "Your dates") */}
+        {claiming && mode === 'edit' && renderPanel()}
 
         {/* Pick a date — calendar */}
         <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Pick a date</div>
@@ -211,45 +279,7 @@ export default function DJPortal() {
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to book it.</div>
           </>
         )}
-        {claiming && (() => {
-          const date = claiming
-          const op = openMap[date] || {}
-          const blocked = op.blocked || []
-          const session = (op.kind || kindFor(date)) === 'session'
-          const s = sessionFor(date)
-          return (
-            <div style={{ marginTop: 14, background: CARD, border: '1px solid rgba(218,27,51,0.4)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ fontWeight: 700 }}>{fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? 'Session' : 'Open Decks'}</span></div>
-                <button onClick={() => setClaiming(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
-              </div>
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
-              {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
-              <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
-              {session ? (
-                <>
-                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span></div>
-                  <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
-                </>
-              ) : (
-                <div>
-                  <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>What kind of night?</div>
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>{SET_TYPES.map(t => <button key={t.value} type="button" onClick={() => setSetType(t.value)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: setType === t.value ? RED : 'transparent', color: setType === t.value ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${setType === t.value ? RED : LINE}`, fontWeight: setType === t.value ? 700 : 400 }}>{t.label}</button>)}</div>
-                </div>
-              )}
-              <div>
-                <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'}{session ? '' : ' (optional)'} · <span style={{ color: RED }}>name or link</span></div>
-                <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
-                <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
-                  <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
-                  It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
-                </label>
-              </div>
-              <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
-              {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
-            </div>
-          )
-        })()}
+        {claiming && mode !== 'edit' && renderPanel()}
 
         <div style={{ textAlign: 'center', marginTop: 36, fontSize: 10, letterSpacing: '0.18em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.3)' }}>No Dice · London Fields</div>
       </div>
