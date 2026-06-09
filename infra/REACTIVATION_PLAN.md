@@ -20,7 +20,7 @@ in"** become emailable (consent=true). Everyone else stays quietly held.
 | 3 | 3★+ **or** signed up 2024+ | 1,565 |
 | 4 | everything (2★+/2022+) | 3,303 |
 
-## Timed ramp to opening (17 June) — illustrative; adjust to real bounce data
+## Timed ramp to opening (19 June) — illustrative; adjust to real bounce data
 | Day | Date | Batch | Cumulative | Who |
 |---|---|---|---|---|
 | 0 | Jun 8 | **1 test → founder** | — | prove the whole chain, check inbox placement |
