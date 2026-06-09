@@ -5,12 +5,12 @@
 export const GENRES = {
   'House':            ['House', 'Deep House', 'Disco House', 'Organic House', 'Jazzy House', 'Vocal House', 'UK Funky', 'Amapiano'],
   'Disco':            ['Disco', 'Italo Disco', 'Disco Edits', 'Rare Disco', 'Shimmer Disco'],
-  'Funk & Soul':      ['Funk', 'Soul', 'Groove Funk', 'Jazz Funk', 'Rare Groove', 'Boogie', 'High Life'],
+  'Funk & Soul':      ['Funk', 'Soul', 'Groove Funk', 'Jazz Funk', 'Boogie', 'High Life'],
   'Hip-Hop & Breaks': ['Hip-Hop', 'Old School Hip-Hop', 'B-Boy Breaks', 'Breaks', 'Broken Beat'],
   'Garage':           ['Garage', 'UK Garage'],
   'Techno & Tech':    ['Techno', 'Tech House', 'Jazz Tech', 'High-Tech Jazz'],
   'Electro & Bass':   ['Electro', 'EBM', 'Indie Dance', 'UK Bass', 'Jungle', 'Wobblecore', 'Dubstep'],
-  'Global & World':   ['Afrobeat', 'Brazilian Grooves', 'Caribbean', 'Zouk', 'Arabic', 'Middle Eastern', 'Global Beats', 'Down Tempo', 'Latin'],
+  'Global & World':   ['Afrobeat', 'Brazilian Grooves', 'Caribbean', 'Zouk', 'Arabic', 'Middle Eastern', 'Global Beats', 'Down Tempo', 'Latin', 'Rare Groove'],
   'Reggae & Dub':     ['Reggae', 'Dub'],
 }
 

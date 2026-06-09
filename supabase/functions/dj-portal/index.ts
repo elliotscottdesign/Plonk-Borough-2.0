@@ -78,6 +78,7 @@ Deno.serve(async (req) => {
     if (!isComplete(dj)) return json({ error: "Finish your profile first" }, 400);
     if (!date) return json({ error: "missing date" }, 400);
     const subs = arr(subgenres);
+    if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
     // adjacency: sub-genres already booked the day before/after (same day is fine)
     const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
     const blocked = new Set<string>();
