@@ -7,7 +7,7 @@
 // rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
-//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...] }
+//   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...], schedule:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}
@@ -48,7 +48,17 @@ async function state(sb: any, id: string) {
   const { data: mine } = await sb.from("dj_slots").select(cols).eq("dj_id", id).gte("date", today).order("date");
   const myBookings = (mine || []).map((b: any) => ({ ...b, blocked: neighBlocked(b.date) }));
   const { data: past } = await sb.from("dj_slots").select(cols).eq("dj_id", id).lt("date", today).order("date", { ascending: false });
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: past || [] });
+  // Line-up: every OTHER DJ's upcoming booked night (pending + confirmed). Public
+  // fields only — name + Instagram + what/when — never phone/email.
+  const { data: sched } = await sb.from("dj_slots")
+    .select("date,status,night_name,subgenres,kind,set_type, dj:djs(dj_name,instagram)")
+    .not("dj_id", "is", null).neq("dj_id", id).in("status", ["pending", "confirmed"]).gte("date", today).order("date");
+  const schedule = (sched || []).map((s: any) => ({
+    date: s.date, status: s.status, night_name: s.night_name || null, subgenres: arr(s.subgenres),
+    kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), set_type: s.set_type || null,
+    dj: s.dj?.dj_name || "DJ", instagram: s.dj?.instagram || null,
+  }));
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: past || [], schedule });
 }
 
 Deno.serve(async (req) => {

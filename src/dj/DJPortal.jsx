@@ -42,6 +42,7 @@ export default function DJPortal() {
   const [viewM, setViewM] = useState(now.getMonth())
   const [tab, setTab] = useState('portal')   // 'portal' = profile + nights · 'rules' = how it works
   const [showPast, setShowPast] = useState(false)
+  const [showSchedule, setShowSchedule] = useState(false)
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -273,6 +274,37 @@ export default function DJPortal() {
                 </div>
               )
             })}
+          </div>
+        )}
+
+        {/* Who's playing — every other DJ's upcoming nights */}
+        {(st.schedule || []).length > 0 && (
+          <div style={{ marginBottom: 18 }}>
+            <button onClick={() => setShowSchedule(s => !s)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '11px 14px', cursor: 'pointer', color: '#fff' }}>
+              <span style={{ color: RED, fontSize: 11, transform: showSchedule ? 'rotate(90deg)' : 'none', transition: 'transform 0.15s', display: 'inline-block', width: 10 }}>▶</span>
+              <span style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.65)' }}>Who's playing</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>{st.schedule.length}</span>
+            </button>
+            {showSchedule && (
+              <div style={{ marginTop: 8 }}>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8, lineHeight: 1.5 }}>Everyone else's upcoming nights — handy to see what's already pencilled in around your dates.</div>
+                {st.schedule.map((e, i) => {
+                  const s = sessionFor(e.date)
+                  const session = e.kind === 'session'
+                  return (
+                    <div key={e.date + '-' + i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                        <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
+                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
+                      </div>
+                      <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
+                      {e.subgenres.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{e.subgenres.join(' · ')}</div>}
+                      {!session && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{e.set_type ? ` · ${setTypeLabel(e.set_type)}` : ''}</div>}
+                    </div>
+                  )
+                })}
+              </div>
+            )}
           </div>
         )}
 
