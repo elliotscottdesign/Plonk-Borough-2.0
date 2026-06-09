@@ -39,9 +39,11 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   switch (action) {
-    case "open":
-      await sb.from("dj_slots").upsert({ date, status: "open" }, { onConflict: "date", ignoreDuplicates: true });
+    case "open": {
+      const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
+      await sb.from("dj_slots").upsert({ date, status: "open", kind: k }, { onConflict: "date", ignoreDuplicates: true });
       break;
+    }
     case "close":
       await sb.from("dj_slots").delete().eq("date", date).eq("status", "open");
       break;

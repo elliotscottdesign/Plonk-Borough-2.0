@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel } from './api.js'
+import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 
@@ -29,6 +29,9 @@ export default function DJPortal() {
   const [claiming, setClaiming] = useState(null)
   const [night, setNight] = useState('')
   const [subs, setSubs] = useState([])   // sub-genre names selected for the claim (max 4)
+  const [promoTrack, setPromoTrack] = useState('')
+  const [promoOk, setPromoOk] = useState(false)
+  const [setType, setSetType] = useState('dj_set')
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -59,12 +62,19 @@ export default function DJPortal() {
     } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
+  const startClaim = (date) => { setClaiming(date); setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
   const claim = async (date) => {
-    if (!subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
+    const session = kindFor(date) === 'session'
+    if (session && !subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
+    if (session && !promoTrack.trim()) { flash('Add a track (name or link) to promote your session.'); return }
+    if (promoTrack.trim() && !promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
-    try { refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs })); setClaiming(null); setNight(''); setSubs([]); flash('Date requested ✓ — No Dice will confirm.') }
-    catch (e) { flash(e.message) } finally { setBusy(false) }
+    try {
+      refresh(await djPortal(token, 'claim', { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      setClaiming(null); setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set')
+      flash('Date requested ✓ — No Dice will confirm.')
+    } catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const cancel = async (date) => {
     setBusy(true)
@@ -85,6 +95,8 @@ export default function DJPortal() {
   if (!(sdj.instagram || '').trim()) need.push('Instagram')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
+  const monthKey = (d) => d.slice(0, 7)
+  const bookedSessionMonths = new Set(st.myBookings.filter(b => kindFor(b.date) === 'session').map(b => monthKey(b.date)))
 
   return (
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "'DM Sans',sans-serif", padding: '32px 18px 64px' }}>
@@ -115,6 +127,7 @@ export default function DJPortal() {
               <div style={{ marginTop: 8 }}>
                 <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
               </div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>You can change the music you play any time — just update this and Save.</div>
             </div>
             <div><div style={label}>Instagram</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -126,6 +139,9 @@ export default function DJPortal() {
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}><div style={label}>Spotify</div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
               <div style={{ flex: 1 }}><div style={label}>YouTube</div><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} placeholder="youtube.com/@you" style={inp} /></div>
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px' }}>
+              ℹ️ Your profile will go live on the No Dice site so guests can discover you — we'll add your RA / DICE links and more later. Keep it sharp; you can update it any time.
             </div>
             <button onClick={save} disabled={busy} style={{ marginTop: 4, padding: '13px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save profile'}</button>
           </div>
@@ -143,6 +159,7 @@ export default function DJPortal() {
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
                     {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
+                    {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                   </div>
                   <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: b.status === 'confirmed' ? '#34D399' : '#FCD34D' }}>{b.status === 'confirmed' ? 'Confirmed' : 'Requested'}</span>
                   {b.status === 'pending' && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>cancel</button>}
@@ -164,29 +181,60 @@ export default function DJPortal() {
           st.openSlots.map(slot => {
             const date = slot.date
             const blocked = slot.blocked || []
+            const session = (slot.kind || kindFor(date)) === 'session'
             const s = sessionFor(date)
             const isClaiming = claiming === date
+            const monthFull = session && bookedSessionMonths.has(monthKey(date))
             return (
               <div key={date} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{fmtDate(date)}</div>
-                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}</div>
+                    <div style={{ fontWeight: 600 }}>{fmtDate(date)}
+                      <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 8, verticalAlign: 'middle' }}>{session ? 'Session' : 'Open Decks'}</span>
+                    </div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
                   </div>
-                  {!isClaiming && <button onClick={() => { setClaiming(date); setNight(''); setSubs([]) }} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>}
+                  {!isClaiming && (monthFull
+                    ? <span style={{ fontSize: 11, color: '#FCD34D', textAlign: 'right', maxWidth: 120 }}>Got a session this month</span>
+                    : <button onClick={() => startClaim(date)} disabled={busy} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Request</button>)}
                 </div>
                 {isClaiming && (
                   <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want. Full DJ set, record selections, or an album listening party.</div>}
                     <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
-                    <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
-                      What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span>
+
+                    {session ? (
+                      <>
+                        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>
+                          What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span>
+                        </div>
+                        <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
+                      </>
+                    ) : (
+                      <div>
+                        <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>What kind of night?</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {SET_TYPES.map(t => (
+                            <button key={t.value} type="button" onClick={() => setSetType(t.value)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: setType === t.value ? RED : 'transparent', color: setType === t.value ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${setType === t.value ? RED : LINE}`, fontWeight: setType === t.value ? 700 : 400 }}>{t.label}</button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    <div>
+                      <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'}{session ? '' : ' (optional)'} · <span style={{ color: RED }}>name or link</span></div>
+                      <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
+                      <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
+                        <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
+                        It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
+                      </label>
                     </div>
-                    <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
+
                     <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button onClick={() => claim(date)} disabled={busy || !subs.length} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: subs.length ? RED : 'rgba(218,27,51,0.4)', color: '#fff', border: 'none', borderRadius: 8, cursor: subs.length ? 'pointer' : 'default' }}>{busy ? '…' : `Confirm request${subs.length ? ` (${subs.length})` : ''}`}</button>
+                      <button onClick={() => claim(date)} disabled={busy} style={{ flex: 1, padding: '11px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Confirm request'}</button>
                       <button onClick={() => setClaiming(null)} style={{ padding: '11px 16px', fontSize: 13, background: 'transparent', color: 'rgba(255,255,255,0.6)', border: `1px solid ${LINE}`, borderRadius: 8, cursor: 'pointer' }}>Cancel</button>
                     </div>
-                    <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre.</div>
+                    {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
                   </div>
                 )}
               </div>

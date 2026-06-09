@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
-import { djAdmin } from '../../dj/api.js'
+import { djAdmin, setTypeLabel } from '../../dj/api.js'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
 // Reads/writes Supabase via dj-admin. Two views:
@@ -10,9 +10,12 @@ import { djAdmin } from '../../dj/api.js'
 
 const WEEKS_AHEAD = 12
 const SESSIONS = {
-  4: { day: 'Thursday', start: '19:00', end: '23:00' },
-  5: { day: 'Friday', start: '20:00', end: '00:00' },
-  6: { day: 'Saturday', start: '20:00', end: '00:00' },
+  1: { day: 'Monday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  2: { day: 'Tuesday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  3: { day: 'Wednesday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  4: { day: 'Thursday', start: '19:00', end: '23:00', kind: 'session' },
+  5: { day: 'Friday', start: '20:00', end: '00:00', kind: 'session' },
+  6: { day: 'Saturday', start: '20:00', end: '00:00', kind: 'session' },
 }
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
@@ -119,14 +122,18 @@ function Calendar({ data, reload }) {
                 <div style={{ minWidth: 150 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(date)}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{session.day} · {timeLabel(session)}</div>
+                  <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session.kind === 'session' ? '#DA1B33' : '#34D399', border: `1px solid ${session.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{session.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
                 </div>
                 <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {booked ? (
                     <>
                       <Avatar d={slot.dj || { dj_name: '?' }} size={34} />
                       <div style={{ fontSize: 13, color: '#FFFFFF' }}>
-                        <strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}
-                        <span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status}</span>
+                        <div>
+                          <strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}
+                          <span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status}</span>
+                        </div>
+                        {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
                       </div>
                     </>
                   ) : (

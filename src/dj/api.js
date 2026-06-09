@@ -22,13 +22,25 @@ export async function djAdmin(action, payload = {}) {
 
 export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURIComponent(token)}`
 
-// The 3 weekly sessions (JS getDay: Thu=4, Fri=5, Sat=6).
+// Weekly sessions (JS getDay: Mon=1 … Sat=6).
+//   Thu/Fri/Sat = paid DJ sessions (genre picker, adjacent-day rule, 1 per month).
+//   Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
 export const SESSIONS = {
-  4: { day: 'Thursday', start: '19:00', end: '23:00' },
-  5: { day: 'Friday', start: '20:00', end: '00:00' },
-  6: { day: 'Saturday', start: '20:00', end: '00:00' },
+  1: { day: 'Monday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  2: { day: 'Tuesday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  3: { day: 'Wednesday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  4: { day: 'Thursday', start: '19:00', end: '23:00', kind: 'session' },
+  5: { day: 'Friday', start: '20:00', end: '00:00', kind: 'session' },
+  6: { day: 'Saturday', start: '20:00', end: '00:00', kind: 'session' },
 }
 export const sessionFor = (dateStr) => SESSIONS[new Date(dateStr + 'T00:00:00').getDay()]
+export const kindFor = (dateStr) => sessionFor(dateStr)?.kind || 'session'
+export const SET_TYPES = [
+  { value: 'dj_set', label: 'Full DJ set' },
+  { value: 'records', label: 'Record selections' },
+  { value: 'listening', label: 'Album listening party' },
+]
+export const setTypeLabel = (v) => (SET_TYPES.find(s => s.value === v) || {}).label || v
 export const fmtDate = (dateStr) => new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 export const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}` : ''
 
