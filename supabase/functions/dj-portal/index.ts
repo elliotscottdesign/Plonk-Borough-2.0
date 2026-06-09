@@ -24,7 +24,9 @@ const shift = (d: string, n: number) => { const dt = new Date(d + "T00:00:00Z");
 const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 const isSession = (d: string) => [4, 5, 6].includes(dow(d));
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
-const isComplete = (d: any) => !!(d && d.dj_name && d.genres && d.instagram && d.image_url);
+const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
+// All fields required except Spotify/YouTube, and at least 5 genres.
+const isComplete = (d: any) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url && d.soundcloud);
 const arr = (x: any) => Array.isArray(x) ? x : [];
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
 

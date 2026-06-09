@@ -21,7 +21,9 @@ export function Avatar({ d, size = 46 }) {
   return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 22%)`, color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: '1px solid rgba(255,255,255,0.12)', flexShrink: 0 }}>{initials}</div>
 }
 const ext = (v) => v ? (/^https?:/.test(v) ? v : 'https://' + v) : null
-const complete = (d) => !!(d && d.dj_name && d.genres && d.instagram && d.image_url)
+const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean).length
+// All fields required except Spotify/YouTube, and at least 5 genres.
+const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url && d.soundcloud)
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
 export default function DJRoster({ djs, reload }) {
@@ -47,7 +49,7 @@ export default function DJRoster({ djs, reload }) {
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-            {(djs || []).length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{(djs || []).length - ready} need a photo / details</span>
+            {(djs || []).length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{(djs || []).length - ready} incomplete</span>
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -80,7 +82,7 @@ export default function DJRoster({ djs, reload }) {
                     {d.phone && <span>{d.phone}</span>}
                   </div>
                 </div>
-                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Needs photo'}</span>
+                <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Incomplete'}</span>
               </div>
 
               {isEdit ? (

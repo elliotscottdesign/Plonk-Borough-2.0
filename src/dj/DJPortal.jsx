@@ -88,11 +88,16 @@ export default function DJPortal() {
   const complete = st.complete
   // What's still missing (from the SAVED profile) — drives the status text + the dates gate.
   const sdj = st.dj || form
+  const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean).length
   const need = []
   if (!(sdj.dj_name || '').trim()) need.push('your name')
   if (!sdj.image_url) need.push('a photo')
-  if (!(sdj.genres || '').trim()) need.push('your music')
+  if (genreCount(sdj.genres) < 5) need.push('5+ genres')
   if (!(sdj.instagram || '').trim()) need.push('Instagram')
+  if (!(sdj.format || '').trim()) need.push('format')
+  if (!(sdj.phone || '').trim()) need.push('phone')
+  if (!(sdj.email || '').trim()) need.push('email')
+  if (!(sdj.soundcloud || '').trim()) need.push('SoundCloud')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
   const monthKey = (d) => d.slice(0, 7)
@@ -123,11 +128,13 @@ export default function DJPortal() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             <div><div style={label}>DJ / artist name</div><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={inp} /></div>
             <div>
-              <div style={label}>Music you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— tap your sounds</span></div>
+              <div style={label}>Music you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— pick at least 5</span></div>
               <div style={{ marginTop: 8 }}>
                 <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
               </div>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>You can change the music you play any time — just update this and Save.</div>
+              <div style={{ fontSize: 11, marginTop: 6, color: genreCount(form.genres) >= 5 ? '#34D399' : '#FCD34D' }}>
+                {genreCount(form.genres)}/5 minimum{genreCount(form.genres) >= 5 ? ' ✓' : ''} <span style={{ color: 'rgba(255,255,255,0.4)' }}>· you can change these any time</span>
+              </div>
             </div>
             <div><div style={label}>Instagram</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
@@ -137,8 +144,8 @@ export default function DJPortal() {
             <div><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
             <div><div style={label}>SoundCloud</div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}><div style={label}>Spotify</div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
-              <div style={{ flex: 1 }}><div style={label}>YouTube</div><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} placeholder="youtube.com/@you" style={inp} /></div>
+              <div style={{ flex: 1 }}><div style={label}>Spotify <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} placeholder="open.spotify.com/…" style={inp} /></div>
+              <div style={{ flex: 1 }}><div style={label}>YouTube <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} placeholder="youtube.com/@you" style={inp} /></div>
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px' }}>
               ℹ️ Your profile will go live on the No Dice site so guests can discover you — we'll add your RA / DICE links and more later. Keep it sharp; you can update it any time.
