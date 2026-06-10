@@ -19,6 +19,8 @@ create table if not exists public.bar_helpers (
   assigned     jsonb default '[]'::jsonb,    -- task ids assigned to this helper
   assigned_at  timestamptz,
   status       text default 'pending',       -- pending | confirmed (confirmed = emailed their jobs)
+  token        text default encode(gen_random_bytes(16),'hex'),  -- private link key for their job list
+  task_states  jsonb not null default '{}'::jsonb,  -- { taskId: 'done' | 'completed' } (absent = in progress)
   created_at   timestamptz default now()
 );
 alter table public.bar_helpers enable row level security;
@@ -28,6 +30,11 @@ alter table public.bar_helpers add column if not exists assigned jsonb default '
 alter table public.bar_helpers add column if not exists assigned_at timestamptz;
 alter table public.bar_helpers add column if not exists shifts jsonb default '[]'::jsonb;
 alter table public.bar_helpers add column if not exists status text default 'pending';
+alter table public.bar_helpers add column if not exists token text;
+update public.bar_helpers set token = encode(gen_random_bytes(16),'hex') where token is null;
+alter table public.bar_helpers alter column token set default encode(gen_random_bytes(16),'hex');
+create unique index if not exists bar_helpers_token_idx on public.bar_helpers(token);
+alter table public.bar_helpers add column if not exists task_states jsonb not null default '{}'::jsonb;
 
 -- The table is read/written ONLY by the help-out edge function (service role),
 -- so no anon policies are needed — the public key can't read or write it.

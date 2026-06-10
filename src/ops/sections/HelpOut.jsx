@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helperLink, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -86,10 +86,11 @@ export default function HelpOut() {
 
       {data && !loading && (
         <>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px,1fr))', gap: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 12 }}>
             <Tile label="Sign-ups" value={stats.helpers ?? helpers.length} sub={`${stats.confirmed ?? 0} confirmed`} accent="var(--cream)" />
             <Tile label="Jobs assigned" value={`${stats.assigned ?? 0} / ${stats.tasks ?? tasks.length}`} sub={`${(stats.tasks ?? tasks.length) - (stats.assigned ?? 0)} still open`} accent={GOLD} />
-            <Tile label="Before-open jobs" value={`${stats.p1Assigned ?? 0} / ${stats.p1 ?? 0}`} sub="covered so far" accent={(stats.p1Assigned ?? 0) >= (stats.p1 ?? 0) ? '#34D399' : '#F87171'} />
+            <Tile label="To sign off" value={stats.awaiting ?? 0} sub="helpers marked done" accent={(stats.awaiting ?? 0) > 0 ? '#FCD34D' : 'var(--cream-dim)'} />
+            <Tile label="Completed" value={stats.completed ?? 0} sub="signed off" accent="#34D399" />
             <Tile label="Awaiting confirm" value={(stats.helpers ?? helpers.length) - (stats.confirmed ?? 0)} sub="to review & email" accent="#FCD34D" />
           </div>
 
@@ -118,10 +119,11 @@ export default function HelpOut() {
                           <div className="serif" style={{ fontSize: 18, color: 'var(--cream)' }}>{h.name}</div>
                           <span style={{ fontSize: 9.5, letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, padding: '2px 8px', borderRadius: 999, color: 'var(--ink)', background: confirmed ? '#34D399' : '#FCD34D' }}>{confirmed ? 'Confirmed' : 'Pending'}</span>
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>
+                        <div style={{ fontSize: 12, color: 'var(--cream-dim)', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                           {h.phone && <a href={`tel:${h.phone}`} style={{ color: GOLD, textDecoration: 'none' }}>{h.phone}</a>}
-                          {h.phone && h.email && ' · '}
+                          {h.phone && h.email && <span>·</span>}
                           {h.email && <a href={`mailto:${h.email}`} style={{ color: GOLD, textDecoration: 'none' }}>{h.email}</a>}
+                          {h.token && <button onClick={() => navigator.clipboard?.writeText(helperLink(h.token))} title="Copy this helper's private job-list link" style={btn({ padding: '2px 8px', fontSize: 10.5 })}>copy job link</button>}
                         </div>
                       </div>
 
@@ -144,13 +146,25 @@ export default function HelpOut() {
                         <div style={{ fontSize: 10.5, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--cream-dim)', marginBottom: 6 }}>
                           Jobs ({(h.assignedTasks || []).length}{(h.assignedTasks || []).length ? ` · ~${(h.assignedTasks.length * 0.5).toFixed(1)}h` : ''})
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-                          {(h.assignedTasks || []).map(t => (
-                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-                              <span style={{ fontSize: 12.5, color: 'var(--cream)' }}>{t.title} <span style={{ color: 'var(--cream-dim)' }}>· {t.area}</span></span>
-                              <button onClick={() => act(`rel-${t.id}`, () => helpRelease(t.id))} disabled={busy === `rel-${t.id}`} style={{ ...btn({ padding: '2px 8px', fontSize: 11, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' }) }}>{busy === `rel-${t.id}` ? '…' : 'remove'}</button>
-                            </div>
-                          ))}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {(h.assignedTasks || []).map(t => {
+                            const st = t.state || 'todo'
+                            return (
+                              <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                                <span style={{ fontSize: 12.5, color: 'var(--cream)', textDecoration: st === 'completed' ? 'line-through' : 'none', opacity: st === 'completed' ? 0.65 : 1 }}>
+                                  {st === 'done' && <span style={{ color: '#FCD34D' }}>● </span>}
+                                  {st === 'completed' && <span style={{ color: '#34D399' }}>✓ </span>}
+                                  {t.title} <span style={{ color: 'var(--cream-dim)' }}>· {t.area}</span>
+                                </span>
+                                <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                  {st === 'done' && <button onClick={() => act(`ap-${t.id}`, () => helpApprove(h.id, t.id))} disabled={busy === `ap-${t.id}`} style={btn({ padding: '2px 9px', fontSize: 11, color: '#34D399', borderColor: 'rgba(52,211,153,0.4)', fontWeight: 700 })}>{busy === `ap-${t.id}` ? '…' : 'Sign off ✓'}</button>}
+                                  {st === 'completed'
+                                    ? <button onClick={() => act(`ro-${t.id}`, () => helpReopen(h.id, t.id))} disabled={busy === `ro-${t.id}`} style={btn({ padding: '2px 8px', fontSize: 11 })}>{busy === `ro-${t.id}` ? '…' : 'reopen'}</button>
+                                    : <button onClick={() => act(`rel-${t.id}`, () => helpRelease(t.id))} disabled={busy === `rel-${t.id}`} style={btn({ padding: '2px 8px', fontSize: 11, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `rel-${t.id}` ? '…' : 'remove'}</button>}
+                                </span>
+                              </div>
+                            )
+                          })}
                           {!(h.assignedTasks || []).length && <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>No jobs yet — add some below.</div>}
                         </div>
 
@@ -226,7 +240,9 @@ export default function HelpOut() {
                               <div style={{ flexShrink: 0, textAlign: 'right' }}>
                                 {t.assignedTo ? (
                                   <>
-                                    <div style={{ fontSize: 12, color: t.assignedTo.status === 'confirmed' ? '#34D399' : '#FCD34D', fontWeight: 600 }}>{t.assignedTo.name}</div>
+                                    <div style={{ fontSize: 12, fontWeight: 600, color: t.assignedTo.state === 'completed' ? '#34D399' : t.assignedTo.state === 'done' ? '#FCD34D' : 'var(--cream)' }}>
+                                      {t.assignedTo.state === 'completed' ? '✓ ' : t.assignedTo.state === 'done' ? '● ' : ''}{t.assignedTo.name}
+                                    </div>
                                     <button onClick={() => act(`rel-${t.id}`, () => helpRelease(t.id))} disabled={busy === `rel-${t.id}`} style={{ fontSize: 10, color: 'var(--cream-dim)', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline', padding: 0, marginTop: 2 }}>{busy === `rel-${t.id}` ? '…' : 'release'}</button>
                                   </>
                                 ) : (

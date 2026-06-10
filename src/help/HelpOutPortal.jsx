@@ -5,7 +5,7 @@ import {
   timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel, slotsForShifts,
   HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT, capFor,
 } from './data.js'
-import { submitHelper, helpLink, helpAvailability } from './api.js'
+import { submitHelper, helpLink, helpAvailability, helperLink, helperLoad, helperMarkDone, helperUndone, helperHandBack } from './api.js'
 
 // ─── No Dice — "Help us open" volunteer portal (/helpout) ──────────────────
 // Public, no login. A friend picks what they're up for, then for each date they
@@ -222,6 +222,12 @@ function Done({ result, shifts, onReset }) {
         </div>
       )}
 
+      {result?.token && (
+        <a href={helperLink(result.token)} style={{ display: 'block', textAlign: 'center', marginBottom: 18, background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 10, padding: '12px 14px', textDecoration: 'none', color: '#fff', fontSize: 13.5 }}>
+          📌 <strong>Save your job-list link</strong> — open it any time to tick jobs off as you finish them.
+        </a>
+      )}
+
       {tasks.length > 0 && (
         <>
           <div style={{ fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 8 }}>Pencilled in for you ({tasks.length}) — to be confirmed</div>
@@ -376,8 +382,98 @@ function SignUp() {
   )
 }
 
+// ─── Helper's private job list (/helpout?t=token) ─────────────────────────────
+const STATE_UI = {
+  todo:      { label: 'To do',          tone: 'rgba(255,255,255,0.5)' },
+  done:      { label: 'Done — checking', tone: '#FCD34D' },
+  completed: { label: 'Signed off ✓',    tone: '#34D399' },
+}
+function HelperTasks({ token }) {
+  const [data, setData] = useState(null)
+  const [err, setErr] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState('')
+
+  async function load() {
+    setLoading(true); setErr('')
+    try { setData(await helperLoad(token)) }
+    catch (e) { setErr(e.message || 'Could not load your list') }
+    finally { setLoading(false) }
+  }
+  useEffect(() => { load() }, [token])
+
+  async function act(key, fn) {
+    setBusy(key)
+    try { await fn(); await load() }
+    catch (e) { setErr(e.message) }
+    finally { setBusy('') }
+  }
+
+  if (loading) return <div style={{ color: DIM, fontSize: 14, padding: '8px 0' }}>Loading your jobs…</div>
+  if (err && !data) return <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 10, padding: '14px 16px', color: '#fff', fontSize: 14 }}>{err}</div>
+
+  const tasks = data?.tasks || []
+  const order = { todo: 0, done: 1, completed: 2 }
+  const sorted = [...tasks].sort((a, b) => (order[a.state] - order[b.state]))
+  const doneCount = tasks.filter(t => t.state !== 'todo').length
+
+  return (
+    <div>
+      <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, margin: '0 0 6px' }}>
+        Hi <strong style={{ color: '#fff' }}>{data.name}</strong> — here’s your job list. Tap <strong style={{ color: '#fff' }}>Mark done</strong> as you finish each one; Elliot signs them off.
+      </p>
+      {(data.shifts || []).length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0 6px' }}>
+          {data.shifts.map(s => (
+            <span key={s.date} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 999, padding: '6px 12px', fontSize: 12.5, color: '#fff' }}>{dayLabel(s.date)} · <span style={{ color: DIM }}>{shiftLabel(s)}</span></span>
+          ))}
+        </div>
+      )}
+      <div style={{ fontSize: 12.5, color: DIM, margin: '8px 0 18px' }}>{doneCount} of {tasks.length} done{data.status !== 'confirmed' ? ' · Elliot is still confirming your shift' : ''}</div>
+
+      {err && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: 13, marginBottom: 12 }}>{err}</div>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {sorted.map(t => {
+          const ui = STATE_UI[t.state] || STATE_UI.todo
+          const isCompleted = t.state === 'completed'
+          const isDone = t.state === 'done'
+          return (
+            <div key={t.id} style={{ background: CARD, border: `1px solid ${isCompleted ? 'rgba(52,211,153,0.4)' : isDone ? 'rgba(252,211,36,0.4)' : LINE}`, borderRadius: 12, padding: '14px 16px', opacity: isCompleted ? 0.7 : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 15, color: '#fff', fontWeight: 600, lineHeight: 1.35, textDecoration: isCompleted ? 'line-through' : 'none' }}>{t.title}</div>
+                  {t.detail && <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 4 }}>{t.detail}</div>}
+                  <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6 }}>{t.area} · ~30 min</div>
+                </div>
+                <span style={{ flexShrink: 0, fontSize: 10.5, fontWeight: 700, color: ui.tone, whiteSpace: 'nowrap' }}>{ui.label}</span>
+              </div>
+              {!isCompleted && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+                  {isDone ? (
+                    <button onClick={() => act(`u-${t.id}`, () => helperUndone(token, t.id))} disabled={busy === `u-${t.id}`} style={{ cursor: 'pointer', borderRadius: 8, padding: '9px 16px', fontSize: 13, fontWeight: 600, background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff' }}>{busy === `u-${t.id}` ? '…' : '↩ Not done yet'}</button>
+                  ) : (
+                    <button onClick={() => act(`d-${t.id}`, () => helperMarkDone(token, t.id))} disabled={busy === `d-${t.id}`} style={{ cursor: 'pointer', borderRadius: 8, padding: '9px 18px', fontSize: 13.5, fontWeight: 700, background: RED, border: `1px solid ${RED}`, color: '#fff' }}>{busy === `d-${t.id}` ? '…' : '✓ Mark done'}</button>
+                  )}
+                  <button onClick={() => { if (window.confirm('Hand this job back so someone else can pick it up?')) act(`h-${t.id}`, () => helperHandBack(token, t.id)) }} disabled={busy === `h-${t.id}`} style={{ cursor: 'pointer', borderRadius: 8, padding: '9px 14px', fontSize: 12.5, background: 'transparent', border: 'none', color: DIM, textDecoration: 'underline' }}>{busy === `h-${t.id}` ? '…' : 'Can’t do this one'}</button>
+                </div>
+              )}
+            </div>
+          )
+        })}
+        {!tasks.length && <div style={{ ...{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12 }, padding: 18, fontSize: 14, color: DIM }}>No jobs on your list yet — Elliot will add some shortly.</div>}
+      </div>
+
+      <p style={{ fontSize: 12.5, color: DIM, lineHeight: 1.6, marginTop: 22, textAlign: 'center' }}>
+        Bookmark this page — it’s your personal list. Thank you for getting us open. 🙏
+      </p>
+    </div>
+  )
+}
+
 // ─── Page shell ──────────────────────────────────────────────────────────────
 export default function HelpOutPortal() {
+  const token = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('t') : null
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -399,20 +495,22 @@ export default function HelpOutPortal() {
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 64px', boxSizing: 'border-box' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(220px, 60vw)', height: 'auto', display: 'block', marginBottom: 16 }} />
-          <button onClick={share} title="Share this link" style={{
-            cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`,
-            borderRadius: 8, padding: '6px 12px', fontSize: 12, color: DIM, whiteSpace: 'nowrap',
-          }}>{copied ? 'Copied ✓' : 'Share ↗'}</button>
+          {!token && (
+            <button onClick={share} title="Share this link" style={{
+              cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`,
+              borderRadius: 8, padding: '6px 12px', fontSize: 12, color: DIM, whiteSpace: 'nowrap',
+            }}>{copied ? 'Copied ✓' : 'Share ↗'}</button>
+          )}
         </div>
         <div style={{ fontSize: 11, letterSpacing: '0.26em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.55)', marginBottom: 14 }}>Help Out</div>
         <div style={{ fontFamily: "'Bebas Neue', 'Impact', sans-serif", fontSize: 'clamp(1.6rem, 6vw, 2.4rem)', letterSpacing: '0.04em', textTransform: 'uppercase', color: RED, lineHeight: 1, marginBottom: 8 }}>
           Help us open
         </div>
         <div style={{ fontSize: 13, color: DIM, marginBottom: 28 }}>
-          London Fields · open by <strong style={{ color: '#fff' }}>{deadlineLabel}</strong>
+          {token ? 'Your job list' : <>London Fields · open by <strong style={{ color: '#fff' }}>{deadlineLabel}</strong></>}
         </div>
 
-        <SignUp />
+        {token ? <HelperTasks token={token} /> : <SignUp />}
 
         <div style={{ marginTop: 44, paddingTop: 20, borderTop: `1px solid ${LINE}`, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.34)', lineHeight: 1.9 }}>
           No Dice · 407 Mentmore Terrace, London Fields, E8 3PH
