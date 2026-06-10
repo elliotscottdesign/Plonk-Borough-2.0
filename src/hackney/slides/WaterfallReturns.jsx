@@ -112,9 +112,14 @@ export default function WaterfallReturns() {
       <h2 className="serif" style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', color: 'var(--cream)', marginBottom: 8 }}>
         Investor Returns
       </h2>
-      <p style={{ color: 'var(--cream-dim)', marginBottom: 32, fontSize: 15 }}>
-        The company issues <strong style={{ color: 'var(--cream)' }}>100 shares at £1,000 each</strong> (£100k post-money). Dividends are declared by the <strong style={{ color: 'var(--cream)' }}>directors as £X per share</strong> at each review date, based on the trailing 12 months of trading. <strong style={{ color: 'var(--cream)' }}>Year 1</strong>: single declaration at the 12-month mark. <strong style={{ color: 'var(--cream)' }}>Year 2 onwards</strong>: reviewed every 6 months. Every share (A or B) is entitled to the same per-share amount — your dividend = shares held × £X declared. Conditions: director salary first, working-capital reserve at or above £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} floor at the review date. Founder retains a Y3 buyback right (CALL OPTION) at market value × your equity %.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
+      <p style={{ color: 'var(--cream-dim)', marginBottom: 18, fontSize: 15 }}>
+        The company issues <strong style={{ color: 'var(--cream)' }}>100 shares at £1,000 each</strong> (£100k post-money). Dividends are declared by the <strong style={{ color: 'var(--cream)' }}>directors and the A-share holders as £X per share</strong> at each review date, based on the trailing 12 months of trading. <strong style={{ color: 'var(--cream)' }}>Year 1</strong>: single declaration at the 12-month mark. <strong style={{ color: 'var(--cream)' }}>Year 2 onwards</strong>: reviewed every 6 months. Every share (A or B) is entitled to the same per-share amount — your dividend = shares held × £X declared. Conditions: director salary first, working-capital reserve at or above £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} floor at the review date. Founder retains a Y3 buyback right (CALL OPTION) at market value × your equity %.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
+
+      {/* Indicative-only disclaimer banner */}
+      <div style={{ padding: '14px 18px', background: 'rgba(252,211,77,0.06)', border: '1px solid rgba(252,211,77,0.32)', borderLeft: '4px solid #FCD34D', borderRadius: 8, marginBottom: 26, fontSize: 13, color: 'var(--cream)', lineHeight: 1.6 }}>
+        <strong style={{ color: '#FCD34D' }}>Indicative figures only — no return is promised.</strong> All return figures shown on this slide are illustrative, based on the forecast operating profit distributed pro-rata per share. Actual dividends are <strong style={{ color: 'var(--cream)' }}>declared at each review by the directors with the agreement of A-share holders</strong>, based on trailing-12-month trading + working-capital reserve. The <strong style={{ color: 'var(--cream)' }}>target capital return is ~2 years</strong> — this is the trajectory the company is aiming for; it is <strong style={{ color: 'var(--cream)' }}>not guaranteed</strong>, not contractually promised, and may be longer or shorter depending on trading.
+      </div>
 
       {/* Scenario selector */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 36 }}>
@@ -148,15 +153,15 @@ export default function WaterfallReturns() {
         </div>
 
         <HeroStat
-          label="Cash-on-Cash"
-          value={`${(w.coc * 100).toFixed(1)}%`}
-          sub={`Annual entitlement on ${fmt(effective.investment)} invested`}
+          label="Indicative £/share Y1"
+          value={`£${perShareY1.toFixed(2)}`}
+          sub={`Forecast basis · actual declared by directors + A-share holders`}
           gold
         />
         <HeroStat
-          label="Payback Period"
-          value={w.totalInvestor > 0 ? `${(effective.investment / w.totalInvestor).toFixed(2)} years` : 'N/A'}
-          sub="Entitlement basis (cash arrives at month-12 declaration, then every 6 months)"
+          label="Target Capital Return"
+          value="~2 years"
+          sub="Indicative · NOT guaranteed · subject to director-declared dividends"
         />
         <HeroStat
           label={`Founder Position (${founderShares} shares)`}
@@ -614,7 +619,7 @@ function DistributionCalendar({ wagesOverride, investment, investorEq, founderEq
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         <SummaryTile label="Annual operating profit" value={fmt(summary.annualProfit)} sub="Sum of 12 monthly forecasts" />
         <SummaryTile label="Total Y1 dividends" value={fmt(summary.totalDividends)} sub="Paid at end-of-Y1 window (after £30k reserve refill)" />
-        <SummaryTile label={`Investor ${(investorEq*100).toFixed(0)}% share`} value={fmt(summary.totalInvestor)} sub={`${investorAnnualPct.toFixed(1)}% cash-on-cash on ${fmt(investment)} · paid at end-of-Y1 window`} colour="#10B981" />
+        <SummaryTile label={`Investor ${(investorEq*100).toFixed(0)}% share`} value={fmt(summary.totalInvestor)} sub={`Indicative on ${fmt(investment)} · paid at end-of-Y1 window subject to director declaration`} colour="#10B981" />
         <SummaryTile label={`Founder ${(founderEq*100).toFixed(0)}% share`} value={fmt(summary.totalFounder)} sub="Same window · pro-rata to equity" />
       </div>
       </>}

@@ -12,19 +12,17 @@ const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 // ─── InvestorReturnsCard ─────────────────────────────────────────────
 // Per-investor return summary that sits directly below the funding
-// slider. Three primary stats (Ownership · Equity Dividend · Total
-// Year 1), followed by a footer line with CoC + Payback and an
-// expandable explainer for why CoC moves with the slider.
+// slider. Shows: equity stake + INDICATIVE Year-1 dividend (forecast
+// basis only — actual dividends are declared by directors at each
+// review window). Carries an explicit "not promised" disclaimer.
 //
 // ROUND 1 NOTE: every share sold this round is a B (non-voting)
 // share. A shares are not for sale — the founder retains 100% of
-// the A-share class as pre-money holdback (= the 50% retained slice
-// on the cap table). No threshold to graduate to A shares; all
-// investors are B shareholders this round.
-function InvestorReturnsCard({ investment, investorEq, investorReturn, coc, payback, liveProfit }) {
+// the A-share class as pre-money holdback. The founder + A-share
+// holders agree the per-share dividend at each review window;
+// nothing about the indicative return on this card is contractual.
+function InvestorReturnsCard({ investment, investorEq, investorReturn, liveProfit }) {
   const equityPct = (investorEq * 100).toFixed(1)
-  const cocPct = (coc * 100).toFixed(1)
-  const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
   const operatingProfitFmt = fmt(liveProfit || 0)
 
   return (
@@ -52,29 +50,21 @@ function InvestorReturnsCard({ investment, investorEq, investorReturn, coc, payb
       {/* Three primary stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 18 }}>
         <ReturnStat label="Ownership" value={`${equityPct}%`} />
-        <ReturnStat label="Equity Dividend" value={fmt(investorReturn)} />
-        <ReturnStat label="Total Year 1" value={fmt(investorReturn)} gold />
+        <ReturnStat label="Indicative Y1 Dividend" value={fmt(investorReturn)} />
+        <ReturnStat label="Target Capital Return" value="~2 years" gold />
       </div>
 
       {/* Footer line */}
       <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
-        Cash-on-Cash: <strong style={{ color: 'var(--cream)' }}>{cocPct}%</strong>
-        {' · '}Payback: <strong style={{ color: 'var(--cream)' }}>{paybackText} years</strong>
-        {' · '}Share class: <strong style={{ color: 'var(--cream)' }}>B (non-voting)</strong>
+        Share class: <strong style={{ color: 'var(--cream)' }}>B (non-voting)</strong>
+        {' · '}Equity: <strong style={{ color: 'var(--cream)' }}>{equityPct}%</strong>
+        {' · '}Cadence: <strong style={{ color: 'var(--cream)' }}>Y1 @ mo 12, Y2+ semi-annual</strong>
       </div>
 
-      {/* Why does CoC change? — investor-facing explainer */}
-      <details style={{ marginTop: 14, fontSize: 11, color: 'var(--cream-dim)' }}>
-        <summary style={{ cursor: 'pointer', color: 'var(--gold)', fontWeight: 600, letterSpacing: '0.04em' }}>
-          ⓘ Why does CoC change as I move the slider?
-        </summary>
-        <div style={{ marginTop: 8, padding: '12px 14px', background: 'rgba(201,168,76,0.05)', border: '1px solid rgba(201,168,76,0.18)', borderRadius: 6, lineHeight: 1.6 }}>
-          Year-1 dividend = your equity share × <strong style={{ color: 'var(--cream)' }}>operating profit</strong> ({operatingProfitFmt} base case),
-          NOT × your cheque. Because the dividend pool is fixed, dropping the raise size lifts everyone's CoC in
-          lockstep, and raising it dilutes everyone in lockstep. Your equity stake stays at {equityPct}% throughout
-          — the slider above sizes the total raise, not your personal allocation.
-        </div>
-      </details>
+      {/* Indicative-only disclaimer */}
+      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,165,0,0.06)', border: '1px solid rgba(255,165,0,0.25)', borderRadius: 6, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
+        <strong style={{ color: '#FCD34D' }}>Indicative only — not a promised return.</strong> The dividend figure above is illustrative based on the forecast Y1 operating profit ({operatingProfitFmt} base case) distributed pro-rata to each share. Actual dividends are <strong style={{ color: 'var(--cream)' }}>declared by the directors and agreed with the A-share holders</strong> at each review window, based on trailing-12-month trading + working-capital reserve. The "~2 year capital return target" is the trajectory we are aiming for; it is <strong style={{ color: 'var(--cream)' }}>not guaranteed</strong>, not contractually promised, and may be longer or shorter depending on trading.
+      </div>
     </div>
   )
 }
@@ -101,25 +91,20 @@ export default function Cover() {
   const deal          = { ...DEAL, ...dealLive }
 
   // Operating profit cascades from the locked wage calculator (if locked)
-  // through computeForecastProfit. Y1 investor return = the investor's
-  // share count × the per-share dividend (operating profit / 100 shares,
-  // indicative). Directors retain discretion to declare less in practice.
+  // through computeForecastProfit. Indicative Y1 dividend = the investor's
+  // share count × (operating profit / 100). Actual dividend is at director
+  // discretion — see the disclaimer in InvestorReturnsCard.
   const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
   const liveProfit     = computeForecastProfit(wagesOverride)
   const investorReturn = computeInvestorDividend(liveProfit, fundingAmount)
-  const coc            = fundingAmount > 0 ? investorReturn / fundingAmount : 0
-  const payback        = investorReturn > 0 ? fundingAmount / investorReturn : Infinity
-
-  const cocPct  = (coc * 100).toFixed(1)
-  const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
 
   const stats = [
-    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 A-class voting shares' },
-    { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% indicative · declared by directors at the 12-month review` },
-    { label: 'Distribution Model',     value: '£ per share',                        sub: 'Directors declare £X per share · Y1 at month 12 · Y2+ every 6 months' },
-    { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · bar-only · May 2026–Apr 2027' },
-    { label: 'Valuation Entry',        value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
+    { label: 'Seeking',                  value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 A-class voting shares' },
+    { label: '2025 Verified Revenue',    value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
+    { label: 'Indicative Y1 Dividend',   value: fmt(investorReturn),                  sub: 'Forecast basis · actual declared by directors + A-share holders at 12-month review' },
+    { label: 'Distribution Model',       value: '£ per share',                        sub: 'Directors declare £X per share · Y1 at month 12 · Y2+ every 6 months' },
+    { label: 'Forecast Revenue',         value: fmt(FORECAST.revenue),                sub: 'Base case +15% · bar-only · May 2026–Apr 2027' },
+    { label: 'Valuation Entry',          value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]
 
   return (
@@ -158,8 +143,6 @@ export default function Cover() {
         investment={fundingAmount}
         investorEq={deal.investorEq}
         investorReturn={investorReturn}
-        coc={coc}
-        payback={payback}
         liveProfit={liveProfit}
       />
 

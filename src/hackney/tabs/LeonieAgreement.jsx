@@ -149,7 +149,7 @@ export default function LeonieAgreement() {
         <OrderedList items={[
           'Director\'s salary (set in the FY budget; £15,885 inc employer NI for FY 2026/27) — already deducted before "operating profit".',
           'Working-capital reserve top-up — reserve must be at or above the £30,000 floor at the review date.',
-          'Directors declare a £X per-share dividend based on the trailing 12 months of trading. The declaration is announced shortly before the review date.',
+          'Directors, with the agreement of the A-share holders, declare a £X per-share dividend based on the trailing 12 months of trading. The declaration is announced shortly before the review date. No specific £X is promised in this Agreement — the figure is set at each review based on actual trading and outlook.',
           'Every share (76 Founder A and 24 external B alike) is paid the same £X per share. Investor\'s payout = shares held × £X.',
         ]} />
       </Section>
@@ -220,7 +220,7 @@ export default function LeonieAgreement() {
       {/* 8. Returns table — Leonie specific */}
       <Section number="8" title="Illustrative returns · £5,000 = 5 shares">
         <P>
-          The table below shows indicative per-share dividends if the directors distribute substantially all of distributable profit each year. Actual dividends remain at director discretion based on trading and outlook at each review date.
+          The table below shows <strong style={{ color:CREAM }}>indicative</strong> per-share dividends if the directors distribute substantially all of distributable profit each year. <strong style={{ color:GOLD }}>Actual dividends are declared by the directors with the agreement of the A-share holders at each review date</strong>, based on trailing-12-month trading + working-capital reserve. The <strong style={{ color:CREAM }}>~2-year capital-return trajectory</strong> shown by these figures is a target — it is <strong style={{ color:CREAM }}>not promised, not contractual</strong>, and may be longer or shorter depending on trading and the directors' decisions.
         </P>
         <ReturnsTable />
         <ReturnsSummary />

@@ -122,14 +122,14 @@ export default function InvestmentSummary() {
           ['Forecast Op Profit',   fmt(r.opProfit)],
           ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
-        <Section title="💰 Investor Returns" items={[
-          ['Distribution Model',         'Per-share dividend (directors declare)', true],
-          ['Shares Issued',              `${DEAL.totalShares || 100} × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} = ${fmt((DEAL.totalShares || 100) * (DEAL.pricePerShare || 1000))}`, true],
-          ['Your Shares',                `${Math.round((effective.investment || 0) / (DEAL.pricePerShare || 1000))} shares`, true],
-          ['Indicative Y1 £/share',      `£${((r.opProfit || 0) / (DEAL.totalShares || 100)).toFixed(2)}`, true],
-          [`Total Year 1 entitlement`,   fmt(r.total), true],
-          ['Cash-on-Cash',               `${(r.coc*100).toFixed(1)}%`, true],
-          ['Payback Period',             paybackVal],
+        <Section title="💰 Investor Returns (indicative)" items={[
+          ['Distribution Model',           'Per-share dividend (directors declare)', true],
+          ['Shares Issued',                `${DEAL.totalShares || 100} × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} = ${fmt((DEAL.totalShares || 100) * (DEAL.pricePerShare || 1000))}`, true],
+          ['Your Shares',                  `${Math.round((effective.investment || 0) / (DEAL.pricePerShare || 1000))} shares`, true],
+          ['Indicative Y1 £/share',        `£${((r.opProfit || 0) / (DEAL.totalShares || 100)).toFixed(2)}`, true],
+          ['Indicative Y1 Dividend',       fmt(r.total), true],
+          ['Target Capital Return',        '~2 years (indicative, not promised)', true],
+          ['Set By',                       'Directors + A-share holders at each review', true],
         ]} />
       </div>
 
@@ -139,7 +139,7 @@ export default function InvestmentSummary() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36 }}>
         {[
-          `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
+          `${fmt(r.total)} indicative Year 1 dividend on ${fmt(effective.investment)} invested · target capital return ~2 years (indicative, subject to director declaration)`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
           `Per-share dividends declared by directors (${DEAL.totalShares || 100} shares × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} each) · Y1 review at month 12, Y2+ every 6 months · every share gets the same £X`,
         ].map((text, i) => (
