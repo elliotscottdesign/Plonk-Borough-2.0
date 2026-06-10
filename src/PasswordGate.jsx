@@ -2,8 +2,7 @@ import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
 
 // ─── Access codes ──────────────────────────────────────────────────────
-// Four live codes (cleaned up June 2026 — old codes JOHN1 / LEONIE / BRAZIL /
-// ALEX1 retired). Each grants a role with these orthogonal flags:
+// Live codes. Each grants a role with these orthogonal flags:
 //   - plonk:     Plonk top-tab on the Borough deck (PRIVATE — founder only)
 //   - founder:   full edit access (drives canEdit on every slider/input)
 //   - hackney:   view the /hackney (London Fields) investor deck
@@ -15,8 +14,13 @@ import { useTranslation } from 'react-i18next'
 //
 //   888999   — founder: opens EVERYTHING.
 //   NDTEAM   — team staff: Operations + Marketing only (no investor decks).
-//   NODICE88 — Hackney investors: the Hackney deck ONLY.
+//   NODICE88 — Hackney investors: the Hackney deck ONLY (generic view).
 //   NODICE99 — Borough investors: the Borough deck ONLY.
+//   LEONIE   — Leonie Sands (Round 1 prospective): Hackney deck + her
+//              own bespoke "Your Agreement" tab (role:'leonie' gates the
+//              tab in src/hackney/HackneyApp.jsx). Restored June 2026
+//              after a code cleanup accidentally revoked it before her
+//              draft review.
 //
 // Retiring a code does NOT delete any saved notes/locks/drags — those persist
 // in localStorage and on the lock-sync server keyed by the code STRING (see
@@ -28,6 +32,7 @@ const ACCESS_CODES = {
   'NDTEAM':   { plonk: false, founder: false, hackney: false, borough: false, ops: true,  marketing: true,  role: 'team'             },
   'NODICE88': { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'hackney-investor' },
   'NODICE99': { plonk: false, founder: false, hackney: false, borough: true,  ops: false, marketing: false, role: 'borough-investor' },
+  'LEONIE':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'leonie'           },
 }
 
 export default function PasswordGate({ onUnlock }) {
@@ -50,7 +55,7 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (NDTEAM, NODICE88, NODICE99) accept any case for friendliness.
+    // codes (NDTEAM, NODICE88, NODICE99, LEONIE) accept any case for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
