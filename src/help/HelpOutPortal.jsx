@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  CATEGORIES, CATEGORY_LABEL, DEADLINE,
-  helpDays, dayWeekday, dayNum, dayLabel,
+  CATEGORIES, CATEGORY_LABEL, DEADLINE, HELP_RANGE_END,
+  helpStartISO, dayLabel, iso,
   timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel, slotsForShifts,
   HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT, capFor,
 } from './data.js'
@@ -137,6 +137,59 @@ function ShiftModal({ date, value, claims, cap, onSave, onRemove, onClose }) {
   )
 }
 
+// ─── Month calendar — pick any day from now to end of July ────────────────────
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const DOW_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+function MonthPicker({ shifts, onPick, startISO, endISO }) {
+  const start = new Date(startISO + 'T00:00:00')
+  const end = new Date(endISO + 'T00:00:00')
+  const [vm, setVm] = useState(() => new Date(start.getFullYear(), start.getMonth(), 1))
+  const y = vm.getFullYear(), m = vm.getMonth()
+  const firstDow = (new Date(y, m, 1).getDay() + 6) % 7
+  const daysInMonth = new Date(y, m + 1, 0).getDate()
+  const cells = [...Array(firstDow).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+  while (cells.length % 7) cells.push(null)
+  const monthStart = new Date(y, m, 1)
+  const canPrev = monthStart > new Date(start.getFullYear(), start.getMonth(), 1)
+  const canNext = monthStart < new Date(end.getFullYear(), end.getMonth(), 1)
+  const navBtn = (on) => ({ background: 'transparent', border: 'none', color: on ? RED : 'rgba(255,255,255,0.18)', fontSize: 18, cursor: on ? 'pointer' : 'default', padding: '2px 12px' })
+
+  return (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+        <button type="button" onClick={() => canPrev && setVm(new Date(y, m - 1, 1))} disabled={!canPrev} style={navBtn(canPrev)}>◀</button>
+        <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>{MONTH_NAMES[m]} {y}</div>
+        <button type="button" onClick={() => canNext && setVm(new Date(y, m + 1, 1))} disabled={!canNext} style={navBtn(canNext)}>▶</button>
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 5 }}>
+        {DOW_SHORT.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: DIM, fontWeight: 600 }}>{d}</div>)}
+      </div>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+        {cells.map((day, i) => {
+          if (!day) return <div key={i} />
+          const date = new Date(y, m, day)
+          const ds = iso(date)
+          const inRange = date >= start && date <= end
+          const sh = shifts[ds]
+          return (
+            <button type="button" key={i} disabled={!inRange} onClick={() => inRange && onPick(ds)} style={{
+              aspectRatio: '1 / 1', borderRadius: 8, cursor: inRange ? 'pointer' : 'default', padding: 0,
+              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2,
+              background: sh ? RED : (inRange ? 'rgba(255,255,255,0.04)' : 'transparent'),
+              border: `1px solid ${sh ? RED : (inRange ? LINE : 'transparent')}`,
+              color: sh ? '#fff' : (inRange ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.18)'),
+            }}>
+              <span style={{ fontSize: 13, fontWeight: sh ? 700 : 500 }}>{day}</span>
+              {sh && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#fff' }} />}
+            </button>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 // ─── Success screen ───────────────────────────────────────────────────────────
 function Done({ result, shifts, onReset }) {
   const tasks = result?.assigned || []
@@ -203,7 +256,7 @@ function Done({ result, shifts, onReset }) {
 
 // ─── Sign-up form ────────────────────────────────────────────────────────────
 function SignUp() {
-  const days = useMemo(() => helpDays(), [])
+  const startISO = useMemo(() => helpStartISO(), [])
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
@@ -274,24 +327,17 @@ function SignUp() {
         </div>
       </Field>
 
-      <Field label="When can you help?" hint="Tap a day, then set the exact hours you can do. Add as many days as you like.">
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-          {days.map(d => {
-            const s = shifts[d]
-            return (
-              <button type="button" key={d} onClick={() => setModalDate(d)} style={{
-                cursor: 'pointer', borderRadius: 12, padding: s ? '8px 6px' : '8px 0', minWidth: 64,
-                background: s ? RED : 'rgba(255,255,255,0.04)', border: `1px solid ${s ? RED : LINE}`,
-                color: s ? '#fff' : 'rgba(255,255,255,0.82)', transition: 'all 0.15s',
-                display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
-              }}>
-                <span style={{ fontSize: 11, opacity: 0.85, textTransform: 'uppercase', letterSpacing: '0.06em' }}>{dayWeekday(d)}</span>
-                <span style={{ fontSize: 19, fontWeight: 700 }}>{dayNum(d)}</span>
-                {s && <span style={{ fontSize: 10.5, opacity: 0.95, marginTop: 1, whiteSpace: 'nowrap' }}>{shiftLabel(s)}</span>}
+      <Field label="When can you help?" hint="Tap any day from now to the end of July, then set your hours. Help before, during or after we open.">
+        <MonthPicker shifts={shifts} onPick={(ds) => setModalDate(ds)} startISO={startISO} endISO={HELP_RANGE_END} />
+        {shiftArr.length > 0 && (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 12 }}>
+            {shiftArr.map(s => (
+              <button type="button" key={s.date} onClick={() => setModalDate(s.date)} style={{ cursor: 'pointer', borderRadius: 999, padding: '7px 13px', fontSize: 13, background: 'rgba(218,27,51,0.14)', border: `1px solid ${RED}`, color: '#fff' }}>
+                {dayLabel(s.date)} · {shiftLabel(s)} ✎
               </button>
-            )
-          })}
-        </div>
+            ))}
+          </div>
+        )}
       </Field>
 
       <Field label="Anything else? (optional)">

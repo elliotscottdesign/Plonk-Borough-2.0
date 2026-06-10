@@ -1,9 +1,14 @@
 // No Dice — "Help us open" portal config (categories, time-blocks, dates).
 // Shared by the sign-up form AND the jobs board so the two never drift.
 
-// The deadline to have the bar open by. Every day from today up to and
-// including this date is offered as a help day. Bump this if it moves.
+// The target to have the bar OPEN by (shown in the hero / used for the
+// "before we open" framing). Bump this if it moves.
 export const DEADLINE = '2026-06-19'
+
+// Helpers can book any day from today up to and including this date — an open
+// calendar through to the end of July, so people can help before, during and
+// after we open.
+export const HELP_RANGE_END = '2026-07-31'
 
 // ─── Skill categories ────────────────────────────────────────────────────
 // What a friend can tick "I'm up for…". The same `key`s tag every job on the
@@ -120,16 +125,17 @@ export const PRIORITY = {
 const pad = (n) => String(n).padStart(2, '0')
 export const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 
-// Every day from today (local) up to and including DEADLINE. If it's already
-// past the deadline we still show the final day so the page never goes empty.
+// Every day from today (local) up to and including HELP_RANGE_END.
 export function helpDays() {
   const today = new Date(); today.setHours(0, 0, 0, 0)
-  const end = new Date(DEADLINE + 'T00:00:00')
+  const end = new Date(HELP_RANGE_END + 'T00:00:00')
   let start = today > end ? end : today
   const out = []
   for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) out.push(iso(new Date(d)))
   return out
 }
+// First bookable day (today) as an ISO string.
+export const helpStartISO = () => { const d = new Date(); d.setHours(0, 0, 0, 0); return iso(d) }
 
 export const dayLabel = (isoStr) =>
   new Date(isoStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
