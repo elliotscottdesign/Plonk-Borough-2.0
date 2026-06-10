@@ -31,3 +31,14 @@ alter table public.bar_helpers add column if not exists status text default 'pen
 
 -- The table is read/written ONLY by the help-out edge function (service role),
 -- so no anon policies are needed — the public key can't read or write it.
+
+-- Cap config: global "max helpers at once" + per-day overrides (bump busy days
+-- to 3). Single row (id=1). Read/written only by the edge function.
+create table if not exists public.help_settings (
+  id          int primary key default 1,
+  default_cap int not null default 2,
+  day_caps    jsonb not null default '{}'::jsonb,   -- { "2026-06-14": 3 }
+  constraint help_settings_single check (id = 1)
+);
+alter table public.help_settings enable row level security;
+insert into public.help_settings (id) values (1) on conflict (id) do nothing;
