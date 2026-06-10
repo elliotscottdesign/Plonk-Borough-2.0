@@ -22,6 +22,7 @@ export const CATEGORIES = [
   { key: 'gardening',  icon: '🌿', label: 'Gardening & outdoors',  blurb: 'Plants, pruning, park games, garden refresh' },
   { key: 'admin',      icon: '📋', label: 'Admin & online help',   blurb: 'Calls, orders, research, eBay listings' },
   { key: 'marketing',  icon: '📣', label: 'Marketing',             blurb: 'Street, park & social — spreading the word' },
+  { key: 'media',      icon: '🎥', label: 'Ads & media creation',  blurb: 'Filming, photos & content for socials and ads' },
   { key: 'errands',    icon: '🚐', label: 'Errands & collections', blurb: 'Driving, pickups & runs to Borough' },
   { key: 'design',     icon: '✒️', label: 'Design & signage',      blurb: 'Signs, menu boards, posters, CNC artwork' },
 ]

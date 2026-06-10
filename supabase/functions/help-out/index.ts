@@ -179,6 +179,13 @@ const RAW: { title: string; cat: string; area: string; priority: string; detail?
   { title: "Clean the golf balls", cat: "cleaning", area: "Golf course", priority: "p3" },
   { title: "Clean the golf clubs", cat: "cleaning", area: "Golf course", priority: "p3" },
   { title: "Get scorecards & pencils ready", cat: "tidying", area: "Golf course", priority: "p3" },
+
+  // ── Ads & media creation ──────────────────────────────────────────────────
+  { title: "Shoot a reopening promo reel for Instagram", cat: "media", area: "Inside", priority: "p2" },
+  { title: "Create content for the launch ads (drinks, games, the space)", cat: "media", area: "Inside", priority: "p2" },
+  { title: "Photograph the bar, garden & games for the website & listings", cat: "media", area: "Inside", priority: "p3" },
+  { title: "Film & photo the works for socials (the reopening story)", cat: "media", area: "Inside", priority: "p3" },
+  { title: "Edit the promo video & reels", cat: "media", area: "Online", priority: "p3" },
 ];
 
 const slug = (s: string) =>
@@ -196,7 +203,7 @@ const CAT_LABEL: Record<string, string> = {
   tidying: "Venue tidying", carpentry: "Carpentry & joinery", handyman: "Handyman / general",
   painting: "Painting & finishing", electrics: "Electrics & wiring", plumbing: "Plumbing",
   tech: "Tech, AV & sound", gardening: "Gardening & outdoors", admin: "Admin & online help",
-  marketing: "Marketing", errands: "Errands & collections", design: "Design & signage",
+  marketing: "Marketing", media: "Ads & media creation", errands: "Errands & collections", design: "Design & signage",
 };
 
 const fmtDay = (d: string) =>
