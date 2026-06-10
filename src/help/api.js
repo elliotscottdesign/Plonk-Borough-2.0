@@ -37,3 +37,7 @@ export const helpAssign = (helperId, taskId) => call({ action: 'assign', secret:
 
 // Admin — confirm a helper's jobs and email them the final list.
 export const helpConfirm = (helperId) => call({ action: 'confirm', secret: SEND_SECRET, helperId })
+
+// Admin — set the "max at once" cap. Pass date=null for the global default,
+// or a 'YYYY-MM-DD' to override one busy day.
+export const helpSetCap = (date, cap) => call({ action: 'setcap', secret: SEND_SECRET, date: date || null, cap })

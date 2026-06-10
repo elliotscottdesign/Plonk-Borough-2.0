@@ -77,8 +77,11 @@ export function slotsForShifts(shifts) {
 }
 
 // ─── Concurrency cap — no more than this many helpers at once ────────────────
-// Keeps it manageable for Elliot. SAME value lives in the help-out function.
+// Default value; the admin can change the global default or bump a busy day to
+// 3. SAME default lives in the help-out function.
 export const MAX_CONCURRENT = 2
+// Resolve the cap for a date from a config (per-day override else default).
+export const capFor = (date, defaultCap = MAX_CONCURRENT, dayCaps = {}) => (dayCaps || {})[date] ?? defaultCap
 // All helpers (by hid) covering each 30-min slot, for ONE date's shifts.
 // shiftsOnDate = [{ start:'HH:MM', end:'HH:MM', hid }]
 function slotPeople(shiftsOnDate) {

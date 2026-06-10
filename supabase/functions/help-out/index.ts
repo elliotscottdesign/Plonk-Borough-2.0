@@ -153,6 +153,32 @@ const RAW: { title: string; cat: string; area: string; priority: string; detail?
   { title: "Clean underneath the food trailer", cat: "cleaning", area: "Trailer", priority: "p3" },
   { title: "Pressure-wash the metal fence", cat: "cleaning", area: "Garden", priority: "p3", detail: "Clear off any feathers and leaves so it's spotless." },
   { title: "Wipe down all the indoor furniture", cat: "cleaning", area: "Inside", priority: "p3" },
+
+  // ── More handyman / painting / varnishing (venue) ─────────────────────────
+  { title: "Re-varnish the garden tables", cat: "painting", area: "Garden", priority: "p3" },
+  { title: "Re-varnish the garden chairs", cat: "painting", area: "Garden", priority: "p3" },
+  { title: "Tidy up the barrels", cat: "tidying", area: "Garden", priority: "p3" },
+  { title: "Touch up any bad paintwork", cat: "painting", area: "Inside", priority: "p3", detail: "Handyman paint touch-ups wherever it's scuffed." },
+  { title: "Repaint the wooden box behind the CO2 cans (green → brown)", cat: "painting", area: "Inside", priority: "p3" },
+
+  // ── Women's toilets (handyman) ────────────────────────────────────────────
+  { title: "Fit a door closer on the women's toilet", cat: "handyman", area: "Toilets", priority: "p2" },
+  { title: "Fit round cover discs to seal the holes in the women's toilets", cat: "handyman", area: "Toilets", priority: "p3" },
+  { title: "Add a lampshade to the women's toilet light", cat: "handyman", area: "Toilets", priority: "p3" },
+  { title: "Hang a curtain (on string) in the women's toilets to hide the sanitary bins", cat: "handyman", area: "Toilets", priority: "p3" },
+
+  // ── Golf course — across the road ─────────────────────────────────────────
+  { title: "Re-varnish the stools at the golf course", cat: "painting", area: "Golf course", priority: "p3" },
+  { title: "Repaint the barrel tops at the golf course", cat: "painting", area: "Golf course", priority: "p3" },
+  { title: "Clean & sweep up the golf course", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Pressure-wash the golf course", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Hoover the astroturf at the golf course", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Clean the fence at the golf course", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Clean the staff hut", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Spray down the golf equipment", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Clean the golf balls", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Clean the golf clubs", cat: "cleaning", area: "Golf course", priority: "p3" },
+  { title: "Get scorecards & pencils ready", cat: "tidying", area: "Golf course", priority: "p3" },
 ];
 
 const slug = (s: string) =>
@@ -249,6 +275,11 @@ Deno.serve(async (req) => {
   const action = b.action;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
+  // Cap config: a global default plus per-day overrides ("bump to 3 on busy days").
+  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps").eq("id", 1).maybeSingle();
+  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {} };
+  const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
+
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
   // ── public: anonymised claimed shifts so the sign-up popup shows free slots ──
@@ -257,7 +288,7 @@ Deno.serve(async (req) => {
     const claims: any[] = [];
     (helpers || []).forEach((h: any, i: number) =>
       (h.shifts || []).forEach((s: any) => claims.push({ hid: i, date: s.date, start: s.start, end: s.end })));
-    return json({ claims, cap: MAX_CONCURRENT });
+    return json({ claims, defaultCap: cfg.default_cap ?? MAX_CONCURRENT, dayCaps: cfg.day_caps || {} });
   }
 
   // ── public: sign up → propose jobs to fill each shift, alert Elliot ──────────
@@ -288,11 +319,12 @@ Deno.serve(async (req) => {
     }
     for (const ns of shifts) {
       const od = others.filter((o) => o.date === ns.date);
+      const cap = capFor(ns.date);
       for (let t = toMin(ns.start); t < toMin(ns.end); t += TASK_MIN) {
         const hids = new Set<string>();
         for (const o of od) if (toMin(o.start) <= t && t < toMin(o.end)) hids.add(o.hid);
-        if (hids.size >= MAX_CONCURRENT)
-          return json({ error: `${fmtDay(ns.date)} around ${fmtTime(t)} already has ${MAX_CONCURRENT} people booked — we keep it to ${MAX_CONCURRENT} helpers at once so it stays manageable. Please pick another time or day.` }, 409);
+        if (hids.size >= cap)
+          return json({ error: `${fmtDay(ns.date)} around ${fmtTime(t)} already has ${cap} ${cap === 1 ? "person" : "people"} booked — we keep it to ${cap} at once so it stays manageable. Please pick another time or day.` }, 409);
       }
     }
 
@@ -349,7 +381,22 @@ Deno.serve(async (req) => {
       p1: TASKS.filter((t) => t.priority === "p1").length,
       p1Assigned: tasks.filter((t) => t.priority === "p1" && t.assignedTo).length,
     };
-    return json({ tasks, helpers: enrichedHelpers, stats });
+    return json({ tasks, helpers: enrichedHelpers, stats, settings: { defaultCap: cfg.default_cap ?? MAX_CONCURRENT, dayCaps: cfg.day_caps || {} } });
+  }
+
+  // ── set the cap (global default if no date, else a per-day override) ────────
+  if (action === "setcap") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const cap = Math.max(1, Math.min(6, Number(b.cap) || MAX_CONCURRENT));
+    if (b.date) {
+      const day_caps: Record<string, number> = { ...(cfg.day_caps || {}) };
+      if (cap === (cfg.default_cap ?? MAX_CONCURRENT)) delete day_caps[b.date];   // same as default → no override
+      else day_caps[b.date] = cap;
+      await sb.from("help_settings").update({ day_caps }).eq("id", 1);
+    } else {
+      await sb.from("help_settings").update({ default_cap: cap }).eq("id", 1);
+    }
+    return json({ ok: true });
   }
 
   // ── confirm a helper → email them their final jobs (secret-gated) ───────────

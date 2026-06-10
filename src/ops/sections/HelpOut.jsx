@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -101,7 +101,7 @@ export default function HelpOut() {
           </div>
 
           {/* CALENDAR */}
-          {view === 'calendar' && <HelpCalendar helpers={helpers} />}
+          {view === 'calendar' && <HelpCalendar helpers={helpers} settings={data.settings} onSetCap={async (date, cap) => { try { await helpSetCap(date, cap); await load() } catch (e) { setErr(e.message) } }} />}
 
           {/* PEOPLE */}
           {view === 'people' && (

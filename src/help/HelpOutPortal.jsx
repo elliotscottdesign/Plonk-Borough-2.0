@@ -3,7 +3,7 @@ import {
   CATEGORIES, CATEGORY_LABEL, DEADLINE,
   helpDays, dayWeekday, dayNum, dayLabel,
   timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel, slotsForShifts,
-  HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT,
+  HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT, capFor,
 } from './data.js'
 import { submitHelper, helpLink, helpAvailability } from './api.js'
 
@@ -53,7 +53,7 @@ const inputStyle = {
 const selectStyle = { ...inputStyle, appearance: 'auto', WebkitAppearance: 'menulist' }
 
 // Availability strip — 9am→midnight, coloured by how many are already booked.
-function AvailabilityStrip({ others }) {
+function AvailabilityStrip({ others, cap }) {
   const cells = []
   for (let t = HELP_START_MIN; t < HELP_END_MIN; t += 30) cells.push(t)
   return (
@@ -61,7 +61,7 @@ function AvailabilityStrip({ others }) {
       <div style={{ display: 'flex', gap: 1.5, height: 16, borderRadius: 4, overflow: 'hidden' }}>
         {cells.map(t => {
           const c = countAt(others, t)
-          const bg = c >= MAX_CONCURRENT ? RED : c === 1 ? '#FCD34D' : 'rgba(255,255,255,0.1)'
+          const bg = c >= cap ? RED : c >= 1 ? '#FCD34D' : 'rgba(255,255,255,0.1)'
           return <div key={t} title={`${fmtTime(t)} · ${c} booked`} style={{ flex: 1, background: bg }} />
         })}
       </div>
@@ -70,15 +70,15 @@ function AvailabilityStrip({ others }) {
       </div>
       <div style={{ display: 'flex', gap: 12, fontSize: 10.5, color: DIM, marginTop: 6 }}>
         <span><span style={{ display: 'inline-block', width: 8, height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginRight: 4 }} />free</span>
-        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#FCD34D', borderRadius: 2, marginRight: 4 }} />1 booked</span>
-        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: RED, borderRadius: 2, marginRight: 4 }} />full (2)</span>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#FCD34D', borderRadius: 2, marginRight: 4 }} />some booked</span>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: RED, borderRadius: 2, marginRight: 4 }} />full ({cap})</span>
       </div>
     </div>
   )
 }
 
 // ─── Time popup — set start & finish for one date ─────────────────────────────
-function ShiftModal({ date, value, claims, onSave, onRemove, onClose }) {
+function ShiftModal({ date, value, claims, cap, onSave, onRemove, onClose }) {
   const [start, setStart] = useState(value?.start || DEFAULT_SHIFT.start)
   const [end, setEnd] = useState(value?.end || DEFAULT_SHIFT.end)
   const startOpts = timeOptions(HELP_START_MIN, HELP_END_MIN - 30)
@@ -90,7 +90,7 @@ function ShiftModal({ date, value, claims, onSave, onRemove, onClose }) {
     if (toMin(end) <= toMin(v)) setEnd(timeOptions(toMin(v) + 30, HELP_END_MIN)[0].value)
   }
   const slots = Math.max(0, Math.round((toMin(end) - toMin(start)) / 30))
-  const blocked = rangeBlocked(others, start, end)
+  const blocked = rangeBlocked(others, start, end, cap)
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }}>
@@ -98,7 +98,7 @@ function ShiftModal({ date, value, claims, onSave, onRemove, onClose }) {
         <div className="serif" style={{ fontSize: 21, color: '#fff', marginBottom: 4 }}>When can you help?</div>
         <div style={{ fontSize: 13, color: DIM, marginBottom: 16 }}>{dayLabel(date)} · pick your start &amp; finish (we’re here 9am–midnight)</div>
 
-        {others.length > 0 && <AvailabilityStrip others={others} />}
+        {others.length > 0 && <AvailabilityStrip others={others} cap={cap} />}
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <label style={{ flex: 1 }}>
@@ -117,7 +117,7 @@ function ShiftModal({ date, value, claims, onSave, onRemove, onClose }) {
 
         {blocked ? (
           <div style={{ fontSize: 12.5, color: '#fff', background: 'rgba(218,27,51,0.16)', border: `1px solid ${RED}`, borderRadius: 8, padding: '9px 11px', textAlign: 'center', marginBottom: 14 }}>
-            Part of that time already has {MAX_CONCURRENT} people — please pick another slot.
+            Part of that time already has {cap} {cap === 1 ? 'person' : 'people'} — please pick another slot.
           </div>
         ) : (
           <div style={{ fontSize: 12.5, color: DIM, textAlign: 'center', marginBottom: 16 }}>
@@ -216,8 +216,14 @@ function SignUp() {
   const [result, setResult] = useState(null)
   const [submittedShifts, setSubmittedShifts] = useState([])
   const [claims, setClaims] = useState([])         // others' booked shifts (for the popup)
+  const [capCfg, setCapCfg] = useState({ defaultCap: MAX_CONCURRENT, dayCaps: {} })
 
-  useEffect(() => { helpAvailability().then(r => setClaims(r.claims || [])).catch(() => {}) }, [])
+  useEffect(() => {
+    helpAvailability().then(r => {
+      setClaims(r.claims || [])
+      setCapCfg({ defaultCap: r.defaultCap ?? MAX_CONCURRENT, dayCaps: r.dayCaps || {} })
+    }).catch(() => {})
+  }, [])
 
   const shiftArr = Object.entries(shifts).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date))
   const hasContact = phone.trim() || email.trim()
@@ -314,6 +320,7 @@ function SignUp() {
           date={modalDate}
           value={shifts[modalDate]}
           claims={claims}
+          cap={capFor(modalDate, capCfg.defaultCap, capCfg.dayCaps)}
           onSave={(v) => { setShifts(s => ({ ...s, [modalDate]: v })); setModalDate(null) }}
           onRemove={() => { setShifts(s => { const n = { ...s }; delete n[modalDate]; return n }); setModalDate(null) }}
           onClose={() => setModalDate(null)}
