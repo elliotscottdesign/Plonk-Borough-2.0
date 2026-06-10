@@ -136,7 +136,7 @@ const RAW: { title: string; cat: string; area: string; priority: string; detail?
   { title: "Pick up the trolley from Andy at Mare Street Market", cat: "errands", area: "Offsite", priority: "p3", detail: "Really useful — for the gas canisters or storing the pool/ping-pong table covers." },
 
   // ── Cleaning — reopening deep-clean ───────────────────────────────────────
-  { title: "Clean the front bar bridges", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean the front bar fridges", cat: "cleaning", area: "Inside", priority: "p2" },
   { title: "Clean the drink shelves", cat: "cleaning", area: "Inside", priority: "p2" },
   { title: "Run all the glasses through the machine", cat: "cleaning", area: "Inside", priority: "p2" },
   { title: "Clean down all the surfaces", cat: "cleaning", area: "Inside", priority: "p2" },
