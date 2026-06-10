@@ -92,7 +92,7 @@ export default function TeamLanding() {
         marginBottom: 8,
         textAlign: 'center',
       }}>
-        Team &amp; Investor Hub
+        Team
       </div>
       <div style={{
         fontSize: 'clamp(0.62rem, 1.1vw, 0.72rem)',

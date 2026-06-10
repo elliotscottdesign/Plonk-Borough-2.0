@@ -35,6 +35,19 @@ export default function PasswordGate({ onUnlock }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
 
+  // Label the gate by the area being unlocked (read from the URL) so the
+  // wordmark says exactly which gateway you're entering.
+  const gatewayLabel = (() => {
+    const p = (typeof window !== 'undefined' && window.location.pathname) || ''
+    if (/^\/ops(\/|$)/.test(p)) return 'Operations'
+    if (/^\/marketing(\/|$)/.test(p)) return 'Marketing'
+    if (/^\/hackney(\/|$)/.test(p)) return 'Investors · Hackney'
+    if (/^\/borough(\/|$)/.test(p)) return 'Investors · Borough'
+    if (/^\/worldcup(\/|$)/.test(p)) return 'World Cup'
+    if (/^\/help-out(\/|$)/.test(p)) return 'Help Out'
+    return t('eyebrow')
+  })()
+
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
     // codes (NDTEAM, NODICE88, NODICE99) accept any case for friendliness.
@@ -62,7 +75,7 @@ export default function PasswordGate({ onUnlock }) {
       <div style={{ textAlign:'center' }}>
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width:'min(260px, 70vw)', height:'auto', display:'block', margin:'0 auto 14px' }} />
         <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
-          {t('eyebrow')}
+          {gatewayLabel}
         </div>
       </div>
 

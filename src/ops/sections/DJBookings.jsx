@@ -55,6 +55,7 @@ export default function DJBookings() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       {/* No Dice wordmark — branding for DJs viewing this page (DJ-only access) */}
       <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 4 }} />
+      <div style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#DA1B33', fontWeight: 700, marginBottom: 6 }}>DJ Admin</div>
       <div style={{ display: 'flex', gap: 6 }}>
         {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster'], ['events', '🎪 Events']].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
