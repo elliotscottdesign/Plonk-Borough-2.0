@@ -229,24 +229,31 @@ export default function LeonieAgreement() {
         </P>
       </Section>
 
-      {/* 9. Future rounds + pre-emption rights */}
-      <Section number="9" title="Future rounds · dilution · pre-emption rights">
+      {/* 9. Future rounds + pre-emption rights (formal legal language) */}
+      <Section number="9" title="Future rounds · pre-emption rights">
         <P>
-          The Company may raise further capital in the future (a "<strong style={{ color:CREAM }}>Round 2</strong>" and any subsequent round). Any future issuance of shares is a Reserved Matter requiring Reserved Matters Consent (clause 10), and the timing, total raise, per-share price and any specific Round-2 mechanics are decided by the <strong style={{ color:CREAM }}>directors and the A-class holders</strong> at that time.
+          The Company may raise further capital in the future (a "<strong style={{ color:CREAM }}>Round 2</strong>" and any subsequent round). Any future issuance of shares is a Reserved Matter requiring Reserved Matters Consent (clause 10), and the timing, total raise, per-share price and any specific mechanics are decided by the <strong style={{ color:CREAM }}>directors and the A-class holders</strong> at that time, with the Founder's A-class voting shares preserving voting control of the Company through any dilution.
         </P>
         <P>
-          When a future round is approved:
+          <strong style={{ color:GOLD }}>Pre-emption rights.</strong> If the Company proposes to issue any new equity securities, each Shareholder shall have the right, but not the obligation, to subscribe for such securities on a pro rata basis in proportion to that Shareholder's percentage ownership of the Company's issued share capital immediately prior to the proposed issuance.
+        </P>
+        <P>
+          The Company shall provide written notice to each eligible Shareholder setting out:
         </P>
         <ul style={ulStyle}>
-          <li><strong style={{ color:CREAM }}>New shares are issued at the prevailing per-share value.</strong> The Round-2 per-share price is set by the directors at an arm's-length valuation supported by trading performance, financial position and sector comparables at the time. New shares are issued as B-class.</li>
-          <li><strong style={{ color:CREAM }}>Dilution falls on B-class shareholders.</strong> Existing B-class holders (the Investor included) see their proportional B-class stake diluted by the new issuance unless they exercise their pre-emption right below.</li>
-          <li><strong style={{ color:CREAM }}>A-class voting control preserved.</strong> The Founder's A-class voting shares retain voting control of the Company in all circumstances, regardless of any subsequent B-class issuance.</li>
-          <li><strong style={{ color:GOLD }}>Pre-emption right for existing B holders.</strong> The Investor (and every other existing B holder) has the right to participate in any future round on a <strong style={{ color:CREAM }}>pro-rata basis</strong> — i.e. to subscribe for new B-class shares at the new per-share value, in proportion to her existing share count, sufficient to maintain her pre-round ownership percentage. The Investor is <em>not obliged</em> to participate.</li>
-          <li><strong style={{ color:CREAM }}>Notice period.</strong> The Company will give the Investor at least <strong style={{ color:CREAM }}>14 days' written notice</strong> of any future round and her pre-emption entitlement, specifying the new per-share value, the number of shares she may subscribe for, and the closing date for exercising the right.</li>
-          <li><strong style={{ color:CREAM }}>If the Investor declines to participate</strong>, her share count remains unchanged but her percentage of the enlarged company shrinks proportionally. The per-share dividend entitlement continues to apply to her existing shares without alteration.</li>
+          <li>(a) the number and class of securities proposed to be issued;</li>
+          <li>(b) the subscription price and principal terms of the proposed issuance;</li>
+          <li>(c) the maximum number of securities that the Shareholder is entitled to subscribe for in order to maintain its proportionate ownership interest; and</li>
+          <li>(d) the period within which the Shareholder must elect to exercise such right, which shall be not less than <strong style={{ color:CREAM }}>14 days</strong> from the date of the notice.</li>
         </ul>
         <P>
-          Standard form: existing pre-emption rights apply equally to every B-class holder, so no single investor is favoured over another at Round 2. The Founder's call right at Y3 (clause 6) is unchanged — if exercised, the Investor exits before Round 2 mechanics become relevant for her.
+          Any Shareholder wishing to exercise its pre-emption right shall notify the Company in writing within the prescribed period and shall complete the subscription for the applicable securities on the terms set out in the notice.
+        </P>
+        <P>
+          To the extent that any eligible Shareholder does not fully exercise its entitlement within the prescribed period, the Company may offer the unsubscribed securities to other persons on <strong style={{ color:CREAM }}>terms no more favourable</strong> than those offered to the existing Shareholders.
+        </P>
+        <P style={{ fontSize:12, color:CREAM_D, fontStyle:'italic', marginTop:14 }}>
+          Practical effect: a Shareholder who does not exercise her pre-emption right within 14 days sees her share count remain unchanged but her percentage of the enlarged share capital shrinks proportionally to the new issuance. The per-share dividend entitlement continues on her existing shares without alteration. The Founder's call right at clause 6 is unchanged — if exercised, the Investor exits before any Round 2 mechanics become relevant for her.
         </P>
       </Section>
 
