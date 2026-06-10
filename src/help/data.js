@@ -41,6 +41,26 @@ export const TIME_BLOCKS = [
 ]
 export const TIME_BLOCK_LABEL = Object.fromEntries(TIME_BLOCKS.map(b => [b.key, b.label]))
 
+// ─── Auto-assignment sizing ─────────────────────────────────────────────────
+// Each task is treated as ~30 min. How many 30-min jobs a time block is worth,
+// so a sign-up gets a list sized to when they're free. Capped so nobody gets an
+// overwhelming list and the jobs spread across more people. The SAME numbers
+// live in the help-out edge function — keep them in sync.
+export const TASK_MIN = 30
+export const MAX_TASKS = 8
+export const BLOCK_SLOTS = { morning: 6, afternoon: 10, evening: 6, late: 8, anytime: 8 }
+export function capacityFor(timeBlocks) {
+  const sum = (timeBlocks || []).reduce((n, b) => n + (BLOCK_SLOTS[b] || 0), 0)
+  return Math.max(2, Math.min(MAX_TASKS, sum || 4))
+}
+
+// Priority bands used on the admin jobs board.
+export const PRIORITY = {
+  p1: { label: 'Before we open', tone: '#DA1B33' },
+  p2: { label: 'Important',      tone: '#FCD34D' },
+  p3: { label: 'When we can',    tone: '#34D399' },
+}
+
 // ─── Date helpers ──────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, '0')
 export const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`

@@ -1,43 +1,30 @@
-// "Help us open" sign-up submit. Posts ONE row per friend straight into the
-// bar_helpers table via Supabase's REST endpoint with the public anon key
-// (insert-only via RLS — same safe pattern as the newsletter sign-up).
-import { SUPABASE_URL, SUPABASE_ANON_KEY, BACKEND_READY } from '../marketing/data/backend.js'
+// "Help us open" portal API — talks to the `help-out` Supabase edge function.
+//   signup  : public — creates the helper, auto-assigns tasks, emails them.
+//   admin   : SEND_SECRET-gated — the /ops Help Out board reads sign-ups + jobs.
+import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
-export { BACKEND_READY }
+export const HELP_FN_URL = `${SUPABASE_URL}/functions/v1/help-out`
 
 // The shareable link to give friends. Works on whatever domain this is served
-// from (team.nodice.bar/help-out), so no hard-coded host to keep in sync.
+// from (team.nodice.bar/help-out), so there's no host to keep in sync.
 export const helpLink = () =>
   (typeof window !== 'undefined' ? window.location.origin : 'https://team.nodice.bar') + '/help-out'
 
-export async function submitHelper({ name, phone, email, categories, days, time_blocks, note }) {
-  if (!BACKEND_READY) throw new Error('Backend not configured')
-  const res = await fetch(`${SUPABASE_URL}/rest/v1/bar_helpers`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
-      Prefer: 'return=minimal',
-    },
-    body: JSON.stringify({
-      name: String(name || '').trim(),
-      phone: String(phone || '').trim() || null,
-      email: String(email || '').trim().toLowerCase() || null,
-      categories: categories || [],
-      days: days || [],
-      time_blocks: time_blocks || [],
-      note: String(note || '').trim() || null,
-    }),
+async function call(payload) {
+  const res = await fetch(HELP_FN_URL, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
   })
-  if (!res.ok) {
-    // 404 / 401 here almost always means the one-time SQL hasn't been run yet.
-    const detail = await res.text().catch(() => '')
-    throw new Error(
-      res.status === 404 || res.status === 401
-        ? "Sign-ups aren't switched on yet — give Elliot a nudge."
-        : `Couldn't save (${res.status}). ${detail}`.trim()
-    )
-  }
-  return true
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
+  return data
 }
+
+// Public sign-up. Returns { ok, assigned:[task…], emailed:bool }.
+export const submitHelper = ({ name, phone, email, categories, days, time_blocks, note }) =>
+  call({ action: 'signup', name, phone, email, categories, days, time_blocks, note })
+
+// Admin (gated /ops). Returns { tasks, helpers, stats }.
+export const helpAdmin = () => call({ action: 'admin', secret: SEND_SECRET })
+
+// Admin — put a task back in the pool.
+export const helpRelease = (taskId) => call({ action: 'release', secret: SEND_SECRET, taskId })

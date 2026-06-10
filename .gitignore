@@ -10,3 +10,6 @@ dist
 # and the local handover docs aren't part of the deployed app.
 _hackney-handover/
 *.xlsx
+
+# Supabase CLI scratch (link/query state) — not for the repo.
+supabase/.temp/

@@ -1,0 +1,294 @@
+// Supabase Edge Function: help-out
+// Powers the /help-out volunteer portal. Deploy with --no-verify-jwt.
+//
+// POST { action, ... }
+//   signup {name, phone, email, categories, days, time_blocks, note}
+//           → creates/updates the helper, AUTO-ASSIGNS unassigned tasks from the
+//             categories they picked (sized to their availability at ~30 min/task),
+//             emails them the list (Resend), returns { ok, assigned, emailed }.
+//   admin  {secret}              → { helpers, tasks (with assignedTo), stats }  (gated)
+//   release{secret, taskId}      → put a task back in the pool                  (gated)
+//
+// Single source of truth for the task list lives HERE (TASKS below). The admin
+// board reads it back via the `admin` action, so there's only one list to edit.
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const cors = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+const json = (o: unknown, s = 200) =>
+  new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
+
+// ─── Assignment sizing (keep in sync with src/help/data.js) ──────────────────
+const MAX_TASKS = 8;
+const BLOCK_SLOTS: Record<string, number> = { morning: 6, afternoon: 10, evening: 6, late: 8, anytime: 8 };
+const capacityFor = (blocks: string[]) => {
+  const sum = (blocks || []).reduce((n, b) => n + (BLOCK_SLOTS[b] || 0), 0);
+  return Math.max(2, Math.min(MAX_TASKS, sum || 4));
+};
+const PW: Record<string, number> = { p1: 0, p2: 1, p3: 2 };
+
+// ─── The jobs (Elliot's venue walk-around) ───────────────────────────────────
+const RAW: { title: string; cat: string; area: string; priority: string; detail?: string }[] = [
+  { title: "Build a wooden frame around the dartboard cupboard", cat: "carpentry", area: "Inside", priority: "p2" },
+  { title: "Secure the dartboard to the wall so it can’t fall off", cat: "handyman", area: "Inside", priority: "p1" },
+  { title: "Bolt the dartboard coin/token mechanism to the wall", cat: "handyman", area: "Inside", priority: "p2", detail: "So it doesn’t come away from the wall." },
+  { title: "Set the dartboard game time longer", cat: "tech", area: "Inside", priority: "p3", detail: "Technical settings job." },
+  { title: "Re-seat the metal fence around the Point Blank machine", cat: "carpentry", area: "Inside", priority: "p2", detail: "Back into the ground with a new foot, exactly where it was before." },
+  { title: "Replace the posters in all the pinball machines", cat: "design", area: "Inside", priority: "p3", detail: "Up-to-date posters with the right attributes for the new start." },
+  { title: "Re-weight & reposition the Proton sign", cat: "handyman", area: "Inside", priority: "p3", detail: "Better bottom weight/handle, set into position." },
+  { title: "Straighten the ski-board machine & cable-tie the front cage", cat: "handyman", area: "Inside", priority: "p3" },
+  { title: "Remove the two Subzero speakers from the walls", cat: "handyman", area: "Inside", priority: "p2", detail: "Two bolts each — they come straight down." },
+  { title: "Remove the Martin Audio speakers", cat: "tech", area: "Inside", priority: "p2", detail: "Too big — taking them out to fit a smaller system. Keeping the amps." },
+  { title: "List the Martin Audio speakers on eBay", cat: "admin", area: "Offsite", priority: "p3" },
+  { title: "Get the limiter working with the current sound system", cat: "tech", area: "Inside", priority: "p2", detail: "Most cables believed in place — needs a musical/technical person." },
+  { title: "Tidy & route the DJ-booth cables", cat: "tech", area: "Inside", priority: "p2", detail: "A job for someone musical/technical." },
+  { title: "Wooden trim around the DJ booth (Rocco wood)", cat: "carpentry", area: "Inside", priority: "p2", detail: "Same Rocco wood from across the road — clean, sand, stain & fit so drinks can’t be knocked into the DJ area." },
+  { title: "Re-hang the 3 wall/ceiling fans along the length", cat: "electrics", area: "Inside", priority: "p1", detail: "Old wiring taken out — getting warm, need them up." },
+  { title: "Fix the PIR & the extractor fans in the toilets", cat: "electrics", area: "Toilets", priority: "p1", detail: "Electrician booked in today." },
+  { title: "Put the freezer on its own ring", cat: "electrics", area: "Cellar", priority: "p2", detail: "So if it blows it doesn’t take anything else with it." },
+  { title: "Level all the tables", cat: "handyman", area: "Inside", priority: "p2", detail: "May need little metal feet ordered & screwed in. Reorganise & sort while we’re at it." },
+  { title: "Put rubber feet back on the chairs", cat: "handyman", area: "Inside", priority: "p3", detail: "Count how many we need and make a quick Amazon order." },
+  { title: "Take down the 5 old Plonk-days pictures", cat: "handyman", area: "Inside", priority: "p2" },
+  { title: "Hang the replacement pictures (from Elliot’s house)", cat: "handyman", area: "Inside", priority: "p2" },
+  { title: "Coat of varnish on the walls to darken the wood", cat: "painting", area: "Inside", priority: "p3", detail: "Brings the wood in line with the rest of the bar. Bottom of the list." },
+  { title: "Order the World Cup AV kit — antenna, Freeview, cables", cat: "admin", area: "Offsite", priority: "p1", detail: "Must arrive by Thursday — order today." },
+  { title: "Research the right Freeview box", cat: "admin", area: "Offsite", priority: "p1", detail: "Good box to launch the football on — needs to arrive by Thursday." },
+  { title: "Swap the old broken TV for the new one", cat: "tech", area: "Inside", priority: "p1" },
+  { title: "Put the projector & screen up", cat: "tech", area: "Inside", priority: "p2", detail: "Find the projector screen, mount the projector." },
+  { title: "Take down last season’s old posters", cat: "handyman", area: "Inside", priority: "p3" },
+  { title: "Bring the alcohol back from Elliot’s flat & restock shelves", cat: "errands", area: "Stock", priority: "p1", detail: "Back to the bar, shelves cleaned, arranged ready for reopening." },
+  { title: "Prepare the snack station", cat: "tidying", area: "Stock", priority: "p2", detail: "Snacks for now until the coffee machine arrives." },
+  { title: "Set up the new snacks contract/order (nuts & crisps)", cat: "admin", area: "Offsite", priority: "p2" },
+  { title: "Add more hanging glass racks (cider/half glasses)", cat: "handyman", area: "Stock", priority: "p3", detail: "Cider will fly this summer — borrow racks from Borough." },
+  { title: "Order more BOC gas", cat: "admin", area: "Offsite", priority: "p1" },
+  { title: "Put the pour/beer order in", cat: "admin", area: "Offsite", priority: "p1", detail: "Needs to be in by Thursday for the weekend." },
+  { title: "Get lager in for Thursday", cat: "errands", area: "Offsite", priority: "p1", detail: "Buy, or borrow any cask left at Borough." },
+  { title: "More painting in the toilets", cat: "painting", area: "Toilets", priority: "p1", detail: "Top priority for helpers today — electrician will be in too." },
+  { title: "Extra coat of paint on the ladies doors & walls", cat: "painting", area: "Toilets", priority: "p1", detail: "Never finished properly — do after the shelf is out and the light holes are filled." },
+  { title: "Latch on the men’s under-sink cupboard", cat: "handyman", area: "Toilets", priority: "p3", detail: "A simple thumb-turn — pick one up." },
+  { title: "Re-oil the raw-wood sinks in the men’s", cat: "painting", area: "Toilets", priority: "p2", detail: "Raw wood under the hand dryers needs sorting." },
+  { title: "Soap holder up", cat: "handyman", area: "Toilets", priority: "p3" },
+  { title: "Remove the old shelving in the women’s toilet", cat: "handyman", area: "Toilets", priority: "p2", detail: "Then patch & fill the old light holes (no longer have lights)." },
+  { title: "Tidy the cables above the ladies toilets", cat: "tech", area: "Toilets", priority: "p3" },
+  { title: "Wooden trim (12mm) around the ladies toilet lights", cat: "carpentry", area: "Toilets", priority: "p3", detail: "Add a lining sheet and repaint where the orange paint chips from outdoors." },
+  { title: "Wheel for the red mop & set the bucket colour rule", cat: "cleaning", area: "Toilets", priority: "p3", detail: "Red = toilet, yellow = back of house, blue = floor." },
+  { title: "Sort the ladies-bin solution", cat: "admin", area: "Toilets", priority: "p2", detail: "Cancelling the current contract — find smaller bins / a better answer." },
+  { title: "Slim wood under the glasswasher sink to block the mouse gap", cat: "carpentry", area: "Inside", priority: "p2" },
+  { title: "Prime & brown-floor-paint under the glasswasher sink", cat: "painting", area: "Inside", priority: "p2", detail: "Previous paint isn’t holding against the water — redo with brown floor paint." },
+  { title: "Tidy the paintwork on equipment (sand + spray)", cat: "painting", area: "Inside", priority: "p3", detail: "Light sand; may need matching spray paint for grey plastic electrical elements." },
+  { title: "Seal/varnish the metal pillar by the cellar door", cat: "painting", area: "Cellar", priority: "p3", detail: "Plus a small green touch-up on the metal pillar." },
+  { title: "Rust-treat & seal the garden metal cabinet", cat: "painting", area: "Garden", priority: "p2", detail: "Sand back, rust-seal, oil/grease the doors. Dry-day priority so the cabinet works." },
+  { title: "Rust-treat & seal all the chairs", cat: "painting", area: "Garden", priority: "p2", detail: "Sand down, treat rust, seal so it doesn’t rub off on clothes." },
+  { title: "Ventilate the cellar (fan hole in the door)", cat: "carpentry", area: "Cellar", priority: "p1", detail: "No airflow since the ceiling went in. Quickest is a fan hole through the door. Carpenter job — heavy, needed before we open so the beer doesn’t cook." },
+  { title: "Chase ABI re: a small cellar chiller unit", cat: "admin", area: "Offsite", priority: "p2", detail: "Keep the beer cold through summer — sign a contract with ABI if it stacks up." },
+  { title: "Check the irrigation feeds are all in the right place", cat: "gardening", area: "Garden", priority: "p3", detail: "Set up last year but things have moved — spare parts are in the shipping container across the road." },
+  { title: "New doormat, secured to the floor", cat: "handyman", area: "Front", priority: "p2", detail: "Current one is rancid — hardcore glue / Velcro it down." },
+  { title: "Seal the outside hose end", cat: "plumbing", area: "Front", priority: "p3", detail: "Superglue / tape the end — it sprays everywhere." },
+  { title: "New front sign + light fitting", cat: "electrics", area: "Signage", priority: "p1", detail: "Wood cut, logo done; electrician to source & fit the light today." },
+  { title: "Fix the irrigation system line", cat: "plumbing", area: "Garden", priority: "p3", detail: "Pipe in the way of the sign; a break in the line. Low priority — can do while open." },
+  { title: "Fix the food-trailer tap drip / water leak", cat: "plumbing", area: "Trailer", priority: "p2", detail: "Overnight leak — find the issue, make the water trade ready to roll." },
+  { title: "Deep-clean the food trailer", cat: "cleaning", area: "Trailer", priority: "p2", detail: "Plates & equipment cleaned, degreased, mopped, ready to go. Dry day is good for it." },
+  { title: "Check all the food-trailer lights work", cat: "electrics", area: "Trailer", priority: "p2", detail: "Electrician can check today." },
+  { title: "Wheelbarrow the dead plants back to Elliot’s house", cat: "gardening", area: "Garden", priority: "p3", detail: "Quick job — Leonie’s helping, good for a dry day." },
+  { title: "Cut down & prune the dead plants across the road", cat: "gardening", area: "Offsite", priority: "p3", detail: "Save the soil; take dead plants back to the house." },
+  { title: "Order 6–7 plants for the bath side", cat: "gardening", area: "Garden", priority: "p3", detail: "Geraniums / bits & pieces — schedule the gardeners once we have the capital." },
+  { title: "Refresh the park games (sand, clean, varnish)", cat: "carpentry", area: "Garden", priority: "p3", detail: "Pull them all out, sand, clean, varnish, lay out on the tables — a fun sunshine job, anyone can do it." },
+  { title: "Re-do the garden lighting (ambient, not festoon)", cat: "electrics", area: "Garden", priority: "p2", detail: "Take down the festoon; low strings in the bushes + uplighters from across the road. Electrician to sort the outdoor socket spurred from inside. Keep the trailer lights." },
+  { title: "Hang the beer curtain to screen off the staff area", cat: "handyman", area: "Garden", priority: "p2", detail: "Two curtains can come back from the golf course." },
+  { title: "Timber the front bench to make it stable", cat: "carpentry", area: "Garden", priority: "p3", detail: "Wheels broken — flip it up, make it stationary with timber from Elliot’s house." },
+  { title: "Check the bamboo & tighten any loose screws", cat: "carpentry", area: "Garden", priority: "p3", detail: "Patches that have fallen out; tighten the bamboo." },
+  { title: "Move the plant blocking access", cat: "gardening", area: "Garden", priority: "p3", detail: "On its last legs — trim down or take to the house." },
+  { title: "Remove the bamboo + bead curtain (re-hang as dressing)", cat: "handyman", area: "Garden", priority: "p2", detail: "Priority — comes out to be re-hung elsewhere as decoration." },
+  { title: "Remove the camera bamboo + planter (south of ping-pong)", cat: "handyman", area: "Garden", priority: "p3", detail: "Reuse as dressing on the bar side." },
+  { title: "Remove the old lean-to \"drink stand\" & hang the Crooked Yard sign", cat: "handyman", area: "Garden", priority: "p3", detail: "Cable-tied south of ping-pong. Hang the sign on the wall, peel the \"I love global warming\" sticker, keep the metalwork for reuse." },
+  { title: "Make the ping-pong ball pockets easy to reach", cat: "tidying", area: "Garden", priority: "p3", detail: "May mean moving barrels around." },
+  { title: "Re-band the loose barrels (coach screws)", cat: "carpentry", area: "Garden", priority: "p3", detail: "Some bands are dropping — pilot the metalwork & coach-screw them back, nice and robust." },
+  { title: "Sort the green curtains (and source a third)", cat: "handyman", area: "Garden", priority: "p3", detail: "Two green curtains one side of the pillar behind the DJ; find a third (another corner / Wayfair / Borough)." },
+  { title: "Build the chained gas-canister store", cat: "carpentry", area: "Garden", priority: "p2", detail: "Two battens chained to the exterior brick wall so canisters line up & can’t fall on anyone — chained from the top." },
+  { title: "Clean the ping-pong table & equipment", cat: "cleaning", area: "Garden", priority: "p3" },
+  { title: "Main \"No Dice\" sign above the front door", cat: "design", area: "Signage", priority: "p1", detail: "Top priority — vinyl in a day, wood needs cutting (CNC list)." },
+  { title: "Hanging front sign", cat: "design", area: "Signage", priority: "p1", detail: "Top priority — vinyl + wood cut." },
+  { title: "Snack-bar menu board (aluminium + 18mm timber, magnetic)", cat: "design", area: "Signage", priority: "p2", detail: "Magnetic menu over the top — CNC job." },
+  { title: "New snack-bar name — wood-cut logo", cat: "design", area: "Signage", priority: "p2" },
+  { title: "Rear overhang sign 60×60", cat: "design", area: "Signage", priority: "p2" },
+  { title: "Front overhang sign 60×60", cat: "design", area: "Signage", priority: "p2" },
+  { title: "Hay’s food-menu board (aluminium + 18mm bat, magnetic)", cat: "design", area: "Signage", priority: "p2", detail: "Daily specials written on; magnetise the menu over it." },
+  { title: "CNC the par/play-track markers (varnished)", cat: "design", area: "Signage", priority: "p2", detail: "Get them done ready for the weekend opening." },
+  { title: "Optional: CNC a base plate/cage for the gas canisters", cat: "design", area: "Signage", priority: "p3", detail: "Timber base for the gas store to sit in — add to the CNC sheet." },
+  { title: "New A4 poster-frame artwork (no Plonk branding)", cat: "design", area: "Signage", priority: "p2", detail: "Basic redesigned A4s for the front frames — print at the printers." },
+  { title: "A4 ping-pong tournament poster with the new dates", cat: "design", area: "Signage", priority: "p3" },
+  { title: "Insurance call to get the first policy in place", cat: "admin", area: "Offsite", priority: "p1", detail: "With Guy & Paul — first policy fee to get us open." },
+  { title: "Add the daily mop/bucket clean-down rule for cleaners", cat: "admin", area: "Offsite", priority: "p3", detail: "Hose down & clean mops/buckets every single day — Guy to note for the cleaners." },
+  { title: "Source the chest freezers", cat: "errands", area: "Offsite", priority: "p2", detail: "Second-hand on eBay, or bring the Borough one up & get it working; maybe fix the dead one here." },
+  { title: "Bring spare bits over from the golf course", cat: "errands", area: "Offsite", priority: "p3", detail: "Rubber toilet brushes & anything unused." },
+  { title: "Get Mathieu Clark’s barrels collected", cat: "errands", area: "Offsite", priority: "p1", detail: "Elliot priority — chase the wholesale pickup." },
+  { title: "Chase Cask/Cake to collect their barrels", cat: "errands", area: "Offsite", priority: "p1", detail: "Elliot priority." },
+  { title: "Meet 5 Points to get their barrels gone", cat: "errands", area: "Offsite", priority: "p1", detail: "Elliot priority." },
+  { title: "Speak to the liquidator re: Borough stock & equipment", cat: "admin", area: "Offsite", priority: "p1", detail: "Deal price on stock + equipment; make a Borough shopping list (glass racks, chest freezer, green curtains) to grab rather than re-buy." },
+  { title: "Pick up the trolley from Andy at Mare Street Market", cat: "errands", area: "Offsite", priority: "p3", detail: "Really useful — for the gas canisters or storing the pool/ping-pong table covers." },
+];
+
+const slug = (s: string) =>
+  s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "").slice(0, 44);
+const seen: Record<string, number> = {};
+const TASKS = RAW.map((t) => {
+  let id = slug(t.title);
+  if (seen[id] != null) { seen[id]++; id = `${id}-${seen[id]}`; } else { seen[id] = 0; }
+  return { ...t, id };
+});
+const TASK_BY_ID: Record<string, typeof TASKS[number]> = Object.fromEntries(TASKS.map((t) => [t.id, t]));
+
+const CAT_LABEL: Record<string, string> = {
+  bartending: "Bartending", serving: "Serving / front of house", cleaning: "Cleaning",
+  tidying: "Venue tidying", carpentry: "Carpentry & joinery", handyman: "Handyman / general",
+  painting: "Painting & finishing", electrics: "Electrics & wiring", plumbing: "Plumbing",
+  tech: "Tech, AV & sound", gardening: "Gardening & outdoors", admin: "Admin & online help",
+  marketing: "Marketing", errands: "Errands & collections", design: "Design & signage",
+};
+
+const fmtDay = (d: string) =>
+  new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const BLOCK_LABEL: Record<string, string> = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", late: "Late", anytime: "Flexible" };
+const esc = (s: string) => String(s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+
+function buildEmail(name: string, assigned: typeof TASKS, days: string[], blocks: string[]) {
+  const RED = "#DA1B33";
+  const byCat: Record<string, typeof TASKS> = {};
+  for (const t of assigned) (byCat[t.cat] ||= []).push(t);
+  const when = [
+    days.length ? days.map(fmtDay).join(" · ") : "",
+    blocks.length ? blocks.map((b) => BLOCK_LABEL[b] || b).join(", ") : "",
+  ].filter(Boolean).join(" — ");
+
+  const sections = Object.entries(byCat).map(([cat, items]) => `
+    <tr><td style="padding:18px 0 6px"><div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:${RED};font-weight:700">${esc(CAT_LABEL[cat] || cat)}</div></td></tr>
+    ${items.map((t) => `
+      <tr><td style="padding:6px 0;border-bottom:1px solid #eee">
+        <div style="font-size:15px;color:#111;font-weight:600">${esc(t.title)}</div>
+        ${t.detail ? `<div style="font-size:13px;color:#555;line-height:1.5;margin-top:3px">${esc(t.detail)}</div>` : ""}
+        <div style="font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px">${esc(t.area)} · ~30 min</div>
+      </td></tr>`).join("")}
+  `).join("");
+
+  const body = assigned.length
+    ? `<p style="font-size:15px;color:#333;line-height:1.6">Here are some jobs we’ve earmarked for you — each is about <strong>30 minutes</strong>, so it’s roughly <strong>${assigned.length * 30} minutes / ${(assigned.length * 0.5).toFixed(1)} hours</strong> of help. Do what you can, in any order. Not your thing? Just text Elliot and we’ll swap it.</p>
+       <table style="width:100%;border-collapse:collapse">${sections}</table>`
+    : `<p style="font-size:15px;color:#333;line-height:1.6">You’re on the list — thank you! We don’t have specific jobs to send for what you picked just yet, so Elliot will slot you in directly on the day.</p>`;
+
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:8px">
+    <h1 style="font-size:24px;color:${RED};margin:0 0 4px">Thanks for helping us open, ${esc(name || "friend")}! 🍻</h1>
+    <p style="font-size:13px;color:#888;margin:0 0 16px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+    ${when ? `<p style="font-size:13px;color:#555;margin:0 0 12px">You told us you’re free: <strong>${esc(when)}</strong></p>` : ""}
+    ${body}
+    <p style="font-size:13px;color:#777;line-height:1.6;margin-top:22px">Come down any time we’re there (~9am–midnight). Questions or a clash? Just reply or text Elliot. Every hand gets us closer. 🙏</p>
+  </div>`;
+}
+
+async function sendEmail(to: string, name: string, assigned: typeof TASKS, days: string[], blocks: string[]) {
+  const RESEND = Deno.env.get("RESEND_API_KEY");
+  if (!RESEND || !to) return false;
+  const r = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+    body: JSON.stringify({
+      from: "No Dice <hello@nodice.bar>",
+      to,
+      subject: assigned.length ? `Your No Dice jobs — thanks for helping! 🍻` : `You’re on the list — thanks for helping! 🍻`,
+      html: buildEmail(name, assigned, days, blocks),
+    }),
+  });
+  return r.ok;
+}
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
+  if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
+  const b = await req.json().catch(() => ({}));
+  const action = b.action;
+  const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // ── public: sign up + auto-assign ──────────────────────────────────────────
+  if (action === "signup") {
+    const name = String(b.name || "").trim();
+    const email = String(b.email || "").trim().toLowerCase() || null;
+    const phone = String(b.phone || "").trim() || null;
+    const categories: string[] = Array.isArray(b.categories) ? b.categories : [];
+    const days: string[] = Array.isArray(b.days) ? b.days : [];
+    const blocks: string[] = Array.isArray(b.time_blocks) ? b.time_blocks : [];
+    const note = String(b.note || "").trim() || null;
+    if (!name || (!email && !phone) || !categories.length || !days.length)
+      return json({ error: "Please add your name, a phone or email, at least one thing you’re up for, and a day." }, 400);
+
+    const { data: helpers, error: hErr } = await sb.from("bar_helpers").select("id,email,assigned");
+    if (hErr) return json({ error: hErr.message }, 500);
+    const existing = email ? (helpers || []).find((h: any) => (h.email || "").toLowerCase() === email) : null;
+
+    // Tasks already taken by everyone EXCEPT this person (so a re-signup reuses their slots).
+    const taken = new Set<string>();
+    for (const h of helpers || []) {
+      if (existing && h.id === existing.id) continue;
+      for (const id of (h.assigned || [])) taken.add(id);
+    }
+
+    const cap = capacityFor(blocks);
+    const assigned = TASKS
+      .filter((t) => categories.includes(t.cat) && !taken.has(t.id))
+      .sort((a, b2) => (PW[a.priority] ?? 9) - (PW[b2.priority] ?? 9))
+      .slice(0, cap);
+    const assignedIds = assigned.map((t) => t.id);
+
+    const row = {
+      name, phone, email, categories, days, time_blocks: blocks, note,
+      assigned: assignedIds, assigned_at: new Date().toISOString(),
+    };
+    if (existing) {
+      const { error } = await sb.from("bar_helpers").update(row).eq("id", existing.id);
+      if (error) return json({ error: error.message }, 500);
+    } else {
+      const { error } = await sb.from("bar_helpers").insert(row);
+      if (error) return json({ error: error.message }, 500);
+    }
+
+    const emailed = email ? await sendEmail(email, name, assigned, days, blocks) : false;
+    return json({ ok: true, assigned, emailed });
+  }
+
+  // ── admin (secret-gated) ────────────────────────────────────────────────────
+  if (action === "admin") {
+    if (b.secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
+    const { data: helpers, error } = await sb.from("bar_helpers").select("*").order("created_at", { ascending: false });
+    if (error) return json({ error: error.message }, 500);
+    const owner: Record<string, { id: string; name: string }> = {};
+    for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name };
+    const tasks = TASKS.map((t) => ({ ...t, assignedTo: owner[t.id] || null }));
+    const enrichedHelpers = (helpers || []).map((h: any) => ({
+      ...h, assignedTasks: (h.assigned || []).map((id: string) => TASK_BY_ID[id]).filter(Boolean),
+    }));
+    const stats = {
+      helpers: (helpers || []).length,
+      tasks: TASKS.length,
+      assigned: tasks.filter((t) => t.assignedTo).length,
+      p1: TASKS.filter((t) => t.priority === "p1").length,
+      p1Assigned: tasks.filter((t) => t.priority === "p1" && t.assignedTo).length,
+    };
+    return json({ tasks, helpers: enrichedHelpers, stats });
+  }
+
+  // ── release a task back to the pool (secret-gated) ──────────────────────────
+  if (action === "release") {
+    if (b.secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
+    const taskId = String(b.taskId || "");
+    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned");
+    for (const h of helpers || []) {
+      if ((h.assigned || []).includes(taskId)) {
+        await sb.from("bar_helpers").update({ assigned: (h.assigned || []).filter((x: string) => x !== taskId) }).eq("id", h.id);
+      }
+    }
+    return json({ ok: true });
+  }
+
+  return json({ error: "unknown action" }, 400);
+});

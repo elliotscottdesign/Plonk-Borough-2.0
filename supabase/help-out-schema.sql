@@ -1,11 +1,8 @@
 -- No Dice — "Help us open" volunteer sign-ups (the /help-out portal).
 -- Run ONCE: Supabase dashboard → SQL Editor → New query → paste all of this → Run.
--- That's the only setup step. After it runs, sign-ups from the shared link land
--- in this table and you read them in the Table Editor (no code, no deploy).
---
--- Security model mirrors `subscribers`: the public anon key can ONLY insert a
--- sign-up — it can never read the list back. Phone numbers / emails stay private;
--- you view them signed in to Supabase.
+-- Safe to re-run (idempotent). Sign-ups are written by the `help-out` edge
+-- function (service role), which also auto-assigns tasks and emails each helper.
+-- You read the results in the /ops → Help Out tab (or the Table Editor).
 
 create extension if not exists pgcrypto;
 
@@ -14,14 +11,19 @@ create table if not exists public.bar_helpers (
   name         text not null,
   phone        text,
   email        text,
-  categories   jsonb default '[]'::jsonb,   -- ["carpentry","handyman",…] keys from src/help/data.js
-  days         jsonb default '[]'::jsonb,    -- ["2026-06-11", …] the dates they can come
+  categories   jsonb default '[]'::jsonb,   -- ["carpentry","handyman",…]
+  days         jsonb default '[]'::jsonb,    -- ["2026-06-11", …]
   time_blocks  jsonb default '[]'::jsonb,    -- ["morning","evening","anytime"]
   note         text,
+  assigned     jsonb default '[]'::jsonb,    -- task ids auto-assigned to this helper
+  assigned_at  timestamptz,
   created_at   timestamptz default now()
 );
 alter table public.bar_helpers enable row level security;
 
--- anon can ONLY insert (sign up) — never read the list with the public key.
-create policy "anon can volunteer" on public.bar_helpers
-  for insert to anon with check (true);
+-- Added after the first release (kept here so a fresh run matches live).
+alter table public.bar_helpers add column if not exists assigned jsonb default '[]'::jsonb;
+alter table public.bar_helpers add column if not exists assigned_at timestamptz;
+
+-- The table is read/written ONLY by the help-out edge function (service role),
+-- so no anon policies are needed — the public key can't read or write it.

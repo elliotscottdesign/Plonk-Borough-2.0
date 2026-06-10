@@ -1,16 +1,16 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  CATEGORIES, CATEGORY_ICON, TIME_BLOCKS, DEADLINE,
-  helpDays, dayWeekday, dayNum, dayLabel,
+  CATEGORIES, CATEGORY_LABEL, TIME_BLOCKS, DEADLINE,
+  helpDays, dayWeekday, dayNum, capacityFor,
 } from './data.js'
-import { TASKS, PRIORITY } from './tasks.js'
 import { submitHelper, helpLink } from './api.js'
 
 // ─── No Dice — "Help us open" volunteer portal (/help-out) ─────────────────
 // A public, shareable page (no login). A friend fills in their details, ticks
-// what they're up for and which days/times suit, and picks dates between now
-// and the 19th. The "What needs doing" tab is the jobs board — Elliot's venue
-// walk-around, grouped by the same categories so people can see the work.
+// what they're up for and which days/times suit. On submit the help-out edge
+// function auto-assigns jobs (≈30 min each, sized to their availability),
+// emails them the list, and we show it here too. The master jobs board is
+// admin-only — it lives in /ops → Help Out, not on this public page.
 
 const RED = '#DA1B33'
 const INK = '#000000'
@@ -23,7 +23,6 @@ const deadlineLabel = new Date(DEADLINE + 'T00:00:00')
 
 const toggle = (arr, v) => (arr.includes(v) ? arr.filter(x => x !== v) : [...arr, v])
 
-// ─── Shared chip ────────────────────────────────────────────────────────────
 function Chip({ active, onClick, children, style }) {
   return (
     <button type="button" onClick={onClick} style={{
@@ -51,6 +50,59 @@ const inputStyle = {
   borderRadius: 10, padding: '13px 14px', color: '#fff', fontSize: 16, fontFamily: 'inherit',
 }
 
+// ─── Success screen — shows the jobs we assigned them ─────────────────────────
+function Assigned({ result, emailGiven, onReset }) {
+  const tasks = result?.assigned || []
+  const byCat = useMemo(() => {
+    const m = {}
+    for (const t of tasks) (m[t.cat] ||= []).push(t)
+    return Object.entries(m)
+  }, [tasks])
+
+  return (
+    <div style={{ padding: '8px 0' }}>
+      <div style={{ textAlign: 'center', marginBottom: 22 }}>
+        <div style={{ fontSize: 46, marginBottom: 6 }}>🍻</div>
+        <h2 className="serif" style={{ fontSize: 30, margin: '0 0 10px', color: '#fff' }}>You legend — thank you.</h2>
+        {tasks.length > 0 ? (
+          <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, maxWidth: 440, margin: '0 auto' }}>
+            Here are {tasks.length} job{tasks.length > 1 ? 's' : ''} to get you started — about 30 min each.
+            {result?.emailed ? ' We’ve emailed them to you too.' : (emailGiven ? '' : ' Screenshot this — add an email next time and we’ll send it over.')}
+          </p>
+        ) : (
+          <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, maxWidth: 440, margin: '0 auto' }}>
+            You’re on the list! We don’t have specific jobs for that just yet — Elliot will slot you in on the day.
+          </p>
+        )}
+      </div>
+
+      {byCat.map(([cat, items]) => (
+        <div key={cat} style={{ marginBottom: 18 }}>
+          <div style={{ fontSize: 12, letterSpacing: '0.12em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 8 }}>{CATEGORY_LABEL[cat] || cat}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {items.map(t => (
+              <div key={t.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px' }}>
+                <div style={{ fontSize: 14.5, color: '#fff', fontWeight: 600, lineHeight: 1.35 }}>{t.title}</div>
+                {t.detail && <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 4 }}>{t.detail}</div>}
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6 }}>{t.area} · ~30 min</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <p style={{ fontSize: 13.5, color: DIM, lineHeight: 1.6, textAlign: 'center', margin: '20px auto 22px', maxWidth: 440 }}>
+        Come down any time we’re there (~9am–midnight) at 407 Mentmore Terrace, E8 3PH. A job not your thing? Text Elliot and we’ll swap it. Aiming to open by <strong style={{ color: '#fff' }}>{deadlineLabel}</strong>.
+      </p>
+      <div style={{ textAlign: 'center' }}>
+        <button onClick={onReset} style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: RED, border: `1px solid ${RED}`, fontWeight: 700, padding: '13px 26px' }}>
+          Sign up someone else
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ─── Sign-up form ────────────────────────────────────────────────────────────
 function SignUp() {
   const days = useMemo(() => helpDays(), [])
@@ -63,17 +115,19 @@ function SignUp() {
   const [note, setNote] = useState('')
   const [status, setStatus] = useState('idle') // idle | sending | done | error
   const [error, setError] = useState('')
+  const [result, setResult] = useState(null)
 
   const hasContact = phone.trim() || email.trim()
   const valid = name.trim() && hasContact && cats.length && pickedDays.length
+  const cap = capacityFor(blocks)
 
   async function onSubmit(e) {
     e.preventDefault()
     if (!valid || status === 'sending') return
     setStatus('sending'); setError('')
     try {
-      await submitHelper({ name, phone, email, categories: cats, days: pickedDays, time_blocks: blocks, note })
-      setStatus('done')
+      const r = await submitHelper({ name, phone, email, categories: cats, days: pickedDays, time_blocks: blocks, note })
+      setResult(r); setStatus('done')
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
       setError(err.message || 'Something went wrong — try again.')
@@ -83,37 +137,23 @@ function SignUp() {
 
   function reset() {
     setName(''); setPhone(''); setEmail(''); setCats([]); setPickedDays([]); setBlocks([]); setNote('')
-    setStatus('idle'); setError('')
+    setStatus('idle'); setError(''); setResult(null)
   }
 
-  if (status === 'done') {
-    return (
-      <div style={{ textAlign: 'center', padding: '24px 4px' }}>
-        <div style={{ fontSize: 46, marginBottom: 8 }}>🍻</div>
-        <h2 className="serif" style={{ fontSize: 30, margin: '0 0 12px', color: '#fff' }}>You legend — thank you.</h2>
-        <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, maxWidth: 420, margin: '0 auto 8px' }}>
-          We’ve got your details. Elliot will text or email you to lock in exactly when to come down and what to jump on.
-        </p>
-        <p style={{ fontSize: 14, color: DIM, lineHeight: 1.6, maxWidth: 420, margin: '0 auto 26px' }}>
-          407 Mentmore Terrace, London Fields, E8 3PH. Aiming to be open by <strong style={{ color: '#fff' }}>{deadlineLabel}</strong>.
-        </p>
-        <button onClick={reset} style={{ ...inputStyle, width: 'auto', cursor: 'pointer', background: RED, border: `1px solid ${RED}`, fontWeight: 700, padding: '13px 26px' }}>
-          Sign up someone else
-        </button>
-      </div>
-    )
-  }
+  if (status === 'done') return <Assigned result={result} emailGiven={!!email.trim()} onReset={reset} />
 
   return (
     <form onSubmit={onSubmit}>
       <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, margin: '0 0 24px' }}>
         We’re getting No Dice open and there’s a mountain to do — too much for one person. Pop your details in,
-        tick what you’re up for and when you’re free, and we’ll sort you a slot. Every hand counts. 🙏
+        tick what you’re up for and when you’re free, and we’ll <strong style={{ color: '#fff' }}>email you a few specific jobs</strong> (about 30 min each). Every hand counts. 🙏
       </p>
 
       <Field label="Your name"><input style={inputStyle} value={name} onChange={e => setName(e.target.value)} placeholder="First name (or full)" /></Field>
       <Field label="Mobile" hint="So we can text you a time."><input style={inputStyle} value={phone} onChange={e => setPhone(e.target.value)} placeholder="07…" inputMode="tel" /></Field>
-      <Field label="Email" hint="Phone or email — at least one so we can reach you."><input style={inputStyle} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" inputMode="email" /></Field>
+      <Field label="Email" hint="We’ll email your job list here. Phone or email — at least one.">
+        <input style={inputStyle} value={email} onChange={e => setEmail(e.target.value)} placeholder="you@email.com" inputMode="email" />
+      </Field>
 
       <Field label="What are you up for?" hint="Tick anything you’d be happy to help with — no skills needed for most of it.">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
@@ -144,7 +184,7 @@ function SignUp() {
         </div>
       </Field>
 
-      <Field label="What times suit?" hint="We’re around ~9am to midnight — come before work, on a break, or after.">
+      <Field label="What times suit?" hint="We’re around ~9am to midnight — come before work, on a break, or after. (Sets how many jobs we send.)">
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
           {TIME_BLOCKS.map(b => (
             <Chip key={b.key} active={blocks.includes(b.key)} onClick={() => setBlocks(a => toggle(a, b.key))}>
@@ -168,86 +208,18 @@ function SignUp() {
         color: valid ? '#fff' : 'rgba(255,255,255,0.4)', borderRadius: 12, padding: '16px',
         fontSize: 16, fontWeight: 700, fontFamily: 'inherit', transition: 'all 0.15s',
       }}>
-        {status === 'sending' ? 'Sending…' : "I'm in — sign me up"}
+        {status === 'sending' ? 'Sending…' : "I'm in — send me my jobs"}
       </button>
-      {!valid && (
-        <div style={{ fontSize: 12, color: DIM, marginTop: 10, textAlign: 'center' }}>
-          Add your name, a phone or email, at least one thing you’re up for, and a day.
-        </div>
-      )}
+      <div style={{ fontSize: 12, color: DIM, marginTop: 10, textAlign: 'center' }}>
+        {valid ? `We’ll send you up to ~${cap} job${cap > 1 ? 's' : ''} from what you picked.`
+               : 'Add your name, a phone or email, at least one thing you’re up for, and a day.'}
+      </div>
     </form>
-  )
-}
-
-// ─── Jobs board ──────────────────────────────────────────────────────────────
-function JobsBoard() {
-  const [filter, setFilter] = useState('all')
-  const counts = useMemo(() => {
-    const m = {}
-    for (const t of TASKS) m[t.cat] = (m[t.cat] || 0) + 1
-    return m
-  }, [])
-  const usedCats = CATEGORIES.filter(c => counts[c.key])
-  const shown = filter === 'all' ? TASKS : TASKS.filter(t => t.cat === filter)
-  const p1 = TASKS.filter(t => t.priority === 'p1').length
-
-  // Order categories by the chosen filter, then render grouped.
-  const groups = useMemo(() => {
-    const order = filter === 'all' ? usedCats.map(c => c.key) : [filter]
-    return order.map(key => ({
-      cat: CATEGORIES.find(c => c.key === key),
-      items: shown.filter(t => t.cat === key),
-    })).filter(g => g.items.length)
-  }, [filter, shown]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div>
-      <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, margin: '0 0 8px' }}>
-        Everything on the list to get No Dice open — <strong style={{ color: '#fff' }}>{TASKS.length} jobs</strong>,{' '}
-        <strong style={{ color: RED }}>{p1} needed before we open</strong>. Filter by what you fancy.
-      </p>
-      <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', margin: '14px 0 18px', fontSize: 12, color: DIM }}>
-        {Object.entries(PRIORITY).map(([k, p]) => (
-          <span key={k} style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 9, height: 9, borderRadius: '50%', background: p.tone }} /> {p.label}
-          </span>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 22 }}>
-        <Chip active={filter === 'all'} onClick={() => setFilter('all')}>All · {TASKS.length}</Chip>
-        {usedCats.map(c => (
-          <Chip key={c.key} active={filter === c.key} onClick={() => setFilter(c.key)}>{c.icon} {c.label} · {counts[c.key]}</Chip>
-        ))}
-      </div>
-
-      {groups.map(g => (
-        <div key={g.cat.key} style={{ marginBottom: 26 }}>
-          <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>{g.cat.icon} {g.cat.label}</div>
-          <div style={{ fontSize: 12.5, color: DIM, marginBottom: 12 }}>{g.cat.blurb}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {g.items.map((t, i) => (
-              <div key={i} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '12px 14px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                  <span title={PRIORITY[t.priority].label} style={{ width: 9, height: 9, borderRadius: '50%', background: PRIORITY[t.priority].tone, marginTop: 6, flexShrink: 0 }} />
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14.5, color: '#fff', fontWeight: 600, lineHeight: 1.35 }}>{t.title}</div>
-                    {t.detail && <div style={{ fontSize: 12.5, color: DIM, lineHeight: 1.5, marginTop: 4 }}>{t.detail}</div>}
-                    <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 6 }}>{t.area}</div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
   )
 }
 
 // ─── Page shell ──────────────────────────────────────────────────────────────
 export default function HelpOutPortal() {
-  const [tab, setTab] = useState('signup') // signup | jobs
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -267,33 +239,22 @@ export default function HelpOutPortal() {
   return (
     <div style={{ minHeight: '100vh', background: INK, color: '#fff', fontFamily: "'DM Sans', sans-serif" }}>
       <div style={{ maxWidth: 640, margin: '0 auto', padding: '40px 20px 64px', boxSizing: 'border-box' }}>
-        {/* Hero */}
-        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(220px, 60vw)', height: 'auto', display: 'block', marginBottom: 16 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(220px, 60vw)', height: 'auto', display: 'block', marginBottom: 16 }} />
+          <button onClick={share} title="Share this link" style={{
+            cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`,
+            borderRadius: 8, padding: '6px 12px', fontSize: 12, color: DIM, whiteSpace: 'nowrap',
+          }}>{copied ? 'Copied ✓' : 'Share ↗'}</button>
+        </div>
         <div style={{ fontFamily: "'Bebas Neue', 'Impact', sans-serif", fontSize: 'clamp(1.6rem, 6vw, 2.4rem)', letterSpacing: '0.04em', textTransform: 'uppercase', color: RED, lineHeight: 1, marginBottom: 8 }}>
           Help us open
         </div>
-        <div style={{ fontSize: 13, color: DIM, marginBottom: 22 }}>
+        <div style={{ fontSize: 13, color: DIM, marginBottom: 28 }}>
           London Fields · open by <strong style={{ color: '#fff' }}>{deadlineLabel}</strong>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 26, borderBottom: `1px solid ${LINE}`, paddingBottom: 0 }}>
-          {[['signup', "I want to help"], ['jobs', 'What needs doing']].map(([k, label]) => (
-            <button key={k} onClick={() => setTab(k)} style={{
-              cursor: 'pointer', background: 'transparent', border: 'none', padding: '8px 4px 12px',
-              fontSize: 14.5, fontWeight: tab === k ? 700 : 500, color: tab === k ? '#fff' : DIM,
-              borderBottom: `2px solid ${tab === k ? RED : 'transparent'}`, marginBottom: -1,
-            }}>{label}</button>
-          ))}
-          <button onClick={share} title="Share this link" style={{
-            marginLeft: 'auto', cursor: 'pointer', background: 'transparent', border: `1px solid ${LINE}`,
-            borderRadius: 8, padding: '6px 12px', fontSize: 12, color: DIM, alignSelf: 'center', marginBottom: 8,
-          }}>{copied ? 'Copied ✓' : 'Share ↗'}</button>
-        </div>
+        <SignUp />
 
-        {tab === 'signup' ? <SignUp /> : <JobsBoard />}
-
-        {/* Footer */}
         <div style={{ marginTop: 44, paddingTop: 20, borderTop: `1px solid ${LINE}`, fontSize: 11, letterSpacing: '0.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.34)', lineHeight: 1.9 }}>
           No Dice · 407 Mentmore Terrace, London Fields, E8 3PH
         </div>
