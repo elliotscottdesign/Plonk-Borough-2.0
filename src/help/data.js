@@ -41,17 +41,39 @@ export const TIME_BLOCKS = [
 ]
 export const TIME_BLOCK_LABEL = Object.fromEntries(TIME_BLOCKS.map(b => [b.key, b.label]))
 
+// ─── Shift times (per-date start/finish picker) ─────────────────────────────
+// We're at the venue ~9am–midnight. A helper picks the exact hours they can do
+// on each date; that shift is then filled with ~30-min jobs.
+export const HELP_START_MIN = 9 * 60      // 9:00am
+export const HELP_END_MIN = 24 * 60       // midnight
+const pad2 = (n) => String(n).padStart(2, '0')
+export const toMin = (hhmm) => { const [h, m] = String(hhmm).split(':').map(Number); return h * 60 + (m || 0) }
+export const toHHMM = (min) => `${pad2(Math.floor(min / 60) % 24)}:${pad2(min % 60)}`
+export function fmtTime(min) {
+  if (min >= HELP_END_MIN) return 'midnight'
+  const h = Math.floor(min / 60), m = min % 60
+  const h12 = ((h + 11) % 12) + 1
+  return `${h12}${m ? ':' + pad2(m) : ''}${h < 12 ? 'am' : 'pm'}`
+}
+// Selectable times every 30 min between two bounds (inclusive).
+export const timeOptions = (fromMin = HELP_START_MIN, toMinV = HELP_END_MIN) => {
+  const out = []
+  for (let m = fromMin; m <= toMinV; m += 30) out.push({ min: m, value: toHHMM(m), label: fmtTime(m) })
+  return out
+}
+export const DEFAULT_SHIFT = { start: '17:00', end: '20:00' }   // after-work default
+export const shiftLabel = (s) => s ? `${fmtTime(toMin(s.start))}–${fmtTime(toMin(s.end))}` : ''
+
 // ─── Auto-assignment sizing ─────────────────────────────────────────────────
-// Each task is treated as ~30 min. How many 30-min jobs a time block is worth,
-// so a sign-up gets a list sized to when they're free. Capped so nobody gets an
-// overwhelming list and the jobs spread across more people. The SAME numbers
-// live in the help-out edge function — keep them in sync.
+// Each task is ~30 min. A shift of N minutes is worth N/30 jobs. Capped so the
+// pool spreads across more people. SAME numbers live in the help-out edge
+// function — keep them in sync.
 export const TASK_MIN = 30
-export const MAX_TASKS = 8
-export const BLOCK_SLOTS = { morning: 6, afternoon: 10, evening: 6, late: 8, anytime: 8 }
-export function capacityFor(timeBlocks) {
-  const sum = (timeBlocks || []).reduce((n, b) => n + (BLOCK_SLOTS[b] || 0), 0)
-  return Math.max(2, Math.min(MAX_TASKS, sum || 4))
+export const MAX_TASKS = 20
+export const shiftSlots = (s) => Math.max(0, Math.round((toMin(s.end) - toMin(s.start)) / TASK_MIN))
+export function slotsForShifts(shifts) {
+  const sum = (shifts || []).reduce((n, s) => n + shiftSlots(s), 0)
+  return Math.max(1, Math.min(MAX_TASKS, sum))
 }
 
 // Priority bands used on the admin jobs board.

@@ -119,7 +119,7 @@ export default function TeamLanding() {
       {/* Help us open — public volunteer door (no code). Friends getting the
           bar open won't have a staff code, so this one is open to everyone. */}
       <a
-        href="/help-out"
+        href="/helpout"
         style={{
           width: '100%', maxWidth: 760, marginTop: 16, boxSizing: 'border-box',
           textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between',

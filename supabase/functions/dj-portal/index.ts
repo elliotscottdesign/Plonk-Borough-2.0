@@ -116,7 +116,7 @@ Deno.serve(async (req) => {
     const up = await sb.storage.from("dj-photos").upload(key, bytes, { contentType: m[1], upsert: true });
     if (up.error) return json({ error: up.error.message }, 500);
     const { data: p } = sb.storage.from("dj-photos").getPublicUrl(key);
-    await sb.from("dj_slots").update({ event_image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: new Date().toISOString() }).eq("date", date).eq("dj_id", dj.id);
+    await sb.from("dj_slots").update({ event_image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: new Date().toISOString() }).eq("date", date).eq("dj_id", dj.id).in("status", ["held", "pending", "confirmed"]);
     return state(sb, dj.id);
   }
 

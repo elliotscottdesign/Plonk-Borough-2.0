@@ -22,11 +22,16 @@ const json = (o: unknown, s = 200) =>
   new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 
 // ─── Assignment sizing (keep in sync with src/help/data.js) ──────────────────
-const MAX_TASKS = 8;
-const BLOCK_SLOTS: Record<string, number> = { morning: 6, afternoon: 10, evening: 6, late: 8, anytime: 8 };
-const capacityFor = (blocks: string[]) => {
-  const sum = (blocks || []).reduce((n, b) => n + (BLOCK_SLOTS[b] || 0), 0);
-  return Math.max(2, Math.min(MAX_TASKS, sum || 4));
+// A shift of N minutes is worth N/30 jobs. Capped so the pool spreads.
+const MAX_TASKS = 20;
+const TASK_MIN = 30;
+const PORTAL_URL = "https://team.nodice.bar/operations?tab=helpout";
+const ELLIOT_EMAIL = "elliot@nodice.bar";
+const toMin = (hhmm: string) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + (m || 0); };
+const shiftSlots = (s: any) => Math.max(0, Math.round((toMin(s.end) - toMin(s.start)) / TASK_MIN));
+const slotsForShifts = (shifts: any[]) => {
+  const sum = (shifts || []).reduce((n, s) => n + shiftSlots(s), 0);
+  return Math.max(1, Math.min(MAX_TASKS, sum));
 };
 const PW: Record<string, number> = { p1: 0, p2: 1, p3: 2 };
 
@@ -151,54 +156,69 @@ const CAT_LABEL: Record<string, string> = {
 
 const fmtDay = (d: string) =>
   new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
-const BLOCK_LABEL: Record<string, string> = { morning: "Morning", afternoon: "Afternoon", evening: "Evening", late: "Late", anytime: "Flexible" };
+const fmtTime = (min: number) => {
+  if (min >= 1440) return "midnight";
+  const h = Math.floor(min / 60), m = min % 60, h12 = ((h + 11) % 12) + 1;
+  return `${h12}${m ? ":" + String(m).padStart(2, "0") : ""}${h < 12 ? "am" : "pm"}`;
+};
+const shiftLabel = (s: any) => `${fmtTime(toMin(s.start))}–${fmtTime(toMin(s.end))}`;
 const esc = (s: string) => String(s || "").replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
+const RED = "#DA1B33";
 
-function buildEmail(name: string, assigned: typeof TASKS, days: string[], blocks: string[]) {
-  const RED = "#DA1B33";
+const shiftRows = (shifts: any[]) =>
+  (shifts || []).map((s) => `<div style="font-size:13px;color:#333"><strong>${esc(fmtDay(s.date))}</strong> · ${esc(shiftLabel(s))}</div>`).join("");
+
+const taskTable = (assigned: typeof TASKS) => {
   const byCat: Record<string, typeof TASKS> = {};
   for (const t of assigned) (byCat[t.cat] ||= []).push(t);
-  const when = [
-    days.length ? days.map(fmtDay).join(" · ") : "",
-    blocks.length ? blocks.map((b) => BLOCK_LABEL[b] || b).join(", ") : "",
-  ].filter(Boolean).join(" — ");
-
   const sections = Object.entries(byCat).map(([cat, items]) => `
-    <tr><td style="padding:18px 0 6px"><div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:${RED};font-weight:700">${esc(CAT_LABEL[cat] || cat)}</div></td></tr>
+    <tr><td style="padding:16px 0 6px"><div style="font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:${RED};font-weight:700">${esc(CAT_LABEL[cat] || cat)}</div></td></tr>
     ${items.map((t) => `
       <tr><td style="padding:6px 0;border-bottom:1px solid #eee">
         <div style="font-size:15px;color:#111;font-weight:600">${esc(t.title)}</div>
         ${t.detail ? `<div style="font-size:13px;color:#555;line-height:1.5;margin-top:3px">${esc(t.detail)}</div>` : ""}
         <div style="font-size:11px;color:#999;letter-spacing:0.08em;text-transform:uppercase;margin-top:4px">${esc(t.area)} · ~30 min</div>
-      </td></tr>`).join("")}
-  `).join("");
+      </td></tr>`).join("")}`).join("");
+  return `<table style="width:100%;border-collapse:collapse">${sections}</table>`;
+};
 
+// Helper email — sent when Elliot CONFIRMS their jobs.
+function buildHelperEmail(name: string, assigned: typeof TASKS, shifts: any[]) {
   const body = assigned.length
-    ? `<p style="font-size:15px;color:#333;line-height:1.6">Here are some jobs we’ve earmarked for you — each is about <strong>30 minutes</strong>, so it’s roughly <strong>${assigned.length * 30} minutes / ${(assigned.length * 0.5).toFixed(1)} hours</strong> of help. Do what you can, in any order. Not your thing? Just text Elliot and we’ll swap it.</p>
-       <table style="width:100%;border-collapse:collapse">${sections}</table>`
-    : `<p style="font-size:15px;color:#333;line-height:1.6">You’re on the list — thank you! We don’t have specific jobs to send for what you picked just yet, so Elliot will slot you in directly on the day.</p>`;
-
+    ? `<p style="font-size:15px;color:#333;line-height:1.6">Here are your jobs — each is about <strong>30 minutes</strong> (~<strong>${(assigned.length * 0.5).toFixed(1)} hours</strong> total). Do them in any order during your shift. Not your thing? Just text Elliot and we’ll swap it.</p>${taskTable(assigned)}`
+    : `<p style="font-size:15px;color:#333;line-height:1.6">You’re confirmed and on the list — thank you! Elliot will point you at jobs on the day.</p>`;
   return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:8px">
-    <h1 style="font-size:24px;color:${RED};margin:0 0 4px">Thanks for helping us open, ${esc(name || "friend")}! 🍻</h1>
+    <h1 style="font-size:24px;color:${RED};margin:0 0 4px">You’re confirmed — thanks for helping, ${esc(name || "friend")}! 🍻</h1>
     <p style="font-size:13px;color:#888;margin:0 0 16px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
-    ${when ? `<p style="font-size:13px;color:#555;margin:0 0 12px">You told us you’re free: <strong>${esc(when)}</strong></p>` : ""}
+    ${shifts && shifts.length ? `<div style="margin:0 0 14px"><div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#888;margin-bottom:4px">Your shift${shifts.length > 1 ? "s" : ""}</div>${shiftRows(shifts)}</div>` : ""}
     ${body}
-    <p style="font-size:13px;color:#777;line-height:1.6;margin-top:22px">Come down any time we’re there (~9am–midnight). Questions or a clash? Just reply or text Elliot. Every hand gets us closer. 🙏</p>
+    <p style="font-size:13px;color:#777;line-height:1.6;margin-top:22px">See you there. Questions or a clash? Just reply or text Elliot. Every hand gets us closer. 🙏</p>
   </div>`;
 }
 
-async function sendEmail(to: string, name: string, assigned: typeof TASKS, days: string[], blocks: string[]) {
+// Alert to Elliot — sent on every new sign-up so he can review + confirm.
+function buildAlertEmail(h: any, assigned: typeof TASKS, helperId: string) {
+  return `<div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:560px;margin:0 auto;padding:8px">
+    <h1 style="font-size:22px;color:${RED};margin:0 0 6px">New Help Out sign-up: ${esc(h.name)}</h1>
+    <p style="font-size:14px;color:#333;margin:0 0 12px">
+      ${h.phone ? `📱 ${esc(h.phone)}` : ""}${h.phone && h.email ? " · " : ""}${h.email ? `✉️ ${esc(h.email)}` : ""}
+    </p>
+    <div style="margin:0 0 14px"><div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#888;margin-bottom:4px">Shifts</div>${shiftRows(h.shifts) || "<div style='font-size:13px;color:#999'>—</div>"}</div>
+    ${h.note ? `<p style="font-size:13px;color:#555;margin:0 0 14px"><strong>Note:</strong> ${esc(h.note)}</p>` : ""}
+    <div style="font-size:12px;letter-spacing:0.1em;text-transform:uppercase;color:#888;margin-bottom:4px">Proposed jobs (${assigned.length})</div>
+    ${assigned.length ? taskTable(assigned) : "<p style='font-size:13px;color:#999'>No matching jobs free — assign manually.</p>"}
+    <p style="margin:24px 0 0"><a href="${PORTAL_URL}" style="display:inline-block;background:${RED};color:#fff;text-decoration:none;font-weight:700;font-size:15px;padding:12px 22px;border-radius:8px">Review &amp; confirm →</a></p>
+    <p style="font-size:12px;color:#999;margin-top:10px">${PORTAL_URL}</p>
+  </div>`;
+}
+
+async function sendResend(to: string, subject: string, html: string) {
   const RESEND = Deno.env.get("RESEND_API_KEY");
   if (!RESEND || !to) return false;
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      from: "No Dice <hello@nodice.bar>",
-      to,
-      subject: assigned.length ? `Your No Dice jobs — thanks for helping! 🍻` : `You’re on the list — thanks for helping! 🍻`,
-      html: buildEmail(name, assigned, days, blocks),
-    }),
+    body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to, subject, html }),
   });
   return r.ok;
 }
@@ -210,17 +230,22 @@ Deno.serve(async (req) => {
   const action = b.action;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
-  // ── public: sign up + auto-assign ──────────────────────────────────────────
+  const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
+
+  // ── public: sign up → propose jobs to fill each shift, alert Elliot ──────────
   if (action === "signup") {
     const name = String(b.name || "").trim();
     const email = String(b.email || "").trim().toLowerCase() || null;
     const phone = String(b.phone || "").trim() || null;
     const categories: string[] = Array.isArray(b.categories) ? b.categories : [];
-    const days: string[] = Array.isArray(b.days) ? b.days : [];
-    const blocks: string[] = Array.isArray(b.time_blocks) ? b.time_blocks : [];
     const note = String(b.note || "").trim() || null;
-    if (!name || (!email && !phone) || !categories.length || !days.length)
-      return json({ error: "Please add your name, a phone or email, at least one thing you’re up for, and a day." }, 400);
+    // shifts = [{date, start:"HH:MM", end:"HH:MM"}] within 9am–midnight.
+    const shifts = (Array.isArray(b.shifts) ? b.shifts : [])
+      .filter((s: any) => s && s.date && s.start && s.end && toMin(s.end) > toMin(s.start))
+      .map((s: any) => ({ date: String(s.date), start: String(s.start), end: String(s.end) }));
+    if (!name || (!email && !phone) || !categories.length || !shifts.length)
+      return json({ error: "Please add your name, a phone or email, at least one thing you’re up for, and a date with your hours." }, 400);
+    const days = [...new Set(shifts.map((s: any) => s.date))].sort();
 
     const { data: helpers, error: hErr } = await sb.from("bar_helpers").select("id,email,assigned");
     if (hErr) return json({ error: hErr.message }, 500);
@@ -233,7 +258,7 @@ Deno.serve(async (req) => {
       for (const id of (h.assigned || [])) taken.add(id);
     }
 
-    const cap = capacityFor(blocks);
+    const cap = slotsForShifts(shifts);
     const assigned = TASKS
       .filter((t) => categories.includes(t.cat) && !taken.has(t.id))
       .sort((a, b2) => (PW[a.priority] ?? 9) - (PW[b2.priority] ?? 9))
@@ -241,34 +266,39 @@ Deno.serve(async (req) => {
     const assignedIds = assigned.map((t) => t.id);
 
     const row = {
-      name, phone, email, categories, days, time_blocks: blocks, note,
-      assigned: assignedIds, assigned_at: new Date().toISOString(),
+      name, phone, email, categories, days, time_blocks: [], shifts, note,
+      assigned: assignedIds, assigned_at: new Date().toISOString(), status: "pending",
     };
+    let helperId = existing?.id || "";
     if (existing) {
       const { error } = await sb.from("bar_helpers").update(row).eq("id", existing.id);
       if (error) return json({ error: error.message }, 500);
     } else {
-      const { error } = await sb.from("bar_helpers").insert(row);
+      const { data: ins, error } = await sb.from("bar_helpers").insert(row).select("id").single();
       if (error) return json({ error: error.message }, 500);
+      helperId = ins.id;
     }
 
-    const emailed = email ? await sendEmail(email, name, assigned, days, blocks) : false;
-    return json({ ok: true, assigned, emailed });
+    // Alert Elliot to review + confirm. The helper is emailed on confirm, not now.
+    await sendResend(ELLIOT_EMAIL, `New Help Out sign-up: ${name}`, buildAlertEmail({ name, phone, email, shifts, note }, assigned, helperId));
+    return json({ ok: true, assigned, pending: true });
   }
 
   // ── admin (secret-gated) ────────────────────────────────────────────────────
   if (action === "admin") {
-    if (b.secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const { data: helpers, error } = await sb.from("bar_helpers").select("*").order("created_at", { ascending: false });
     if (error) return json({ error: error.message }, 500);
-    const owner: Record<string, { id: string; name: string }> = {};
-    for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name };
+    const owner: Record<string, { id: string; name: string; status: string }> = {};
+    for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name, status: h.status || "pending" };
     const tasks = TASKS.map((t) => ({ ...t, assignedTo: owner[t.id] || null }));
     const enrichedHelpers = (helpers || []).map((h: any) => ({
-      ...h, assignedTasks: (h.assigned || []).map((id: string) => TASK_BY_ID[id]).filter(Boolean),
+      ...h, status: h.status || "pending", shifts: h.shifts || [],
+      assignedTasks: (h.assigned || []).map((id: string) => TASK_BY_ID[id]).filter(Boolean),
     }));
     const stats = {
       helpers: (helpers || []).length,
+      confirmed: (helpers || []).filter((h: any) => (h.status || "pending") === "confirmed").length,
       tasks: TASKS.length,
       assigned: tasks.filter((t) => t.assignedTo).length,
       p1: TASKS.filter((t) => t.priority === "p1").length,
@@ -277,9 +307,38 @@ Deno.serve(async (req) => {
     return json({ tasks, helpers: enrichedHelpers, stats });
   }
 
+  // ── confirm a helper → email them their final jobs (secret-gated) ───────────
+  if (action === "confirm") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const { data: h } = await sb.from("bar_helpers").select("*").eq("id", b.helperId).maybeSingle();
+    if (!h) return json({ error: "helper not found" }, 404);
+    await sb.from("bar_helpers").update({ status: "confirmed" }).eq("id", h.id);
+    const assigned = (h.assigned || []).map((id: string) => TASK_BY_ID[id]).filter(Boolean);
+    const emailed = h.email
+      ? await sendResend(h.email, assigned.length ? "Your No Dice jobs — thanks for helping! 🍻" : "You’re confirmed — thanks for helping! 🍻", buildHelperEmail(h.name, assigned, h.shifts || []))
+      : false;
+    return json({ ok: true, emailed });
+  }
+
+  // ── assign a specific task to a helper (secret-gated) ───────────────────────
+  if (action === "assign") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const taskId = String(b.taskId || "");
+    if (!TASK_BY_ID[taskId]) return json({ error: "unknown task" }, 400);
+    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned");
+    for (const h of helpers || []) if (h.id !== b.helperId && (h.assigned || []).includes(taskId))
+      return json({ error: "That job is already on someone else’s list — release it first." }, 409);
+    const me = (helpers || []).find((h: any) => h.id === b.helperId);
+    if (!me) return json({ error: "helper not found" }, 404);
+    const next = [...new Set([...(me.assigned || []), taskId])];
+    const { error } = await sb.from("bar_helpers").update({ assigned: next }).eq("id", b.helperId);
+    if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
   // ── release a task back to the pool (secret-gated) ──────────────────────────
   if (action === "release") {
-    if (b.secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const taskId = String(b.taskId || "");
     const { data: helpers } = await sb.from("bar_helpers").select("id,assigned");
     for (const h of helpers || []) {

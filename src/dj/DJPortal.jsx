@@ -387,14 +387,17 @@ export default function DJPortal() {
                   const s = sessionFor(e.date)
                   const session = e.kind === 'session'
                   return (
-                    <div key={e.date + '-' + i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                        <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
-                        <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
+                    <div key={e.date + '-' + i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                      {e.image && <img src={e.image} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }} />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
+                          <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
+                        </div>
+                        <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
+                        {e.subgenres.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{e.subgenres.join(' · ')}</div>}
+                        {!session && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{e.set_type ? ` · ${setTypeLabel(e.set_type)}` : ''}</div>}
                       </div>
-                      <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
-                      {e.subgenres.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{e.subgenres.join(' · ')}</div>}
-                      {!session && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{e.set_type ? ` · ${setTypeLabel(e.set_type)}` : ''}</div>}
                     </div>
                   )
                 })}

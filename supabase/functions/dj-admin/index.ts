@@ -67,7 +67,8 @@ Deno.serve(async (req) => {
       await sb.from("dj_slots").upsert({
         date, dj_id: djId, status: "pending", night_name: nightName || null,
         genre: dj?.genres || null, genres: subs, subgenres: subs, kind: k,
-        set_type: k === "opendecks" ? "dj_set" : null, promo_track: null, promo_ok: false, updated_at: now(),
+        set_type: k === "opendecks" ? "dj_set" : null, promo_track: null, promo_ok: false,
+        event_image_url: null, updated_at: now(),
       }, { onConflict: "date" });
       break;
     }
