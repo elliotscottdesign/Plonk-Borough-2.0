@@ -134,6 +134,24 @@ const RAW: { title: string; cat: string; area: string; priority: string; detail?
   { title: "Meet 5 Points to get their barrels gone", cat: "errands", area: "Offsite", priority: "p1", detail: "Elliot priority." },
   { title: "Speak to the liquidator re: Borough stock & equipment", cat: "admin", area: "Offsite", priority: "p1", detail: "Deal price on stock + equipment; make a Borough shopping list (glass racks, chest freezer, green curtains) to grab rather than re-buy." },
   { title: "Pick up the trolley from Andy at Mare Street Market", cat: "errands", area: "Offsite", priority: "p3", detail: "Really useful — for the gas canisters or storing the pool/ping-pong table covers." },
+
+  // ── Cleaning — reopening deep-clean ───────────────────────────────────────
+  { title: "Clean the front bar bridges", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean the drink shelves", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Run all the glasses through the machine", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean down all the surfaces", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Help deep-clean the dishwasher", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean the sinks", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Wipe down the shelves", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean the shelves above the bar", cat: "cleaning", area: "Inside", priority: "p2" },
+  { title: "Clean down the games machines", cat: "cleaning", area: "Inside", priority: "p3" },
+  { title: "Clean the arcade machines", cat: "cleaning", area: "Inside", priority: "p3" },
+  { title: "Clean the pool tables", cat: "cleaning", area: "Inside", priority: "p3" },
+  { title: "Clean up in the garden", cat: "cleaning", area: "Garden", priority: "p3" },
+  { title: "Help pressure-wash the garden", cat: "cleaning", area: "Garden", priority: "p3" },
+  { title: "Clean underneath the food trailer", cat: "cleaning", area: "Trailer", priority: "p3" },
+  { title: "Pressure-wash the metal fence", cat: "cleaning", area: "Garden", priority: "p3", detail: "Clear off any feathers and leaves so it's spotless." },
+  { title: "Wipe down all the indoor furniture", cat: "cleaning", area: "Inside", priority: "p3" },
 ];
 
 const slug = (s: string) =>
