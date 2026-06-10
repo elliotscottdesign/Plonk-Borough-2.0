@@ -206,8 +206,29 @@ export default function LeonieAgreement() {
         </P>
       </Section>
 
-      {/* 8. Governance */}
-      <Section number="8" title="Governance &amp; reserved matters">
+      {/* 8. Future rounds + pre-emption rights */}
+      <Section number="8" title="Future rounds · dilution · pre-emption rights">
+        <P>
+          The Company may raise further capital in the future (a "<strong style={{ color:CREAM }}>Round 2</strong>" and any subsequent round). Any future issuance of shares is a Reserved Matter requiring Reserved Matters Consent (clause 9), and the timing, total raise, per-share price and any specific Round-2 mechanics are decided by the <strong style={{ color:CREAM }}>directors and the A-class holders</strong> at that time.
+        </P>
+        <P>
+          When a future round is approved:
+        </P>
+        <ul style={ulStyle}>
+          <li><strong style={{ color:CREAM }}>New shares are issued at the prevailing per-share value.</strong> The Round-2 per-share price is set by the directors at an arm's-length valuation supported by trading performance, financial position and sector comparables at the time. New shares are issued as B-class.</li>
+          <li><strong style={{ color:CREAM }}>Dilution falls on B-class shareholders.</strong> Existing B-class holders (the Investor included) see their proportional B-class stake diluted by the new issuance unless they exercise their pre-emption right below.</li>
+          <li><strong style={{ color:CREAM }}>A-class voting control preserved.</strong> The Founder's A-class voting shares retain voting control of the Company in all circumstances, regardless of any subsequent B-class issuance.</li>
+          <li><strong style={{ color:GOLD }}>Pre-emption right for existing B holders.</strong> The Investor (and every other existing B holder) has the right to participate in any future round on a <strong style={{ color:CREAM }}>pro-rata basis</strong> — i.e. to subscribe for new B-class shares at the new per-share value, in proportion to her existing share count, sufficient to maintain her pre-round ownership percentage. The Investor is <em>not obliged</em> to participate.</li>
+          <li><strong style={{ color:CREAM }}>Notice period.</strong> The Company will give the Investor at least <strong style={{ color:CREAM }}>14 days' written notice</strong> of any future round and her pre-emption entitlement, specifying the new per-share value, the number of shares she may subscribe for, and the closing date for exercising the right.</li>
+          <li><strong style={{ color:CREAM }}>If the Investor declines to participate</strong>, her share count remains unchanged but her percentage of the enlarged company shrinks proportionally. The per-share dividend entitlement continues to apply to her existing shares without alteration.</li>
+        </ul>
+        <P>
+          Standard form: existing pre-emption rights apply equally to every B-class holder, so no single investor is favoured over another at Round 2. The Founder's call right at Y3 (clause 6) is unchanged — if exercised, the Investor exits before Round 2 mechanics become relevant for her.
+        </P>
+      </Section>
+
+      {/* 9. Governance */}
+      <Section number="9" title="Governance &amp; reserved matters">
         <P>
           <strong style={{ color:CREAM }}>Ordinary Consent</strong> — 50% of A-class votes (Founder controls). <strong style={{ color:CREAM }}>Reserved Matters Consent</strong> — 75% of total issued share capital (A + B, voting together as one class for this purpose only). The following matters require Reserved Matters Consent:
         </P>
@@ -225,8 +246,8 @@ export default function LeonieAgreement() {
         ]} />
       </Section>
 
-      {/* 9. Information rights */}
-      <Section number="9" title="Information rights">
+      {/* 10. Information rights */}
+      <Section number="10" title="Information rights">
         <ul style={ulStyle}>
           <li><strong style={{ color:CREAM }}>Semi-annual management accounts</strong> within 30 days of each distribution window — revenue, cost categories, EBITDA, Reserve balance, accrued surplus, distribution position.</li>
           <li><strong style={{ color:CREAM }}>Annual accounts</strong> within 90 days of each financial year-end.</li>
@@ -235,8 +256,8 @@ export default function LeonieAgreement() {
         </ul>
       </Section>
 
-      {/* 10. Exit + tag/drag */}
-      <Section number="10" title="Sale event · Year-5 exit · tag &amp; drag">
+      {/* 11. Exit + tag/drag */}
+      <Section number="11" title="Sale event · Year-5 exit · tag &amp; drag">
         <P>
           The Founder intends to pursue a Year-5 Sale Event at approximately 4× steady-state EBITDA (illustrative business value c.{fmt(HACKNEY_INVESTOR_RETURNS.exit.businessValue)} on the Y5 forecast EBITDA of {fmt(HACKNEY_INVESTOR_RETURNS.exit.y5Ebitda)}). On a Sale Event, proceeds are distributed <strong style={{ color:CREAM }}>pro-rata across all equity</strong> with no preferred return and no cap. Note: the Y3 Founder Call may have terminated the Investor's holding before Y5 (see clause 6).
         </P>
@@ -248,8 +269,8 @@ export default function LeonieAgreement() {
         </P>
       </Section>
 
-      {/* 11. Transfers */}
-      <Section number="11" title="Transfer restrictions">
+      {/* 12. Transfers */}
+      <Section number="12" title="Transfer restrictions">
         <ul style={ulStyle}>
           <li>No transfer of B shares for the first <strong style={{ color:CREAM }}>24 months</strong> without the Founder's written consent.</li>
           <li>After month 24, transfers subject to a <strong style={{ color:CREAM }}>right of first refusal</strong> (Company, then Founder) on 30 days' notice and matching the bona fide third-party offer.</li>
@@ -257,13 +278,13 @@ export default function LeonieAgreement() {
         </ul>
       </Section>
 
-      <Section number="12" title="Confidentiality">
+      <Section number="13" title="Confidentiality">
         <P>
           The Investor undertakes to keep confidential all non-public information about the Company — financial figures, supplier terms, customer lists, the underlying workbook, and the contents of this Agreement. Confidentiality survives termination and any transfer of B shares.
         </P>
       </Section>
 
-      <Section number="13" title="Warranties">
+      <Section number="14" title="Warranties">
         <P>
           The Founder warrants on the date of subscription that, to the best of his knowledge: (i) the 2025 actuals shown at nodice.bar/hackney are accurate in all material respects ({fmt(ACTUALS_2025.revenue)} revenue, {fmt(ACTUALS_2025.ebitda)} EBITDA, verified against Monthly Summary G15 / I15); (ii) the Company is not subject to any litigation, insolvency or material adverse claim other than as disclosed; (iii) the trading-premises lease is in good standing on the terms summarised in the deck (£65,000 + VAT per annum, 3-month deposit, 3-month rent-free start, 3% annual uplift); (iv) the Company has not granted any security, debt or option over its shares other than as disclosed in this Agreement.
         </P>
@@ -272,10 +293,10 @@ export default function LeonieAgreement() {
         </P>
       </Section>
 
-      <Section number="14" title="General">
+      <Section number="15" title="General">
         <ul style={ulStyle}>
           <li><strong style={{ color:CREAM }}>Entire agreement.</strong> This Agreement, the Articles, and the Schedules constitute the entire agreement between the parties in relation to the Round.</li>
-          <li><strong style={{ color:CREAM }}>Variation.</strong> Any variation requires Reserved Matters Consent (clause 8) and must be in writing.</li>
+          <li><strong style={{ color:CREAM }}>Variation.</strong> Any variation requires Reserved Matters Consent (clause 9) and must be in writing.</li>
           <li><strong style={{ color:CREAM }}>Governing law.</strong> Laws of England and Wales; exclusive jurisdiction of the English courts.</li>
           <li><strong style={{ color:CREAM }}>Counterparts.</strong> May be signed in counterparts (including by electronic signature).</li>
           <li><strong style={{ color:CREAM }}>Costs.</strong> Each party bears its own legal and advisory costs.</li>

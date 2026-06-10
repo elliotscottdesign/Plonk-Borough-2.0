@@ -207,6 +207,9 @@ export default function WaterfallReturns() {
         investorEq={effective.investorEq}
       />
 
+      {/* Future rounds + pre-emption rights — Round 2 dilution mechanics */}
+      <FutureRoundsCard investment={effective.investment} />
+
       {/* 12-month Distribution Calendar — quarterly dividends */}
       <DistributionCalendar
         wagesOverride={isWageLocked ? wageEffective.loadedAnnual : null}
@@ -406,6 +409,72 @@ function BuybackRightsCard({ investment, investorEq }) {
 
       <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
         Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>founder calls</strong> → investor exits for {fmt(bb.payout)} (Y3 fair value × shares) plus everything already paid in Y1-Y3 dividends; <strong style={{ color: 'var(--cream)' }}>founder doesn't call</strong> → investor holds to Y5 for the pro-rata exit at sector-multiple business value. Either way, dividends paid Y1-Y3 are not clawed back.
+      </div>
+    </div>
+  )
+}
+
+// ─── Future Rounds & Pre-emption Rights ──────────────────────────────
+// Explains Round 2 dilution mechanics + the existing B-holder
+// pre-emption right. Worked example uses the locked investment amount
+// to illustrate what happens to a £19k investor's stake under a
+// hypothetical Round 2 at 2× the current per-share price.
+function FutureRoundsCard({ investment }) {
+  const totalShares = DEAL.totalShares || 100
+  const price = DEAL.pricePerShare || 1000
+  const investorShares = Math.round((investment || 0) / price)
+  // Hypothetical Round 2 scenario: 30 new shares issued at 2× price.
+  const newSharesIssued = 30
+  const newPrice = price * 2
+  const newRoundRaise = newSharesIssued * newPrice
+  const enlargedShareCount = totalShares + newSharesIssued
+  // Investor's stake if they DON'T participate in pre-emption
+  const noParticipatePct = investorShares / enlargedShareCount * 100
+  const startingPct = investorShares / totalShares * 100
+  // Investor's stake if they DO exercise pre-emption to maintain %
+  // (buy newSharesIssued × startingPct / 100 new shares)
+  const preemptShares = (newSharesIssued * startingPct) / 100
+  const preemptCost = preemptShares * newPrice
+
+  return (
+    <div style={{ marginTop: 32 }}>
+      <h3 className="serif" style={{ fontSize: 22, color: 'var(--cream)', marginBottom: 8, lineHeight: 1.25 }}>
+        Future Rounds · Dilution · Pre-emption Rights
+      </h3>
+      <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 18 }}>
+        If the Company raises a future round (Round 2 onwards), <strong style={{ color: 'var(--cream)' }}>new shares are issued at the prevailing per-share value</strong> set by the directors at that time (based on trading + sector multiples). Dilution falls on the B-class. The Founder's <strong style={{ color: 'var(--cream)' }}>A-class voting shares preserve voting control</strong> regardless of any B-class issuance. Every existing B holder gets a <strong style={{ color: 'var(--gold)' }}>pre-emption right</strong> — a 14-day window to buy new shares at the new price, pro-rata to their existing stake, in order to maintain their ownership percentage.
+      </p>
+
+      {/* Worked example — hypothetical Round 2 at 2× price */}
+      <div className="card" style={{ padding: '18px 22px', marginBottom: 12 }}>
+        <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600 }}>
+          Worked example · hypothetical Round 2 at {((newPrice / price)).toFixed(0)}× per-share price
+        </div>
+        <div style={{ fontSize: 13, color: 'var(--cream)', lineHeight: 1.7, marginBottom: 14 }}>
+          The Company issues <strong style={{ color: 'var(--cream)' }}>{newSharesIssued}</strong> new B-shares at <strong style={{ color: 'var(--cream)' }}>{fmt(newPrice)}</strong> per share (raising <strong style={{ color: 'var(--cream)' }}>{fmt(newRoundRaise)}</strong>). Total share count grows from {totalShares} to <strong style={{ color: 'var(--cream)' }}>{enlargedShareCount}</strong>. Two paths for the existing {fmt(investment)} ({investorShares} shares = {startingPct.toFixed(1)}%) investor:
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+          <div style={{ padding: '16px 18px', background: 'rgba(229,57,53,0.06)', border: '1px solid rgba(229,57,53,0.25)', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: '#FCA5A5', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+              Option A · Don't participate
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.65 }}>
+              Investor keeps their <strong style={{ color: 'var(--cream)' }}>{investorShares} shares</strong> but ownership shrinks from <strong style={{ color: 'var(--cream)' }}>{startingPct.toFixed(1)}%</strong> to <strong style={{ color: '#FCA5A5' }}>{noParticipatePct.toFixed(1)}%</strong> of the enlarged company. The per-share dividend continues on the existing {investorShares} shares — economic value of each share may rise with the higher Round-2 valuation, but the % is diluted.
+            </div>
+          </div>
+          <div style={{ padding: '16px 18px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10 }}>
+            <div style={{ fontSize: 11, color: '#34D399', letterSpacing: '0.1em', textTransform: 'uppercase', fontWeight: 700, marginBottom: 8 }}>
+              Option B · Exercise pre-emption
+            </div>
+            <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.65 }}>
+              Investor subscribes for an extra <strong style={{ color: 'var(--cream)' }}>{preemptShares.toFixed(1)} shares</strong> at {fmt(newPrice)} each (= <strong style={{ color: 'var(--cream)' }}>{fmt(preemptCost)}</strong>). Maintains their <strong style={{ color: '#34D399' }}>{startingPct.toFixed(1)}%</strong> stake in the enlarged company. Subject to the 14-day notice period from the Company.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
+        Round-2 timing, total raise, per-share price and any specific mechanics are decided by the <strong style={{ color: 'var(--cream)' }}>directors + A-class holders</strong> at the time, subject to Reserved Matters Consent (75% of total issued share capital voting together). Pre-emption rights apply equally to every B-class holder.
       </div>
     </div>
   )

@@ -213,6 +213,24 @@ export const DEAL = {
   semiAnnualReviewMonths:   6,   // Y2 onwards: every 6 months
   reserveFloorPounds:  30000,    // declaration is skipped if reserve < floor at review date
 
+  // === FUTURE ROUNDS · PRE-EMPTION RIGHTS · DILUTION ============
+  // Any future capital raise (Round 2 onwards) is decided by the
+  // directors + A-class holders, subject to Reserved Matters Consent.
+  // Mechanics:
+  //   • New shares issued as B-class at the prevailing per-share value
+  //     set by the directors based on trading + sector multiples.
+  //   • Dilution falls on B-class. A-class voting shares preserve voting
+  //     control regardless of B-class issuance count.
+  //   • Existing B holders get a 14-day pre-emption right: they may
+  //     subscribe for new B shares at the new per-share price,
+  //     pro-rata to their existing stake, sufficient to maintain
+  //     their pre-round ownership %.
+  //   • If a B holder declines to pre-empt, their share count stays
+  //     unchanged but their % of the enlarged share base shrinks.
+  preemptionWindowDays:   14,
+  preemptionRightsClass:  'B',     // pre-emption available to all B holders
+  aClassVotingProtected:  true,    // A retains voting control through dilution
+
   // === Y3 FOUNDER BUYBACK RIGHT (CALL OPTION) ================
   // Replaces the previous "investor Y3 put" model. Founder may call any
   // external B-share holder back at the end of Y3 — but at MARKET RATE,

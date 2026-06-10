@@ -113,6 +113,7 @@ export default function InvestmentSummary() {
           ['Post-Money Valuation', fmt(effective.postMoney)],
           ['Implied Multiple',    effective.impliedMult ? `${effective.impliedMult.toFixed(2)}× EBITDA` : `${DEAL.multiple.toFixed(2)}× EBITDA`],
           [`Y${DEAL.buybackYear} Buyback Right (Founder Call)`, `Market rate (Y3 fair value × shares held)`, true],
+          ['Future Rounds', 'B-class dilution · A-class voting preserved · pre-emption rights for existing B', true],
         ]} />
         <Section title="📊 Financial Performance" items={[
           ['2025 Actual Revenue',  fmt(ACTUALS_2025.revenue)],
