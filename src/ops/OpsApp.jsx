@@ -24,8 +24,14 @@ const TABS = [
 ]
 
 export default function OpsApp() {
-  const [tab, setTab] = useState('operations')
-  const Active = TABS.find(t => t.key === tab).Component
+  // Allow a deep link like /operations?tab=helpout (used in the Help Out
+  // sign-up alert email) to open straight to a given tab.
+  const initialTab = (() => {
+    const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
+    return TABS.some(t => t.key === q) ? q : 'operations'
+  })()
+  const [tab, setTab] = useState(initialTab)
+  const Active = (TABS.find(t => t.key === tab) || TABS[0]).Component
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink)', color: 'var(--cream)', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>

@@ -10,6 +10,8 @@
 //   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...], schedule:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
+//   eventPhoto {date,dataUrl} per-event image (overrides profile photo for that night)
+//   removeEventPhoto {date}   drop the per-event image (fall back to profile photo)
 //   hold   {date}            reserve an open date off the marketplace (24h to finish)
 //   draft  {date, ...}       save partial progress on a held date (no timer reset)
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (held → pending)
@@ -46,19 +48,20 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const cols = "date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at";
+  const cols = "date,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at,event_image_url";
   const { data: mine } = await sb.from("dj_slots").select(cols).eq("dj_id", id).gte("date", today).order("date");
   const myBookings = (mine || []).map((b: any) => ({ ...b, blocked: neighBlocked(b.date) }));
   const { data: past } = await sb.from("dj_slots").select(cols).eq("dj_id", id).lt("date", today).order("date", { ascending: false });
   // Line-up: every OTHER DJ's upcoming booked night (pending + confirmed). Public
   // fields only — name + Instagram + what/when — never phone/email.
   const { data: sched } = await sb.from("dj_slots")
-    .select("date,status,night_name,subgenres,kind,set_type, dj:djs(dj_name,instagram)")
+    .select("date,status,night_name,subgenres,kind,set_type,event_image_url, dj:djs(dj_name,instagram,image_url)")
     .not("dj_id", "is", null).neq("dj_id", id).in("status", ["pending", "confirmed"]).gte("date", today).order("date");
   const schedule = (sched || []).map((s: any) => ({
     date: s.date, status: s.status, night_name: s.night_name || null, subgenres: arr(s.subgenres),
     kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), set_type: s.set_type || null,
     dj: s.dj?.dj_name || "DJ", instagram: s.dj?.instagram || null,
+    image: s.event_image_url || s.dj?.image_url || null,   // event image overrides profile
   }));
   return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: past || [], schedule });
 }
@@ -95,6 +98,32 @@ Deno.serve(async (req) => {
     if (up.error) return json({ error: up.error.message }, 500);
     const { data: p } = sb.storage.from("dj-photos").getPublicUrl(`${dj.id}.${ext}`);
     await sb.from("djs").update({ image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: new Date().toISOString() }).eq("id", dj.id);
+    return state(sb, dj.id);
+  }
+
+  if (action === "eventPhoto") {
+    // Per-event artwork for one booking — overrides the DJ's profile photo for
+    // that night only (everywhere the event image is shown). Targets a row the
+    // DJ owns (held / pending / confirmed).
+    if (!date) return json({ error: "missing date" }, 400);
+    const { data: slot } = await sb.from("dj_slots").select("date").eq("date", date).eq("dj_id", dj.id).in("status", ["held", "pending", "confirmed"]).maybeSingle();
+    if (!slot) return json({ error: "That date isn't one of your bookings." }, 404);
+    const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl || "");
+    if (!m) return json({ error: "bad image" }, 400);
+    const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+    const ext = m[1].includes("png") ? "png" : "jpg";
+    const key = `events/${date}.${ext}`;
+    const up = await sb.storage.from("dj-photos").upload(key, bytes, { contentType: m[1], upsert: true });
+    if (up.error) return json({ error: up.error.message }, 500);
+    const { data: p } = sb.storage.from("dj-photos").getPublicUrl(key);
+    await sb.from("dj_slots").update({ event_image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: new Date().toISOString() }).eq("date", date).eq("dj_id", dj.id);
+    return state(sb, dj.id);
+  }
+
+  if (action === "removeEventPhoto") {
+    // Drop the per-event image → the night falls back to the profile photo.
+    if (!date) return json({ error: "missing date" }, 400);
+    await sb.from("dj_slots").update({ event_image_url: null, updated_at: new Date().toISOString() }).eq("date", date).eq("dj_id", dj.id).in("status", ["held", "pending", "confirmed"]);
     return state(sb, dj.id);
   }
 
@@ -209,7 +238,7 @@ Deno.serve(async (req) => {
 
   if (action === "cancel") {
     // Release a held draft OR a pending request back to the open marketplace.
-    await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, updated_at: new Date().toISOString() })
+    await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("dj_id", dj.id).in("status", ["held", "pending"]);
     return state(sb, dj.id);
   }

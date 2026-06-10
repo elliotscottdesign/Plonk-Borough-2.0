@@ -31,7 +31,8 @@ Deno.serve(async (req) => {
       // Expired — free the date.
       await sb.from("dj_slots").update({
         status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [],
-        promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, updated_at: nowISO,
+        promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false,
+        event_image_url: null, updated_at: nowISO,
       }).eq("date", h.date).eq("status", "held");
       released++;
       continue;

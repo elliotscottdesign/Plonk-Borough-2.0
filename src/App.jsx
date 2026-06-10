@@ -66,7 +66,7 @@ const isRootPath = () =>
 // dedicated NDTEAM staff code).
 const isOpsPath = () =>
   typeof window !== 'undefined' &&
-  /^\/ops(\/|$)/.test(window.location.pathname)
+  /^\/(ops|operations)(\/|$)/.test(window.location.pathname)
 
 // Marketing hub — own gated area (GA4 / Ads / Search / social via Windsor.ai).
 // Gated to the `marketing` flag (founder-tier + NDTEAM team code).
@@ -80,11 +80,12 @@ const isDJPath = () =>
   typeof window !== 'undefined' &&
   /^\/dj(\/|$)/.test(window.location.pathname)
 
-// Help Out portal — public, shareable volunteer sign-up at /help-out. No gate:
+// Help Out portal — public, shareable volunteer sign-up at /helpout. No gate:
 // friends getting the bar open won't have a staff code. Standalone like /dj.
+// Matches the clean /helpout AND the older /help-out so shared links still work.
 const isHelpOutPath = () =>
   typeof window !== 'undefined' &&
-  /^\/help-out(\/|$)/.test(window.location.pathname)
+  /^\/help-?out(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&

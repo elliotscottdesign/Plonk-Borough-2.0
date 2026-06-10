@@ -161,7 +161,7 @@ function Calendar({ data, reload }) {
               <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
                 {booked ? (
                   <>
-                    <Avatar d={slot.dj || { dj_name: '?' }} size={34} />
+                    <Avatar d={{ ...(slot.dj || { dj_name: '?' }), image_url: slot.event_image_url || slot.dj?.image_url }} size={34} />
                     <div style={{ fontSize: 13, color: '#FFFFFF' }}>
                       <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status === 'held' ? 'draft' : status}</span></div>
                       {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
@@ -216,7 +216,7 @@ function Events({ data }) {
         const session = SESSIONS[new Date(s.date + 'T00:00:00').getDay()]
         return (
           <div key={s.date} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #34D399', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <Avatar d={s.dj || { dj_name: '?' }} size={48} />
+            <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
             <div style={{ flex: 1, minWidth: 200 }}>
               <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}</span></div>
               <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>

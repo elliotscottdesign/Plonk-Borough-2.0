@@ -30,6 +30,8 @@ export default function DJPortal() {
   const [err, setErr] = useState('')
   const [msg, setMsg] = useState('')
   const [photoErr, setPhotoErr] = useState('')
+  const [eventImg, setEventImg] = useState('')          // per-event image for the booking open in the panel
+  const [eventPhotoErr, setEventPhotoErr] = useState('')
   const [claiming, setClaiming] = useState(null)
   const [mode, setMode] = useState('claim')   // 'claim' = booking a new open date · 'edit' = changing one of my bookings
   const [night, setNight] = useState('')
@@ -73,10 +75,30 @@ export default function DJPortal() {
       setPhotoErr(er.message || 'Photo upload failed — try a JPG or PNG.')
     } finally { setBusy(false) }
   }
+  const onEventPhoto = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
+    const date = claiming
+    setBusy(true); setEventPhotoErr(''); setMsg('Saving event image…')
+    try {
+      const dataUrl = await resizeImage(file)
+      const snap = await djPortal(token, 'eventPhoto', { date, dataUrl })
+      refresh(snap)
+      const b = (snap.myBookings || []).find(x => x.date === date)
+      setEventImg(b?.event_image_url || '')
+      flash('Event image saved ✓')
+    } catch (er) {
+      setEventPhotoErr(er.message || 'Image upload failed — try a JPG or PNG.')
+    } finally { setBusy(false) }
+  }
+  const removeEventPhoto = async (date) => {
+    setBusy(true); setEventPhotoErr('')
+    try { refresh(await djPortal(token, 'removeEventPhoto', { date })); setEventImg(''); flash('Event image removed.') }
+    catch (e) { setEventPhotoErr(e.message) } finally { setBusy(false) }
+  }
   const MAX_SUBS = 4
-  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set') }
+  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr('') }
   const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); resetPanel() }
-  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set') }
+  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr('') }
   const holdExpired = (heldAt) => !!heldAt && (new Date(heldAt).getTime() + 24 * 3600 * 1000 <= Date.now())
   // If a hold lapsed mid-action, flash + reload the live state and drop the stale panel.
   const handleErr = async (e) => {
@@ -216,6 +238,23 @@ export default function DJPortal() {
             It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).
           </label>
         </div>
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Event image <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>(optional — used instead of your profile photo for this night)</span></div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {(eventImg || sdj.image_url)
+              ? <img src={eventImg || sdj.image_url} alt="" style={{ width: 54, height: 54, borderRadius: 8, objectFit: 'cover', border: `1px solid ${eventImg ? RED : LINE}`, flexShrink: 0 }} />
+              : <div style={{ width: 54, height: 54, borderRadius: 8, background: '#1a1a1a', border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>🎵</div>}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <label style={{ display: 'inline-block', fontSize: 12, color: RED, cursor: 'pointer', borderBottom: `1px solid ${RED}` }}>
+                {eventImg ? 'Change event image' : 'Upload event image'}
+                <input type="file" accept="image/*" onChange={onEventPhoto} style={{ display: 'none' }} />
+              </label>
+              <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4, lineHeight: 1.4 }}>{eventImg ? 'Used for this night.' : 'No event image — your profile photo will be used.'}</div>
+              {eventImg && <button type="button" onClick={() => removeEventPhoto(date)} disabled={busy} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 11, cursor: 'pointer', padding: 0, marginTop: 4 }}>Remove event image</button>}
+            </div>
+          </div>
+          {eventPhotoErr && <div style={{ fontSize: 11, color: '#F87171', marginTop: 6, lineHeight: 1.4 }}>{eventPhotoErr}</div>}
+        </div>
         {editing ? (
           <button onClick={() => claim(date)} disabled={busy} style={{ padding: '12px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? '…' : 'Save changes'}</button>
         ) : (
@@ -312,6 +351,7 @@ export default function DJPortal() {
               const statusColor = b.status === 'confirmed' ? '#34D399' : '#FCD34D'
               return (
                 <div key={b.date} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                  {(b.event_image_url || sdj.image_url) && <img src={b.event_image_url || sdj.image_url} alt="" title={b.event_image_url ? 'Event image' : 'Profile photo'} style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${b.event_image_url ? RED : LINE}`, flexShrink: 0 }} />}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
