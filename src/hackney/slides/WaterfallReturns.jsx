@@ -410,6 +410,11 @@ function BuybackRightsCard({ investment, investorEq }) {
       <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
         Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>founder calls</strong> → investor exits for {fmt(bb.payout)} (Y3 fair value × shares) plus everything already paid in Y1-Y3 dividends; <strong style={{ color: 'var(--cream)' }}>founder doesn't call</strong> → investor holds to Y5 for the pro-rata exit at sector-multiple business value. Either way, dividends paid Y1-Y3 are not clawed back.
       </div>
+
+      {/* Cross-reference: Company general repurchase right (separate to Y3 Founder Call) */}
+      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.65, marginTop: 14, padding: '12px 16px', background: 'rgba(167,139,250,0.06)', border: '1px solid rgba(167,139,250,0.22)', borderRadius: 8 }}>
+        <strong style={{ color: '#C4B5FD' }}>Note · Company general repurchase right.</strong> Independent of the Y3 Founder Call above, the <strong style={{ color: 'var(--cream)' }}>Company itself</strong> (acting through the Board) retains a separate right — but not the obligation — to repurchase all or any portion of an investor's shares at any time after the trigger event the parties agree. Repurchase price = <strong style={{ color: 'var(--cream)' }}>fair market value</strong> at the date of the notice, determined in good faith by the Board, with an independent chartered-accountant valuation as the dispute-resolution backstop. Subject to UK company-law requirements on the purchase of own shares. See the Investors' Agreement for the full clause.
+      </div>
     </div>
   )
 }
