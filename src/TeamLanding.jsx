@@ -116,6 +116,25 @@ export default function TeamLanding() {
         {AREAS.map(a => <AreaCard key={a.key} a={a} />)}
       </div>
 
+      {/* Help us open — public volunteer door (no code). Friends getting the
+          bar open won't have a staff code, so this one is open to everyone. */}
+      <a
+        href="/help-out"
+        style={{
+          width: '100%', maxWidth: 760, marginTop: 16, boxSizing: 'border-box',
+          textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          gap: 16, flexWrap: 'wrap',
+          background: 'rgba(218,27,51,0.08)', border: `1px solid rgba(218,27,51,0.5)`,
+          borderRadius: 14, padding: '18px 22px',
+        }}
+      >
+        <div>
+          <div className="serif" style={{ fontSize: 20, color: '#FFFFFF', lineHeight: 1.1 }}>🙌 Help us open</div>
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.62)', marginTop: 4 }}>Volunteer sign-up — share this link with friends, no code needed.</div>
+        </div>
+        <div style={{ fontSize: 10.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: RED, fontWeight: 700, whiteSpace: 'nowrap' }}>Open to all · Enter →</div>
+      </a>
+
       {/* Footer */}
       <div style={{
         marginTop: 48,

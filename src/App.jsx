@@ -29,6 +29,7 @@ import DecemberSales from './borough/DecemberSales.jsx'
 import OpsApp from './ops/OpsApp.jsx'
 import MarketingApp from './marketing/MarketingApp.jsx'
 import DJPortal from './dj/DJPortal.jsx'
+import HelpOutPortal from './help/HelpOutPortal.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -78,6 +79,12 @@ const isMarketingPath = () =>
 const isDJPath = () =>
   typeof window !== 'undefined' &&
   /^\/dj(\/|$)/.test(window.location.pathname)
+
+// Help Out portal — public, shareable volunteer sign-up at /help-out. No gate:
+// friends getting the bar open won't have a staff code. Standalone like /dj.
+const isHelpOutPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/help-out(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&
@@ -202,13 +209,17 @@ export default function App() {
   // Standalone: no team hub, no investor decks, no password gate.
   if (isDJPath()) return <DJPortal />
 
+  // Help Out portal — public volunteer sign-up. Shared by text/email with
+  // friends, so no password gate; sits before the root fallback below.
+  if (isHelpOutPath()) return <HelpOutPortal />
+
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.
   // Any unrecognised path (incl. the SPA fallback) also lands here so
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath())) {
     // This repo now lives at team.nodice.bar (the public customer site owns
     // nodice.bar). Root + any unrecognised path shows the branded team hub —
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.
