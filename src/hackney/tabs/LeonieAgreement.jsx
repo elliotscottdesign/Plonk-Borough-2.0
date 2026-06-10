@@ -11,15 +11,17 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 // are the template every investor sees.
 //
 // Key terms (per src/data/hackney.js DEAL):
-//   • Cap table 76 / 24 — Founder 51% A + 25% B, external pool 24% B
-//   • £5,000 cash subscription = 5% B-class equity
-//   • 10% non-cumulative preferred yield on external B (£500/yr to Leonie)
-//   • SEMI-ANNUAL distributions to ALL holders (Founder A 51% + Founder B
-//     25% + external 24%) — pro-rata, reserve-gated
-//   • Y1 LOCKUP — first distribution window lands at month 12 (end of Y1)
-//   • Reserve floor £30k must be met for any distribution window to pay out
-//   • Founder Y3 buyback right (CALL OPTION) — founder may call back any
-//     external B holder at LOWER of fair value × equity % or 3× cash
+//   • 100 shares issued at £1,000 each (£100k post-money)
+//   • Founder 76 shares (51 A + 25 B), Leonie's intended 5 shares,
+//     19 shares open externally
+//   • £5,000 cash subscription = 5 shares = 5% equity
+//   • NO preferred yield class — every share entitled to the same £X
+//     per-share dividend declared by the directors
+//   • Y1 review: single declaration at the 12-month mark
+//   • Y2 onwards: semi-annual reviews (every 6 months)
+//   • Reserve floor £30k must be met for any declaration
+//   • Founder Y3 buyback right (CALL OPTION) at MARKET RATE — Y3 fair
+//     value × shares held, no cap
 //
 // Gated to access codes:
 //   • LEONIE — Leonie herself
@@ -38,27 +40,21 @@ const CREAM_D = 'var(--cream-dim)'
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-// Leonie at 5% equity, £5k cheque, under the new structure (full
-// subscription assumed: Founder 76% + Leonie 5% + new investor 19% =
-// total external B £24k → annual preferred pool £2,400 → Leonie's
-// preferred slice = £500/yr).
+// Leonie at 5 shares, £5k cheque, under the per-share dividend model.
+// Every share entitled to the same £X declared each window — Leonie's
+// dividend = 5 × per-share rate that year.
+const LEONIE_SHARES    = 5
 const LEONIE_EQUITY    = 0.05
 const LEONIE_CASH      = 5000
-const LEONIE_PREF_YEAR = 500          // 10% of £5k
 const LEONIE_RETURNS = HACKNEY_INVESTOR_RETURNS.fiveYear.map(yr => {
-  // Use the same calc the deck-wide WaterfallReturns uses — preferred
-  // pool £2,400/yr × (5/24) = £500/yr to Leonie. Residual = profit −
-  // £2,400; Leonie's share = 5% of residual.
-  const totalPreferredPool = 2400                       // 10% × £24k external B
-  const leoniePreferred    = Math.min(LEONIE_PREF_YEAR, yr.profit)
-  const residualAvailable  = Math.max(0, yr.profit - totalPreferredPool)
-  const leonieResidual     = residualAvailable * LEONIE_EQUITY
+  // Indicative per-share dividend = year profit / 100 shares.
+  // Directors retain discretion to declare less in practice.
+  const perShare = (yr.perShare ?? (yr.profit / 100))
   return {
-    year:      yr.year,
-    profit:    yr.profit,
-    preferred: leoniePreferred,
-    residual:  leonieResidual,
-    total:     leoniePreferred + leonieResidual,
+    year:     yr.year,
+    profit:   yr.profit,
+    perShare,
+    total:    LEONIE_SHARES * perShare,
   }
 })
 const LEONIE_CUM_DIV   = LEONIE_RETURNS.reduce((s, y) => s + y.total, 0)
@@ -66,10 +62,11 @@ const LEONIE_Y5_EXIT   = HACKNEY_INVESTOR_RETURNS.exit.businessValue * LEONIE_EQ
 const LEONIE_TOTAL_RET = LEONIE_CUM_DIV + LEONIE_Y5_EXIT
 const LEONIE_MOM       = LEONIE_TOTAL_RET / LEONIE_CASH
 
-// Y3 founder-call scenario for Leonie: 3× cap = £15k buyback + cumulative
-// Y1-Y3 dividends ≈ £16k (~£5k + ~£6k + ~£7k under base case forecast)
+// Y3 founder-call scenario for Leonie: market-rate buyback (no cap).
+// Buyback = 5 shares × Y3 per-share fair value + cumulative Y1-Y3 dividends.
 const LEONIE_CALL_DIVS = LEONIE_RETURNS.slice(0, 3).reduce((s, y) => s + y.total, 0)
-const LEONIE_CALL_BUYBACK = LEONIE_CASH * 3
+const LEONIE_PER_SHARE_Y3 = (HACKNEY_INVESTOR_RETURNS.callScenario?.perShareBuybackY3) ?? 4997.16
+const LEONIE_CALL_BUYBACK = LEONIE_SHARES * LEONIE_PER_SHARE_Y3
 const LEONIE_CALL_TOTAL = LEONIE_CALL_DIVS + LEONIE_CALL_BUYBACK
 const LEONIE_CALL_MOM = LEONIE_CALL_TOTAL / LEONIE_CASH
 
@@ -91,7 +88,7 @@ export default function LeonieAgreement() {
           Draft Investment Terms — For Your Review
         </h1>
         <p style={{ fontSize:15, color:CREAM_D, marginTop:10, maxWidth:820 }}>
-          No Dice Hackney Ltd · Round 1 · £5,000 indicative subscription for 5% B-class equity. <strong style={{ color:CREAM }}>Not yet executed.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and the £5k figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
+          No Dice Hackney Ltd · Round 1 · £5,000 indicative subscription for <strong style={{ color:CREAM }}>5 shares</strong> (£1,000 each = 5% of the company). <strong style={{ color:CREAM }}>Not yet executed.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and the £5k figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
         </p>
       </div>
 
@@ -122,7 +119,7 @@ export default function LeonieAgreement() {
         <CapTable />
 
         <P style={{ marginTop:16 }}>
-          The Investor would subscribe for <strong style={{ color:GOLD }}>5%</strong> of the post-money equity at £1,000 per 1% (= £5,000 total). All Round 1 shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder retains 100% of the A-class voting shares (51% of the company).
+          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor would subscribe for <strong style={{ color:GOLD }}>5 shares</strong> (= £5,000, 5% of the company). All Round 1 external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder retains 100% of the A-class voting shares (51 shares).
         </P>
       </Section>
 
@@ -137,53 +134,52 @@ export default function LeonieAgreement() {
         </P>
       </Section>
 
-      {/* 4. Preferred yield + distribution */}
-      <Section number="4" title="Preferred dividend &amp; distribution waterfall">
+      {/* 4. Per-share dividend mechanism */}
+      <Section number="4" title="Per-share dividend &amp; distribution waterfall">
         <P>
-          The Investor is entitled to a <strong style={{ color:GOLD }}>10% per annum non-cumulative preferred dividend</strong> on her £5,000 subscription (= <strong style={{ color:CREAM }}>£500/yr</strong>). The preferred is paid each distribution window <em>before</em> any pro-rata residual distribution. Unpaid preferred does NOT roll forward into later years.
+          Dividends are declared by the directors as a <strong style={{ color:GOLD }}>£X per share</strong>. The Company has issued 100 shares in total; every share (A or B) is entitled to the same per-share amount when a dividend is declared. There is <strong style={{ color:CREAM }}>no preferred class</strong> — the Investor's payout for each window = her shares held × the per-share rate declared.
         </P>
         <P>
-          The Founder's £25,000 Buyback B shares rank pari passu for residual distributions but receive <em>no preferred yield</em>. The Investor (and every other external B holder) ranks <strong style={{ color:CREAM }}>ahead</strong> of the Founder's Buyback B for the preferred slice.
+          The Investor holds <strong style={{ color:CREAM }}>5 shares</strong>. If, for example, the directors declare £851.81 per share at the Y1 review (the indicative base-case figure), the Investor receives <strong style={{ color:CREAM }}>5 × £851.81 = £4,259</strong>; the Founder (76 A+B shares) receives 76 × £851.81 = £64,738.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>Distribution waterfall per window.</strong> At each distribution window (see clause 5 for cadence), distributable profit is applied in this order:
+          <strong style={{ color:CREAM }}>Distribution waterfall per review.</strong> At each review date, distributable profit is applied in this order:
         </P>
         <OrderedList items={[
-          'Director\'s salary (set in the FY budget; £15,885 inc employer NI for FY 2026/27).',
-          'Working-capital top-up to the Reserve Target (clause 5).',
-          'Preferred yield to external B holders (£500 to Investor for her £5k, plus pro-rata to any other external B holder).',
-          'Residual — split pro-rata across all equity (Founder A 51% + Founder B 25% + every external B holder). All shares draw at the same window, in proportion to their slice.',
+          'Director\'s salary (set in the FY budget; £15,885 inc employer NI for FY 2026/27) — already deducted before "operating profit".',
+          'Working-capital reserve top-up — reserve must be at or above the £30,000 floor at the review date.',
+          'Directors declare a £X per-share dividend based on the trailing 12 months of trading. The declaration is announced shortly before the review date.',
+          'Every share (Founder A, Founder B and external B alike) is paid the same £X per share. Investor\'s payout = shares held × £X.',
         ]} />
       </Section>
 
-      {/* 5. Distribution cadence + working capital reserve */}
-      <Section number="5" title="Distribution cadence · Y1 lockup · working-capital reserve">
+      {/* 5. Review cadence + working capital reserve */}
+      <Section number="5" title="Review cadence · Y1 12-month review · Y2+ semi-annual">
         <P>
-          Distributions are paid <strong style={{ color:CREAM }}>semi-annually</strong> (every 6 months) to all holders. There is a hard <strong style={{ color:GOLD }}>Year-1 lockup</strong> — no distributions are paid to any holder (including the Founder) during the first 12 months of trading. All Y1 operating profit accrues into the working-capital reserve.
+          Dividends are declared by the directors at scheduled review dates. <strong style={{ color:GOLD }}>Year 1 has a single review at the 12-month mark</strong>; from <strong style={{ color:CREAM }}>Year 2 onwards reviews happen twice a year</strong> (every 6 months). The per-share dividend declared at each review is based on the trailing 12 months of trading and the directors' view of the outlook.
         </P>
         <ul style={ulStyle}>
-          <li><strong style={{ color:CREAM }}>First distribution window:</strong> end of Y1 (month 12) — pays the full accumulated Y1 entitlement to every holder.</li>
-          <li><strong style={{ color:CREAM }}>Subsequent windows:</strong> every 6 months thereafter (months 18, 24, 30, 36, …) — each window pays the period's accrued entitlement.</li>
-          <li><strong style={{ color:CREAM }}>Reserve floor £30,000</strong> — operational red line. If the working-capital reserve is below the floor at a distribution date, the window is <em>deferred</em>. Amounts simply roll into the next eligible window once the reserve has rebuilt. No catch-up complexity.</li>
-          <li><strong style={{ color:CREAM }}>Reserve target £45,000</strong> — fully-funded position. Once at target, any backlog from deferred windows is drained from the headroom above target.</li>
+          <li><strong style={{ color:CREAM }}>Y1 review:</strong> month 12 — directors review Y1 trading and declare the Y1 per-share dividend. No earlier distributions; the first 12 months are a hard lockup while the venue stabilises and the reserve builds.</li>
+          <li><strong style={{ color:CREAM }}>Y2 onwards:</strong> reviews at months 18, 24, 30, 36, … — every 6 months — based on the trailing-12-month figures at each review date.</li>
+          <li><strong style={{ color:CREAM }}>Reserve floor £30,000</strong> — operational red line. If the working-capital reserve is below the floor at a review date, no dividend is declared. The reserve rebuilds and the next review takes the catch-up into account.</li>
+          <li><strong style={{ color:CREAM }}>Reserve target £45,000</strong> — fully-funded position (floor + £15k cushion for VAT bills, supplier swings, repairs). Once at target, declarations distribute substantially all of distributable profit.</li>
         </ul>
         <P>
-          Same rule for everyone — Founder A, Founder B and external B holders all draw at the same window in proportion to their slice. No within-window priority once the lockup has ended.
+          Same rule for everyone — Founder A, Founder B and external B holders are all paid the same £X per share at the same review date. No within-window priority.
         </P>
       </Section>
 
-      {/* 6. Y3 Founder Buyback Right (Call Option) */}
-      <Section number="6" title="Year-3 Founder Buyback Right (Call Option)">
+      {/* 6. Y3 Founder Buyback Right (Call Option) at market rate */}
+      <Section number="6" title="Year-3 Founder Buyback Right (Call Option, market rate)">
         <P>
           The <strong style={{ color:CREAM }}>Founder</strong> is granted the right, exercisable in the 30-day window following the issue of the Year-3 audited (or director-certified) accounts, to require the Investor to sell all (but not part) of her B shares back to the Company.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>Founder Y3 Call price</strong> = the <em>lower</em> of:
+          <strong style={{ color:CREAM }}>Founder Y3 Call price</strong> = <strong style={{ color:GOLD }}>Y3 Fair Market Value × the Investor's shares held</strong>. There is <strong style={{ color:CREAM }}>no multiple-of-money cap</strong> — the Investor is paid the full market rate at Y3 valuation for her shares.
         </P>
-        <ul style={ulStyle}>
-          <li><strong style={{ color:CREAM }}>(a)</strong> Fair Market Value of the Company at the exercise date × the Investor's 5% equity; or</li>
-          <li><strong style={{ color:CREAM }}>(b)</strong> 3× the original cash subscribed (= <strong style={{ color:GOLD }}>£15,000 cap</strong> for the Investor's £5,000).</li>
-        </ul>
+        <P>
+          Worked example on the base-case forecast: Y3 fair value ≈ {fmt(HACKNEY_INVESTOR_RETURNS.exit.businessValue * (HACKNEY_INVESTOR_RETURNS.fiveYear[2].profit / HACKNEY_INVESTOR_RETURNS.exit.y5Ebitda))} (Y3 EBITDA × 4× exit multiple). That implies a per-share Y3 value of ≈ <strong style={{ color:CREAM }}>£{LEONIE_PER_SHARE_Y3.toFixed(2)}</strong>, so the Investor's 5 shares would be bought back at ≈ <strong style={{ color:GOLD }}>{fmt(LEONIE_CALL_BUYBACK)}</strong>.
+        </P>
         <P>
           Fair Market Value is determined by the directors acting reasonably (by reference to a multiple of trailing-12-month EBITDA consistent with sector comparables). The Investor may, at her cost, require an independent valuation by a chartered accountant if she disputes the figure; the independent valuation binds both parties.
         </P>
@@ -199,14 +195,14 @@ export default function LeonieAgreement() {
       </Section>
 
       {/* 7. Returns table — Leonie specific */}
-      <Section number="7" title="Illustrative returns · £5,000 at 5%">
+      <Section number="7" title="Illustrative returns · £5,000 = 5 shares">
         <P>
-          The table below assumes full subscription (Founder 76% + Leonie 5% + new external 19% = total external B £24k → annual preferred pool £2,400 of which £500 is the Investor's slice).
+          The table below shows indicative per-share dividends if the directors distribute substantially all of distributable profit each year. Actual dividends remain at director discretion based on trading and outlook at each review date.
         </P>
         <ReturnsTable />
         <ReturnsSummary />
         <P style={{ fontSize:12, color:CREAM_D, fontStyle:'italic', marginTop:14 }}>
-          Indicative only — not a forecast or guarantee. The Y3 Founder Call would cap total return at ~{LEONIE_CALL_MOM.toFixed(1)}× MoM (={fmt(LEONIE_CALL_TOTAL)} on £5k); held to Y5 caps at ~{LEONIE_MOM.toFixed(1)}× MoM. Drawn from HACKNEY_INVESTOR_RETURNS.fiveYear on the date this draft was prepared.
+          Indicative only — not a forecast or guarantee. If the Y3 Founder Call is exercised, the Investor receives {fmt(LEONIE_CALL_BUYBACK)} buyback (5 shares × Y3 fair value per share) plus cumulative Y1-Y3 dividends ≈ {fmt(LEONIE_CALL_DIVS)} — total ≈ <strong style={{ color:CREAM }}>{fmt(LEONIE_CALL_TOTAL)} = {LEONIE_CALL_MOM.toFixed(1)}× MoM</strong>. If held to Y5, total ≈ <strong style={{ color:CREAM }}>{fmt(LEONIE_TOTAL_RET)} = {LEONIE_MOM.toFixed(1)}× MoM</strong>. Drawn from HACKNEY_INVESTOR_RETURNS.fiveYear on the date this draft was prepared.
         </P>
       </Section>
 
@@ -464,7 +460,7 @@ function ReturnsTable() {
       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
         <thead>
           <tr>
-            <Th>Year</Th><Th align="right">Op profit</Th><Th align="right">Preferred (£500)</Th><Th align="right">Residual @ 5%</Th><Th align="right">Total to Leonie</Th>
+            <Th>Year</Th><Th align="right">Op profit</Th><Th align="right">Indicative £/share (÷ 100)</Th><Th align="right">Leonie's 5 shares</Th><Th align="right">Total to Leonie</Th>
           </tr>
         </thead>
         <tbody>
@@ -472,8 +468,8 @@ function ReturnsTable() {
             <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.05)' }}>
               <Td>{r.year}</Td>
               <Td align="right">{fmt(r.profit)}</Td>
-              <Td align="right">{fmt(r.preferred)}</Td>
-              <Td align="right">{fmt(r.residual)}</Td>
+              <Td align="right">£{r.perShare.toFixed(2)}</Td>
+              <Td align="right">5 × £{r.perShare.toFixed(2)}</Td>
               <Td align="right" bold>{fmt(r.total)}</Td>
             </tr>
           ))}

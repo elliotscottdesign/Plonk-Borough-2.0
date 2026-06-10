@@ -154,7 +154,7 @@ export default function MarketContext() {
         <div style={{ background:'#13131A', border:'2px solid #C9A84C', borderRadius:10, padding:24 }}>
           <div style={{ fontSize:11, color:'#C9A84C', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:600, marginBottom:16 }}>→ The Deal in One Line</div>
           <p style={{ fontSize:14, color:'#F5F0E8', lineHeight:1.7, marginBottom:20 }}>
-            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{dealMultiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>semi-annual pro-rata payouts</span> (10% preferred yield on External B + pro-rata residual to all holders, reserve-gated, with a hard Y1 lockup and a Founder Y3 call option at 3× cash), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
+            A proven London Fields bar, acquired at <span style={{ color:'#C9A84C', fontWeight:700 }}>{dealMultiple.toFixed(2)}× EBITDA</span> (below sector average), distributing via <span style={{ color:'#E67E22', fontWeight:700 }}>director-declared per-share dividends</span> (100 shares × £1k each — every share entitled to the same £X declared at each review; Y1 reviewed at the 12-month mark, Y2+ every 6 months; reserve-gated; Founder Y3 buyback at market rate), with payback driven by <span style={{ color:'#2DD4BF', fontWeight:700 }}>cash flow — not exit dependency</span>.
           </p>
           {checks.map((c, i) => (
             <div key={i} style={{ background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.08)', borderRadius:6, padding:'10px 14px', marginBottom:8 }}>

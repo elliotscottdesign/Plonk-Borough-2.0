@@ -90,18 +90,20 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // takes 5%; the new investor takes whatever they subscribe for, up to
 // the £19k available.
 export const DEAL = {
-  // === ROUND 1 — RESTRUCTURED MAY 2026 ===
+  // === ROUND 1 — PER-SHARE DIVIDEND MODEL ===
   //
-  // STANDARD TEMPLATE for every external B-class cheque. No bespoke side
-  // deals — every investor (Leonie, future small cheques, future larger
-  // cheques up to the £19k available cap) signs the same one-pager.
+  // The company issues 100 shares at £1,000 each = £100,000 post-money.
+  // Every share (A or B) is entitled to the same £X per-share dividend
+  // when declared. There is NO preferred yield class — dividends are
+  // pure per-share, declared by the directors at each review window.
   //
-  // Cap table (76 / 24, full subscription):
-  //   Founder retained A (voting)     51%     £0       — pre-money holdback
-  //   Founder buyback B (non-voting)  25%     £25,000  — sold (founder)
-  //   Available externally B          24%     £24,000  — for sale, any cheque
-  //                                  ----    --------
-  //                                  100%     £49,000  total round
+  // Cap table by share count (full subscription):
+  //   Founder retained A (voting)     51 shares    £0       — pre-money holdback
+  //   Founder buyback B (non-voting)  25 shares    £25,000  — sold (founder)
+  //   Leonie (intended)               5  shares    £5,000   — pending external
+  //   Available externally B          19 shares    £19,000  — for sale (£1k = 1 share)
+  //                                  ---           --------
+  //                                  100 shares    £49,000  total round
   //
   // Implied entry: post-money £100k, pre-money £51k, multiple 1.65×
   // verified 2025 EBITDA of £30,896. Still well below the 4.1× sector
@@ -109,26 +111,37 @@ export const DEAL = {
   //
   // ── DISTRIBUTION SCHEDULE ─────────────────────────────────────────
   //
-  // Single cadence, single rule: SEMI-ANNUAL distributions to EVERYONE
-  // (Founder A, Founder B, external B alike), GATED by the £30k working-
-  // capital reserve floor.
+  // Director-declared per-share dividend. At each review date the
+  // directors look at the trailing 12 months of trading and announce a
+  // £X-per-share dividend, paid to every shareholder regardless of
+  // class. No within-window priority — Founder A, Founder B and
+  // external B all receive the same £X per share they hold.
   //
-  //   Y1 (mo 1-11)  → lockup, all profit accrues into reserve
-  //   Mo 12         → first distribution window IF reserve ≥ £30k floor
-  //   Mo 18         → second
-  //   Mo 24         → third
-  //   …continuing every 6 months
+  // Review cadence:
+  //   Y1 (mo 1-11)  → lockup; reserve build, no distributions
+  //   Mo 12         → FIRST review (12-month mark). Directors declare
+  //                    the Y1 dividend per share based on Y1 P&L.
+  //   Mo 18, 24,    → SEMI-ANNUAL reviews from Y2 onwards (every 6 mo,
+  //   30, 36, …       trailing-12-month basis).
   //
-  // Per window (when reserve is at floor):
-  //   1. 10% preferred dividend (annualised) to EXTERNAL B holders only
-  //      (Founder's £25k buyback B does NOT receive preferred)
-  //   2. Residual = profit − preferred − working-capital top-up
-  //   3. Residual paid pro-rata to ALL equity holders (Founder A 51% +
-  //      Founder B 25% + every external B-share holder)
+  // Conditions for ANY dividend declaration:
+  //   1. Director salary already deducted from operating profit
+  //   2. Working-capital reserve at or above £30k floor at review date
+  //   3. Directors confirm the declaration based on trading + outlook
   //
-  // If reserve below floor: window is skipped, amounts simply roll into
-  // the next eligible window. No catch-up complexity, no investor-vs-
-  // founder priority within a window.
+  // If reserve below floor: window is skipped; nothing is declared.
+  // Amounts simply build into the reserve and become available for the
+  // next eligible window's declaration. No automatic catch-up.
+  //
+  // Indicative per-share dividend (forecast base case):
+  //   Y1 trading: £85,181 op profit ÷ 100 shares = £851.81 per share
+  //   Y2 trading: £96,857 ÷ 100 = £968.57 per share (paid mo 18 + mo 24)
+  //   Y3 trading: £124,929 ÷ 100 = £1,249.29 per share
+  //   Y4 trading: £155,193 ÷ 100 = £1,551.93 per share
+  //   Y5 trading: £187,818 ÷ 100 = £1,878.18 per share
+  // ACTUAL dividends are at director discretion — these are indicative
+  // only, assuming directors elect to distribute substantially all of
+  // distributable profit each year.
   //
   // ── Y3 FOUNDER BUYBACK RIGHT (CALL OPTION) ────────────────────────
   //
@@ -145,17 +158,27 @@ export const DEAL = {
   // at Y3 if founder calls. If held to Y5 (no call): ~£100k dividends +
   // ~£142k pro-rata exit = ~£242k = ~12.7× MoM, ~30% IRR.
 
+  // === SHARE STRUCTURE ===========================================
+  // The company issues 100 shares at £1,000 each. £1k cheque = 1 share.
+  // All cap-table % calculations below derive from share-count maths.
+  totalShares:      100,         // 100 shares × £1k = £100k post-money
+  pricePerShare:   1000,         // £1,000 per share
+
   // Single-investor view (drives the deck's headline numbers / returns)
-  investment: 19000,             // max a NEW investor can take = full available external slice
-  investorEq: 0.19,              // 19% at full subscription
-  founderEq: 0.76,               // 51% A + 25% B = 76% post-round
+  investment: 19000,             // max a NEW investor can take = full available external slice (19 shares)
+  investorEq: 0.19,              // 19 shares = 19%
+  founderEq: 0.76,               // Founder A 51 + Founder B 25 = 76 shares = 76%
 
   // Round-level breakdown (informational — shown on Investment Summary)
-  roundSize:        49000,       // total raise this round (founder buyback + external)
-  roundEquity:      0.49,        // 49% of the company is being sold this round
-  founderRetained:  0.51,        // pre-money holdback A-shares — never sold
-  founderBuyback:   25000,
+  roundSize:        49000,       // total raise this round = founder buyback (£25k) + external (up to £24k)
+  roundEquity:      0.49,        // 49 of 100 shares being sold this round
+  founderRetained:  0.51,        // pre-money holdback A-shares (51 shares) — never sold
+  founderBuyback:   25000,       // 25 B-shares founder-bought
   founderBuybackEq: 0.25,
+
+  // Founder share split: 51 A + 25 B = 76 shares total.
+  founderASharesCount: 51,
+  founderBSharesCount: 25,
 
   // Commitments — Leonie has NOT yet signed/paid (May 2026). She remains
   // in active discussion at the standard terms below; her £5k is held in
@@ -164,51 +187,53 @@ export const DEAL = {
   // the cap-table + progress bar — only entries with status === 'sold'
   // are treated as locked in.
   commitments: [
-    { label: 'Founder buyback', amount: 25000, equity: 0.25, type: 'founder',  status: 'sold'    },
-    { label: 'Leonie Sands',    amount:  5000, equity: 0.05, type: 'external', status: 'pending' },
+    { label: 'Founder buyback', amount: 25000, equity: 0.25, shares: 25, type: 'founder',  status: 'sold'    },
+    { label: 'Leonie Sands',    amount:  5000, equity: 0.05, shares:  5, type: 'external', status: 'pending' },
   ],
 
-  availableAmount:  24000,       // = roundSize - founder buyback (Leonie counted as pending in pool)
+  availableAmount:  24000,       // = roundSize - founder buyback (24 shares available externally)
+  availableShares:    24,        // 24 shares × £1k each
   availableEq:      0.24,        // = roundEquity - founder buyback equity
-  founderTotalPost: 0.76,        // 51% A + 25% B
-  externalPostEq:   0.24,        // available externally (5% intended for Leonie + 19% open)
+  founderTotalPost: 0.76,        // 51 A + 25 B = 76 shares
+  externalPostEq:   0.24,        // available externally (5 intended for Leonie + 19 open)
 
   // Share / governance
   shareClass: 'B (non-voting)',  // Round 1: external + founder buyback are all B-class. Founder retains 100% of A.
-  totalBEquity:     0.49,        // 49% of the company is B-class
-  preferredYield:   0.10,        // 10% preferred yield on EXTERNAL B-class capital invested.
-                                 // Paid each semi-annual window BEFORE the pro-rata residual
-                                 // split. Founder's £25k B-class BUYBACK does NOT receive
-                                 // preferred — external B holders rank ahead of founder B in
-                                 // the dividend queue. Non-cumulative (unpaid preferred does
-                                 // not roll forward).
+  totalBEquity:     0.49,        // 49 of 100 shares are B-class
   multiple: 1.6507,              // entry multiple — preMoney / 2025 EBITDA (51000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
   preMoney: 51000,
   postMoney: 100000,
-  preferred: 0,                  // no preferred return outside the 10% yield mechanism
-  aSharePriority: 0,             // no founder priority slice
   aShareThreshold: 5000,         // 5% of post-money £100k — governance floor
 
-  // === DISTRIBUTION CADENCE ====================================
-  distributionCadenceMonths: 6,  // semi-annual — every 6 months for every holder
-  y1LockupMonths:          12,   // months 1-11 = no distributions; window 1 lands at month 12
-  reserveFloorPounds:      30000,// distribution window is SKIPPED if reserve < floor at window date
+  // === DISTRIBUTION CADENCE — PER-SHARE MODEL ===================
+  // No preferred yield. Each window the directors declare a £X per-share
+  // dividend; every share (A or B) receives the same £X.
+  y1ReviewMonth:           12,   // Y1: single declaration at the 12-month mark
+  semiAnnualReviewMonths:   6,   // Y2 onwards: every 6 months
+  reserveFloorPounds:  30000,    // declaration is skipped if reserve < floor at review date
 
   // === Y3 FOUNDER BUYBACK RIGHT (CALL OPTION) ================
   // Replaces the previous "investor Y3 put" model. Founder may call any
-  // external B-share holder back at the end of Y3 to cap dilution.
+  // external B-share holder back at the end of Y3 — but at MARKET RATE,
+  // not at a capped multiple. The investor is paid fair market value
+  // × their equity %, with no multiple-of-money ceiling.
+  //
+  // Why no cap: the deal narrative is "fair exit, founder triggers".
+  // The cap was investor-unfriendly (3× looks generous on a £1k cheque
+  // but punishes a £19k cheque if business booms). Removing it makes
+  // the deal cleaner — investor knows they get true market value if
+  // bought back early, and the founder pays for the optionality.
   founderBuybackYear:        3,
-  founderBuybackCap:         3,        // multiple of original cash invested (£3k per £1k cheque)
+  founderBuybackCap:         null,     // null = no cap; price is fair value × equity %
   founderBuybackStaggerMonths: 12,     // simultaneous exercises stagger over up to 12 months
   founderBuybackWaiverOnRound2: true,  // an investor who converts to Round 2 is not callable
 
-  // === LEGACY FIELDS — kept for back-compat with consumers that read
-  // them; new code should use the founderBuyback* fields above. The
-  // semantic flip (investor put → founder call) is described in
-  // computeBuybackValue() and the WaterfallReturns slide narrative.
+  // === LEGACY FIELDS — kept for back-compat. The cap fields are
+  // retained but set to null so older consumers reading buybackCap
+  // can branch on truthy/null without breaking.
   buybackYear:           3,
-  buybackCap:            3,
+  buybackCap:            null,
   buybackStaggerMonths: 12,
   buybackWaiverOnRound2: true,
 
@@ -222,35 +247,35 @@ export const DEAL = {
   payback:             3,         // approximate — investor recovers cash ~end of Y3
 }
 
-// computeBuybackValue — Y3 put-option payout for an external B-class
-// investor exercising the buyback right. Returns the LOWER of fair-value
-// pro-rata or the multiple-of-money cap.
+// computeBuybackValue — Y3 founder-call payout for an external B-class
+// investor. Returns the fair-value pro-rata share — NO multiple-of-money
+// cap. The deal pays out at market rate when the founder exercises the
+// call right.
 //
 //   investment = original cash invested (£)
 //   fairValue  = total business value at exercise year (£)
-//   opts.cap         — overrides DEAL.buybackCap
 //   opts.investorEq  — overrides equity % (default = investment / postMoney)
 //   opts.postMoney   — overrides £100k post-money
 //
-// Returns { fairShare, capped, payout, hitCap } for UI display.
+// Returns { fairShare, capped, payout, hitCap } for backward-compat with
+// UI consumers. Under the market-rate model: capped === fairShare,
+// payout === fairShare, hitCap === false. The `capped` field is retained
+// in the return shape only so existing slide code doesn't crash.
 //
-// Examples (Y3 fair value ~£100k, 25% equity):
-//   £25k invested → fairShare £25,000, capped £75,000, payout £25,000
-//   £5k invested  → fairShare  £5,000, capped £15,000, payout  £5,000
-// At higher fair values the cap binds:
-//   £25k invested, fairValue £400k → fairShare £100k, capped £75k, payout £75k (HIT CAP)
+// Examples (Y3 fair value ~£500k, full forecast EBITDA × 4× exit multiple):
+//   £19k invested at 19% → fairShare £95,000, payout £95,000
+//   £5k  invested at  5% → fairShare £25,000, payout £25,000
+//   £1k  invested at  1% → fairShare  £5,000, payout  £5,000
 export function computeBuybackValue(investment, fairValue, opts) {
   opts = opts || {}
   const inv = Math.max(0, investment || 0)
   const fv  = Math.max(0, fairValue  || 0)
-  const cap = opts.cap        ?? DEAL.buybackCap     ?? 3
   const pm  = opts.postMoney  ?? 100000
   const eq  = opts.investorEq ?? (pm > 0 ? inv / pm : 0)
   const fairShare = fv * eq
-  const capped    = inv * cap
-  const payout    = Math.min(fairShare, capped)
-  const hitCap    = capped < fairShare
-  return { fairShare, capped, payout, hitCap }
+  // Market-rate buyback — no cap. The fair-share value IS the buyback price.
+  const payout    = fairShare
+  return { fairShare, capped: fairShare, payout, hitCap: false }
 }
 
 // === 2025 ACTUALS (BAR-ONLY, MINI GOLF EXCLUDED) ===
@@ -651,106 +676,108 @@ export const MARKETING = {
 }
 
 // === WATERFALL ===
-// Round 1 restructured (May 2026). 10% preferred yield on EXTERNAL B
-// capital, then pro-rata residual across all equity (Founder A 51% +
-// Founder B 25% + Leonie 5% + new investor up to 19%).
+// Round 1 PER-SHARE MODEL (May 2026). 100 shares × £1,000 each = £100k
+// post-money. Every share (A or B) is entitled to the same £X per-share
+// dividend when declared. NO preferred class.
 //
-// Semi-annual distributions with Y1 lockup — see computeDistributionCalendar()
-// for the cash-timing calendar. This constant captures the ANNUAL
-// ENTITLEMENT split, not the within-year cash timing.
+// At each review date (Y1 = month 12 only; Y2+ = every 6 months) the
+// directors declare a £X per-share rate based on the trailing 12-month
+// trading. Indicative base case: total distributable profit / 100 shares.
 //
-// Assuming full subscription (Leonie £5k + new investor £19k):
-//   • Total external B:          £24,000
-//   • Annual preferred pool:     £2,400  (Leonie £500 + new £1,900)
-//   • Residual (Y1):             £82,781
-//   • New investor (19%) Y1:     £1,900 preferred + £15,728 residual = £17,628
-//   • Everyone-else Y1:          £67,553 (founder £62,914 + Leonie £4,639)
+// Y1 indicative (forecast £85,181 operating profit, 100 shares):
+//   • Per-share dividend:        £851.81
+//   • Founder (76 shares):       £64,738
+//   • Leonie if signs (5):       £4,259
+//   • New investor (19):         £16,184
+//
 // Slides recompute live via computeInvestorDividend(); this constant
 // is the un-locked fallback only.
 export const WATERFALL = {
   operatingProfit:  85181,
-  preferred:         2400,         // 10% × £24k external B at full subscription
-  aSharePriority:       0,
-  remainingPool:    82781,         // = operatingProfit - preferred
-  investorDividend: 17628,         // new investor at 19% (£1,900 preferred + £15,728 residual)
-  founderDividend:  62914,         // Founder A 51% + Founder B 25% (Leonie's £4,639 reported separately)
-  totalInvestor:    17628,
-  totalFounder:     62914,
+  perShareDividend: 851.81,        // £85,181 / 100 shares (Y1 indicative)
+  remainingPool:    85181,         // entire profit distributable (no preferred siphon)
+  investorDividend: 16184,         // 19 shares × £851.81
+  founderDividend:  64738,         // 76 shares × £851.81 (Founder A + Founder B)
+  totalInvestor:    16184,
+  totalFounder:     64738,
 }
 
 // === 5-YEAR INVESTOR RETURNS ===
-// ROUND 1 RESTRUCTURED (May 2026). 76/24 cap table (Founder 51% A + 25% B,
-// external 24% B), £49k round, semi-annual distributions with Y1 lockup,
-// 10% preferred yield on external B, Founder Y3 call-option to buyback
-// external B at LOWER of fair value × equity % or 3× cash invested.
+// PER-SHARE DIVIDEND MODEL (May 2026). 100 shares × £1,000 each, every
+// share entitled to the same £X per-share dividend at each review date.
+// Y1 = single review at month 12; Y2+ = every 6 months. Founder Y3
+// call at MARKET RATE (no cap).
+//
+// Per-share dividends are INDICATIVE based on forecast operating profit
+// ÷ 100 shares. Directors retain discretion to declare less in practice
+// (e.g. to retain capital for new venues or in low-confidence years).
 //
 // Two scenarios per investor:
 //
 //   (A) HELD TO Y5 — founder does NOT exercise the Y3 call. Investor
-//       collects every semi-annual distribution + their pro-rata slice of
-//       the Y5 exit at 4× EBITDA. Headline numbers shown in fiveYear[]
-//       below.
+//       collects every declared per-share dividend + their pro-rata
+//       slice of the Y5 exit at 4× EBITDA.
 //
-//   (B) FOUNDER CALLS AT Y3 — investor exits at the end of Y3 for the
-//       3× cash cap plus cumulative dividends Y1-Y3. Cap binds in every
-//       reasonable scenario (fair value × 19% at Y3 = ~£100k vs cap £57k).
-//       See callScenario for the worked numbers.
+//   (B) FOUNDER CALLS AT Y3 — investor exits at the end of Y3 at
+//       MARKET RATE (no cap). 19% × Y3 fair value = ~£95k buyback,
+//       plus cumulative Y1-Y3 dividends.
 //
 // Full-subscription assumptions:
-//   • Founder A 51% + Founder B 25% = 76% (£25k buyback cash)
-//   • Leonie 5% (£5k, pending signature) — counted in shares but in
-//     practice may not subscribe
-//   • New investor 19% (£19k cheque)
-//   • External B pool: £24k → annual preferred £2,400
+//   • 100 shares total
+//   • Founder 76 shares (51 A + 25 B)
+//   • Leonie 5 shares (pending signature)
+//   • New investor 19 shares (£19k cheque)
 //
-// Per year, for the £19k new investor at 19%:
-//   • Preferred:  £1,900   (10% × £19k invested capital — fixed)
-//   • Residual:   19% × (profit − £2,400 total external B preferred)
-//
-// 'founderShare' bundles Founder A 51% + Founder B 25% residual (does
-// NOT include Leonie's 5% which is reported in the external pool).
+// 'investorShare' = 19 × per-share dividend that year
+// 'founderShare'  = 76 × per-share dividend (A + B combined)
+//                 (Leonie's 5 × per-share reported separately if she signs)
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
     investorEq:      0.19,
-    investorReturn:  17628,           // preferred £1,900 + residual £15,728 (annual entitlement; cash paid at month 12)
-    coc:              0.9278,         // 17628 / 19000
-    paybackYears:     1.078,          // 19000 / 17628 (entitlement basis; cash basis ~2.1 yrs incl Y1 lockup)
+    investorShares:  19,
+    perShare:        851.81,           // 85181 / 100
+    investorReturn:  16184,            // 19 × £851.81 (annual entitlement; cash paid at month 12)
+    coc:              0.8518,          // 16184 / 19000
+    paybackYears:     1.174,           // 19000 / 16184 (entitlement basis)
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, investorShare: 17627.92, founderShare:  62913.66 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, investorShare: 19846.81, founderShare:  71786.84 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, investorShare: 25180.44, founderShare:  93122.27 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, investorShare: 30930.67, founderShare: 116122.86 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, investorShare: 37128.42, founderShare: 140918.59 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, perShare:   851.81, investorShare: 16184.47, founderShare:  64737.87 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, perShare:   968.57, investorShare: 18402.80, founderShare:  73611.20 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, perShare:  1249.29, investorShare: 23736.44, founderShare:  94945.77 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, perShare:  1551.93, investorShare: 29486.66, founderShare: 117946.66 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, perShare:  1878.18, investorShare: 35685.47, founderShare: 142741.88 },
   ],
-  cumulativeDividends: 130714.26,     // Y1+Y2+Y3+Y4+Y5 investor entitlements
+  cumulativeDividends: 123495.84,     // 19 shares × (sum of 5-yr per-share dividends)
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
     businessValue:    751273.08,
-    investorProceeds: 142741.89,      // 19% of business value (held-to-Y5, no founder call)
-    founderProceeds:  571167.54,      // 76% of business value
-    leonieProceeds:    37563.65,      // 5% of business value (reported separately)
+    perShareExit:     7512.73,
+    investorProceeds: 142741.89,      // 19 × £7,512.73 (held-to-Y5, no founder call)
+    founderProceeds:  571167.54,      // 76 × £7,512.73
+    leonieProceeds:    37563.65,      // 5 × £7,512.73 (reported separately)
   },
-  totalReturned:      273456.15,      // cumulativeDividends + exit.investorProceeds
-  multipleOfMoney:   14.3924,         // 273,456 / 19,000 (held-to-Y5 case)
-  irr:                1.209,          // IRR on annual flows with Y1 lockup at month 12
+  totalReturned:      266237.73,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.0125,         // 266,238 / 19,000 (held-to-Y5 case)
+  irr:                1.18,           // IRR on annual flows with Y1 lockup at month 12
 
   // === Y3 FOUNDER-CALL SCENARIO ===
-  // If founder exercises the Y3 buyback right (likely whenever fair value
-  // is materially above the £57k cap — i.e. in any reasonable trajectory):
-  //   - Investor receives cumulative Y1-Y3 dividends: ~£62,655
-  //   - Plus 3× cash buyback at Y3: £57,000
-  //   - Total returned: ~£119,655 = ~6.30× MoM on £19k
-  //   - IRR compresses to ~80% (lump £57k at Y3 amplifies time-weighted return)
-  // Investor's downside is capped, founder regains 19% equity for £57k.
+  // Market-rate buyback at Y3 (no cap). If founder exercises:
+  //   - Investor receives cumulative Y1-Y3 dividends:
+  //     19 × (851.81 + 968.57 + 1249.29) = £58,324
+  //   - Plus market-rate buyback at Y3:
+  //     Y3 fair value £499,716 ÷ 100 = £4,997.16 per share
+  //     19 × £4,997.16 = £94,946
+  //   - Total returned: £153,270 = ~8.07× MoM on £19k
+  //   - IRR: ~95% (lump at Y3 amplifies time-weighted return)
   callScenario: {
-    cumulativeDividendsToY3: 62655.17,
-    buybackPrice:            57000,        // 3× £19k
-    totalReturned:          119655.17,
-    multipleOfMoney:         6.30,
-    irrApprox:               0.80,
+    cumulativeDividendsToY3: 58323.71,
+    perShareBuybackY3:       4997.16,        // £499,716 fair value / 100
+    buybackPrice:            94946,          // 19 × £4,997.16
+    totalReturned:          153269.71,
+    multipleOfMoney:         8.07,
+    irrApprox:               0.95,
   },
 }
 
@@ -818,13 +845,11 @@ export const USE_OF_FUNDS_RANGES = {
   legals:    { min: 1000, max:  3000, step: 500, label: 'Legals & Restart' },
 }
 
-// 50/50 long-run split is the fixed structural decision (B-class shares for
-// the round; founder retains A-class for voting). Distribution mechanics on
-// top: 10% preferred yield on External B + investor-first quarterly draws
-// with deferred-quarter catch-up. The slider tool varies the investment
-// size; pre-money flexes to equal the investment so the 50/50 holds, and
-// the implied EBITDA multiple is the derived result. Helper exported so
-// the calculator and downstream slides share a single computation path.
+// LEGACY COMMENT (pre-May-2026). Distribution model is now per-share
+// dividends declared by directors at each review window. 100 shares ×
+// £1,000 each; every share entitled to the same £X declared. Cap table
+// is 76/24 (Founder 51 A + 25 B / external 24 B). See DEAL.* constants
+// at the top of this file for the live structure.
 //
 //   investorEq = 0.5 (fixed)
 //   founderEq  = 0.5 (fixed)
@@ -1252,61 +1277,43 @@ export function computeDealFromInvestment(investment) {
   return { investment, preMoney, postMoney, investorEq, founderEq, impliedMult }
 }
 
-// computeInvestorDividend — Round 1 B-class share of annual operating
-// profit including the EXTERNAL-B-only preferred dividend.
+// computeInvestorDividend — Round 1 PER-SHARE dividend model.
 //
-// Mechanic (each year, after director salary + working-capital top-up):
-//   1. EXTERNAL B-class holders receive a preferred dividend equal to
-//      preferredYield × their invested capital. Founder's £25k B-class
-//      buyback does NOT receive preferred — external B ranks ahead of
-//      founder B in the dividend queue.
-//   2. Remaining profit splits pro-rata across ALL equity (founder A 51% +
-//      founder B 25% + Leonie 5% + new investor up to 19%).
+// Mechanic (at each review date, after director salary + working-capital
+// top-up):
+//   1. Reserve floor check (£30k) — declaration skipped if below floor.
+//   2. Directors declare a £X per-share dividend based on trailing-12-month
+//      trading. Indicative basis = annual operating profit ÷ totalShares.
+//   3. Every share (A or B) receives the same £X. No preferred class.
 //
-// `investmentAmount` is the new investor's £ cheque (drives both their
-// preferred entitlement and their equity %, since postMoney is fixed at
-// £100k). Leonie's preferred contribution is read from DEAL.commitments
-// where type === 'external' (regardless of 'sold' vs 'pending' status —
-// we assume full subscription for the forecast).
+// `investmentAmount` is the new investor's £ cheque. With £1k per share,
+// share count = investmentAmount / 1000. The investor's annual dividend
+// entitlement = shares × per-share rate.
 //
-// Examples (Y1 profit £85,181, 10% yield, Leonie £5k in the external pool):
-//   Invest £19k → preferred £1,900 + residual £15,728 = £17,628
-//   Invest £10k → preferred £1,000 + residual £8,278  = £9,278
-//   Invest  £5k → preferred   £500 + residual £4,139  = £4,639
-//   Invest  £1k → preferred   £100 + residual   £828  = £928
+// Examples (Y1 indicative dividend ≈ £851.81 per share, 100 shares):
+//   Invest £19k → 19 shares × £851.81 = £16,184 annual entitlement
+//   Invest £10k → 10 shares × £851.81 = £8,518
+//   Invest  £5k → 5  shares × £851.81 = £4,259
+//   Invest  £1k → 1  share  × £851.81 = £852
 //
-// Y1 LOCKUP REMINDER: this function returns the ANNUAL ENTITLEMENT. With
-// the semi-annual + Y1-lockup distribution model, no cash actually
-// reaches the investor in Y1 — the first window opens at month 12 and
-// pays the full Y1 accrual then. See computeDistributionCalendar() for
-// the timing-of-cash calendar.
+// Y1 LOCKUP REMINDER: this function returns the ANNUAL ENTITLEMENT. Under
+// the new schedule no dividend is declared until month 12 — Y1's full
+// entitlement is paid in a single declaration then. Y2 onwards splits
+// across two semi-annual declarations.
 export function computeInvestorDividend(profit, investmentAmount, opts) {
   opts = opts || {}
-  const yieldPct = opts.preferredYield ?? DEAL.preferredYield ?? 0
-  const POST_MONEY = 100000
+  const totalShares  = opts.totalShares  ?? DEAL.totalShares  ?? 100
+  const pricePerShare = opts.pricePerShare ?? DEAL.pricePerShare ?? 1000
   const inv = Math.max(0, investmentAmount || 0)
+  const p   = Math.max(0, profit || 0)
 
-  // External B capital already committed (excludes founder buyback)
-  const committedExternal = (DEAL.commitments || [])
-    .filter(c => c.type === 'external')
-    .reduce((s, c) => s + (c.amount || 0), 0)
+  // Indicative per-share dividend = total distributable profit / share count.
+  // Directors retain discretion to declare less than this in practice.
+  const perShare = totalShares > 0 ? p / totalShares : 0
 
-  // Total external B capital this round = committed + the new investor
-  const totalExternalCapital = committedExternal + inv
-  const grossPreferred       = totalExternalCapital * yieldPct
-
-  const p = Math.max(0, profit || 0)
-  const preferred = Math.min(grossPreferred, p)
-  const residual  = p - preferred
-
-  // New investor's slice of preferred (pro-rata to capital within external B)
-  const investorPref = totalExternalCapital > 0
-    ? preferred * (inv / totalExternalCapital)
-    : 0
-  // New investor's residual share (pro-rata to equity)
-  const investorEq    = inv / POST_MONEY
-  const residualShare = residual * investorEq
-  return investorPref + residualShare
+  // Investor's share count = their £ cheque / £1k.
+  const investorShares = pricePerShare > 0 ? inv / pricePerShare : 0
+  return investorShares * perShare
 }
 
 // === HARDWARE FROM LIQUIDATORS — itemised breakdown ===

@@ -27,9 +27,9 @@ function calcReturns(multiplier, deal, baseProfit) {
   // until a per-scenario cost-rule split is wired in. baseProfit already
   // reflects the locked wage calculator if the founder has locked one.
   const opProfit = Math.round(baseProfit * (multiplier / 1.15))   // 1.15 = base
-  // Investor dividend includes the 10% preferred yield on the investor's
-  // invested capital, paid before the pro-rata residual split. External
-  // B-only — founder's buyback does not get preferred.
+  // Investor dividend = investor's shares × indicative per-share dividend
+  // (operating profit / 100 shares). Directors retain discretion to
+  // declare less; this is the headline indicative for the scenario.
   const investorDiv = computeInvestorDividend(Math.max(0, opProfit), deal.investment)
   const total = investorDiv
   const coc = total / deal.investment
@@ -112,7 +112,7 @@ export default function InvestmentSummary() {
           ['Pre-Money Valuation', fmt(effective.preMoney)],
           ['Post-Money Valuation', fmt(effective.postMoney)],
           ['Implied Multiple',    effective.impliedMult ? `${effective.impliedMult.toFixed(2)}× EBITDA` : `${DEAL.multiple.toFixed(2)}× EBITDA`],
-          [`Y${DEAL.buybackYear} Buyback Right`, `Lower of fair value or ${DEAL.buybackCap}× original`, true],
+          [`Y${DEAL.buybackYear} Buyback Right (Founder Call)`, `Market rate (Y3 fair value × shares held)`, true],
         ]} />
         <Section title="📊 Financial Performance" items={[
           ['2025 Actual Revenue',  fmt(ACTUALS_2025.revenue)],
@@ -122,12 +122,13 @@ export default function InvestmentSummary() {
           ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
         <Section title="💰 Investor Returns" items={[
-          ['Distribution Model',         'Preferred → pro-rata', true],
-          ['Preferred Yield (External B)', `${((DEAL.preferredYield || 0)*100).toFixed(0)}% on capital invested`, true],
-          [`Your Annual Preferred`,        fmt(Math.round((effective.investment || 0) * (DEAL.preferredYield || 0))), true],
-          [`Total Year 1 (Preferred + Residual)`, fmt(r.total), true],
-          ['Cash-on-Cash',                `${(r.coc*100).toFixed(1)}%`, true],
-          ['Payback Period',              paybackVal],
+          ['Distribution Model',         'Per-share dividend (directors declare)', true],
+          ['Shares Issued',              `${DEAL.totalShares || 100} × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} = ${fmt((DEAL.totalShares || 100) * (DEAL.pricePerShare || 1000))}`, true],
+          ['Your Shares',                `${Math.round((effective.investment || 0) / (DEAL.pricePerShare || 1000))} shares`, true],
+          ['Indicative Y1 £/share',      `£${((r.opProfit || 0) / (DEAL.totalShares || 100)).toFixed(2)}`, true],
+          [`Total Year 1 entitlement`,   fmt(r.total), true],
+          ['Cash-on-Cash',               `${(r.coc*100).toFixed(1)}%`, true],
+          ['Payback Period',             paybackVal],
         ]} />
       </div>
 
@@ -139,7 +140,7 @@ export default function InvestmentSummary() {
         {[
           `${fmt(r.total)} Year 1 investor return · ${(r.coc*100).toFixed(1)}% cash-on-cash on ${fmt(effective.investment)} invested`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
-          `Semi-annual pro-rata distributions to all holders · 10% preferred yield on External B + ${investorEqPct}% of residual profit · Y1 lockup, then every 6 months from end of Y1`,
+          `Per-share dividends declared by directors (${DEAL.totalShares || 100} shares × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} each) · Y1 review at month 12, Y2+ every 6 months · every share gets the same £X`,
         ].map((text, i) => (
           <div key={i} className="card" style={{ display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' }}>
             <span className="serif" style={{ fontSize: 28, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>

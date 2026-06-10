@@ -101,10 +101,9 @@ export default function Cover() {
   const deal          = { ...DEAL, ...dealLive }
 
   // Operating profit cascades from the locked wage calculator (if locked)
-  // through computeForecastProfit. Y1 investor return includes the 10%
-  // preferred yield on the investor's invested capital (paid before the
-  // residual split). External B-only — founder's £25k buyback does not
-  // receive preferred.
+  // through computeForecastProfit. Y1 investor return = the investor's
+  // share count × the per-share dividend (operating profit / 100 shares,
+  // indicative). Directors retain discretion to declare less in practice.
   const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
   const liveProfit     = computeForecastProfit(wagesOverride)
   const investorReturn = computeInvestorDividend(liveProfit, fundingAmount)
@@ -115,10 +114,10 @@ export default function Cover() {
   const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
 
   const stats = [
-    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19% B-class equity · founder retains 76% (51% A + 25% B)' },
+    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 shares (51 A + 25 B)' },
     { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
-    { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% annual entitlement · paid end of Y1 (Y1 lockup)` },
-    { label: 'Distribution Model',     value: 'Semi-annual',                        sub: 'All holders pro-rata · Y1 lockup · first window end of Y1' },
+    { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% indicative · declared by directors at the 12-month review` },
+    { label: 'Distribution Model',     value: '£ per share',                        sub: 'Directors declare £X per share · Y1 at month 12 · Y2+ every 6 months' },
     { label: 'Forecast Revenue',       value: fmt(FORECAST.revenue),                sub: 'Base case +15% · bar-only · May 2026–Apr 2027' },
     { label: 'Valuation Entry',        value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]
