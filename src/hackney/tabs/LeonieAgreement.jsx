@@ -12,8 +12,9 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 //
 // Key terms (per src/data/hackney.js DEAL):
 //   • 100 shares issued at £1,000 each (£100k post-money)
-//   • Founder 76 shares (51 A + 25 B), Leonie's intended 5 shares,
-//     19 shares open externally
+//   • Founder 76 A-class voting shares (51 retained + 25 additional
+//     subscription), Leonie's intended 5 B-class non-voting shares,
+//     19 B-class shares open externally
 //   • £5,000 cash subscription = 5 shares = 5% equity
 //   • NO preferred yield class — every share entitled to the same £X
 //     per-share dividend declared by the directors
@@ -119,7 +120,7 @@ export default function LeonieAgreement() {
         <CapTable />
 
         <P style={{ marginTop:16 }}>
-          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor would subscribe for <strong style={{ color:GOLD }}>5 shares</strong> (= £5,000, 5% of the company). All Round 1 external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder retains 100% of the A-class voting shares (51 shares).
+          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor would subscribe for <strong style={{ color:GOLD }}>5 shares</strong> (= £5,000, 5% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000).
         </P>
       </Section>
 
@@ -140,7 +141,7 @@ export default function LeonieAgreement() {
           Dividends are declared by the directors as a <strong style={{ color:GOLD }}>£X per share</strong>. The Company has issued 100 shares in total; every share (A or B) is entitled to the same per-share amount when a dividend is declared. There is <strong style={{ color:CREAM }}>no preferred class</strong> — the Investor's payout for each window = her shares held × the per-share rate declared.
         </P>
         <P>
-          The Investor holds <strong style={{ color:CREAM }}>5 shares</strong>. If, for example, the directors declare £851.81 per share at the Y1 review (the indicative base-case figure), the Investor receives <strong style={{ color:CREAM }}>5 × £851.81 = £4,259</strong>; the Founder (76 A+B shares) receives 76 × £851.81 = £64,738.
+          The Investor holds <strong style={{ color:CREAM }}>5 B-class shares</strong>. If, for example, the directors declare £851.81 per share at the Y1 review (the indicative base-case figure), the Investor receives <strong style={{ color:CREAM }}>5 × £851.81 = £4,259</strong>; the Founder (76 A-class shares) receives 76 × £851.81 = £64,738.
         </P>
         <P>
           <strong style={{ color:CREAM }}>Distribution waterfall per review.</strong> At each review date, distributable profit is applied in this order:
@@ -149,7 +150,7 @@ export default function LeonieAgreement() {
           'Director\'s salary (set in the FY budget; £15,885 inc employer NI for FY 2026/27) — already deducted before "operating profit".',
           'Working-capital reserve top-up — reserve must be at or above the £30,000 floor at the review date.',
           'Directors declare a £X per-share dividend based on the trailing 12 months of trading. The declaration is announced shortly before the review date.',
-          'Every share (Founder A, Founder B and external B alike) is paid the same £X per share. Investor\'s payout = shares held × £X.',
+          'Every share (76 Founder A and 24 external B alike) is paid the same £X per share. Investor\'s payout = shares held × £X.',
         ]} />
       </Section>
 
@@ -165,7 +166,7 @@ export default function LeonieAgreement() {
           <li><strong style={{ color:CREAM }}>Reserve target £45,000</strong> — fully-funded position (floor + £15k cushion for VAT bills, supplier swings, repairs). Once at target, declarations distribute substantially all of distributable profit.</li>
         </ul>
         <P>
-          Same rule for everyone — Founder A, Founder B and external B holders are all paid the same £X per share at the same review date. No within-window priority.
+          Same rule for everyone — Founder A and external B holders are all paid the same £X per share at the same review date. No within-window priority.
         </P>
       </Section>
 
@@ -404,7 +405,7 @@ function OrderedList({ items }) {
 function CapTable() {
   const rows = [
     { who:'Founder — retained holdback (pre-money)', cls:'A', eq:'51%', cash:fmt(0),     status:'Not for sale' },
-    { who:'Founder — buyback',                        cls:'B', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
+    { who:'Founder — additional subscription',        cls:'A', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
     { who:'Investor — Leonie Sands (this draft)',     cls:'B', eq:'5%',  cash:fmt(5000),  status:'Pending · subject to execution', highlight:true },
     { who:'Available to new external investors',      cls:'B', eq:'19%', cash:fmt(19000), status:'For sale' },
   ]

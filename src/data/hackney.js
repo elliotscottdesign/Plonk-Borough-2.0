@@ -62,33 +62,34 @@ export const NOTES_SYNC_SECRET = ''
 export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 
 // === DEAL STRUCTURE ===
-// RESTRUCTURED MAY 2026 · £49,000 total round for 49% of the company.
-// Founder retains 51% A-shares pre-money (voting, not for sale) AND
-// personally buys back £25,000 of the round (= 25% of the company) —
-// so post-round the founder holds 76% (51% A + 25% B). The remaining
-// 24% of the company (£24k) is the available external pool, of which
-// 5% (£5k) is intended for Leonie Sands (pending — see DEAL.commitments)
-// and 19% (£19k) is open for new investors. £49k for 49% implies
-// pre-money £51k, post-money £100k, entry 1.65× the £30,896 verified
-// 2025 profit — well below the 4.1× sector average, reflecting the
-// hurried-sale / post-liquidation restart.
+// RESTRUCTURED MAY 2026 · £49,000 total round for 49 shares.
+// All FOUNDER shares are A-class voting. The founder retains 51 A
+// shares pre-money (not for sale) AND personally subscribes for an
+// additional 25 A shares at £1k each (£25,000) — so post-round the
+// founder holds 76 A shares = 76% voting + economic. The remaining
+// 24 shares (£24k) are B-class non-voting external, of which 5
+// (£5k) are intended for Leonie Sands (pending — see DEAL.commitments)
+// and 19 (£19k) are open for new investors. £49k for 49 shares
+// implies pre-money £51k, post-money £100k, entry 1.65× the £30,896
+// verified 2025 profit — well below the 4.1× sector average, reflecting
+// the hurried-sale / post-liquidation restart.
 //
 // Cap table — live state of the round:
-//   Founder retained (pre-money holdback, A-shares) 51%   £0    — not for sale
-//   Founder buyback                  (B-shares)     25%   £25k  — SOLD (founder)
-//   Leonie Sands                     (B-shares)      5%   £5k   — PENDING (external)
-//   Available to new investors       (B-shares)     19%   £19k  — FOR SALE
+//   Founder retained holdback (A-shares, voting)    51    £0    — not for sale
+//   Founder additional subscription (A-shares)      25    £25k  — SOLD (founder)
+//   Leonie Sands                  (B-shares)         5    £5k   — PENDING (external)
+//   Available to new investors    (B-shares)        19    £19k  — FOR SALE
 //                                                  ----   ----
-//                                                  100%   £49k
+//                                                  100    £49k
 //
 // Returns shown on the deck assume a NEW external investor takes their
 // own slice of the available £19k. The default models a single investor
-// taking the full £19k (= 19% equity). The FundingSlider on Cover lets
-// them model a smaller stake (£5k → 5%, £10k → 10%, etc.). Equity is
-// always investment / £100k post-money. Founder slice of profits =
-// 76% (= retained 51% A + 25% buyback B); Leonie (if she subscribes)
+// taking the full £19k (= 19% equity = 19 B shares). The FundingSlider
+// on Cover lets them model a smaller stake (£5k → 5 shares, £10k → 10
+// shares, etc.). Equity is always investment / £100k post-money. Founder
+// slice of profits = 76% (= 76 A shares); Leonie (if she subscribes)
 // takes 5%; the new investor takes whatever they subscribe for, up to
-// the £19k available.
+// the £19k / 19 B shares available.
 export const DEAL = {
   // === ROUND 1 — PER-SHARE DIVIDEND MODEL ===
   //
@@ -160,25 +161,28 @@ export const DEAL = {
 
   // === SHARE STRUCTURE ===========================================
   // The company issues 100 shares at £1,000 each. £1k cheque = 1 share.
-  // All cap-table % calculations below derive from share-count maths.
+  // ALL founder shares are A-class voting. External shares are B-class
+  // non-voting. Per-share dividend is identical regardless of class —
+  // the A/B distinction is purely voting + dilution-protection.
   totalShares:      100,         // 100 shares × £1k = £100k post-money
   pricePerShare:   1000,         // £1,000 per share
 
   // Single-investor view (drives the deck's headline numbers / returns)
-  investment: 19000,             // max a NEW investor can take = full available external slice (19 shares)
-  investorEq: 0.19,              // 19 shares = 19%
-  founderEq: 0.76,               // Founder A 51 + Founder B 25 = 76 shares = 76%
+  investment: 19000,             // max a NEW investor can take = full available external slice (19 B shares)
+  investorEq: 0.19,              // 19 B shares = 19%
+  founderEq: 0.76,               // Founder A 76 shares = 76% (all A-class now)
 
   // Round-level breakdown (informational — shown on Investment Summary)
-  roundSize:        49000,       // total raise this round = founder buyback (£25k) + external (up to £24k)
-  roundEquity:      0.49,        // 49 of 100 shares being sold this round
+  roundSize:        49000,       // total raise this round = founder additional A (£25k) + external B (up to £24k)
+  roundEquity:      0.49,        // 49 of 100 shares being issued this round
   founderRetained:  0.51,        // pre-money holdback A-shares (51 shares) — never sold
-  founderBuyback:   25000,       // 25 B-shares founder-bought
+  founderBuyback:   25000,       // founder additional A-share subscription (25 shares)
   founderBuybackEq: 0.25,
 
-  // Founder share split: 51 A + 25 B = 76 shares total.
-  founderASharesCount: 51,
-  founderBSharesCount: 25,
+  // Founder shares — all A-class. 51 retained pre-money + 25 newly
+  // subscribed = 76 total A shares.
+  founderASharesCount: 76,       // 51 retained + 25 additional subscription
+  founderBSharesCount:  0,       // founder no longer holds any B shares
 
   // Commitments — Leonie has NOT yet signed/paid (May 2026). She remains
   // in active discussion at the standard terms below; her £5k is held in
@@ -187,19 +191,20 @@ export const DEAL = {
   // the cap-table + progress bar — only entries with status === 'sold'
   // are treated as locked in.
   commitments: [
-    { label: 'Founder buyback', amount: 25000, equity: 0.25, shares: 25, type: 'founder',  status: 'sold'    },
-    { label: 'Leonie Sands',    amount:  5000, equity: 0.05, shares:  5, type: 'external', status: 'pending' },
+    { label: 'Founder additional A subscription', amount: 25000, equity: 0.25, shares: 25, type: 'founder',  shareClass: 'A', status: 'sold'    },
+    { label: 'Leonie Sands',                      amount:  5000, equity: 0.05, shares:  5, type: 'external', shareClass: 'B', status: 'pending' },
   ],
 
-  availableAmount:  24000,       // = roundSize - founder buyback (24 shares available externally)
-  availableShares:    24,        // 24 shares × £1k each
-  availableEq:      0.24,        // = roundEquity - founder buyback equity
-  founderTotalPost: 0.76,        // 51 A + 25 B = 76 shares
-  externalPostEq:   0.24,        // available externally (5 intended for Leonie + 19 open)
+  availableAmount:  24000,       // = roundSize - founder A subscription (24 B shares available externally)
+  availableShares:    24,        // 24 B shares × £1k each
+  availableEq:      0.24,        // = roundEquity - founder A subscription equity
+  founderTotalPost: 0.76,        // 76 A shares (51 retained + 25 additional)
+  externalPostEq:   0.24,        // available externally (5 B for Leonie + 19 B open)
 
   // Share / governance
-  shareClass: 'B (non-voting)',  // Round 1: external + founder buyback are all B-class. Founder retains 100% of A.
-  totalBEquity:     0.49,        // 49 of 100 shares are B-class
+  shareClass: 'B (non-voting)',  // Round 1 EXTERNAL shares are B-class. All founder shares are A.
+  totalBEquity:     0.24,        // 24 of 100 shares are B-class (external only)
+  totalAEquity:     0.76,        // 76 of 100 shares are A-class (founder only)
   multiple: 1.6507,              // entry multiple — preMoney / 2025 EBITDA (51000 / 30896.17)
   exitMultiple: 4,               // exit multiple at Y5 — held at sector average
   preMoney: 51000,

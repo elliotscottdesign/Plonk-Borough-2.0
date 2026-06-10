@@ -114,7 +114,7 @@ export default function Cover() {
   const paybackText = isFinite(payback) ? payback.toFixed(2) : 'N/A'
 
   const stats = [
-    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 shares (51 A + 25 B)' },
+    { label: 'Seeking',                value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 A-class voting shares' },
     { label: '2025 Verified Revenue',  value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
     { label: 'Year 1 Investor Return', value: fmt(investorReturn),                  sub: `${cocPct}% indicative · declared by directors at the 12-month review` },
     { label: 'Distribution Model',     value: '£ per share',                        sub: 'Directors declare £X per share · Y1 at month 12 · Y2+ every 6 months' },

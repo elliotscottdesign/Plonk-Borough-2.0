@@ -20,9 +20,10 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
 function calcWaterfall(profit, deal) {
-  // New investor's dividend = 10% preferred on their capital + pro-rata
-  // residual on their equity. External B-only — founder buyback does
-  // not get preferred.
+  // Per-share dividend × the investor's share count. Founder shares are
+  // all A-class (76 total) and external are B-class — but the £X
+  // declared per share is the same for both classes. The class
+  // distinction is purely voting + dilution-protection.
   const investorDiv = computeInvestorDividend(profit, deal.investment)
   const founderDiv = Math.max(0, profit - investorDiv)
   const totalInvestor = investorDiv
@@ -272,7 +273,7 @@ function DistributionProcess() {
       n: '4',
       title: '£X Per-Share Dividend',
       sub: '100 shares · every share equal',
-      detail: 'The directors declare a £X-per-share dividend for the period. Every share — Founder A, Founder B and external B alike — is entitled to the same £X. Your payout = the number of shares you hold × £X. No preferred class, no within-window priority.',
+      detail: 'The directors declare a £X-per-share dividend for the period. Every share — 76 Founder A and 24 external B alike — is entitled to the same £X. Your payout = the number of shares you hold × £X. No preferred class, no within-window priority.',
       colour: '#A78BFA',
     },
     {
@@ -650,7 +651,7 @@ function FiveYearPayoutBreakdown({ investment, isLocked }) {
       />
       {open && <>
       <p style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 16 }}>
-        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back under the 76/24 cap table. Founder 76% (51% A + 25% B) and external B 24% all draw pro-rata at semi-annual distribution windows, with a hard Y1 lockup (first window = end of Y1). Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend — unless the Founder has called the shares back at Y3 under the buyback right above.
+        How the £{investment.toLocaleString('en-GB')} investor stake gets paid back under the 76/24 cap table. Founder 76 A-class voting shares and external 24 B-class non-voting shares all draw the same £X per share at each declaration, with a hard Y1 lockup (first window = end of Y1). Year 5 exit at 4× EBITDA returns the equity holding alongside the final dividend — unless the Founder has called the shares back at Y3 under the buyback right above.
       </p>
 
       <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
