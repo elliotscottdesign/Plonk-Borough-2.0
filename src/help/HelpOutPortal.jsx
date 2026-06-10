@@ -3,9 +3,9 @@ import {
   CATEGORIES, CATEGORY_LABEL, DEADLINE,
   helpDays, dayWeekday, dayNum, dayLabel,
   timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel, slotsForShifts,
-  HELP_START_MIN, HELP_END_MIN,
+  HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT,
 } from './data.js'
-import { submitHelper, helpLink } from './api.js'
+import { submitHelper, helpLink, helpAvailability } from './api.js'
 
 // ─── No Dice — "Help us open" volunteer portal (/helpout) ──────────────────
 // Public, no login. A friend picks what they're up for, then for each date they
@@ -52,24 +52,53 @@ const inputStyle = {
 }
 const selectStyle = { ...inputStyle, appearance: 'auto', WebkitAppearance: 'menulist' }
 
+// Availability strip — 9am→midnight, coloured by how many are already booked.
+function AvailabilityStrip({ others }) {
+  const cells = []
+  for (let t = HELP_START_MIN; t < HELP_END_MIN; t += 30) cells.push(t)
+  return (
+    <div style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', gap: 1.5, height: 16, borderRadius: 4, overflow: 'hidden' }}>
+        {cells.map(t => {
+          const c = countAt(others, t)
+          const bg = c >= MAX_CONCURRENT ? RED : c === 1 ? '#FCD34D' : 'rgba(255,255,255,0.1)'
+          return <div key={t} title={`${fmtTime(t)} · ${c} booked`} style={{ flex: 1, background: bg }} />
+        })}
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 9.5, color: DIM, marginTop: 3 }}>
+        <span>9am</span><span>3pm</span><span>9pm</span><span>12am</span>
+      </div>
+      <div style={{ display: 'flex', gap: 12, fontSize: 10.5, color: DIM, marginTop: 6 }}>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: 'rgba(255,255,255,0.1)', borderRadius: 2, marginRight: 4 }} />free</span>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: '#FCD34D', borderRadius: 2, marginRight: 4 }} />1 booked</span>
+        <span><span style={{ display: 'inline-block', width: 8, height: 8, background: RED, borderRadius: 2, marginRight: 4 }} />full (2)</span>
+      </div>
+    </div>
+  )
+}
+
 // ─── Time popup — set start & finish for one date ─────────────────────────────
-function ShiftModal({ date, value, onSave, onRemove, onClose }) {
+function ShiftModal({ date, value, claims, onSave, onRemove, onClose }) {
   const [start, setStart] = useState(value?.start || DEFAULT_SHIFT.start)
   const [end, setEnd] = useState(value?.end || DEFAULT_SHIFT.end)
   const startOpts = timeOptions(HELP_START_MIN, HELP_END_MIN - 30)
   const endOpts = timeOptions(toMin(start) + 30, HELP_END_MIN)
+  const others = (claims || []).filter(c => c.date === date)
 
   function changeStart(v) {
     setStart(v)
     if (toMin(end) <= toMin(v)) setEnd(timeOptions(toMin(v) + 30, HELP_END_MIN)[0].value)
   }
   const slots = Math.max(0, Math.round((toMin(end) - toMin(start)) / 30))
+  const blocked = rangeBlocked(others, start, end)
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20, zIndex: 50 }}>
       <div onClick={e => e.stopPropagation()} style={{ width: '100%', maxWidth: 380, background: '#0E0E10', border: `1px solid ${LINE}`, borderRadius: 16, padding: '22px 20px' }}>
         <div className="serif" style={{ fontSize: 21, color: '#fff', marginBottom: 4 }}>When can you help?</div>
-        <div style={{ fontSize: 13, color: DIM, marginBottom: 18 }}>{dayLabel(date)} · pick your start &amp; finish (we’re here 9am–midnight)</div>
+        <div style={{ fontSize: 13, color: DIM, marginBottom: 16 }}>{dayLabel(date)} · pick your start &amp; finish (we’re here 9am–midnight)</div>
+
+        {others.length > 0 && <AvailabilityStrip others={others} />}
 
         <div style={{ display: 'flex', gap: 10, marginBottom: 16 }}>
           <label style={{ flex: 1 }}>
@@ -86,11 +115,17 @@ function ShiftModal({ date, value, onSave, onRemove, onClose }) {
           </label>
         </div>
 
-        <div style={{ fontSize: 12.5, color: DIM, textAlign: 'center', marginBottom: 18 }}>
-          That’s <strong style={{ color: '#fff' }}>{((slots * 30) / 60).toFixed(slots % 2 ? 1 : 0)}h</strong> — about <strong style={{ color: '#fff' }}>{slots} job{slots !== 1 ? 's' : ''}</strong>.
-        </div>
+        {blocked ? (
+          <div style={{ fontSize: 12.5, color: '#fff', background: 'rgba(218,27,51,0.16)', border: `1px solid ${RED}`, borderRadius: 8, padding: '9px 11px', textAlign: 'center', marginBottom: 14 }}>
+            Part of that time already has {MAX_CONCURRENT} people — please pick another slot.
+          </div>
+        ) : (
+          <div style={{ fontSize: 12.5, color: DIM, textAlign: 'center', marginBottom: 16 }}>
+            That’s <strong style={{ color: '#fff' }}>{((slots * 30) / 60).toFixed(slots % 2 ? 1 : 0)}h</strong> — about <strong style={{ color: '#fff' }}>{slots} job{slots !== 1 ? 's' : ''}</strong>.
+          </div>
+        )}
 
-        <button onClick={() => onSave({ start, end })} style={{ ...inputStyle, cursor: 'pointer', background: RED, border: `1px solid ${RED}`, fontWeight: 700, marginBottom: 8 }}>
+        <button onClick={() => !blocked && onSave({ start, end })} disabled={blocked} style={{ ...inputStyle, cursor: blocked ? 'not-allowed' : 'pointer', background: blocked ? 'rgba(255,255,255,0.08)' : RED, border: `1px solid ${blocked ? LINE : RED}`, color: blocked ? 'rgba(255,255,255,0.4)' : '#fff', fontWeight: 700, marginBottom: 8 }}>
           Save this shift
         </button>
         <div style={{ display: 'flex', gap: 8 }}>
@@ -180,6 +215,9 @@ function SignUp() {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null)
   const [submittedShifts, setSubmittedShifts] = useState([])
+  const [claims, setClaims] = useState([])         // others' booked shifts (for the popup)
+
+  useEffect(() => { helpAvailability().then(r => setClaims(r.claims || [])).catch(() => {}) }, [])
 
   const shiftArr = Object.entries(shifts).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date))
   const hasContact = phone.trim() || email.trim()
@@ -275,6 +313,7 @@ function SignUp() {
         <ShiftModal
           date={modalDate}
           value={shifts[modalDate]}
+          claims={claims}
           onSave={(v) => { setShifts(s => ({ ...s, [modalDate]: v })); setModalDate(null) }}
           onRemove={() => { setShifts(s => { const n = { ...s }; delete n[modalDate]; return n }); setModalDate(null) }}
           onClose={() => setModalDate(null)}

@@ -23,6 +23,9 @@ async function call(payload) {
 export const submitHelper = ({ name, phone, email, categories, shifts, note }) =>
   call({ action: 'signup', name, phone, email, categories, shifts, note })
 
+// Public — anonymised claimed shifts so the popup can grey out full slots.
+export const helpAvailability = () => call({ action: 'availability' })
+
 // Admin (gated /ops). Returns { tasks, helpers, stats }.
 export const helpAdmin = () => call({ action: 'admin', secret: SEND_SECRET })
 

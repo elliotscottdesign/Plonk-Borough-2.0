@@ -25,6 +25,7 @@ const json = (o: unknown, s = 200) =>
 // A shift of N minutes is worth N/30 jobs. Capped so the pool spreads.
 const MAX_TASKS = 20;
 const TASK_MIN = 30;
+const MAX_CONCURRENT = 2;   // no more than this many helpers booked at once
 const PORTAL_URL = "https://team.nodice.bar/operations?tab=helpout";
 const ELLIOT_EMAIL = "elliot@nodice.bar";
 const toMin = (hhmm: string) => { const [h, m] = String(hhmm).split(":").map(Number); return h * 60 + (m || 0); };
@@ -250,6 +251,15 @@ Deno.serve(async (req) => {
 
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
+  // ── public: anonymised claimed shifts so the sign-up popup shows free slots ──
+  if (action === "availability") {
+    const { data: helpers } = await sb.from("bar_helpers").select("id,shifts");
+    const claims: any[] = [];
+    (helpers || []).forEach((h: any, i: number) =>
+      (h.shifts || []).forEach((s: any) => claims.push({ hid: i, date: s.date, start: s.start, end: s.end })));
+    return json({ claims, cap: MAX_CONCURRENT });
+  }
+
   // ── public: sign up → propose jobs to fill each shift, alert Elliot ──────────
   if (action === "signup") {
     const name = String(b.name || "").trim();
@@ -265,9 +275,26 @@ Deno.serve(async (req) => {
       return json({ error: "Please add your name, a phone or email, at least one thing you’re up for, and a date with your hours." }, 400);
     const days = [...new Set(shifts.map((s: any) => s.date))].sort();
 
-    const { data: helpers, error: hErr } = await sb.from("bar_helpers").select("id,email,assigned");
+    const { data: helpers, error: hErr } = await sb.from("bar_helpers").select("id,email,assigned,shifts");
     if (hErr) return json({ error: hErr.message }, 500);
     const existing = email ? (helpers || []).find((h: any) => (h.email || "").toLowerCase() === email) : null;
+
+    // Cap: no more than MAX_CONCURRENT helpers booked at any one moment. Check the
+    // new shifts against everyone else's (the signer's own existing shifts don't count).
+    const others: any[] = [];
+    for (const h of helpers || []) {
+      if (existing && h.id === existing.id) continue;
+      for (const s of (h.shifts || [])) others.push({ hid: h.id, date: s.date, start: s.start, end: s.end });
+    }
+    for (const ns of shifts) {
+      const od = others.filter((o) => o.date === ns.date);
+      for (let t = toMin(ns.start); t < toMin(ns.end); t += TASK_MIN) {
+        const hids = new Set<string>();
+        for (const o of od) if (toMin(o.start) <= t && t < toMin(o.end)) hids.add(o.hid);
+        if (hids.size >= MAX_CONCURRENT)
+          return json({ error: `${fmtDay(ns.date)} around ${fmtTime(t)} already has ${MAX_CONCURRENT} people booked — we keep it to ${MAX_CONCURRENT} helpers at once so it stays manageable. Please pick another time or day.` }, 409);
+      }
+    }
 
     // Tasks already taken by everyone EXCEPT this person (so a re-signup reuses their slots).
     const taken = new Set<string>();

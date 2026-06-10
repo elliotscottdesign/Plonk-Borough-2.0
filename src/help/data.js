@@ -76,6 +76,35 @@ export function slotsForShifts(shifts) {
   return Math.max(1, Math.min(MAX_TASKS, sum))
 }
 
+// ─── Concurrency cap — no more than this many helpers at once ────────────────
+// Keeps it manageable for Elliot. SAME value lives in the help-out function.
+export const MAX_CONCURRENT = 2
+// All helpers (by hid) covering each 30-min slot, for ONE date's shifts.
+// shiftsOnDate = [{ start:'HH:MM', end:'HH:MM', hid }]
+function slotPeople(shiftsOnDate) {
+  const m = {}
+  for (const s of shiftsOnDate || []) for (let t = toMin(s.start); t < toMin(s.end); t += TASK_MIN) (m[t] ||= new Set()).add(s.hid)
+  return m
+}
+// How many distinct people are booked at `minute` on that date.
+export function countAt(shiftsOnDate, minute) {
+  const set = new Set()
+  for (const s of shiftsOnDate || []) if (toMin(s.start) <= minute && minute < toMin(s.end)) set.add(s.hid)
+  return set.size
+}
+export function maxConcurrency(shiftsOnDate) {
+  const m = slotPeople(shiftsOnDate)
+  let mx = 0
+  for (const k in m) mx = Math.max(mx, m[k].size)
+  return mx
+}
+// Would a new [start,end) on this date push any slot to/over the cap given
+// `othersOnDate` (everyone else already booked that date)?
+export function rangeBlocked(othersOnDate, start, end, cap = MAX_CONCURRENT) {
+  for (let t = toMin(start); t < toMin(end); t += TASK_MIN) if (countAt(othersOnDate, t) >= cap) return true
+  return false
+}
+
 // Priority bands used on the admin jobs board.
 export const PRIORITY = {
   p1: { label: 'Before we open', tone: '#DA1B33' },
