@@ -1,6 +1,7 @@
 import React from 'react'
 import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
+import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
 
 // LeeAgreement — Round 1 STANDARD TEMPLATE, personalised for Lee Trott.
 //
@@ -76,7 +77,7 @@ export default function LeeAgreement() {
   const { effective, isLocked } = useLockedUseOfFunds()
 
   return (
-    <div style={{ padding:'32px 48px', maxWidth:1100, margin:'0 auto', color:CREAM, lineHeight:1.6 }}>
+    <div data-agreement-body style={{ padding:'32px 48px', maxWidth:1100, margin:'0 auto', color:CREAM, lineHeight:1.6 }}>
 
       {/* Hero */}
       <div style={{ marginBottom:24 }}>
@@ -331,20 +332,12 @@ export default function LeeAgreement() {
         </ul>
       </Section>
 
-      {/* Signatures */}
-      <div style={{ marginTop:36, padding:'24px 26px', background:INK_BG, border:BORDER, borderRadius:12 }}>
-        <div style={{ fontSize:11, color:GOLD, letterSpacing:'0.14em', textTransform:'uppercase', fontWeight:700, marginBottom:14 }}>
-          Signatures — to be added on execution
-        </div>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:24 }}>
-          <SignBlock name="Elliot Scott" role="Founder" />
-          <SignBlock name="Lee Trott" role="Investor" />
-        </div>
-      </div>
-
-      <div style={{ marginTop:24, fontSize:11, color:CREAM_D, textAlign:'center', opacity:0.75 }}>
-        Subject to contract · Draft pending negotiation &amp; solicitor review · Not yet executed · Confidential
-      </div>
+      {/* Signatures — inline e-signature, print/PDF downloads */}
+      <AgreementSignBlock
+        agreementId="lee"
+        investorName="Lee Trott"
+        founderName="Elliot Scott"
+      />
     </div>
   )
 }
@@ -355,7 +348,7 @@ const ulStyle = { margin:'8px 0 12px 0', paddingLeft:20, fontSize:14, color:CREA
 
 function NotYetExecutedBanner() {
   return (
-    <div style={{
+    <div className="agreement-draft-banner" style={{
       display:'flex', alignItems:'flex-start', gap:14,
       padding:'14px 18px',
       background:'rgba(252,211,77,0.08)',
