@@ -46,6 +46,11 @@ alter table public.dj_slots add column if not exists set_type text;      -- open
 alter table public.dj_slots add column if not exists held_at timestamptz;        -- when the hold started (deadline = +24h)
 alter table public.dj_slots add column if not exists reminder_sent boolean default false;  -- 2h-warning email sent
 alter table public.dj_slots add column if not exists event_image_url text;  -- per-event artwork (overrides DJ profile photo for that night)
+-- A day can have >1 session (Saturdays: 'main' evening + 'sat_pm' afternoon). Key by (date, slot).
+alter table public.dj_slots add column if not exists slot text not null default 'main';
+-- (the original UNIQUE(date) is replaced by UNIQUE(date,slot) — run once:)
+--   alter table public.dj_slots drop constraint if exists dj_slots_date_key;
+--   alter table public.dj_slots add constraint dj_slots_date_slot_key unique (date, slot);
 
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)

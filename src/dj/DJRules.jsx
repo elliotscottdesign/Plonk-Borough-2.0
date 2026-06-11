@@ -40,7 +40,8 @@ export default function DJRules() {
 
       <Section tag="💷" title="Sessions — Thu · Fri · Sat">
         Weekends are paid <B>Sessions</B>. A few rules keep the line-ups fresh:
-        <Li><R>One paid session per calendar month</R> per DJ. (Open Decks don't count — those are unlimited.)</Li>
+        <Li><B>Saturdays have two</B> — an <B>afternoon</B> set (4–8pm) and an <B>evening</B> set (8pm–late). Tap a Saturday and pick which.</Li>
+        <Li><R>One paid session per calendar month</R> per DJ — afternoon or evening counts as your session. (Open Decks don't count — those are unlimited.)</Li>
         <Li>Pick <B>up to 4 sub-genres</B> you'll play on the night.</Li>
         <Li>These go out on the flyer and the listings, so choose what really represents the set.</Li>
       </Section>

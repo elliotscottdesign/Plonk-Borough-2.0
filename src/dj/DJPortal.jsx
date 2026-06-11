@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, sessionFor, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
+import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
@@ -46,6 +46,8 @@ export default function DJPortal() {
   const [showPast, setShowPast] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
   const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
+  const [claimSlot, setClaimSlot] = useState('main') // which session-of-the-day the open panel is for
+  const [chooser, setChooser] = useState(null)       // { date, slots } when a day has >1 open session
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -77,13 +79,13 @@ export default function DJPortal() {
   }
   const onEventPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
-    const date = claiming
+    const date = claiming, slot = claimSlot
     setBusy(true); setEventPhotoErr(''); setMsg('Saving event image…')
     try {
       const dataUrl = await resizeImage(file)
-      const snap = await djPortal(token, 'eventPhoto', { date, dataUrl })
+      const snap = await djPortal(token, 'eventPhoto', { date, slot, dataUrl })
       refresh(snap)
-      const b = (snap.myBookings || []).find(x => x.date === date)
+      const b = (snap.myBookings || []).find(x => x.date === date && (x.slot || 'main') === slot)
       setEventImg(b?.event_image_url || '')
       flash('Event image saved ✓')
     } catch (er) {
@@ -92,12 +94,12 @@ export default function DJPortal() {
   }
   const removeEventPhoto = async (date) => {
     setBusy(true); setEventPhotoErr('')
-    try { refresh(await djPortal(token, 'removeEventPhoto', { date })); setEventImg(''); flash('Event image removed.') }
+    try { refresh(await djPortal(token, 'removeEventPhoto', { date, slot: claimSlot })); setEventImg(''); flash('Event image removed.') }
     catch (e) { setEventPhotoErr(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
   const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr('') }
-  const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); resetPanel() }
+  const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); setClaimSlot('main'); resetPanel() }
   const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr('') }
   const holdExpired = (heldAt) => !!heldAt && (new Date(heldAt).getTime() + 24 * 3600 * 1000 <= Date.now())
   // If a hold lapsed mid-action, flash + reload the live state and drop the stale panel.
@@ -109,11 +111,11 @@ export default function DJPortal() {
     }
   }
   // Pick a fresh open date — reserve it (24h hold) THEN open the panel.
-  const startClaim = async (date) => {
-    setBusy(true)
+  const startClaim = async (date, slot = 'main') => {
+    setBusy(true); setChooser(null)
     try {
-      refresh(await djPortal(token, 'hold', { date }))
-      setMode('claim'); setPanelAt('bottom'); setClaiming(date); resetPanel()
+      refresh(await djPortal(token, 'hold', { date, slot }))
+      setMode('claim'); setPanelAt('bottom'); setClaiming(date); setClaimSlot(slot); resetPanel()
       flash('Date held for you — you’ve got 24h to finish.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
@@ -124,21 +126,21 @@ export default function DJPortal() {
       try { refresh(await djPortal(token, 'load')) } catch { /* keep last state */ }
       return
     }
-    setMode('claim'); setPanelAt('top'); setClaiming(b.date); prefill(b)
+    setMode('claim'); setPanelAt('top'); setClaiming(b.date); setClaimSlot(b.slot || 'main'); prefill(b)
   }
   // Edit an existing pending/confirmed booking.
-  const startEdit = (b) => { setMode('edit'); setPanelAt('top'); setClaiming(b.date); prefill(b) }
+  const startEdit = (b) => { setMode('edit'); setPanelAt('top'); setClaiming(b.date); setClaimSlot(b.slot || 'main'); prefill(b) }
   const saveDraft = async (date) => {
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
-      refresh(await djPortal(token, 'draft', { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      refresh(await djPortal(token, 'draft', { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
       closePanel()
       flash('Draft saved ✓ — finish within your 24h.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
   const claim = async (date) => {
-    const session = kindFor(date) === 'session'
+    const session = kindFor(date, claimSlot) === 'session'
     if (session && !subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
     if (!promoTrack.trim()) { flash('Add a track (name or link) to promote your night.'); return }
     if (!promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }
@@ -146,14 +148,14 @@ export default function DJPortal() {
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
       const action = mode === 'edit' ? 'edit' : 'claim'
-      refresh(await djPortal(token, action, { date, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      refresh(await djPortal(token, action, { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
       closePanel()
       flash(mode === 'edit' ? 'Night updated ✓' : 'Date requested ✓ — No Dice will confirm.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
   }
-  const cancel = async (date) => {
+  const cancel = async (date, slot = 'main') => {
     setBusy(true)
-    try { refresh(await djPortal(token, 'cancel', { date })); flash('Date released.') }
+    try { refresh(await djPortal(token, 'cancel', { date, slot })); flash('Date released.') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
 
@@ -183,28 +185,42 @@ export default function DJPortal() {
     return h > 0 ? `${h}h ${m}m left` : `${m}m left`
   }
   const monthKey = (d) => d.slice(0, 7)
-  const bookedSessionMonths = new Set(st.myBookings.filter(b => kindFor(b.date) === 'session').map(b => monthKey(b.date)))
-  const openMap = Object.fromEntries(st.openSlots.map(o => [o.date, o]))
+  const bookedSessionMonths = new Set(st.myBookings.filter(b => kindFor(b.date, b.slot) === 'session').map(b => monthKey(b.date)))
+  const openByDate = {}
+  for (const o of st.openSlots) { if (!openByDate[o.date]) openByDate[o.date] = []; openByDate[o.date].push(o) }
   const mineMap = Object.fromEntries(st.myBookings.map(b => [b.date, b]))
   const shiftMonth = (n) => { let m = viewM + n, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m) }
   const canPrevMonth = viewY > now.getFullYear() || (viewY === now.getFullYear() && viewM > now.getMonth())
+  // Open session-of-day slots a DJ can still book (sessions hidden once their month is used).
+  const bookable = (dateStr) => (openByDate[dateStr] || []).filter(o => {
+    const isSess = (o.kind || kindFor(dateStr, o.slot)) === 'session'
+    return !(isSess && bookedSessionMonths.has(monthKey(dateStr)))
+  })
   const cellFor = (dateStr) => {
     const mine = mineMap[dateStr]
-    if (mine) return { tone: mine.status === 'confirmed' ? 'mine-confirmed' : 'mine-pending', kind: kindFor(dateStr), disabled: true }
-    const op = openMap[dateStr]
-    if (!op) return null
-    const session = (op.kind || kindFor(dateStr)) === 'session'
-    if (session && bookedSessionMonths.has(monthKey(dateStr))) return { tone: 'closed', kind: 'session', disabled: true }
-    return { tone: 'open', kind: session ? 'session' : 'opendecks', disabled: false }
+    if (mine) return { tone: mine.status === 'confirmed' ? 'mine-confirmed' : 'mine-pending', kind: kindFor(dateStr, mine.slot), disabled: true }
+    const slots = openByDate[dateStr]
+    if (!slots || !slots.length) return null
+    const anySession = slots.some(o => (o.kind || kindFor(dateStr, o.slot)) === 'session')
+    if (!bookable(dateStr).length) return { tone: 'closed', kind: anySession ? 'session' : 'opendecks', disabled: true }
+    return { tone: 'open', kind: anySession ? 'session' : 'opendecks', disabled: false }
+  }
+  // Tap a date: one open session → straight to hold; two+ (Saturdays) → pick afternoon/evening.
+  const pickDate = (date) => {
+    const slots = bookable(date)
+    if (slots.length === 0) return
+    if (slots.length === 1) startClaim(date, slots[0].slot)
+    else setChooser({ date, slots })
   }
 
   // Booking panel — shared by "claim a new open date" and "edit one of my dates".
   const renderPanel = () => {
     const date = claiming
-    const op = openMap[date] || mineMap[date] || {}
-    const blocked = op.blocked || []
-    const session = (op.kind || kindFor(date)) === 'session'
-    const s = sessionFor(date)
+    const slotObj = (openByDate[date] || []).find(o => o.slot === claimSlot) || mineMap[date] || {}
+    const blocked = slotObj.blocked || []
+    const s = sessionForSlot(date, claimSlot)
+    const session = s?.kind === 'session'
+    const sLabel = slotLabel(date, claimSlot)
     const editing = mode === 'edit'
     const mine = mineMap[date]
     return (
@@ -212,7 +228,7 @@ export default function DJPortal() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontWeight: 700 }}>
             {editing && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 999, padding: '1px 7px', marginRight: 6 }}>Editing</span>}
-            {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? 'Session' : 'Open Decks'}</span>
+            {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? (sLabel ? `Session · ${sLabel}` : 'Session') : 'Open Decks'}</span>
           </div>
           <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
         </div>
@@ -346,14 +362,15 @@ export default function DJPortal() {
           <div style={{ marginBottom: 18 }}>
             <div style={{ ...label, marginBottom: 8 }}>Your dates</div>
             {st.myBookings.map(b => {
-              const s = sessionFor(b.date)
+              const s = sessionForSlot(b.date, b.slot)
+              const sLab = slotLabel(b.date, b.slot)
               const held = b.status === 'held'
               const statusColor = b.status === 'confirmed' ? '#34D399' : '#FCD34D'
               return (
-                <div key={b.date} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div key={b.date + '-' + (b.slot || 'main')} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {(b.event_image_url || sdj.image_url) && <img src={b.event_image_url || sdj.image_url} alt="" title={b.event_image_url ? 'Event image' : 'Profile photo'} style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${b.event_image_url ? RED : LINE}`, flexShrink: 0 }} />}
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}</span></div>
+                    <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
                     {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                     {b.kind === 'opendecks' && !held && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
@@ -363,7 +380,7 @@ export default function DJPortal() {
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: statusColor }}>{b.status === 'confirmed' ? 'Confirmed' : held ? 'Draft' : 'Requested'}</span>
                     <div style={{ display: 'flex', gap: 12 }}>
                       <button onClick={() => held ? resumeDraft(b) : startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{held ? 'continue' : 'edit'}</button>
-                      {(held || b.status === 'pending') && <button onClick={() => cancel(b.date)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
+                      {(held || b.status === 'pending') && <button onClick={() => cancel(b.date, b.slot)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
                     </div>
                   </div>
                 </div>
@@ -384,14 +401,15 @@ export default function DJPortal() {
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8, lineHeight: 1.5 }}>Everyone else's upcoming nights — handy to see what's already pencilled in around your dates.</div>
                 {st.schedule.map((e, i) => {
-                  const s = sessionFor(e.date)
+                  const s = sessionForSlot(e.date, e.slot)
+                  const sLab = slotLabel(e.date, e.slot)
                   const session = e.kind === 'session'
                   return (
                     <div key={e.date + '-' + i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       {e.image && <img src={e.image} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }} />}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
                         </div>
                         <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
@@ -417,10 +435,11 @@ export default function DJPortal() {
             {showPast && (
               <div style={{ marginTop: 8 }}>
                 {st.pastBookings.map(b => {
-                  const s = sessionFor(b.date)
+                  const s = sessionForSlot(b.date, b.slot)
+                  const sLab = slotLabel(b.date, b.slot)
                   return (
-                    <div key={b.date} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 8, opacity: 0.85 }}>
-                      <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}</span></div>
+                    <div key={b.date + '-' + (b.slot || 'main')} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 8, opacity: 0.85 }}>
+                      <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                       {b.night_name && <div style={{ fontSize: 11, color: RED }}>"{b.night_name}"</div>}
                       {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                       {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
@@ -443,7 +462,7 @@ export default function DJPortal() {
           </div>
         ) : (
           <>
-            <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth} cellFor={cellFor} onDay={startClaim} selected={claiming}
+            <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth} cellFor={cellFor} onDay={pickDate} selected={claiming}
               legend={<>
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: RED, marginRight: 5, verticalAlign: 'middle' }} />Session (paid)</span>
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
@@ -451,6 +470,26 @@ export default function DJPortal() {
               </>} />
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to hold it — you'll then have 24h to fill in the details.</div>
           </>
+        )}
+        {/* Two sessions on one day (Saturdays) — pick which before holding. */}
+        {chooser && (
+          <div style={{ marginTop: 14, background: CARD, border: '1px solid rgba(218,27,51,0.4)', borderRadius: 12, padding: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+              <div style={{ fontWeight: 700 }}>{fmtDate(chooser.date)} — pick a session</div>
+              <button onClick={() => setChooser(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {chooser.slots.map(o => {
+                const ss = sessionForSlot(chooser.date, o.slot)
+                return (
+                  <button key={o.slot} onClick={() => startClaim(chooser.date, o.slot)} disabled={busy} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', borderRadius: 9, background: 'transparent', border: `1px solid ${RED}`, color: '#fff', cursor: 'pointer', fontSize: 14 }}>
+                    <span style={{ fontWeight: 700 }}>{slotLabel(chooser.date, o.slot) || 'Session'}</span>
+                    <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>{timeLabel(ss)} · paid</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
         )}
         {claiming && panelAt === 'bottom' && renderPanel()}
         </>)}

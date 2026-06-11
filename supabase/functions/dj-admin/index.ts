@@ -33,7 +33,8 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, id, profile, djId, nightName, dataUrl } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl } = await req.json().catch(() => ({}));
+  const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -41,22 +42,22 @@ Deno.serve(async (req) => {
   switch (action) {
     case "open": {
       const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
-      await sb.from("dj_slots").upsert({ date, status: "open", kind: k }, { onConflict: "date", ignoreDuplicates: true });
+      await sb.from("dj_slots").upsert({ date, slot, status: "open", kind: k }, { onConflict: "date,slot", ignoreDuplicates: true });
       break;
     }
     case "close":
-      await sb.from("dj_slots").delete().eq("date", date).eq("status", "open");
+      await sb.from("dj_slots").delete().eq("date", date).eq("slot", slot).eq("status", "open");
       break;
     case "signoff":
-      await sb.from("dj_slots").update({ status: "confirmed", updated_at: now() }).eq("date", date);
+      await sb.from("dj_slots").update({ status: "confirmed", updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "unconfirm":
-      await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date);
+      await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "removeBooking":
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.
-      await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date);
+      await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "book": {
       // Admin manually assigns a DJ. Seed kind + display genres from their profile
@@ -65,11 +66,11 @@ Deno.serve(async (req) => {
       const subs = String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
       const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
       await sb.from("dj_slots").upsert({
-        date, dj_id: djId, status: "pending", night_name: nightName || null,
+        date, slot, dj_id: djId, status: "pending", night_name: nightName || null,
         genre: dj?.genres || null, genres: subs, subgenres: subs, kind: k,
         set_type: k === "opendecks" ? "dj_set" : null, promo_track: null, promo_ok: false,
         event_image_url: null, updated_at: now(),
-      }, { onConflict: "date" });
+      }, { onConflict: "date,slot" });
       break;
     }
     case "addDj": {

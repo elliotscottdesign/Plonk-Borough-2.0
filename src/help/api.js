@@ -52,6 +52,12 @@ export const helpTaskMeta = (taskId, patch) => call({ action: 'taskmeta', secret
 // Admin — cancel/delete a whole sign-up (e.g. clear a test request).
 export const helpDeleteHelper = (helperId) => call({ action: 'deletehelper', secret: SEND_SECRET, helperId })
 
+// Admin — create a new job on the board. job = {title, cat, difficulty, detail?, area?, priority?, recurring?}.
+export const helpCreateJob = (job) => call({ action: 'createjob', secret: SEND_SECRET, ...job })
+
+// Admin — delete a job from the board (custom job removed; built-in hidden).
+export const helpDeleteJob = (taskId) => call({ action: 'deletejob', secret: SEND_SECRET, taskId })
+
 // Admin — confirm a helper's jobs and email them the final list.
 export const helpConfirm = (helperId) => call({ action: 'confirm', secret: SEND_SECRET, helperId })
 

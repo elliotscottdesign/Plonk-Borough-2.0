@@ -32,10 +32,34 @@ export const SESSIONS = {
   3: { day: 'Wednesday', start: '19:00', end: '23:00', kind: 'opendecks' },
   4: { day: 'Thursday', start: '19:00', end: '23:00', kind: 'session' },
   5: { day: 'Friday', start: '20:00', end: '00:00', kind: 'session' },
-  6: { day: 'Saturday', start: '20:00', end: '00:00', kind: 'session' },
+  6: { day: 'Saturday', start: '20:00', end: '00:00', kind: 'session' },   // slot 'main' = Saturday evening
 }
-export const sessionFor = (dateStr) => SESSIONS[new Date(dateStr + 'T00:00:00').getDay()]
-export const kindFor = (dateStr) => sessionFor(dateStr)?.kind || 'session'
+// Extra bookable sessions on a weekday, beyond the single 'main' slot above.
+// Saturday has a second PAID session in the afternoon (4–8pm).
+export const EXTRA_SLOTS = {
+  6: [{ slot: 'sat_pm', day: 'Saturday', start: '16:00', end: '20:00', kind: 'session' }],
+}
+const wdOf = (dateStr) => new Date(dateStr + 'T00:00:00').getDay()
+// All bookable slots for a date (main + extras), earliest start first.
+export function slotsForDate(dateStr) {
+  const wd = wdOf(dateStr)
+  const out = []
+  if (SESSIONS[wd]) out.push({ slot: 'main', ...SESSIONS[wd] })
+  for (const e of (EXTRA_SLOTS[wd] || [])) out.push({ ...e })
+  return out.sort((a, b) => a.start.localeCompare(b.start))
+}
+// Session definition for a specific (date, slot). Defaults to the 'main' slot.
+export function sessionForSlot(dateStr, slot) {
+  return slotsForDate(dateStr).find(s => s.slot === (slot || 'main')) || SESSIONS[wdOf(dateStr)] || null
+}
+// Short label when a day has >1 session ('Afternoon' / 'Evening'); '' otherwise.
+export function slotLabel(dateStr, slot) {
+  const all = slotsForDate(dateStr)
+  if (all.length < 2) return ''
+  return (all.findIndex(s => s.slot === (slot || 'main')) === 0) ? 'Afternoon' : 'Evening'
+}
+export const sessionFor = (dateStr, slot) => sessionForSlot(dateStr, slot)
+export const kindFor = (dateStr, slot) => sessionForSlot(dateStr, slot)?.kind || 'session'
 export const SET_TYPES = [
   { value: 'dj_set', label: 'Full DJ set' },
   { value: 'records', label: 'Record selections' },
@@ -51,9 +75,9 @@ export function instagramCaption(ev) {
   const ig = ev?.dj?.instagram || ev?.instagram || ''
   const subs = ev?.subgenres || ev?.genres || []
   const fmt = ev?.dj?.format || ev?.format || ''
-  const s = sessionFor(ev.date)
+  const s = sessionForSlot(ev.date, ev.slot)
   const dateStr = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })
-  const session = (ev?.kind || kindFor(ev.date)) === 'session'
+  const session = (ev?.kind || kindFor(ev.date, ev.slot)) === 'session'
   const title = ev?.night_name ? `“${ev.night_name}”` : (session ? 'No Dice Sessions' : 'Open Decks')
   const igTag = ig ? ig.split(/[\s/]/)[0] : ''
   const lines = [

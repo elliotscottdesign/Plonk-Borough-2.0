@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel, SKILL_LABEL, DIFFICULTY, canDo } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helperLink, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helpCreateJob, helpDeleteJob, helperLink, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -23,6 +23,8 @@ function Tile({ label, value, sub, accent }) {
 const Dot = ({ tone }) => <span style={{ width: 9, height: 9, borderRadius: '50%', background: tone, flexShrink: 0, display: 'inline-block' }} />
 const btn = (extra = {}) => ({ fontSize: 11, padding: '6px 12px', borderRadius: 7, cursor: 'pointer', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.12)', color: 'var(--cream)', ...extra })
 const DiffBadge = ({ d }) => { const x = DIFFICULTY[d] || DIFFICULTY.intermediate; return <span title={x.label} style={{ fontSize: 9.5, padding: '1px 5px', borderRadius: 4, background: `${x.tone}22`, border: `1px solid ${x.tone}66`, color: x.tone, fontWeight: 700 }}>{x.short}</span> }
+const fieldLbl = { fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cream-dim)', marginBottom: 4 }
+const fieldInput = { width: '100%', boxSizing: 'border-box', background: '#111', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '8px 10px', fontSize: 13 }
 
 export default function HelpOut() {
   const [data, setData] = useState(null)
@@ -34,6 +36,9 @@ export default function HelpOut() {
   const [editing, setEditing] = useState(null)  // jobs-board task being edited
   const [eTitle, setETitle] = useState('')
   const [eDetail, setEDetail] = useState('')
+  const blankJob = { cat: '', title: '', difficulty: 'intermediate', detail: '', area: '', recurring: false }
+  const [showNew, setShowNew] = useState(false)
+  const [nj, setNj] = useState(blankJob)
 
   async function load() {
     setLoading(true); setErr('')
@@ -53,6 +58,14 @@ export default function HelpOut() {
   async function saveEdit(taskId) {
     setBusy(`edit-${taskId}`)
     try { await helpTaskMeta(taskId, { title: eTitle, detail: eDetail }); setEditing(null); await load() }
+    catch (e) { setErr(e.message) }
+    finally { setBusy('') }
+  }
+
+  async function createJob() {
+    if (!nj.cat || !nj.title.trim()) return
+    setBusy('newjob')
+    try { await helpCreateJob({ ...nj, title: nj.title.trim() }); setNj(blankJob); setShowNew(false); await load() }
     catch (e) { setErr(e.message) }
     finally { setBusy('') }
   }
@@ -214,9 +227,50 @@ export default function HelpOut() {
                     ))}
                   </div>
                   <button onClick={toggleAll} style={btn()}>{allOpen ? 'Collapse all' : 'Expand all'}</button>
+                  <button onClick={() => setShowNew(v => !v)} style={btn({ background: 'rgba(52,211,153,0.16)', border: '1px solid #34D399', color: '#34D399', fontWeight: 700 })}>{showNew ? 'Close' : '+ New job'}</button>
                 </div>
               </div>
               <div style={{ fontSize: 11.5, color: 'var(--cream-dim)', marginBottom: 10 }}>Set each job’s level (<DiffBadge d="novice" /> <DiffBadge d="intermediate" /> <DiffBadge d="experienced" />) and tap ♻ to make it recurring (can be allocated again after it’s done).</div>
+
+              {showNew && (
+                <div style={{ ...card, padding: 16, marginBottom: 12, border: '1px solid rgba(52,211,153,0.4)' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#34D399', marginBottom: 10 }}>Add a new job to the board</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 10 }}>
+                    <label>
+                      <div style={fieldLbl}>Category</div>
+                      <select value={nj.cat} onChange={e => setNj(j => ({ ...j, cat: e.target.value }))} style={fieldInput}>
+                        <option value="" disabled>Choose…</option>
+                        {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                      </select>
+                    </label>
+                    <label>
+                      <div style={fieldLbl}>Area (optional)</div>
+                      <input value={nj.area} onChange={e => setNj(j => ({ ...j, area: e.target.value }))} placeholder="Inside / Garden / Golf course…" style={fieldInput} />
+                    </label>
+                  </div>
+                  <label style={{ display: 'block', marginBottom: 10 }}>
+                    <div style={fieldLbl}>Title</div>
+                    <input value={nj.title} onChange={e => setNj(j => ({ ...j, title: e.target.value }))} placeholder="What needs doing" style={fieldInput} />
+                  </label>
+                  <label style={{ display: 'block', marginBottom: 10 }}>
+                    <div style={fieldLbl}>Description (optional)</div>
+                    <textarea value={nj.detail} onChange={e => setNj(j => ({ ...j, detail: e.target.value }))} placeholder="Any detail / instructions" style={{ ...fieldInput, minHeight: 56, resize: 'vertical' }} />
+                  </label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 18, flexWrap: 'wrap', marginBottom: 14 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                      <span style={{ ...fieldLbl, marginBottom: 0 }}>Difficulty</span>
+                      {['novice', 'intermediate', 'experienced'].map(d => { const on = nj.difficulty === d, x = DIFFICULTY[d]; return <button key={d} onClick={() => setNj(j => ({ ...j, difficulty: d }))} style={{ fontSize: 11, padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontWeight: 700, background: on ? `${x.tone}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? x.tone : 'rgba(255,255,255,0.14)'}`, color: on ? x.tone : 'var(--cream-dim)' }}>{x.label}</button> })}
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: 'var(--cream)', cursor: 'pointer' }}>
+                      <input type="checkbox" checked={nj.recurring} onChange={e => setNj(j => ({ ...j, recurring: e.target.checked }))} /> ♻ Recurring (can be allocated again)
+                    </label>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button onClick={createJob} disabled={busy === 'newjob' || !nj.cat || !nj.title.trim()} style={btn({ background: 'rgba(52,211,153,0.18)', border: '1px solid #34D399', color: '#34D399', fontWeight: 700, opacity: (nj.cat && nj.title.trim()) ? 1 : 0.5 })}>{busy === 'newjob' ? 'Adding…' : 'Add to board'}</button>
+                    <button onClick={() => { setShowNew(false); setNj(blankJob) }} style={btn()}>Cancel</button>
+                  </div>
+                </div>
+              )}
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {usedCats.map(c => {
@@ -264,6 +318,7 @@ export default function HelpOut() {
                                       </span>
                                       <button onClick={() => act(`r-${t.id}`, () => helpTaskMeta(t.id, { recurring: !t.recurring }))} disabled={busy === `r-${t.id}`} title="Recurring — can be allocated again after it's done" style={btn({ padding: '2px 8px', fontSize: 10.5, background: t.recurring ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${t.recurring ? GOLD : 'rgba(255,255,255,0.14)'}`, color: t.recurring ? GOLD : 'var(--cream-dim)' })}>♻ {t.recurring ? 'recurring' : 'one-off'}</button>
                                       <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || '') }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
+                                      <button onClick={() => { if (window.confirm(`Delete "${t.title}" from the board?`)) act(`del-${t.id}`, () => helpDeleteJob(t.id)) }} disabled={busy === `del-${t.id}`} title="Delete this job" style={btn({ padding: '2px 8px', fontSize: 10.5, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `del-${t.id}` ? '…' : '🗑 delete'}</button>
                                     </div>
                                   </>
                                 )}

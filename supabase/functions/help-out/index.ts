@@ -300,8 +300,9 @@ Deno.serve(async (req) => {
   const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {} };
   const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
   const meta = cfg.task_meta || {};
-  const effDiff = (t: any) => meta[t.id]?.difficulty || CAT_DIFFICULTY[t.cat] || "intermediate";
-  const effRec = (t: any) => !!(meta[t.id]?.recurring);
+  const customTasks: any[] = Array.isArray(cfg.custom_tasks) ? cfg.custom_tasks : [];
+  const effDiff = (t: any) => meta[t.id]?.difficulty || t.difficulty || CAT_DIFFICULTY[t.cat] || "intermediate";
+  const effRec = (t: any) => meta[t.id]?.recurring !== undefined ? !!meta[t.id].recurring : !!t.recurring;
   // A task with the admin's edits applied (title/detail/difficulty/recurring).
   const effTask = (t: any) => {
     const m = meta[t.id] || {};
@@ -312,6 +313,9 @@ Deno.serve(async (req) => {
       difficulty: effDiff(t), recurring: effRec(t),
     };
   };
+  // Built-in tasks + admin-created ones, minus any marked deleted.
+  const allTasks = [...TASKS, ...customTasks].filter((t: any) => !(meta[t.id] && meta[t.id].deleted));
+  const byId: Record<string, any> = Object.fromEntries(allTasks.map((t: any) => [t.id, t]));
 
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
@@ -349,7 +353,7 @@ Deno.serve(async (req) => {
       await sb.from("bar_helpers").update({ assigned, task_states: states }).eq("id", me.id);
     }
 
-    const tasks = assigned.map((id) => { const t = TASK_BY_ID[id]; return t ? { ...effTask(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
+    const tasks = assigned.map((id) => { const t = byId[id]; return t ? { ...effTask(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
     return json({ name: me.name, shifts: me.shifts || [], status: me.status || "pending", tasks });
   }
 
@@ -421,19 +425,19 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     const owner: Record<string, { id: string; name: string; status: string; state: string }> = {};
     for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name, status: h.status || "pending", state: (h.task_states || {})[id] || "todo" };
-    const tasks = TASKS.map((t) => ({ ...effTask(t), assignedTo: owner[t.id] || null }));
+    const tasks = allTasks.map((t) => ({ ...effTask(t), assignedTo: owner[t.id] || null }));
     const enrichedHelpers = (helpers || []).map((h: any) => ({
       ...h, status: h.status || "pending", skill: h.skill || "intermediate", shifts: h.shifts || [],
-      assignedTasks: (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? { ...effTask(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
+      assignedTasks: (h.assigned || []).map((id: string) => { const t = byId[id]; return t ? { ...effTask(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
     }));
     const stats = {
       helpers: (helpers || []).length,
       confirmed: (helpers || []).filter((h: any) => (h.status || "pending") === "confirmed").length,
-      tasks: TASKS.length,
+      tasks: allTasks.length,
       assigned: tasks.filter((t) => t.assignedTo).length,
       completed: tasks.filter((t) => t.assignedTo?.state === "completed").length,
       awaiting: tasks.filter((t) => t.assignedTo?.state === "done").length,
-      p1: TASKS.filter((t) => t.priority === "p1").length,
+      p1: allTasks.filter((t) => t.priority === "p1").length,
       p1Assigned: tasks.filter((t) => t.priority === "p1" && t.assignedTo).length,
     };
     return json({ tasks, helpers: enrichedHelpers, stats, settings: { defaultCap: cfg.default_cap ?? MAX_CONCURRENT, dayCaps: cfg.day_caps || {} } });
@@ -460,7 +464,7 @@ Deno.serve(async (req) => {
     const { data: h } = await sb.from("bar_helpers").select("*").eq("id", b.helperId).maybeSingle();
     if (!h) return json({ error: "helper not found" }, 404);
     await sb.from("bar_helpers").update({ status: "confirmed" }).eq("id", h.id);
-    const assigned = (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? effTask(t) : null; }).filter(Boolean);
+    const assigned = (h.assigned || []).map((id: string) => { const t = byId[id]; return t ? effTask(t) : null; }).filter(Boolean);
     const emailed = h.email
       ? await sendResend(h.email, assigned.length ? "Your No Dice jobs — thanks for helping! 🍻" : "You’re confirmed — thanks for helping! 🍻", buildHelperEmail(h.name, assigned, h.shifts || [], h.token))
       : false;
@@ -485,7 +489,7 @@ Deno.serve(async (req) => {
   if (action === "assign") {
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const taskId = String(b.taskId || "");
-    const t = TASK_BY_ID[taskId];
+    const t = byId[taskId];
     if (!t) return json({ error: "unknown task" }, 400);
     const recurring = effRec(t);
     const { data: helpers } = await sb.from("bar_helpers").select("id,assigned,task_shift");
@@ -507,7 +511,7 @@ Deno.serve(async (req) => {
   if (action === "taskmeta") {
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const taskId = String(b.taskId || "");
-    if (!TASK_BY_ID[taskId]) return json({ error: "unknown task" }, 400);
+    if (!byId[taskId]) return json({ error: "unknown task" }, 400);
     const tm: Record<string, any> = { ...(cfg.task_meta || {}) };
     const cur: any = { ...(tm[taskId] || {}) };
     if (b.difficulty && ["novice", "intermediate", "experienced"].includes(String(b.difficulty))) cur.difficulty = String(b.difficulty);
@@ -525,6 +529,45 @@ Deno.serve(async (req) => {
     if (!b.helperId) return json({ error: "missing helper" }, 400);
     const { error } = await sb.from("bar_helpers").delete().eq("id", b.helperId);
     if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
+  // ── create a new job on the board (admin) ───────────────────────────────────
+  if (action === "createjob") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const title = String(b.title || "").trim();
+    const cat = String(b.cat || "").trim();
+    if (!title || !cat) return json({ error: "Give the job a title and a category." }, 400);
+    const difficulty = ["novice", "intermediate", "experienced"].includes(String(b.difficulty)) ? String(b.difficulty) : "intermediate";
+    const priority = ["p1", "p2", "p3"].includes(String(b.priority)) ? String(b.priority) : "p2";
+    let id = "c-" + slug(title);
+    if (byId[id]) id = `${id}-${customTasks.length + 1}`;
+    const task = { id, title, cat, area: String(b.area || "").trim() || "Custom", priority, detail: String(b.detail || "").trim(), difficulty, recurring: !!b.recurring };
+    await sb.from("help_settings").update({ custom_tasks: [...customTasks, task] }).eq("id", 1);
+    return json({ ok: true, id });
+  }
+
+  // ── delete a job from the board (admin) ─────────────────────────────────────
+  // Custom job → drop it; built-in → flag deleted in task_meta. Also frees it
+  // from anyone it was allocated to.
+  if (action === "deletejob") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const taskId = String(b.taskId || "");
+    if (!byId[taskId]) return json({ error: "unknown job" }, 400);
+    const { data: hs } = await sb.from("bar_helpers").select("id,assigned,task_states,task_shift");
+    for (const h of hs || []) {
+      if ((h.assigned || []).includes(taskId)) {
+        const ts: Record<string, string> = { ...(h.task_states || {}) }; delete ts[taskId];
+        const tsh: Record<string, string> = { ...(h.task_shift || {}) }; delete tsh[taskId];
+        await sb.from("bar_helpers").update({ assigned: (h.assigned || []).filter((x: string) => x !== taskId), task_states: ts, task_shift: tsh }).eq("id", h.id);
+      }
+    }
+    if (customTasks.some((t: any) => t.id === taskId)) {
+      await sb.from("help_settings").update({ custom_tasks: customTasks.filter((t: any) => t.id !== taskId) }).eq("id", 1);
+    } else {
+      const tm: Record<string, any> = { ...meta }; tm[taskId] = { ...(tm[taskId] || {}), deleted: true };
+      await sb.from("help_settings").update({ task_meta: tm }).eq("id", 1);
+    }
     return json({ ok: true });
   }
 

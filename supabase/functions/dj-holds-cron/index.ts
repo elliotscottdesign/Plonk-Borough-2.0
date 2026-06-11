@@ -20,7 +20,7 @@ Deno.serve(async (req) => {
   const nowISO = new Date().toISOString();
 
   const { data: holds } = await sb.from("dj_slots")
-    .select("date, held_at, reminder_sent, dj:djs(dj_name, email, token)")
+    .select("date, slot, held_at, reminder_sent, dj:djs(dj_name, email, token)")
     .eq("status", "held").not("held_at", "is", null);
 
   let reminded = 0, released = 0;
@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
         status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [],
         promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false,
         event_image_url: null, updated_at: nowISO,
-      }).eq("date", h.date).eq("status", "held");
+      }).eq("date", h.date).eq("slot", (h as any).slot || "main").eq("status", "held");
       released++;
       continue;
     }
@@ -63,7 +63,7 @@ Deno.serve(async (req) => {
       }
       // Mark handled either way (RESEND is available) so we never re-check this hold
       // every run. A held DJ always has an email, but this is safe if one doesn't.
-      await sb.from("dj_slots").update({ reminder_sent: true, updated_at: nowISO }).eq("date", h.date).eq("status", "held");
+      await sb.from("dj_slots").update({ reminder_sent: true, updated_at: nowISO }).eq("date", h.date).eq("slot", (h as any).slot || "main").eq("status", "held");
     }
   }
   return json({ reminded, released, checked: (holds || []).length });
