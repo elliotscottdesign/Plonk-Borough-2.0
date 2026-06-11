@@ -25,6 +25,10 @@ import { useTranslation } from 'react-i18next'
 //              deck + his own "Your Agreement" tab (role:'lee'). Same
 //              standard Round 1 terms as Leonie's draft, personalised
 //              with Lee's name + 1 share figure.
+//   MIKE    — Mike (Round 1 prospective, figure TBC): Hackney deck +
+//              his own "Your Agreement" tab (role:'mike'). Cloned from
+//              Leonie's template; default 5 shares / £5k / 5% until
+//              the founder edits the figures.
 //
 // Retiring a code does NOT delete any saved notes/locks/drags — those persist
 // in localStorage and on the lock-sync server keyed by the code STRING (see
@@ -38,6 +42,7 @@ const ACCESS_CODES = {
   'NODICE99': { plonk: false, founder: false, hackney: false, borough: true,  ops: false, marketing: false, role: 'borough-investor' },
   'LEONIE':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'leonie'           },
   'LEE01':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'lee'              },
+  'MIKE':    { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'mike'             },
 }
 
 export default function PasswordGate({ onUnlock }) {
@@ -62,8 +67,8 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (NDTEAM, NODICE88, NODICE99, LEONIE, LEE01) accept any case
-    // for friendliness.
+    // codes (NDTEAM, NODICE88, NODICE99, LEONIE, LEE01, MIKE) accept any
+    // case for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
