@@ -65,7 +65,7 @@ export default function LeeAgreement() {
           Draft Investment Terms — For Your Review
         </h1>
         <p style={{ fontSize:15, color:CREAM_D, marginTop:10, maxWidth:820 }}>
-          No Dice Hackney Ltd · Round 1 · £1,000 indicative subscription for <strong style={{ color:CREAM }}>1 share</strong> (£1,000 per share = 1% of the company). <strong style={{ color:CREAM }}>Not yet executed.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and the £1k figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
+          No Dice Hackney Ltd · Round 1 · £1,000 subscription for <strong style={{ color:CREAM }}>1 share</strong> (£1,000 per share = 1% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £1k / 1-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
         </p>
       </div>
 
@@ -83,7 +83,7 @@ export default function LeeAgreement() {
           <strong style={{ color:CREAM }}>The Founder.</strong> Elliot Scott, holder of all A-class voting shares.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>The Investor.</strong> Lee Trott (the "<strong style={{ color:CREAM }}>Investor</strong>"), prospective Round 1 B-class subscriber for £1,000 — subject to execution of this Agreement.
+          <strong style={{ color:CREAM }}>The Investor.</strong> Lee Trott (the "<strong style={{ color:CREAM }}>Investor</strong>"), Round 1 B-class subscriber for £1,000 (1 share = 1% of the Company) — allocation confirmed, subject to countersignature of this Agreement.
         </P>
       </Section>
 
@@ -96,7 +96,7 @@ export default function LeeAgreement() {
         <CapTable />
 
         <P style={{ marginTop:16 }}>
-          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor would subscribe for <strong style={{ color:GOLD }}>1 share</strong> (= £1,000, 1% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000).
+          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor subscribes for <strong style={{ color:GOLD }}>1 share</strong> (= £1,000, 1% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000). Alongside the Investor, Michael Taylor (3 B shares) and Leonie Sands (3 B shares) are also confirmed in this Round.
         </P>
       </Section>
 
@@ -322,10 +322,10 @@ function NotYetExecutedBanner() {
       <div style={{ fontSize:22, lineHeight:1, color:'#FCD34D', paddingTop:2 }}>⚠</div>
       <div style={{ flex:1 }}>
         <div style={{ fontSize:11, color:'#FCD34D', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700, marginBottom:4 }}>
-          Not yet executed — draft pending your review &amp; negotiation
+          Allocation confirmed — countersignature pending
         </div>
         <div style={{ fontSize:13, color:'#FDE68A', lineHeight:1.6 }}>
-          You have not yet countersigned or paid. These are the standard Round 1 terms every external investor signs — the only personalisation is your name and the £1k figure. Read through, leave any questions you have in the Page Notes panel (📝 button top-right), and we'll iron them out before taking the final version to a solicitor. Until you countersign, your £1k slot is held in the available external pool — not ring-fenced.
+          Your <strong>1% (1 B-class share, £1,000)</strong> has been allocated to you in the cap table above. These are the standard Round 1 terms every external investor in this round signs — the only personalisation is your name and your £1k / 1-share figure. Read through, leave any questions you have in the Page Notes panel (📝 button top-right), and we'll iron them out before taking the final version to a solicitor and your countersignature.
         </div>
       </div>
     </div>
@@ -366,8 +366,10 @@ function CapTable() {
   const rows = [
     { who:'Founder — retained holdback (pre-money)', cls:'A', eq:'51%', cash:fmt(0),     status:'Not for sale' },
     { who:'Founder — additional subscription',        cls:'A', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
-    { who:'Investor — Lee Trott (this draft)',     cls:'B', eq:'1%',  cash:fmt(1000),  status:'Pending · subject to execution', highlight:true },
-    { who:'Available to new external investors',      cls:'B', eq:'19%', cash:fmt(19000), status:'For sale' },
+    { who:'Investor — Lee Trott (this draft)',     cls:'B', eq:'1%',  cash:fmt(1000),  status:'Sold · countersignature pending', highlight:true },
+    { who:'Michael Taylor',                         cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold' },
+    { who:'Leonie Sands',                           cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold' },
+    { who:'Available to new external investors',      cls:'B', eq:'17%', cash:fmt(17000), status:'For sale' },
   ]
   return (
     <div style={{ background:INK_BG, border:BORDER, borderRadius:10, padding:'4px 8px', marginTop:8, overflow:'hidden' }}>

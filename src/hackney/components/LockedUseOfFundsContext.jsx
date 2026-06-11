@@ -128,12 +128,13 @@ const isValidForecast = (v) =>
 // reads this directly. Consumers should treat values outside the range
 // as legitimate (e.g. legacy snapshots) and clamp visually only.
 // FundingSlider models the INDIVIDUAL INVESTOR'S stake (not the total
-// round). Range 1k → 19k covers the band from the smallest entry cheque
+// round). Range 1k → 17k covers the band from the smallest entry cheque
 // up to taking the full REMAINING available stake (24% external pool −
-// 5% intended for Leonie = 19% / £19k remaining for a new investor).
-// Step 1k so investors land exactly on a £1k boundary (1% equity per
-// £1k at the fixed £100k post-money valuation).
-export const FUNDING_RANGE = { min: 1000, max: 19000, step: 1000 }
+// 3% Michael Taylor − 3% Leonie Sands − 1% Lee Trott = 17% / £17k
+// remaining for a new investor). Step 1k so investors land exactly on
+// a £1k boundary (1% equity per £1k at the fixed £100k post-money
+// valuation).
+export const FUNDING_RANGE = { min: 1000, max: 17000, step: 1000 }
 
 // Build the default live values from the static USE_OF_FUNDS list.
 function buildDefaults() {

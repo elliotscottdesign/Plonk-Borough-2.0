@@ -67,7 +67,7 @@ export default function LeonieAgreement() {
           Draft Investment Terms — For Your Review
         </h1>
         <p style={{ fontSize:15, color:CREAM_D, marginTop:10, maxWidth:820 }}>
-          No Dice Hackney Ltd · Round 1 · £5,000 indicative subscription for <strong style={{ color:CREAM }}>5 shares</strong> (£1,000 each = 5% of the company). <strong style={{ color:CREAM }}>Not yet executed.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and the £5k figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
+          No Dice Hackney Ltd · Round 1 · £3,000 subscription for <strong style={{ color:CREAM }}>3 shares</strong> (£1,000 each = 3% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £3k / 3-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
         </p>
       </div>
 
@@ -85,7 +85,7 @@ export default function LeonieAgreement() {
           <strong style={{ color:CREAM }}>The Founder.</strong> Elliot Scott, holder of all A-class voting shares.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>The Investor.</strong> Leonie Sands (the "<strong style={{ color:CREAM }}>Investor</strong>"), prospective Round 1 B-class subscriber for £5,000 — subject to execution of this Agreement.
+          <strong style={{ color:CREAM }}>The Investor.</strong> Leonie Sands (the "<strong style={{ color:CREAM }}>Investor</strong>"), Round 1 B-class subscriber for £3,000 (3 shares = 3% of the Company) — allocation confirmed, subject to countersignature of this Agreement.
         </P>
       </Section>
 
@@ -98,7 +98,7 @@ export default function LeonieAgreement() {
         <CapTable />
 
         <P style={{ marginTop:16 }}>
-          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor would subscribe for <strong style={{ color:GOLD }}>5 shares</strong> (= £5,000, 5% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000).
+          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor subscribes for <strong style={{ color:GOLD }}>3 shares</strong> (= £3,000, 3% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000). Alongside the Investor, Michael Taylor (3 B shares) and Lee Trott (1 B share) are also confirmed in this Round.
         </P>
       </Section>
 
@@ -119,7 +119,7 @@ export default function LeonieAgreement() {
           Dividends are declared by the directors as a <strong style={{ color:GOLD }}>£X per share</strong>. The Company has issued 100 shares in total; every share (A or B) is entitled to the same per-share amount when a dividend is declared. There is <strong style={{ color:CREAM }}>no preferred class</strong> — the Investor's payout for each window = her shares held × the per-share rate declared.
         </P>
         <P>
-          The Investor holds <strong style={{ color:CREAM }}>5 B-class shares</strong>. If, for example, the directors declare £851.81 per share at the Y1 review (the indicative base-case figure), the Investor receives <strong style={{ color:CREAM }}>5 × £851.81 = £4,259</strong>; the Founder (76 A-class shares) receives 76 × £851.81 = £64,738.
+          The Investor holds <strong style={{ color:CREAM }}>3 B-class shares</strong>. If, for example, the directors declare £851.81 per share at the Y1 review (the indicative base-case figure), the Investor receives <strong style={{ color:CREAM }}>3 × £851.81 = £2,555</strong>; the Founder (76 A-class shares) receives 76 × £851.81 = £64,738.
         </P>
         <P>
           <strong style={{ color:CREAM }}>Distribution waterfall per review.</strong> At each review date, distributable profit is applied in this order:
@@ -324,10 +324,10 @@ function NotYetExecutedBanner() {
       <div style={{ fontSize:22, lineHeight:1, color:'#FCD34D', paddingTop:2 }}>⚠</div>
       <div style={{ flex:1 }}>
         <div style={{ fontSize:11, color:'#FCD34D', letterSpacing:'0.12em', textTransform:'uppercase', fontWeight:700, marginBottom:4 }}>
-          Not yet executed — draft pending your review &amp; negotiation
+          Allocation confirmed — countersignature pending
         </div>
         <div style={{ fontSize:13, color:'#FDE68A', lineHeight:1.6 }}>
-          You have not yet countersigned or paid. These are the standard Round 1 terms every external investor signs — the only personalisation is your name and the £5k figure. Read through, leave any questions you have in the Page Notes panel (📝 button top-right), and we'll iron them out before taking the final version to a solicitor. Until you countersign, your £5k slot is held in the available external pool — not ring-fenced.
+          Your <strong>3% (3 B-class shares, £3,000)</strong> has been allocated to you in the cap table above. These are the standard Round 1 terms every external investor in this round signs — the only personalisation is your name and your £3k / 3-share figure. Read through, leave any questions you have in the Page Notes panel (📝 button top-right), and we'll iron them out before taking the final version to a solicitor and your countersignature.
         </div>
       </div>
     </div>
@@ -368,8 +368,10 @@ function CapTable() {
   const rows = [
     { who:'Founder — retained holdback (pre-money)', cls:'A', eq:'51%', cash:fmt(0),     status:'Not for sale' },
     { who:'Founder — additional subscription',        cls:'A', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
-    { who:'Investor — Leonie Sands (this draft)',     cls:'B', eq:'5%',  cash:fmt(5000),  status:'Pending · subject to execution', highlight:true },
-    { who:'Available to new external investors',      cls:'B', eq:'19%', cash:fmt(19000), status:'For sale' },
+    { who:'Investor — Leonie Sands (this draft)',     cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold · countersignature pending', highlight:true },
+    { who:'Michael Taylor',                           cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold' },
+    { who:'Lee Trott',                                cls:'B', eq:'1%',  cash:fmt(1000),  status:'Sold' },
+    { who:'Available to new external investors',      cls:'B', eq:'17%', cash:fmt(17000), status:'For sale' },
   ]
   return (
     <div style={{ background:INK_BG, border:BORDER, borderRadius:10, padding:'4px 8px', marginTop:8, overflow:'hidden' }}>

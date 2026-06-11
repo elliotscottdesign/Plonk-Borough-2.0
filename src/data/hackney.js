@@ -63,33 +63,39 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 
 // === DEAL STRUCTURE ===
 // RESTRUCTURED MAY 2026 · £49,000 total round for 49 shares.
+// UPDATED JUNE 2026 · three external cheques confirmed (£7k / 7 shares):
+// Michael Taylor 3%, Leonie Sands 3%, Lee Trott 1%. Remaining 17 B
+// shares (£17k) open externally.
+//
 // All FOUNDER shares are A-class voting. The founder retains 51 A
 // shares pre-money (not for sale) AND personally subscribes for an
 // additional 25 A shares at £1k each (£25,000) — so post-round the
 // founder holds 76 A shares = 76% voting + economic. The remaining
-// 24 shares (£24k) are B-class non-voting external, of which 5
-// (£5k) are intended for Leonie Sands (pending — see DEAL.commitments)
-// and 19 (£19k) are open for new investors. £49k for 49 shares
-// implies pre-money £51k, post-money £100k, entry 1.65× the £30,896
-// verified 2025 profit — well below the 4.1× sector average, reflecting
-// the hurried-sale / post-liquidation restart.
+// 24 shares (£24k) are B-class non-voting external: 7 (£7k) sold
+// across the three named investors above, 17 (£17k) open. £49k for
+// 49 shares implies pre-money £51k, post-money £100k, entry 1.65× the
+// £30,896 verified 2025 profit — well below the 4.1× sector average,
+// reflecting the hurried-sale / post-liquidation restart.
 //
 // Cap table — live state of the round:
 //   Founder retained holdback (A-shares, voting)    51    £0    — not for sale
 //   Founder additional subscription (A-shares)      25    £25k  — SOLD (founder)
-//   Leonie Sands                  (B-shares)         5    £5k   — PENDING (external)
-//   Available to new investors    (B-shares)        19    £19k  — FOR SALE
+//   Michael Taylor                (B-shares)         3    £3k   — SOLD (external)
+//   Leonie Sands                  (B-shares)         3    £3k   — SOLD (external)
+//   Lee Trott                     (B-shares)         1    £1k   — SOLD (external)
+//   Available to new investors    (B-shares)        17    £17k  — FOR SALE
 //                                                  ----   ----
 //                                                  100    £49k
 //
 // Returns shown on the deck assume a NEW external investor takes their
-// own slice of the available £19k. The default models a single investor
-// taking the full £19k (= 19% equity = 19 B shares). The FundingSlider
+// own slice of the available £17k. The default models a single investor
+// taking the full £17k (= 17% equity = 17 B shares). The FundingSlider
 // on Cover lets them model a smaller stake (£5k → 5 shares, £10k → 10
 // shares, etc.). Equity is always investment / £100k post-money. Founder
-// slice of profits = 76% (= 76 A shares); Leonie (if she subscribes)
-// takes 5%; the new investor takes whatever they subscribe for, up to
-// the £19k / 19 B shares available.
+// slice of profits = 76% (= 76 A shares); Michael Taylor, Leonie Sands
+// and Lee Trott (now confirmed) take 3% / 3% / 1% respectively; a new
+// investor takes whatever they subscribe for, up to the £17k / 17 B
+// shares available.
 export const DEAL = {
   // === ROUND 1 — PER-SHARE DIVIDEND MODEL ===
   //
@@ -100,9 +106,11 @@ export const DEAL = {
   //
   // Cap table by share count (full subscription):
   //   Founder retained A (voting)     51 shares    £0       — pre-money holdback
-  //   Founder buyback B (non-voting)  25 shares    £25,000  — sold (founder)
-  //   Leonie (intended)               5  shares    £5,000   — pending external
-  //   Available externally B          19 shares    £19,000  — for sale (£1k = 1 share)
+  //   Founder additional A            25 shares    £25,000  — sold (founder)
+  //   Michael Taylor    B             3  shares    £3,000   — sold (external)
+  //   Leonie Sands      B             3  shares    £3,000   — sold (external)
+  //   Lee Trott         B             1  share     £1,000   — sold (external)
+  //   Available externally B          17 shares    £17,000  — for sale (£1k = 1 share)
   //                                  ---           --------
   //                                  100 shares    £49,000  total round
   //
@@ -168,8 +176,8 @@ export const DEAL = {
   pricePerShare:   1000,         // £1,000 per share
 
   // Single-investor view (drives the deck's headline numbers / returns)
-  investment: 19000,             // max a NEW investor can take = full available external slice (19 B shares)
-  investorEq: 0.19,              // 19 B shares = 19%
+  investment: 17000,             // max a NEW investor can take = full available external slice (17 B shares)
+  investorEq: 0.17,              // 17 B shares = 17%
   founderEq: 0.76,               // Founder A 76 shares = 76% (all A-class now)
 
   // Round-level breakdown (informational — shown on Investment Summary)
@@ -184,22 +192,25 @@ export const DEAL = {
   founderASharesCount: 76,       // 51 retained + 25 additional subscription
   founderBSharesCount:  0,       // founder no longer holds any B shares
 
-  // Commitments — Leonie has NOT yet signed/paid (May 2026). She remains
-  // in active discussion at the standard terms below; her £5k is held in
-  // the available external pool until she countersigns. The Investment
-  // Summary's RoundProgressBlock iterates over `commitments` to render
-  // the cap-table + progress bar — only entries with status === 'sold'
-  // are treated as locked in.
+  // Commitments — June 2026: three external cheques confirmed sold.
+  // Michael Taylor (3 B = £3k), Leonie Sands (3 B = £3k), Lee Trott
+  // (1 B = £1k). Countersignature on each Investor's Agreement may
+  // post-date this — the share allocation is committed regardless.
+  // The Investment Summary's RoundProgressBlock iterates over
+  // `commitments` to render the cap-table + progress bar; entries with
+  // status === 'sold' are treated as locked in.
   commitments: [
-    { label: 'Founder additional A subscription', amount: 25000, equity: 0.25, shares: 25, type: 'founder',  shareClass: 'A', status: 'sold'    },
-    { label: 'Leonie Sands',                      amount:  5000, equity: 0.05, shares:  5, type: 'external', shareClass: 'B', status: 'pending' },
+    { label: 'Founder additional A subscription', amount: 25000, equity: 0.25, shares: 25, type: 'founder',  shareClass: 'A', status: 'sold' },
+    { label: 'Michael Taylor',                    amount:  3000, equity: 0.03, shares:  3, type: 'external', shareClass: 'B', status: 'sold' },
+    { label: 'Leonie Sands',                      amount:  3000, equity: 0.03, shares:  3, type: 'external', shareClass: 'B', status: 'sold' },
+    { label: 'Lee Trott',                         amount:  1000, equity: 0.01, shares:  1, type: 'external', shareClass: 'B', status: 'sold' },
   ],
 
-  availableAmount:  24000,       // = roundSize - founder A subscription (24 B shares available externally)
-  availableShares:    24,        // 24 B shares × £1k each
-  availableEq:      0.24,        // = roundEquity - founder A subscription equity
+  availableAmount:  17000,       // = roundSize - founder A subscription - 3 sold externals (17 B shares available)
+  availableShares:    17,        // 17 B shares × £1k each
+  availableEq:      0.17,        // = remaining external pool equity
   founderTotalPost: 0.76,        // 76 A shares (51 retained + 25 additional)
-  externalPostEq:   0.24,        // available externally (5 B for Leonie + 19 B open)
+  externalPostEq:   0.24,        // external B pool (7 B sold to Michael/Leonie/Lee + 17 B open)
 
   // Share / governance
   shareClass: 'B (non-voting)',  // Round 1 EXTERNAL shares are B-class. All founder shares are A.
@@ -710,8 +721,10 @@ export const MARKETING = {
 // Y1 indicative (forecast £85,181 operating profit, 100 shares):
 //   • Per-share dividend:        £851.81
 //   • Founder (76 shares):       £64,738
-//   • Leonie if signs (5):       £4,259
-//   • New investor (19):         £16,184
+//   • Michael Taylor (3 shares): £2,555
+//   • Leonie Sands  (3 shares):  £2,555
+//   • Lee Trott     (1 share):   £852
+//   • New investor (17 shares):  £14,481
 //
 // Slides recompute live via computeInvestorDividend(); this constant
 // is the un-locked fallback only.
@@ -719,9 +732,9 @@ export const WATERFALL = {
   operatingProfit:  85181,
   perShareDividend: 851.81,        // £85,181 / 100 shares (Y1 indicative)
   remainingPool:    85181,         // entire profit distributable (no preferred siphon)
-  investorDividend: 16184,         // 19 shares × £851.81
+  investorDividend: 14481,         // 17 shares × £851.81 (max new investor slice)
   founderDividend:  64738,         // 76 shares × £851.81 (Founder A + Founder B)
-  totalInvestor:    16184,
+  totalInvestor:    14481,
   totalFounder:     64738,
 }
 
@@ -742,63 +755,66 @@ export const WATERFALL = {
 //       slice of the Y5 exit at 4× EBITDA.
 //
 //   (B) FOUNDER CALLS AT Y3 — investor exits at the end of Y3 at
-//       MARKET RATE (no cap). 19% × Y3 fair value = ~£95k buyback,
+//       MARKET RATE (no cap). 17% × Y3 fair value = ~£85k buyback,
 //       plus cumulative Y1-Y3 dividends.
 //
 // Full-subscription assumptions:
 //   • 100 shares total
-//   • Founder 76 shares (51 A + 25 B)
-//   • Leonie 5 shares (pending signature)
-//   • New investor 19 shares (£19k cheque)
+//   • Founder 76 shares (51 A + 25 B-style additional A)
+//   • Michael Taylor 3 shares, Leonie Sands 3 shares, Lee Trott 1 share — SOLD
+//   • New investor up to 17 shares (£17k cheque) — remaining external pool
 //
-// 'investorShare' = 19 × per-share dividend that year
-// 'founderShare'  = 76 × per-share dividend (A + B combined)
-//                 (Leonie's 5 × per-share reported separately if she signs)
+// 'investorShare' = 17 × per-share dividend that year
+// 'founderShare'  = 76 × per-share dividend (A-class only now)
+//                 (Michael/Leonie/Lee per-share dividends accrue separately)
 export const HACKNEY_INVESTOR_RETURNS = {
   year1: {
     profit:          85181,
-    investorEq:      0.19,
-    investorShares:  19,
+    investorEq:      0.17,
+    investorShares:  17,
     perShare:        851.81,           // 85181 / 100
-    investorReturn:  16184,            // 19 × £851.81 (annual entitlement; cash paid at month 12)
-    coc:              0.8518,          // 16184 / 19000
-    paybackYears:     1.174,           // 19000 / 16184 (entitlement basis)
+    investorReturn:  14481,            // 17 × £851.81 (annual entitlement; cash paid at month 12)
+    coc:              0.8518,          // 14481 / 17000
+    paybackYears:     1.174,           // 17000 / 14481 (entitlement basis)
   },
   fiveYear: [
-    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, perShare:   851.81, investorShare: 16184.47, founderShare:  64737.87 },
-    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, perShare:   968.57, investorShare: 18402.80, founderShare:  73611.20 },
-    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, perShare:  1249.29, investorShare: 23736.44, founderShare:  94945.77 },
-    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, perShare:  1551.93, investorShare: 29486.66, founderShare: 117946.66 },
-    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, perShare:  1878.18, investorShare: 35685.47, founderShare: 142741.88 },
+    { year: 'Y1 2026/27', revenue: 618804.17, profit:  85181.41, perShare:   851.81, investorShare: 14480.77, founderShare:  64737.87 },
+    { year: 'Y2 2027/28', revenue: 665214.48, profit:  96856.85, perShare:   968.57, investorShare: 16465.69, founderShare:  73611.20 },
+    { year: 'Y3 2028/29', revenue: 715105.57, profit: 124928.65, perShare:  1249.29, investorShare: 21237.93, founderShare:  94945.77 },
+    { year: 'Y4 2029/30', revenue: 768738.49, profit: 155192.97, perShare:  1551.93, investorShare: 26382.81, founderShare: 117946.66 },
+    { year: 'Y5 2030/31', revenue: 826393.88, profit: 187818.27, perShare:  1878.18, investorShare: 31929.06, founderShare: 142741.88 },
   ],
-  cumulativeDividends: 123495.84,     // 19 shares × (sum of 5-yr per-share dividends)
+  cumulativeDividends: 110496.26,     // 17 shares × (sum of 5-yr per-share dividends)
   exit: {
     y5Ebitda:         187818.27,
     multiple:         4,
     businessValue:    751273.08,
     perShareExit:     7512.73,
-    investorProceeds: 142741.89,      // 19 × £7,512.73 (held-to-Y5, no founder call)
+    investorProceeds: 127716.41,      // 17 × £7,512.73 (held-to-Y5, no founder call)
     founderProceeds:  571167.54,      // 76 × £7,512.73
-    leonieProceeds:    37563.65,      // 5 × £7,512.73 (reported separately)
+    michaelProceeds:   22538.19,      //  3 × £7,512.73
+    leonieProceeds:    22538.19,      //  3 × £7,512.73
+    leeProceeds:        7512.73,      //  1 × £7,512.73
   },
-  totalReturned:      266237.73,      // cumulativeDividends + exit.investorProceeds
-  multipleOfMoney:   14.0125,         // 266,238 / 19,000 (held-to-Y5 case)
+  totalReturned:      238212.67,      // cumulativeDividends + exit.investorProceeds
+  multipleOfMoney:   14.0125,         // 238,213 / 17,000 (held-to-Y5 case — per-share ratio unchanged)
   irr:                1.18,           // IRR on annual flows with Y1 lockup at month 12
 
   // === Y3 FOUNDER-CALL SCENARIO ===
-  // Market-rate buyback at Y3 (no cap). If founder exercises:
+  // Market-rate buyback at Y3 (no cap). If founder exercises against a
+  // 17-share new investor:
   //   - Investor receives cumulative Y1-Y3 dividends:
-  //     19 × (851.81 + 968.57 + 1249.29) = £58,324
+  //     17 × (851.81 + 968.57 + 1249.29) = £52,184
   //   - Plus market-rate buyback at Y3:
   //     Y3 fair value £499,716 ÷ 100 = £4,997.16 per share
-  //     19 × £4,997.16 = £94,946
-  //   - Total returned: £153,270 = ~8.07× MoM on £19k
+  //     17 × £4,997.16 = £84,952
+  //   - Total returned: £137,136 = ~8.07× MoM on £17k
   //   - IRR: ~95% (lump at Y3 amplifies time-weighted return)
   callScenario: {
-    cumulativeDividendsToY3: 58323.71,
+    cumulativeDividendsToY3: 52184.39,
     perShareBuybackY3:       4997.16,        // £499,716 fair value / 100
-    buybackPrice:            94946,          // 19 × £4,997.16
-    totalReturned:          153269.71,
+    buybackPrice:            84952,          // 17 × £4,997.16
+    totalReturned:          137136.11,
     multipleOfMoney:         8.07,
     irrApprox:               0.95,
   },
@@ -827,13 +843,14 @@ export const GOVERNANCE = {
 
 // === RAISE TARGET ===
 // Default for the new-investor slider — the max single cheque available
-// (£19k, assuming Leonie subscribes for her intended £5k slice). The
-// Use-of-Funds capital pool is computed in deriveSnapshot (see
-// LockedUseOfFundsContext) as investment + founder buyback (£25k) +
-// committed external (Leonie £5k), so the total spending pool is up to
-// £49k — not just the new investor's £19k. Slider allocates across
-// explicit buckets; Working Capital absorbs the residual.
-export const HACKNEY_RAISE_TARGET = 19000
+// (£17k, after Michael Taylor £3k + Leonie Sands £3k + Lee Trott £1k are
+// confirmed sold). The Use-of-Funds capital pool is computed in
+// deriveSnapshot (see LockedUseOfFundsContext) as investment + founder
+// additional A subscription (£25k) + committed externals (£7k), so the
+// total spending pool is up to £49k — not just the new investor's £17k.
+// Slider allocates across explicit buckets; Working Capital absorbs the
+// residual.
+export const HACKNEY_RAISE_TARGET = 17000
 
 // === USE OF FUNDS ===
 // Six EXPLICIT slider categories (stock, rent, garden, interior, marketing,
