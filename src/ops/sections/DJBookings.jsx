@@ -212,7 +212,8 @@ function Events({ data }) {
   const todayStr = iso(today)
   const events = (data.slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
   const [copied, setCopied] = useState(null)
-  const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(s.date); setTimeout(() => setCopied(null), 1800) }
+  const ckey = (s) => s.date + '-' + (s.slot || 'main')
+  const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(ckey(s)); setTimeout(() => setCopied(null), 1800) }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
@@ -237,7 +238,7 @@ function Events({ data }) {
               {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
               {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
             </div>
-            <button onClick={() => copyCap(s)} style={btn(copied === s.date ? 'green' : 'gold')}>{copied === s.date ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+            <button onClick={() => copyCap(s)} style={btn(copied === ckey(s) ? 'green' : 'gold')}>{copied === ckey(s) ? '✓ Caption copied' : '📋 Instagram caption'}</button>
           </div>
         )
       })}

@@ -405,7 +405,7 @@ export default function DJPortal() {
                   const sLab = slotLabel(e.date, e.slot)
                   const session = e.kind === 'session'
                   return (
-                    <div key={e.date + '-' + i} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                    <div key={e.date + '-' + (e.slot || 'main')} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
                       {e.image && <img src={e.image} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }} />}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>

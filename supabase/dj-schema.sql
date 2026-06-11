@@ -48,9 +48,14 @@ alter table public.dj_slots add column if not exists reminder_sent boolean defau
 alter table public.dj_slots add column if not exists event_image_url text;  -- per-event artwork (overrides DJ profile photo for that night)
 -- A day can have >1 session (Saturdays: 'main' evening + 'sat_pm' afternoon). Key by (date, slot).
 alter table public.dj_slots add column if not exists slot text not null default 'main';
--- (the original UNIQUE(date) is replaced by UNIQUE(date,slot) — run once:)
---   alter table public.dj_slots drop constraint if exists dj_slots_date_key;
---   alter table public.dj_slots add constraint dj_slots_date_slot_key unique (date, slot);
+-- Replace the original UNIQUE(date) with UNIQUE(date, slot). Idempotent — already
+-- applied to the live DB; safe to re-run on a fresh setup.
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'dj_slots_date_slot_key' and conrelid = 'public.dj_slots'::regclass) then
+    alter table public.dj_slots drop constraint if exists dj_slots_date_key;
+    alter table public.dj_slots add constraint dj_slots_date_slot_key unique (date, slot);
+  end if;
+end $$;
 
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)
