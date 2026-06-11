@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel, SKILL_LABEL, DIFFICULTY, canDo } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helperLink, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helperLink, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -31,6 +31,9 @@ export default function HelpOut() {
   const [open, setOpen] = useState({})
   const [busy, setBusy] = useState('')
   const [view, setView] = useState('people')   // calendar | people | jobs
+  const [editing, setEditing] = useState(null)  // jobs-board task being edited
+  const [eTitle, setETitle] = useState('')
+  const [eDetail, setEDetail] = useState('')
 
   async function load() {
     setLoading(true); setErr('')
@@ -43,6 +46,13 @@ export default function HelpOut() {
   async function act(key, fn) {
     setBusy(key)
     try { await fn(); await load() }
+    catch (e) { setErr(e.message) }
+    finally { setBusy('') }
+  }
+
+  async function saveEdit(taskId) {
+    setBusy(`edit-${taskId}`)
+    try { await helpTaskMeta(taskId, { title: eTitle, detail: eDetail }); setEditing(null); await load() }
     catch (e) { setErr(e.message) }
     finally { setBusy('') }
   }
@@ -70,7 +80,7 @@ export default function HelpOut() {
           {st === 'done' && <button onClick={() => act(`ap-${t.id}-${h.id}`, () => helpApprove(h.id, t.id))} disabled={busy === `ap-${t.id}-${h.id}`} style={btn({ padding: '2px 9px', fontSize: 11, color: '#34D399', borderColor: 'rgba(52,211,153,0.4)', fontWeight: 700 })}>{busy === `ap-${t.id}-${h.id}` ? '…' : 'Sign off ✓'}</button>}
           {st === 'completed'
             ? <button onClick={() => act(`ro-${t.id}-${h.id}`, () => helpReopen(h.id, t.id))} disabled={busy === `ro-${t.id}-${h.id}`} style={btn({ padding: '2px 8px', fontSize: 11 })}>{busy === `ro-${t.id}-${h.id}` ? '…' : 'reopen'}</button>
-            : <button onClick={() => act(`rel-${t.id}-${h.id}`, () => helpRelease(t.id, h.id))} disabled={busy === `rel-${t.id}-${h.id}`} style={btn({ padding: '2px 8px', fontSize: 11, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `rel-${t.id}-${h.id}` ? '…' : 'remove'}</button>}
+            : <button onClick={() => act(`rel-${t.id}-${h.id}`, () => helpRelease(t.id, h.id))} disabled={busy === `rel-${t.id}-${h.id}`} style={btn({ padding: '2px 8px', fontSize: 11, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `rel-${t.id}-${h.id}` ? '…' : (st === 'done' ? '✕ Cancel' : 'remove')}</button>}
         </span>
       </div>
     )
@@ -178,9 +188,12 @@ export default function HelpOut() {
                             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{(byShift['_none'] || []).map(t => jobRow(h, t))}</div>
                           </div>
                         )}
-                        <button onClick={() => act(`conf-${h.id}`, () => helpConfirm(h.id))} disabled={busy === `conf-${h.id}`} style={btn({ marginTop: 4, background: confirmed ? 'rgba(52,211,153,0.12)' : 'rgba(52,211,153,0.18)', border: '1px solid #34D399', color: '#34D399', fontWeight: 700 })}>
-                          {busy === `conf-${h.id}` ? 'Sending…' : (confirmed ? '✓ Confirmed — resend email' : (h.email ? 'Confirm & email jobs' : 'Confirm (no email on file)'))}
-                        </button>
+                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+                          <button onClick={() => act(`conf-${h.id}`, () => helpConfirm(h.id))} disabled={busy === `conf-${h.id}`} style={btn({ background: confirmed ? 'rgba(52,211,153,0.12)' : 'rgba(52,211,153,0.18)', border: '1px solid #34D399', color: '#34D399', fontWeight: 700 })}>
+                            {busy === `conf-${h.id}` ? 'Sending…' : (confirmed ? '✓ Confirmed — resend email' : (h.email ? 'Confirm & email jobs' : 'Confirm (no email on file)'))}
+                          </button>
+                          <button onClick={() => { if (window.confirm(`Cancel ${h.name}'s sign-up? This removes them and frees any jobs back to the board.`)) act(`del-${h.id}`, () => helpDeleteHelper(h.id)) }} disabled={busy === `del-${h.id}`} style={btn({ color: '#F87171', borderColor: 'rgba(248,113,113,0.4)' })}>{busy === `del-${h.id}` ? '…' : '✕ Cancel sign-up'}</button>
+                        </div>
                       </div>
                     </div>
                   )
@@ -228,20 +241,32 @@ export default function HelpOut() {
                             <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px' }}>
                               <span style={{ marginTop: 5 }}><Dot tone={PRIORITY[t.priority]?.tone || '#888'} /></span>
                               <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontSize: 13.5, color: 'var(--cream)', fontWeight: 500, lineHeight: 1.35 }}>{t.title}</div>
-                                {t.detail && <div style={{ fontSize: 11.5, color: 'var(--cream-dim)', lineHeight: 1.5, marginTop: 2 }}>{t.detail}</div>}
-                                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
-                                  <span style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t.area}</span>
-                                  {/* difficulty setter */}
-                                  <span style={{ display: 'inline-flex', gap: 3 }}>
-                                    {['novice', 'intermediate', 'experienced'].map(d => {
-                                      const on = t.difficulty === d, x = DIFFICULTY[d]
-                                      return <button key={d} onClick={() => act(`d-${t.id}-${d}`, () => helpTaskMeta(t.id, { difficulty: d }))} disabled={busy === `d-${t.id}-${d}`} title={x.label} style={{ fontSize: 10, width: 20, height: 18, borderRadius: 4, cursor: 'pointer', padding: 0, fontWeight: 700, background: on ? `${x.tone}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? x.tone : 'rgba(255,255,255,0.14)'}`, color: on ? x.tone : 'var(--cream-dim)' }}>{x.short}</button>
-                                    })}
-                                  </span>
-                                  {/* recurring toggle */}
-                                  <button onClick={() => act(`r-${t.id}`, () => helpTaskMeta(t.id, { recurring: !t.recurring }))} disabled={busy === `r-${t.id}`} title="Recurring — can be allocated again after it's done" style={btn({ padding: '2px 8px', fontSize: 10.5, background: t.recurring ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${t.recurring ? GOLD : 'rgba(255,255,255,0.14)'}`, color: t.recurring ? GOLD : 'var(--cream-dim)' })}>♻ {t.recurring ? 'recurring' : 'one-off'}</button>
-                                </div>
+                                {editing === t.id ? (
+                                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <input value={eTitle} onChange={e => setETitle(e.target.value)} placeholder="Job title" style={{ width: '100%', boxSizing: 'border-box', background: '#111', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '7px 9px', fontSize: 13.5 }} />
+                                    <textarea value={eDetail} onChange={e => setEDetail(e.target.value)} placeholder="Description (optional)" style={{ width: '100%', boxSizing: 'border-box', minHeight: 52, resize: 'vertical', background: '#111', color: 'var(--cream-dim)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '7px 9px', fontSize: 12 }} />
+                                    <div style={{ display: 'flex', gap: 8 }}>
+                                      <button onClick={() => saveEdit(t.id)} disabled={busy === `edit-${t.id}` || !eTitle.trim()} style={btn({ color: '#34D399', borderColor: 'rgba(52,211,153,0.4)', fontWeight: 700 })}>{busy === `edit-${t.id}` ? 'Saving…' : 'Save'}</button>
+                                      <button onClick={() => setEditing(null)} style={btn()}>Cancel</button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <>
+                                    <div style={{ fontSize: 13.5, color: 'var(--cream)', fontWeight: 500, lineHeight: 1.35 }}>{t.title}</div>
+                                    {t.detail && <div style={{ fontSize: 11.5, color: 'var(--cream-dim)', lineHeight: 1.5, marginTop: 2 }}>{t.detail}</div>}
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6, flexWrap: 'wrap' }}>
+                                      <span style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.08em', textTransform: 'uppercase' }}>{t.area}</span>
+                                      <span style={{ display: 'inline-flex', gap: 3 }}>
+                                        {['novice', 'intermediate', 'experienced'].map(d => {
+                                          const on = t.difficulty === d, x = DIFFICULTY[d]
+                                          return <button key={d} onClick={() => act(`d-${t.id}-${d}`, () => helpTaskMeta(t.id, { difficulty: d }))} disabled={busy === `d-${t.id}-${d}`} title={x.label} style={{ fontSize: 10, width: 20, height: 18, borderRadius: 4, cursor: 'pointer', padding: 0, fontWeight: 700, background: on ? `${x.tone}22` : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? x.tone : 'rgba(255,255,255,0.14)'}`, color: on ? x.tone : 'var(--cream-dim)' }}>{x.short}</button>
+                                        })}
+                                      </span>
+                                      <button onClick={() => act(`r-${t.id}`, () => helpTaskMeta(t.id, { recurring: !t.recurring }))} disabled={busy === `r-${t.id}`} title="Recurring — can be allocated again after it's done" style={btn({ padding: '2px 8px', fontSize: 10.5, background: t.recurring ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${t.recurring ? GOLD : 'rgba(255,255,255,0.14)'}`, color: t.recurring ? GOLD : 'var(--cream-dim)' })}>♻ {t.recurring ? 'recurring' : 'one-off'}</button>
+                                      <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || '') }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
+                                    </div>
+                                  </>
+                                )}
                               </div>
                               <div style={{ flexShrink: 0, textAlign: 'right' }}>
                                 {t.assignedTo ? (

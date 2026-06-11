@@ -55,7 +55,7 @@ export default function DJRoster({ djs, reload }) {
   // founder just hits send (sent from their own WhatsApp — no API needed).
   const waInvite = (d) => {
     const num = waNumber(d.phone)
-    const msg = `Hey ${d.dj_name || 'there'} — welcome to the No Dice DJ roster 🎧\n\nHere's your private link to set up your profile and grab the nights you want to play:\n${inviteLink(d.token)}\n\nIt walks you through everything — any questions, give us a shout.`
+    const msg = `Hey ${d.dj_name || 'there'}, I hope you are well! I have nearly got the business back open and I wanna book the DJs and events in again.\n\nI am struggling a bit to get open with money etc, literally doing this on empty right now, so if there is any way you can do a set for £60 (what I pay bar staff for 4 hours) and drinks and food that would be amazing.\n\nI am hoping to get sponsorship for events soon to get back to normal. I am also making a promotional tool to make DJs more money for mates they bring. So…. either way of course I wanna get you back in again!! So.....\n\nWelcome to the No Dice DJ roster….\n\nHere's your private link to set up your profile and grab the nights you want to play:\n${inviteLink(d.token)}\n\nIt walks you through everything, any questions, give us a shout. I hope the app makes everyone's lives easier! Much love E`
     const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }

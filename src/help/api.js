@@ -46,8 +46,11 @@ export const helpRelease = (taskId, helperId) => call({ action: 'release', secre
 // Admin — allocate a task to a helper (optionally for a specific shift date).
 export const helpAssign = (helperId, taskId, shift) => call({ action: 'assign', secret: SEND_SECRET, helperId, taskId, shift })
 
-// Admin — set a job's difficulty and/or recurring flag. patch = {difficulty?, recurring?}.
+// Admin — edit a job. patch = {difficulty?, recurring?, title?, detail?}.
 export const helpTaskMeta = (taskId, patch) => call({ action: 'taskmeta', secret: SEND_SECRET, taskId, ...patch })
+
+// Admin — cancel/delete a whole sign-up (e.g. clear a test request).
+export const helpDeleteHelper = (helperId) => call({ action: 'deletehelper', secret: SEND_SECRET, helperId })
 
 // Admin — confirm a helper's jobs and email them the final list.
 export const helpConfirm = (helperId) => call({ action: 'confirm', secret: SEND_SECRET, helperId })

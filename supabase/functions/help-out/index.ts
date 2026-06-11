@@ -302,6 +302,16 @@ Deno.serve(async (req) => {
   const meta = cfg.task_meta || {};
   const effDiff = (t: any) => meta[t.id]?.difficulty || CAT_DIFFICULTY[t.cat] || "intermediate";
   const effRec = (t: any) => !!(meta[t.id]?.recurring);
+  // A task with the admin's edits applied (title/detail/difficulty/recurring).
+  const effTask = (t: any) => {
+    const m = meta[t.id] || {};
+    return {
+      ...t,
+      title: (typeof m.title === "string" && m.title.length) ? m.title : t.title,
+      detail: (m.detail !== undefined ? m.detail : t.detail),
+      difficulty: effDiff(t), recurring: effRec(t),
+    };
+  };
 
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
@@ -339,7 +349,7 @@ Deno.serve(async (req) => {
       await sb.from("bar_helpers").update({ assigned, task_states: states }).eq("id", me.id);
     }
 
-    const tasks = assigned.map((id) => { const t = TASK_BY_ID[id]; return t ? { ...t, difficulty: effDiff(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
+    const tasks = assigned.map((id) => { const t = TASK_BY_ID[id]; return t ? { ...effTask(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
     return json({ name: me.name, shifts: me.shifts || [], status: me.status || "pending", tasks });
   }
 
@@ -411,10 +421,10 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     const owner: Record<string, { id: string; name: string; status: string; state: string }> = {};
     for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name, status: h.status || "pending", state: (h.task_states || {})[id] || "todo" };
-    const tasks = TASKS.map((t) => ({ ...t, difficulty: effDiff(t), recurring: effRec(t), assignedTo: owner[t.id] || null }));
+    const tasks = TASKS.map((t) => ({ ...effTask(t), assignedTo: owner[t.id] || null }));
     const enrichedHelpers = (helpers || []).map((h: any) => ({
       ...h, status: h.status || "pending", skill: h.skill || "intermediate", shifts: h.shifts || [],
-      assignedTasks: (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? { ...t, difficulty: effDiff(t), recurring: effRec(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
+      assignedTasks: (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? { ...effTask(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
     }));
     const stats = {
       helpers: (helpers || []).length,
@@ -450,7 +460,7 @@ Deno.serve(async (req) => {
     const { data: h } = await sb.from("bar_helpers").select("*").eq("id", b.helperId).maybeSingle();
     if (!h) return json({ error: "helper not found" }, 404);
     await sb.from("bar_helpers").update({ status: "confirmed" }).eq("id", h.id);
-    const assigned = (h.assigned || []).map((id: string) => TASK_BY_ID[id]).filter(Boolean);
+    const assigned = (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? effTask(t) : null; }).filter(Boolean);
     const emailed = h.email
       ? await sendResend(h.email, assigned.length ? "Your No Dice jobs — thanks for helping! 🍻" : "You’re confirmed — thanks for helping! 🍻", buildHelperEmail(h.name, assigned, h.shifts || [], h.token))
       : false;
@@ -502,8 +512,19 @@ Deno.serve(async (req) => {
     const cur: any = { ...(tm[taskId] || {}) };
     if (b.difficulty && ["novice", "intermediate", "experienced"].includes(String(b.difficulty))) cur.difficulty = String(b.difficulty);
     if (typeof b.recurring === "boolean") cur.recurring = b.recurring;
+    if (typeof b.title === "string") { const v = b.title.trim(); if (v) cur.title = v; else delete cur.title; }
+    if (typeof b.detail === "string") cur.detail = b.detail;   // "" clears the description
     tm[taskId] = cur;
     await sb.from("help_settings").update({ task_meta: tm }).eq("id", 1);
+    return json({ ok: true });
+  }
+
+  // ── cancel / delete a sign-up entirely (e.g. clear a test request) ──────────
+  if (action === "deletehelper") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    if (!b.helperId) return json({ error: "missing helper" }, 400);
+    const { error } = await sb.from("bar_helpers").delete().eq("id", b.helperId);
+    if (error) return json({ error: error.message }, 500);
     return json({ ok: true });
   }
 
