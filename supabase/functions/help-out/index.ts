@@ -37,6 +37,14 @@ const slotsForShifts = (shifts: any[]) => {
 };
 const PW: Record<string, number> = { p1: 0, p2: 1, p3: 2 };
 
+// Skill levels + per-category default difficulty (admin can override per job).
+const SKILL_RANK: Record<string, number> = { novice: 0, intermediate: 1, experienced: 2 };
+const CAT_DIFFICULTY: Record<string, string> = {
+  cleaning: "novice", tidying: "novice", gardening: "novice", admin: "novice", marketing: "novice", errands: "novice", serving: "novice",
+  handyman: "intermediate", painting: "intermediate", tech: "intermediate", design: "intermediate", media: "intermediate", bartending: "intermediate",
+  carpentry: "experienced", electrics: "experienced", plumbing: "experienced",
+};
+
 // ─── The jobs (Elliot's venue walk-around) ───────────────────────────────────
 const RAW: { title: string; cat: string; area: string; priority: string; detail?: string }[] = [
   { title: "Build a wooden frame around the dartboard cupboard", cat: "carpentry", area: "Inside", priority: "p2" },
@@ -288,9 +296,12 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   // Cap config: a global default plus per-day overrides ("bump to 3 on busy days").
-  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps").eq("id", 1).maybeSingle();
-  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {} };
+  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps,task_meta").eq("id", 1).maybeSingle();
+  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {} };
   const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
+  const meta = cfg.task_meta || {};
+  const effDiff = (t: any) => meta[t.id]?.difficulty || CAT_DIFFICULTY[t.cat] || "intermediate";
+  const effRec = (t: any) => !!(meta[t.id]?.recurring);
 
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
@@ -328,7 +339,7 @@ Deno.serve(async (req) => {
       await sb.from("bar_helpers").update({ assigned, task_states: states }).eq("id", me.id);
     }
 
-    const tasks = assigned.map((id) => { const t = TASK_BY_ID[id]; return t ? { ...t, state: states[id] || "todo" } : null; }).filter(Boolean);
+    const tasks = assigned.map((id) => { const t = TASK_BY_ID[id]; return t ? { ...t, difficulty: effDiff(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
     return json({ name: me.name, shifts: me.shifts || [], status: me.status || "pending", tasks });
   }
 
@@ -369,24 +380,14 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Tasks already taken by everyone EXCEPT this person (so a re-signup reuses their slots).
-    const taken = new Set<string>();
-    for (const h of helpers || []) {
-      if (existing && h.id === existing.id) continue;
-      for (const id of (h.assigned || [])) taken.add(id);
-    }
-
-    const cap = slotsForShifts(shifts);
-    const assigned = TASKS
-      .filter((t) => categories.includes(t.cat) && !taken.has(t.id))
-      .sort((a, b2) => (PW[a.priority] ?? 9) - (PW[b2.priority] ?? 9))
-      .slice(0, cap);
-    const assignedIds = assigned.map((t) => t.id);
-
-    const row = {
-      name, phone, email, categories, days, time_blocks: [], shifts, note,
-      assigned: assignedIds, assigned_at: new Date().toISOString(), status: "pending",
+    // Admin allocates jobs from the board (no auto-assign). New sign-ups start
+    // with an empty list; an existing person keeps the jobs already allocated.
+    const skill = ["novice", "intermediate", "experienced"].includes(String(b.skill)) ? String(b.skill) : "intermediate";
+    const assigned: any[] = [];   // for the alert email — nothing pre-assigned
+    const row: Record<string, unknown> = {
+      name, phone, email, categories, days, time_blocks: [], shifts, note, skill, status: "pending",
     };
+    if (!existing) { row.assigned = []; row.task_shift = {}; }
     let helperId = existing?.id || "";
     let token = existing?.token || "";
     if (existing) {
@@ -410,10 +411,10 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     const owner: Record<string, { id: string; name: string; status: string; state: string }> = {};
     for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name, status: h.status || "pending", state: (h.task_states || {})[id] || "todo" };
-    const tasks = TASKS.map((t) => ({ ...t, assignedTo: owner[t.id] || null }));
+    const tasks = TASKS.map((t) => ({ ...t, difficulty: effDiff(t), recurring: effRec(t), assignedTo: owner[t.id] || null }));
     const enrichedHelpers = (helpers || []).map((h: any) => ({
-      ...h, status: h.status || "pending", shifts: h.shifts || [],
-      assignedTasks: (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? { ...t, state: (h.task_states || {})[id] || "todo" } : null; }).filter(Boolean),
+      ...h, status: h.status || "pending", skill: h.skill || "intermediate", shifts: h.shifts || [],
+      assignedTasks: (h.assigned || []).map((id: string) => { const t = TASK_BY_ID[id]; return t ? { ...t, difficulty: effDiff(t), recurring: effRec(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
     }));
     const stats = {
       helpers: (helpers || []).length,
@@ -470,19 +471,39 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
-  // ── assign a specific task to a helper (secret-gated) ───────────────────────
+  // ── allocate a job to a helper for a shift (secret-gated) ───────────────────
   if (action === "assign") {
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const taskId = String(b.taskId || "");
-    if (!TASK_BY_ID[taskId]) return json({ error: "unknown task" }, 400);
-    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned");
-    for (const h of helpers || []) if (h.id !== b.helperId && (h.assigned || []).includes(taskId))
-      return json({ error: "That job is already on someone else’s list — release it first." }, 409);
+    const t = TASK_BY_ID[taskId];
+    if (!t) return json({ error: "unknown task" }, 400);
+    const recurring = effRec(t);
+    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned,task_shift");
+    if (!recurring) {
+      for (const h of helpers || []) if (h.id !== b.helperId && (h.assigned || []).includes(taskId))
+        return json({ error: "That job is already allocated — release it, or mark it recurring to allow repeats." }, 409);
+    }
     const me = (helpers || []).find((h: any) => h.id === b.helperId);
     if (!me) return json({ error: "helper not found" }, 404);
     const next = [...new Set([...(me.assigned || []), taskId])];
-    const { error } = await sb.from("bar_helpers").update({ assigned: next }).eq("id", b.helperId);
+    const ts: Record<string, string> = { ...(me.task_shift || {}) };
+    if (b.shift) ts[taskId] = String(b.shift);
+    const { error } = await sb.from("bar_helpers").update({ assigned: next, task_shift: ts }).eq("id", b.helperId);
     if (error) return json({ error: error.message }, 500);
+    return json({ ok: true });
+  }
+
+  // ── set a job's difficulty / recurring flag (secret-gated) ──────────────────
+  if (action === "taskmeta") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const taskId = String(b.taskId || "");
+    if (!TASK_BY_ID[taskId]) return json({ error: "unknown task" }, 400);
+    const tm: Record<string, any> = { ...(cfg.task_meta || {}) };
+    const cur: any = { ...(tm[taskId] || {}) };
+    if (b.difficulty && ["novice", "intermediate", "experienced"].includes(String(b.difficulty))) cur.difficulty = String(b.difficulty);
+    if (typeof b.recurring === "boolean") cur.recurring = b.recurring;
+    tm[taskId] = cur;
+    await sb.from("help_settings").update({ task_meta: tm }).eq("id", 1);
     return json({ ok: true });
   }
 
@@ -490,11 +511,14 @@ Deno.serve(async (req) => {
   if (action === "release") {
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
     const taskId = String(b.taskId || "");
-    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned,task_states");
+    const onlyHelper = b.helperId ? String(b.helperId) : null;   // remove from one person, else everyone
+    const { data: helpers } = await sb.from("bar_helpers").select("id,assigned,task_states,task_shift");
     for (const h of helpers || []) {
+      if (onlyHelper && h.id !== onlyHelper) continue;
       if ((h.assigned || []).includes(taskId)) {
         const ts: Record<string, string> = { ...(h.task_states || {}) }; delete ts[taskId];
-        await sb.from("bar_helpers").update({ assigned: (h.assigned || []).filter((x: string) => x !== taskId), task_states: ts }).eq("id", h.id);
+        const tsh: Record<string, string> = { ...(h.task_shift || {}) }; delete tsh[taskId];
+        await sb.from("bar_helpers").update({ assigned: (h.assigned || []).filter((x: string) => x !== taskId), task_states: ts, task_shift: tsh }).eq("id", h.id);
       }
     }
     return json({ ok: true });

@@ -1,8 +1,8 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import {
-  CATEGORIES, CATEGORY_LABEL, DEADLINE, HELP_RANGE_END,
+  CATEGORIES, CATEGORY_LABEL, DEADLINE, HELP_RANGE_END, SKILL_LEVELS,
   helpStartISO, dayLabel, iso,
-  timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel, slotsForShifts,
+  timeOptions, toMin, fmtTime, DEFAULT_SHIFT, shiftLabel,
   HELP_START_MIN, HELP_END_MIN, countAt, rangeBlocked, MAX_CONCURRENT, capFor,
 } from './data.js'
 import { submitHelper, helpLink, helpAvailability, helperLink, helperLoad, helperMarkDone, helperUndone, helperHandBack } from './api.js'
@@ -267,6 +267,7 @@ function SignUp() {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [cats, setCats] = useState([])
+  const [skill, setSkill] = useState('')
   const [shifts, setShifts] = useState({})        // { 'YYYY-MM-DD': {start,end} }
   const [modalDate, setModalDate] = useState(null)
   const [note, setNote] = useState('')
@@ -286,15 +287,14 @@ function SignUp() {
 
   const shiftArr = Object.entries(shifts).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date.localeCompare(b.date))
   const hasContact = phone.trim() || email.trim()
-  const valid = name.trim() && hasContact && cats.length && shiftArr.length
-  const slots = slotsForShifts(shiftArr)
+  const valid = name.trim() && hasContact && cats.length && skill && shiftArr.length
 
   async function onSubmit(e) {
     e.preventDefault()
     if (!valid || status === 'sending') return
     setStatus('sending'); setError('')
     try {
-      const r = await submitHelper({ name, phone, email, categories: cats, shifts: shiftArr, note })
+      const r = await submitHelper({ name, phone, email, categories: cats, skill, shifts: shiftArr, note })
       setResult(r); setSubmittedShifts(shiftArr); setStatus('done')
       window.scrollTo({ top: 0, behavior: 'smooth' })
     } catch (err) {
@@ -304,7 +304,7 @@ function SignUp() {
   }
 
   function reset() {
-    setName(''); setPhone(''); setEmail(''); setCats([]); setShifts({}); setNote('')
+    setName(''); setPhone(''); setEmail(''); setCats([]); setSkill(''); setShifts({}); setNote('')
     setStatus('idle'); setError(''); setResult(null); setSubmittedShifts([])
   }
 
@@ -329,6 +329,21 @@ function SignUp() {
             <Chip key={c.key} active={cats.includes(c.key)} onClick={() => setCats(a => toggle(a, c.key))}>
               {c.icon} {c.label}
             </Chip>
+          ))}
+        </div>
+      </Field>
+
+      <Field label="How handy are you?" hint="So we only give you jobs that suit. Be honest — there's plenty for every level!">
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          {SKILL_LEVELS.map(s => (
+            <button type="button" key={s.key} onClick={() => setSkill(s.key)} title={s.blurb} style={{
+              cursor: 'pointer', borderRadius: 12, padding: '10px 14px', flex: '1 1 150px', textAlign: 'left',
+              background: skill === s.key ? RED : 'rgba(255,255,255,0.04)', border: `1px solid ${skill === s.key ? RED : LINE}`,
+              color: skill === s.key ? '#fff' : 'rgba(255,255,255,0.82)', transition: 'all 0.15s',
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 700 }}>{s.label}</div>
+              <div style={{ fontSize: 11.5, opacity: 0.85, marginTop: 2 }}>{s.blurb}</div>
+            </button>
           ))}
         </div>
       </Field>
@@ -363,8 +378,8 @@ function SignUp() {
         {status === 'sending' ? 'Sending…' : "I'm in — sign me up"}
       </button>
       <div style={{ fontSize: 12, color: DIM, marginTop: 10, textAlign: 'center' }}>
-        {valid ? `We’ll line up about ${slots} job${slots !== 1 ? 's' : ''} across your shift${shiftArr.length > 1 ? 's' : ''} and confirm by email.`
-               : 'Add your name, a phone or email, at least one thing you’re up for, and a day with your hours.'}
+        {valid ? 'Elliot will line up jobs that suit your skills and email them to you.'
+               : 'Add your name, a contact, what you’re up for, your level, and a day with your hours.'}
       </div>
 
       {modalDate && (

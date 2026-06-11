@@ -121,6 +121,23 @@ export const PRIORITY = {
   p3: { label: 'When we can',    tone: '#34D399' },
 }
 
+// ─── Skill level (volunteer) ↔ job difficulty (admin) ────────────────────────
+// A volunteer only gets offered jobs at or below their level.
+export const SKILL_LEVELS = [
+  { key: 'novice',       label: 'Novice',       blurb: 'Happy to muck in — simpler jobs' },
+  { key: 'intermediate', label: 'Intermediate', blurb: 'Comfortable with most hands-on jobs' },
+  { key: 'experienced',  label: 'Experienced',  blurb: 'Skilled — trades & tricky jobs' },
+]
+export const SKILL_RANK = { novice: 0, intermediate: 1, experienced: 2 }
+export const SKILL_LABEL = Object.fromEntries(SKILL_LEVELS.map(s => [s.key, s.label]))
+export const DIFFICULTY = {
+  novice:       { label: 'Novice',       short: 'N', tone: '#34D399' },
+  intermediate: { label: 'Intermediate', short: 'I', tone: '#FCD34D' },
+  experienced:  { label: 'Experienced',  short: 'E', tone: '#DA1B33' },
+}
+// Can a helper of `skill` take a job of `difficulty`?
+export const canDo = (skill, difficulty) => (SKILL_RANK[difficulty] ?? 1) <= (SKILL_RANK[skill] ?? 1)
+
 // ─── Date helpers ──────────────────────────────────────────────────────────
 const pad = (n) => String(n).padStart(2, '0')
 export const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`

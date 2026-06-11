@@ -19,9 +19,9 @@ async function call(payload) {
   return data
 }
 
-// Public sign-up. shifts = [{date,start,end}]. Returns { ok, assigned, pending }.
-export const submitHelper = ({ name, phone, email, categories, shifts, note }) =>
-  call({ action: 'signup', name, phone, email, categories, shifts, note })
+// Public sign-up. shifts = [{date,start,end}]. Returns { ok, pending, token }.
+export const submitHelper = ({ name, phone, email, categories, skill, shifts, note }) =>
+  call({ action: 'signup', name, phone, email, categories, skill, shifts, note })
 
 // Public — anonymised claimed shifts so the popup can grey out full slots.
 export const helpAvailability = () => call({ action: 'availability' })
@@ -39,11 +39,15 @@ export const helperHandBack = (token, taskId) => call({ action: 'handback', toke
 // Admin (gated /ops). Returns { tasks, helpers, stats }.
 export const helpAdmin = () => call({ action: 'admin', secret: SEND_SECRET })
 
-// Admin — put a task back in the pool.
-export const helpRelease = (taskId) => call({ action: 'release', secret: SEND_SECRET, taskId })
+// Admin — put a task back in the pool. Pass helperId to remove it from just
+// that person (e.g. a recurring job); omit to clear it from everyone.
+export const helpRelease = (taskId, helperId) => call({ action: 'release', secret: SEND_SECRET, taskId, helperId })
 
-// Admin — add a specific task to a helper.
-export const helpAssign = (helperId, taskId) => call({ action: 'assign', secret: SEND_SECRET, helperId, taskId })
+// Admin — allocate a task to a helper (optionally for a specific shift date).
+export const helpAssign = (helperId, taskId, shift) => call({ action: 'assign', secret: SEND_SECRET, helperId, taskId, shift })
+
+// Admin — set a job's difficulty and/or recurring flag. patch = {difficulty?, recurring?}.
+export const helpTaskMeta = (taskId, patch) => call({ action: 'taskmeta', secret: SEND_SECRET, taskId, ...patch })
 
 // Admin — confirm a helper's jobs and email them the final list.
 export const helpConfirm = (helperId) => call({ action: 'confirm', secret: SEND_SECRET, helperId })

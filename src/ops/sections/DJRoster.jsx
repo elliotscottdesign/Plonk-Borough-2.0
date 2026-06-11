@@ -41,6 +41,24 @@ export default function DJRoster({ djs, reload }) {
   const addNew = async () => { setBusy(true); try { await djAdmin('addDj', { profile: { dj_name: 'New DJ' } }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const removeDj = async (id) => { if (!window.confirm('Remove this DJ profile?')) return; setBusy(true); try { await djAdmin('removeDj', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const copyInvite = (d) => { try { navigator.clipboard.writeText(inviteLink(d.token)) } catch { /* ignore */ } setCopied(d.id); setTimeout(() => setCopied(null), 1600) }
+  // Normalise a stored phone to WhatsApp's international form (digits only).
+  // UK mobiles are saved as 07… → 447…; respects +/00 country prefixes too.
+  const waNumber = (phone) => {
+    let n = String(phone || '').replace(/[^\d+]/g, '')
+    if (!n) return ''
+    if (n.startsWith('+')) n = n.slice(1)
+    else if (n.startsWith('00')) n = n.slice(2)
+    else if (n.startsWith('0')) n = '44' + n.slice(1)
+    return n
+  }
+  // Open WhatsApp with the DJ's personal link + a ready-written invite. The
+  // founder just hits send (sent from their own WhatsApp — no API needed).
+  const waInvite = (d) => {
+    const num = waNumber(d.phone)
+    const msg = `Hey ${d.dj_name || 'there'} — welcome to the No Dice DJ roster 🎧\n\nHere's your private link to set up your profile and grab the nights you want to play:\n${inviteLink(d.token)}\n\nIt walks you through everything — any questions, give us a shout.`
+    const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
   const onPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file || !editing) return
     setBusy(true)
@@ -133,8 +151,9 @@ export default function DJRoster({ djs, reload }) {
                   </div>
                 </div>
               ) : (
-                <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                  <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy invite link'}</button>
+                <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                  {d.phone && <button onClick={() => waInvite(d)} style={btn('green')}>📲 WhatsApp invite</button>}
+                  <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy link'}</button>
                   <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
                 </div>
               )}
@@ -144,7 +163,7 @@ export default function DJRoster({ djs, reload }) {
       </div>
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#fff' }}>Invite a DJ:</strong> hit <em>Copy invite link</em> and text/email it to them. They open it, fill their profile + upload a photo, and only then can they claim your open dates. Their photo auto-attaches to every event they play.
+        <strong style={{ color: '#fff' }}>Invite a DJ:</strong> tap <em>📲 WhatsApp invite</em> — it opens WhatsApp with their personal link and a ready-written message, you just hit send. No number on file? Use <em>Copy link</em>, or add their number via <em>Edit</em>. They open the link, fill their profile + photo, and can then claim your open dates (their photo auto-attaches to every event they play).
       </div>
     </div>
   )
