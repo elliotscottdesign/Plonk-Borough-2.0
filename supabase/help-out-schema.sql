@@ -35,6 +35,10 @@ update public.bar_helpers set token = encode(gen_random_bytes(16),'hex') where t
 alter table public.bar_helpers alter column token set default encode(gen_random_bytes(16),'hex');
 create unique index if not exists bar_helpers_token_idx on public.bar_helpers(token);
 alter table public.bar_helpers add column if not exists task_states jsonb not null default '{}'::jsonb;
+alter table public.bar_helpers add column if not exists skill text default 'intermediate';   -- novice | intermediate | experienced
+alter table public.bar_helpers add column if not exists task_shift jsonb not null default '{}'::jsonb;  -- { taskId: shift date } which shift a job was allocated to
+-- Admin per-job overrides (difficulty + recurring), keyed by task id.
+alter table public.help_settings add column if not exists task_meta jsonb not null default '{}'::jsonb;  -- { taskId: { difficulty, recurring } }
 
 -- The table is read/written ONLY by the help-out edge function (service role),
 -- so no anon policies are needed — the public key can't read or write it.
