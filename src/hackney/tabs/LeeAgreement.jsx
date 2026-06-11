@@ -23,7 +23,7 @@ import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 //     value × shares held, no cap
 //
 // Gated to access codes:
-//   • LLEE01 — Lee himself
+//   • LEE01 — Lee himself
 //   • 888999 — Founder, for review before sharing
 // All other codes (NODICE88, LEONIE) filter this tab out of the top-tab
 // list — they see the standard investor view without this tab.
