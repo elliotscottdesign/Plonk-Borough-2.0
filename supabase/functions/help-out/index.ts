@@ -301,13 +301,15 @@ Deno.serve(async (req) => {
   const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
   const meta = cfg.task_meta || {};
   const customTasks: any[] = Array.isArray(cfg.custom_tasks) ? cfg.custom_tasks : [];
-  const effDiff = (t: any) => meta[t.id]?.difficulty || t.difficulty || CAT_DIFFICULTY[t.cat] || "intermediate";
+  const effCat = (t: any) => (meta[t.id] && typeof meta[t.id].cat === "string" && meta[t.id].cat) ? meta[t.id].cat : t.cat;
+  const effDiff = (t: any) => meta[t.id]?.difficulty || t.difficulty || CAT_DIFFICULTY[effCat(t)] || "intermediate";
   const effRec = (t: any) => meta[t.id]?.recurring !== undefined ? !!meta[t.id].recurring : !!t.recurring;
-  // A task with the admin's edits applied (title/detail/difficulty/recurring).
+  // A task with the admin's edits applied (category/title/detail/difficulty/recurring).
   const effTask = (t: any) => {
     const m = meta[t.id] || {};
     return {
       ...t,
+      cat: effCat(t),
       title: (typeof m.title === "string" && m.title.length) ? m.title : t.title,
       detail: (m.detail !== undefined ? m.detail : t.detail),
       difficulty: effDiff(t), recurring: effRec(t),
@@ -515,6 +517,7 @@ Deno.serve(async (req) => {
     const tm: Record<string, any> = { ...(cfg.task_meta || {}) };
     const cur: any = { ...(tm[taskId] || {}) };
     if (b.difficulty && ["novice", "intermediate", "experienced"].includes(String(b.difficulty))) cur.difficulty = String(b.difficulty);
+    if (b.cat && CAT_DIFFICULTY[String(b.cat)] !== undefined) cur.cat = String(b.cat);   // recategorise a job
     if (typeof b.recurring === "boolean") cur.recurring = b.recurring;
     if (typeof b.title === "string") { const v = b.title.trim(); if (v) cur.title = v; else delete cur.title; }
     if (typeof b.detail === "string") cur.detail = b.detail;   // "" clears the description

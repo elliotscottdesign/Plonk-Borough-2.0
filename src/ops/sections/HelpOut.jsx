@@ -36,6 +36,7 @@ export default function HelpOut() {
   const [editing, setEditing] = useState(null)  // jobs-board task being edited
   const [eTitle, setETitle] = useState('')
   const [eDetail, setEDetail] = useState('')
+  const [eCat, setECat] = useState('')
   const blankJob = { cat: '', title: '', difficulty: 'intermediate', detail: '', area: '', recurring: false }
   const [showNew, setShowNew] = useState(false)
   const [nj, setNj] = useState(blankJob)
@@ -57,7 +58,7 @@ export default function HelpOut() {
 
   async function saveEdit(taskId) {
     setBusy(`edit-${taskId}`)
-    try { await helpTaskMeta(taskId, { title: eTitle, detail: eDetail }); setEditing(null); await load() }
+    try { await helpTaskMeta(taskId, { cat: eCat, title: eTitle, detail: eDetail }); setEditing(null); await load() }
     catch (e) { setErr(e.message) }
     finally { setBusy('') }
   }
@@ -297,6 +298,12 @@ export default function HelpOut() {
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {editing === t.id ? (
                                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                    <label style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                      <span style={{ ...fieldLbl, marginBottom: 0, whiteSpace: 'nowrap' }}>Category</span>
+                                      <select value={eCat} onChange={e => setECat(e.target.value)} style={{ ...fieldInput, fontSize: 13 }}>
+                                        {CATEGORIES.map(c => <option key={c.key} value={c.key}>{c.icon} {c.label}</option>)}
+                                      </select>
+                                    </label>
                                     <input value={eTitle} onChange={e => setETitle(e.target.value)} placeholder="Job title" style={{ width: '100%', boxSizing: 'border-box', background: '#111', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '7px 9px', fontSize: 13.5 }} />
                                     <textarea value={eDetail} onChange={e => setEDetail(e.target.value)} placeholder="Description (optional)" style={{ width: '100%', boxSizing: 'border-box', minHeight: 52, resize: 'vertical', background: '#111', color: 'var(--cream-dim)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '7px 9px', fontSize: 12 }} />
                                     <div style={{ display: 'flex', gap: 8 }}>
@@ -317,7 +324,7 @@ export default function HelpOut() {
                                         })}
                                       </span>
                                       <button onClick={() => act(`r-${t.id}`, () => helpTaskMeta(t.id, { recurring: !t.recurring }))} disabled={busy === `r-${t.id}`} title="Recurring — can be allocated again after it's done" style={btn({ padding: '2px 8px', fontSize: 10.5, background: t.recurring ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${t.recurring ? GOLD : 'rgba(255,255,255,0.14)'}`, color: t.recurring ? GOLD : 'var(--cream-dim)' })}>♻ {t.recurring ? 'recurring' : 'one-off'}</button>
-                                      <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || '') }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
+                                      <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || ''); setECat(t.cat) }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
                                       <button onClick={() => { if (window.confirm(`Delete "${t.title}" from the board?`)) act(`del-${t.id}`, () => helpDeleteJob(t.id)) }} disabled={busy === `del-${t.id}`} title="Delete this job" style={btn({ padding: '2px 8px', fontSize: 10.5, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `del-${t.id}` ? '…' : '🗑 delete'}</button>
                                     </div>
                                   </>
