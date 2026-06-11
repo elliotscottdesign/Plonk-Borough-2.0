@@ -3,11 +3,11 @@ import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
 
-// MikeAgreement — Round 1 STANDARD TEMPLATE, personalised for Mike.
+// MikeAgreement — Round 1 STANDARD TEMPLATE, personalised for Michael Taylor.
 //
 // Renders the standard Round 1 terms that every external B-share holder
 // renders the standard Round 1 terms that every external B-share holder
-// signs. The page is personalised with Mike's name + cheque figure;
+// signs. The page is personalised with Michael's name + cheque figure;
 // personalised with her name + £5k figure but the substantive clauses
 // are the template every investor sees.
 //
@@ -26,12 +26,12 @@ import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
 //     value × shares held, no cap
 //
 // Gated to access codes:
-//   • MIKE — Mike himself
+//   • MIKE — Michael Taylor himself
 //   • 888999 — Founder, for review before sharing
 // All other codes (NODICE88, JOHN1, BRAZIL) filter this tab out of the
 // top-tab list — they see the standard investor view without this tab.
 //
-// Status: NOT YET EXECUTED. Mike has not countersigned or paid as of
+// Status: NOT YET EXECUTED. Michael Taylor has not countersigned or paid as of
 // the page-load date. The banner makes that explicit.
 
 const INK_BG  = 'var(--ink-2)'
@@ -61,7 +61,7 @@ export default function MikeAgreement() {
       {/* Hero */}
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:11, color:GOLD, letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, marginBottom:8 }}>
-          Round 1 Draft Terms · For Mike · Confidential
+          Round 1 Draft Terms · For Michael Taylor · Confidential
         </div>
         <h1 className="serif" style={{ fontSize:'clamp(2.2rem, 4.4vw, 3rem)', color:CREAM, lineHeight:1.15, margin:0 }}>
           Draft Investment Terms — For Your Review
@@ -85,7 +85,7 @@ export default function MikeAgreement() {
           <strong style={{ color:CREAM }}>The Founder.</strong> Elliot Scott, holder of all A-class voting shares.
         </P>
         <P>
-          <strong style={{ color:CREAM }}>The Investor.</strong> Mike (the "<strong style={{ color:CREAM }}>Investor</strong>"), prospective Round 1 B-class subscriber for £5,000 — subject to execution of this Agreement.
+          <strong style={{ color:CREAM }}>The Investor.</strong> Michael Taylor (the "<strong style={{ color:CREAM }}>Investor</strong>"), prospective Round 1 B-class subscriber for £5,000 — subject to execution of this Agreement.
         </P>
       </Section>
 
@@ -299,7 +299,7 @@ export default function MikeAgreement() {
       {/* Signatures — inline e-signature, print/PDF downloads */}
       <AgreementSignBlock
         agreementId="mike"
-        investorName="Mike"
+        investorName="Michael Taylor"
         founderName="Elliot Scott"
       />
     </div>
@@ -368,7 +368,7 @@ function CapTable() {
   const rows = [
     { who:'Founder — retained holdback (pre-money)', cls:'A', eq:'51%', cash:fmt(0),     status:'Not for sale' },
     { who:'Founder — additional subscription',        cls:'A', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
-    { who:'Investor — Mike (this draft)',     cls:'B', eq:'5%',  cash:fmt(5000),  status:'Pending · subject to execution', highlight:true },
+    { who:'Investor — Michael Taylor (this draft)',     cls:'B', eq:'5%',  cash:fmt(5000),  status:'Pending · subject to execution', highlight:true },
     { who:'Available to new external investors',      cls:'B', eq:'19%', cash:fmt(19000), status:'For sale' },
   ]
   return (

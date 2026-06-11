@@ -25,10 +25,10 @@ import { useTranslation } from 'react-i18next'
 //              deck + his own "Your Agreement" tab (role:'lee'). Same
 //              standard Round 1 terms as Leonie's draft, personalised
 //              with Lee's name + 1 share figure.
-//   MIKE    — Mike (Round 1 prospective, figure TBC): Hackney deck +
-//              his own "Your Agreement" tab (role:'mike'). Cloned from
-//              Leonie's template; default 5 shares / £5k / 5% until
-//              the founder edits the figures.
+//   MIKE    — Michael Taylor (Round 1 prospective, figure TBC):
+//              Hackney deck + his own "Your Agreement" tab (role:'mike').
+//              Cloned from Leonie's template; default 5 shares / £5k /
+//              5% until the founder edits the figures.
 //
 // Retiring a code does NOT delete any saved notes/locks/drags — those persist
 // in localStorage and on the lock-sync server keyed by the code STRING (see
