@@ -40,35 +40,12 @@ const CREAM_D = 'var(--cream-dim)'
 
 const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 
-// Lee at 1 share, £1k cheque, under the per-share dividend model.
-// Every share entitled to the same £X declared each window — Lee's
-// dividend = 1 × per-share rate that year.
-const LEE_SHARES      = 1
-const LEE_EQUITY      = 0.01
-const LEE_CASH        = 1000
-const LEE_RETURNS = HACKNEY_INVESTOR_RETURNS.fiveYear.map(yr => {
-  // Indicative per-share dividend = year profit / 100 shares.
-  // Directors retain discretion to declare less in practice.
-  const perShare = (yr.perShare ?? (yr.profit / 100))
-  return {
-    year:     yr.year,
-    profit:   yr.profit,
-    perShare,
-    total:    LEE_SHARES * perShare,
-  }
-})
-const LEE_CUM_DIV   = LEE_RETURNS.reduce((s, y) => s + y.total, 0)
-const LEE_Y5_EXIT   = HACKNEY_INVESTOR_RETURNS.exit.businessValue * LEE_EQUITY
-const LEE_TOTAL_RET = LEE_CUM_DIV + LEE_Y5_EXIT
-const LEE_MOM       = LEE_TOTAL_RET / LEE_CASH
-
-// Y3 founder-call scenario for Lee: market-rate buyback (no cap).
-// Buyback = 1 share × Y3 per-share fair value + cumulative Y1-Y3 dividends.
-const LEE_CALL_DIVS = LEE_RETURNS.slice(0, 3).reduce((s, y) => s + y.total, 0)
-const LEE_PER_SHARE_Y3 = (HACKNEY_INVESTOR_RETURNS.callScenario?.perShareBuybackY3) ?? 4997.16
-const LEE_CALL_BUYBACK = LEE_SHARES * LEE_PER_SHARE_Y3
-const LEE_CALL_TOTAL = LEE_CALL_DIVS + LEE_CALL_BUYBACK
-const LEE_CALL_MOM = LEE_CALL_TOTAL / LEE_CASH
+// Indicative return / per-share dividend constants were removed when
+// clause 8 (Illustrative returns table) was deleted — the founder's
+// instruction is that no specific dividend or capital-return figures
+// should appear inside this Agreement. The deck's WaterfallReturns
+// slide still carries forecast figures with prominent "not promised"
+// disclaimers; the agreement itself stays strictly to terms.
 
 export default function LeeAgreement() {
   // Live read of the founder's Use of Funds state — when 888999 drags
@@ -178,10 +155,7 @@ export default function LeeAgreement() {
           <strong style={{ color:CREAM }}>Founder Y3 Call price</strong> = <strong style={{ color:GOLD }}>Y3 Fair Market Value × the Investor's shares held</strong>. There is <strong style={{ color:CREAM }}>no multiple-of-money cap</strong> — the Investor is paid the full market rate at Y3 valuation for his shares.
         </P>
         <P>
-          Worked example on the base-case forecast: Y3 fair value ≈ {fmt(HACKNEY_INVESTOR_RETURNS.exit.businessValue * (HACKNEY_INVESTOR_RETURNS.fiveYear[2].profit / HACKNEY_INVESTOR_RETURNS.exit.y5Ebitda))} (Y3 EBITDA × 4× exit multiple). That implies a per-share Y3 value of ≈ <strong style={{ color:CREAM }}>£{LEE_PER_SHARE_Y3.toFixed(2)}</strong>, so the Investor&rsquo;s 1 share would be bought back at ≈ <strong style={{ color:GOLD }}>{fmt(LEE_CALL_BUYBACK)}</strong>.
-        </P>
-        <P>
-          Fair Market Value is determined by the directors acting reasonably (by reference to a multiple of trailing-12-month EBITDA consistent with sector comparables). The Investor may, at his cost, require an independent valuation by a chartered accountant if he disputes the figure; the independent valuation binds both parties.
+          Fair Market Value is determined at the date of exercise by the directors acting reasonably, by reference to a multiple of trailing-12-month EBITDA consistent with sector comparables at the time. <strong style={{ color:CREAM }}>No specific buyback price is promised by this Agreement</strong> — the figure depends on actual trading at Y3, not on the forecast figures shown elsewhere in the deck. The Investor may, at his cost, require an independent valuation by a chartered accountant if he disputes the figure; the independent valuation binds both parties.
         </P>
         <P>
           If the Founder exercises across multiple Investors in the same window, payments may be <strong style={{ color:CREAM }}>staggered over up to 12 months</strong> to protect the Company's operating cash.
@@ -216,22 +190,10 @@ export default function LeeAgreement() {
         </P>
       </Section>
 
-      {/* 8. Returns table — Lee specific */}
-      <Section number="8" title="Illustrative returns · £1,000 = 1 share">
+      {/* 8. Future rounds + pre-emption rights (formal legal language) */}
+      <Section number="8" title="Future rounds · pre-emption rights">
         <P>
-          The table below shows <strong style={{ color:CREAM }}>indicative</strong> per-share dividends if the directors distribute substantially all of distributable profit each year. <strong style={{ color:GOLD }}>Actual dividends are declared by the directors with the agreement of the A-share holders at each review date</strong>, based on trailing-12-month trading + working-capital reserve. The <strong style={{ color:CREAM }}>~2-year capital-return trajectory</strong> shown by these figures is a target — it is <strong style={{ color:CREAM }}>not promised, not contractual</strong>, and may be longer or shorter depending on trading and the directors' decisions.
-        </P>
-        <ReturnsTable />
-        <ReturnsSummary />
-        <P style={{ fontSize:12, color:CREAM_D, fontStyle:'italic', marginTop:14 }}>
-          Indicative only — not a forecast or guarantee. If the Y3 Founder Call is exercised, the Investor receives {fmt(LEE_CALL_BUYBACK)} buyback (1 share × Y3 fair value per share) plus cumulative Y1-Y3 dividends ≈ {fmt(LEE_CALL_DIVS)} — total ≈ <strong style={{ color:CREAM }}>{fmt(LEE_CALL_TOTAL)} = {LEE_CALL_MOM.toFixed(1)}× MoM</strong>. If held to Y5, total ≈ <strong style={{ color:CREAM }}>{fmt(LEE_TOTAL_RET)} = {LEE_MOM.toFixed(1)}× MoM</strong>. Drawn from HACKNEY_INVESTOR_RETURNS.fiveYear on the date this draft was prepared.
-        </P>
-      </Section>
-
-      {/* 9. Future rounds + pre-emption rights (formal legal language) */}
-      <Section number="9" title="Future rounds · pre-emption rights">
-        <P>
-          The Company may raise further capital in the future (a "<strong style={{ color:CREAM }}>Round 2</strong>" and any subsequent round). Any future issuance of shares is a Reserved Matter requiring Reserved Matters Consent (clause 10), and the timing, total raise, per-share price and any specific mechanics are decided by the <strong style={{ color:CREAM }}>directors and the A-class holders</strong> at that time, with the Founder's A-class voting shares preserving voting control of the Company through any dilution.
+          The Company may raise further capital in the future (a "<strong style={{ color:CREAM }}>Round 2</strong>" and any subsequent round). Any future issuance of shares is a Reserved Matter requiring Reserved Matters Consent (clause 9), and the timing, total raise, per-share price and any specific mechanics are decided by the <strong style={{ color:CREAM }}>directors and the A-class holders</strong> at that time, with the Founder's A-class voting shares preserving voting control of the Company through any dilution.
         </P>
         <P>
           <strong style={{ color:GOLD }}>Pre-emption rights.</strong> If the Company proposes to issue any new equity securities, each Shareholder shall have the right, but not the obligation, to subscribe for such securities on a pro rata basis in proportion to that Shareholder's percentage ownership of the Company's issued share capital immediately prior to the proposed issuance.
@@ -257,7 +219,7 @@ export default function LeeAgreement() {
       </Section>
 
       {/* 10. Governance */}
-      <Section number="10" title="Governance &amp; reserved matters">
+      <Section number="9" title="Governance &amp; reserved matters">
         <P>
           <strong style={{ color:CREAM }}>Ordinary Consent</strong> — 50% of A-class votes (Founder controls). <strong style={{ color:CREAM }}>Reserved Matters Consent</strong> — 75% of total issued share capital (A + B, voting together as one class for this purpose only). The following matters require Reserved Matters Consent:
         </P>
@@ -276,7 +238,7 @@ export default function LeeAgreement() {
       </Section>
 
       {/* 11. Information rights */}
-      <Section number="11" title="Information rights">
+      <Section number="10" title="Information rights">
         <ul style={ulStyle}>
           <li><strong style={{ color:CREAM }}>Semi-annual management accounts</strong> within 30 days of each distribution window — revenue, cost categories, EBITDA, Reserve balance, accrued surplus, distribution position.</li>
           <li><strong style={{ color:CREAM }}>Annual accounts</strong> within 90 days of each financial year-end.</li>
@@ -286,7 +248,7 @@ export default function LeeAgreement() {
       </Section>
 
       {/* 12. Exit + tag/drag */}
-      <Section number="12" title="Sale event · Year-5 exit · tag &amp; drag">
+      <Section number="11" title="Sale event · Year-5 exit · tag &amp; drag">
         <P>
           The Founder intends to pursue a Year-5 Sale Event at approximately 4× steady-state EBITDA (illustrative business value c.{fmt(HACKNEY_INVESTOR_RETURNS.exit.businessValue)} on the Y5 forecast EBITDA of {fmt(HACKNEY_INVESTOR_RETURNS.exit.y5Ebitda)}). On a Sale Event, proceeds are distributed <strong style={{ color:CREAM }}>pro-rata across all equity</strong> with no preferred return and no cap. Note: the Y3 Founder Call may have terminated the Investor's holding before Y5 (see clause 6).
         </P>
@@ -299,7 +261,7 @@ export default function LeeAgreement() {
       </Section>
 
       {/* 13. Transfers */}
-      <Section number="13" title="Transfer restrictions">
+      <Section number="12" title="Transfer restrictions">
         <ul style={ulStyle}>
           <li>No transfer of B shares for the first <strong style={{ color:CREAM }}>24 months</strong> without the Founder's written consent.</li>
           <li>After month 24, transfers subject to a <strong style={{ color:CREAM }}>right of first refusal</strong> (Company, then Founder) on 30 days' notice and matching the bona fide third-party offer.</li>
@@ -307,13 +269,13 @@ export default function LeeAgreement() {
         </ul>
       </Section>
 
-      <Section number="14" title="Confidentiality">
+      <Section number="13" title="Confidentiality">
         <P>
           The Investor undertakes to keep confidential all non-public information about the Company — financial figures, supplier terms, customer lists, the underlying workbook, and the contents of this Agreement. Confidentiality survives termination and any transfer of B shares.
         </P>
       </Section>
 
-      <Section number="15" title="Warranties">
+      <Section number="14" title="Warranties">
         <P>
           The Founder warrants on the date of subscription that, to the best of his knowledge: (i) the 2025 actuals shown at nodice.bar/hackney are accurate in all material respects ({fmt(ACTUALS_2025.revenue)} revenue, {fmt(ACTUALS_2025.ebitda)} EBITDA, verified against Monthly Summary G15 / I15); (ii) the Company is not subject to any litigation, insolvency or material adverse claim other than as disclosed; (iii) the trading-premises lease is in good standing on the terms summarised in the deck (£65,000 + VAT per annum, 3-month deposit, 3-month rent-free start, 3% annual uplift); (iv) the Company has not granted any security, debt or option over its shares other than as disclosed in this Agreement.
         </P>
@@ -322,10 +284,10 @@ export default function LeeAgreement() {
         </P>
       </Section>
 
-      <Section number="16" title="General">
+      <Section number="15" title="General">
         <ul style={ulStyle}>
           <li><strong style={{ color:CREAM }}>Entire agreement.</strong> This Agreement, the Articles, and the Schedules constitute the entire agreement between the parties in relation to the Round.</li>
-          <li><strong style={{ color:CREAM }}>Variation.</strong> Any variation requires Reserved Matters Consent (clause 10) and must be in writing.</li>
+          <li><strong style={{ color:CREAM }}>Variation.</strong> Any variation requires Reserved Matters Consent (clause 9) and must be in writing.</li>
           <li><strong style={{ color:CREAM }}>Governing law.</strong> Laws of England and Wales; exclusive jurisdiction of the English courts.</li>
           <li><strong style={{ color:CREAM }}>Counterparts.</strong> May be signed in counterparts (including by electronic signature).</li>
           <li><strong style={{ color:CREAM }}>Costs.</strong> Each party bears its own legal and advisory costs.</li>
@@ -492,50 +454,6 @@ function UseOfFundsTable({ effective, isLocked }) {
           </tr>
         </tbody>
       </table>
-    </div>
-  )
-}
-
-function ReturnsTable() {
-  return (
-    <div style={{ background:INK_BG, border:BORDER, borderRadius:10, padding:'4px 8px', marginTop:8, overflow:'hidden' }}>
-      <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
-        <thead>
-          <tr>
-            <Th>Year</Th><Th align="right">Op profit</Th><Th align="right">Indicative £/share (÷ 100)</Th><Th align="right">Lee's 1 share</Th><Th align="right">Total to Lee</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {LEE_RETURNS.map((r, i) => (
-            <tr key={i} style={{ borderTop:'1px solid rgba(255,255,255,0.05)' }}>
-              <Td>{r.year}</Td>
-              <Td align="right">{fmt(r.profit)}</Td>
-              <Td align="right">£{r.perShare.toFixed(2)}</Td>
-              <Td align="right">1 × £{r.perShare.toFixed(2)}</Td>
-              <Td align="right" bold>{fmt(r.total)}</Td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  )
-}
-
-function ReturnsSummary() {
-  const items = [
-    { label:'5-yr cumulative dividends', value:fmt(LEE_CUM_DIV) },
-    { label:'Y5 exit (1% × ' + fmt(HACKNEY_INVESTOR_RETURNS.exit.businessValue) + ')', value:fmt(LEE_Y5_EXIT) },
-    { label:'Total returned (held to Y5)', value:fmt(LEE_TOTAL_RET) },
-    { label:'Money-on-money (held to Y5)', value: LEE_MOM.toFixed(2) + '×' },
-  ]
-  return (
-    <div style={{ display:'grid', gridTemplateColumns:'repeat(4, 1fr)', gap:12, marginTop:14 }}>
-      {items.map((it, i) => (
-        <div key={i} style={{ padding:'12px 14px', background:'rgba(16,185,129,0.08)', border:'1px solid rgba(16,185,129,0.32)', borderRadius:8 }}>
-          <div style={{ fontSize:10, color:'#34D399', letterSpacing:'0.1em', textTransform:'uppercase', fontWeight:700, marginBottom:4 }}>{it.label}</div>
-          <div className="serif" style={{ fontSize:20, color:'#10B981', fontWeight:600 }}>{it.value}</div>
-        </div>
-      ))}
     </div>
   )
 }
