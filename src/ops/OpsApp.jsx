@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import Operations from './sections/Operations.jsx'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
@@ -7,13 +7,8 @@ import WorldCup from './sections/WorldCup.jsx'
 import HelpOut from './sections/HelpOut.jsx'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
-// Internal team area, separate from the investor decks. Sections:
-//   Operations    — day-to-day tools (Stock Orders live; pool nights / CRM next)
-//   Reports       — weekly/monthly/yearly business read-out (roadmap)
-//   Documentation — live operational docs to download / link-share (roadmap)
-//   World Cup     — founder strategy planner for World Cup 2026 (moved
-//                   here from its standalone /worldcup route, which
-//                   collided with the customer-site /world-cup page)
+// Internal team area, separate from the investor decks. On phones the tab row
+// collapses into a ☰ menu so the links don't crash into each other / the page.
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
@@ -23,6 +18,17 @@ const TABS = [
   { key: 'worldcup',      label: 'World Cup',     Component: WorldCup },
 ]
 
+// Small shared "is the viewport phone-sized?" hook.
+function useIsMobile(bp = 760) {
+  const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth <= bp)
+  useEffect(() => {
+    const on = () => setM(window.innerWidth <= bp)
+    window.addEventListener('resize', on)
+    return () => window.removeEventListener('resize', on)
+  }, [bp])
+  return m
+}
+
 export default function OpsApp() {
   // Allow a deep link like /operations?tab=helpout (used in the Help Out
   // sign-up alert email) to open straight to a given tab.
@@ -31,33 +37,66 @@ export default function OpsApp() {
     return TABS.some(t => t.key === q) ? q : 'operations'
   })()
   const [tab, setTab] = useState(initialTab)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const isMobile = useIsMobile()
   const Active = (TABS.find(t => t.key === tab) || TABS[0]).Component
+  const activeLabel = (TABS.find(t => t.key === tab) || TABS[0]).label
+  const pick = (k) => { setTab(k); setMenuOpen(false) }
+
+  const tabStyle = (active) => ({
+    padding: '9px 18px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
+    background: active ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+    border: `2px solid ${active ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`,
+    color: active ? 'var(--gold)' : 'var(--cream)', letterSpacing: '0.04em',
+    fontWeight: active ? 600 : 400, transition: 'all 0.2s', whiteSpace: 'nowrap',
+  })
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink)', color: 'var(--cream)', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: 56, background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0, gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <div className="serif" style={{ fontSize: 17, color: 'var(--gold)' }}>No Dice · Operations</div>
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · London Fields</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', minHeight: 56, background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0, gap: 12, position: 'relative', zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+          <div className="serif" style={{ fontSize: isMobile ? 15 : 17, color: 'var(--gold)', whiteSpace: 'nowrap' }}>No Dice · Operations</div>
+          {!isMobile && <div style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · London Fields</div>}
         </div>
-        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{
+            display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8,
+            background: 'rgba(201,168,76,0.12)', border: '1px solid var(--gold)', color: 'var(--gold)',
+            fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', maxWidth: '60%',
+          }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLabel}</span>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>{menuOpen ? '✕' : '☰'}</span>
+          </button>
+        ) : (
+          <>
+            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              {TABS.map(t => <button key={t.key} onClick={() => pick(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>)}
+            </div>
+            <a href="/" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.14em', textDecoration: 'none', whiteSpace: 'nowrap' }}>← nodice.bar</a>
+          </>
+        )}
+      </div>
+
+      {/* Mobile dropdown menu */}
+      {isMobile && menuOpen && (
+        <div style={{ background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, position: 'relative', zIndex: 30 }}>
           {TABS.map(t => (
-            <button key={t.key} onClick={() => setTab(t.key)} style={{
-              padding: '9px 20px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
+            <button key={t.key} onClick={() => pick(t.key)} style={{
+              textAlign: 'left', padding: '13px 14px', borderRadius: 8, cursor: 'pointer',
               background: tab === t.key ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
-              border: `2px solid ${tab === t.key ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`,
-              color: tab === t.key ? 'var(--gold)' : 'var(--cream)', letterSpacing: '0.04em',
-              fontWeight: tab === t.key ? 600 : 400, transition: 'all 0.2s',
+              border: `1px solid ${tab === t.key ? 'var(--gold)' : 'rgba(255,255,255,0.1)'}`,
+              color: tab === t.key ? 'var(--gold)' : 'var(--cream)', fontSize: 14.5, fontWeight: tab === t.key ? 600 : 400,
             }}>{t.label}</button>
           ))}
+          <a href="/" style={{ padding: '11px 14px', fontSize: 12.5, color: 'var(--cream-dim)', textDecoration: 'none', letterSpacing: '0.1em' }}>← back to nodice.bar</a>
         </div>
-        <a href="/" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.14em', textDecoration: 'none' }}>← nodice.bar</a>
-      </div>
+      )}
 
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '28px 24px 64px' }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '18px 13px 56px' : '28px 24px 64px' }}>
           <Active />
         </div>
       </div>
