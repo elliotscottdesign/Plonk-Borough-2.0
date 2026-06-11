@@ -4,6 +4,7 @@ import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
 import LoanNotes from './tabs/LoanNotes.jsx'
 import LeonieAgreement from './tabs/LeonieAgreement.jsx'
+import LeeAgreement from './tabs/LeeAgreement.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
@@ -55,6 +56,7 @@ const TOP_TABS = [
   { key:'venueInfo',         label:'Venue Info' },
   { key:'loanNotes',         label:'Loan Notes' },
   { key:'leonieAgreement',   label:"Your Agreement", roleOnly:'leonie' },
+  { key:'leeAgreement',      label:"Your Agreement", roleOnly:'lee'    },
   { key:'plonk',             label:'Plonk' },
 ]
 
@@ -71,6 +73,7 @@ function deriveActivePage(topTab, slideId) {
   if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
   if (topTab === 'loanNotes')         return { id: 'loanNotes', label: 'Loan Notes' }
   if (topTab === 'leonieAgreement')   return { id: 'leonieAgreement', label: 'Your Agreement' }
+  if (topTab === 'leeAgreement')      return { id: 'leeAgreement',    label: 'Your Agreement' }
   if (topTab === 'notes')             return null   // master view
   return null
 }
@@ -224,6 +227,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
         {topTab === 'loanNotes' && <div style={{ flex:1, overflowY:'auto' }}><LoanNotes /></div>}
         {topTab === 'leonieAgreement' && <div style={{ flex:1, overflowY:'auto' }}><LeonieAgreement /></div>}
+        {topTab === 'leeAgreement'    && <div style={{ flex:1, overflowY:'auto' }}><LeeAgreement    /></div>}
         {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
       <NotesPanel />

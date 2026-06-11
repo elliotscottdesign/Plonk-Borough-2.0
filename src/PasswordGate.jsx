@@ -21,6 +21,10 @@ import { useTranslation } from 'react-i18next'
 //              tab in src/hackney/HackneyApp.jsx). Restored June 2026
 //              after a code cleanup accidentally revoked it before her
 //              draft review.
+//   LLEE01   — Lee Trott (Round 1 prospective, 1 share / £1k): Hackney
+//              deck + his own "Your Agreement" tab (role:'lee'). Same
+//              standard Round 1 terms as Leonie's draft, personalised
+//              with Lee's name + 1 share figure.
 //
 // Retiring a code does NOT delete any saved notes/locks/drags — those persist
 // in localStorage and on the lock-sync server keyed by the code STRING (see
@@ -33,6 +37,7 @@ const ACCESS_CODES = {
   'NODICE88': { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'hackney-investor' },
   'NODICE99': { plonk: false, founder: false, hackney: false, borough: true,  ops: false, marketing: false, role: 'borough-investor' },
   'LEONIE':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'leonie'           },
+  'LLEE01':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'lee'              },
 }
 
 export default function PasswordGate({ onUnlock }) {
@@ -55,7 +60,8 @@ export default function PasswordGate({ onUnlock }) {
 
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
-    // codes (NDTEAM, NODICE88, NODICE99, LEONIE) accept any case for friendliness.
+    // codes (NDTEAM, NODICE88, NODICE99, LEONIE, LLEE01) accept any case
+    // for friendliness.
     const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
     const access = ACCESS_CODES[candidate]
     if (access) {
