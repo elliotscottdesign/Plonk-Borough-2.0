@@ -156,37 +156,31 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
 
   // localStorage namespacing — per-access-code so signatures don't bleed
   // across sessions. agreementId distinguishes Leonie's vs Lee's draft.
-  const storageKey = namespacedKey('agreement_sig_' + agreementId)
+  // Two slots per agreement now — one for the Investor, one for the
+  // Founder counter-signature. Each side has its own fillable form
+  // so the founder can sign when reviewing under 888999.
+  const investorKey = namespacedKey('agreement_sig_'        + agreementId)
+  const founderKey  = namespacedKey('agreement_founder_sig_' + agreementId)
 
-  const [sig, setSig]       = useState(() => readSig(storageKey))
-  const [name, setName]     = useState(investorName || '')
-  const [date, setDate]     = useState(todayISO())
-  const [agreed, setAgreed] = useState(false)
-  // Temporary suppression flag — when set, we render as if unsigned so
-  // the print dialog generates the blank-version PDF.
+  const [investorSig, setInvestorSig] = useState(() => readSig(investorKey))
+  const [founderSig,  setFounderSig]  = useState(() => readSig(founderKey))
+
+  // Temporary suppression flag — when set, both signatures render as
+  // empty lines so the print dialog generates the blank-version PDF.
   const [forceBlank, setForceBlank] = useState(false)
 
-  const canSign = name.trim().length >= 2 && date && agreed && !sig
-  const isSigned = !!sig && !forceBlank
+  const showInvestorSigned = !!investorSig && !forceBlank
+  const showFounderSigned  = !!founderSig  && !forceBlank
 
-  const handleSign = () => {
-    if (!canSign) return
-    const stamped = {
-      name:   name.trim(),
-      date:   date,
-      signedAt: new Date().toISOString(),
-    }
-    writeSig(storageKey, stamped)
-    setSig(stamped)
-  }
+  // The signed PDF is downloadable as soon as the INVESTOR has signed.
+  // Founder counter-signature can come later — if it's also signed at
+  // print time it shows up too.
+  const isSigned = showInvestorSigned
 
-  const handleClear = () => {
-    if (!sig) return
-    if (!window.confirm('Clear your signature? You will need to re-sign to save the agreement again.')) return
-    clearSig(storageKey)
-    setSig(null)
-    setAgreed(false)
-  }
+  const saveInvestor = (sig) => { writeSig(investorKey, sig); setInvestorSig(sig) }
+  const clearInvestor = () => { clearSig(investorKey); setInvestorSig(null) }
+  const saveFounder  = (sig) => { writeSig(founderKey, sig); setFounderSig(sig) }
+  const clearFounder = () => { clearSig(founderKey); setFounderSig(null) }
 
   // "Save Signed PDF" — just opens the print dialog. Browser handles
   // the "Save as PDF" choice in the destination menu.
@@ -198,22 +192,34 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
   // "Download Blank for In-Person Signing" — temporarily render as
   // if unsigned, fire print, then restore the signature on close.
   const handlePrintBlank = () => {
-    const wasSigned = !!sig
     setForceBlank(true)
-    // give React a tick to re-render, then print
     setTimeout(() => {
       window.print()
-      // Restore the signature display after the print dialog closes.
-      // afterprint event fires reliably across modern browsers.
       const restore = () => { setForceBlank(false); window.removeEventListener('afterprint', restore) }
       window.addEventListener('afterprint', restore)
-      // Fallback in case afterprint doesn't fire (older Safari, some VMs)
       setTimeout(restore, 4000)
     }, 50)
   }
 
   // "Print" — current state, whatever it is
   const handlePrintCurrent = () => { window.print() }
+
+  // Status banner copy depends on which combination of signatures
+  // are in place — gives clear feedback in all 4 states.
+  let statusTone = 'amber'
+  let statusBody = null
+  if (showInvestorSigned && showFounderSigned) {
+    statusTone = 'teal'
+    statusBody = <>✓ <strong>Counter-signed.</strong> Investor: {investorSig.name} on {prettyDate(investorSig.date)} · Founder: {founderSig.name} on {prettyDate(founderSig.date)} · stored locally — click "Save Signed PDF" to download a printable copy.</>
+  } else if (showInvestorSigned) {
+    statusTone = 'teal'
+    statusBody = <>✓ <strong>Signed by Investor</strong> ({investorSig.name} on {prettyDate(investorSig.date)}) · Founder counter-signature still pending. Click "Save Signed PDF" to download.</>
+  } else if (showFounderSigned) {
+    statusTone = 'amber'
+    statusBody = <>✓ <strong>Founder signed</strong> ({founderSig.name} on {prettyDate(founderSig.date)}) · awaiting Investor signature below.</>
+  } else {
+    statusBody = <>⚠ <strong>Awaiting signatures.</strong> Both sides can e-sign below by typing the full name + date and ticking the "I agree" box.</>
+  }
 
   return (
     <div data-agreement-signblock style={{ marginTop: 36 }}>
@@ -244,24 +250,24 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
         </button>
       </div>
 
-      {/* Status banner */}
+      {/* Status banner — reflects both signature states */}
       <div style={{
         padding: '10px 14px',
-        background: isSigned ? 'rgba(45,212,191,0.08)' : 'rgba(252,211,77,0.06)',
-        border: '1px solid ' + (isSigned ? 'rgba(45,212,191,0.4)' : 'rgba(252,211,77,0.3)'),
+        background: statusTone === 'teal' ? 'rgba(45,212,191,0.08)' : 'rgba(252,211,77,0.06)',
+        border: '1px solid ' + (statusTone === 'teal' ? 'rgba(45,212,191,0.4)' : 'rgba(252,211,77,0.3)'),
         borderRadius: 8,
         marginBottom: 18,
         fontSize: 12,
-        color: isSigned ? '#5EEAD4' : '#FCD34D',
+        color: statusTone === 'teal' ? '#5EEAD4' : '#FCD34D',
         letterSpacing: '0.04em',
+        lineHeight: 1.55,
       }}>
-        {isSigned
-          ? <>✓ <strong>Signed by {sig.name} on {prettyDate(sig.date)}</strong> · stored locally — click "Save Signed PDF" above to download a printable copy.</>
-          : <>⚠ <strong>Awaiting signature.</strong> Fill in your full name + date below and tick the "I agree" box to e-sign. The agreement is then downloadable as a PDF.</>}
+        {statusBody}
       </div>
 
-      {/* Signature block — A signed wet-style display when signed; the
-          fillable form when not signed. */}
+      {/* Signature block — Founder and Investor side by side. BOTH are
+          fillable forms (founder fills in when signing under 888999;
+          investor fills in when signing under LEONIE / LEE01). */}
       <div style={{
         padding: '22px 26px',
         background: INK_BG,
@@ -274,106 +280,27 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 26 }}>
 
-          {/* LEFT — Founder (No Dice Bars Ltd / No Dice Hackney Ltd, signed at execution) */}
-          <div>
-            <div style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Founder</div>
-            <div className="serif" style={{ fontSize: 16, color: CREAM, marginBottom: 18 }}>{founderName || 'Elliot Scott'}</div>
-            <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32 }} />
-            <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>Signature · countersigned on execution</div>
-            <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32, marginTop: 12 }} />
-            <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>Date</div>
-          </div>
+          {/* LEFT — Founder counter-signature */}
+          <SignatureSide
+            roleLabel="Founder"
+            defaultName={founderName || 'Elliot Scott'}
+            signedSubLabel="Signature · countersigned"
+            sig={showFounderSigned ? founderSig : null}
+            forceBlank={forceBlank}
+            onSign={saveFounder}
+            onClear={clearFounder}
+          />
 
-          {/* RIGHT — Investor (the typed e-signature or blank lines) */}
-          <div>
-            <div style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Investor</div>
-            <div className="serif" style={{ fontSize: 16, color: CREAM, marginBottom: 18 }}>{investorName}</div>
-
-            {isSigned ? (
-              <>
-                {/* Signature line filled in — typed name styled cursively */}
-                <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32, position: 'relative' }}>
-                  <span style={{
-                    position: 'absolute',
-                    bottom: 4,
-                    left: 0,
-                    fontFamily: "'DM Serif Display', serif",
-                    fontStyle: 'italic',
-                    fontSize: 22,
-                    color: '#FCD34D',
-                  }}>{sig.name}</span>
-                </div>
-                <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>Signature · e-signed</div>
-                <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32, marginTop: 12, position: 'relative' }}>
-                  <span style={{ position: 'absolute', bottom: 4, left: 0, fontSize: 14, color: CREAM }}>{prettyDate(sig.date)}</span>
-                </div>
-                <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>Date</div>
-                <button
-                  onClick={handleClear}
-                  className="print-hide"
-                  style={{
-                    marginTop: 16,
-                    padding: '6px 12px',
-                    background: 'transparent',
-                    border: '1px solid rgba(229,57,53,0.4)',
-                    color: '#E53935',
-                    borderRadius: 6,
-                    fontSize: 11,
-                    letterSpacing: '0.08em',
-                    textTransform: 'uppercase',
-                    cursor: 'pointer',
-                    fontWeight: 600,
-                  }}
-                >Clear signature</button>
-              </>
-            ) : (
-              <>
-                {/* Empty signature lines (in print) AND interactive form (on screen) */}
-                <div className="print-only">
-                  <div style={{ borderBottom: '1px solid #555', height: 32 }} />
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>Signature</div>
-                  <div style={{ borderBottom: '1px solid #555', height: 32, marginTop: 12 }} />
-                  <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>Date</div>
-                </div>
-                <div className="print-hide">
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Type your full name</label>
-                    <input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder={investorName || 'Full name'}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <div style={{ marginBottom: 12 }}>
-                    <label style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
-                    <input
-                      type="date"
-                      value={date}
-                      onChange={(e) => setDate(e.target.value)}
-                      style={inputStyle}
-                    />
-                  </div>
-                  <label style={{ display: 'flex', gap: 10, fontSize: 12, color: CREAM_D, lineHeight: 1.5, marginBottom: 14, cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={agreed}
-                      onChange={(e) => setAgreed(e.target.checked)}
-                      style={{ marginTop: 3 }}
-                    />
-                    <span>I confirm I have read and agree to all clauses of this Investment Agreement. By ticking this box and entering my name, I provide my electronic signature.</span>
-                  </label>
-                  <button
-                    onClick={handleSign}
-                    disabled={!canSign}
-                    style={signBtn(canSign)}
-                  >
-                    Sign Agreement
-                  </button>
-                </div>
-              </>
-            )}
-          </div>
+          {/* RIGHT — Investor */}
+          <SignatureSide
+            roleLabel="Investor"
+            defaultName={investorName || ''}
+            signedSubLabel="Signature · e-signed"
+            sig={showInvestorSigned ? investorSig : null}
+            forceBlank={forceBlank}
+            onSign={saveInvestor}
+            onClear={clearInvestor}
+          />
         </div>
       </div>
 
@@ -382,6 +309,129 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
         E-signature is for draft acceptance only. Final execution may require a counter-signed wet-signature copy on advice of the parties' solicitors. Subject to contract · Confidential.
       </div>
 
+    </div>
+  )
+}
+
+// ─── SignatureSide ───────────────────────────────────────────────────
+// One column of the side-by-side Signatures grid. Self-contained: holds
+// its own form state (name, date, agreed) so the Founder and Investor
+// forms don't share validation. Parent owns the persisted `sig` and the
+// onSign/onClear callbacks that write to localStorage.
+function SignatureSide({ roleLabel, defaultName, signedSubLabel, sig, forceBlank, onSign, onClear }) {
+  const [name, setName]     = useState(defaultName || '')
+  const [date, setDate]     = useState(todayISO())
+  const [agreed, setAgreed] = useState(false)
+
+  const isSigned = !!sig && !forceBlank
+  const canSign  = !isSigned && name.trim().length >= 2 && date && agreed
+
+  const handleSign = () => {
+    if (!canSign) return
+    onSign({
+      name:     name.trim(),
+      date,
+      signedAt: new Date().toISOString(),
+    })
+  }
+
+  const handleClear = () => {
+    if (!sig) return
+    if (!window.confirm(`Clear the ${roleLabel.toLowerCase()} signature?`)) return
+    onClear()
+    setAgreed(false)
+  }
+
+  return (
+    <div>
+      <div style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>{roleLabel}</div>
+      <div className="serif" style={{ fontSize: 16, color: CREAM, marginBottom: 18 }}>{defaultName}</div>
+
+      {isSigned ? (
+        <>
+          {/* Signature line filled in — typed name styled cursively */}
+          <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32, position: 'relative' }}>
+            <span style={{
+              position: 'absolute',
+              bottom: 4,
+              left: 0,
+              fontFamily: "'DM Serif Display', serif",
+              fontStyle: 'italic',
+              fontSize: 22,
+              color: '#FCD34D',
+            }}>{sig.name}</span>
+          </div>
+          <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>{signedSubLabel}</div>
+          <div style={{ borderBottom: '1px solid rgba(201,168,76,0.4)', height: 32, marginTop: 12, position: 'relative' }}>
+            <span style={{ position: 'absolute', bottom: 4, left: 0, fontSize: 14, color: CREAM }}>{prettyDate(sig.date)}</span>
+          </div>
+          <div style={{ fontSize: 11, color: CREAM_D, marginTop: 6 }}>Date</div>
+          <button
+            onClick={handleClear}
+            className="print-hide"
+            style={{
+              marginTop: 16,
+              padding: '6px 12px',
+              background: 'transparent',
+              border: '1px solid rgba(229,57,53,0.4)',
+              color: '#E53935',
+              borderRadius: 6,
+              fontSize: 11,
+              letterSpacing: '0.08em',
+              textTransform: 'uppercase',
+              cursor: 'pointer',
+              fontWeight: 600,
+            }}
+          >Clear signature</button>
+        </>
+      ) : (
+        <>
+          {/* Empty signature lines (in print) */}
+          <div className="print-only">
+            <div style={{ borderBottom: '1px solid #555', height: 32 }} />
+            <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>Signature</div>
+            <div style={{ borderBottom: '1px solid #555', height: 32, marginTop: 12 }} />
+            <div style={{ fontSize: 11, color: '#666', marginTop: 6 }}>Date</div>
+          </div>
+          {/* Interactive form (on screen) */}
+          <div className="print-hide">
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Type your full name</label>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={defaultName || 'Full name'}
+                style={inputStyle}
+              />
+            </div>
+            <div style={{ marginBottom: 12 }}>
+              <label style={{ fontSize: 11, color: CREAM_D, letterSpacing: '0.08em', textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Date</label>
+              <input
+                type="date"
+                value={date}
+                onChange={(e) => setDate(e.target.value)}
+                style={inputStyle}
+              />
+            </div>
+            <label style={{ display: 'flex', gap: 10, fontSize: 12, color: CREAM_D, lineHeight: 1.5, marginBottom: 14, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={agreed}
+                onChange={(e) => setAgreed(e.target.checked)}
+                style={{ marginTop: 3 }}
+              />
+              <span>I confirm I have read and agree to all clauses of this Investment Agreement. By ticking this box and entering my name, I provide my electronic signature.</span>
+            </label>
+            <button
+              onClick={handleSign}
+              disabled={!canSign}
+              style={signBtn(canSign)}
+            >
+              Sign Agreement
+            </button>
+          </div>
+        </>
+      )}
     </div>
   )
 }
