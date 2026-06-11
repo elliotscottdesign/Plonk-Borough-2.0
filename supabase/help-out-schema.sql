@@ -37,8 +37,10 @@ create unique index if not exists bar_helpers_token_idx on public.bar_helpers(to
 alter table public.bar_helpers add column if not exists task_states jsonb not null default '{}'::jsonb;
 alter table public.bar_helpers add column if not exists skill text default 'intermediate';   -- novice | intermediate | experienced
 alter table public.bar_helpers add column if not exists task_shift jsonb not null default '{}'::jsonb;  -- { taskId: shift date } which shift a job was allocated to
--- Admin per-job overrides (difficulty + recurring), keyed by task id.
-alter table public.help_settings add column if not exists task_meta jsonb not null default '{}'::jsonb;  -- { taskId: { difficulty, recurring } }
+-- Admin per-job overrides (difficulty/recurring/title/detail/deleted), by task id.
+alter table public.help_settings add column if not exists task_meta jsonb not null default '{}'::jsonb;  -- { taskId: { difficulty, recurring, title, detail, deleted } }
+-- Admin-created jobs (merged into the board alongside the built-in task list).
+alter table public.help_settings add column if not exists custom_tasks jsonb not null default '[]'::jsonb;  -- [{id,title,cat,area,priority,detail,difficulty,recurring}]
 
 -- The table is read/written ONLY by the help-out edge function (service role),
 -- so no anon policies are needed — the public key can't read or write it.

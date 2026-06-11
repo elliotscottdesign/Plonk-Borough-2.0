@@ -78,9 +78,9 @@ Deno.serve(async (req) => {
       const { data, error } = await sb.from("djs").insert({
         dj_name: f.dj_name || "New DJ", real_name: f.real_name || null, genres: f.genres || null,
         instagram: f.instagram || null, format: f.format || null, phone: f.phone || null, email: f.email || null,
-      }).select("token").maybeSingle();
+      }).select("id, token").maybeSingle();
       if (error) return json({ error: error.message }, 500);
-      return json({ token: data?.token });
+      return json({ id: data?.id, token: data?.token });
     }
     case "saveDj": {
       const f = profile || {};

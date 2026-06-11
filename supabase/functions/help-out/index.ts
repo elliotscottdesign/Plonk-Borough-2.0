@@ -296,8 +296,8 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   // Cap config: a global default plus per-day overrides ("bump to 3 on busy days").
-  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps,task_meta").eq("id", 1).maybeSingle();
-  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {} };
+  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps,task_meta,custom_tasks").eq("id", 1).maybeSingle();
+  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {}, custom_tasks: [] };
   const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
   const meta = cfg.task_meta || {};
   const customTasks: any[] = Array.isArray(cfg.custom_tasks) ? cfg.custom_tasks : [];

@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { djAdmin, inviteLink, resizeImage } from '../../dj/api.js'
 import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from '../../dj/FormatPicker.jsx'
@@ -35,10 +35,20 @@ export default function DJRoster({ djs, reload }) {
   const [copied, setCopied] = useState(null)
   const [busy, setBusy] = useState(false)
 
+  const editRef = useRef(null)
+  // When a profile opens for editing (esp. a freshly-added one), scroll it into view.
+  useEffect(() => { if (editing) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [editing])
   const startEdit = (d) => { setEditing(d.id); setForm({ ...d }) }
   const onField = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const saveEdit = async () => { setBusy(true); try { await djAdmin('saveDj', { id: editing, profile: form }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const addNew = async () => { setBusy(true); try { await djAdmin('addDj', { profile: { dj_name: 'New DJ' } }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const addNew = async () => {
+    setBusy(true); setQ('')   // clear search so the new profile is visible
+    try {
+      const res = await djAdmin('addDj', { profile: { dj_name: 'New DJ' } })
+      await reload()
+      if (res?.id) startEdit({ id: res.id, dj_name: 'New DJ' })   // open the new profile straight away
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const removeDj = async (id) => { if (!window.confirm('Remove this DJ profile?')) return; setBusy(true); try { await djAdmin('removeDj', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const copyInvite = (d) => { try { navigator.clipboard.writeText(inviteLink(d.token)) } catch { /* ignore */ } setCopied(d.id); setTimeout(() => setCopied(null), 1600) }
   // Normalise a stored phone to WhatsApp's international form (digits only).
@@ -95,7 +105,7 @@ export default function DJRoster({ djs, reload }) {
           const ig = igHref(d.instagram)
           const isEdit = editing === d.id
           return (
-            <div key={d.id} style={{ background: '#0A0A0A', border: `1px solid ${done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 12, padding: 14 }}>
+            <div key={d.id} ref={isEdit ? editRef : null} style={{ background: '#0A0A0A', border: `1px solid ${isEdit ? '#DA1B33' : done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Avatar d={d} />
                 <div style={{ flex: 1, minWidth: 0 }}>
