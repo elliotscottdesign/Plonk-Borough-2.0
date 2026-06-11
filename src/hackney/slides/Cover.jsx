@@ -1,5 +1,5 @@
 import React from 'react'
-import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment, computeForecastProfit, computeInvestorDividend } from '../../data/hackney.js'
+import { DEAL, ACTUALS_2025, FORECAST, computeDealFromInvestment } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
 import FundingSlider from '../components/FundingSlider.jsx'
 
@@ -21,9 +21,9 @@ const fmt = (n) => '£' + Math.round(n).toLocaleString('en-GB')
 // the A-share class as pre-money holdback. The founder + A-share
 // holders agree the per-share dividend at each review window;
 // nothing about the indicative return on this card is contractual.
-function InvestorReturnsCard({ investment, investorEq, investorReturn, liveProfit }) {
+function InvestorReturnsCard({ investorEq }) {
   const equityPct = (investorEq * 100).toFixed(1)
-  const operatingProfitFmt = fmt(liveProfit || 0)
+  const shares = Math.round(investorEq * 100)
 
   return (
     <div style={{
@@ -47,23 +47,23 @@ function InvestorReturnsCard({ investment, investorEq, investorReturn, liveProfi
         <span style={{ color: 'var(--cream-dim)', marginLeft: 4 }}>{equityPct}% equity</span>
       </div>
 
-      {/* Three primary stats */}
+      {/* Three structural stats — NO return projections */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 18 }}>
         <ReturnStat label="Ownership" value={`${equityPct}%`} />
-        <ReturnStat label="Indicative Y1 Dividend" value={fmt(investorReturn)} />
-        <ReturnStat label="Target Capital Return" value="~2 years" gold />
+        <ReturnStat label="Shares" value={`${shares} / 100`} />
+        <ReturnStat label="Share Class" value="B" gold />
       </div>
 
-      {/* Footer line */}
+      {/* Footer line — purely structural */}
       <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
         Share class: <strong style={{ color: 'var(--cream)' }}>B (non-voting)</strong>
         {' · '}Equity: <strong style={{ color: 'var(--cream)' }}>{equityPct}%</strong>
-        {' · '}Cadence: <strong style={{ color: 'var(--cream)' }}>Y1 @ mo 12, Y2+ semi-annual</strong>
+        {' · '}Review cadence: <strong style={{ color: 'var(--cream)' }}>Y1 @ mo 12, Y2+ semi-annual</strong>
       </div>
 
-      {/* Indicative-only disclaimer */}
-      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(255,165,0,0.06)', border: '1px solid rgba(255,165,0,0.25)', borderRadius: 6, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-        <strong style={{ color: '#FCD34D' }}>Indicative only — not a promised return.</strong> The dividend figure above is illustrative based on the forecast Y1 operating profit ({operatingProfitFmt} base case) distributed pro-rata to each share. Actual dividends are <strong style={{ color: 'var(--cream)' }}>declared by the directors and agreed with the A-share holders</strong> at each review window, based on trailing-12-month trading + working-capital reserve. The "~2 year capital return target" is the trajectory we are aiming for; it is <strong style={{ color: 'var(--cream)' }}>not guaranteed</strong>, not contractually promised, and may be longer or shorter depending on trading.
+      {/* No-promises framing — replaces the previous "indicative dividend" card */}
+      <div style={{ marginTop: 14, padding: '10px 14px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.25)', borderRadius: 6, fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
+        <strong style={{ color: 'var(--gold)' }}>Dividends declared by directors + A-share holders.</strong> No specific per-share dividend, capital-return period or money-on-money figure is promised on this deck or in the Investors' Agreement. Each share (A or B) is entitled to the same £X declared at each review window, based on trailing-12-month trading + working-capital reserve at the time. See the Investor Returns slide for the distribution mechanism + Y3 buyback right.
       </div>
     </div>
   )
@@ -81,7 +81,7 @@ function ReturnStat({ label, value, gold }) {
 }
 
 export default function Cover() {
-  const { effective, isWageLocked, wageEffective } = useLockedUseOfFunds()
+  const { effective } = useLockedUseOfFunds()
 
   // Build a deal-shape struct — DEAL constants for governance fields
   // (investor/founder equity etc.) overlaid with the live computed
@@ -90,19 +90,16 @@ export default function Cover() {
   const dealLive      = computeDealFromInvestment(fundingAmount)
   const deal          = { ...DEAL, ...dealLive }
 
-  // Operating profit cascades from the locked wage calculator (if locked)
-  // through computeForecastProfit. Indicative Y1 dividend = the investor's
-  // share count × (operating profit / 100). Actual dividend is at director
-  // discretion — see the disclaimer in InvestorReturnsCard.
-  const wagesOverride  = isWageLocked ? wageEffective.loadedAnnual : null
-  const liveProfit     = computeForecastProfit(wagesOverride)
-  const investorReturn = computeInvestorDividend(liveProfit, fundingAmount)
+  // No per-investor projection is computed on Cover any more — the
+  // InvestorReturnsCard shows ownership + share count only. Dividend
+  // figures live in the WaterfallReturns slide with explicit "not
+  // promised" framing.
 
   const stats = [
     { label: 'Seeking',                  value: `${fmt(fundingAmount)} inc VAT`,      sub: 'Up to 19 of 100 shares (£1k per share) · founder retains 76 A-class voting shares' },
     { label: '2025 Verified Revenue',    value: fmt(ACTUALS_2025.revenue),            sub: 'Real bar-only trading history — not a projection' },
-    { label: 'Indicative Y1 Dividend',   value: fmt(investorReturn),                  sub: 'Forecast basis · actual declared by directors + A-share holders at 12-month review' },
-    { label: 'Distribution Model',       value: '£ per share',                        sub: 'Directors declare £X per share · Y1 at month 12 · Y2+ every 6 months' },
+    { label: 'Share Structure',          value: '100 × £1k',                          sub: '76 A-class founder voting · 24 B-class non-voting external' },
+    { label: 'Distribution Model',       value: '£ per share',                        sub: 'Directors + A-share holders declare £X per share · Y1 @ mo 12, Y2+ every 6 months' },
     { label: 'Forecast Revenue',         value: fmt(FORECAST.revenue),                sub: 'Base case +15% · bar-only · May 2026–Apr 2027' },
     { label: 'Valuation Entry',          value: `${deal.impliedMult.toFixed(2)}×`,    sub: 'EBITDA · below 4.1× hospitality sector average' },
   ]
@@ -139,12 +136,7 @@ export default function Cover() {
           stat grid. Slider drives every figure across the deck via
           LockedUseOfFundsContext. */}
       <FundingSlider />
-      <InvestorReturnsCard
-        investment={fundingAmount}
-        investorEq={deal.investorEq}
-        investorReturn={investorReturn}
-        liveProfit={liveProfit}
-      />
+      <InvestorReturnsCard investorEq={deal.investorEq} />
 
       <div style={{ marginTop: 40, padding: '16px 24px', background: 'rgba(201,168,76,0.06)', border: '1px solid rgba(201,168,76,0.15)', borderRadius: 10 }}>
         <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.6 }}>

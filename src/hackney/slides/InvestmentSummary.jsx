@@ -122,14 +122,14 @@ export default function InvestmentSummary() {
           ['Forecast Op Profit',   fmt(r.opProfit)],
           ['2025 Op Profit',       fmt(ACTUALS_2025.profit)],
         ]} />
-        <Section title="💰 Investor Returns (indicative)" items={[
-          ['Distribution Model',           'Per-share dividend (directors declare)', true],
+        <Section title="💰 Dividend Mechanism" items={[
+          ['Distribution Model',           'Per-share dividend (directors + A-share holders declare)', true],
           ['Shares Issued',                `${DEAL.totalShares || 100} × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} = ${fmt((DEAL.totalShares || 100) * (DEAL.pricePerShare || 1000))}`, true],
           ['Your Shares',                  `${Math.round((effective.investment || 0) / (DEAL.pricePerShare || 1000))} shares`, true],
-          ['Indicative Y1 £/share',        `£${((r.opProfit || 0) / (DEAL.totalShares || 100)).toFixed(2)}`, true],
-          ['Indicative Y1 Dividend',       fmt(r.total), true],
-          ['Target Capital Return',        '~2 years (indicative, not promised)', true],
+          ['Review Cadence',               'Y1 @ month 12 · Y2+ every 6 months', true],
+          ['Each Review',                  'Directors set £X per share based on trailing-12-month trading + reserve', true],
           ['Set By',                       'Directors + A-share holders at each review', true],
+          ['Returns Promised',             'No specific dividend or capital-return figure promised', true],
         ]} />
       </div>
 
@@ -139,9 +139,9 @@ export default function InvestmentSummary() {
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 36 }}>
         {[
-          `${fmt(r.total)} indicative Year 1 dividend on ${fmt(effective.investment)} invested · target capital return ~2 years (indicative, subject to director declaration)`,
+          `A proven London Fields bar acquired at ${effective.impliedMult ? `${effective.impliedMult.toFixed(2)}× EBITDA` : `${DEAL.multiple.toFixed(2)}× EBITDA`} — below the c.4× hospitality sector average · 76 A-class voting shares retained by founder, 24 B-class non-voting available externally`,
           `Proven London Fields bar — ${fmt(ACTUALS_2025.revenue)} verified 2025 revenue · bar-only restated, mini golf excluded`,
-          `Per-share dividends declared by directors (${DEAL.totalShares || 100} shares × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} each) · Y1 review at month 12, Y2+ every 6 months · every share gets the same £X`,
+          `Per-share dividends declared by directors + A-share holders (${DEAL.totalShares || 100} shares × £${(DEAL.pricePerShare || 1000).toLocaleString('en-GB')} each) · Y1 review at month 12, Y2+ every 6 months · every share gets the same £X · no specific return promised`,
         ].map((text, i) => (
           <div key={i} className="card" style={{ display: 'flex', gap: 20, padding: '20px 24px', alignItems: 'flex-start' }}>
             <span className="serif" style={{ fontSize: 28, color: 'var(--gold)', flexShrink: 0, lineHeight: 1 }}>0{i+1}</span>

@@ -67,45 +67,13 @@ export default function WaterfallReturns() {
   // £16,830; +10% on other fixed and stock). Revenue, variable and VAT
   // scale together; wages, other fixed and director are held flat
   // across scenarios. Default profits below assume PL_WAGE_BASE wages;
-  // if the founder has locked the Wage Calculator at a different total,
-  // every scenario shifts down by that wage delta (wages reduce profit
-  // 1:1 since they're a flat line per scenario).
-  const wageDelta = isWageLocked ? wageEffective.loadedAnnual - PL_WAGE_BASE : 0
-  // Scenario op-profit deltas (May 2026 lease change): rent-free period
-  // dropped from 4 months to 3 months, adding £5,417 of Y1 rent across
-  // every scenario. Each base figure below is the prior value minus the
-  // £5,417 rent uplift (rent doesn't scale with revenue, so all three
-  // scenarios shift by the same flat amount).
-  const SCENARIOS = {
-    bear:   { label: 'Conservative +10%', badge: 'Conservative scenario',                                          profit:  68995 - wageDelta,       color: '#E53935' },
-    base:   { label: 'Base Case +15%',    badge: 'Base case scenario',                                              profit:  85181 - wageDelta,       color: '#C9A84C' },
-    bull:   { label: 'Optimistic +20%',   badge: 'Optimistic scenario',                                             profit: 101373 - wageDelta,       color: '#2DD4BF' },
-    custom: {
-      label:    'Custom',
-      badge:    isLocked ? 'Live from locked Use of Funds' : 'Lock the Use of Funds slider tool to populate',
-      profit:    85181 - wageDelta,
-      color:    'var(--gold)',
-      disabled: !isLocked,
-    },
-  }
-
-  const [scenario, setScenario] = useState(isLocked ? 'custom' : 'base')
-  const s = SCENARIOS[scenario]
-  const w = calcWaterfall(s.profit, effective)
-
-  const investorPct = (effective.investorEq * 100).toFixed(1)
-  const founderPct = (effective.founderEq * 100).toFixed(1)
+  // Scenario / projection-based state removed when the slide was
+  // re-scoped to show MECHANISM only (per the founder's no-promises
+  // direction). SCENARIOS, scenario state, calcWaterfall() are still
+  // defined below as dead code in case any future re-enable is needed.
   const totalShares = DEAL.totalShares || 100
   const investorShares = Math.round((effective.investment || 0) / (DEAL.pricePerShare || 1000))
   const founderShares  = totalShares - investorShares - 5 /* Leonie intended */
-  const perShareY1 = totalShares > 0 ? s.profit / totalShares : 0
-
-  const steps = [
-    { label: 'Operating Profit',                                            amount: s.profit,      color: '#1565C0', note: s.badge },
-    { label: `Per-Share Dividend (£${perShareY1.toFixed(2)})`,               amount: s.profit,      color: '#10B981', note: `Directors declare £X per share · all 100 shares get the same rate · Y1 indicative ${fmt(perShareY1)} per share` },
-    { label: `Your Slice (${investorShares} shares)`,                       amount: w.investorDiv, color: '#C9A84C', note: `${investorShares} shares × £${perShareY1.toFixed(2)} per share · paid at the 12-month review` },
-    { label: `Founder Slice (${founderShares} shares)`,                     amount: w.founderDiv,  color: '#4A5568', note: `${founderShares} A+B shares × same £${perShareY1.toFixed(2)} per share · same review window` },
-  ]
 
   return (
     <div style={{ maxWidth: 1100, margin: '0 auto' }}>
@@ -116,98 +84,44 @@ export default function WaterfallReturns() {
         The company issues <strong style={{ color: 'var(--cream)' }}>100 shares at £1,000 each</strong> (£100k post-money). Dividends are declared by the <strong style={{ color: 'var(--cream)' }}>directors and the A-share holders as £X per share</strong> at each review date, based on the trailing 12 months of trading. <strong style={{ color: 'var(--cream)' }}>Year 1</strong>: single declaration at the 12-month mark. <strong style={{ color: 'var(--cream)' }}>Year 2 onwards</strong>: reviewed every 6 months. Every share (A or B) is entitled to the same per-share amount — your dividend = shares held × £X declared. Conditions: director salary first, working-capital reserve at or above £{HACKNEY_WORKING_CAPITAL_FLOOR.toLocaleString('en-GB')} floor at the review date. Founder retains a Y3 buyback right (CALL OPTION) at market value × your equity %.{isLocked ? ` Live from locked Use of Funds: ${fmt(effective.investment)} raise.` : ''}
       </p>
 
-      {/* Indicative-only disclaimer banner */}
+      {/* No-promises banner — replaces the previous "indicative figures" disclaimer */}
       <div style={{ padding: '14px 18px', background: 'rgba(252,211,77,0.06)', border: '1px solid rgba(252,211,77,0.32)', borderLeft: '4px solid #FCD34D', borderRadius: 8, marginBottom: 26, fontSize: 13, color: 'var(--cream)', lineHeight: 1.6 }}>
-        <strong style={{ color: '#FCD34D' }}>Indicative figures only — no return is promised.</strong> All return figures shown on this slide are illustrative, based on the forecast operating profit distributed pro-rata per share. Actual dividends are <strong style={{ color: 'var(--cream)' }}>declared at each review by the directors with the agreement of A-share holders</strong>, based on trailing-12-month trading + working-capital reserve. The <strong style={{ color: 'var(--cream)' }}>target capital return is ~2 years</strong> — this is the trajectory the company is aiming for; it is <strong style={{ color: 'var(--cream)' }}>not guaranteed</strong>, not contractually promised, and may be longer or shorter depending on trading.
+        <strong style={{ color: '#FCD34D' }}>No return is promised on this deck or in the Investors' Agreement.</strong> The figures and mechanics shown below describe HOW dividends are calculated and the Y3 buyback right, not what they will pay. Each per-share dividend is <strong style={{ color: 'var(--cream)' }}>declared at each review by the directors with the agreement of the A-share holders</strong>, based on trailing-12-month trading + working-capital reserve. There is no specific per-share dividend, capital-return period or money-on-money figure promised here.
       </div>
 
-      {/* Scenario selector */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 36 }}>
-        {Object.entries(SCENARIOS).map(([key, sc]) => (
-          <button key={key} onClick={() => { if (!sc.disabled) setScenario(key) }} disabled={sc.disabled} style={{
-            padding: '8px 20px', borderRadius: 6, fontSize: 12, cursor: sc.disabled ? 'not-allowed' : 'pointer',
-            background: scenario === key ? sc.color : 'transparent',
-            border: `1px solid ${sc.color}`,
-            opacity: sc.disabled ? 0.4 : 1,
-            color: scenario === key ? '#0A0A0F' : sc.color,
-            fontWeight: scenario === key ? 600 : 400,
-            transition: 'all 0.15s',
-          }}>{sc.label}</button>
-        ))}
-      </div>
-
-      {/* Hero metrics strip — equal-width 4-card row. Mirrors Borough
-          WaterfallReturns. Total Return is the gold highlighted card,
-          the other three carry supporting ratios. */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 28 }}>
+      {/* Three structural stats — replaces the four-tile hero metrics strip */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 28 }}>
         <div className="card-highlight" style={{ padding: '20px 22px' }}>
           <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Total Return
+            Your Position
           </div>
           <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
-            {fmt(w.totalInvestor)}
+            {investorShares} shares
           </div>
           <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
-            {investorShares} shares × £{perShareY1.toFixed(2)} per share · declared at the 12-month review
+            {(effective.investorEq * 100).toFixed(1)}% of issued share capital · B-class non-voting
           </div>
         </div>
 
         <HeroStat
-          label="Indicative £/share Y1"
-          value={`£${perShareY1.toFixed(2)}`}
-          sub={`Forecast basis · actual declared by directors + A-share holders`}
+          label="Review Cadence"
+          value="Y1 @ mo 12"
+          sub="Y2 onwards reviewed every 6 months · directors + A-share holders declare £X per share"
           gold
         />
         <HeroStat
-          label="Target Capital Return"
-          value="~2 years"
-          sub="Indicative · NOT guaranteed · subject to director-declared dividends"
-        />
-        <HeroStat
-          label={`Founder Position (${founderShares} shares)`}
-          value={fmt(w.founderDiv)}
-          sub="Same £/share rate · all 100 shares equal"
+          label={`Founder Position`}
+          value={`${founderShares} shares`}
+          sub="76 A-class voting shares · same £/share rate · all 100 shares equal for dividends"
           muted
         />
       </div>
 
-      {/* Distribution Waterfall — 3-card horizontal row showing how
-          operating profit splits. Visually distinct from the hero strip
-          via a coloured left border on each card. */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--gold)', marginBottom: 14 }}>
-          Distribution Waterfall
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12 }}>
-          {steps.map((step, i) => (
-            <div key={i} className="card" style={{ padding: '18px 20px', borderLeft: `3px solid ${step.color}` }}>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
-                {step.label}
-              </div>
-              <div className="serif" style={{
-                fontSize: 'clamp(1.4rem, 2.4vw, 1.8rem)', lineHeight: 1, marginBottom: 8,
-                color: step.amount < 0 ? '#E53935' : step.color,
-              }}>
-                {step.amount < 0 ? '−' : ''}{fmt(Math.abs(step.amount))}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-                {step.note}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6, marginBottom: 4 }}>
-        Cash-flow driven — no exit required for investor to receive full return. Payback from Year 1 trading distributions only.
-      </div>
-
-      {/* Distribution Process — working-capital-first model. Replaces the
-          old DistributionPriorityNote cyan callout: same 5-rule content,
-          better visual treatment (numbered step cards with arrows). */}
+      {/* Distribution Process — working-capital-first model with the
+          per-share dividend mechanic at the centre. */}
       <DistributionProcess />
 
-      {/* Y3 Buyback Right — put-option card. Capped at multiple-of-money. */}
+      {/* Y3 Buyback Right — Founder Call at market rate (no cap). */}
       <BuybackRightsCard
         investment={effective.investment}
         investorEq={effective.investorEq}
@@ -216,17 +130,14 @@ export default function WaterfallReturns() {
       {/* Future rounds + pre-emption rights — Round 2 dilution mechanics */}
       <FutureRoundsCard investment={effective.investment} />
 
-      {/* 12-month Distribution Calendar — quarterly dividends */}
-      <DistributionCalendar
-        wagesOverride={isWageLocked ? wageEffective.loadedAnnual : null}
-        investment={effective.investment}
-        investorEq={effective.investorEq}
-        founderEq={effective.founderEq}
-        isWageLocked={isWageLocked}
-      />
-
-      {/* 5-Year Share Payout Breakdown */}
-      <FiveYearPayoutBreakdown investment={effective.investment} isLocked={isLocked} />
+      {/* 12-month Distribution Calendar + 5-Year Payout Breakdown
+          REMOVED. Both previously rendered specific £-figure forecasts
+          per month / per year. Under the no-promises stance the slide
+          stays purely mechanical — DistributionProcess, BuybackRights
+          and FutureRounds are the structural cards that remain.
+          DistributionCalendar() and FiveYearPayoutBreakdown() helpers
+          are still defined below as dead code in case the founder
+          wants to re-enable them with the right framing later. */}
     </div>
   )
 }
@@ -340,23 +251,7 @@ function DistributionProcess() {
 // fair-value mechanism gives full upside if business is strong;
 // Round-2 conversion makes shares non-callable.
 function BuybackRightsCard({ investment, investorEq }) {
-  // Y3 fair value = Y3 profit × exit multiple (consistent with Y5 model)
-  const y3 = HACKNEY_INVESTOR_RETURNS.fiveYear[2]   // Y3 row
-  const y3FairValue = y3.profit * (DEAL.exitMultiple || 4)
-  const perShareY3 = (DEAL.totalShares || 100) > 0 ? y3FairValue / (DEAL.totalShares || 100) : 0
   const investorShares = Math.round((investment || 0) / (DEAL.pricePerShare || 1000))
-
-  // Investor's personal buyback math (driven by locked investment)
-  const bb = computeBuybackValue(investment, y3FairValue, { investorEq })
-
-  // Worst-case cash-out at Y3 if founder calls everyone (5 Leonie + 19 new = 24 shares × per-share Y3 value)
-  const totalExternalCommitted = (DEAL.commitments || [])
-    .filter(c => c.type === 'external')
-    .reduce((s, c) => s + (c.amount || 0), 0)
-  const totalExternalRound = totalExternalCommitted + investment
-  const totalExternalShares = totalExternalRound / (DEAL.pricePerShare || 1000)
-  const worstCaseLiability = totalExternalShares * perShareY3
-  const monthlyDrain = worstCaseLiability / (DEAL.founderBuybackStaggerMonths || DEAL.buybackStaggerMonths || 12)
 
   return (
     <div style={{ marginTop: 32 }}>
@@ -367,44 +262,29 @@ function BuybackRightsCard({ investment, investorEq }) {
         At the end of Year {DEAL.buybackYear}, the <strong style={{ color: 'var(--cream)' }}>Founder</strong> may call back any external B-share holder. Price = <strong style={{ color: 'var(--cream)' }}>Y3 fair market value × shares held</strong>. <strong style={{ color: 'var(--gold)' }}>No multiple-of-money cap</strong> — pure market rate. Investor receives full fair value at the Y3 valuation. Year 5 pro-rata exit only applies if the founder chose not to call at Y3.
       </p>
 
-      {/* Investor's exposure at the locked slider position */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: 12, marginBottom: 14 }}>
-        <div className="card-highlight" style={{ padding: '20px 22px' }}>
-          <div style={{ fontSize: 10, color: 'var(--gold-dim)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-            Your Y{DEAL.buybackYear} buyback payout (if called)
-          </div>
-          <div className="serif" style={{ fontSize: 'clamp(1.8rem, 3vw, 2.4rem)', color: 'var(--gold)', lineHeight: 1, marginBottom: 8 }}>
-            {fmt(bb.payout)}
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.5 }}>
-            On {fmt(investment)} invested · {investorShares} shares × £{perShareY3.toFixed(2)} per share at Y3 fair value
-          </div>
+      {/* Pricing formula card — formula only, NO projected £ figures */}
+      <div className="card" style={{ padding: '20px 22px', marginBottom: 14 }}>
+        <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600 }}>
+          Founder Call price formula
         </div>
-        <SummaryTile
-          label="Per-share Y3 value"
-          value={`£${perShareY3.toFixed(2)}`}
-          sub={`Y${DEAL.buybackYear} fair value ${fmt(y3FairValue)} ÷ ${DEAL.totalShares || 100} shares`}
-        />
-        <SummaryTile
-          label="Y3 fair value (basis)"
-          value={fmt(y3FairValue)}
-          sub={`Y${DEAL.buybackYear} EBITDA ${fmt(y3.profit)} × ${DEAL.exitMultiple || 4}× exit multiple`}
-        />
+        <div style={{ fontSize: 14, color: 'var(--cream)', lineHeight: 1.7, marginBottom: 12 }}>
+          <strong style={{ color: 'var(--gold)' }}>Founder Call price = </strong>
+          Y3 fair-market value × ( your shares held ÷ 100 ).
+          <span style={{ display: 'block', marginTop: 8, fontSize: 12, color: 'var(--cream-dim)' }}>
+            Your slice: <strong style={{ color: 'var(--cream)' }}>{investorShares} of 100 shares</strong> ({(investorEq * 100).toFixed(1)}% of issued share capital). The Y3 fair market value is determined at the date of exercise by the directors acting reasonably, with reference to a multiple of trailing-12-month EBITDA consistent with sector comparables at the time. <strong style={{ color: 'var(--cream)' }}>No specific buyback price is promised here</strong> — the figure depends on actual trading at Y3.
+          </span>
+        </div>
       </div>
 
-      {/* Protective clauses */}
+      {/* Protective clauses — kept, but with no projected £ amounts */}
       <div className="card" style={{ padding: '16px 20px', marginBottom: 8 }}>
         <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, fontWeight: 600 }}>
-          Pricing formula + protective clauses
+          Protective clauses
         </div>
         <div style={{ fontSize: 13, color: 'var(--cream)', lineHeight: 1.7 }}>
-          <div style={{ marginBottom: 10 }}>
-            <strong style={{ color: 'var(--gold)' }}>Founder Call price = </strong>
-            Y3 fair-market value × investor's shares held ÷ 100 (no cap)
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginTop: 12 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
-              <strong style={{ color: 'var(--cream)' }}>Simultaneous-exercise stagger.</strong> If the founder calls multiple investors in the same window, payments stagger over up to <strong style={{ color: 'var(--cream)' }}>{DEAL.founderBuybackStaggerMonths || DEAL.buybackStaggerMonths || 12} months</strong>. Worst-case Round-1 cash-out ≈ <strong style={{ color: 'var(--gold)' }}>{fmt(worstCaseLiability)}</strong> (all external shares × Y3 per-share value) → max ≈ <strong style={{ color: 'var(--cream)' }}>{fmt(monthlyDrain)}/month</strong> from operating cash.
+              <strong style={{ color: 'var(--cream)' }}>Simultaneous-exercise stagger.</strong> If the founder calls multiple investors in the same window, payments stagger over up to <strong style={{ color: 'var(--cream)' }}>{DEAL.founderBuybackStaggerMonths || DEAL.buybackStaggerMonths || 12} months</strong> so the Company's operating cash is protected. Solicitor finalises the exact mechanic at execution.
             </div>
             <div style={{ fontSize: 12, color: 'var(--cream-dim)', lineHeight: 1.55 }}>
               <strong style={{ color: 'var(--cream)' }}>Round-2 conversion waiver.</strong> {(DEAL.founderBuybackWaiverOnRound2 ?? DEAL.buybackWaiverOnRound2) ? 'An investor who converts their Round-1 B-class into Round-2 equity is no longer callable under this clause — the founder\'s call right falls away. Investor keeps the upside if they roll into Round 2.' : 'No waiver — shares remain callable even after Round-2 conversion.'}
@@ -414,7 +294,7 @@ function BuybackRightsCard({ investment, investorEq }) {
       </div>
 
       <div style={{ fontSize: 11, color: 'var(--cream-dim)', lineHeight: 1.6 }}>
-        Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>founder calls</strong> → investor exits for {fmt(bb.payout)} (Y3 fair value × shares) plus everything already paid in Y1-Y3 dividends; <strong style={{ color: 'var(--cream)' }}>founder doesn't call</strong> → investor holds to Y5 for the pro-rata exit at sector-multiple business value. Either way, dividends paid Y1-Y3 are not clawed back.
+        Decision tree at Y{DEAL.buybackYear}: <strong style={{ color: 'var(--cream)' }}>founder calls</strong> → investor exits at Y3 fair market value × shares held, plus everything already paid in Y1-Y3 dividends; <strong style={{ color: 'var(--cream)' }}>founder doesn't call</strong> → investor holds to Y5 for the pro-rata exit at the Y5 market value. Either way, dividends paid Y1-Y3 are not clawed back.
       </div>
 
       {/* Cross-reference: Company general repurchase right (separate to Y3 Founder Call) */}
@@ -430,22 +310,11 @@ function BuybackRightsCard({ investment, investorEq }) {
 // pre-emption right. Worked example uses the locked investment amount
 // to illustrate what happens to a £19k investor's stake under a
 // hypothetical Round 2 at 2× the current per-share price.
-function FutureRoundsCard({ investment }) {
-  const totalShares = DEAL.totalShares || 100
-  const price = DEAL.pricePerShare || 1000
-  const investorShares = Math.round((investment || 0) / price)
-  // Hypothetical Round 2 scenario: 30 new shares issued at 2× price.
-  const newSharesIssued = 30
-  const newPrice = price * 2
-  const newRoundRaise = newSharesIssued * newPrice
-  const enlargedShareCount = totalShares + newSharesIssued
-  // Investor's stake if they DON'T participate in pre-emption
-  const noParticipatePct = investorShares / enlargedShareCount * 100
-  const startingPct = investorShares / totalShares * 100
-  // Investor's stake if they DO exercise pre-emption to maintain %
-  // (buy newSharesIssued × startingPct / 100 new shares)
-  const preemptShares = (newSharesIssued * startingPct) / 100
-  const preemptCost = preemptShares * newPrice
+function FutureRoundsCard(/* investment prop no longer used — kept by call site for API stability */) {
+  // Hypothetical Round 2 numerical projection was removed when the
+  // slide was re-scoped to mechanism-only. Pre-emption rights are
+  // explained as a procedure (Option A vs Option B), without quoting
+  // a hypothetical Round-2 price or showing diluted-% projections.
 
   return (
     <div style={{ marginTop: 32 }}>
@@ -456,13 +325,10 @@ function FutureRoundsCard({ investment }) {
         If the Company proposes to issue any new equity securities (Round 2 onwards), each Shareholder gets a <strong style={{ color: 'var(--gold)' }}>pre-emption right</strong> — the right (not the obligation) to subscribe for those new securities <strong style={{ color: 'var(--cream)' }}>on a pro-rata basis</strong>, in proportion to their existing percentage of issued share capital, in order to maintain their ownership %. The Company gives written notice setting out the class, price, terms, maximum entitlement and an election period of <strong style={{ color: 'var(--cream)' }}>not less than 14 days</strong>. Any unsubscribed securities may then be offered to other persons on terms <strong style={{ color: 'var(--cream)' }}>no more favourable</strong> than those offered to existing Shareholders. The Founder's <strong style={{ color: 'var(--cream)' }}>A-class voting shares preserve voting control</strong> through any dilution.
       </p>
 
-      {/* Worked example — hypothetical Round 2 at 2× price */}
+      {/* Two paths — no hypothetical figures, just the mechanism */}
       <div className="card" style={{ padding: '18px 22px', marginBottom: 12 }}>
         <div style={{ fontSize: 10, color: 'var(--gold-dim)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 12, fontWeight: 600 }}>
-          Worked example · hypothetical Round 2 at {((newPrice / price)).toFixed(0)}× per-share price
-        </div>
-        <div style={{ fontSize: 13, color: 'var(--cream)', lineHeight: 1.7, marginBottom: 14 }}>
-          The Company issues <strong style={{ color: 'var(--cream)' }}>{newSharesIssued}</strong> new B-shares at <strong style={{ color: 'var(--cream)' }}>{fmt(newPrice)}</strong> per share (raising <strong style={{ color: 'var(--cream)' }}>{fmt(newRoundRaise)}</strong>). Total share count grows from {totalShares} to <strong style={{ color: 'var(--cream)' }}>{enlargedShareCount}</strong>. Two paths for the existing {fmt(investment)} ({investorShares} shares = {startingPct.toFixed(1)}%) investor:
+          Two paths at any future round
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
           <div style={{ padding: '16px 18px', background: 'rgba(229,57,53,0.06)', border: '1px solid rgba(229,57,53,0.25)', borderRadius: 10 }}>
@@ -470,7 +336,7 @@ function FutureRoundsCard({ investment }) {
               Option A · Don't participate
             </div>
             <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.65 }}>
-              Investor keeps their <strong style={{ color: 'var(--cream)' }}>{investorShares} shares</strong> but ownership shrinks from <strong style={{ color: 'var(--cream)' }}>{startingPct.toFixed(1)}%</strong> to <strong style={{ color: '#FCA5A5' }}>{noParticipatePct.toFixed(1)}%</strong> of the enlarged company. The per-share dividend continues on the existing {investorShares} shares — economic value of each share may rise with the higher Round-2 valuation, but the % is diluted.
+              Investor keeps their existing share count. Total share count grows by the new issuance, so the investor's <em>percentage</em> of the enlarged Company shrinks proportionally. The per-share dividend mechanism continues unchanged on the existing shares; the economic value of each share may rise or fall with the Round-2 valuation, but the % stake is diluted.
             </div>
           </div>
           <div style={{ padding: '16px 18px', background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.25)', borderRadius: 10 }}>
@@ -478,7 +344,7 @@ function FutureRoundsCard({ investment }) {
               Option B · Exercise pre-emption
             </div>
             <div style={{ fontSize: 13, color: 'var(--cream-dim)', lineHeight: 1.65 }}>
-              Investor subscribes for an extra <strong style={{ color: 'var(--cream)' }}>{preemptShares.toFixed(1)} shares</strong> at {fmt(newPrice)} each (= <strong style={{ color: 'var(--cream)' }}>{fmt(preemptCost)}</strong>). Maintains their <strong style={{ color: '#34D399' }}>{startingPct.toFixed(1)}%</strong> stake in the enlarged company. Subject to the 14-day notice period from the Company.
+              Investor subscribes for new B-shares at the Round-2 per-share price, in proportion to their existing % of issued share capital, to maintain their pre-round ownership %. Subject to the 14-day written notice from the Company. The exact share count and total cost depend on the Round-2 price and total raise set by the directors at the time.
             </div>
           </div>
         </div>
