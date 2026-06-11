@@ -45,17 +45,19 @@ export default function PasswordGate({ onUnlock }) {
   const [input, setInput] = useState('')
   const [error, setError] = useState(false)
 
-  // Label the gate by the area being unlocked (read from the URL) so the
-  // wordmark says exactly which gateway you're entering.
-  const gatewayLabel = (() => {
+  // Label + footer for the gate, by the area being unlocked (read from the URL),
+  // so the sub-header below the wordmark matches exactly which gateway you're
+  // entering — not the generic "investor presentation".
+  const gateway = (() => {
     const p = (typeof window !== 'undefined' && window.location.pathname) || ''
-    if (/^\/ops(\/|$)/.test(p)) return 'Operations'
-    if (/^\/marketing(\/|$)/.test(p)) return 'Marketing'
-    if (/^\/hackney(\/|$)/.test(p)) return 'Investors · Hackney'
-    if (/^\/borough(\/|$)/.test(p)) return 'Investors · Borough'
-    if (/^\/worldcup(\/|$)/.test(p)) return 'World Cup'
-    if (/^\/help-out(\/|$)/.test(p)) return 'Help Out'
-    return t('eyebrow')
+    const TEAM = 'For the No Dice team'
+    if (/^\/(ops|operations)(\/|$)/.test(p)) return { label: 'Operations',           footer: TEAM }
+    if (/^\/marketing(\/|$)/.test(p))        return { label: 'Marketing',            footer: TEAM }
+    if (/^\/hackney(\/|$)/.test(p))          return { label: 'Investors · Hackney',  footer: t('footer') }
+    if (/^\/borough(\/|$)/.test(p))          return { label: 'Investors · Borough',  footer: t('footer') }
+    if (/^\/worldcup(\/|$)/.test(p))         return { label: 'World Cup',            footer: TEAM }
+    if (/^\/help-?out(\/|$)/.test(p))        return { label: 'Help Out',             footer: 'Helping us open' }
+    return { label: t('eyebrow'), footer: t('footer') }
   })()
 
   const attempt = () => {
@@ -86,7 +88,7 @@ export default function PasswordGate({ onUnlock }) {
       <div style={{ textAlign:'center' }}>
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width:'min(260px, 70vw)', height:'auto', display:'block', margin:'0 auto 14px' }} />
         <div style={{ fontSize:11, color:'rgba(255,255,255,0.55)', letterSpacing:'0.2em', textTransform:'uppercase' }}>
-          {gatewayLabel}
+          {gateway.label}
         </div>
       </div>
 
@@ -124,7 +126,7 @@ export default function PasswordGate({ onUnlock }) {
       </div>
 
       <div style={{ fontSize:10, color:'rgba(255,255,255,0.4)', letterSpacing:'0.08em', marginTop:16 }}>
-        {t('footer')}
+        {gateway.footer}
       </div>
     </div>
   )
