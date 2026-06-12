@@ -70,6 +70,9 @@ export const helpLogDone = (taskId, by) => call({ action: 'logdone', secret: SEN
 // Admin — undo a done-log entry (job returns to the board).
 export const helpRemoveDone = (logId) => call({ action: 'removedone', secret: SEND_SECRET, logId })
 
+// Admin — auto-assign jobs to any helper that has none yet (skill-aware backfill).
+export const helpAutofill = () => call({ action: 'autofill', secret: SEND_SECRET })
+
 // Admin — set the "max at once" cap. Pass date=null for the global default,
 // or a 'YYYY-MM-DD' to override one busy day.
 export const helpSetCap = (date, cap) => call({ action: 'setcap', secret: SEND_SECRET, date: date || null, cap })

@@ -658,5 +658,33 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
 
+  // ── backfill: auto-assign jobs to any helper that has none yet (admin) ──────
+  // Uses the same rules as sign-up (categories + skill level + shift capacity,
+  // priority-first), de-duping one-off jobs across everyone.
+  if (action === "autofill") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const { data: helpers } = await sb.from("bar_helpers").select("id,name,skill,categories,shifts,assigned").order("created_at");
+    const taken = new Set<string>();
+    for (const h of helpers || []) for (const id of (h.assigned || [])) { const tt = byId[id]; if (tt && !effRec(tt)) taken.add(id); }
+    const filled: any[] = [];
+    for (const h of helpers || []) {
+      if ((h.assigned || []).length > 0) continue;            // already has jobs
+      const cats: string[] = h.categories || [];
+      const shifts: any[] = h.shifts || [];
+      if (!cats.length || !shifts.length) continue;           // can't size it
+      const skillRank = SKILL_RANK[h.skill || "intermediate"] ?? 1;
+      const cap = slotsForShifts(shifts);
+      const picked = boardTasks
+        .filter((t: any) => cats.includes(effCat(t)) && (SKILL_RANK[effDiff(t)] ?? 1) <= skillRank && !taken.has(t.id))
+        .sort((a: any, b2: any) => (PW[a.priority] ?? 9) - (PW[b2.priority] ?? 9))
+        .slice(0, cap);
+      if (!picked.length) continue;
+      for (const t of picked) if (!effRec(t)) taken.add(t.id);
+      await sb.from("bar_helpers").update({ assigned: picked.map((t: any) => t.id) }).eq("id", h.id);
+      filled.push({ name: h.name, jobs: picked.length });
+    }
+    return json({ ok: true, filled });
+  }
+
   return json({ error: "unknown action" }, 400);
 });

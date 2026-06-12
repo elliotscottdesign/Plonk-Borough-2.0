@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel, SKILL_LABEL, DIFFICULTY, canDo } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helpCreateJob, helpDeleteJob, helpLogDone, helpRemoveDone, helperLink, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helpCreateJob, helpDeleteJob, helpLogDone, helpRemoveDone, helpAutofill, helperLink, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -148,7 +148,10 @@ export default function HelpOut() {
           {/* PEOPLE — delegate jobs per shift */}
           {view === 'people' && (
             <div>
-              <div className="serif" style={{ fontSize: 18, color: GOLD, marginBottom: 10 }}>Who’s signed up ({helpers.length})</div>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
+                <div className="serif" style={{ fontSize: 18, color: GOLD }}>Who’s signed up ({helpers.length})</div>
+                <button onClick={() => act('autofill', () => helpAutofill())} disabled={busy === 'autofill'} title="Auto-assign jobs to anyone who has none yet, by their skills & shifts" style={btn({ background: 'rgba(129,140,248,0.14)', border: '1px solid #818CF8', color: '#818CF8', fontWeight: 700 })}>{busy === 'autofill' ? 'Filling…' : '✨ Auto-fill empty helpers'}</button>
+              </div>
               {helpers.length === 0 && <div style={{ ...card, padding: 18, fontSize: 13, color: 'var(--cream-dim)' }}>No sign-ups yet. Share the link to get friends on board.</div>}
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {helpers.map(h => {
