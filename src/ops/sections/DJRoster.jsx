@@ -34,6 +34,10 @@ export default function DJRoster({ djs, reload }) {
   const [q, setQ] = useState('')
   const [copied, setCopied] = useState(null)
   const [busy, setBusy] = useState(false)
+  const [tab, setTab] = useState('vetted')        // 'vetted' | 'pending'
+  const [bulkOpen, setBulkOpen] = useState(false)
+  const [bulkText, setBulkText] = useState('')
+  const [bulkSource, setBulkSource] = useState('instagram')
 
   const editRef = useRef(null)
   // When a profile opens for editing (esp. a freshly-added one), scroll it into view.
@@ -44,9 +48,37 @@ export default function DJRoster({ djs, reload }) {
   const addNew = async () => {
     setBusy(true); setQ('')   // clear search so the new profile is visible
     try {
-      const res = await djAdmin('addDj', { profile: { dj_name: 'New DJ' } })
+      const pending = tab === 'pending'
+      const res = await djAdmin('addDj', { profile: { dj_name: 'New DJ', status: pending ? 'pending' : 'vetted', source: pending ? 'manual' : 'import' } })
       await reload()
-      if (res?.id) startEdit({ id: res.id, dj_name: 'New DJ' })   // open the new profile straight away
+      if (res?.id) startEdit({ id: res.id, dj_name: 'New DJ', status: pending ? 'pending' : 'vetted' })   // open the new profile straight away
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const approve = async (id) => { setBusy(true); try { await djAdmin('approve', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // Turn pasted lines into pending-DJ rows. Flexible: each line can mix name,
+  // @instagram, phone, email, genres in any order (comma / tab / pipe separated).
+  const parseBulk = (text) => String(text || '').split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split(/[\t,|]+/).map(p => p.trim()).filter(Boolean)
+    const row = {}
+    for (const p of parts) {
+      if (p.startsWith('@') || /instagram\.com/i.test(p)) { if (!row.instagram) row.instagram = p }
+      else if (/^\+?\d[\d\s()-]{6,}$/.test(p)) { if (!row.phone) row.phone = p }
+      else if (p.includes('@') && /\.[a-z]{2,}$/i.test(p)) { if (!row.email) row.email = p }
+      else if (!row.dj_name) row.dj_name = p
+      else if (!row.genres) row.genres = p
+    }
+    if (!row.dj_name && row.instagram) row.dj_name = row.instagram.replace(/^@/, '')
+    return row
+  }).filter(r => r.dj_name || r.instagram)
+  const bulkAdd = async () => {
+    const rows = parseBulk(bulkText)
+    if (!rows.length) { alert('Paste at least one contact — a name and/or an @handle per line.'); return }
+    setBusy(true)
+    try {
+      const res = await djAdmin('bulkAdd', { list: rows, source: bulkSource })
+      const n = res?.added ?? rows.length
+      setBulkText(''); setBulkOpen(false); setTab('pending'); await reload()
+      alert(`Added ${n} contact${n === 1 ? '' : 's'} to Pending.`)
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const removeDj = async (id) => { if (!window.confirm('Remove this DJ profile?')) return; setBusy(true); try { await djAdmin('removeDj', { id }); setEditing(null); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
@@ -81,8 +113,12 @@ export default function DJRoster({ djs, reload }) {
     } catch (er) { alert(er.message || 'Photo upload failed') } finally { setBusy(false) }
   }
 
-  const filtered = (djs || []).filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
-  const ready = (djs || []).filter(complete).length
+  const statusOf = (d) => d.status || 'vetted'
+  const vettedN = (djs || []).filter(d => statusOf(d) === 'vetted').length
+  const pendingN = (djs || []).filter(d => statusOf(d) === 'pending').length
+  const inTab = (djs || []).filter(d => statusOf(d) === tab)
+  const filtered = inTab.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
+  const ready = inTab.filter(complete).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -90,14 +126,47 @@ export default function DJRoster({ djs, reload }) {
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-            {(djs || []).length} DJs · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{(djs || []).length - ready} incomplete</span>
+            {tab === 'vetted'
+              ? <>{vettedN} vetted · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{vettedN - ready} incomplete</span></>
+              : <>{pendingN} pending — review &amp; <strong style={{ color: '#34D399' }}>Approve</strong> to move into the vetted roster</>}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search DJs…" style={inp(170)} />
-          <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add DJ</button>
+          {tab === 'pending' && <button onClick={() => setBulkOpen(o => !o)} disabled={busy} style={btn('ghost')}>⇪ Bulk import</button>}
+          <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add {tab === 'pending' ? 'pending' : 'DJ'}</button>
         </div>
       </div>
+
+      {/* Vetted / Pending tabs */}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['vetted', `Vetted (${vettedN})`], ['pending', `Pending (${pendingN})`]].map(([k, lbl]) => (
+          <button key={k} onClick={() => { setTab(k); setEditing(null); setBulkOpen(false); setQ('') }} style={{
+            padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
+            background: tab === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
+            border: `1px solid ${tab === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`,
+            color: tab === k ? '#DA1B33' : '#FFFFFF', fontWeight: tab === k ? 600 : 400,
+          }}>{lbl}</button>
+        ))}
+      </div>
+
+      {/* Bulk import → Pending */}
+      {bulkOpen && (
+        <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 13, color: '#fff', fontWeight: 600 }}>Bulk import contacts → Pending</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>One contact per line. Flexible — mix <em>name</em>, <em>@instagram</em>, phone, email, genres in any order (comma / tab / pipe separated). e.g. <span style={{ color: '#DA1B33' }}>Jamie T, @jamiet_dj, House / Disco</span> — or just <span style={{ color: '#DA1B33' }}>@some_dj</span>.</div>
+          <textarea value={bulkText} onChange={e => setBulkText(e.target.value)} rows={6} placeholder={'@dj_one\nJamie T, @jamiet_dj, House / Disco\n@dj_three, 07123456789'} style={{ ...inp('100%'), fontFamily: 'monospace', fontSize: 12, resize: 'vertical' }} />
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Source:</span>
+            {['instagram', 'csv-extended', 'manual'].map(s => (
+              <button key={s} onClick={() => setBulkSource(s)} style={{ padding: '5px 10px', fontSize: 11, borderRadius: 999, cursor: 'pointer', background: bulkSource === s ? '#DA1B33' : 'transparent', color: bulkSource === s ? '#fff' : 'rgba(255,255,255,0.8)', border: `1px solid ${bulkSource === s ? '#DA1B33' : 'rgba(255,255,255,0.18)'}` }}>{s}</button>
+            ))}
+            <div style={{ flex: 1 }} />
+            <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{parseBulk(bulkText).length} parsed</span>
+            <button onClick={bulkAdd} disabled={busy} style={btn('gold')}>Add to Pending</button>
+          </div>
+        </div>
+      )}
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 12 }}>
         {filtered.map(d => {
@@ -109,7 +178,10 @@ export default function DJRoster({ djs, reload }) {
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Avatar d={d} />
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{d.dj_name || 'Unnamed'}</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                    {d.dj_name || 'Unnamed'}
+                    {statusOf(d) === 'pending' && d.source && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.4)', borderRadius: 999, padding: '1px 7px' }}>{d.source}</span>}
+                  </div>
                   {d.real_name && d.real_name !== d.dj_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{d.real_name}</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>
                     {chips(d.genres).slice(0, 4).map((g, i) => <span key={i} style={chip}>{g}</span>)}
@@ -162,9 +234,19 @@ export default function DJRoster({ djs, reload }) {
                 </div>
               ) : (
                 <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                  {d.phone && <button onClick={() => waInvite(d)} style={btn('green')}>📲 WhatsApp invite</button>}
-                  <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy link'}</button>
-                  <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
+                  {statusOf(d) === 'pending' ? (
+                    <>
+                      <button onClick={() => approve(d.id)} disabled={busy} style={btn('green')}>✓ Approve</button>
+                      <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
+                      <button onClick={() => removeDj(d.id)} disabled={busy} style={btn('red')}>Remove</button>
+                    </>
+                  ) : (
+                    <>
+                      {d.phone && <button onClick={() => waInvite(d)} style={btn('green')}>📲 WhatsApp invite</button>}
+                      <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy link'}</button>
+                      <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
+                    </>
+                  )}
                 </div>
               )}
             </div>
@@ -172,8 +254,18 @@ export default function DJRoster({ djs, reload }) {
         })}
       </div>
 
+      {filtered.length === 0 && (
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '24px 16px', lineHeight: 1.6 }}>
+          {tab === 'pending'
+            ? <>No pending DJs yet. Tap <strong style={{ color: '#fff' }}>⇪ Bulk import</strong> to drop in Instagram handles or a contacts list, or <strong style={{ color: '#fff' }}>+ Add pending</strong> one by one. Vetted them later with <strong style={{ color: '#34D399' }}>Approve</strong>.</>
+            : (q ? `No DJs match "${q}".` : 'No DJs yet.')}
+        </div>
+      )}
+
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#fff' }}>Invite a DJ:</strong> tap <em>📲 WhatsApp invite</em> — it opens WhatsApp with their personal link and a ready-written message, you just hit send. No number on file? Use <em>Copy link</em>, or add their number via <em>Edit</em>. They open the link, fill their profile + photo, and can then claim your open dates (their photo auto-attaches to every event they play).
+        {tab === 'pending'
+          ? <><strong style={{ color: '#fff' }}>Pending DJs</strong> are contacts you haven't vetted yet (from Instagram, a contacts sheet, or added by hand). They can't be invited or booked. Review one, <strong style={{ color: '#34D399' }}>Approve</strong> it to move it into the Vetted roster, then send their WhatsApp invite from there.</>
+          : <><strong style={{ color: '#fff' }}>Invite a DJ:</strong> tap <em>📲 WhatsApp invite</em> — it opens WhatsApp with their personal link and a ready-written message, you just hit send. No number on file? Use <em>Copy link</em>, or add their number via <em>Edit</em>. They open the link, fill their profile + photo, and can then claim your open dates (their photo auto-attaches to every event they play).</>}
       </div>
     </div>
   )

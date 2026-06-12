@@ -33,7 +33,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -75,12 +75,34 @@ Deno.serve(async (req) => {
     }
     case "addDj": {
       const f = profile || {};
+      const st = f.status === "pending" ? "pending" : "vetted";
       const { data, error } = await sb.from("djs").insert({
         dj_name: f.dj_name || "New DJ", real_name: f.real_name || null, genres: f.genres || null,
         instagram: f.instagram || null, format: f.format || null, phone: f.phone || null, email: f.email || null,
+        status: st, source: f.source || (st === "pending" ? "manual" : "import"),
+        vetted_at: st === "vetted" ? now() : null,
       }).select("id, token").maybeSingle();
       if (error) return json({ error: error.message }, 500);
       return json({ id: data?.id, token: data?.token });
+    }
+    case "approve":
+      await sb.from("djs").update({ status: "vetted", vetted_at: now(), updated_at: now() }).eq("id", id);
+      break;
+    case "unapprove":
+      await sb.from("djs").update({ status: "pending", vetted_at: null, updated_at: now() }).eq("id", id);
+      break;
+    case "bulkAdd": {
+      // Drop a list of contacts in as PENDING (e.g. Instagram handles, a new sheet).
+      const rows = (Array.isArray(list) ? list : []).filter((r: any) => r && (r.dj_name || r.instagram)).map((r: any) => ({
+        dj_name: String(r.dj_name || (r.instagram || "").replace(/^@/, "") || "New DJ").slice(0, 120),
+        real_name: r.real_name || null, genres: r.genres || null, instagram: r.instagram || null,
+        format: r.format || null, phone: r.phone || null, email: r.email || null,
+        status: "pending", source: source || "manual",
+      }));
+      if (!rows.length) return json({ added: 0 });
+      const { data, error } = await sb.from("djs").insert(rows).select("id");
+      if (error) return json({ error: error.message }, 500);
+      return json({ added: (data || []).length });
     }
     case "saveDj": {
       const f = profile || {};

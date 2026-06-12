@@ -190,7 +190,7 @@ function Calendar({ data, reload }) {
                   </div>
                   {adding === key && (
                     <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                      <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220} options={(djs || []).map(r => ({ value: r.id, label: r.dj_name }))} />
+                      <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220} options={(djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} />
                       <input value={form.night} onChange={e => setForm(f => ({ ...f, night: e.target.value }))} placeholder="Night name (optional)" style={inp(170)} />
                       <button onClick={() => saveAdd(date, def.slot)} disabled={busy || !form.djId} style={btn('gold')}>Save</button>
                       <button onClick={() => setAdding(null)} style={btn('ghost')}>Cancel</button>
