@@ -18,6 +18,7 @@ import { LockedUseOfFundsProvider } from './components/LockedUseOfFundsContext.j
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
+import useIsMobile from '../lib/useIsMobile.js'
 import { WORKBOOK_URL } from '../data/hackney.js'
 
 // HackneyApp — clones the structure of Borough's App.jsx exactly:
@@ -151,11 +152,15 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
   const notes = useNotes()
   const isFounder = readIsFounder()
   const role = readRole()
+  const isMobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
   const visibleTabs = TOP_TABS.filter(t => {
     if (t.founderOnly && !isFounder) return false
     if (t.roleOnly && role !== t.roleOnly && !isFounder) return false
     return true
   })
+  const activeLabel = topTab === 'notes' ? 'Main Notes' : (visibleTabs.find(t => t.key === topTab)?.label || 'Menu')
+  const pick = (k) => { setTopTab(k); setMenuOpen(false) }
 
   // Keep NotesContext.activePage in lockstep with the current view so
   // the side panel's textarea binds to the right note.
@@ -172,31 +177,45 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
           Sits above the header so it can't be missed. */}
       <NotesHealthBanner />
 
-      {/* Top header — brand + tab buttons + notes cluster + back-to-Borough */}
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
-        <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>No Dice Hackney</div>
-        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
-          {visibleTabs.map(t => (
-            <button key={t.key} onClick={() => setTopTab(t.key)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===t.key?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===t.key?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t.key?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===t.key?600:400 }}>{t.label}</button>
-          ))}
-          {WORKBOOK_URL && (
-            <button onClick={() => window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer')} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'2px solid rgba(255,255,255,0.1)', color:'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}>Workbook</button>
-          )}
-        </div>
-        <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-          <button
-            onClick={() => setTopTab('notes')}
-            title="Main Notes — every note you've written, in one place"
-            style={{ padding:'8px 16px', fontSize:12, borderRadius:8, cursor:'pointer', background:topTab==='notes'?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab==='notes'?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab==='notes'?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab==='notes'?600:400 }}
-          >Main Notes</button>
-          <button
-            onClick={notes.toggle}
-            title="Open the page-notes panel for the current page"
-            style={{ padding:'8px 14px', fontSize:12, borderRadius:8, cursor:'pointer', background:notes.isOpen?'rgba(192,132,252,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${notes.isOpen?'#C084FC':'rgba(255,255,255,0.1)'}`, color:notes.isOpen?'#C084FC':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em' }}
-          >📝 Page Notes</button>
-          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', textDecoration:'none', letterSpacing:'0.1em', textTransform:'uppercase', marginLeft:8 }}>← Borough deck</a>
-        </div>
+      {/* Top header — tabs + notes collapse into a ☰ menu on phones */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', minHeight:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0, gap:10, position:'relative', zIndex:30 }}>
+        <div className="serif" style={{ fontSize:15, color:'var(--gold)', whiteSpace:'nowrap' }}>No Dice Hackney</div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:8, background:'rgba(201,168,76,0.12)', border:'1px solid var(--gold)', color:'var(--gold)', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', maxWidth:'64%' }}>
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{activeLabel}</span>
+            <span style={{ fontSize:16, lineHeight:1 }}>{menuOpen ? '✕' : '☰'}</span>
+          </button>
+        ) : (
+          <>
+            <div style={{ display:'flex', gap:4, alignItems:'center', flexWrap:'wrap', justifyContent:'center' }}>
+              {visibleTabs.map(t => (
+                <button key={t.key} onClick={() => setTopTab(t.key)} style={{ padding:'10px 22px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===t.key?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===t.key?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t.key?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===t.key?600:400, whiteSpace:'nowrap' }}>{t.label}</button>
+              ))}
+              {WORKBOOK_URL && (
+                <button onClick={() => window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer')} style={{ padding:'10px 22px', fontSize:13, borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'2px solid rgba(255,255,255,0.1)', color:'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', whiteSpace:'nowrap' }}>Workbook</button>
+              )}
+            </div>
+            <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+              <button onClick={() => setTopTab('notes')} title="Main Notes — every note you've written, in one place" style={{ padding:'8px 16px', fontSize:12, borderRadius:8, cursor:'pointer', background:topTab==='notes'?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab==='notes'?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab==='notes'?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab==='notes'?600:400, whiteSpace:'nowrap' }}>Main Notes</button>
+              <button onClick={notes.toggle} title="Open the page-notes panel for the current page" style={{ padding:'8px 14px', fontSize:12, borderRadius:8, cursor:'pointer', background:notes.isOpen?'rgba(192,132,252,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${notes.isOpen?'#C084FC':'rgba(255,255,255,0.1)'}`, color:notes.isOpen?'#C084FC':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', whiteSpace:'nowrap' }}>📝 Page Notes</button>
+              <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', textDecoration:'none', letterSpacing:'0.1em', textTransform:'uppercase', marginLeft:8, whiteSpace:'nowrap' }}>← Borough deck</a>
+            </div>
+          </>
+        )}
       </div>
+
+      {/* Mobile menu */}
+      {isMobile && menuOpen && (
+        <div style={{ background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', padding:'8px 12px 12px', display:'flex', flexDirection:'column', gap:6, flexShrink:0, position:'relative', zIndex:30 }}>
+          {visibleTabs.map(t => (
+            <button key={t.key} onClick={() => pick(t.key)} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:topTab===t.key?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`1px solid ${topTab===t.key?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===t.key?'var(--gold)':'var(--cream)', fontSize:14.5, fontWeight:topTab===t.key?600:400 }}>{t.label}</button>
+          ))}
+          <button onClick={() => pick('notes')} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:topTab==='notes'?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`1px solid ${topTab==='notes'?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab==='notes'?'var(--gold)':'var(--cream)', fontSize:14.5 }}>Main Notes</button>
+          {WORKBOOK_URL && <button onClick={() => { window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer'); setMenuOpen(false) }} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'var(--cream)', fontSize:14.5 }}>Workbook ↗</button>}
+          <button onClick={() => { notes.toggle(); setMenuOpen(false) }} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'var(--cream)', fontSize:14.5 }}>📝 Page Notes</button>
+          <a href="/" style={{ padding:'11px 14px', fontSize:12.5, color:'var(--cream-dim)', textDecoration:'none', letterSpacing:'0.1em' }}>← Borough deck</a>
+        </div>
+      )}
 
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {topTab === 'investorDeck' && (
@@ -217,7 +236,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
                   <button onClick={() => go(slideIdx+1)} disabled={slideIdx===SLIDE_DEFS.length-1} style={{ width:24, height:24, borderRadius:4, border:'1px solid rgba(201,168,76,0.25)', background:'transparent', color:slideIdx===SLIDE_DEFS.length-1?'var(--ink-3)':'var(--gold)', cursor:slideIdx===SLIDE_DEFS.length-1?'default':'pointer', fontSize:11 }}>→</button>
                 </div>
               </div>
-              <div style={{ flex:1, overflowY:'auto', padding:'40px 32px' }}><Component /></div>
+              <div style={{ flex:1, overflowY:'auto', padding: isMobile ? '20px 14px' : '40px 32px' }}><Component /></div>
               <div style={{ padding:'5px 20px', borderTop:'1px solid rgba(201,168,76,0.08)', display:'flex', justifyContent:'space-between', fontSize:9, color:'var(--gold-dim)', flexShrink:0 }}>
                 <span>No Dice Hackney Ltd · Investor Presentation · Confidential</span>
                 <span>{slideIdx+1} / {SLIDE_DEFS.length}</span>

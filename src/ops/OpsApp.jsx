@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
 import HelpOut from './sections/HelpOut.jsx'
+import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
 // Internal team area, separate from the investor decks. On phones the tab row
@@ -17,17 +18,6 @@ const TABS = [
   { key: 'documentation', label: 'Documentation', Component: Documentation },
   { key: 'worldcup',      label: 'World Cup',     Component: WorldCup },
 ]
-
-// Small shared "is the viewport phone-sized?" hook.
-function useIsMobile(bp = 760) {
-  const [m, setM] = useState(() => typeof window !== 'undefined' && window.innerWidth <= bp)
-  useEffect(() => {
-    const on = () => setM(window.innerWidth <= bp)
-    window.addEventListener('resize', on)
-    return () => window.removeEventListener('resize', on)
-  }, [bp])
-  return m
-}
 
 export default function OpsApp() {
   // Allow a deep link like /operations?tab=helpout (used in the Help Out

@@ -4,6 +4,7 @@ import { useWindsorFeed } from './useWindsorFeed.js'
 import MarketingSection from './sections/MarketingSection.jsx'
 import Newsletter from './sections/Newsletter.jsx'
 import Members from './sections/Members.jsx'
+import useIsMobile from '../lib/useIsMobile.js'
 
 // Sub-nav = the Windsor/GA4 dashboards + the in-house tools (Newsletter, Members).
 const NAV = [
@@ -42,42 +43,74 @@ function ConnectBanner({ feed }) {
 
 export default function MarketingApp() {
   const [active, setActive] = useState('overview')
+  const [menuOpen, setMenuOpen] = useState(false)
+  const isMobile = useIsMobile()
   const feed = useWindsorFeed()
   const section = MARKETING_SECTIONS.find(s => s.key === active)
+  const activeLabel = NAV.find(n => n.key === active)?.label || 'Marketing'
+  const pick = (k) => { setActive(k); setMenuOpen(false) }
+  const Status = () => (
+    <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: WINDSOR_CONNECTED ? '#34D399' : 'rgba(255,255,255,0.6)' }}>
+      <span style={{ width: 8, height: 8, borderRadius: 999, background: WINDSOR_CONNECTED ? '#34D399' : '#6B7280', display: 'inline-block' }} />
+      {WINDSOR_CONNECTED ? (feed.loading ? 'Syncing…' : 'Connected') : 'Not connected'}
+    </span>
+  )
 
   return (
     <div style={{ minHeight: '100vh', background: '#000000', color: '#FFFFFF', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 24px', height: 56, background: '#0A0A0A', borderBottom: '1px solid rgba(255,255,255,0.10)', flexShrink: 0, gap: 16, flexWrap: 'wrap' }}>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-          <div className="serif" style={{ fontSize: 17, color: '#DA1B33' }}>No Dice · Marketing</div>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · GA4 via Windsor.ai</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 16px', minHeight: 56, background: '#0A0A0A', borderBottom: '1px solid rgba(255,255,255,0.10)', flexShrink: 0, gap: 12, position: 'relative', zIndex: 30 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+          <div className="serif" style={{ fontSize: isMobile ? 15 : 17, color: '#DA1B33', whiteSpace: 'nowrap' }}>No Dice · Marketing</div>
+          {!isMobile && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Hackney · GA4 via Windsor.ai</div>}
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ fontSize: 11, display: 'flex', alignItems: 'center', gap: 6, color: WINDSOR_CONNECTED ? '#34D399' : 'rgba(255,255,255,0.6)' }}>
-            <span style={{ width: 8, height: 8, borderRadius: 999, background: WINDSOR_CONNECTED ? '#34D399' : '#6B7280', display: 'inline-block' }} />
-            {WINDSOR_CONNECTED ? (feed.loading ? 'Syncing…' : 'Connected') : 'Not connected'}
-          </span>
-          <a href="/ops" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>Ops →</a>
-          <a href="/" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>← nodice.bar</a>
-        </div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 8, background: 'rgba(218,27,51,0.12)', border: '1px solid #DA1B33', color: '#DA1B33', fontSize: 13, cursor: 'pointer', whiteSpace: 'nowrap', maxWidth: '62%' }}>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{activeLabel}</span>
+            <span style={{ fontSize: 16, lineHeight: 1 }}>{menuOpen ? '✕' : '☰'}</span>
+          </button>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <Status />
+            <a href="/ops" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>Ops →</a>
+            <a href="/" style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', letterSpacing: '0.1em', textDecoration: 'none' }}>← nodice.bar</a>
+          </div>
+        )}
       </div>
 
-      {/* Sub-nav */}
-      <div style={{ display: 'flex', gap: 4, padding: '10px 24px 0', background: '#0A0A0A', borderBottom: '1px solid rgba(218,27,51,0.12)', overflowX: 'auto', flexShrink: 0 }}>
-        {NAV.map(s => (
-          <button key={s.key} onClick={() => setActive(s.key)} style={{
-            padding: '8px 16px', fontSize: 12, border: 'none', borderBottom: `2px solid ${active === s.key ? '#DA1B33' : 'transparent'}`,
-            background: 'transparent', color: active === s.key ? '#DA1B33' : 'rgba(255,255,255,0.6)', cursor: 'pointer',
-            whiteSpace: 'nowrap', fontWeight: active === s.key ? 600 : 400, letterSpacing: '0.03em',
-            marginLeft: s.kind === 'tool' && NAV[NAV.indexOf(s) - 1]?.kind === 'dash' ? 16 : 0,
-          }}>{s.icon} {s.label}</button>
-        ))}
-      </div>
+      {/* Mobile menu */}
+      {isMobile && menuOpen && (
+        <div style={{ background: '#0A0A0A', borderBottom: '1px solid rgba(218,27,51,0.18)', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, position: 'relative', zIndex: 30 }}>
+          {NAV.map(s => (
+            <button key={s.key} onClick={() => pick(s.key)} style={{ textAlign: 'left', padding: '12px 14px', borderRadius: 8, cursor: 'pointer', background: active === s.key ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${active === s.key ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: active === s.key ? '#DA1B33' : '#fff', fontSize: 14.5, fontWeight: active === s.key ? 600 : 400 }}>{s.icon} {s.label}</button>
+          ))}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 6px 0', marginTop: 4, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+            <Status />
+            <span style={{ display: 'flex', gap: 16 }}>
+              <a href="/ops" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>Ops →</a>
+              <a href="/" style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', textDecoration: 'none' }}>← nodice.bar</a>
+            </span>
+          </div>
+        </div>
+      )}
+
+      {/* Sub-nav (desktop) */}
+      {!isMobile && (
+        <div style={{ display: 'flex', gap: 4, padding: '10px 24px 0', background: '#0A0A0A', borderBottom: '1px solid rgba(218,27,51,0.12)', overflowX: 'auto', flexShrink: 0 }}>
+          {NAV.map(s => (
+            <button key={s.key} onClick={() => setActive(s.key)} style={{
+              padding: '8px 16px', fontSize: 12, border: 'none', borderBottom: `2px solid ${active === s.key ? '#DA1B33' : 'transparent'}`,
+              background: 'transparent', color: active === s.key ? '#DA1B33' : 'rgba(255,255,255,0.6)', cursor: 'pointer',
+              whiteSpace: 'nowrap', fontWeight: active === s.key ? 600 : 400, letterSpacing: '0.03em',
+              marginLeft: s.kind === 'tool' && NAV[NAV.indexOf(s) - 1]?.kind === 'dash' ? 16 : 0,
+            }}>{s.icon} {s.label}</button>
+          ))}
+        </div>
+      )}
 
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
-        <div style={{ maxWidth: 1100, margin: '0 auto', padding: '24px 24px 64px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+        <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '18px 13px 56px' : '24px 24px 64px', display: 'flex', flexDirection: 'column', gap: 18 }}>
           {active === 'newsletter' ? <Newsletter />
             : active === 'members' ? <Members />
             : <><ConnectBanner feed={feed} /><MarketingSection section={section} data={feed.data} /></>}

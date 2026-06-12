@@ -36,6 +36,7 @@ import { RotaProvider } from './components/EditableRotaContext.jsx'
 import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
+import useIsMobile from './lib/useIsMobile.js'
 
 // Path-based deck dispatch.
 //   /                     → public Landing page (marketing, no gate)
@@ -404,6 +405,10 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
   const { t, i18n } = useTranslation('common')
   const { Component } = SLIDE_DEFS[slideIdx]
   const notes = useNotes()
+  const isMobile = useIsMobile()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const activeLabel = topTab === 'notes' ? t('tabs.notes') : t(`tabs.${topTab}`)
+  const pick = (k) => { setTopTab(k); setMenuOpen(false) }
 
   // Keep NotesContext.activePage in lockstep with the current view so
   // the side panel's textarea binds to the right note.
@@ -418,9 +423,15 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
       {/* Founder-only safety banner — hidden when backend looks healthy.
           Sits above the header so it can't be missed. */}
       <NotesHealthBanner />
-      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 24px', height:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
-        <div className="serif" style={{ fontSize:15, color:'var(--gold)' }}>{t('shell.brand')}</div>
-        <div style={{ display:'flex', gap:4, alignItems:'center' }}>
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 14px', minHeight:48, background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0, gap:10, position:'relative', zIndex:30 }}>
+        <div className="serif" style={{ fontSize:15, color:'var(--gold)', whiteSpace:'nowrap' }}>{t('shell.brand')}</div>
+        {isMobile ? (
+          <button onClick={() => setMenuOpen(o => !o)} aria-label="Menu" style={{ display:'flex', alignItems:'center', gap:8, padding:'7px 12px', borderRadius:8, background:'rgba(201,168,76,0.12)', border:'1px solid var(--gold)', color:'var(--gold)', fontSize:13, cursor:'pointer', whiteSpace:'nowrap', maxWidth:'64%' }}>
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis' }}>{activeLabel}</span>
+            <span style={{ fontSize:16, lineHeight:1 }}>{menuOpen ? '✕' : '☰'}</span>
+          </button>
+        ) : (<>
+        <div style={{ display:'flex', gap:4, alignItems:'center', flexWrap:'wrap', justifyContent:'center' }}>
           {topTabKeys.map(k => (
             <button key={k} onClick={() => setTopTab(k)} style={{ padding:'10px 24px', fontSize:13, borderRadius:8, cursor:'pointer', background:topTab===k?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`2px solid ${topTab===k?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===k?'var(--gold)':'var(--cream)', transition:'all 0.2s', letterSpacing:'0.05em', fontWeight:topTab===k?600:400 }}>{t(`tabs.${k}`)}</button>
           ))}
@@ -449,7 +460,26 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
             })}
           </div>
         </div>
+        </>)}
       </div>
+
+      {/* Mobile menu */}
+      {isMobile && menuOpen && (
+        <div style={{ background:'var(--ink-2)', borderBottom:'1px solid rgba(201,168,76,0.15)', padding:'8px 12px 12px', display:'flex', flexDirection:'column', gap:6, flexShrink:0, position:'relative', zIndex:30 }}>
+          {topTabKeys.map(k => (
+            <button key={k} onClick={() => pick(k)} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:topTab===k?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`1px solid ${topTab===k?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab===k?'var(--gold)':'var(--cream)', fontSize:14.5, fontWeight:topTab===k?600:400 }}>{t(`tabs.${k}`)}</button>
+          ))}
+          <button onClick={() => pick('notes')} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:topTab==='notes'?'rgba(201,168,76,0.15)':'rgba(255,255,255,0.04)', border:`1px solid ${topTab==='notes'?'var(--gold)':'rgba(255,255,255,0.1)'}`, color:topTab==='notes'?'var(--gold)':'var(--cream)', fontSize:14.5 }}>{t('tabs.notes')}</button>
+          <button onClick={() => { window.open(WORKBOOK_URL, '_blank', 'noopener,noreferrer'); setMenuOpen(false) }} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'var(--cream)', fontSize:14.5 }}>{t('tabs.workbook')} ↗</button>
+          <button onClick={() => { notes.toggle(); setMenuOpen(false) }} style={{ textAlign:'left', padding:'13px 14px', borderRadius:8, cursor:'pointer', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', color:'var(--cream)', fontSize:14.5 }}>{t('tabs.notesAction')}</button>
+          <div style={{ display:'flex', alignItems:'center', gap:0, border:'1px solid rgba(201,168,76,0.25)', borderRadius:6, overflow:'hidden', alignSelf:'flex-start', marginTop:4 }}>
+            {[{ code:'en', label:'EN' }, { code:'pt-BR', label:'PT' }].map(({code, label}) => {
+              const active = i18n.language === code
+              return <button key={code} onClick={() => i18n.changeLanguage(code)} style={{ padding:'8px 18px', fontSize:12, cursor:'pointer', background:active?'var(--gold)':'transparent', color:active?'var(--ink)':'var(--cream-dim)', border:'none', fontWeight:active?700:400, letterSpacing:'0.08em' }}>{label}</button>
+            })}
+          </div>
+        </div>
+      )}
       <div style={{ flex:1, overflow:'hidden', display:'flex', flexDirection:'column' }}>
         {topTab === 'investorDeck' && (
           <>
