@@ -116,9 +116,9 @@ export function rangeBlocked(othersOnDate, start, end, cap = MAX_CONCURRENT) {
 
 // Priority bands used on the admin jobs board.
 export const PRIORITY = {
-  p1: { label: 'Before we open', tone: '#DA1B33' },
-  p2: { label: 'Important',      tone: '#FCD34D' },
-  p3: { label: 'When we can',    tone: '#34D399' },
+  p1: { label: 'Before we open', tone: '#F97316' },   // orange
+  p2: { label: 'Important',      tone: '#EF4444' },   // red
+  p3: { label: 'When we can',    tone: '#FACC15' },   // yellow
 }
 
 // ─── Skill level (volunteer) ↔ job difficulty (admin) ────────────────────────
@@ -131,9 +131,9 @@ export const SKILL_LEVELS = [
 export const SKILL_RANK = { novice: 0, intermediate: 1, experienced: 2 }
 export const SKILL_LABEL = Object.fromEntries(SKILL_LEVELS.map(s => [s.key, s.label]))
 export const DIFFICULTY = {
-  novice:       { label: 'Novice',       short: 'N', tone: '#34D399' },
-  intermediate: { label: 'Intermediate', short: 'I', tone: '#FCD34D' },
-  experienced:  { label: 'Experienced',  short: 'E', tone: '#DA1B33' },
+  novice:       { label: 'Novice',       short: 'N', tone: '#2DD4BF' },   // teal
+  intermediate: { label: 'Intermediate', short: 'I', tone: '#818CF8' },   // indigo
+  experienced:  { label: 'Experienced',  short: 'E', tone: '#A855F7' },   // purple
 }
 // Can a helper of `skill` take a job of `difficulty`?
 export const canDo = (skill, difficulty) => (SKILL_RANK[difficulty] ?? 1) <= (SKILL_RANK[skill] ?? 1)
