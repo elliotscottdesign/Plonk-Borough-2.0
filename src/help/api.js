@@ -65,6 +65,11 @@ export const helpConfirm = (helperId) => call({ action: 'confirm', secret: SEND_
 export const helpApprove = (helperId, taskId) => call({ action: 'approve', secret: SEND_SECRET, helperId, taskId })
 export const helpReopen = (helperId, taskId) => call({ action: 'reopen', secret: SEND_SECRET, helperId, taskId })
 
+// Admin — log a job done directly from the board (tagged who + when).
+export const helpLogDone = (taskId, by) => call({ action: 'logdone', secret: SEND_SECRET, taskId, by })
+// Admin — undo a done-log entry (job returns to the board).
+export const helpRemoveDone = (logId) => call({ action: 'removedone', secret: SEND_SECRET, logId })
+
 // Admin — set the "max at once" cap. Pass date=null for the global default,
 // or a 'YYYY-MM-DD' to override one busy day.
 export const helpSetCap = (date, cap) => call({ action: 'setcap', secret: SEND_SECRET, date: date || null, cap })

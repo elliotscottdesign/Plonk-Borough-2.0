@@ -296,8 +296,8 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
 
   // Cap config: a global default plus per-day overrides ("bump to 3 on busy days").
-  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps,task_meta,custom_tasks").eq("id", 1).maybeSingle();
-  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {}, custom_tasks: [] };
+  const { data: cfgRow } = await sb.from("help_settings").select("default_cap,day_caps,task_meta,custom_tasks,done_jobs").eq("id", 1).maybeSingle();
+  const cfg: any = cfgRow || { default_cap: MAX_CONCURRENT, day_caps: {}, task_meta: {}, custom_tasks: [], done_jobs: [] };
   const capFor = (d: string) => (cfg.day_caps || {})[d] ?? cfg.default_cap ?? MAX_CONCURRENT;
   const meta = cfg.task_meta || {};
   const customTasks: any[] = Array.isArray(cfg.custom_tasks) ? cfg.custom_tasks : [];
@@ -318,6 +318,16 @@ Deno.serve(async (req) => {
   // Built-in tasks + admin-created ones, minus any marked deleted.
   const allTasks = [...TASKS, ...customTasks].filter((t: any) => !(meta[t.id] && meta[t.id].deleted));
   const byId: Record<string, any> = Object.fromEntries(allTasks.map((t: any) => [t.id, t]));
+  // Completed jobs log {id, taskId, title, cat, area, by, at}. A one-off job
+  // that's been logged done leaves the active board (recurring ones stay).
+  const doneJobs: any[] = Array.isArray(cfg.done_jobs) ? cfg.done_jobs : [];
+  const doneSet = new Set(doneJobs.map((d: any) => d.taskId));
+  const boardTasks = allTasks.filter((t: any) => !(doneSet.has(t.id) && !effRec(t)));
+  const logDone = async (t: any, by: string) => {
+    const et = effTask(t);
+    const entry = { id: `${t.id}-${Date.now()}`, taskId: t.id, title: et.title, cat: et.cat, area: et.area, by: String(by || "Team").trim() || "Team", at: new Date().toISOString() };
+    await sb.from("help_settings").update({ done_jobs: [...doneJobs, entry] }).eq("id", 1);
+  };
 
   const isAdmin = () => b.secret === Deno.env.get("SEND_SECRET");
 
@@ -427,22 +437,24 @@ Deno.serve(async (req) => {
     if (error) return json({ error: error.message }, 500);
     const owner: Record<string, { id: string; name: string; status: string; state: string }> = {};
     for (const h of helpers || []) for (const id of (h.assigned || [])) owner[id] = { id: h.id, name: h.name, status: h.status || "pending", state: (h.task_states || {})[id] || "todo" };
-    const tasks = allTasks.map((t) => ({ ...effTask(t), assignedTo: owner[t.id] || null }));
+    const tasks = boardTasks.map((t) => ({ ...effTask(t), assignedTo: owner[t.id] || null }));
     const enrichedHelpers = (helpers || []).map((h: any) => ({
       ...h, status: h.status || "pending", skill: h.skill || "intermediate", shifts: h.shifts || [],
       assignedTasks: (h.assigned || []).map((id: string) => { const t = byId[id]; return t ? { ...effTask(t), state: (h.task_states || {})[id] || "todo", shift: (h.task_shift || {})[id] || null } : null; }).filter(Boolean),
     }));
+    const done = [...doneJobs].sort((a: any, b2: any) => String(b2.at).localeCompare(String(a.at)));   // newest first
     const stats = {
       helpers: (helpers || []).length,
       confirmed: (helpers || []).filter((h: any) => (h.status || "pending") === "confirmed").length,
-      tasks: allTasks.length,
+      tasks: boardTasks.length,
       assigned: tasks.filter((t) => t.assignedTo).length,
       completed: tasks.filter((t) => t.assignedTo?.state === "completed").length,
       awaiting: tasks.filter((t) => t.assignedTo?.state === "done").length,
-      p1: allTasks.filter((t) => t.priority === "p1").length,
+      done: doneJobs.length,
+      p1: boardTasks.filter((t) => t.priority === "p1").length,
       p1Assigned: tasks.filter((t) => t.priority === "p1" && t.assignedTo).length,
     };
-    return json({ tasks, helpers: enrichedHelpers, stats, settings: { defaultCap: cfg.default_cap ?? MAX_CONCURRENT, dayCaps: cfg.day_caps || {} } });
+    return json({ tasks, helpers: enrichedHelpers, done, stats, settings: { defaultCap: cfg.default_cap ?? MAX_CONCURRENT, dayCaps: cfg.day_caps || {} } });
   }
 
   // ── set the cap (global default if no date, else a per-day override) ────────
@@ -477,13 +489,50 @@ Deno.serve(async (req) => {
   // reopen puts it back to in-progress.
   if (action === "approve" || action === "reopen") {
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
-    const { data: h } = await sb.from("bar_helpers").select("assigned,task_states").eq("id", b.helperId).maybeSingle();
+    const { data: h } = await sb.from("bar_helpers").select("name,assigned,task_states").eq("id", b.helperId).maybeSingle();
     if (!h) return json({ error: "helper not found" }, 404);
     const taskId = String(b.taskId || "");
     if (!(h.assigned || []).includes(taskId)) return json({ error: "not on their list" }, 400);
     const ts: Record<string, string> = { ...(h.task_states || {}) };
-    if (action === "approve") ts[taskId] = "completed"; else delete ts[taskId];
+    if (action === "approve") {
+      ts[taskId] = "completed";
+      const t = byId[taskId]; if (t) await logDone(t, h.name);   // → done jobs log
+    } else {
+      delete ts[taskId];
+      const dj = doneJobs.filter((d: any) => d.taskId !== taskId);
+      if (dj.length !== doneJobs.length) await sb.from("help_settings").update({ done_jobs: dj }).eq("id", 1);
+    }
     await sb.from("bar_helpers").update({ task_states: ts }).eq("id", b.helperId);
+    return json({ ok: true });
+  }
+
+  // ── log a job done directly from the board (admin), tagged who + when ───────
+  if (action === "logdone") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const taskId = String(b.taskId || "");
+    const t = byId[taskId];
+    if (!t) return json({ error: "unknown job" }, 400);
+    let by = String(b.by || "").trim();
+    const { data: helpers } = await sb.from("bar_helpers").select("id,name,assigned,task_states");
+    const ownerH = (helpers || []).find((h: any) => (h.assigned || []).includes(taskId));
+    if (!by) by = ownerH?.name || "Team";
+    await logDone(t, by);
+    if (ownerH) { const ts = { ...(ownerH.task_states || {}) }; ts[taskId] = "completed"; await sb.from("bar_helpers").update({ task_states: ts }).eq("id", ownerH.id); }
+    return json({ ok: true });
+  }
+
+  // ── undo a done-log entry (admin) → the job returns to the board ────────────
+  if (action === "removedone") {
+    if (!isAdmin()) return json({ error: "unauthorized" }, 401);
+    const logId = String(b.logId || "");
+    const entry = doneJobs.find((d: any) => d.id === logId);
+    await sb.from("help_settings").update({ done_jobs: doneJobs.filter((d: any) => d.id !== logId) }).eq("id", 1);
+    if (entry) {
+      const { data: helpers } = await sb.from("bar_helpers").select("id,assigned,task_states");
+      for (const h of helpers || []) if ((h.assigned || []).includes(entry.taskId) && (h.task_states || {})[entry.taskId] === "completed") {
+        const ts = { ...(h.task_states || {}) }; delete ts[entry.taskId]; await sb.from("bar_helpers").update({ task_states: ts }).eq("id", h.id);
+      }
+    }
     return json({ ok: true });
   }
 

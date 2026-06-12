@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { CATEGORIES, CATEGORY_LABEL, PRIORITY, dayLabel, shiftLabel, SKILL_LABEL, DIFFICULTY, canDo } from '../../help/data.js'
-import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helpCreateJob, helpDeleteJob, helperLink, helpLink } from '../../help/api.js'
+import { helpAdmin, helpRelease, helpAssign, helpConfirm, helpSetCap, helpApprove, helpReopen, helpTaskMeta, helpDeleteHelper, helpCreateJob, helpDeleteJob, helpLogDone, helpRemoveDone, helperLink, helpLink } from '../../help/api.js'
 import HelpCalendar from './HelpCalendar.jsx'
 
 // ─── /operations → Help Out ────────────────────────────────────────────────
@@ -25,6 +25,7 @@ const btn = (extra = {}) => ({ fontSize: 11, padding: '6px 12px', borderRadius: 
 const DiffBadge = ({ d }) => { const x = DIFFICULTY[d] || DIFFICULTY.intermediate; return <span title={x.label} style={{ fontSize: 9.5, padding: '1px 5px', borderRadius: 4, background: `${x.tone}22`, border: `1px solid ${x.tone}66`, color: x.tone, fontWeight: 700 }}>{x.short}</span> }
 const fieldLbl = { fontSize: 10.5, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cream-dim)', marginBottom: 4 }
 const fieldInput = { width: '100%', boxSizing: 'border-box', background: '#111', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 6, padding: '8px 10px', fontSize: 13 }
+const fmtWhen = (iso) => { try { const d = new Date(iso); return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ', ' + d.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) } catch { return iso } }
 
 export default function HelpOut() {
   const [data, setData] = useState(null)
@@ -77,7 +78,8 @@ export default function HelpOut() {
   const usedCats = CATEGORIES.filter(c => tasks.some(t => t.cat === c.key))
   const allOpen = usedCats.length && usedCats.every(c => open[c.key])
   const toggleAll = () => setOpen(allOpen ? {} : Object.fromEntries(usedCats.map(c => [c.key, true])))
-  const VIEWS = [['calendar', '📅 Calendar'], ['people', '🙋 People'], ['jobs', '🧰 Jobs board']]
+  const done = data?.done || []
+  const VIEWS = [['calendar', '📅 Calendar'], ['people', '🙋 People'], ['jobs', '🧰 Jobs board'], ['done', '✓ Done jobs']]
 
   // One allocated-job row in a helper's card (with state + sign-off + remove).
   const jobRow = (h, t) => {
@@ -127,7 +129,7 @@ export default function HelpOut() {
             <Tile label="Sign-ups" value={stats.helpers ?? helpers.length} sub={`${stats.confirmed ?? 0} confirmed`} accent="var(--cream)" />
             <Tile label="Jobs allocated" value={`${stats.assigned ?? 0} / ${stats.tasks ?? tasks.length}`} sub={`${(stats.tasks ?? tasks.length) - (stats.assigned ?? 0)} on the board`} accent={GOLD} />
             <Tile label="To sign off" value={stats.awaiting ?? 0} sub="helpers marked done" accent={(stats.awaiting ?? 0) > 0 ? '#FCD34D' : 'var(--cream-dim)'} />
-            <Tile label="Completed" value={stats.completed ?? 0} sub="signed off" accent="#34D399" />
+            <Tile label="Done jobs" value={stats.done ?? 0} sub="logged complete" accent="#34D399" />
             <Tile label="Awaiting confirm" value={(stats.helpers ?? helpers.length) - (stats.confirmed ?? 0)} sub="to review & email" accent="#FCD34D" />
           </div>
 
@@ -324,6 +326,7 @@ export default function HelpOut() {
                                         })}
                                       </span>
                                       <button onClick={() => act(`r-${t.id}`, () => helpTaskMeta(t.id, { recurring: !t.recurring }))} disabled={busy === `r-${t.id}`} title="Recurring — can be allocated again after it's done" style={btn({ padding: '2px 8px', fontSize: 10.5, background: t.recurring ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${t.recurring ? GOLD : 'rgba(255,255,255,0.14)'}`, color: t.recurring ? GOLD : 'var(--cream-dim)' })}>♻ {t.recurring ? 'recurring' : 'one-off'}</button>
+                                      <button onClick={() => { const by = t.assignedTo?.name || window.prompt('Who completed this job?', 'Elliot'); if (by !== null) act(`done-${t.id}`, () => helpLogDone(t.id, by || 'Team')) }} disabled={busy === `done-${t.id}`} title="Mark this job done & log it" style={btn({ padding: '2px 9px', fontSize: 10.5, color: '#34D399', borderColor: 'rgba(52,211,153,0.45)', fontWeight: 700 })}>{busy === `done-${t.id}` ? '…' : '✓ Done'}</button>
                                       <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || ''); setECat(t.cat) }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
                                       <button onClick={() => { if (window.confirm(`Delete "${t.title}" from the board?`)) act(`del-${t.id}`, () => helpDeleteJob(t.id)) }} disabled={busy === `del-${t.id}`} title="Delete this job" style={btn({ padding: '2px 8px', fontSize: 10.5, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `del-${t.id}` ? '…' : '🗑 delete'}</button>
                                     </div>
@@ -349,6 +352,28 @@ export default function HelpOut() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          )}
+
+          {/* DONE JOBS — the completed-jobs log: who did it + when */}
+          {view === 'done' && (
+            <div>
+              <div className="serif" style={{ fontSize: 18, color: GOLD, marginBottom: 4 }}>Done jobs ({done.length})</div>
+              <div style={{ fontSize: 12.5, color: 'var(--cream-dim)', marginBottom: 12 }}>Every completed job — logged with who did it and when. Helper sign-offs and the board’s ✓ Done land here.</div>
+              {done.length === 0 && <div style={{ ...card, padding: 18, fontSize: 13, color: 'var(--cream-dim)' }}>Nothing logged done yet.</div>}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {done.map(d => (
+                  <div key={d.id} style={{ ...card, padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, color: 'var(--cream)', fontWeight: 600 }}>✓ {d.title}</div>
+                      <div style={{ fontSize: 11.5, color: 'var(--cream-dim)', marginTop: 3 }}>
+                        {CATEGORY_LABEL[d.cat] || d.cat}{d.area ? ` · ${d.area}` : ''} · done by <strong style={{ color: '#34D399' }}>{d.by}</strong> · {fmtWhen(d.at)}
+                      </div>
+                    </div>
+                    <button onClick={() => { if (window.confirm('Undo this — put the job back on the board?')) act(`undone-${d.id}`, () => helpRemoveDone(d.id)) }} disabled={busy === `undone-${d.id}`} style={btn({ fontSize: 11 })}>{busy === `undone-${d.id}` ? '…' : 'undo'}</button>
+                  </div>
+                ))}
               </div>
             </div>
           )}
