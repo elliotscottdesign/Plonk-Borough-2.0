@@ -36,6 +36,88 @@ const isComplete = (d: any) => !!(d && d.dj_name && genreCount(d.genres) >= 5 &&
 const arr = (x: any) => Array.isArray(x) ? x : [];
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
 
+// ── Email notifications (Resend) ──────────────────────────────────────────
+// Best-effort: emails never block or fail a booking action. Admin notices go to
+// ADMIN_EMAIL (elliot@nodice.bar); DJ notices go to the DJ's own address.
+const RESEND = Deno.env.get("RESEND_API_KEY");
+const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "elliot@nodice.bar";
+const PORTAL = "https://team.nodice.bar/dj";
+const OPS = "https://team.nodice.bar/ops";
+const niceDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const esc = (s: any) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" } as any)[c]);
+
+function emailShell(kicker: string, heading: string, bodyHtml: string, cta?: { text: string; link: string }) {
+  return `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#000;color:#fff;padding:28px;border-radius:12px;max-width:560px;margin:auto">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#DA1B33;margin:0 0 14px">${kicker}</p>
+    <h1 style="font-size:22px;margin:0 0 12px">${heading}</h1>
+    ${bodyHtml}
+    ${cta ? `<p style="margin:22px 0"><a href="${cta.link}" style="background:#DA1B33;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">${cta.text}</a></p>` : ""}
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+}
+async function sendMail(to: string, subject: string, html: string) {
+  if (!RESEND || !to) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to, subject, html }),
+    });
+  } catch (_) { /* email is best-effort — never break the action */ }
+}
+
+// Fire the one-time "signed up" emails the first time a profile becomes complete.
+async function maybeSignup(sb: any, before: any, merged: any) {
+  if (before.signed_up_at) return;          // already announced once
+  if (!isComplete(merged)) return;          // profile not finished yet
+  await sb.from("djs").update({ signed_up_at: new Date().toISOString() }).eq("id", before.id);
+  const name = merged.dj_name || "A DJ", ig = merged.instagram || "no IG";
+  const vetted = !before.status || before.status === "vetted";
+  const link = `${PORTAL}?t=${encodeURIComponent(before.token)}`;
+  await Promise.allSettled([
+    sendMail(merged.email, "You're set up on the No Dice DJ roster 🎧", emailShell(
+      "No Dice · DJ Portal", `Welcome, ${esc(name)}`,
+      vetted
+        ? `<p style="font-size:15px;line-height:1.6;color:#ddd">Your DJ profile is all set. You can now browse open dates and request a night to play at No Dice, London Fields.</p>
+           <p style="font-size:14px;line-height:1.6;color:#bbb">Pick a date and you'll have 24 hours to fill in the details, then we'll confirm it.</p>`
+        : `<p style="font-size:15px;line-height:1.6;color:#ddd">Thanks for setting up your profile — we've got it. We'll be in touch once you're approved to start booking dates.</p>`,
+      vetted ? { text: "Pick a date to play", link } : undefined)),
+    sendMail(ADMIN_EMAIL, `New DJ signed up: ${name}`, emailShell(
+      "No Dice · DJ Admin", `${esc(name)} just completed their profile`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(name)} (${esc(ig)}) has finished their DJ profile${vetted ? " and can now request dates." : " and is awaiting approval."}</p>
+       <ul style="font-size:14px;color:#bbb;line-height:1.7">
+         <li>Genres: ${esc(merged.genres || "—")}</li>
+         <li>Format: ${esc(merged.format || "—")}</li>
+         <li>Email: ${esc(merged.email || "—")} · Phone: ${esc(merged.phone || "—")}</li>
+       </ul>`,
+      { text: "Open DJ Admin", link: OPS })),
+  ]);
+}
+
+// Fire the "date requested" emails when a DJ submits a booking for sign-off.
+async function notifyRequest(dj: any, date: string, info: { session: boolean; nightName?: string; subgenres?: any; setType?: string; promoTrack?: string }) {
+  const name = dj.dj_name || "A DJ", ig = dj.instagram || "no IG", dStr = niceDate(date);
+  const what = info.session ? (arr(info.subgenres).join(" · ") || "DJ set") : "Open Decks";
+  const link = `${PORTAL}?t=${encodeURIComponent(dj.token)}`;
+  await Promise.allSettled([
+    sendMail(dj.email, `We've got your No Dice date request — ${dStr}`, emailShell(
+      "No Dice · DJ Portal", `Request received, ${esc(name)}`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">Thanks — we've got your request to play <strong style="color:#fff">${dStr}</strong>${info.nightName ? ` ("${esc(info.nightName)}")` : ""}.</p>
+       <p style="font-size:14px;color:#bbb;line-height:1.6">${esc(what)}. We'll review it and send a confirmation shortly. You can still edit the details from your portal until then.</p>`,
+      { text: "View my booking", link })),
+    sendMail(ADMIN_EMAIL, `DJ date request: ${name} — ${dStr}`, emailShell(
+      "No Dice · DJ Admin", `${esc(name)} requested ${dStr}`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(name)} (${esc(ig)}) has requested a night — it's waiting for your sign-off.</p>
+       <ul style="font-size:14px;color:#bbb;line-height:1.7">
+         <li>Date: ${dStr}</li>
+         <li>${info.session ? "Paid session" : "Open Decks"}${info.nightName ? ` · "${esc(info.nightName)}"` : ""}</li>
+         <li>${esc(what)}</li>
+         <li>Promo track: ${esc(info.promoTrack || "—")}</li>
+       </ul>`,
+      { text: "Review & sign off", link: OPS })),
+  ]);
+}
+
 async function state(sb: any, id: string) {
   const today = todayISO();
   const { data: me } = await sb.from("djs").select("*").eq("id", id).maybeSingle();
@@ -85,13 +167,20 @@ Deno.serve(async (req) => {
 
   if (action === "save") {
     const f = profile || {};
-    await sb.from("djs").update({
+    const merged = {
+      ...dj,
       dj_name: f.dj_name ?? dj.dj_name, real_name: f.real_name ?? dj.real_name,
       genres: f.genres ?? dj.genres, instagram: f.instagram ?? dj.instagram,
       format: f.format ?? dj.format, phone: f.phone ?? dj.phone, email: f.email ?? dj.email,
       soundcloud: f.soundcloud ?? dj.soundcloud, spotify: f.spotify ?? dj.spotify, youtube: f.youtube ?? dj.youtube,
+    };
+    await sb.from("djs").update({
+      dj_name: merged.dj_name, real_name: merged.real_name, genres: merged.genres, instagram: merged.instagram,
+      format: merged.format, phone: merged.phone, email: merged.email,
+      soundcloud: merged.soundcloud, spotify: merged.spotify, youtube: merged.youtube,
       updated_at: new Date().toISOString(),
     }).eq("id", dj.id);
+    await maybeSignup(sb, dj, merged);   // image_url unchanged here — completes if photo already set
     return state(sb, dj.id);
   }
 
@@ -103,7 +192,9 @@ Deno.serve(async (req) => {
     const up = await sb.storage.from("dj-photos").upload(`${dj.id}.${ext}`, bytes, { contentType: m[1], upsert: true });
     if (up.error) return json({ error: up.error.message }, 500);
     const { data: p } = sb.storage.from("dj-photos").getPublicUrl(`${dj.id}.${ext}`);
-    await sb.from("djs").update({ image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: new Date().toISOString() }).eq("id", dj.id);
+    const newUrl = `${p.publicUrl}?v=${Date.now()}`;
+    await sb.from("djs").update({ image_url: newUrl, updated_at: new Date().toISOString() }).eq("id", dj.id);
+    await maybeSignup(sb, dj, { ...dj, image_url: newUrl });   // photo may be the final piece that completes the profile
     return state(sb, dj.id);
   }
 
@@ -209,6 +300,7 @@ Deno.serve(async (req) => {
     const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("status", "held").eq("dj_id", dj.id).select("date");
     if (error) return json({ error: error.message }, 500);
     if (!updated || !updated.length) return json({ error: "Your hold on that date has expired — pick it again from the calendar." }, 409);
+    await notifyRequest(dj, date, { session, nightName, subgenres, setType, promoTrack: track });
     return state(sb, dj.id);
   }
 

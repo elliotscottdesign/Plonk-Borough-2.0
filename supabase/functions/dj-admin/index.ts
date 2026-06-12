@@ -22,6 +22,22 @@ const cors = {
 const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const now = () => new Date().toISOString();
 
+// ── Email (Resend) — confirmation to the DJ when their night is signed off ──
+const RESEND = Deno.env.get("RESEND_API_KEY");
+const PORTAL = "https://team.nodice.bar/dj";
+const esc = (s: any) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" } as any)[c]);
+const niceDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+async function sendMail(to: string, subject: string, html: string) {
+  if (!RESEND || !to) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to, subject, html }),
+    });
+  } catch (_) { /* best-effort — never break the sign-off */ }
+}
+
 async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
   if (error) return json({ error: error.message }, 500);  // e.g. tables not created yet
@@ -48,9 +64,27 @@ Deno.serve(async (req) => {
     case "close":
       await sb.from("dj_slots").delete().eq("date", date).eq("slot", slot).eq("status", "open");
       break;
-    case "signoff":
+    case "signoff": {
       await sb.from("dj_slots").update({ status: "confirmed", updated_at: now() }).eq("date", date).eq("slot", slot);
+      // Confirmation email to the DJ.
+      const { data: row } = await sb.from("dj_slots")
+        .select("night_name, dj:djs(dj_name,email,token)").eq("date", date).eq("slot", slot).maybeSingle();
+      const d = (row as any)?.dj;
+      if (d?.email) {
+        const dStr = niceDate(date);
+        const link = `${PORTAL}?t=${encodeURIComponent(d.token)}`;
+        await sendMail(d.email, `You're confirmed at No Dice — ${dStr} 🎉`,
+          `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#000;color:#fff;padding:28px;border-radius:12px;max-width:560px;margin:auto">
+            <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#DA1B33;margin:0 0 14px">No Dice · DJ Portal</p>
+            <h1 style="font-size:22px;margin:0 0 12px">You're confirmed, ${esc(d.dj_name || "")} 🎉</h1>
+            <p style="font-size:15px;line-height:1.6;color:#ddd">Your night on <strong style="color:#fff">${dStr}</strong>${(row as any)?.night_name ? ` ("${esc((row as any).night_name)}")` : ""} is locked in at No Dice, London Fields. See you on the decks.</p>
+            <p style="font-size:14px;color:#bbb;line-height:1.6">Need to tweak the details or add artwork? You can still edit it from your portal.</p>
+            <p style="margin:22px 0"><a href="${link}" style="background:#DA1B33;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">View my booking</a></p>
+            <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+          </div>`);
+      }
       break;
+    }
     case "unconfirm":
       await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date).eq("slot", slot);
       break;

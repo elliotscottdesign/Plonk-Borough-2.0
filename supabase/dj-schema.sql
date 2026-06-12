@@ -40,6 +40,9 @@ alter table public.djs add column if not exists youtube text;
 alter table public.djs add column if not exists status text not null default 'vetted';   -- 'vetted' | 'pending'
 alter table public.djs add column if not exists source text;          -- 'import' | 'instagram' | 'csv-extended' | 'manual'
 alter table public.djs add column if not exists vetted_at timestamptz;
+-- First time the profile became complete — drives the one-time "DJ signed up" email
+-- (admin + DJ). Back-filled for already-complete DJs so they don't get it retroactively.
+alter table public.djs add column if not exists signed_up_at timestamptz;
 alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists kind text;          -- session | opendecks
