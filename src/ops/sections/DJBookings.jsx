@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
-import { djAdmin, setTypeLabel, instagramCaption, slotsForDate, slotLabel, sessionForSlot } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, instagramCaption, slotsForDate, slotLabel, sessionForSlot } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -207,19 +207,41 @@ function Calendar({ data, reload }) {
 }
 
 // Events — confirmed upcoming nights (the "what's on") + Instagram captions.
+// Two captions per night: a free smart template (📋 Instagram caption) and an
+// on-brand AI rewrite (✨ AI rewrite, via Claude) you can regenerate.
 function Events({ data }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const todayStr = iso(today)
   const events = (data.slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
   const [copied, setCopied] = useState(null)
+  const [ai, setAi] = useState({})   // { [ckey]: { loading, text, error, setup, copied } }
   const ckey = (s) => s.date + '-' + (s.slot || 'main')
   const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(ckey(s)); setTimeout(() => setCopied(null), 1800) }
+
+  const aiRewrite = async (s) => {
+    const k = ckey(s)
+    const prev = ai[k]?.text || ''
+    setAi(a => ({ ...a, [k]: { ...(a[k] || {}), loading: true, error: '', setup: false } }))
+    try {
+      const { caption } = await djCaption(s, prev)
+      setAi(a => ({ ...a, [k]: { loading: false, text: caption || '', error: '', setup: false, copied: false } }))
+    } catch (e) {
+      setAi(a => ({ ...a, [k]: { ...(a[k] || {}), loading: false, error: e.message || String(e), setup: !!e.setup } }))
+    }
+  }
+  const copyAi = (s) => {
+    const k = ckey(s)
+    try { navigator.clipboard.writeText(ai[k]?.text || '') } catch { /* ignore */ }
+    setAi(a => ({ ...a, [k]: { ...(a[k] || {}), copied: true } }))
+    setTimeout(() => setAi(a => ({ ...a, [k]: { ...(a[k] || {}), copied: false } })), 1800)
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎪 Events</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
-          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). Hit <em>Instagram caption</em> to copy a ready-to-post caption with the DJ's photo to hand.
+          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). <em>📋 Instagram caption</em> copies a ready-to-post template (free, instant); <em>✨ AI rewrite</em> writes a punchier, on-brand version with Claude — hit it again for a fresh take.
         </div>
       </div>
       {events.length === 0 ? (
@@ -227,18 +249,44 @@ function Events({ data }) {
       ) : events.map(s => {
         const session = sessionForSlot(s.date, s.slot)
         const sLab = slotLabel(s.date, s.slot)
+        const k = ckey(s)
+        const a = ai[k] || {}
         return (
-          <div key={s.date + '-' + (s.slot || 'main')} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #34D399', borderRadius: 10, padding: '14px 16px', display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
-            <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
-            <div style={{ flex: 1, minWidth: 200 }}>
-              <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span></div>
-              <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
-              {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
-              {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
-              {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
-              {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
+          <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #34D399', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+              <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
+              <div style={{ flex: 1, minWidth: 200 }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span></div>
+                <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
+                {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
+                {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
+                {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
+                {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
+                <button onClick={() => copyCap(s)} style={btn(copied === k ? 'green' : 'gold')}>{copied === k ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+                <button onClick={() => aiRewrite(s)} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
+              </div>
             </div>
-            <button onClick={() => copyCap(s)} style={btn(copied === ckey(s) ? 'green' : 'gold')}>{copied === ckey(s) ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+
+            {(a.text || a.error) && (
+              <div style={{ background: a.error ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${a.error ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {a.error ? (
+                  <div style={{ fontSize: 12.5, color: a.setup ? '#FDE68A' : '#F87171', lineHeight: 1.6 }}>
+                    {a.setup ? '✨ ' : '⚠️ '}{a.error}
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.12em', color: '#A78BFA' }}>✨ AI caption</div>
+                    <div style={{ fontSize: 13, color: '#FFFFFF', lineHeight: 1.6, whiteSpace: 'pre-wrap' }}>{a.text}</div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      <button onClick={() => copyAi(s)} style={btn(a.copied ? 'green' : 'gold')}>{a.copied ? '✓ Copied' : '📋 Copy this'}</button>
+                      <button onClick={() => aiRewrite(s)} disabled={a.loading} style={btn('ghost')}>🔄 Try again</button>
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
           </div>
         )
       })}

@@ -4,6 +4,7 @@ import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 export const DJ_PORTAL_FN_URL = `${SUPABASE_URL}/functions/v1/dj-portal`
 export const DJ_ADMIN_FN_URL = `${SUPABASE_URL}/functions/v1/dj-admin`
 export const EVENTS_FEED_URL = `${SUPABASE_URL}/functions/v1/events-feed`
+export const DJ_CAPTION_FN_URL = `${SUPABASE_URL}/functions/v1/dj-caption`
 
 // DJ-facing calls — authed by the DJ's private token (from their invite link).
 export async function djPortal(token, action, payload = {}) {
@@ -22,6 +23,22 @@ export async function djAdmin(action, payload = {}) {
 }
 
 export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURIComponent(token)}`
+
+// AI rewrite of a night's Instagram caption (Claude, via the dj-caption edge
+// function). Admin-only (SEND_SECRET). `event` is the confirmed slot; we also
+// send the free template caption as the source of truth for date/time/address.
+// `avoid` (the previous AI caption) makes "Try again" produce something new.
+// Returns { caption } — or throws with a friendly message (incl. setup hint).
+export async function djCaption(event, avoid = '') {
+  const res = await fetch(DJ_CAPTION_FN_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ secret: SEND_SECRET, event, template: instagramCaption(event), avoid }),
+  })
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) { const e = new Error(data.error || `Error ${res.status}`); e.setup = !!data.setup; throw e }
+  return data
+}
 
 // Weekly sessions (JS getDay: Mon=1 … Sat=6).
 //   Thu/Fri/Sat = paid DJ sessions (genre picker, adjacent-day rule, 1 per month).

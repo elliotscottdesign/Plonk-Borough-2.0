@@ -61,6 +61,31 @@ do $$ begin
   end if;
 end $$;
 
+-- ── AI caption rate limiting (cost kill-switch for the dj-caption function) ──
+-- dj-caption calls a PAID API (Claude). SEND_SECRET ships in the public bundle,
+-- so it isn't a real secret — we cap spend server-side regardless of who calls.
+-- One row per (bucket, time-window): 'global:<date>' and 'ip:<ip>:<window>'.
+create table if not exists public.ai_rate (
+  bucket      text primary key,
+  count       int not null default 0,
+  expires_at  timestamptz not null default now() + interval '1 day'
+);
+alter table public.ai_rate enable row level security;   -- service-role only; no public policies
+
+-- Atomically increment a bucket's counter and return the new value (so a burst of
+-- concurrent calls can't slip past the cap via read-modify-write races).
+create or replace function public.bump_ai_rate(p_bucket text, p_ttl_seconds int)
+returns int language plpgsql as $$
+declare c int;
+begin
+  insert into public.ai_rate (bucket, count, expires_at)
+    values (p_bucket, 1, now() + make_interval(secs => p_ttl_seconds))
+  on conflict (bucket) do update set count = public.ai_rate.count + 1
+  returning count into c;
+  delete from public.ai_rate where expires_at < now() - interval '1 day';  -- opportunistic cleanup
+  return c;
+end $$;
+
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)
   on conflict (id) do nothing;
