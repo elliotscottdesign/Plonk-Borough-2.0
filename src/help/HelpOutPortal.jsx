@@ -431,11 +431,14 @@ function HelperTasks({ token }) {
   const order = { todo: 0, done: 1, completed: 2 }
   const sorted = [...tasks].sort((a, b) => (order[a.state] - order[b.state]))
   const doneCount = tasks.filter(t => t.state !== 'todo').length
+  const pending = data.status !== 'confirmed'
 
   return (
     <div>
       <p style={{ fontSize: 15, color: DIM, lineHeight: 1.6, margin: '0 0 6px' }}>
-        Hi <strong style={{ color: '#fff' }}>{data.name}</strong> — here’s your job list. Tap <strong style={{ color: '#fff' }}>Mark done</strong> as you finish each one; Elliot signs them off.
+        Hi <strong style={{ color: '#fff' }}>{data.name}</strong> — {pending
+          ? <>thanks for signing up! Elliot is lining up the right jobs for you and will confirm them shortly.</>
+          : <>here’s your job list. Tap <strong style={{ color: '#fff' }}>Mark done</strong> as you finish each one; Elliot signs them off.</>}
       </p>
       {(data.shifts || []).length > 0 && (
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, margin: '12px 0 6px' }}>
@@ -444,7 +447,7 @@ function HelperTasks({ token }) {
           ))}
         </div>
       )}
-      <div style={{ fontSize: 12.5, color: DIM, margin: '8px 0 18px' }}>{doneCount} of {tasks.length} done{data.status !== 'confirmed' ? ' · Elliot is still confirming your shift' : ''}</div>
+      {!pending && <div style={{ fontSize: 12.5, color: DIM, margin: '8px 0 18px' }}>{doneCount} of {tasks.length} done</div>}
 
       {err && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 10, padding: '10px 12px', color: '#fff', fontSize: 13, marginBottom: 12 }}>{err}</div>}
 
@@ -476,7 +479,7 @@ function HelperTasks({ token }) {
             </div>
           )
         })}
-        {!tasks.length && <div style={{ ...{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12 }, padding: 18, fontSize: 14, color: DIM }}>No jobs on your list yet — Elliot will add some shortly.</div>}
+        {!tasks.length && <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 18, fontSize: 14, color: DIM, lineHeight: 1.6 }}>{pending ? '⏳ Elliot is sorting your jobs — they’ll appear here as soon as your shift is confirmed. We’ll let you know.' : 'No jobs on your list yet — Elliot will add some shortly.'}</div>}
       </div>
 
       <p style={{ fontSize: 12.5, color: DIM, lineHeight: 1.6, marginTop: 22, textAlign: 'center' }}>

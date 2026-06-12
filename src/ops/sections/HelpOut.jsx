@@ -42,24 +42,27 @@ export default function HelpOut() {
   const [showNew, setShowNew] = useState(false)
   const [nj, setNj] = useState(blankJob)
 
-  async function load() {
-    setLoading(true); setErr('')
+  // silent=true keeps the content mounted (data stays on screen) so a refresh
+  // after an action doesn't unmount/remount and bounce the page to the top.
+  async function load(silent = false) {
+    if (!silent) setLoading(true)
+    setErr('')
     try { setData(await helpAdmin()) }
     catch (e) { setErr(e.message || 'Could not load') }
-    finally { setLoading(false) }
+    finally { if (!silent) setLoading(false) }
   }
   useEffect(() => { load() }, [])
 
   async function act(key, fn) {
     setBusy(key)
-    try { await fn(); await load() }
+    try { await fn(); await load(true) }
     catch (e) { setErr(e.message) }
     finally { setBusy('') }
   }
 
   async function saveEdit(taskId) {
     setBusy(`edit-${taskId}`)
-    try { await helpTaskMeta(taskId, { cat: eCat, title: eTitle, detail: eDetail }); setEditing(null); await load() }
+    try { await helpTaskMeta(taskId, { cat: eCat, title: eTitle, detail: eDetail }); setEditing(null); await load(true) }
     catch (e) { setErr(e.message) }
     finally { setBusy('') }
   }
@@ -108,7 +111,7 @@ export default function HelpOut() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <div className="serif" style={{ fontSize: 26, color: 'var(--cream)' }}>Help Out</div>
           <span style={{ fontSize: 10, letterSpacing: '0.12em', textTransform: 'uppercase', color: 'var(--ink)', background: '#34D399', padding: '3px 10px', borderRadius: 999, fontWeight: 700 }}>Delegate &amp; verify</span>
-          <button onClick={load} style={{ marginLeft: 'auto', ...btn() }}>↻ Refresh</button>
+          <button onClick={() => load(true)} style={{ marginLeft: 'auto', ...btn() }}>↻ Refresh</button>
         </div>
         <div style={{ fontSize: 13, color: 'var(--cream-dim)', marginTop: 6, maxWidth: 800, lineHeight: 1.6 }}>
           Allocate jobs to each person’s shift from the skill-filtered dropdown, then <strong style={{ color: 'var(--cream)' }}>Confirm</strong> to email them. Set each job’s difficulty &amp; whether it’s recurring on the Jobs board.
@@ -116,14 +119,14 @@ export default function HelpOut() {
         </div>
       </div>
 
-      {loading && <div style={{ ...card, padding: 22, color: 'var(--cream-dim)', fontSize: 13 }}>Loading…</div>}
-      {err && !loading && (
+      {loading && !data && <div style={{ ...card, padding: 22, color: 'var(--cream-dim)', fontSize: 13 }}>Loading…</div>}
+      {err && (
         <div style={{ background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.4)', borderRadius: 10, padding: 18, fontSize: 13, color: 'var(--cream)', lineHeight: 1.6 }}>
           <strong style={{ color: '#F87171' }}>Couldn’t load.</strong> {err}
         </div>
       )}
 
-      {data && !loading && (
+      {data && (
         <>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px,1fr))', gap: 12 }}>
             <Tile label="Sign-ups" value={stats.helpers ?? helpers.length} sub={`${stats.confirmed ?? 0} confirmed`} accent="var(--cream)" />

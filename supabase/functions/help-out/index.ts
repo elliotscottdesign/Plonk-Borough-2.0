@@ -365,8 +365,12 @@ Deno.serve(async (req) => {
       await sb.from("bar_helpers").update({ assigned, task_states: states }).eq("id", me.id);
     }
 
-    const tasks = assigned.map((id) => { const t = byId[id]; return t ? { ...effTask(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean);
-    return json({ name: me.name, shifts: me.shifts || [], status: me.status || "pending", tasks });
+    // The helper only sees their jobs once the founder has confirmed them.
+    const confirmed = (me.status || "pending") === "confirmed";
+    const tasks = confirmed
+      ? assigned.map((id) => { const t = byId[id]; return t ? { ...effTask(t), state: states[id] || "todo", shift: (me.task_shift || {})[id] || null } : null; }).filter(Boolean)
+      : [];
+    return json({ name: me.name, shifts: me.shifts || [], status: me.status || "pending", tasks, pending: !confirmed });
   }
 
   // ── public: sign up → propose jobs to fill each shift, alert Elliot ──────────
@@ -406,14 +410,28 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Admin allocates jobs from the board (no auto-assign). New sign-ups start
-    // with an empty list; an existing person keeps the jobs already allocated.
+    // Auto-assign jobs that match their categories AND skill level, sized to
+    // their shift hours (~30 min each), priority-first, skipping one-off jobs
+    // already taken by others. These stay hidden from the helper until the
+    // founder confirms — the founder can tweak the list before that.
     const skill = ["novice", "intermediate", "experienced"].includes(String(b.skill)) ? String(b.skill) : "intermediate";
-    const assigned: any[] = [];   // for the alert email — nothing pre-assigned
+    const skillRank = SKILL_RANK[skill] ?? 1;
+    const taken = new Set<string>();
+    for (const h of helpers || []) {
+      if (existing && h.id === existing.id) continue;
+      for (const id of (h.assigned || [])) { const tt = byId[id]; if (tt && !effRec(tt)) taken.add(id); }
+    }
+    const cap = slotsForShifts(shifts);
+    const picked = boardTasks
+      .filter((t: any) => categories.includes(effCat(t)) && (SKILL_RANK[effDiff(t)] ?? 1) <= skillRank && !taken.has(t.id))
+      .sort((a: any, b2: any) => (PW[a.priority] ?? 9) - (PW[b2.priority] ?? 9))
+      .slice(0, cap);
+    const assignedIds: string[] = existing ? (existing.assigned || []) : picked.map((t: any) => t.id);
+    const assigned = assignedIds.map((id: string) => byId[id]).filter(Boolean).map((t: any) => effTask(t));   // for the alert email
     const row: Record<string, unknown> = {
       name, phone, email, categories, days, time_blocks: [], shifts, note, skill, status: "pending",
     };
-    if (!existing) { row.assigned = []; row.task_shift = {}; }
+    if (!existing) { row.assigned = assignedIds; row.task_shift = {}; }
     let helperId = existing?.id || "";
     let token = existing?.token || "";
     if (existing) {
