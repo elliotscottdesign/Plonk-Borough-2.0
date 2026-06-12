@@ -49,7 +49,7 @@ export default function DJRoster({ djs, reload }) {
     setBusy(true); setQ('')   // clear search so the new profile is visible
     try {
       const pending = tab === 'pending'
-      const res = await djAdmin('addDj', { profile: { dj_name: 'New DJ', status: pending ? 'pending' : 'vetted', source: pending ? 'manual' : 'import' } })
+      const res = await djAdmin('addDj', { profile: { dj_name: 'New DJ', status: pending ? 'pending' : 'vetted', source: 'manual' } })
       await reload()
       if (res?.id) startEdit({ id: res.id, dj_name: 'New DJ', status: pending ? 'pending' : 'vetted' })   // open the new profile straight away
     } catch (e) { alert(e.message) } finally { setBusy(false) }

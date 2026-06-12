@@ -78,6 +78,10 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const { data: dj } = await sb.from("djs").select("*").eq("token", token).maybeSingle();
   if (!dj) return json({ error: "invalid link" }, 401);
+  // Un-vetted (pending) DJs may load/set up their profile, but can't book until approved.
+  if (dj.status && dj.status !== "vetted" && ["hold", "draft", "claim", "edit", "cancel", "eventPhoto", "removeEventPhoto"].includes(action)) {
+    return json({ error: "Your profile is pending approval — you'll be able to book dates once No Dice approves you." }, 403);
+  }
 
   if (action === "save") {
     const f = profile || {};

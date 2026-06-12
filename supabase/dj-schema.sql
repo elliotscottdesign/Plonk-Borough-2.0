@@ -36,6 +36,10 @@ alter table public.dj_slots enable row level security;
 alter table public.djs add column if not exists soundcloud text;
 alter table public.djs add column if not exists spotify text;
 alter table public.djs add column if not exists youtube text;
+-- Vetted vs pending (unvetted) roster. Existing rows default to 'vetted'.
+alter table public.djs add column if not exists status text not null default 'vetted';   -- 'vetted' | 'pending'
+alter table public.djs add column if not exists source text;          -- 'import' | 'instagram' | 'csv-extended' | 'manual'
+alter table public.djs add column if not exists vetted_at timestamptz;
 alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists kind text;          -- session | opendecks
