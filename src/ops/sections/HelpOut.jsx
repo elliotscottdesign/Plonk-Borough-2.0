@@ -35,6 +35,7 @@ export default function HelpOut() {
   const [busy, setBusy] = useState('')
   const [view, setView] = useState('people')   // calendar | people | jobs
   const [editing, setEditing] = useState(null)  // jobs-board task being edited
+  const [assigning, setAssigning] = useState(null)  // jobs-board task whose assign panel is open
   const [eTitle, setETitle] = useState('')
   const [eDetail, setEDetail] = useState('')
   const [eCat, setECat] = useState('')
@@ -301,7 +302,8 @@ export default function HelpOut() {
                       {isOpen && (
                         <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', padding: '6px 0' }}>
                           {cItems.map(t => (
-                            <div key={t.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px' }}>
+                            <div key={t.id}>
+                            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 16px' }}>
                               <span style={{ marginTop: 5 }}><Dot tone={PRIORITY[t.priority]?.tone || '#888'} /></span>
                               <div style={{ flex: 1, minWidth: 0 }}>
                                 {editing === t.id ? (
@@ -335,6 +337,7 @@ export default function HelpOut() {
                                       <button onClick={() => { const by = t.assignedTo?.name || window.prompt('Who completed this job?', 'Elliot'); if (by !== null) act(`done-${t.id}`, () => helpLogDone(t.id, by || 'Team')) }} disabled={busy === `done-${t.id}`} title="Mark this job done & log it" style={btn({ padding: '2px 9px', fontSize: 10.5, color: '#34D399', borderColor: 'rgba(52,211,153,0.45)', fontWeight: 700 })}>{busy === `done-${t.id}` ? '…' : '✓ Done'}</button>
                                       <button onClick={() => { setEditing(t.id); setETitle(t.title); setEDetail(t.detail || ''); setECat(t.cat) }} style={btn({ padding: '2px 8px', fontSize: 10.5 })}>✎ edit</button>
                                       <button onClick={() => { if (window.confirm(`Delete "${t.title}" from the board?`)) act(`del-${t.id}`, () => helpDeleteJob(t.id)) }} disabled={busy === `del-${t.id}`} title="Delete this job" style={btn({ padding: '2px 8px', fontSize: 10.5, color: '#F87171', borderColor: 'rgba(248,113,113,0.3)' })}>{busy === `del-${t.id}` ? '…' : '🗑 delete'}</button>
+                                      {(!t.assignedTo || t.recurring) && <button onClick={() => setAssigning(a => a === t.id ? null : t.id)} title="Assign this job to a helper" style={btn({ padding: '2px 9px', fontSize: 10.5, fontWeight: 700, background: assigning === t.id ? 'rgba(129,140,248,0.2)' : 'rgba(129,140,248,0.1)', border: '1px solid #818CF8', color: '#818CF8' })}>{assigning === t.id ? '✕ close' : '+ assign'}</button>}
                                     </div>
                                   </>
                                 )}
@@ -351,6 +354,28 @@ export default function HelpOut() {
                                   <div style={{ fontSize: 11.5, color: 'var(--cream-dim)' }}>on the board</div>
                                 )}
                               </div>
+                            </div>
+                            {assigning === t.id && (
+                              <div style={{ padding: '0 16px 12px 36px' }}>
+                                <div style={{ fontSize: 11, color: 'var(--cream-dim)', marginBottom: 6 }}>Assign to a helper — matched by category &amp; skill level:</div>
+                                {(() => {
+                                  const elig = helpers.filter(h => (h.categories || []).includes(t.cat) && canDo(h.skill, t.difficulty) && !(h.assignedTasks || []).some(x => x.id === t.id))
+                                  if (!elig.length) return <div style={{ fontSize: 12, color: 'var(--cream-dim)' }}>No sign-ups match this job’s category &amp; level yet.</div>
+                                  return (
+                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                                      {elig.map(h => (
+                                        <button key={h.id} onClick={() => act(`assignjob-${t.id}-${h.id}`, () => helpAssign(h.id, t.id, (h.shifts || [])[0]?.date || null).then(() => setAssigning(null)))} disabled={busy === `assignjob-${t.id}-${h.id}`}
+                                          style={btn({ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', fontSize: 12.5 })}>
+                                          {busy === `assignjob-${t.id}-${h.id}` ? '…' : h.name}
+                                          <span style={{ fontSize: 9, padding: '1px 6px', borderRadius: 999, background: h.status === 'confirmed' ? 'rgba(52,211,153,0.18)' : 'rgba(252,211,36,0.18)', color: h.status === 'confirmed' ? '#34D399' : '#FCD34D', textTransform: 'uppercase', fontWeight: 700 }}>{h.status === 'confirmed' ? 'live' : 'pending'}</span>
+                                          <span style={{ color: 'var(--cream-dim)' }}>· {(h.assignedTasks || []).length}</span>
+                                        </button>
+                                      ))}
+                                    </div>
+                                  )
+                                })()}
+                              </div>
+                            )}
                             </div>
                           ))}
                         </div>
