@@ -41,6 +41,8 @@ alter table public.bar_helpers add column if not exists task_shift jsonb not nul
 alter table public.help_settings add column if not exists task_meta jsonb not null default '{}'::jsonb;  -- { taskId: { difficulty, recurring, title, detail, deleted } }
 -- Admin-created jobs (merged into the board alongside the built-in task list).
 alter table public.help_settings add column if not exists custom_tasks jsonb not null default '[]'::jsonb;  -- [{id,title,cat,area,priority,detail,difficulty,recurring}]
+-- Completed-jobs log (who did each job + when). Done one-off jobs leave the board.
+alter table public.help_settings add column if not exists done_jobs jsonb not null default '[]'::jsonb;  -- [{id,taskId,title,cat,area,by,at}]
 
 -- The table is read/written ONLY by the help-out edge function (service role),
 -- so no anon policies are needed — the public key can't read or write it.
