@@ -105,23 +105,12 @@ export default function TeamLanding() {
         Staff &amp; investor access only · enter your code
       </div>
 
-      {/* Four doors */}
-      <div style={{
-        width: '100%',
-        maxWidth: 760,
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
-        gap: 16,
-      }}>
-        {AREAS.map(a => <AreaCard key={a.key} a={a} />)}
-      </div>
-
-      {/* Help us open — public volunteer door (no code). Friends getting the
-          bar open won't have a staff code, so this one is open to everyone. */}
+      {/* Help us open — public volunteer door (no code), at the TOP of the list.
+          Friends getting the bar open won't have a staff code. */}
       <a
         href="/helpout"
         style={{
-          width: '100%', maxWidth: 760, marginTop: 16, boxSizing: 'border-box',
+          width: '100%', maxWidth: 760, marginBottom: 16, boxSizing: 'border-box',
           textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           gap: 16, flexWrap: 'wrap',
           background: 'rgba(218,27,51,0.08)', border: `1px solid rgba(218,27,51,0.5)`,
@@ -134,6 +123,17 @@ export default function TeamLanding() {
         </div>
         <div style={{ fontSize: 10.5, letterSpacing: '0.16em', textTransform: 'uppercase', color: RED, fontWeight: 700, whiteSpace: 'nowrap' }}>Open to all · Enter →</div>
       </a>
+
+      {/* Four doors */}
+      <div style={{
+        width: '100%',
+        maxWidth: 760,
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))',
+        gap: 16,
+      }}>
+        {AREAS.map(a => <AreaCard key={a.key} a={a} />)}
+      </div>
 
       {/* Footer */}
       <div style={{
