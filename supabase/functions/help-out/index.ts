@@ -40,7 +40,7 @@ const PW: Record<string, number> = { p1: 0, p2: 1, p3: 2 };
 // Skill levels + per-category default difficulty (admin can override per job).
 const SKILL_RANK: Record<string, number> = { novice: 0, intermediate: 1, experienced: 2 };
 const CAT_DIFFICULTY: Record<string, string> = {
-  cleaning: "novice", tidying: "novice", gardening: "novice", admin: "novice", marketing: "novice", errands: "novice", serving: "novice",
+  cleaning: "novice", tidying: "novice", gardening: "novice", admin: "novice", marketing: "novice", errands: "novice", serving: "novice", kitchen: "novice",
   handyman: "intermediate", painting: "intermediate", tech: "intermediate", design: "intermediate", media: "intermediate", bartending: "intermediate",
   carpentry: "experienced", electrics: "experienced", plumbing: "experienced",
 };
@@ -195,6 +195,13 @@ const RAW: { title: string; cat: string; area: string; priority: string; detail?
   { title: "Photograph the bar, garden & games for the website & listings", cat: "media", area: "Inside", priority: "p3" },
   { title: "Film & photo the works for socials (the reopening story)", cat: "media", area: "Inside", priority: "p3" },
   { title: "Edit the promo video & reels", cat: "media", area: "Online", priority: "p3" },
+
+  // ── Kitchen work ──────────────────────────────────────────────────────────
+  { title: "Deep-clean the food-prep area & surfaces", cat: "kitchen", area: "Kitchen", priority: "p2" },
+  { title: "Clean & degrease the extraction / canopy", cat: "kitchen", area: "Kitchen", priority: "p2" },
+  { title: "Sanitise all chopping boards & utensils", cat: "kitchen", area: "Kitchen", priority: "p3" },
+  { title: "Sort & label the dry-store / fridge shelves", cat: "kitchen", area: "Kitchen", priority: "p3" },
+  { title: "Set up the kitchen prep station ready for service", cat: "kitchen", area: "Kitchen", priority: "p2" },
 ];
 
 const slug = (s: string) =>
@@ -212,7 +219,7 @@ const CAT_LABEL: Record<string, string> = {
   tidying: "Venue tidying", carpentry: "Carpentry & joinery", handyman: "Handyman / general",
   painting: "Painting & finishing", electrics: "Electrics & wiring", plumbing: "Plumbing",
   tech: "Tech, AV & sound", gardening: "Gardening & outdoors", admin: "Admin & online help",
-  marketing: "Marketing", media: "Ads & media creation", errands: "Errands & collections", design: "Design & signage",
+  marketing: "Marketing", media: "Ads & media creation", errands: "Errands & collections", design: "Design & signage", kitchen: "Kitchen work",
 };
 
 const fmtDay = (d: string) =>

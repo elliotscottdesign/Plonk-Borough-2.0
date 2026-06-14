@@ -16,6 +16,7 @@ export const HELP_RANGE_END = '2026-07-31'
 export const CATEGORIES = [
   { key: 'bartending', icon: '🍸', label: 'Bartending',            blurb: 'Pulling pints & making drinks once we open' },
   { key: 'serving',    icon: '🧑‍🍳', label: 'Serving / front of house', blurb: 'Greeting, running drinks, looking after guests' },
+  { key: 'kitchen',    icon: '🍳', label: 'Kitchen work',          blurb: 'Food prep, kitchen cleaning & setup' },
   { key: 'cleaning',   icon: '🧽', label: 'Cleaning',              blurb: 'Deep cleans, glasswash, trailer, mopping' },
   { key: 'tidying',    icon: '🧹', label: 'Venue tidying',         blurb: 'Clearing, sorting & resetting spaces' },
   { key: 'carpentry',  icon: '🪚', label: 'Carpentry & joinery',   blurb: 'Frames, trim, benches, timber work' },
