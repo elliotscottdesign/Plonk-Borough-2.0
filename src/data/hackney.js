@@ -61,6 +61,27 @@ export const NOTES_SYNC_SECRET = ''
 // Founder email — receives a notification when any user leaves a note.
 export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 
+// === SIGNATURES SYNC ENDPOINT =======================================
+// Cross-device sync for the e-signatures on the per-investor agreement
+// pages (LeonieAgreement, MikeAgreement, LeeAgreement, future). UNLIKE
+// LOCK_SYNC_URL — which stores one row per access code — this endpoint
+// stores one row PER AGREEMENT ID, so the Investor (on their LEONIE /
+// MIKE / LEE01 code) and the Founder (on 888999) can both see each
+// other's signature on their own device.
+//
+// Deployment instructions in infra/signatures-apps-script.gs.
+//
+// Endpoints (handled by infra/signatures-apps-script.gs):
+//   GET  ?agreementId=<id>                       → { ok, signatures:{investor, founder, updatedAt} }
+//   GET                                          → { ok, signatures:{ <id>:{...}, ... } }
+//   POST { agreementId, side:'investor'|'founder', sig:{name,date,signedAt}|null }
+//                                                → { ok }
+//
+// Empty string = localStorage-only mode (signatures still work on the
+// signer's own device but won't cross-sync until the founder deploys
+// the Apps Script + pastes the URL below).
+export const SIGNATURES_SYNC_URL = ''
+
 // === DEAL STRUCTURE ===
 // RESTRUCTURED MAY 2026 · £49,000 total round for 49 shares.
 // UPDATED JUNE 2026 · three external cheques confirmed (£7k / 7 shares):

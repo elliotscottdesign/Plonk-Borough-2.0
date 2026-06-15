@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { namespacedKey } from '../../lib/access-code.js'
+import { SIGNATURES_SYNC_URL } from '../../data/hackney.js'
 
 // AgreementSignBlock — drop-in replacement for the static "Signatures
 // — to be added on execution" block at the bottom of LeonieAgreement
@@ -150,6 +151,61 @@ function clearSig(storageKey) {
   notifySigChange()
 }
 
+// ─── Cross-device sync (Apps Script) ─────────────────────────────────────
+// SIGNATURES_SYNC_URL is empty in the repo by default. After the founder
+// deploys infra/signatures-apps-script.gs they paste the web-app URL into
+// src/data/hackney.js. Until that happens these helpers no-op cleanly so
+// the local-only experience still works.
+
+// POST one side of an agreement's signature to the server. `side` is
+// 'investor' | 'founder'. Pass null `sig` to clear.
+async function postSignatureToServer(agreementId, side, sig) {
+  if (!SIGNATURES_SYNC_URL) return
+  try {
+    // text/plain avoids the CORS preflight Apps Script can't handle.
+    const res = await fetch(SIGNATURES_SYNC_URL, {
+      method: 'POST',
+      mode: 'cors',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'text/plain;charset=UTF-8' },
+      body: JSON.stringify({ agreementId, side, sig }),
+    })
+    const text = await res.text()
+    // eslint-disable-next-line no-console
+    console.info(`[signatures-sync] → ${side} ${agreementId} · ${res.status} · ${text.slice(0, 120)}`)
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[signatures-sync] POST failed (kept local only):', e.message)
+  }
+}
+
+// GET the server-side state of one agreement. Returns null on any
+// failure (network, missing URL, parse error) so callers can fall
+// back to localStorage cleanly.
+async function fetchSignaturesFromServer(agreementId) {
+  if (!SIGNATURES_SYNC_URL) return null
+  try {
+    const url = `${SIGNATURES_SYNC_URL}?agreementId=${encodeURIComponent(agreementId)}`
+    const res = await fetch(url, { cache: 'no-store' })
+    if (!res.ok) throw new Error('HTTP ' + res.status)
+    const data = await res.json()
+    if (!data || data.ok === false) return null
+    const sigs = data.signatures || {}
+    return {
+      investor: validSigShape(sigs.investor) ? sigs.investor : null,
+      founder:  validSigShape(sigs.founder)  ? sigs.founder  : null,
+    }
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[signatures-sync] GET failed (using local only):', e.message)
+    return null
+  }
+}
+
+function validSigShape(s) {
+  return !!(s && typeof s === 'object' && typeof s.name === 'string' && s.name.length > 0)
+}
+
 // useAgreementSignatureStatus — read-only hook for parent components
 // (each Agreement page) to learn whether the document is signed and
 // switch chrome accordingly: drop "Draft" wording from the eyebrow +
@@ -161,10 +217,13 @@ function clearSig(storageKey) {
 //   founderSigned  : boolean — the Founder counter-signature exists
 //   fullySigned    : boolean — both of the above are true
 //
-// State is per-device: signatures live in localStorage scoped by the
-// active access-code namespace. A founder on 888999 only sees the
-// Investor signature if it was captured on the same browser; the
-// "fully signed" rule reflects that local truth.
+// Cross-device sync: on mount we GET the server-side state from
+// SIGNATURES_SYNC_URL. Any side present on the server but missing
+// locally is hydrated into localStorage so the page renders the
+// post-signed chrome straight away — e.g. Leonie sees the founder's
+// counter-signature even though it was captured under 888999 on a
+// different browser. When the URL is empty we silently fall back to
+// localStorage-only (the deployed-fresh state).
 export function useAgreementSignatureStatus(agreementId) {
   const investorKey = namespacedKey('agreement_sig_'        + agreementId)
   const founderKey  = namespacedKey('agreement_founder_sig_' + agreementId)
@@ -173,6 +232,30 @@ export function useAgreementSignatureStatus(agreementId) {
     founderSigned:  !!readSig(founderKey),
   })
   const [state, setState] = useState(read)
+
+  // Hydrate from the server once per agreementId on mount.
+  useEffect(() => {
+    let cancelled = false
+    fetchSignaturesFromServer(agreementId).then(remote => {
+      if (cancelled || !remote) return
+      let touched = false
+      // Server wins where local is empty. Don't overwrite a locally-
+      // present signature — the local one is at least as new (it would
+      // have been POSTed already; the server might be a stale snapshot
+      // pre-deploy).
+      if (remote.investor && !readSig(investorKey)) {
+        try { localStorage.setItem(investorKey, JSON.stringify(remote.investor)) } catch {}
+        touched = true
+      }
+      if (remote.founder && !readSig(founderKey)) {
+        try { localStorage.setItem(founderKey, JSON.stringify(remote.founder)) } catch {}
+        touched = true
+      }
+      if (touched) notifySigChange()
+    })
+    return () => { cancelled = true }
+  }, [agreementId, investorKey, founderKey])
+
   useEffect(() => {
     const refresh = () => setState(read())
     if (typeof window === 'undefined') return undefined
@@ -221,6 +304,43 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
   // empty lines so the print dialog generates the blank-version PDF.
   const [forceBlank, setForceBlank] = useState(false)
 
+  // Hydrate from the server on mount. Mirrors what
+  // useAgreementSignatureStatus does — done here too so the SignBlock's
+  // own local state reflects whatever the OTHER device has captured.
+  useEffect(() => {
+    let cancelled = false
+    fetchSignaturesFromServer(agreementId).then(remote => {
+      if (cancelled || !remote) return
+      if (remote.investor && !readSig(investorKey)) {
+        try { localStorage.setItem(investorKey, JSON.stringify(remote.investor)) } catch {}
+        setInvestorSig(remote.investor)
+        notifySigChange()
+      }
+      if (remote.founder && !readSig(founderKey)) {
+        try { localStorage.setItem(founderKey, JSON.stringify(remote.founder)) } catch {}
+        setFounderSig(remote.founder)
+        notifySigChange()
+      }
+    })
+    return () => { cancelled = true }
+  }, [agreementId, investorKey, founderKey])
+
+  // Listen for in-tab change events (e.g. the hook hydrated localStorage
+  // from server) so this component's local state stays in step.
+  useEffect(() => {
+    const refresh = () => {
+      setInvestorSig(readSig(investorKey))
+      setFounderSig(readSig(founderKey))
+    }
+    if (typeof window === 'undefined') return undefined
+    window.addEventListener('storage', refresh)
+    window.addEventListener(SIG_CHANGE_EVENT, refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener(SIG_CHANGE_EVENT, refresh)
+    }
+  }, [investorKey, founderKey])
+
   const showInvestorSigned = !!investorSig && !forceBlank
   const showFounderSigned  = !!founderSig  && !forceBlank
 
@@ -229,10 +349,14 @@ export default function AgreementSignBlock({ agreementId, investorName, founderN
   // print time it shows up too.
   const isSigned = showInvestorSigned
 
-  const saveInvestor = (sig) => { writeSig(investorKey, sig); setInvestorSig(sig) }
-  const clearInvestor = () => { clearSig(investorKey); setInvestorSig(null) }
-  const saveFounder  = (sig) => { writeSig(founderKey, sig); setFounderSig(sig) }
-  const clearFounder = () => { clearSig(founderKey); setFounderSig(null) }
+  // Each save/clear writes locally AND pushes to the server (no-op if
+  // SIGNATURES_SYNC_URL is empty). The server stores only the side
+  // being signed/cleared — so the founder's writes never disturb the
+  // investor's column and vice-versa.
+  const saveInvestor  = (sig) => { writeSig(investorKey, sig); setInvestorSig(sig); postSignatureToServer(agreementId, 'investor', sig) }
+  const clearInvestor = ()    => { clearSig(investorKey);     setInvestorSig(null); postSignatureToServer(agreementId, 'investor', null) }
+  const saveFounder   = (sig) => { writeSig(founderKey, sig); setFounderSig(sig);   postSignatureToServer(agreementId, 'founder', sig) }
+  const clearFounder  = ()    => { clearSig(founderKey);      setFounderSig(null);  postSignatureToServer(agreementId, 'founder', null) }
 
   // "Save Signed PDF" — just opens the print dialog. Browser handles
   // the "Save as PDF" choice in the destination menu.
