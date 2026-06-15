@@ -76,4 +76,15 @@ html, body, #root {
   border-radius: 8px !important;
   color: var(--cream) !important;
 }
+
+/* Admin rich events calendar (MonthCalendar rich mode) — responsive cells.
+   Desktop: tall thumbnail cards with text. Phones: compact thumbnail tiles,
+   text hidden (no unreadable truncation) — full detail is one tap away. */
+.cal-rich-grid { grid-auto-rows: minmax(118px, 1fr); }
+.cal-rich-cell { min-height: 118px; }
+@media (max-width: 560px) {
+  .cal-rich-grid { grid-auto-rows: minmax(84px, auto); }
+  .cal-rich-cell { min-height: 84px; }
+  .cal-cell-text { display: none; }
+}
  /* Global font scaling */ * { line-height: 1.6; } button { font-size: inherit; }

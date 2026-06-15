@@ -121,7 +121,8 @@ function Calendar({ data, reload }) {
       const sub = r.night_name ? `"${r.night_name}"` : (genres.length ? genres.join(' · ') : (r.kind === 'opendecks' ? 'Open Decks' : 'DJ set'))
       return { image: r.event_image_url || r.dj?.image_url || '', title: r.dj?.dj_name || 'DJ', time: fmtStart(sess?.start), sub, status: r.status }
     })
-    return { tone, kind: defs[0].kind, disabled: false, events }
+    const openCount = rows.filter(r => r.status === 'open' && !r.dj_id).length   // other slots still free that day
+    return { tone, kind: defs[0].kind, disabled: false, events, openCount }
   }
 
   const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id).length
@@ -151,10 +152,10 @@ function Calendar({ data, reload }) {
       <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth}
         cellFor={calCell} onDay={(d) => { setSelDate(d); setAdding(null) }} selected={selDate} rich
         legend={<>
-          <span>Booked nights show the artwork + DJ. Corner dot:</span>
+          <span>Booked nights show artwork + DJ. Border &amp; dot:</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FCD34D', marginRight: 5, verticalAlign: 'middle' }} />pending/draft</span>
-          <span>Empty days: dashed = closed · red = open for DJs</span>
+          <span>An <strong style={{ color: '#fff' }}>open</strong> tag = a slot that day is still free. Empty days: dashed = closed · red = open for DJs.</span>
         </>} />
 
       {selDate ? (() => {
