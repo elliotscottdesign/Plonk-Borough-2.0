@@ -9,6 +9,10 @@ import React from 'react'
 //   onDay(dateStr)             — tap a (clickable) day
 //   selected                   — highlighted date
 //   legend                     — optional node under the grid
+//   rich                       — render booked days as thumbnail+detail cards
+//       (admin Events calendar). cellFor may then also return
+//       events: [{ image, title, time, sub, status }] — matches the public
+//       events viewer at /events. Off by default (DJ portal keeps plain cells).
 const RED = '#DA1B33', LINE = 'rgba(255,255,255,0.12)'
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -23,7 +27,7 @@ const tones = {
   'mine-confirmed': { border: '1px solid #34D399', color: '#fff', background: 'rgba(52,211,153,0.18)' },
 }
 
-export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = true, cellFor, onDay, selected, legend }) {
+export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = true, cellFor, onDay, selected, legend, rich = false }) {
   const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7   // Mon=0
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
@@ -41,7 +45,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 5 }}>
         {DOW.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{d}</div>)}
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, ...(rich ? { gridAutoRows: 'minmax(118px, 1fr)' } : {}) }}>
         {cells.map((d, i) => {
           if (!d) return <div key={i} />
           const dateStr = iso(year, month, d)
@@ -49,10 +53,42 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const isSel = selected === dateStr
           const clickable = info && !info.disabled
           const t = info ? (tones[info.tone] || {}) : {}
+          const evs = (rich && info && Array.isArray(info.events)) ? info.events : []
+
+          // Rich cell: booked day → thumbnail + DJ + time + detail (public-viewer style).
+          if (rich && evs.length) {
+            const e0 = evs[0]
+            const dot = e0.status === 'confirmed' ? '#34D399' : (e0.status === 'pending' || e0.status === 'held') ? '#FCD34D' : RED
+            return (
+              <button key={i} type="button" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
+                style={{
+                  borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', minHeight: 118,
+                  background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default',
+                  border: isSel ? `2px solid ${RED}` : (t.border || '1px solid rgba(255,255,255,0.12)'),
+                  display: 'flex', flexDirection: 'column', position: 'relative',
+                }}>
+                <div style={{ position: 'relative', width: '100%', height: 70, background: '#0A0A0A', flexShrink: 0 }}>
+                  {e0.image
+                    ? <img src={e0.image} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+                    : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>No art</div>}
+                  <span style={{ position: 'absolute', left: 4, top: 4, background: 'rgba(0,0,0,0.78)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '0 6px', lineHeight: '16px' }}>{d}</span>
+                  {evs.length > 1 && <span style={{ position: 'absolute', right: 4, top: 4, background: RED, color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 999, padding: '1px 6px', lineHeight: '14px' }}>{evs.length}</span>}
+                  <span style={{ position: 'absolute', right: 5, bottom: 5, width: 7, height: 7, borderRadius: '50%', background: dot, boxShadow: '0 0 0 2px rgba(0,0,0,0.65)' }} />
+                </div>
+                <div style={{ padding: '4px 6px 6px', minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: 10.5, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{e0.title}</div>
+                  {e0.time && <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.05em', color: RED, marginTop: 1 }}>{e0.time}</div>}
+                  {(evs.length > 1 || e0.sub) && <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginTop: 1 }}>{evs.length > 1 ? `+${evs.length - 1} more` : e0.sub}</div>}
+                </div>
+              </button>
+            )
+          }
+
+          // Plain cell: number + status dot (DJ portal, and admin open/closed days).
           return (
             <button key={i} type="button" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
               style={{
-                aspectRatio: '1 / 1', borderRadius: 8, fontSize: 13, fontWeight: info ? 700 : 400,
+                aspectRatio: rich ? 'auto' : '1 / 1', minHeight: rich ? 118 : 'auto', borderRadius: 8, fontSize: 13, fontWeight: info ? 700 : 400,
                 background: isSel ? RED : (t.background || 'transparent'),
                 color: isSel ? '#fff' : (info ? (t.color || '#fff') : 'rgba(255,255,255,0.22)'),
                 border: isSel ? `1px solid ${RED}` : (t.border || '1px solid transparent'),

@@ -21,6 +21,8 @@ const SESSIONS = {
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 const timeLabel = (s) => `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}`
+// "20:00" → "8pm" (start only) — matches the public events viewer's time format.
+const fmtStart = (hhmm) => { if (!hhmm) return ''; const h = +hhmm.slice(0, 2), m = +hhmm.slice(3, 5); const ap = h >= 12 ? 'pm' : 'am'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${ap}` }
 const heldLeft = (heldAt) => {
   if (!heldAt) return ''
   const ms = new Date(heldAt).getTime() + 24 * 3600 * 1000 - Date.now()
@@ -112,7 +114,14 @@ function Calendar({ data, reload }) {
     if (!rows.length) return { tone: 'closed', kind: defs[0].kind, disabled: false }
     const has = (st) => rows.some(r => r.status === st)
     const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : 'closed'
-    return { tone, kind: defs[0].kind, disabled: false }
+    // Booked nights → thumbnail + detail cards in the cell (public-viewer rules).
+    const events = rows.filter(r => r.dj_id).map(r => {
+      const sess = sessionForSlot(dateStr, r.slot)
+      const genres = Array.isArray(r.subgenres) ? r.subgenres : []
+      const sub = r.night_name ? `"${r.night_name}"` : (genres.length ? genres.join(' · ') : (r.kind === 'opendecks' ? 'Open Decks' : 'DJ set'))
+      return { image: r.event_image_url || r.dj?.image_url || '', title: r.dj?.dj_name || 'DJ', time: fmtStart(sess?.start), sub, status: r.status }
+    })
+    return { tone, kind: defs[0].kind, disabled: false, events }
   }
 
   const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id).length
@@ -140,11 +149,12 @@ function Calendar({ data, reload }) {
       </div>
 
       <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth}
-        cellFor={calCell} onDay={(d) => { setSelDate(d); setAdding(null) }} selected={selDate}
+        cellFor={calCell} onDay={(d) => { setSelDate(d); setAdding(null) }} selected={selDate} rich
         legend={<>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#DA1B33', marginRight: 5, verticalAlign: 'middle' }} />Session</span>
-          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
-          <span>dashed = closed · red = open · amber = pending · green = confirmed</span>
+          <span>Booked nights show the artwork + DJ. Corner dot:</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
+          <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FCD34D', marginRight: 5, verticalAlign: 'middle' }} />pending/draft</span>
+          <span>Empty days: dashed = closed · red = open for DJs</span>
         </>} />
 
       {selDate ? (() => {
