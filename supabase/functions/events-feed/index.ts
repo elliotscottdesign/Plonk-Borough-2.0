@@ -29,7 +29,7 @@ Deno.serve(async (req) => {
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await sb.from("dj_slots")
     .select("date,slot,night_name,subgenres,kind,set_type,promo_track,event_image_url, dj:djs(dj_name,image_url,instagram,format)")
-    .eq("status", "confirmed").gte("date", today).order("date");
+    .eq("status", "confirmed").neq("suspended", true).gte("date", today).order("date");
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   const events = (data || []).map((s: any) => {
     const slot = s.slot || "main";

@@ -53,6 +53,9 @@ alter table public.dj_slots add column if not exists set_type text;      -- open
 alter table public.dj_slots add column if not exists held_at timestamptz;        -- when the hold started (deadline = +24h)
 alter table public.dj_slots add column if not exists reminder_sent boolean default false;  -- 2h-warning email sent
 alter table public.dj_slots add column if not exists event_image_url text;  -- per-event artwork (overrides DJ profile photo for that night)
+-- Admin can temporarily hide a confirmed event from the public feed without deleting
+-- it (Events tab → Suspend / Restore). Stays in admin; excluded from events-feed.
+alter table public.dj_slots add column if not exists suspended boolean not null default false;
 -- A day can have >1 session (Saturdays: 'main' evening + 'sat_pm' afternoon). Key by (date, slot).
 alter table public.dj_slots add column if not exists slot text not null default 'main';
 -- Replace the original UNIQUE(date) with UNIQUE(date, slot). Idempotent — already

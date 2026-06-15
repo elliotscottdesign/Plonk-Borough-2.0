@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
-import { djAdmin, djCaption, setTypeLabel, instagramCaption, slotsForDate, slotLabel, sessionForSlot } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -78,7 +78,7 @@ export default function DJBookings() {
       ) : view === 'roster' ? (
         <DJRoster djs={data.djs} reload={reload} />
       ) : view === 'events' ? (
-        <Events data={data} />
+        <Events data={data} reload={reload} />
       ) : (
         <Calendar data={data} reload={reload} />
       )}
@@ -206,15 +206,17 @@ function Calendar({ data, reload }) {
   )
 }
 
-// Events — confirmed upcoming nights (the "what's on") + Instagram captions.
-// Two captions per night: a free smart template (📋 Instagram caption) and an
-// on-brand AI rewrite (✨ AI rewrite, via Claude) you can regenerate.
-function Events({ data }) {
+// Events — confirmed upcoming nights (the "what's on") + Instagram captions +
+// full management: edit, suspend (hide from the public page), or delete any event.
+function Events({ data, reload }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const todayStr = iso(today)
   const events = (data.slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
   const [copied, setCopied] = useState(null)
   const [ai, setAi] = useState({})   // { [ckey]: { loading, text, error, setup, copied } }
+  const [editing, setEditing] = useState(null)   // ckey currently being edited
+  const [form, setForm] = useState({})
+  const [busy, setBusy] = useState(false)
   const ckey = (s) => s.date + '-' + (s.slot || 'main')
   const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(ckey(s)); setTimeout(() => setCopied(null), 1800) }
 
@@ -236,12 +238,40 @@ function Events({ data }) {
     setTimeout(() => setAi(a => ({ ...a, [k]: { ...(a[k] || {}), copied: false } })), 1800)
   }
 
+  // ── Manage an event (edit / suspend / delete) ─────────────────────────────
+  const act = async (action, s, extra = {}) => {
+    setBusy(true)
+    try { await djAdmin(action, { date: s.date, slot: s.slot || 'main', ...extra }); await reload() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const startEdit = (s) => {
+    setEditing(ckey(s))
+    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '' })
+  }
+  const saveEdit = async (s) => {
+    setBusy(true)
+    try {
+      await djAdmin('editEvent', {
+        date: s.date, slot: s.slot || 'main', newDate: form.date, nightName: form.nightName,
+        subgenres: (form.subgenres || '').split(',').map(x => x.trim()).filter(Boolean),
+        setType: form.setType, promoTrack: form.promoTrack,
+      })
+      setEditing(null); await reload()
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const onDelete = (s) => {
+    if (window.confirm(`Delete this event — ${s.dj?.dj_name || 'DJ'} on ${fmt(s.date)}?\n\nThis removes it from the calendar and the public events page, and can't be undone.`)) act('deleteEvent', s)
+  }
+  const editIsSession = (d) => !!d && [4, 5, 6].includes(new Date(d + 'T00:00:00Z').getUTCDay())
+  const lbl = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.6)' }
+  const hint = { color: 'rgba(255,255,255,0.4)', fontWeight: 400 }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎪 Events</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
-          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). <em>📋 Instagram caption</em> copies a ready-to-post template (free, instant); <em>✨ AI rewrite</em> writes a punchier, on-brand version with Claude — hit it again for a fresh take.
+          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). Use <em>✏️ Edit</em>, <em>⏸ Suspend</em> (hide from the public page, keep it here) or <em>🗑 Delete</em> to manage any event. <em>📋 Instagram caption</em> copies a ready-to-post template; <em>✨ AI rewrite</em> writes a punchier, on-brand version with Claude.
         </div>
       </div>
       {events.length === 0 ? (
@@ -251,12 +281,13 @@ function Events({ data }) {
         const sLab = slotLabel(s.date, s.slot)
         const k = ckey(s)
         const a = ai[k] || {}
+        const sus = !!s.suspended
         return (
-          <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #34D399', borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: `3px solid ${sus ? '#9CA3AF' : '#34D399'}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, opacity: sus ? 0.72 : 1 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span></div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span>{sus && <span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
                 <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
                 {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
@@ -268,6 +299,33 @@ function Events({ data }) {
                 <button onClick={() => aiRewrite(s)} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
               </div>
             </div>
+
+            {/* Manage: edit / suspend / delete */}
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
+              <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
+              {sus
+                ? <button onClick={() => act('unsuspend', s)} disabled={busy} style={btn('green')}>▶️ Restore (show publicly)</button>
+                : <button onClick={() => act('suspend', s)} disabled={busy} style={btn('ghost')}>⏸ Suspend (hide publicly)</button>}
+              <button onClick={() => onDelete(s)} disabled={busy} style={btn('red')}>🗑 Delete</button>
+            </div>
+
+            {editing === k && (
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                  <label style={lbl}>Date<input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp(160)} /></label>
+                  <label style={lbl}>Night name<input value={form.nightName} onChange={e => setForm(f => ({ ...f, nightName: e.target.value }))} placeholder="(optional)" style={inp(190)} /></label>
+                </div>
+                {editIsSession(form.date)
+                  ? <label style={lbl}>Genres <span style={hint}>(comma-separated, up to 4)</span><input value={form.subgenres} onChange={e => setForm(f => ({ ...f, subgenres: e.target.value }))} placeholder="House, Disco, Funk" style={inp(300)} /></label>
+                  : <label style={lbl}>Set type <span style={hint}>(Open Decks night)</span><Dropdown value={form.setType} onChange={v => setForm(f => ({ ...f, setType: v }))} width={220} options={SET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></label>}
+                <label style={lbl}>Promo track <span style={hint}>(name or link)</span><input value={form.promoTrack} onChange={e => setForm(f => ({ ...f, promoTrack: e.target.value }))} placeholder="Track name or link" style={inp(320)} /></label>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => saveEdit(s)} disabled={busy} style={btn('gold')}>Save changes</button>
+                  <button onClick={() => setEditing(null)} disabled={busy} style={btn('ghost')}>Cancel</button>
+                </div>
+                {form.date !== s.date && <div style={{ fontSize: 11, color: '#FCD34D' }}>Moving this event to {fmt(form.date)}.</div>}
+              </div>
+            )}
 
             {(a.text || a.error) && (
               <div style={{ background: a.error ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${a.error ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
