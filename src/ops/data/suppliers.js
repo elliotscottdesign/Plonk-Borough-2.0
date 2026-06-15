@@ -29,6 +29,20 @@ export const CATEGORIES_SUPPLIED = [
   'Gas',
 ]
 
+// Display groups — drives the section headers on /operations?tool=suppliers.
+// Each supplier carries a `group` key that matches one of these. Order here
+// = order on screen. Pick the group based on what they're PRIMARILY for, even
+// if they also stock items in a sister category.
+export const GROUPS = [
+  { key: 'spirits',    label: 'Spirits & Liqueurs' },
+  { key: 'wine',       label: 'Wine' },
+  { key: 'beer-cider', label: 'Beer & Cider' },
+  { key: 'soft',       label: 'Soft Drinks' },
+  { key: 'produce',    label: 'Fresh Produce' },
+  { key: 'snacks',     label: 'Snacks' },
+  { key: 'ops',        label: 'Cleaning, Gas & Bar Tools' },
+]
+
 // Each supplier: id (slug, stable), name (display), then everything
 // else is whatever info we have. Empty strings render as "—" with a
 // pencil icon so the founder can edit inline.
@@ -48,6 +62,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Primary on-trade wholesale — most spirits, draught beer, cans, and post-mix Coke BIB. Pricing matched to the Drinks Club 26-27 sheet.',
     priority: 'primary',
+    group: 'spirits',
   },
 
   // ─── Top Cuvee ─ all wines ──────────────────────────────────────
@@ -65,6 +80,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'All wines (white, red, rosé, orange, chilled red, prosecco). Also stocks vermut and the house orange. London-based natural-wine importer. Orders typically by email to hello@topcuvee.com.',
     priority: 'primary',
+    group: 'wine',
   },
 
   // ─── Goodwine Good People ─ vermouth + aperitifs ────────────────
@@ -82,6 +98,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Vermouths + aperitifs (Cocchi Americano, El Bandarra, Lillet, Nectarine Aperitif). Founded 2020 by Dan Belmont, London-based New Yorker + wine educator.',
     priority: 'secondary',
+    group: 'wine',
   },
 
   // ─── True Brew Co Ltd (Hanbury Distillery) ──────────────────────
@@ -99,6 +116,7 @@ export const SUPPLIERS = [
     paymentTerms: 'BACS to HSBC 40-02-26 A/C 63856801',
     notes: 'Hanbury London Dry Gin (HD011) refill 2.1L £64 ex VAT — INV-0395. Hanbury Spiced Cranberry refill 2.1L £65 — INV-0473. VAT GB365465571. Company Reg 12079877. Opened 2021, Islington.',
     priority: 'primary',
+    group: 'spirits',
   },
 
   // ─── Devil's Botany ─────────────────────────────────────────────
@@ -116,6 +134,7 @@ export const SUPPLIERS = [
     paymentTerms: 'BACS to Starling Bank 60-83-71 A/C 68915463',
     notes: 'INV-0534 (29 Apr 2025): Chocolate Absinthe 24% 70cl £18.63, London Absinthe 45% 70cl £25.30, Absinthe Regalis 63% 70cl £36.63 — all ex VAT. VAT GB 263022147. Company Reg 10330594. AWRS XHAW00000115101.',
     priority: 'primary',
+    group: 'spirits',
   },
 
   // ─── Fine Cider Company ─ Oliver's cider ────────────────────────
@@ -133,6 +152,7 @@ export const SUPPLIERS = [
     paymentTerms: 'Free shipping on the trade order shown',
     notes: "Oliver's Fine Cider 330ml bottles — Pomona Rolling Blend 2023 + Gold Rush #11 — case of 24 @ £55.83 ex VAT (£1.94/btl). Replaces Aspalls.",
     priority: 'secondary',
+    group: 'beer-cider',
   },
 
   // ─── Umbrella London (formerly Umbrella Brewing) ────────────────
@@ -150,6 +170,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Umbrella Apple Cider keg (50L), 330ml × 24 cases. Apple, blackcurrant + rhubarb cider variants — British apples, direct from farmers. Production moved to Bethnal Green in Aug 2024.',
     priority: 'secondary',
+    group: 'beer-cider',
   },
 
   // ─── BCS Supplies ─ cleaning + consumables ──────────────────────
@@ -167,6 +188,7 @@ export const SUPPLIERS = [
     paymentTerms: 'Direct debit / card / bank transfer',
     notes: '14-month spend tracked at £1,704 across 48 SKUs — see /operations?tool=consumables. Paper, cleaning chemicals, glassware, bar tools.',
     priority: 'primary',
+    group: 'ops',
   },
 
   // ─── Brakes ─ fresh produce (Sysco GB Ltd) ──────────────────────
@@ -184,6 +206,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'All fresh — limes, lemons, oranges, cucumber, chillis, mint, eggs, tea, coffee. Garnish-side of every cocktail recipe.',
     priority: 'primary',
+    group: 'produce',
   },
 
   // ─── SNACK ─ likely Nibblers, the premium bar-snack trade supplier ────
@@ -201,6 +224,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Crisps × 5 flavours (Salty Dog), nuts × 2, Snackalami (Serious Pig), Olly\'s Olives. All currently ballpark cost — chase real price list. The "SNACK" tag in the legacy stock list may need updating once supplier confirmed.',
     priority: 'secondary',
+    group: 'snacks',
   },
 
   // ─── Brindisa ─ Spanish small plates ────────────────────────────
@@ -218,6 +242,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Gildas, jamón, Spanish sherry, olives. Per-skewer cost for gildas currently ballpark. Warehouse hours Mon-Fri 9-5.',
     priority: 'secondary',
+    group: 'snacks',
   },
 
   // ─── Valimex (Import & Export) Ltd ──────────────────────────────
@@ -235,6 +260,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Verified company is a UK foodservice fresh produce + fine foods distributor (London, since 1980). 5-9 employees. If you intended a Mexican spirits importer for Vida Mezcal / Cachaça / Wray & Nephew, that\'s a different supplier — clarify with the founder.',
     priority: 'secondary',
+    group: 'produce',
   },
 
   // ─── Club Mate (direct / via Mr Lemonade) ───────────────────────
@@ -252,6 +278,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: 'Club Mate caffeinated mate-tea bottles (330ml & 500ml). UK trade typically via Mr. Lemonade.',
     priority: 'secondary',
+    group: 'soft',
   },
 
   // ─── BOC ─ industrial gases ─────────────────────────────────────
@@ -269,6 +296,7 @@ export const SUPPLIERS = [
     paymentTerms: '',
     notes: '70/30 mixed gas (stout), 60/40 mixed gas (lager & IPA), CO2 for post-mix. Companies House: 00337663.',
     priority: 'primary',
+    group: 'ops',
   },
 ]
 
