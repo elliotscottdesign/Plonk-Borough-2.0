@@ -65,6 +65,16 @@ export const INGREDIENTS = {
   'bourbon':              { name: 'Bourbon',             packMl: 700, defaultCost: 19.74, supplier: 'Drinks Club', supplierProduct: 'Four Roses Yellow Label 700ml (SPW7FORYL)' },
   'whiskey-house':        { name: 'House Whiskey',       packMl: 700, defaultCost: 19.76, supplier: 'Drinks Club', supplierProduct: 'Jameson 700ml (SPW7JAM)' },
 
+  // ─── Independent spirit suppliers ─────────────────────────────────
+  // Hanbury Spiced Cranberry Gin — direct from True Brew Co Ltd (the
+  // entity behind the Hanbury Distillery in Islington). Two SKUs on
+  // invoice INV-0473: 70cl bottle £25 ex VAT (display + back-up) and
+  // 2.1L refill £65 ex VAT (working pack — £21.67 / 700ml-equivalent,
+  // ~13% cheaper per ml). Stored here at the refill rate (1ml = ~£0.031)
+  // because that is the realistic per-pour cost when the team is
+  // refilling.
+  'gin-hanbury-cranberry': { name: 'Hanbury Spiced Cranberry Gin', packMl: 2100, defaultCost: 65.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury Spiced Cranberry Refill 2.1L £65 ex VAT — bottle 70cl HD016 £25' },
+
   // ─── Liqueurs / aperitifs ─────────────────────────────────────────
   // ─── Liqueurs / aperitifs ─ Drinks Club 26-27 ─────────────────────
   'triple-sec':           { name: 'Triple Sec',          packMl: 700, defaultCost: 10.26, supplier: 'Drinks Club', supplierProduct: 'Blend Triple Sec 700ml (LI7BLETS)' },
