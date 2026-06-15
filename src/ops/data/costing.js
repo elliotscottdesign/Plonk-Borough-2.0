@@ -55,8 +55,10 @@ export const POUR = {
 export const INGREDIENTS = {
   // ─── Spirits — bottles 700ml unless noted ──────────────────────────
   // ─── Spirits ─ Drinks Club 26-27 price list ────────────────────────
-  'tequila-silver':       { name: 'Silver Tequila',      packMl: 700, defaultCost: 25.27, supplier: 'Drinks Club', supplierProduct: 'Olmeca Altos Plata 700ml (SPT5OLAPL)' },
-  'tequila-reposado':     { name: 'Tequila Reposado',    packMl: 700, defaultCost: 28.87, supplier: 'Drinks Club', supplierProduct: 'Olmeca Altos Reposado 700ml (SPT5OLAPE)' },
+  // Founder confirmed Cazcabel is the working bottle for the well — both silver
+  // and reposado used across cocktails. Cheaper than Olmeca Altos by ~£2-4/btl.
+  'tequila-silver':       { name: 'Silver Tequila (Cazcabel)',   packMl: 700, defaultCost: 23.09, supplier: 'Drinks Club', supplierProduct: 'Cazcabel Blanco 700ml (SPT7CAZBL)' },
+  'tequila-reposado':     { name: 'Tequila Reposado (Cazcabel)', packMl: 700, defaultCost: 24.51, supplier: 'Drinks Club', supplierProduct: 'Cazcabel Reposado 700ml (SPT7CAZRE)' },
   'mezcal-vida':          { name: 'Vida Mezcal',         packMl: 700, defaultCost: 33.50, supplier: 'Drinks Club', supplierProduct: 'Del Maguey Mezcal Vida 700ml 42% (SPM7DEMVI)' },
   'mezcal-house':         { name: 'House Mezcal',        packMl: 700, defaultCost: 40.11, supplier: 'Drinks Club', supplierProduct: 'Madre Mezcal Espadin 700ml (SPM7MADES)' },
   'cachaca':              { name: 'Cachaça',             packMl: 700, defaultCost: 16.43, supplier: 'Drinks Club', supplierProduct: 'Velho Barreiro Cachaca 700ml (SPC7VEBCA)' },
@@ -88,6 +90,11 @@ export const INGREDIENTS = {
   'amaro':                { name: 'Amaro',               packMl: 700, defaultCost: 16.33, supplier: 'Drinks Club', supplierProduct: 'Amaro Montenegro 700ml (VA7AMMLI)' },
   'cynar':                { name: 'Cynar',               packMl: 700, defaultCost: 13.39, supplier: 'Drinks Club', supplierProduct: 'Cynar Liqueur 700ml (LI7CYN)' },
   'limoncello':           { name: 'Limoncello',          packMl: 700, defaultCost: 14.79, supplier: 'Drinks Club', supplierProduct: 'Luxardo Limoncello 700ml (LI7LUXLI)' },
+  // Ms Better's Miraculous Foamer — vegan egg-white replacement, used a
+  // few drops at a time in sours. 120ml pipette bottle @ £18.90 ex VAT
+  // from Drinks Club (OTB1MSBMF). ~1ml per cocktail = ~120 serves/bottle.
+  'foamer':               { name: "Ms Better's Miraculous Foamer", packMl: 120, defaultCost: 18.90, supplier: 'Drinks Club', supplierProduct: "Ms Better's Miraculous Foamer 120ml (OTB1MSBMF)" },
+
   // Devil's Botany — buy direct from the distillery (Leyton). Invoice
   // INV-0534 (29 Apr 2025): Chocolate Absinthe 70cl at 18.63 ex VAT,
   // London Absinthe 70cl at 25.30, Absinthe Regalis 70cl at 36.63.
@@ -157,6 +164,12 @@ export const INGREDIENTS = {
   'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 8.00, supplier: 'Top Cuvee' },
   'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Top Cuvee' },
 
+  // House cheap red — only used for Kalimoxto (mixed with Coke), NOT
+  // pour-by-the-glass. Founder confirmed this is intentionally a cheaper
+  // bottle than the Top Cuvee selection. Drinks Club Domaine de La Motte
+  // Merlot at £6 / 750ml fits the brief.
+  'wine-house-red':       { name: 'House cheap red (Kalimoxto)', packMl: 750, defaultCost: 6.00, supplier: 'Drinks Club', supplierProduct: 'Domaine de La Motte Merlot 750ml (RE7LMOME)' },
+
   // ─── Soft drinks ─ Drinks Club case prices ÷ 24 (or per BIB for post-mix) ──
   // Kombucha not on the Drinks Club Jun-26 list — ballpark kept.
   'soft-kombucha':        { name: 'Kombucha',             packMl: 275, defaultCost: 1.50, supplier: 'Drinks Club' },
@@ -166,8 +179,12 @@ export const INGREDIENTS = {
   'soft-fanta':           { name: 'Fanta',                packMl: 330, defaultCost: 0.60, supplier: 'Drinks Club', supplierProduct: 'Fanta Can 330ml × 24 @ £14.40 (SO3FANC)' },
   'soft-coke':            { name: 'Coca-Cola (bottle)',   packMl: 200, defaultCost: 0.50, supplier: 'Drinks Club' },
   'soft-juice':           { name: 'Juice (assorted)',     packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
-  // Post-mix coke now sized to the Drinks Club 7L BIB (was 100L tap-line estimate).
-  'postmix-coke':         { name: 'Post-mix Coke (BIB)',  packMl: 7000, defaultCost: 79.30, supplier: 'Drinks Club', supplierProduct: 'Coca Cola BIB 7L (SO7COCBIB)' },
+  // Post-mix coke: Drinks Club 7L SYRUP BIB at £79.30 ex VAT. The
+  // gun mixes syrup ~1:5 with carbonated water on the line, so 7L of
+  // syrup yields ~42L of pourable Coke. packMl stored as the FINISHED
+  // volume (42L) so the per-ml cost reflects what actually leaves the
+  // tap = £79.30/42000ml ≈ £0.0019/ml ≈ £0.38 per 200ml serve.
+  'postmix-coke':         { name: 'Post-mix Coke (finished)', packMl: 42000, defaultCost: 79.30, supplier: 'Drinks Club', supplierProduct: 'Coca Cola BIB 7L (SO7COCBIB) — 1:5 syrup to soda water = 42L finished' },
   'postmix-soda':         { name: 'Post-mix Soda',        packMl: 100000, defaultCost: 5.00, supplier: 'BOC' },
 
   // ─── Homemade sodas (syrup + soda mix) ──────────────────────────
@@ -293,69 +310,82 @@ export const RECIPES = [
   { id: 'wine-mini-prosecco',    category: 'wine', name: 'Mini Prosecco 20cl',        sellPrice: 8.5, ingredients: [{ id: 'wine-mini-prosecco', ml: 200 }] },
 
   // ─── COCKTAILS ──
+  // Founder spec (Aug 2025): 35ml Vida Mezcal, 25ml Green Chartreuse,
+  // 25ml lemon, ~1ml Ms Better's Foamer (1/3 of a pipette).
   {
     id: 'cocktail-green-smoke', category: 'cocktail', name: 'Green Smoke', sellPrice: 12,
-    notes: 'Shaken sour. Egg white optional.',
+    notes: 'Shaken sour. 1/3 of a pipette of foamer (vegan egg-white sub).',
     ingredients: [
-      { id: 'mezcal-house',      ml: POUR.SPIRIT_DOUBLE },
-      { id: 'chartreuse-green',  ml: POUR.LIQUEUR },
+      { id: 'mezcal-vida',       ml: 35 },
+      { id: 'chartreuse-green',  ml: 25 },
       { id: 'lemon-juice',       ml: 25 },
-      { id: 'sugar-syrup',       ml: 15 },
-      { id: 'egg-white',         ml: 1 },
+      { id: 'foamer',            ml: 1 },
       { id: 'lemon-twist',       ml: 1 },
     ],
   },
+  // Founder spec (Aug 2025): 3 cucumber slices, 3 chilli slices muddled,
+  // 25ml lime, double Cazcabel Reposado (50ml), 12.5ml agave syrup.
   {
     id: 'cocktail-spicy-cuc-marg', category: 'cocktail', name: 'Spicy Cucumber Margarita', sellPrice: 11,
-    notes: 'Smashed cucumber + fresh chilli, rocks.',
+    notes: '3 cucumber slices + 3 chilli slices muddled. Double Cazcabel Reposado. Rocks.',
     ingredients: [
       { id: 'tequila-reposado',  ml: POUR.SPIRIT_DOUBLE },
       { id: 'lime-juice',        ml: 25 },
-      { id: 'agave-syrup',       ml: 15 },
-      { id: 'cucumber-slice',    ml: 4 }, // 4 slices
-      { id: 'chilli-slice',      ml: 2 },
+      { id: 'agave-syrup',       ml: 12.5 },
+      { id: 'cucumber-slice',    ml: 3 },
+      { id: 'chilli-slice',      ml: 3 },
       { id: 'salt-rim',          ml: 1 },
     ],
   },
+  // Founder spec (Aug 2025): 35ml Vida Mezcal, 25ml Amaro Montenegro,
+  // ~5ml (1 bar-spoon) Martini Rosso sweet vermouth, orange slice + zest.
   {
     id: 'cocktail-mezcal-martinez', category: 'cocktail', name: 'Mezcal Martinez', sellPrice: 12,
-    notes: 'Stirred. Orange twist.',
+    notes: 'Stirred. Bar-spoon of Martini Rosso, orange slice + zest.',
     ingredients: [
-      { id: 'mezcal-vida',       ml: POUR.SPIRIT_DOUBLE },
+      { id: 'mezcal-vida',       ml: 35 },
       { id: 'amaro',             ml: 25 },
-      { id: 'vermouth-dry',      ml: 25 },
+      { id: 'vermouth-sweet',    ml: 5 },
       { id: 'orange-slice',      ml: 1 },
     ],
   },
+  // Founder spec (Aug 2025): 50ml Cachaça, 25ml lime juice, 25ml sugar
+  // syrup, 1 lime crushed into wedges. Rotating fruity combos optional.
   {
     id: 'cocktail-caipirinha', category: 'cocktail', name: 'Caipirinha', sellPrice: 11,
-    notes: 'Rotating fruity combos — fruit added on top of base recipe.',
+    notes: 'A whole lime crushed into wedges. Rotating fruit combos on top.',
     ingredients: [
-      { id: 'cachaca',           ml: POUR.SPIRIT_DOUBLE },
-      { id: 'lime-wedge',        ml: 6 }, // half a lime, 6 wedges
-      { id: 'sugar-syrup',       ml: 15 },
+      { id: 'cachaca',           ml: 50 },
+      { id: 'lime-juice',        ml: 25 },
+      { id: 'sugar-syrup',       ml: 25 },
+      { id: 'lime-wedge',        ml: 8 },
     ],
   },
+  // Founder spec (Aug 2025): 25ml Havana Especial, 10ml Wray & Nephew
+  // float, 25ml Triple Sec, top pineapple juice, grenadine float.
   {
     id: 'cocktail-royal-flush', category: 'cocktail', name: 'Royal Flush', sellPrice: 10,
-    notes: 'Long, pineapple-led.',
+    notes: 'Long, pineapple top. W&N float + grenadine float.',
     ingredients: [
       { id: 'rum-havana-especial', ml: 25 },
-      { id: 'rum-wray-nephew',    ml: 15 },
-      { id: 'triple-sec',         ml: 15 },
-      { id: 'pineapple-juice',    ml: 75 },
+      { id: 'rum-wray-nephew',    ml: 10 },
+      { id: 'triple-sec',         ml: 25 },
+      { id: 'pineapple-juice',    ml: 100 },
       { id: 'grenadine',          ml: 10 },
     ],
   },
+  // Founder spec (Aug 2025): 25ml Cazcabel Blanco, 25ml lime, topped
+  // with half-pint Camden Hells. Salt + Tajín rim. Michelada variant
+  // adds chilli sauce + spices (negligible cost).
   {
     id: 'cocktail-lagerita', category: 'cocktail', name: 'Lagerita / Tequila Michelada', sellPrice: 10,
-    notes: 'Topped with Hells — add hot sauce + tomato juice for Turbo.',
+    notes: 'Half pint Hells top. Add chilli sauce + spices for Michelada.',
     ingredients: [
-      { id: 'tequila-silver',    ml: 35 },
+      { id: 'tequila-silver',    ml: 25 },
       { id: 'lime-juice',        ml: 25 },
       { id: 'salt-rim',          ml: 1 },
       { id: 'tajin-rim',         ml: 1 },
-      { id: 'keg-camden-hells',  ml: 200 },
+      { id: 'keg-camden-hells',  ml: POUR.HALF },
     ],
   },
   {
@@ -395,36 +425,46 @@ export const RECIPES = [
     id: 'spritz-limoncello', category: 'spritz', name: 'Limoncello + Soda', sellPrice: 7,
     ingredients: [{ id: 'limoncello', ml: POUR.SPIRIT_DOUBLE }, { id: 'postmix-soda', ml: 150 }, { id: 'lemon-twist', ml: 1 }],
   },
+  // Founder spec (Aug 2025): single 25ml Cazcabel Blanco, 25ml lime,
+  // soda top, salt rim. Exception to the "long drinks = doubles" rule.
   {
     id: 'spritz-ranch-water', category: 'spritz', name: 'Ranch Water', sellPrice: 7,
+    notes: 'Single 25ml silver tequila. Lime + soda top, salt rim.',
     ingredients: [
-      { id: 'tequila-silver',   ml: POUR.SPIRIT_DOUBLE },
-      { id: 'lime-juice',       ml: 15 },
+      { id: 'tequila-silver',   ml: 25 },
+      { id: 'lime-juice',       ml: 25 },
       { id: 'postmix-soda',     ml: 150 },
       { id: 'salt-rim',         ml: 1 },
     ],
   },
+  // Founder spec (Aug 2025): 125ml of the £6 house red (NOT the £35 Top
+  // Cuvee Conejos), topped with ~200ml Coca Cola (small can equiv).
   {
     id: 'spritz-kalimoxto', category: 'spritz', name: 'Kalimoxto', sellPrice: 8,
+    notes: 'House cheap red — Drinks Club Domaine de La Motte Merlot. NOT the £35 Top Cuvee bottle.',
     ingredients: [
-      { id: 'wine-conejos-malditos', ml: POUR.WINE_175 },
-      { id: 'postmix-coke',          ml: 100 },
+      { id: 'wine-house-red',   ml: 125 },
+      { id: 'postmix-coke',     ml: 200 },
     ],
   },
+  // Founder spec (Aug 2025): half-pint Camden Hells, 25ml Campari, 25ml
+  // El Bandarra vermut (NOT a sweet vermouth — switch to the vermut line).
   {
     id: 'spritz-beericano', category: 'spritz', name: 'Beericano', sellPrice: 10,
+    notes: 'Half pint Hells + Campari + El Bandarra vermut.',
     ingredients: [
-      { id: 'keg-camden-hells',  ml: 284 },
+      { id: 'keg-camden-hells',  ml: POUR.HALF },
       { id: 'campari',           ml: 25 },
-      { id: 'vermouth-sweet',    ml: 25 },
+      { id: 'vermut',            ml: 25 },
     ],
   },
+  // Founder spec (Aug 2025): 35ml St Germain, 125ml Prosecco, soda top, mint.
   {
     id: 'spritz-hugo', category: 'spritz', name: 'Hugo Spritz', sellPrice: 11,
     ingredients: [
-      { id: 'st-germain',        ml: 25 },
-      { id: 'wine-prosecco',     ml: 100 },
-      { id: 'postmix-soda',      ml: 50 },
+      { id: 'st-germain',        ml: 35 },
+      { id: 'wine-prosecco',     ml: 125 },
+      { id: 'postmix-soda',      ml: 100 },
       { id: 'mint-sprig',        ml: 1 },
     ],
   },
