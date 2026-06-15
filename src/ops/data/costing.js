@@ -220,6 +220,70 @@ export const INGREDIENTS = {
   'snack-nuts':           { name: 'Salty Dog Nuts 45g',   packMl: 1, defaultCost: 0.41, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: 'Salty Dog Dry Roasted, case of 24 × 45g @ £9.75 ex VAT (£0.41/pack). Chilli Peanuts £11.25/case (£0.47/pack).' },
   'snack-salami':         { name: 'Serious Pig Snackalami 30g', packMl: 1, defaultCost: 1.35, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: 'Serious Pig Snackalami Classic, case of 24 × 30g @ £32.50 (zero VAT) = £1.35/snack' },
   'snack-olives':         { name: "Olly's Olives 50g",    packMl: 1, defaultCost: 1.10, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: "Olly's Olives Garlic & Basil, case of 12 × 50g @ £13.25 (zero VAT) = £1.10/pot" },
+
+  // ─── Additional ingredients for Dec 2025 spec sheet ──────────────
+  // Added when the founder shared the full Cocktail Specs Update —
+  // these are everything needed by the ~25 cocktails that the
+  // previous costing data didn't yet reference.
+
+  // ─── Extra spirits / liqueurs ─ Drinks Club prices verified ─────
+  'vodka':                  { name: 'Vodka (well)',          packMl: 700, defaultCost: 14.53, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Blue 700ml (SPV7ABSBL)' },
+  'vodka-vanilla':          { name: 'Vanilla Vodka',         packMl: 700, defaultCost: 16.86, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Vanilla 700ml (SPV7ABSVA)' },
+  'gin-house':              { name: 'House Gin (Hanbury LD)', packMl: 2100, defaultCost: 64.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury London Dry Refill 2.1L (HD011)' },
+  'rum-spiced':             { name: 'Spiced Rum (Cut)',      packMl: 700, defaultCost: 20.76, supplier: 'Drinks Club', supplierProduct: 'Cut Spiced Rum 700ml (SPR7CUTSR)' },
+  'rum-kraken':             { name: 'Kraken Black Spiced',   packMl: 700, defaultCost: 21.90, supplier: 'Drinks Club', supplierProduct: 'Kraken Black Spiced Rum 700ml (SPR7KRABS)' },
+  'rum-havana-7':           { name: 'Havana Club 7yr',       packMl: 700, defaultCost: 20.96, supplier: 'Drinks Club', supplierProduct: 'Havana Club 7 Year Old 700ml (SPR7HAC7)' },
+  'amaretto':               { name: 'Disaronno Amaretto',    packMl: 700, defaultCost: 16.26, supplier: 'Drinks Club', supplierProduct: 'Disaronno Amaretto 700ml (LI7DISAM)' },
+  'chartreuse-yellow':      { name: 'Yellow Chartreuse',     packMl: 700, defaultCost: 35.29, supplier: 'Drinks Club', supplierProduct: 'Chartreuse Yellow Liqueur 700ml 43% (LI7CHAYE)' },
+  'kings-ginger':           { name: "King's Ginger Liqueur", packMl: 500, defaultCost: 19.86, supplier: 'Drinks Club', supplierProduct: 'Kings Ginger Liqueur 500ml (LI5KGL)' },
+  'passion-fruit-liqueur':  { name: 'Passion Fruit Liqueur', packMl: 700, defaultCost: 9.45, supplier: 'Drinks Club', supplierProduct: 'Blend Passion Fruit Liqueur 700ml (LI7BLEPF)' },
+  'falernum':               { name: "Velvet Falernum",       packMl: 700, defaultCost: 13.20, supplier: 'Drinks Club', supplierProduct: "Taylor's Velvet Falernum 700ml (LI7TAYVFL)" },
+  'aperol':                 { name: 'Aperol Aperitivo',      packMl: 700, defaultCost: 11.25, supplier: 'Drinks Club', supplierProduct: 'Aperol Aperitivo 700ml (LI7APA)' },
+  'pimms':                  { name: "Pimm's No.1",           packMl: 700, defaultCost: 13.00, supplier: 'Drinks Club', supplierProduct: "Pimm's No.1 700ml (VE7PIMN1)" },
+  'vermouth-cocchi':        { name: 'Cocchi Americano',      packMl: 750, defaultCost: 19.43, supplier: 'Drinks Club', supplierProduct: 'Cocchi Americano 750ml (AP7COCAM)' },
+  'lillet':                 { name: 'Lillet Rose',           packMl: 750, defaultCost: 13.32, supplier: 'Drinks Club', supplierProduct: 'Lillet Rose 750ml (AP7LILROS)' },
+  'umeshu-plum-sake':       { name: 'Akashi-Tai Plum Sake',  packMl: 500, defaultCost: 17.10, supplier: 'Drinks Club', supplierProduct: 'Akashi-Tai Shiraume Ginjo Umeshu 500ml (SA5AKTSGUP)' },
+
+  // ─── Bitters & syrups ────────────────────────────────────────────
+  'angostura':              { name: 'Angostura Bitters',     packMl: 200, defaultCost: 9.75, supplier: 'Drinks Club', supplierProduct: 'Angostura Bitters 200ml (OTB2ANGBI)' },
+  'lemon-bitters':          { name: 'Fee Brothers Lemon Bitters', packMl: 150, defaultCost: 14.98, supplier: 'Drinks Club', supplierProduct: 'Fee Brothers Lemon Bitters 150ml (OTB1FEBLE)' },
+  'honey-syrup':            { name: 'Honey syrup (house)',   packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
+  'vanilla-syrup':          { name: 'Monin Vanilla syrup',   packMl: 700, defaultCost: 6.99, supplier: 'Drinks Club', supplierProduct: 'Monin Vanilla 700ml (OTS7MONVA)' },
+  'banana-syrup':           { name: 'Banana syrup',          packMl: 700, defaultCost: 7.00, supplier: 'Brakes' },
+
+  // ─── Purees & juices ─────────────────────────────────────────────
+  'mango-puree':            { name: 'Funkin Mango Puree',    packMl: 1000, defaultCost: 47.60, supplier: 'Drinks Club', supplierProduct: 'Funkin Mango Puree 1kg (OTP1FUNMP)' },
+  'passion-fruit-puree':    { name: 'Funkin Passion Fruit Puree', packMl: 1000, defaultCost: 48.80, supplier: 'Drinks Club', supplierProduct: 'Funkin Passion Fruit Puree 1kg (OTP1FUNPFP)' },
+  'tomato-juice':           { name: 'Big Tom / Eager Tomato', packMl: 1000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice 1000ml (SO1EAGTO)' },
+  'grapefruit-juice':       { name: 'Eager Pink Grapefruit', packMl: 1000, defaultCost: 19.28, supplier: 'Drinks Club', supplierProduct: 'Eager Pink Grapefruit 1000ml (SO1EAGPG)' },
+  'orange-juice':           { name: 'Eager Orange (smooth)', packMl: 1000, defaultCost: 18.56, supplier: 'Drinks Club', supplierProduct: 'Eager Orange Smooth 1000ml (SO1EAGOS)' },
+  'coconut-cream':          { name: 'Coconut cream',         packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
+  'coffee-extract':         { name: 'Coffee extract (cold brew)', packMl: 1000, defaultCost: 25.00, supplier: 'Drinks Club' },
+
+  // ─── Hot sauces + savoury condiments ─────────────────────────────
+  'worcestershire':         { name: 'Worcestershire sauce',  packMl: 300, defaultCost: 4.00, supplier: 'Brakes' },
+  'tabasco':                { name: 'Tabasco hot sauce',     packMl: 60, defaultCost: 4.00, supplier: 'Brakes' },
+  'valentina-hot-sauce':    { name: 'Valentina Hot Sauce',   packMl: 950, defaultCost: 6.00, supplier: 'Brakes' },
+  'soy-sauce':              { name: 'Soy sauce',             packMl: 250, defaultCost: 2.00, supplier: 'Brakes' },
+
+  // ─── Soda lines ─ post-mix BIB lemonade ─────────────────────────
+  // Schweppes Lemonade 7L BIB @ £69.60 ex VAT; 1:5 syrup-to-water gives
+  // ~42L finished drink so per-ml cost ≈ £0.00166.
+  'postmix-lemonade':       { name: 'Post-mix Lemonade (finished)', packMl: 42000, defaultCost: 69.60, supplier: 'Drinks Club', supplierProduct: 'Schweppes Lemonade BIB 7L (SO7SCHLEBIB) — 1:5 syrup to soda = 42L finished' },
+
+  // ─── Beer (Sol) ─ Mexican lager for Michelada Sol ───────────────
+  'btl-sol':                { name: 'Sol Mexican Lager 330ml', packMl: 330, defaultCost: 1.20, supplier: 'Drinks Club' },
+
+  // ─── Garnishes & herbs ──────────────────────────────────────────
+  'mint-leaf':              { name: 'Mint leaf (each)',      packMl: 1, defaultCost: 0.04, supplier: 'Brakes' },
+  'sage-leaf':              { name: 'Sage leaf (each)',      packMl: 1, defaultCost: 0.05, supplier: 'Brakes' },
+  'pineapple-leaf':         { name: 'Pineapple leaf',        packMl: 1, defaultCost: 0.10, supplier: 'Brakes' },
+  'cherry-cocktail':        { name: 'Cocktail cherry',       packMl: 1, defaultCost: 0.08, supplier: 'Drinks Club', supplierProduct: 'Luxardo Maraschino Cherries 400g (OT4LUXMC)' },
+  'grapefruit-slice':       { name: 'Grapefruit slice',      packMl: 1, defaultCost: 0.12, supplier: 'Brakes' },
+  'lime-slice':             { name: 'Lime slice',            packMl: 1, defaultCost: 0.07, supplier: 'Brakes' },
+  'orange-peel':            { name: 'Orange peel',           packMl: 1, defaultCost: 0.08, supplier: 'Brakes' },
+  'celery-stick':           { name: 'Celery stick',          packMl: 1, defaultCost: 0.15, supplier: 'Brakes' },
+  'strawberry':             { name: 'Strawberry',            packMl: 1, defaultCost: 0.15, supplier: 'Brakes' },
 }
 
 // ───────────────────────────────────────────────────────────────────────
@@ -236,6 +300,8 @@ export const CATEGORIES = [
   { key: 'shot',     label: 'Shooters',       targetGp: 0.85 },
   { key: 'soft',     label: 'Softs / Hot',    targetGp: 0.80 },
   { key: 'snack',    label: 'Snacks',         targetGp: 0.55 },
+  { key: 'jug',      label: 'Jugs',           targetGp: 0.75 },
+  { key: 'mocktail', label: 'Mocktails',      targetGp: 0.78 },
 ]
 
 // ───────────────────────────────────────────────────────────────────────
@@ -511,6 +577,356 @@ export const RECIPES = [
   { id: 'snack-nuts',     category: 'snack', name: 'Nuts',              sellPrice: 1.5, ingredients: [{ id: 'snack-nuts',   ml: 1 }] },
   { id: 'snack-salami',   category: 'snack', name: 'Salami Snacks',     sellPrice: 3.5, ingredients: [{ id: 'snack-salami', ml: 1 }] },
   { id: 'snack-olives',   category: 'snack', name: 'Olives',            sellPrice: 3.5, ingredients: [{ id: 'snack-olives', ml: 1 }] },
+
+  // ─── COCKTAILS (Dec 2025 spec sheet additions) ──────────────────
+  // All recipes verbatim from "Cocktail Specs Update DEC 2025.pdf".
+  // Sell prices set to typical No Dice menu pricing — adjust in admin
+  // once the print menu is finalised.
+  {
+    id: 'cocktail-espresso-martini', category: 'cocktail', name: 'Espresso Martini', sellPrice: 11,
+    notes: 'Double shake (remove ice, dry shake), double strain. Coffee beans garnish.',
+    ingredients: [
+      { id: 'vodka',           ml: 30 },
+      { id: 'kahlua',          ml: 25 },
+      { id: 'coffee-extract',  ml: 30 },
+      { id: 'sugar-syrup',     ml: 7 },
+    ],
+  },
+  {
+    id: 'cocktail-classic-marg', category: 'cocktail', name: 'Classic Margarita', sellPrice: 11,
+    notes: 'Chill coupe. Shake. No ice, no straw. Salt rim.',
+    ingredients: [
+      { id: 'tequila-silver',  ml: 50 },
+      { id: 'triple-sec',      ml: 20 },
+      { id: 'lime-juice',      ml: 25 },
+      { id: 'salt-rim',        ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-tommys-marg', category: 'cocktail', name: "Tommy's Margarita", sellPrice: 11,
+    notes: 'Shake. Serve rock glass cubes to top. No straw, no salt.',
+    ingredients: [
+      { id: 'tequila-reposado', ml: 50 },
+      { id: 'lime-juice',       ml: 40 },
+      { id: 'agave-syrup',      ml: 15 },
+    ],
+  },
+  {
+    id: 'cocktail-mezcal-marg', category: 'cocktail', name: 'Mezcal Margarita', sellPrice: 12,
+    notes: 'Shake. Serve rock glass cubes to top. No rim salt or Tajín.',
+    ingredients: [
+      { id: 'mezcal-vida',     ml: 35 },
+      { id: 'triple-sec',      ml: 15 },
+      { id: 'lime-juice',      ml: 25 },
+    ],
+  },
+  {
+    id: 'cocktail-sage-smash', category: 'cocktail', name: 'Sage Smash', sellPrice: 11,
+    notes: 'Dump sage leaves first. Single strain, ice to top. Sage sprig.',
+    ingredients: [
+      { id: 'bourbon',           ml: 40 },
+      { id: 'chartreuse-yellow', ml: 10 },
+      { id: 'honey-syrup',       ml: 15 },
+      { id: 'lemon-juice',       ml: 25 },
+      { id: 'sage-leaf',         ml: 6 },
+    ],
+  },
+  {
+    id: 'cocktail-penicillin-2', category: 'cocktail', name: 'Penicillin 2.0', sellPrice: 12,
+    notes: 'Shake without Amaro. Strain into rocks + ice. FLOAT the Amaro.',
+    ingredients: [
+      { id: 'mezcal-vida',     ml: 35 },
+      { id: 'kings-ginger',    ml: 25 },
+      { id: 'lemon-juice',     ml: 25 },
+      { id: 'honey-syrup',     ml: 15 },
+      { id: 'amaro',           ml: 5 },
+    ],
+  },
+  {
+    id: 'cocktail-golfstar-martini', category: 'cocktail', name: 'Golfstar Martini', sellPrice: 12,
+    notes: 'Shake to create foam, double strain. Open mini prosecco for the float. 2 cherries on a pick.',
+    ingredients: [
+      { id: 'vodka-vanilla',           ml: 30 },
+      { id: 'passion-fruit-liqueur',   ml: 20 },
+      { id: 'passion-fruit-puree',     ml: 30 },
+      { id: 'vanilla-syrup',           ml: 10 },
+      { id: 'lime-juice',              ml: 10 },
+      { id: 'wine-prosecco',           ml: 20 },
+      { id: 'cherry-cocktail',         ml: 2 },
+    ],
+  },
+  {
+    id: 'cocktail-paloma', category: 'cocktail', name: 'Paloma', sellPrice: 11,
+    notes: 'Salt rim. Ting splash in glass first, rest in shaker. Cubes + grapefruit slice.',
+    ingredients: [
+      { id: 'tequila-silver',  ml: 50 },
+      { id: 'lime-juice',      ml: 10 },
+      { id: 'agave-syrup',     ml: 10 },
+      { id: 'grapefruit-juice', ml: 60 },
+      { id: 'soft-ting',       ml: 50 },
+      { id: 'salt-rim',        ml: 1 },
+      { id: 'grapefruit-slice', ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-whiskey-sour', category: 'cocktail', name: 'Whiskey Sour', sellPrice: 11,
+    notes: 'Shake, dry shake, double strain. Angostura line on top.',
+    ingredients: [
+      { id: 'bourbon',         ml: 50 },
+      { id: 'lemon-juice',     ml: 30 },
+      { id: 'sugar-syrup',     ml: 10 },
+      { id: 'angostura',       ml: 0.5 },
+      { id: 'foamer',          ml: 2 },
+    ],
+  },
+  {
+    id: 'cocktail-amaretto-sour', category: 'cocktail', name: 'Amaretto Sour', sellPrice: 11,
+    notes: 'Shake, dry shake, double strain into coupe. Angostura line on top.',
+    ingredients: [
+      { id: 'amaretto',        ml: 75 },
+      { id: 'lemon-juice',     ml: 30 },
+      { id: 'angostura',       ml: 0.5 },
+      { id: 'foamer',          ml: 2 },
+    ],
+  },
+  {
+    id: 'cocktail-solero-colada', category: 'cocktail', name: 'Solero Colada', sellPrice: 12,
+    notes: 'Shake. Crushed ice. Splash passion fruit puree + pineapple leaf garnish.',
+    ingredients: [
+      { id: 'rum-spiced',          ml: 50 },
+      { id: 'pineapple-juice',     ml: 50 },
+      { id: 'coconut-cream',       ml: 40 },
+      { id: 'passion-fruit-puree', ml: 15 },
+      { id: 'pineapple-leaf',      ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-plonkers-punch', category: 'cocktail', name: "Plonker's Punch", sellPrice: 11,
+    notes: 'Build in highball, cubes to top. Premixed juice. Pineapple slice.',
+    ingredients: [
+      { id: 'rum-havana-especial', ml: 30 },
+      { id: 'triple-sec',          ml: 20 },
+      { id: 'pineapple-juice',     ml: 50 },
+      { id: 'rum-wray-nephew',     ml: 10 },
+      { id: 'grenadine',           ml: 10 },
+    ],
+  },
+  {
+    id: 'cocktail-negroni', category: 'cocktail', name: 'Negroni', sellPrice: 11,
+    notes: 'Build over cubes, stir 20 sec, add more ice + garnish. No straw.',
+    ingredients: [
+      { id: 'gin-house',          ml: 25 },
+      { id: 'campari',            ml: 25 },
+      { id: 'vermouth-cocchi',    ml: 25 },
+      { id: 'orange-peel',        ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-bloody-mary', category: 'cocktail', name: 'Bloody Mary', sellPrice: 11,
+    notes: 'Shaker throw 8 times. Cubes to top in highball. S+P rim. Celery + lemon.',
+    ingredients: [
+      { id: 'vodka',           ml: 50 },
+      { id: 'tomato-juice',    ml: 75 },
+      { id: 'lemon-juice',     ml: 20 },
+      { id: 'worcestershire',  ml: 2 },
+      { id: 'tabasco',         ml: 2 },
+      { id: 'celery-stick',    ml: 1 },
+      { id: 'salt-rim',        ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-fields', category: 'cocktail', name: 'Fields', sellPrice: 12,
+    notes: 'Stir 15 sec in rocks. Zest lemon on top + express round rim. Ice to top.',
+    ingredients: [
+      { id: 'umeshu-plum-sake', ml: 75 },
+      { id: 'vermouth-sweet',   ml: 10 },
+      { id: 'lemon-bitters',    ml: 1 },
+      { id: 'lemon-twist',      ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-cola-soda', category: 'cocktail', name: 'Cola Soda / Spritzer', sellPrice: 11,
+    notes: 'Large wine glass. Pour in, top with ice. Orange slice.',
+    ingredients: [
+      { id: 'rum-kraken',      ml: 15 },
+      { id: 'falernum',        ml: 25 },
+      { id: 'amaro',           ml: 30 },
+      { id: 'wine-prosecco',   ml: 75 },
+      { id: 'postmix-soda',    ml: 100 },
+      { id: 'orange-slice',    ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-mango-mojito', category: 'cocktail', name: 'Mango Mojito', sellPrice: 11,
+    notes: 'Squeeze limes, add all, crushed ice, stir to break mint, soda splash + crushed top.',
+    ingredients: [
+      { id: 'rum-havana-especial', ml: 50 },
+      { id: 'mango-puree',         ml: 40 },
+      { id: 'passion-fruit-puree', ml: 5 },
+      { id: 'mint-leaf',           ml: 7 },
+      { id: 'lime-wedge',          ml: 2 },
+      { id: 'postmix-soda',        ml: 50 },
+    ],
+  },
+  {
+    id: 'cocktail-classic-mojito', category: 'cocktail', name: 'Classic Mojito', sellPrice: 11,
+    notes: 'Like Mango Mojito but skip mango, add 25ml lime juice instead.',
+    ingredients: [
+      { id: 'rum-havana-especial', ml: 50 },
+      { id: 'lime-juice',          ml: 25 },
+      { id: 'sugar-syrup',         ml: 10 },
+      { id: 'mint-leaf',           ml: 7 },
+      { id: 'lime-wedge',          ml: 2 },
+      { id: 'postmix-soda',        ml: 50 },
+    ],
+  },
+  {
+    id: 'cocktail-michelada-full', category: 'cocktail', name: 'Michelada (Full)', sellPrice: 10,
+    notes: 'Tajín rim. All into highball on cubes, top with lager. Lime slice.',
+    ingredients: [
+      { id: 'tequila-silver',       ml: 25 },
+      { id: 'lime-juice',           ml: 25 },
+      { id: 'tomato-juice',         ml: 50 },
+      { id: 'valentina-hot-sauce',  ml: 12.5 },
+      { id: 'worcestershire',       ml: 12.5 },
+      { id: 'keg-camden-hells',     ml: 200 },
+      { id: 'tajin-rim',            ml: 1 },
+      { id: 'lime-slice',           ml: 1 },
+    ],
+  },
+  {
+    id: 'cocktail-old-fashioned', category: 'cocktail', name: 'Old Fashioned', sellPrice: 11,
+    notes: 'Stir 12 sec, strain into rocks ice to top. Orange peel expressed + dropped in.',
+    ingredients: [
+      { id: 'bourbon',         ml: 50 },
+      { id: 'sugar-syrup',     ml: 10 },
+      { id: 'angostura',       ml: 1 },
+      { id: 'orange-peel',     ml: 1 },
+    ],
+  },
+
+  // ─── LONG DRINKS (Dec 2025 spec sheet additions) ────────────────
+  {
+    id: 'spritz-aperol-single', category: 'spritz', name: 'Aperol Spritz (single)', sellPrice: 9,
+    notes: 'Aperol + soda + cubed ice. Top with prosecco. Don\'t stir. Orange slice.',
+    ingredients: [
+      { id: 'aperol',          ml: 50 },
+      { id: 'wine-prosecco',   ml: 75 },
+      { id: 'postmix-soda',    ml: 50 },
+      { id: 'orange-slice',    ml: 1 },
+    ],
+  },
+  {
+    id: 'spritz-lillet', category: 'spritz', name: 'Lillet Spritz', sellPrice: 9,
+    notes: 'Same method as other spritzers. Lemon garnish.',
+    ingredients: [
+      { id: 'lillet',           ml: 70 },
+      { id: 'lemon-juice',      ml: 5 },
+      { id: 'postmix-soda',     ml: 75 },
+      { id: 'postmix-lemonade', ml: 50 },
+      { id: 'lemon-twist',      ml: 1 },
+    ],
+  },
+  {
+    id: 'spritz-white-wine', category: 'spritz', name: 'White Wine Spritzer', sellPrice: 8,
+    notes: 'Wine glass build. Ask soda or lemonade.',
+    ingredients: [
+      { id: 'wine-blanco-blanco', ml: 100 },
+      { id: 'postmix-lemonade',   ml: 100 },
+    ],
+  },
+  {
+    id: 'spritz-michelada-sol', category: 'spritz', name: 'Michelada (Sol)', sellPrice: 9,
+    notes: 'Tajín rim. Pour everything except Sol on cubes. Stir. Top with Sol + serve rest alongside.',
+    ingredients: [
+      { id: 'tomato-juice',     ml: 50 },
+      { id: 'lime-juice',       ml: 15 },
+      { id: 'tabasco',          ml: 2 },
+      { id: 'worcestershire',   ml: 1 },
+      { id: 'soy-sauce',        ml: 1 },
+      { id: 'btl-sol',          ml: 330 },
+      { id: 'tajin-rim',        ml: 1 },
+    ],
+  },
+
+  // ─── JUGS — sold by the jug, lower margin target (75%) ──────────
+  {
+    id: 'jug-dark-stormy', category: 'jug', name: 'Dark & Stormy (Jug)', sellPrice: 28,
+    notes: 'Fill jug with cubes, rum + lime, top ginger beer, splash angostura, mix.',
+    ingredients: [
+      { id: 'rum-havana-7',      ml: 150 },
+      { id: 'lime-juice',        ml: 45 },
+      { id: 'soft-ginger-beer',  ml: 500 },
+      { id: 'angostura',         ml: 3 },
+      { id: 'lime-wedge',        ml: 4 },
+    ],
+  },
+  {
+    id: 'jug-aperol-spritz', category: 'jug', name: 'Aperol Spritz (Jug)', sellPrice: 30,
+    notes: 'Aperol + cubes + soda + prosecco, stir. Orange slices.',
+    ingredients: [
+      { id: 'aperol',          ml: 150 },
+      { id: 'wine-prosecco',   ml: 500 },
+      { id: 'postmix-soda',    ml: 150 },
+      { id: 'orange-slice',    ml: 3 },
+    ],
+  },
+  {
+    id: 'jug-pimms', category: 'jug', name: "Pimm's (Jug)", sellPrice: 28,
+    notes: 'Jug + cubes + Pimm\'s + lemonade top. Mixed fruit garnish.',
+    ingredients: [
+      { id: 'pimms',            ml: 150 },
+      { id: 'postmix-lemonade', ml: 500 },
+      { id: 'lemon-twist',      ml: 2 },
+      { id: 'orange-slice',     ml: 2 },
+      { id: 'strawberry',       ml: 3 },
+      { id: 'mint-leaf',        ml: 6 },
+    ],
+  },
+  {
+    id: 'jug-plonkers-punch', category: 'jug', name: "Plonker's Punch (Jug)", sellPrice: 32,
+    notes: 'Cubes + rum + triple sec + juices + grenadine finish. Premixed juices.',
+    ingredients: [
+      { id: 'rum-havana-especial', ml: 120 },
+      { id: 'triple-sec',          ml: 60 },
+      { id: 'pineapple-juice',     ml: 100 },
+      { id: 'orange-juice',        ml: 100 },
+      { id: 'grenadine',           ml: 30 },
+      { id: 'orange-slice',        ml: 3 },
+    ],
+  },
+
+  // ─── MOCKTAILS — no-ABV, target 78% ─────────────────────────────
+  {
+    id: 'mock-mojito', category: 'mocktail', name: 'Mocktail Mojito', sellPrice: 6,
+    notes: 'Squeeze wedges, add all, crushed ice, stir to break mint, crushed ice top.',
+    ingredients: [
+      { id: 'lime-juice',     ml: 50 },
+      { id: 'sugar-syrup',    ml: 10 },
+      { id: 'mint-leaf',      ml: 7 },
+      { id: 'lime-wedge',     ml: 2 },
+      { id: 'postmix-soda',   ml: 50 },
+    ],
+  },
+  {
+    id: 'mock-banana-colada', category: 'mocktail', name: 'Mocktail Banana Colada', sellPrice: 6,
+    notes: 'Shake, pour over crushed ice. Cherry on the ice.',
+    ingredients: [
+      { id: 'pineapple-juice',  ml: 100 },
+      { id: 'coconut-cream',    ml: 40 },
+      { id: 'banana-syrup',     ml: 12 },
+      { id: 'cherry-cocktail',  ml: 1 },
+    ],
+  },
+  {
+    id: 'mock-plonkers-punch', category: 'mocktail', name: "Mocktail Plonker's Punch", sellPrice: 6,
+    notes: 'Highball + cubes + equal pineapple/orange + grenadine top (gradient).',
+    ingredients: [
+      { id: 'pineapple-juice', ml: 100 },
+      { id: 'orange-juice',    ml: 100 },
+      { id: 'grenadine',       ml: 15 },
+    ],
+  },
 ]
 
 // ───────────────────────────────────────────────────────────────────────
