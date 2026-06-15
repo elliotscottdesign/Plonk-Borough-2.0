@@ -66,14 +66,14 @@ export const INGREDIENTS = {
   'whiskey-house':        { name: 'House Whiskey',       packMl: 700, defaultCost: 19.76, supplier: 'Drinks Club', supplierProduct: 'Jameson 700ml (SPW7JAM)' },
 
   // ─── Independent spirit suppliers ─────────────────────────────────
-  // Hanbury Spiced Cranberry Gin — direct from True Brew Co Ltd (the
-  // entity behind the Hanbury Distillery in Islington). Two SKUs on
-  // invoice INV-0473: 70cl bottle £25 ex VAT (display + back-up) and
-  // 2.1L refill £65 ex VAT (working pack — £21.67 / 700ml-equivalent,
-  // ~13% cheaper per ml). Stored here at the refill rate (1ml = ~£0.031)
-  // because that is the realistic per-pour cost when the team is
-  // refilling.
-  'gin-hanbury-cranberry': { name: 'Hanbury Spiced Cranberry Gin', packMl: 2100, defaultCost: 65.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury Spiced Cranberry Refill 2.1L £65 ex VAT — bottle 70cl HD016 £25' },
+  // Hanbury — buy direct from True Brew Co Ltd (the entity behind the
+  // Hanbury Distillery in Islington). Both stored at the 2.1L refill
+  // rate (the working pack the team pours from); display bottle prices
+  // captured in supplierProduct for reference.
+  //   • London Dry 2.1L refill HD011 £64 ex VAT → £0.0305/ml (£21.33/700ml)
+  //   • Spiced Cranberry 2.1L refill £65 ex VAT → £0.0310/ml (£21.67/700ml)
+  'gin-hanbury-london-dry': { name: 'Hanbury London Dry Gin',     packMl: 2100, defaultCost: 64.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury London Dry Gin Refill 2.1L (HD011) @ £64 ex VAT — INV-0395' },
+  'gin-hanbury-cranberry':  { name: 'Hanbury Spiced Cranberry Gin', packMl: 2100, defaultCost: 65.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury Spiced Cranberry Refill 2.1L @ £65 ex VAT — 70cl bottle HD016 @ £25 (INV-0473)' },
 
   // ─── Liqueurs / aperitifs ─────────────────────────────────────────
   // ─── Liqueurs / aperitifs ─ Drinks Club 26-27 ─────────────────────
@@ -88,8 +88,12 @@ export const INGREDIENTS = {
   'amaro':                { name: 'Amaro',               packMl: 700, defaultCost: 16.33, supplier: 'Drinks Club', supplierProduct: 'Amaro Montenegro 700ml (VA7AMMLI)' },
   'cynar':                { name: 'Cynar',               packMl: 700, defaultCost: 13.39, supplier: 'Drinks Club', supplierProduct: 'Cynar Liqueur 700ml (LI7CYN)' },
   'limoncello':           { name: 'Limoncello',          packMl: 700, defaultCost: 14.79, supplier: 'Drinks Club', supplierProduct: 'Luxardo Limoncello 700ml (LI7LUXLI)' },
-  // Devil's Botany Chocolate Absinthe listed on Drinks Club but no price — keep ballpark.
-  'absinthe-chocolate':   { name: 'Chocolate Absinthe',  packMl: 700, defaultCost: 35.00, supplier: 'Drinks Club', supplierProduct: "Devil's Botany Chocolate Absinthe 700ml — price TBC" },
+  // Devil's Botany — buy direct from the distillery (Leyton). Invoice
+  // INV-0534 (29 Apr 2025): Chocolate Absinthe 70cl at 18.63 ex VAT,
+  // London Absinthe 70cl at 25.30, Absinthe Regalis 70cl at 36.63.
+  'absinthe-chocolate':   { name: 'Chocolate Absinthe',  packMl: 700, defaultCost: 18.63, supplier: "Devil's Botany", supplierProduct: "Devil's Botany Chocolate Absinthe 24% 70cl @ £18.63 ex VAT" },
+  'absinthe-london':      { name: 'London Absinthe',     packMl: 700, defaultCost: 25.30, supplier: "Devil's Botany", supplierProduct: "Devil's Botany London Absinthe 45% 70cl @ £25.30 ex VAT" },
+  'absinthe-regalis':     { name: 'Absinthe Regalis',    packMl: 700, defaultCost: 36.63, supplier: "Devil's Botany", supplierProduct: "Devil's Botany Absinthe Regalis 63% 70cl @ £36.63 ex VAT (premium)" },
   // Vermut now sized to the 1L El Bandarra bottle (was 750ml).
   'vermut':               { name: 'Vermut',              packMl: 1000, defaultCost: 15.82, supplier: 'Drinks Club', supplierProduct: 'El Bandarra Al Fresco 1000ml (VA7ELBAF)' },
   'vermouth-sweet':       { name: 'Sweet Vermouth',      packMl: 750, defaultCost: 9.43, supplier: 'Drinks Club', supplierProduct: 'Martini Rosso 750ml (VE7MARRO)' },
