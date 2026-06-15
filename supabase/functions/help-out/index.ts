@@ -290,7 +290,7 @@ async function sendResend(to: string, subject: string, html: string) {
   const r = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-    body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to, subject, html }),
+    body: JSON.stringify({ from: "No Dice <elliot@nodice.bar>", to, subject, html }),
   });
   return r.ok;
 }

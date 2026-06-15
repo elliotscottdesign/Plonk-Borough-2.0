@@ -9,6 +9,9 @@
 //   signoff {date}       → confirm a pending booking (→ main events calendar)
 //   unconfirm {date}     → back to pending
 //   removeBooking {date} → free the date (back to open, DJ cleared)
+//   editEvent {date,slot,newDate?,nightName,subgenres,setType,promoTrack} → edit a created event in place
+//   suspend / unsuspend {date,slot} → hide / re-show a confirmed event on the public feed
+//   deleteEvent {date,slot} → remove an event entirely (admin + calendar + public feed)
 //   addDj   {profile}    → create a DJ, returns { token }
 //   saveDj  {id,profile} → edit a DJ profile
 //   removeDj {id}        → delete a DJ
@@ -33,7 +36,7 @@ async function sendMail(to: string, subject: string, html: string) {
     await fetch("https://api.resend.com/emails", {
       method: "POST",
       headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ from: "No Dice <hello@nodice.bar>", to, subject, html }),
+      body: JSON.stringify({ from: "No Dice <elliot@nodice.bar>", to, subject, html }),
     });
   } catch (_) { /* best-effort — never break the sign-off */ }
 }
@@ -49,7 +52,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -92,6 +95,38 @@ Deno.serve(async (req) => {
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.
       await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "editEvent": {
+      // Admin edits a created event in place (Events tab). Optionally moves it to a
+      // new date; keeps the genre fields + kind consistent with the date's type.
+      const tgt = (typeof newDate === "string" && newDate) ? newDate : date;
+      if (tgt !== date) {
+        const { data: clash } = await sb.from("dj_slots").select("date").eq("date", tgt).eq("slot", slot).maybeSingle();
+        if (clash) return json({ error: "That date already has a booking in this slot — pick another." }, 409);
+      }
+      const subs = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
+        .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
+      const session = [4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
+      const upd: Record<string, unknown> = {
+        night_name: nightName || null, promo_track: (promoTrack || "").trim() || null,
+        kind: session ? "session" : "opendecks", updated_at: now(),
+      };
+      if (session) { upd.subgenres = subs; upd.genres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
+      else { upd.subgenres = []; upd.genres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
+      if (tgt !== date) upd.date = tgt;
+      const { error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
+      if (error) return json({ error: error.message }, 500);
+      break;
+    }
+    case "suspend":
+      await sb.from("dj_slots").update({ suspended: true, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "unsuspend":
+      await sb.from("dj_slots").update({ suspended: false, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "deleteEvent":
+      // Remove the event entirely — gone from admin, the calendar and the public feed.
+      await sb.from("dj_slots").delete().eq("date", date).eq("slot", slot);
       break;
     case "book": {
       // Admin manually assigns a DJ. Seed kind + display genres from their profile

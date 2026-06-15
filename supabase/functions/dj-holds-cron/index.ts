@@ -47,7 +47,7 @@ Deno.serve(async (req) => {
           method: "POST",
           headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
           body: JSON.stringify({
-            from: "No Dice <hello@nodice.bar>",
+            from: "No Dice <elliot@nodice.bar>",
             to: email,
             subject: `2 hours left to finish your No Dice night — ${dateStr}`,
             html: `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#000;color:#fff;padding:28px;border-radius:12px;max-width:520px;margin:auto">
