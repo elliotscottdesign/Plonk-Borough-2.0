@@ -18,7 +18,15 @@ const OPS_TOOLS = [
 ]
 
 export default function Operations() {
-  const [tool, setTool] = useState('stock')
+  // Deep-linkable sub-tool — /operations?tool=costing lands straight on the
+  // margin sheet, /operations?tool=stocklist on the stock list, etc.
+  // Falls back to Stock Orders when the param is missing or invalid.
+  const initialTool = (() => {
+    if (typeof window === 'undefined') return 'stock'
+    const q = new URLSearchParams(window.location.search).get('tool')
+    return OPS_TOOLS.some(t => t.key === q && t.live) ? q : 'stock'
+  })()
+  const [tool, setTool] = useState(initialTool)
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
