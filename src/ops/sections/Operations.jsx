@@ -2,13 +2,16 @@ import React, { useState } from 'react'
 import StockOrder from './StockOrder.jsx'
 import StockList from './StockList.jsx'
 import Perishables from './Perishables.jsx'
+import Costing from './Costing.jsx'
 
-// Operations section — day-to-day tools. Stock Orders, Stock List & Perishables
-// are live; the rest are on the roadmap and listed so the team can see what's coming.
+// Operations section — day-to-day tools. Stock Orders, Stock List, Perishables
+// & Costing are live; the rest are on the roadmap and listed so the team can
+// see what's coming.
 const OPS_TOOLS = [
   { key: 'stock', label: 'Stock Orders', icon: '🛒', live: true, blurb: 'Kegs, spirits & softs to order this week, scaled from real till data.' },
   { key: 'stocklist', label: 'Stock List', icon: '📋', live: true, blurb: 'Every product behind the bar, by product, with never-sold lines flagged.' },
   { key: 'perishables', label: 'Perishables', icon: '🍋', live: true, blurb: 'Brakes fruit/veg spend & forecast — limes, garnish, the lot.' },
+  { key: 'costing', label: 'Costing', icon: '💷', live: true, blurb: 'Live cost-per-serve and gross margin for every menu line. Editable.' },
   { key: 'pool',  label: 'Pool Tournament Nights', icon: '🎱', live: false, blurb: 'Run the internal pool competition — brackets, live scores, leaderboard, winners.' },
   { key: 'crm',   label: 'Community / CRM', icon: '🤝', live: false, blurb: 'Build the regulars list from Insta, Google, in-bar and events data.' },
   { key: 'help',  label: 'Daily Team Help', icon: '💬', live: false, blurb: 'Ad-hoc day-to-day help for you and the team.' },
@@ -45,6 +48,7 @@ export default function Operations() {
       )}
       {tool === 'stocklist' && <StockList />}
       {tool === 'perishables' && <Perishables />}
+      {tool === 'costing' && <Costing />}
     </div>
   )
 }
