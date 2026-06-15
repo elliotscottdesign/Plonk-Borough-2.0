@@ -109,7 +109,11 @@ export const INGREDIENTS = {
   'btl-strawb-lime-0':    { name: 'Strawberry & Lime 0%',   packMl: 500, defaultCost: 1.90, supplier: 'Drinks Club' },
   // Rekorderlig not on the Drinks Club Jun-26 list — Kopparberg Strawb&Lime used as substitute.
   'btl-rekorderlig':      { name: 'Rekorderlig Strawb&Lime', packMl: 500, defaultCost: 1.22, supplier: 'Drinks Club', supplierProduct: 'Kopparberg Strawberry & Lime Glass 500ml × 24 @ £29.25 (BR5KOPSLGL) — substitute' },
-  'btl-olivers-cider':    { name: "Oliver's Fine Cider",    packMl: 500, defaultCost: 2.40, supplier: 'Top Cuvee' },
+  // Olivers replaces Aspalls as the cider line. Bottle is 330ml (not 500ml
+  // as previously assumed). £1.94 ex VAT per bottle — case of 24 at £55.83
+  // ex VAT, free shipping on this round. Two SKUs share the same per-bottle
+  // price: Pomona Rolling Blend 2023 and Gold Rush #11.
+  'btl-olivers-cider':    { name: "Oliver's Fine Cider",    packMl: 330, defaultCost: 1.94, supplier: 'Fine Cider Company', supplierProduct: "Oliver's Pomona Rolling Blend 2023 / Gold Rush #11 — 330ml × 24 @ £55.83/case ex VAT" },
 
   // ─── Craft cans (£7 selection on page 2) ────────────────────────
   'craft-cheery-breeze':  { name: 'Cloudwater Cheery Breeze Sour', packMl: 440, defaultCost: 2.80, supplier: 'Drinks Club' },
@@ -223,7 +227,8 @@ export const RECIPES = [
   { id: 'btl-cloudwater-fresh', category: 'bottle', name: 'Cloudwater Fresh AF 0.5%', sellPrice: 6, ingredients: [{ id: 'btl-cloudwater-ipa', ml: POUR.CAN_440 }] },
   { id: 'btl-strawb-lime-0',  category: 'bottle', name: 'Strawberry & Lime Cider 0%', sellPrice: 5.2, ingredients: [{ id: 'btl-strawb-lime-0', ml: POUR.CAN_500 }] },
   { id: 'btl-rekorderlig',    category: 'bottle', name: 'Rekorderlig Strawb & Lime', sellPrice: 6.5, ingredients: [{ id: 'btl-rekorderlig', ml: POUR.CAN_500 }] },
-  { id: 'btl-olivers',        category: 'bottle', name: "Oliver's Fine Cider", sellPrice: 6.5, ingredients: [{ id: 'btl-olivers-cider', ml: POUR.CAN_500 }] },
+  // Pours one full 330ml Oliver's bottle (Fine Cider Co), not the 500ml previously assumed.
+  { id: 'btl-olivers',        category: 'bottle', name: "Oliver's Fine Cider", sellPrice: 6.5, ingredients: [{ id: 'btl-olivers-cider', ml: POUR.CAN_330 }] },
 
   // ─── CRAFT BEER ──
   { id: 'craft-cheery-breeze',   category: 'craft', name: 'Cheery Breeze Sour 4.5%',   sellPrice: 7, ingredients: [{ id: 'craft-cheery-breeze',    ml: POUR.CAN_440 }] },
