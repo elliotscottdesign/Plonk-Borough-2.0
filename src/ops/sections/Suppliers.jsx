@@ -7,6 +7,7 @@ import {
   saveOverrides,
   effective,
 } from '../data/suppliers.js'
+import OpsBrandHeader from '../components/OpsBrandHeader.jsx'
 
 // ─── Suppliers — directory + 1-click trade portal launcher ────────────
 // Sections grouped by primary purpose (Spirits & Liqueurs, Wine, etc.).
@@ -98,17 +99,23 @@ export default function Suppliers() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: cream }}>
-      {/* ─── Header / blurb ────────────────────────────────────────── */}
-      <div>
-        <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: gold, fontWeight: 700 }}>
-          Operations · Suppliers
-        </div>
-        <h2 style={{ margin: '6px 0 0', fontSize: 24, color: gold, fontFamily: 'inherit' }}>Directory & trade portal launcher</h2>
-        <p style={{ margin: '6px 0 0', color: dim, fontSize: 13, maxWidth: 720 }}>
-          Suppliers grouped by what they primarily stock. Click any card header to expand — reveals address, phone, email,
-          payment terms and notes. Click <strong style={{ color: cream }}>Edit</strong> inside an expanded card to update fields. All edits save locally.
-        </p>
-      </div>
+      {/* ─── No Dice brand header ────────────────────────────── */}
+      <OpsBrandHeader
+        eyebrow="Operations · Suppliers"
+        title="Directory & trade portal launcher"
+        subtitle={(
+          <>
+            Suppliers grouped by what they primarily stock. Click any card header to expand — reveals address, phone, email,
+            payment terms and notes. Click <strong style={{ color: cream }}>Edit</strong> inside an expanded card to update fields. All edits save locally.
+          </>
+        )}
+      />
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 28mm 10mm 12mm 10mm; }
+          html, body { background: #ffffff !important; color: #000 !important; }
+        }
+      `}</style>
 
       {/* ─── Search / filter row ───────────────────────────────────── */}
       <div style={{

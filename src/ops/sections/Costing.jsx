@@ -10,6 +10,7 @@ import {
   marginForRecipe,
   priceToHitMargin,
 } from '../data/costing.js'
+import OpsBrandHeader from '../components/OpsBrandHeader.jsx'
 
 // ─── Stock Costing — live margin tool ─────────────────────────────────
 // One tab per drink category (Draught, Cocktails, Wines, etc.). Per row:
@@ -81,19 +82,25 @@ export default function Costing() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: cream }}>
-      {/* ─── Header / blurb ────────────────────────────────────────── */}
-      <div>
-        <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: gold, fontWeight: 700 }}>
-          Operations · Stock Costing
-        </div>
-        <h2 style={{ margin: '6px 0 0', fontSize: 24, color: gold, fontFamily: 'inherit' }}>Margin sheet</h2>
-        <p style={{ margin: '6px 0 0', color: dim, fontSize: 13, maxWidth: 720 }}>
-          Live cost-per-serve and gross margin for every line on the menu. Sell prices
-          default to today's menu (inc VAT). Ex-VAT cost prices default to industry
-          ballparks — <strong style={{ color: cream }}>override them as you take new supplier invoices</strong> and the
-          margins re-compute live. All edits save locally to this device.
-        </p>
-      </div>
+      {/* ─── No Dice brand header ────────────────────────────── */}
+      <OpsBrandHeader
+        eyebrow="Operations · Stock Costing"
+        title="Margin sheet"
+        subtitle={(
+          <>
+            Live cost-per-serve and gross margin for every line on the menu. Sell prices
+            default to today's menu (inc VAT). Ex-VAT cost prices default to real supplier
+            invoices where we have them — <strong style={{ color: cream }}>override as new invoices come in</strong> and the
+            margins recompute live. All edits save locally to this device.
+          </>
+        )}
+      />
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 28mm 10mm 12mm 10mm; }
+          html, body { background: #ffffff !important; color: #000 !important; }
+        }
+      `}</style>
 
       {/* ─── Global controls — wastage % + reset ──────────────────── */}
       <div style={{

@@ -6,6 +6,7 @@ import {
   loadOverrides,
   saveOverrides,
 } from '../data/consumables.js'
+import OpsBrandHeader from '../components/OpsBrandHeader.jsx'
 
 // ─── Consumables — BCS Supplies operational cost tracker ───────────────
 // Different shape from Costing: these items don't get marked up + sold,
@@ -74,18 +75,24 @@ export default function Consumables() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: cream }}>
-      {/* ─── Header / blurb ────────────────────────────────────────── */}
-      <div>
-        <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: gold, fontWeight: 700 }}>
-          Operations · Consumables
-        </div>
-        <h2 style={{ margin: '6px 0 0', fontSize: 24, color: gold, fontFamily: 'inherit' }}>BCS supplies — 14-month spend tracker</h2>
-        <p style={{ margin: '6px 0 0', color: dim, fontSize: 13, maxWidth: 720 }}>
-          Auto-seeded from {totals.totalItems} unique BCS SKUs across 24 invoices (Jan 2025 → Feb 2026, {TRACKING_MONTHS} months).
-          These are <strong style={{ color: cream }}>operating costs</strong> — paper, cleaning chemicals, bar disposables — not cost-of-sales. Use this sheet to spot
-          where the consumables budget is going, track on-hand for next order, and override the latest unit price as new invoices land.
-        </p>
-      </div>
+      {/* ─── No Dice brand header ────────────────────────────── */}
+      <OpsBrandHeader
+        eyebrow="Operations · Consumables"
+        title="BCS Supplies — 14-month spend tracker"
+        subtitle={(
+          <>
+            Auto-seeded from {totals.totalItems} unique BCS SKUs across 24 invoices (Jan 2025 → Feb 2026, {TRACKING_MONTHS} months).
+            These are <strong style={{ color: cream }}>operating costs</strong> — paper, cleaning chemicals, bar disposables — not cost-of-sales. Use this sheet to spot
+            where the consumables budget is going, track on-hand for next order, and override the latest unit price as new invoices land.
+          </>
+        )}
+      />
+      <style>{`
+        @media print {
+          @page { size: A4; margin: 28mm 10mm 12mm 10mm; }
+          html, body { background: #ffffff !important; color: #000 !important; }
+        }
+      `}</style>
 
       {/* ─── Top-line totals ──────────────────────────────────────── */}
       <div style={{

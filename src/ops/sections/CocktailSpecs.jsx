@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { SPECS, SPEC_SECTIONS } from '../data/cocktailSpecs.js'
+import OpsBrandHeader from '../components/OpsBrandHeader.jsx'
 
 // ─── Cocktail Specs — bar-side reference + printable build sheet ──────
 // Matches the layout of "Cocktail Specs Update DEC 2025.pdf" — same
@@ -37,18 +38,21 @@ export default function CocktailSpecs() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: cream }}>
-      {/* ─── Header / blurb (hidden in print) ────────────────────── */}
-      <div className="screen-only">
-        <div style={{ fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase', color: gold, fontWeight: 700 }}>
-          Operations · Cocktail Specs
-        </div>
-        <h2 style={{ margin: '6px 0 0', fontSize: 24, color: gold, fontFamily: 'inherit' }}>House cocktail build reference</h2>
-        <p style={{ margin: '6px 0 0', color: dim, fontSize: 13, maxWidth: 720 }}>
-          Source of truth for every spec on the bar — from <strong style={{ color: cream }}>Cocktail Specs Update DEC 2025.pdf</strong>.
-          Click <strong style={{ color: cream }}>Print</strong> for an ink-efficient black-on-white sheet (browser print → Save as PDF works
-          for a downloadable copy). Filter by method or search to narrow.
-        </p>
-      </div>
+      {/* ─── No Dice brand header (hidden in print) ────────────── */}
+      <OpsBrandHeader
+        eyebrow="Operations · Cocktail Specs"
+        title="House cocktail build reference"
+        subtitle={(
+          <>
+            Source of truth for every spec on the bar — from <strong style={{ color: cream }}>Cocktail Specs Update DEC 2025.pdf</strong>.
+            Click <strong style={{ color: cream }}>Print sheet</strong> for an ink-efficient black-on-white download with the No Dice
+            wordmark on every page. Filter or search to narrow.
+          </>
+        )}
+        action={(
+          <button onClick={() => window.print()} style={btnPrimary}>Print sheet ↗</button>
+        )}
+      />
 
       {/* ─── Toolbar (hidden in print) ──────────────────────────── */}
       <div className="screen-only" style={{
@@ -73,17 +77,15 @@ export default function CocktailSpecs() {
         <span style={{ fontSize: 11, color: dim, letterSpacing: '0.18em', textTransform: 'uppercase', fontWeight: 700 }}>
           {filtered.length} of {SPECS.length}
         </span>
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          <button onClick={() => window.print()} style={btnPrimary}>Print sheet ↗</button>
-        </div>
       </div>
 
-      {/* ─── Print-only title (visible when printing) ───────────── */}
-      <div className="print-only">
-        <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, textAlign: 'center' }}>No Dice — Cocktail Specs</h1>
-        <p style={{ margin: '4px 0 0', fontSize: 11, textAlign: 'center' }}>
-          Internal bar reference · House recipes
-        </p>
+      {/* ─── Print-only running header (No Dice wordmark on every page) ───
+          A position:fixed header inside @media print runs on every printed
+          page in Chrome/Safari/Firefox; the @page top margin reserves room
+          so it never overlaps content. */}
+      <div className="print-only print-running-header">
+        <img src="/nodice-wordmark.png" alt="No Dice" />
+        <div className="print-running-subtitle">Cocktail Specs · House bar reference</div>
       </div>
 
       {/* ─── Sections + spec rows ───────────────────────────────── */}
@@ -119,40 +121,67 @@ export default function CocktailSpecs() {
         </p>
       )}
 
-      {/* ─── Print CSS — ink-efficient B&W transform ────────────── */}
+      {/* ─── Print CSS — ink-efficient B&W transform with No Dice
+              wordmark running header on every page. ─────────────── */}
       <style>{`
         .print-only { display: none; }
         @media print {
-          @page { size: A4; margin: 12mm 10mm; }
+          /* Page margin reserves space for the running header at top. */
+          @page { size: A4; margin: 28mm 10mm 12mm 10mm; }
           html, body { background: #ffffff !important; color: #000000 !important; }
           .screen-only { display: none !important; }
-          .print-only { display: block !important; margin-bottom: 8mm; color: #000 !important; }
-          /* Strip the host frame so the print page is just the spec sheet. */
-          body * { visibility: hidden; }
-          .spec-print-root, .spec-print-root * { visibility: visible; }
-          .spec-print-root { position: absolute; left: 0; top: 0; width: 100%; color: #000; }
+          .print-only { display: block !important; color: #000 !important; }
+
+          /* Wordmark running header — repeats on every printed page via
+             position:fixed inside the print box. */
+          .print-running-header {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            text-align: center;
+            padding-top: 4mm;
+            border-bottom: 1px solid #000;
+            padding-bottom: 3mm;
+            background: #fff;
+          }
+          .print-running-header img {
+            height: 12mm;
+            display: block;
+            margin: 0 auto;
+            filter: brightness(0); /* force the wordmark to pure black on white */
+          }
+          .print-running-subtitle {
+            margin: 1mm 0 0;
+            font-size: 8pt;
+            letter-spacing: 0.2em;
+            text-transform: uppercase;
+            color: #000;
+          }
+
           .spec-section { break-inside: avoid; page-break-inside: avoid; }
           .section-header {
-            color: #000 !important; border-bottom: 1px solid #000 !important;
-            margin-top: 6mm !important;
+            color: #000 !important;
+            border-bottom: 1px solid #000 !important;
+            margin-top: 4mm !important;
+            font-size: 11pt !important;
           }
           .spec-table {
             color: #000 !important;
             border: 1px solid #000 !important;
             page-break-inside: auto;
+            font-size: 9pt !important;
           }
           .spec-table th, .spec-table td {
             background: #fff !important;
             color: #000 !important;
             border: 1px solid #000 !important;
-            padding: 5px 7px !important;
+            padding: 4px 6px !important;
             vertical-align: top;
           }
           .spec-table tr { page-break-inside: avoid; }
           .glass-icon { stroke: #000 !important; fill: none !important; }
           .ing-list, .garnish-line, .batch-note, .build-text, .cocktail-name { color: #000 !important; }
           .garnish-line { font-style: italic; }
-          .batch-note { font-size: 9px; }
+          .batch-note { font-size: 8pt; }
           a { color: #000 !important; text-decoration: none; }
         }
       `}</style>
