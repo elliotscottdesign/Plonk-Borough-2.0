@@ -209,21 +209,21 @@ export const SUPPLIERS = [
     group: 'produce',
   },
 
-  // ─── SNACK ─ likely Nibblers, the premium bar-snack trade supplier ────
+  // ─── Snack! ─ confirmed via INV-38604 (Aug 2025) ────────────────
   {
     id: 'snack',
-    name: 'SNACK — likely Nibblers',
+    name: 'Snack! (UK Bar Snacks Ltd)',
     categories: ['Snacks'],
-    address: '',
+    address: '603 Distillery Building, Hart Yard, Wick Lane, London E3 2AL',
     phone: '',
-    email: '',
+    email: 'orders@snackdelivery.co.uk',
     repName: '',
-    website: 'https://www.nibblers.co.uk',
-    tradePortal: 'https://www.nibblers.co.uk/account/login',
-    tradePortalNote: 'Best guess: the "SNACK" entry refers to Nibblers, the leading UK B2B bar-snack distributor that bundles Snackalami (Serious Pig), Salty Dog Crisps + Olly\'s Olives. Confirm with founder + replace URL if different.',
-    paymentTerms: '',
-    notes: 'Crisps × 5 flavours (Salty Dog), nuts × 2, Snackalami (Serious Pig), Olly\'s Olives. All currently ballpark cost — chase real price list. The "SNACK" tag in the legacy stock list may need updating once supplier confirmed.',
-    priority: 'secondary',
+    website: 'https://www.snackdelivery.co.uk',
+    tradePortal: 'https://www.snackdelivery.co.uk',
+    tradePortalNote: 'Trading entity is UK Bar Snacks Ltd. Bank: 20-49-81 / 13121208. VAT 151653521.',
+    paymentTerms: 'Net 30 — BACS to UK Bar Snacks Ltd. Cheques payable to Snack!.',
+    notes: 'Hackney Wick distributor that bundles Brown Bag crisps (5 flavours), Salty Dog nuts, Olly\'s Olives + Serious Pig Snackalami. INV-38604 (29 Aug 2025): Brown Bag crisps £11.25 / case of 20 × 40g. Salty Dog nuts £9.75-£11.25 / case of 24 × 45g. Olly\'s Olives £13.25 / case of 12 × 50g (zero VAT). Snackalami Classic £32.50 / case of 24 × 30g (zero VAT).',
+    priority: 'primary',
     group: 'snacks',
   },
 

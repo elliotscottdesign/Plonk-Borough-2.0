@@ -192,12 +192,17 @@ export const INGREDIENTS = {
   'pickle-juice':         { name: 'Pickle juice (chaser)',packMl: 1000, defaultCost: 4.00, supplier: 'Brakes' },
   'egg-white':            { name: 'Egg white',            packMl: 1,   defaultCost: 0.15, supplier: 'Brakes' },
 
-  // ─── Snacks ─────────────────────────────────────────────────────
-  'snack-gilda':          { name: 'Gilda (per skewer)',   packMl: 1, defaultCost: 0.55, supplier: 'Brakes' },
-  'snack-crisps':         { name: 'Crisps (per bag)',     packMl: 1, defaultCost: 0.55, supplier: 'SNACK' },
-  'snack-nuts':           { name: 'Nuts (per pack)',      packMl: 1, defaultCost: 0.45, supplier: 'SNACK' },
-  'snack-salami':         { name: 'Salami snacks',        packMl: 1, defaultCost: 1.30, supplier: 'SNACK' },
-  'snack-olives':         { name: 'Olives (per pot)',     packMl: 1, defaultCost: 1.20, supplier: 'SNACK' },
+  // ─── Snacks ─ Snack! (UK Bar Snacks Ltd) INV-38604 Aug 2025 ─────
+  // Brown Bag crisps: £11.25 / case of 20 × 40g = £0.5625/bag
+  // Salty Dog nuts Dry Roasted: £9.75 / case of 24 × 45g = £0.4063/pack
+  // Salty Dog nuts Chilli Peanuts: £11.25 / case of 24 × 45g = £0.4688/pack
+  // Olly's Olives Garlic & Basil: £13.25 / case of 12 × 50g = £1.1042/pot (zero VAT)
+  // Serious Pig Snackalami Classic: £32.50 / case of 24 × 30g = £1.3542/snack (zero VAT)
+  'snack-gilda':          { name: 'Gilda (per skewer)',   packMl: 1, defaultCost: 0.55, supplier: 'Brindisa' },
+  'snack-crisps':         { name: 'Brown Bag Crisps 40g', packMl: 1, defaultCost: 0.56, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: 'Brown Bag — 5 flavours, case of 20 × 40g @ £11.25 ex VAT (£0.56/bag)' },
+  'snack-nuts':           { name: 'Salty Dog Nuts 45g',   packMl: 1, defaultCost: 0.41, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: 'Salty Dog Dry Roasted, case of 24 × 45g @ £9.75 ex VAT (£0.41/pack). Chilli Peanuts £11.25/case (£0.47/pack).' },
+  'snack-salami':         { name: 'Serious Pig Snackalami 30g', packMl: 1, defaultCost: 1.35, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: 'Serious Pig Snackalami Classic, case of 24 × 30g @ £32.50 (zero VAT) = £1.35/snack' },
+  'snack-olives':         { name: "Olly's Olives 50g",    packMl: 1, defaultCost: 1.10, supplier: 'Snack! (UK Bar Snacks Ltd)', supplierProduct: "Olly's Olives Garlic & Basil, case of 12 × 50g @ £13.25 (zero VAT) = £1.10/pot" },
 }
 
 // ───────────────────────────────────────────────────────────────────────
