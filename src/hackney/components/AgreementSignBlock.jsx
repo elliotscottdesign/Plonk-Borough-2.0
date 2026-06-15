@@ -192,8 +192,8 @@ async function fetchSignaturesFromServer(agreementId) {
     if (!data || data.ok === false) return null
     const sigs = data.signatures || {}
     return {
-      investor: validSigShape(sigs.investor) ? sigs.investor : null,
-      founder:  validSigShape(sigs.founder)  ? sigs.founder  : null,
+      investor: validSigShape(sigs.investor) ? normalizeRemoteSig(sigs.investor) : null,
+      founder:  validSigShape(sigs.founder)  ? normalizeRemoteSig(sigs.founder)  : null,
     }
   } catch (e) {
     // eslint-disable-next-line no-console
@@ -204,6 +204,22 @@ async function fetchSignaturesFromServer(agreementId) {
 
 function validSigShape(s) {
   return !!(s && typeof s === 'object' && typeof s.name === 'string' && s.name.length > 0)
+}
+
+// Apps Script's Sheet cell can return a date as a JS-Date-stringified
+// blob like "Tue Jun 16 2026 00:00:00 GMT+0100 (British Summer Time)"
+// if Sheets has auto-formatted the cell. Coerce anything that isn't a
+// yyyy-mm-dd back into one so the client's prettyDate() helper works.
+function normalizeRemoteSig(sig) {
+  if (!sig) return sig
+  const date = String(sig.date || '')
+  if (/^\d{4}-\d{2}-\d{2}$/.test(date)) return sig
+  const parsed = new Date(date)
+  if (Number.isNaN(parsed.getTime())) return sig
+  const y = parsed.getFullYear()
+  const m = String(parsed.getMonth() + 1).padStart(2, '0')
+  const d = String(parsed.getDate()).padStart(2, '0')
+  return { ...sig, date: `${y}-${m}-${d}` }
 }
 
 // useAgreementSignatureStatus — read-only hook for parent components

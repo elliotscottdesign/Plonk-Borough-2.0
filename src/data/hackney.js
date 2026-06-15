@@ -80,7 +80,7 @@ export const NOTES_FOUNDER_EMAIL = 'elliotscottdesign@gmail.com'
 // Empty string = localStorage-only mode (signatures still work on the
 // signer's own device but won't cross-sync until the founder deploys
 // the Apps Script + pastes the URL below).
-export const SIGNATURES_SYNC_URL = ''
+export const SIGNATURES_SYNC_URL = 'https://script.google.com/macros/s/AKfycbxNZ7BhJvwYtWUwuavUrcoWiwbKjbwz4ue0Dxprj7dQD1x_Sm5UhiTnrOf4_NHp4x9i/exec'
 
 // === DEAL STRUCTURE ===
 // RESTRUCTURED MAY 2026 · £49,000 total round for 49 shares.

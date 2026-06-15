@@ -133,12 +133,34 @@ function readAll_(sheet) {
     const agreementId = String(r[0] || '').trim().toLowerCase()
     if (!agreementId) continue
     container[agreementId] = {
-      investor: r[1] ? { name: String(r[1]), date: String(r[2] || ''), signedAt: String(r[3] || '') } : null,
-      founder:  r[4] ? { name: String(r[4]), date: String(r[5] || ''), signedAt: String(r[6] || '') } : null,
-      updatedAt: r[7] ? String(r[7]) : null,
+      investor: r[1] ? { name: String(r[1]), date: normalizeDate_(r[2]), signedAt: normalizeISO_(r[3]) } : null,
+      founder:  r[4] ? { name: String(r[4]), date: normalizeDate_(r[5]), signedAt: normalizeISO_(r[6]) } : null,
+      updatedAt: r[7] ? normalizeISO_(r[7]) : null,
     }
   }
   return container
+}
+
+// Google Sheets auto-converts "2026-06-16" strings into Date cell values
+// on write. When we read them back getValues() returns a JS Date object,
+// which Stringifies to "Tue Jun 16 2026 00:00:00 GMT+0100 …" — useless
+// to the client's prettyDate() helper. Normalise back to yyyy-mm-dd.
+function normalizeDate_(v) {
+  if (v == null || v === '') return ''
+  if (Object.prototype.toString.call(v) === '[object Date]') {
+    const y = v.getFullYear()
+    const m = String(v.getMonth() + 1).padStart(2, '0')
+    const d = String(v.getDate()).padStart(2, '0')
+    return y + '-' + m + '-' + d
+  }
+  return String(v)
+}
+
+// Same idea but for ISO timestamps (signedAt, updatedAt).
+function normalizeISO_(v) {
+  if (v == null || v === '') return ''
+  if (Object.prototype.toString.call(v) === '[object Date]') return v.toISOString()
+  return String(v)
 }
 
 function findRow_(sheet, agreementId) {
