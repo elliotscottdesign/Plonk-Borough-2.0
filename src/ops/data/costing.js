@@ -136,8 +136,12 @@ export const INGREDIENTS = {
   'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 14.00, supplier: 'Top Cuvee' },
   'wine-doom-fizz':       { name: 'Doom Juice Fizz',         packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
-  'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 6.75, supplier: 'Drinks Club', supplierProduct: 'Amore della Vita Prosecco Extra Dry 750ml (SP7ADVED)' },
-  'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Drinks Club' },
+  // Prosecco is bought through Top Cuvee like the rest of the wine. The
+  // Drinks Club Jun-26 sheet lists Amore della Vita at £6.75 ex VAT as a
+  // comparison price (lower than typical Top Cuvee) — kept as the
+  // ballpark until the Top Cuvee invoice lands.
+  'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 8.00, supplier: 'Top Cuvee' },
+  'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Top Cuvee' },
 
   // ─── Soft drinks ─ Drinks Club case prices ÷ 24 (or per BIB for post-mix) ──
   // Kombucha not on the Drinks Club Jun-26 list — ballpark kept.
