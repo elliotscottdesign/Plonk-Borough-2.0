@@ -254,9 +254,14 @@ export const INGREDIENTS = {
   // ─── Purees & juices ─────────────────────────────────────────────
   'mango-puree':            { name: 'Funkin Mango Puree',    packMl: 1000, defaultCost: 47.60, supplier: 'Drinks Club', supplierProduct: 'Funkin Mango Puree 1kg (OTP1FUNMP)' },
   'passion-fruit-puree':    { name: 'Funkin Passion Fruit Puree', packMl: 1000, defaultCost: 48.80, supplier: 'Drinks Club', supplierProduct: 'Funkin Passion Fruit Puree 1kg (OTP1FUNPFP)' },
-  'tomato-juice':           { name: 'Big Tom / Eager Tomato', packMl: 1000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice 1000ml (SO1EAGTO)' },
-  'grapefruit-juice':       { name: 'Eager Pink Grapefruit', packMl: 1000, defaultCost: 19.28, supplier: 'Drinks Club', supplierProduct: 'Eager Pink Grapefruit 1000ml (SO1EAGPG)' },
-  'orange-juice':           { name: 'Eager Orange (smooth)', packMl: 1000, defaultCost: 18.56, supplier: 'Drinks Club', supplierProduct: 'Eager Orange Smooth 1000ml (SO1EAGOS)' },
+  // Eager juices come in cases of 8 × 1L cartons (Drinks Club listing
+  // shows unit size 1000ml but the listed price is for the case of 8).
+  // packMl stored as the case total (8000ml) so cost-per-ml works out
+  // honest — previously off by 8× and dragging Paloma / Bloody Mary /
+  // Mango Mojito / Plonker's Punch margins way below where they really are.
+  'tomato-juice':           { name: 'Big Tom / Eager Tomato', packMl: 8000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice case of 8 × 1L (SO1EAGTO) @ £16.64 = £2.08/L' },
+  'grapefruit-juice':       { name: 'Eager Pink Grapefruit', packMl: 8000, defaultCost: 19.28, supplier: 'Drinks Club', supplierProduct: 'Eager Pink Grapefruit case of 8 × 1L (SO1EAGPG) @ £19.28 = £2.41/L' },
+  'orange-juice':           { name: 'Eager Orange (smooth)', packMl: 8000, defaultCost: 18.56, supplier: 'Drinks Club', supplierProduct: 'Eager Orange Smooth case of 8 × 1L (SO1EAGOS) @ £18.56 = £2.32/L' },
   'coconut-cream':          { name: 'Coconut cream',         packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
   'coffee-extract':         { name: 'Coffee extract (cold brew)', packMl: 1000, defaultCost: 25.00, supplier: 'Drinks Club' },
 
