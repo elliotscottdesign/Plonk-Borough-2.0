@@ -1,7 +1,7 @@
 import React from 'react'
 import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
-import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
+import AgreementSignBlock, { useAgreementSignatureStatus } from '../components/AgreementSignBlock.jsx'
 
 // LeeAgreement — Round 1 STANDARD TEMPLATE, personalised for Lee Trott.
 //
@@ -29,8 +29,9 @@ import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
 // All other codes (NODICE88, LEONIE) filter this tab out of the top-tab
 // list — they see the standard investor view without this tab.
 //
-// Status: NOT YET EXECUTED. Lee has not countersigned or paid as of
-// the page-load date. The banner makes that explicit.
+// Status: ALLOCATION CONFIRMED. Lee's 1% has been sold to him in the
+// cap table. The hero + banner drop "Draft" wording when both
+// signatures are captured (see useAgreementSignatureStatus).
 
 const INK_BG  = 'var(--ink-2)'
 const BORDER  = '1px solid rgba(201,168,76,0.18)'
@@ -53,26 +54,36 @@ export default function LeeAgreement() {
   // Schedule 2 table + the preamble figures here update automatically.
   const { effective, isLocked } = useLockedUseOfFunds()
 
+  // Drops "Draft" wording from the hero + removes the amber pending
+  // banner once both sides have countersigned (per-device).
+  const { fullySigned } = useAgreementSignatureStatus('lee')
+
   return (
     <div data-agreement-body style={{ padding:'32px 48px', maxWidth:1100, margin:'0 auto', color:CREAM, lineHeight:1.6 }}>
 
       {/* Hero */}
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:11, color:GOLD, letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, marginBottom:8 }}>
-          Round 1 Draft Terms · For Lee Trott · Confidential
+          {fullySigned
+            ? 'Round 1 Investment Terms · For Lee Trott · Executed'
+            : 'Round 1 Draft Terms · For Lee Trott · Confidential'}
         </div>
         <h1 className="serif" style={{ fontSize:'clamp(2.2rem, 4.4vw, 3rem)', color:CREAM, lineHeight:1.15, margin:0 }}>
-          Draft Investment Terms — For Your Review
+          {fullySigned ? 'Investment Agreement — Executed' : 'Draft Investment Terms — For Your Review'}
         </h1>
         <p style={{ fontSize:15, color:CREAM_D, marginTop:10, maxWidth:820 }}>
-          No Dice Hackney Ltd · Round 1 · £1,000 subscription for <strong style={{ color:CREAM }}>1 share</strong> (£1,000 per share = 1% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £1k / 1-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
+          {fullySigned ? (
+            <>No Dice Hackney Ltd · Round 1 · <strong style={{ color:CREAM }}>£1,000 subscription for 1 share</strong> (£1,000 per share = 1% of the company). <strong style={{ color:CREAM }}>Counter-signed by Investor and Founder.</strong> A signed PDF can be saved at any time from the Signatures block below.</>
+          ) : (
+            <>No Dice Hackney Ltd · Round 1 · £1,000 subscription for <strong style={{ color:CREAM }}>1 share</strong> (£1,000 per share = 1% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £1k / 1-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.</>
+          )}
         </p>
       </div>
 
       <div className="gold-rule" style={{ width:160, marginBottom:28 }} />
 
-      {/* Status banner */}
-      <NotYetExecutedBanner />
+      {/* Status banner — hidden once both sides have signed */}
+      {!fullySigned && <NotYetExecutedBanner />}
 
       {/* 1. Parties */}
       <Section number="1" title="Parties">

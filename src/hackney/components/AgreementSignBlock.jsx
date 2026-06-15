@@ -126,12 +126,64 @@ function readSig(storageKey) {
   } catch { return null }
 }
 
+// Fired after every signature write or clear so any
+// useAgreementSignatureStatus() consumer in the page re-reads. (The
+// browser-native 'storage' event only fires across tabs — this event
+// covers the same-tab case where the user signs in the SignBlock and
+// the parent agreement file needs to re-render its hero copy.)
+const SIG_CHANGE_EVENT = 'ndb-agreement-sig-changed'
+function notifySigChange() {
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event(SIG_CHANGE_EVENT))
+    }
+  } catch { /* swallow */ }
+}
+
 function writeSig(storageKey, sig) {
   try { localStorage.setItem(storageKey, JSON.stringify(sig)) } catch { /* swallow */ }
+  notifySigChange()
 }
 
 function clearSig(storageKey) {
   try { localStorage.removeItem(storageKey) } catch { /* swallow */ }
+  notifySigChange()
+}
+
+// useAgreementSignatureStatus — read-only hook for parent components
+// (each Agreement page) to learn whether the document is signed and
+// switch chrome accordingly: drop "Draft" wording from the eyebrow +
+// heading + remove the amber pending-execution banner once both sides
+// have countersigned.
+//
+// Returns:
+//   investorSigned : boolean — the Investor side signature exists
+//   founderSigned  : boolean — the Founder counter-signature exists
+//   fullySigned    : boolean — both of the above are true
+//
+// State is per-device: signatures live in localStorage scoped by the
+// active access-code namespace. A founder on 888999 only sees the
+// Investor signature if it was captured on the same browser; the
+// "fully signed" rule reflects that local truth.
+export function useAgreementSignatureStatus(agreementId) {
+  const investorKey = namespacedKey('agreement_sig_'        + agreementId)
+  const founderKey  = namespacedKey('agreement_founder_sig_' + agreementId)
+  const read = () => ({
+    investorSigned: !!readSig(investorKey),
+    founderSigned:  !!readSig(founderKey),
+  })
+  const [state, setState] = useState(read)
+  useEffect(() => {
+    const refresh = () => setState(read())
+    if (typeof window === 'undefined') return undefined
+    window.addEventListener('storage', refresh)
+    window.addEventListener(SIG_CHANGE_EVENT, refresh)
+    return () => {
+      window.removeEventListener('storage', refresh)
+      window.removeEventListener(SIG_CHANGE_EVENT, refresh)
+    }
+  }, [investorKey, founderKey])
+  return { ...state, fullySigned: state.investorSigned && state.founderSigned }
 }
 
 // Today as a yyyy-mm-dd for the date input default

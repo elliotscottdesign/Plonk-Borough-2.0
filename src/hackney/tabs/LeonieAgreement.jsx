@@ -1,22 +1,22 @@
 import React from 'react'
 import { ACTUALS_2025, HACKNEY_INVESTOR_RETURNS } from '../../data/hackney.js'
 import { useLockedUseOfFunds } from '../components/LockedUseOfFundsContext.jsx'
-import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
+import AgreementSignBlock, { useAgreementSignatureStatus } from '../components/AgreementSignBlock.jsx'
 
 // LeonieAgreement — Round 1 STANDARD TEMPLATE, personalised for Leonie.
 //
 // As of May 2026 this is no longer a Leonie-bespoke agreement. It now
 // renders the standard Round 1 terms that every external B-share holder
-// signs (Leonie's £5k, future £1k–£24k cheques alike). The page is
-// personalised with her name + £5k figure but the substantive clauses
-// are the template every investor sees.
+// signs. The page is personalised with her name + £3k / 3-share figure
+// but the substantive clauses are the template every investor sees.
 //
 // Key terms (per src/data/hackney.js DEAL):
 //   • 100 shares issued at £1,000 each (£100k post-money)
 //   • Founder 76 A-class voting shares (51 retained + 25 additional
-//     subscription), Leonie's intended 5 B-class non-voting shares,
-//     19 B-class shares open externally
-//   • £5,000 cash subscription = 5 shares = 5% equity
+//     subscription), Leonie's 3 B-class non-voting shares (SOLD),
+//     Michael Taylor 3 B (SOLD), Lee Trott 1 B (SOLD),
+//     17 B-class shares open externally
+//   • £3,000 cash subscription = 3 shares = 3% equity
 //   • NO preferred yield class — every share entitled to the same £X
 //     per-share dividend declared by the directors
 //   • Y1 review: single declaration at the 12-month mark
@@ -31,8 +31,9 @@ import AgreementSignBlock from '../components/AgreementSignBlock.jsx'
 // All other codes (NODICE88, JOHN1, BRAZIL) filter this tab out of the
 // top-tab list — they see the standard investor view without this tab.
 //
-// Status: NOT YET EXECUTED. Leonie has not countersigned or paid as of
-// the page-load date. The banner makes that explicit.
+// Status: ALLOCATION CONFIRMED. Leonie's 3% has been sold to her in the
+// cap table. The hero + banner drop "Draft" wording when both
+// signatures are captured (see useAgreementSignatureStatus).
 
 const INK_BG  = 'var(--ink-2)'
 const BORDER  = '1px solid rgba(201,168,76,0.18)'
@@ -55,26 +56,36 @@ export default function LeonieAgreement() {
   // Schedule 2 table + the preamble figures here update automatically.
   const { effective, isLocked } = useLockedUseOfFunds()
 
+  // Drops "Draft" wording from the hero + removes the amber pending
+  // banner once both sides have countersigned (per-device).
+  const { fullySigned } = useAgreementSignatureStatus('leonie')
+
   return (
     <div data-agreement-body style={{ padding:'32px 48px', maxWidth:1100, margin:'0 auto', color:CREAM, lineHeight:1.6 }}>
 
       {/* Hero */}
       <div style={{ marginBottom:24 }}>
         <div style={{ fontSize:11, color:GOLD, letterSpacing:'0.18em', textTransform:'uppercase', fontWeight:700, marginBottom:8 }}>
-          Round 1 Draft Terms · For Leonie Sands · Confidential
+          {fullySigned
+            ? 'Round 1 Investment Terms · For Leonie Sands · Executed'
+            : 'Round 1 Draft Terms · For Leonie Sands · Confidential'}
         </div>
         <h1 className="serif" style={{ fontSize:'clamp(2.2rem, 4.4vw, 3rem)', color:CREAM, lineHeight:1.15, margin:0 }}>
-          Draft Investment Terms — For Your Review
+          {fullySigned ? 'Investment Agreement — Executed' : 'Draft Investment Terms — For Your Review'}
         </h1>
         <p style={{ fontSize:15, color:CREAM_D, marginTop:10, maxWidth:820 }}>
-          No Dice Hackney Ltd · Round 1 · £3,000 subscription for <strong style={{ color:CREAM }}>3 shares</strong> (£1,000 each = 3% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £3k / 3-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.
+          {fullySigned ? (
+            <>No Dice Hackney Ltd · Round 1 · <strong style={{ color:CREAM }}>£3,000 subscription for 3 shares</strong> (£1,000 each = 3% of the company). <strong style={{ color:CREAM }}>Counter-signed by Investor and Founder.</strong> A signed PDF can be saved at any time from the Signatures block below.</>
+          ) : (
+            <>No Dice Hackney Ltd · Round 1 · £3,000 subscription for <strong style={{ color:CREAM }}>3 shares</strong> (£1,000 each = 3% of the company). <strong style={{ color:CREAM }}>Allocation confirmed — countersignature pending.</strong> These are the standard terms every external investor in this round signs — the only personalisation is your name and your £3k / 3-share figure. Review, raise any questions, and we'll take them to a solicitor before you countersign.</>
+          )}
         </p>
       </div>
 
       <div className="gold-rule" style={{ width:160, marginBottom:28 }} />
 
-      {/* Status banner */}
-      <NotYetExecutedBanner />
+      {/* Status banner — hidden once both sides have signed */}
+      {!fullySigned && <NotYetExecutedBanner />}
 
       {/* 1. Parties */}
       <Section number="1" title="Parties">
