@@ -263,7 +263,13 @@ function RecipeEditor({ recipe, costs, setCost, wastagePct }) {
             display: 'grid', gridTemplateColumns: 'minmax(180px, 1.4fr) 80px 110px 110px 110px',
             gap: 8, alignItems: 'center', fontSize: 13,
           }}>
-            <div>{item.name} <span style={{ color: dim, fontSize: 11 }}>· {item.supplier || ''}</span></div>
+            <div>
+              {item.name}{' '}
+              <span style={{ color: dim, fontSize: 11 }}>· {item.supplier || ''}</span>
+              {item.supplierProduct && (
+                <div style={{ fontSize: 10, color: dim, marginTop: 2, lineHeight: 1.3 }}>{item.supplierProduct}</div>
+              )}
+            </div>
             <div style={{ textAlign: 'right', color: dim }}>{isCount ? `× ${ing.ml}` : `${ing.ml} ml`}</div>
             <div style={{ textAlign: 'right' }}>
               <input

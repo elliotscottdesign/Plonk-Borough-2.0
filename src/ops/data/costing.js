@@ -18,6 +18,14 @@
 //
 // VAT: menu prices are INC-VAT (20% standard). Margin is computed on
 // the NET sell price so the comparison vs cost (also ex-VAT) is honest.
+//
+// SOURCE OF DEFAULTS: where an ingredient row has a `supplierProduct`
+// field it is priced off the Drinks Club 26-27 wholesale list (live
+// per-unit invoice price ex-VAT). Items without a supplierProduct
+// keep an industry-ballpark default — those are the ones to chase
+// invoices for first. Case-pack items (Corona / Asahi / Bud / Lucky
+// Saint / Ting / Red Bull / Fanta etc.) are stored as per-bottle cost
+// = case price ÷ 24, so the cost-per-serve maths stays per-ml.
 // ───────────────────────────────────────────────────────────────────────
 
 export const VAT_RATE = 0.20
@@ -46,49 +54,61 @@ export const POUR = {
 // ───────────────────────────────────────────────────────────────────────
 export const INGREDIENTS = {
   // ─── Spirits — bottles 700ml unless noted ──────────────────────────
-  'tequila-silver':       { name: 'Silver Tequila',      packMl: 700, defaultCost: 18.00, supplier: 'Drinks Club' },
-  'tequila-reposado':     { name: 'Tequila Reposado',    packMl: 700, defaultCost: 24.00, supplier: 'Drinks Club' },
-  'mezcal-vida':          { name: 'Vida Mezcal',         packMl: 700, defaultCost: 32.00, supplier: 'Drinks Club' },
-  'mezcal-house':         { name: 'House Mezcal',        packMl: 700, defaultCost: 28.00, supplier: 'Drinks Club' },
-  'cachaca':              { name: 'Cachaça',             packMl: 700, defaultCost: 15.00, supplier: 'Drinks Club' },
-  'rum-havana-especial':  { name: 'Havana Especial',     packMl: 700, defaultCost: 18.00, supplier: 'Drinks Club' },
-  'rum-wray-nephew':      { name: 'Wray & Nephew',       packMl: 700, defaultCost: 25.00, supplier: 'Drinks Club' },
-  'bourbon':              { name: 'Bourbon',             packMl: 700, defaultCost: 20.00, supplier: 'Drinks Club' },
-  'whiskey-house':        { name: 'House Whiskey',       packMl: 700, defaultCost: 18.00, supplier: 'Drinks Club' },
+  // ─── Spirits ─ Drinks Club 26-27 price list ────────────────────────
+  'tequila-silver':       { name: 'Silver Tequila',      packMl: 700, defaultCost: 25.27, supplier: 'Drinks Club', supplierProduct: 'Olmeca Altos Plata 700ml (SPT5OLAPL)' },
+  'tequila-reposado':     { name: 'Tequila Reposado',    packMl: 700, defaultCost: 28.87, supplier: 'Drinks Club', supplierProduct: 'Olmeca Altos Reposado 700ml (SPT5OLAPE)' },
+  'mezcal-vida':          { name: 'Vida Mezcal',         packMl: 700, defaultCost: 33.50, supplier: 'Drinks Club', supplierProduct: 'Del Maguey Mezcal Vida 700ml 42% (SPM7DEMVI)' },
+  'mezcal-house':         { name: 'House Mezcal',        packMl: 700, defaultCost: 40.11, supplier: 'Drinks Club', supplierProduct: 'Madre Mezcal Espadin 700ml (SPM7MADES)' },
+  'cachaca':              { name: 'Cachaça',             packMl: 700, defaultCost: 16.43, supplier: 'Drinks Club', supplierProduct: 'Velho Barreiro Cachaca 700ml (SPC7VEBCA)' },
+  'rum-havana-especial':  { name: 'Havana Especial',     packMl: 700, defaultCost: 15.65, supplier: 'Drinks Club', supplierProduct: 'Havana Club Anejo Especial 700ml (SPR7HACAE)' },
+  'rum-wray-nephew':      { name: 'Wray & Nephew',       packMl: 700, defaultCost: 25.05, supplier: 'Drinks Club', supplierProduct: 'Wray & Nephew White Overproof 700ml (SPR7WRNWO)' },
+  'bourbon':              { name: 'Bourbon',             packMl: 700, defaultCost: 19.74, supplier: 'Drinks Club', supplierProduct: 'Four Roses Yellow Label 700ml (SPW7FORYL)' },
+  'whiskey-house':        { name: 'House Whiskey',       packMl: 700, defaultCost: 19.76, supplier: 'Drinks Club', supplierProduct: 'Jameson 700ml (SPW7JAM)' },
 
   // ─── Liqueurs / aperitifs ─────────────────────────────────────────
-  'triple-sec':           { name: 'Triple Sec',          packMl: 700, defaultCost: 12.00, supplier: 'Drinks Club' },
-  'kahlua':               { name: 'Kahlúa',              packMl: 700, defaultCost: 14.00, supplier: 'Drinks Club' },
-  'baileys':              { name: 'Baileys',             packMl: 700, defaultCost: 12.00, supplier: 'Drinks Club' },
-  'st-germain':           { name: 'St Germain',          packMl: 500, defaultCost: 25.00, supplier: 'Drinks Club' },
+  // ─── Liqueurs / aperitifs ─ Drinks Club 26-27 ─────────────────────
+  'triple-sec':           { name: 'Triple Sec',          packMl: 700, defaultCost: 10.26, supplier: 'Drinks Club', supplierProduct: 'Blend Triple Sec 700ml (LI7BLETS)' },
+  'kahlua':               { name: 'Kahlúa',              packMl: 700, defaultCost: 12.13, supplier: 'Drinks Club', supplierProduct: 'Kahlua Coffee Liqueur 700ml (LI7KAHCL)' },
+  'baileys':              { name: 'Baileys',             packMl: 700, defaultCost: 12.54, supplier: 'Drinks Club', supplierProduct: 'Baileys Original Irish Cream 700ml (LI7BAIOR)' },
+  // St Germain on the Drinks Club list is 700ml (not 500ml as previously assumed).
+  'st-germain':           { name: 'St Germain',          packMl: 700, defaultCost: 24.80, supplier: 'Drinks Club', supplierProduct: 'St Germain 700ml (LI7STG)' },
+  // Green Chartreuse not on the Drinks Club Jun-26 list — keep ballpark default.
   'chartreuse-green':     { name: 'Green Chartreuse',    packMl: 700, defaultCost: 48.00, supplier: 'Drinks Club' },
-  'campari':              { name: 'Campari',             packMl: 700, defaultCost: 16.00, supplier: 'Drinks Club' },
-  'amaro':                { name: 'Amaro',               packMl: 700, defaultCost: 20.00, supplier: 'Drinks Club' },
-  'cynar':                { name: 'Cynar',               packMl: 700, defaultCost: 14.00, supplier: 'Drinks Club' },
-  'limoncello':           { name: 'Limoncello',          packMl: 700, defaultCost: 14.00, supplier: 'Drinks Club' },
-  'absinthe-chocolate':   { name: 'Chocolate Absinthe',  packMl: 700, defaultCost: 35.00, supplier: 'Drinks Club' },
-  'vermut':               { name: 'Vermut',              packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
-  'vermouth-sweet':       { name: 'Sweet Vermouth',      packMl: 750, defaultCost: 10.00, supplier: 'Drinks Club' },
-  'vermouth-dry':         { name: 'Dry Vermouth',        packMl: 750, defaultCost: 10.00, supplier: 'Drinks Club' },
+  'campari':              { name: 'Campari',             packMl: 700, defaultCost: 14.47, supplier: 'Drinks Club', supplierProduct: 'Campari 700ml (LI7CAM)' },
+  'amaro':                { name: 'Amaro',               packMl: 700, defaultCost: 16.33, supplier: 'Drinks Club', supplierProduct: 'Amaro Montenegro 700ml (VA7AMMLI)' },
+  'cynar':                { name: 'Cynar',               packMl: 700, defaultCost: 13.39, supplier: 'Drinks Club', supplierProduct: 'Cynar Liqueur 700ml (LI7CYN)' },
+  'limoncello':           { name: 'Limoncello',          packMl: 700, defaultCost: 14.79, supplier: 'Drinks Club', supplierProduct: 'Luxardo Limoncello 700ml (LI7LUXLI)' },
+  // Devil's Botany Chocolate Absinthe listed on Drinks Club but no price — keep ballpark.
+  'absinthe-chocolate':   { name: 'Chocolate Absinthe',  packMl: 700, defaultCost: 35.00, supplier: 'Drinks Club', supplierProduct: "Devil's Botany Chocolate Absinthe 700ml — price TBC" },
+  // Vermut now sized to the 1L El Bandarra bottle (was 750ml).
+  'vermut':               { name: 'Vermut',              packMl: 1000, defaultCost: 15.82, supplier: 'Drinks Club', supplierProduct: 'El Bandarra Al Fresco 1000ml (VA7ELBAF)' },
+  'vermouth-sweet':       { name: 'Sweet Vermouth',      packMl: 750, defaultCost: 9.43, supplier: 'Drinks Club', supplierProduct: 'Martini Rosso 750ml (VE7MARRO)' },
+  'vermouth-dry':         { name: 'Dry Vermouth',        packMl: 750, defaultCost: 9.87, supplier: 'Drinks Club', supplierProduct: 'Martini Extra Dry 750ml (VE7MARED)' },
 
-  // ─── Draught kegs ────────────────────────────────────────────────
-  'keg-camden-hells':     { name: 'Camden Hells (keg)',    packMl: 50000, defaultCost: 165.00, supplier: 'Drinks Club' },
-  'keg-camden-stout':     { name: 'Camden Stout (keg)',    packMl: 50000, defaultCost: 170.00, supplier: 'Drinks Club' },
+  // ─── Draught kegs ─ Drinks Club 26-27 (Camden Ink keg is 30L) ────
+  'keg-camden-hells':     { name: 'Camden Hells (keg)',    packMl: 50000, defaultCost: 142.28, supplier: 'Drinks Club', supplierProduct: 'Camden Hells Lager Keg 50L (BR50CAMHLKE)' },
+  'keg-camden-stout':     { name: 'Camden Stout (keg)',    packMl: 30000, defaultCost:  84.42, supplier: 'Drinks Club', supplierProduct: 'Camden Ink Stout Keg 30L (BR30CAMINKE)' },
+  // SoCal IPA not on the Drinks Club Jun-26 sheet — ballpark default kept.
   'keg-socal-ipa':        { name: 'SoCal IPA (keg)',       packMl: 50000, defaultCost: 180.00, supplier: 'Drinks Club' },
-  'keg-umbrella-cider':   { name: 'Umbrella Cider (keg)',  packMl: 50000, defaultCost: 170.00, supplier: 'Drinks Club' },
+  // Umbrella Cider not specifically listed; Red Fin Fresh Apple is the closest comparable.
+  'keg-umbrella-cider':   { name: 'Umbrella Cider (keg)',  packMl: 50000, defaultCost: 118.04, supplier: 'Drinks Club', supplierProduct: 'Red Fin Fresh Apple Keg 50L (BR50REFFAKEG) — used as comparable' },
 
-  // ─── Bottles / cans (single units — pack price = per-unit cost) ──
-  'btl-corona':           { name: 'Corona 330ml',           packMl: 330, defaultCost: 1.45, supplier: 'Drinks Club' },
-  'btl-asahi':            { name: 'Asahi 330ml',            packMl: 330, defaultCost: 1.55, supplier: 'Drinks Club' },
-  'btl-budweiser':        { name: 'Budweiser 330ml',        packMl: 330, defaultCost: 1.40, supplier: 'Drinks Club' },
+  // ─── Bottles / cans ─ Drinks Club prices are per CASE OF 24, divided here to per-unit ──
+  'btl-corona':           { name: 'Corona 330ml',           packMl: 330, defaultCost: 1.13, supplier: 'Drinks Club', supplierProduct: 'Corona Extra Glass 330ml × 24 @ £27.12 (BR3COEGL)' },
+  'btl-asahi':            { name: 'Asahi 330ml',            packMl: 330, defaultCost: 1.04, supplier: 'Drinks Club', supplierProduct: 'Asahi Super Dry Glass 330ml × 24 @ £24.96 (BR3ASASDGL)' },
+  'btl-budweiser':        { name: 'Budweiser 330ml',        packMl: 330, defaultCost: 0.98, supplier: 'Drinks Club', supplierProduct: 'Budweiser Glass 330ml × 24 @ £23.52 (BR3BUDGL)' },
+  // Lowrise not on the Drinks Club Jun-26 list — ballpark kept.
   'btl-lowrise-lager':    { name: 'Lowrise Lager GF',       packMl: 330, defaultCost: 1.25, supplier: 'Drinks Club' },
   'btl-lowrise-ipa':      { name: 'Lowrise IPA GF',         packMl: 330, defaultCost: 1.25, supplier: 'Drinks Club' },
-  'btl-corona-0':         { name: 'Corona 0%',              packMl: 330, defaultCost: 1.10, supplier: 'Drinks Club' },
+  'btl-corona-0':         { name: 'Corona 0%',              packMl: 330, defaultCost: 0.75, supplier: 'Drinks Club', supplierProduct: 'Corona Cero 0.0% Glass 330ml × 24 @ £18.00 (BR3COC00GL)' },
+  // Big Drop not on the Drinks Club Jun-26 list — ballpark kept.
   'btl-bigdrop-citra':    { name: 'Big Drop Citra IPA 0.5%', packMl: 330, defaultCost: 1.80, supplier: 'Drinks Club' },
-  'btl-lucky-saint':      { name: 'Lucky Saint 0.5%',       packMl: 330, defaultCost: 1.65, supplier: 'Drinks Club' },
+  'btl-lucky-saint':      { name: 'Lucky Saint 0.5%',       packMl: 330, defaultCost: 1.18, supplier: 'Drinks Club', supplierProduct: 'Lucky Saint Unfiltered Lager 0.5% Glass 330ml × 24 @ £28.20 (BR3LUSUFGL)' },
+  // Cloudwater specials sit outside Drinks Club's core list — ballpark kept.
   'btl-cloudwater-ipa':   { name: 'Cloudwater Fresh AF IPA', packMl: 440, defaultCost: 2.50, supplier: 'Drinks Club' },
   'btl-strawb-lime-0':    { name: 'Strawberry & Lime 0%',   packMl: 500, defaultCost: 1.90, supplier: 'Drinks Club' },
-  'btl-rekorderlig':      { name: 'Rekorderlig Strawb&Lime', packMl: 500, defaultCost: 2.30, supplier: 'Drinks Club' },
+  // Rekorderlig not on the Drinks Club Jun-26 list — Kopparberg Strawb&Lime used as substitute.
+  'btl-rekorderlig':      { name: 'Rekorderlig Strawb&Lime', packMl: 500, defaultCost: 1.22, supplier: 'Drinks Club', supplierProduct: 'Kopparberg Strawberry & Lime Glass 500ml × 24 @ £29.25 (BR5KOPSLGL) — substitute' },
   'btl-olivers-cider':    { name: "Oliver's Fine Cider",    packMl: 500, defaultCost: 2.40, supplier: 'Top Cuvee' },
 
   // ─── Craft cans (£7 selection on page 2) ────────────────────────
@@ -112,19 +132,20 @@ export const INGREDIENTS = {
   'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 14.00, supplier: 'Top Cuvee' },
   'wine-doom-fizz':       { name: 'Doom Juice Fizz',         packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
-  'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 8.00, supplier: 'Drinks Club' },
+  'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 6.75, supplier: 'Drinks Club', supplierProduct: 'Amore della Vita Prosecco Extra Dry 750ml (SP7ADVED)' },
   'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Drinks Club' },
 
-  // ─── Soft drinks ────────────────────────────────────────────────
+  // ─── Soft drinks ─ Drinks Club case prices ÷ 24 (or per BIB for post-mix) ──
+  // Kombucha not on the Drinks Club Jun-26 list — ballpark kept.
   'soft-kombucha':        { name: 'Kombucha',             packMl: 275, defaultCost: 1.50, supplier: 'Drinks Club' },
-  'soft-ting':            { name: 'Ting',                 packMl: 330, defaultCost: 0.80, supplier: 'Drinks Club' },
-  'soft-redbull':         { name: 'Red Bull',             packMl: 250, defaultCost: 1.20, supplier: 'Drinks Club' },
-  'soft-ginger-beer':     { name: 'Ginger Beer',          packMl: 330, defaultCost: 0.95, supplier: 'Drinks Club' },
-  'soft-fanta':           { name: 'Fanta',                packMl: 330, defaultCost: 0.55, supplier: 'Drinks Club' },
+  'soft-ting':            { name: 'Ting Grapefruit',      packMl: 330, defaultCost: 0.48, supplier: 'Drinks Club', supplierProduct: 'Ting Grapefruit Can 330ml × 24 @ £11.52 (SO3TINGGRCA)' },
+  'soft-redbull':         { name: 'Red Bull',             packMl: 250, defaultCost: 0.97, supplier: 'Drinks Club', supplierProduct: 'Red Bull 250ml × 24 @ £23.28 (SO2REB)' },
+  'soft-ginger-beer':     { name: 'Old Jamaican Ginger Beer', packMl: 330, defaultCost: 0.48, supplier: 'Drinks Club', supplierProduct: 'Old Jamaican Ginger Beer Can 330ml × 24 @ £11.52 (SO3OLJGBC)' },
+  'soft-fanta':           { name: 'Fanta',                packMl: 330, defaultCost: 0.60, supplier: 'Drinks Club', supplierProduct: 'Fanta Can 330ml × 24 @ £14.40 (SO3FANC)' },
   'soft-coke':            { name: 'Coca-Cola (bottle)',   packMl: 200, defaultCost: 0.50, supplier: 'Drinks Club' },
   'soft-juice':           { name: 'Juice (assorted)',     packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
-  // Post-mix lines — basically free per serve once syrup is bought
-  'postmix-coke':         { name: 'Post-mix Coke',        packMl: 100000, defaultCost: 22.00, supplier: 'Drinks Club' },
+  // Post-mix coke now sized to the Drinks Club 7L BIB (was 100L tap-line estimate).
+  'postmix-coke':         { name: 'Post-mix Coke (BIB)',  packMl: 7000, defaultCost: 79.30, supplier: 'Drinks Club', supplierProduct: 'Coca Cola BIB 7L (SO7COCBIB)' },
   'postmix-soda':         { name: 'Post-mix Soda',        packMl: 100000, defaultCost: 5.00, supplier: 'BOC' },
 
   // ─── Homemade sodas (syrup + soda mix) ──────────────────────────
@@ -134,9 +155,9 @@ export const INGREDIENTS = {
   'lime-juice':           { name: 'Lime juice (fresh)',   packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
   'lemon-juice':          { name: 'Lemon juice (fresh)',  packMl: 1000, defaultCost: 7.00, supplier: 'Brakes' },
   'pineapple-juice':      { name: 'Pineapple juice',      packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
-  'grenadine':            { name: 'Grenadine',            packMl: 700, defaultCost: 6.00, supplier: 'Drinks Club' },
+  'grenadine':            { name: 'Grenadine',            packMl: 700, defaultCost: 4.93, supplier: 'Drinks Club', supplierProduct: 'Monin Grenadine 700ml (OTS7MONGR)' },
   'sugar-syrup':          { name: 'Sugar syrup 1:1',      packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
-  'agave-syrup':          { name: 'Agave syrup',          packMl: 700, defaultCost: 6.00, supplier: 'Brakes' },
+  'agave-syrup':          { name: 'Agave syrup',          packMl: 1000, defaultCost: 17.92, supplier: 'Drinks Club', supplierProduct: 'Giffard Sirop Agave 1000ml (OTS7GIFSIAG)' },
   'sugar-cube':           { name: 'Sugar cube',           packMl: 1,   defaultCost: 0.02, supplier: 'Brakes' },
   'lime-wedge':           { name: 'Lime wedge',           packMl: 1,   defaultCost: 0.08, supplier: 'Brakes' },
   'lemon-twist':          { name: 'Lemon twist',          packMl: 1,   defaultCost: 0.06, supplier: 'Brakes' },
