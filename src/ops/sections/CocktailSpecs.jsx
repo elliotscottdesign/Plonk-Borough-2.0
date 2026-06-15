@@ -88,32 +88,38 @@ export default function CocktailSpecs() {
         <div className="print-running-subtitle">Cocktail Specs · House bar reference</div>
       </div>
 
-      {/* ─── Sections + spec rows ───────────────────────────────── */}
-      {grouped.map(group => (
-        <section key={group.key} className="spec-section" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <h3 className="section-header" style={{
-            margin: 0, fontSize: 13, color: gold, fontWeight: 700,
-            letterSpacing: '0.22em', textTransform: 'uppercase',
-            padding: '8px 0 6px',
-            borderBottom: '1px solid rgba(201,168,76,0.18)',
-          }}>{group.label}</h3>
+      {/* ─── Sections + spec rows
+          Wrapped in spec-print-root so the print stylesheet can scope
+          "show ONLY this and the running header" — every other DOM
+          node in the OpsApp shell (top nav, sub-tool tabs, brand header,
+          toolbar) gets visibility:hidden during print. ────────────── */}
+      <div className="spec-print-root" style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+        {grouped.map(group => (
+          <section key={group.key} className="spec-section" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <h3 className="section-header" style={{
+              margin: 0, fontSize: 13, color: gold, fontWeight: 700,
+              letterSpacing: '0.22em', textTransform: 'uppercase',
+              padding: '8px 0 6px',
+              borderBottom: '1px solid rgba(201,168,76,0.18)',
+            }}>{group.label}</h3>
 
-          <table className="spec-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-            <thead>
-              <tr style={{ background: ink2 }}>
-                <th style={th}>Cocktail / Ingredients</th>
-                <th style={{ ...th, width: '38%' }}>Method &amp; build notes</th>
-                <th style={{ ...th, width: 130 }}>Glassware</th>
-              </tr>
-            </thead>
-            <tbody>
-              {group.items.map((s) => (
-                <SpecRow key={s.id} spec={s} />
-              ))}
-            </tbody>
-          </table>
-        </section>
-      ))}
+            <table className="spec-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: ink2 }}>
+                  <th style={th}>Cocktail / Ingredients</th>
+                  <th style={{ ...th, width: '38%' }}>Method &amp; build notes</th>
+                  <th style={{ ...th, width: 130 }}>Glassware</th>
+                </tr>
+              </thead>
+              <tbody>
+                {group.items.map((s) => (
+                  <SpecRow key={s.id} spec={s} />
+                ))}
+              </tbody>
+            </table>
+          </section>
+        ))}
+      </div>
 
       {grouped.length === 0 && (
         <p className="screen-only" style={{ color: dim, padding: 20, textAlign: 'center' }}>
@@ -128,9 +134,35 @@ export default function CocktailSpecs() {
         @media print {
           /* Page margin reserves space for the running header at top. */
           @page { size: A4; margin: 28mm 10mm 12mm 10mm; }
-          html, body { background: #ffffff !important; color: #000000 !important; }
-          .screen-only { display: none !important; }
-          .print-only { display: block !important; color: #000 !important; }
+          html, body { background: #ffffff !important; color: #000 !important; }
+
+          /* Hide EVERY element in the page by default, then re-show only
+             the spec content + the running header. visibility (not display)
+             so layout boxes still take their slot in flow. */
+          body * { visibility: hidden !important; }
+          .spec-print-root, .spec-print-root *,
+          .print-running-header, .print-running-header * { visibility: visible !important; }
+
+          /* Lift the spec content out of the OpsApp shell flow and pin to
+             the top-left of the printable area — otherwise the negative
+             offsets from the hidden top nav push it down the page. */
+          .spec-print-root {
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+          }
+
+          /* Force EVERY inline color: cream / gold / dim to pure black.
+             Cascading rule wins because inline styles don't carry
+             !important, and we use descendant selectors with it. */
+          .spec-print-root,
+          .spec-print-root *,
+          .print-running-header,
+          .print-running-header * {
+            color: #000 !important;
+            background-color: transparent !important;
+          }
+          .spec-print-root svg { stroke: #000 !important; fill: none !important; }
 
           /* Wordmark running header — repeats on every printed page via
              position:fixed inside the print box. */
@@ -139,50 +171,48 @@ export default function CocktailSpecs() {
             top: 0; left: 0; right: 0;
             text-align: center;
             padding-top: 4mm;
-            border-bottom: 1px solid #000;
             padding-bottom: 3mm;
-            background: #fff;
+            background: #fff !important;
+            border-bottom: 1px solid #000;
           }
           .print-running-header img {
             height: 12mm;
             display: block;
             margin: 0 auto;
-            filter: brightness(0); /* force the wordmark to pure black on white */
+            filter: brightness(0); /* wordmark to pure black on white */
+            visibility: visible !important;
           }
           .print-running-subtitle {
             margin: 1mm 0 0;
             font-size: 8pt;
             letter-spacing: 0.2em;
             text-transform: uppercase;
-            color: #000;
           }
 
-          .spec-section { break-inside: avoid; page-break-inside: avoid; }
+          .spec-section { break-inside: avoid; page-break-inside: avoid; margin-bottom: 4mm; }
           .section-header {
-            color: #000 !important;
             border-bottom: 1px solid #000 !important;
             margin-top: 4mm !important;
             font-size: 11pt !important;
+            font-weight: 700 !important;
           }
           .spec-table {
-            color: #000 !important;
+            border-collapse: collapse !important;
             border: 1px solid #000 !important;
             page-break-inside: auto;
             font-size: 9pt !important;
+            width: 100%;
           }
           .spec-table th, .spec-table td {
             background: #fff !important;
-            color: #000 !important;
             border: 1px solid #000 !important;
             padding: 4px 6px !important;
-            vertical-align: top;
+            vertical-align: top !important;
           }
           .spec-table tr { page-break-inside: avoid; }
-          .glass-icon { stroke: #000 !important; fill: none !important; }
-          .ing-list, .garnish-line, .batch-note, .build-text, .cocktail-name { color: #000 !important; }
           .garnish-line { font-style: italic; }
           .batch-note { font-size: 8pt; }
-          a { color: #000 !important; text-decoration: none; }
+          a { text-decoration: none; }
         }
       `}</style>
     </div>
