@@ -774,8 +774,13 @@ export const RECIPES = [
     ],
   },
   {
+    // Founder note (Jun 2026): the 50ml rum is an intentional DOUBLE measure.
+    // At £11 with the real £9.52/kg Funkin mango this lands ~77.2% GP — a
+    // near-miss vs the 80% cocktail target. The double is the margin lever:
+    // dropping to a single 25ml would lift it to ~83.7% with no price change.
+    // Keep the double for now; revisit on the next margins review.
     id: 'cocktail-mango-mojito', category: 'cocktail', name: 'Mango Mojito', sellPrice: 11,
-    notes: 'Squeeze limes, add all, crushed ice, stir to break mint, soda splash + crushed top.',
+    notes: 'Squeeze limes, add all, crushed ice, stir to break mint, soda splash + crushed top. 50ml rum = double measure.',
     ingredients: [
       { id: 'rum-havana-especial', ml: 50 },
       { id: 'mango-puree',         ml: 40 },
