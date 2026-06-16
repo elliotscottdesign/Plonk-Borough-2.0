@@ -78,7 +78,7 @@ export default function DJBookings() {
       ) : err && !data ? (
         <div style={{ color: '#F87171', fontSize: 13, padding: 20 }}>Couldn't load: {err}</div>
       ) : view === 'roster' ? (
-        <DJRoster djs={data.djs} reload={reload} />
+        <DJRoster djs={data.djs} slots={data.slots} release={data.release} reload={reload} />
       ) : view === 'events' ? (
         <Events data={data} reload={reload} />
       ) : (

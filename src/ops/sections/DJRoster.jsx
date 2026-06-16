@@ -28,7 +28,7 @@ const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean
 const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url)
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
-export default function DJRoster({ djs, reload }) {
+export default function DJRoster({ djs, slots, release, reload }) {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [q, setQ] = useState('')
@@ -101,6 +101,44 @@ export default function DJRoster({ djs, reload }) {
     const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
+
+  // ── Residents tier + monthly release ──────────────────────────────────────
+  const [, setTick] = useState(0)   // re-render each minute so the countdown ticks
+  useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60000); return () => clearInterval(t) }, [])
+  const rel = async (action, payload = {}) => { setBusy(true); try { await djAdmin(action, payload); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const setResident = (d, on) => rel('setResident', { id: d.id, resident: on })
+
+  // Residents who played a confirmed night LAST calendar month = lower-priority batch.
+  const isoD = (dt) => `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+  const _now = new Date()
+  const lmFrom = isoD(new Date(_now.getFullYear(), _now.getMonth() - 1, 1))
+  const lmTo = isoD(new Date(_now.getFullYear(), _now.getMonth(), 0))
+  const playedLastMonth = new Set((slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= lmFrom && s.date <= lmTo).map(s => s.dj_id))
+  const nextMonthLabel = new Date(_now.getFullYear(), _now.getMonth() + 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+
+  const waSend = (d, msg) => {
+    const num = waNumber(d.phone)
+    if (!num) { alert(`No WhatsApp number on file for ${d.dj_name || 'this DJ'} — add one via Edit.`); return }
+    window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
+  }
+  const msgNewDates = (d, priority) => `Hey ${d.dj_name || 'there'}, the ${nextMonthLabel} dates are live at No Dice! 🎧\n\n${priority ? "As a resident you get FIRST pick — grab your night before it opens to the rest. You've got 24 hours on this one." : 'Grab your resident night — get in quick before they go.'}\n\nYour link: ${inviteLink(d.token)}\n\nAny Qs, shout. E`
+  const msg6h = (d) => `Hey ${d.dj_name || 'there'}, ⏳ ~6 hours left to grab your No Dice resident slot before it opens to everyone — book here:\n${inviteLink(d.token)}\nE`
+
+  // Release-window timing (messaging-order, not a hard lock).
+  const startedAt = release?.started_at ? new Date(release.started_at).getTime() : null
+  const hrs = startedAt ? (Date.now() - startedAt) / 3600000 : null
+  const group2Open = hrs !== null && hrs >= 24
+  const within6h = hrs !== null && hrs >= 18 && hrs < 24
+  const fmtT = (ms) => new Date(ms).toLocaleString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  const resRow = (d, priority) => (
+    <div key={d.id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0' }}>
+      <Avatar d={d} size={30} />
+      <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.dj_name}{!complete(d) && <span style={{ fontSize: 10, color: '#FCD34D', marginLeft: 6 }}>○ profile incomplete</span>}</div>
+      {d.phone
+        ? <button onClick={() => waSend(d, msgNewDates(d, priority))} disabled={!priority && startedAt && !group2Open} style={btn(priority ? 'green' : 'gold')}>📲 Message</button>
+        : <span style={{ fontSize: 10, color: '#F87171' }}>no number</span>}
+    </div>
+  )
   const onPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file || !editing) return
     setBusy(true)
@@ -116,7 +154,11 @@ export default function DJRoster({ djs, reload }) {
   const statusOf = (d) => d.status || 'vetted'
   const vettedN = (djs || []).filter(d => statusOf(d) === 'vetted').length
   const pendingN = (djs || []).filter(d => statusOf(d) === 'pending').length
-  const inTab = (djs || []).filter(d => statusOf(d) === tab)
+  const residentsAll = (djs || []).filter(d => d.resident)
+  const residentN = residentsAll.length
+  const g1 = residentsAll.filter(d => !playedLastMonth.has(d.id))   // first dibs — didn't play last month
+  const g2 = residentsAll.filter(d => playedLastMonth.has(d.id))    // played last month
+  const inTab = tab === 'resident' ? residentsAll : (djs || []).filter(d => statusOf(d) === tab)
   const filtered = inTab.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
   const ready = inTab.filter(complete).length
 
@@ -128,19 +170,21 @@ export default function DJRoster({ djs, reload }) {
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
             {tab === 'vetted'
               ? <>{vettedN} vetted · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{vettedN - ready} incomplete</span></>
-              : <>{pendingN} pending — review &amp; <strong style={{ color: '#34D399' }}>Approve</strong> to move into the vetted roster</>}
+              : tab === 'resident'
+                ? <>{residentN} residents · guaranteed a monthly slot, messaged first when new dates drop</>
+                : <>{pendingN} pending — review &amp; <strong style={{ color: '#34D399' }}>Approve</strong> to move into the vetted roster</>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search DJs…" style={inp(170)} />
           {tab === 'pending' && <button onClick={() => setBulkOpen(o => !o)} disabled={busy} style={btn('ghost')}>⇪ Bulk import</button>}
-          <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add {tab === 'pending' ? 'pending' : 'DJ'}</button>
+          {tab !== 'resident' && <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add {tab === 'pending' ? 'pending' : 'DJ'}</button>}
         </div>
       </div>
 
       {/* Vetted / Pending tabs */}
       <div style={{ display: 'flex', gap: 6 }}>
-        {[['vetted', `Vetted (${vettedN})`], ['pending', `Pending (${pendingN})`]].map(([k, lbl]) => (
+        {[['vetted', `Vetted (${vettedN})`], ['resident', `★ Residents (${residentN})`], ['pending', `Pending (${pendingN})`]].map(([k, lbl]) => (
           <button key={k} onClick={() => { setTab(k); setEditing(null); setBulkOpen(false); setQ('') }} style={{
             padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
             background: tab === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
@@ -164,6 +208,50 @@ export default function DJRoster({ djs, reload }) {
             <div style={{ flex: 1 }} />
             <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{parseBulk(bulkText).length} parsed</span>
             <button onClick={bulkAdd} disabled={busy} style={btn('gold')}>Add to Pending</button>
+          </div>
+        </div>
+      )}
+
+      {tab === 'resident' && (
+        <div style={{ background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.3)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+            <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📣 Message residents — {nextMonthLabel} dates</div>
+            {!startedAt
+              ? <button onClick={() => { if (window.confirm(`Start the priority window for ${nextMonthLabel}? Message the first-dibs group now; the rest unlock after 24h.`)) rel('releaseStart', { month: nextMonthLabel }) }} disabled={busy} style={btn('gold')}>▶ Start priority window</button>
+              : <button onClick={() => { if (window.confirm('Reset this window? Clears the timer so you can start fresh next month.')) rel('releaseReset') }} disabled={busy} style={btn('ghost')}>↺ Reset window</button>}
+          </div>
+
+          {startedAt && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px', lineHeight: 1.6 }}>
+              Priority window opened <strong style={{ color: '#fff' }}>{fmtT(startedAt)}</strong>.{' '}
+              {group2Open
+                ? <><strong style={{ color: '#34D399' }}>24h up — Group 2 is open</strong>, message them now.</>
+                : <>Group 2 opens <strong style={{ color: '#FCD34D' }}>{fmtT(startedAt + 24 * 3600000)}</strong> (~{Math.max(0, Math.ceil(24 - hrs))}h).{within6h && <strong style={{ color: '#F59E0B' }}> ⏳ Under 6h left — send the nudge below.</strong>}</>}
+            </div>
+          )}
+
+          <div>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>① First dibs · didn't play last month ({g1.length})</div>
+            {g1.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None — every resident played last month.</div> : g1.map(d => resRow(d, true))}
+          </div>
+
+          {startedAt && !group2Open && g1.some(d => d.phone) && (
+            <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
+              <div style={{ fontSize: 11, color: within6h ? '#F59E0B' : 'rgba(255,255,255,0.5)', marginBottom: 6 }}>⏳ 6-hour closing nudge {within6h ? '— send now!' : `(due ${fmtT(startedAt + 18 * 3600000)})`} — to first-dibs DJs who haven't booked yet:</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {g1.filter(d => d.phone).map(d => <button key={d.id} onClick={() => waSend(d, msg6h(d))} style={btn('ghost')}>⏳ {d.dj_name}</button>)}
+              </div>
+            </div>
+          )}
+
+          <div style={{ opacity: (!startedAt || group2Open) ? 1 : 0.5 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>② Played last month · message after 24h ({g2.length})</div>
+            {startedAt && !group2Open && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>Hold off until the 24h window closes (their buttons unlock then).</div>}
+            {g2.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None.</div> : g2.map(d => resRow(d, false))}
+          </div>
+
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+            Once residents are sorted, message the rest from the <strong style={{ color: '#fff' }}>Vetted</strong> tab. Messages send from <em>your</em> WhatsApp (one tap each) and carry each DJ's personal booking link. Add a resident with the <strong style={{ color: '#fff' }}>☆ Make resident</strong> button on their card.
           </div>
         </div>
       )}
@@ -242,6 +330,7 @@ export default function DJRoster({ djs, reload }) {
                     </>
                   ) : (
                     <>
+                      <button onClick={() => setResident(d, !d.resident)} disabled={busy} style={d.resident ? btn('gold') : btn('ghost')}>{d.resident ? '★ Resident' : '☆ Make resident'}</button>
                       {d.phone && <button onClick={() => waInvite(d)} style={btn('green')}>📲 WhatsApp invite</button>}
                       <button onClick={() => copyInvite(d)} style={btn(copied === d.id ? 'green' : 'gold')}>{copied === d.id ? '✓ Link copied' : '🔗 Copy link'}</button>
                       <button onClick={() => startEdit(d)} style={btn('ghost')}>Edit</button>
@@ -258,7 +347,9 @@ export default function DJRoster({ djs, reload }) {
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '24px 16px', lineHeight: 1.6 }}>
           {tab === 'pending'
             ? <>No pending DJs yet. Tap <strong style={{ color: '#fff' }}>⇪ Bulk import</strong> to drop in Instagram handles or a contacts list, or <strong style={{ color: '#fff' }}>+ Add pending</strong> one by one. Vetted them later with <strong style={{ color: '#34D399' }}>Approve</strong>.</>
-            : (q ? `No DJs match "${q}".` : 'No DJs yet.')}
+            : tab === 'resident'
+              ? <>No residents yet — go to <strong style={{ color: '#fff' }}>Vetted</strong> and tap <strong style={{ color: '#fff' }}>☆ Make resident</strong> on the DJs you want guaranteed a monthly slot.</>
+              : (q ? `No DJs match "${q}".` : 'No DJs yet.')}
         </div>
       )}
 

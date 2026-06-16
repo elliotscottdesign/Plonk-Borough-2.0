@@ -43,6 +43,23 @@ alter table public.djs add column if not exists vetted_at timestamptz;
 -- First time the profile became complete — drives the one-time "DJ signed up" email
 -- (admin + DJ). Back-filled for already-complete DJs so they don't get it retroactively.
 alter table public.djs add column if not exists signed_up_at timestamptz;
+-- Resident tier — guaranteed-monthly DJs who get first dibs on each month's new dates.
+alter table public.djs add column if not exists resident boolean not null default false;
+
+-- Single-row state for the monthly resident release window (messaging-order, not a
+-- hard booking lock). started_at = when the priority group was messaged; the admin
+-- UI counts 24h from there, with a 6h "closing soon" marker. opened_all_at = when the
+-- founder released to everyone else.
+create table if not exists public.dj_release_state (
+  id           smallint primary key default 1,
+  month        text,
+  started_at   timestamptz,
+  opened_all_at timestamptz,
+  updated_at   timestamptz default now(),
+  constraint dj_release_singleton check (id = 1)
+);
+alter table public.dj_release_state enable row level security;   -- service-role only
+
 alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists kind text;          -- session | opendecks

@@ -45,14 +45,15 @@ async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
   if (error) return json({ error: error.message }, 500);  // e.g. tables not created yet
   const { data: slots } = await sb.from("dj_slots").select("*, dj:djs(id,dj_name,image_url,instagram,genres,format)").order("date");
-  return json({ djs: djs || [], slots: slots || [] });
+  const { data: release } = await sb.from("dj_release_state").select("*").eq("id", 1).maybeSingle();
+  return json({ djs: djs || [], slots: slots || [], release: release || null });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -182,6 +183,20 @@ Deno.serve(async (req) => {
       break;
     case "unapprove":
       await sb.from("djs").update({ status: "pending", vetted_at: null, updated_at: now() }).eq("id", id);
+      break;
+    case "setResident":
+      // Resident tier — guaranteed-monthly DJs who get first dibs on new dates.
+      await sb.from("djs").update({ resident: !!resident, updated_at: now() }).eq("id", id);
+      break;
+    case "releaseStart":
+      // Start the monthly priority window (records when the first batch was messaged).
+      await sb.from("dj_release_state").upsert({ id: 1, month: month || null, started_at: now(), opened_all_at: null, updated_at: now() }, { onConflict: "id" });
+      break;
+    case "releaseOpenAll":
+      await sb.from("dj_release_state").update({ opened_all_at: now(), updated_at: now() }).eq("id", 1);
+      break;
+    case "releaseReset":
+      await sb.from("dj_release_state").update({ started_at: null, opened_all_at: null, month: null, updated_at: now() }).eq("id", 1);
       break;
     case "bulkAdd": {
       // Drop a list of contacts in as PENDING (e.g. Instagram handles, a new sheet).
