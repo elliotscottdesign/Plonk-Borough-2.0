@@ -165,7 +165,7 @@ export const INGREDIENTS = {
   'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Top Cuvee' },
   // New Top Cuvée lines added Jun 2026 from the wholesale price list.
   'wine-rouge-petard':    { name: 'Rouge Petard (Aramon)',   packMl: 750, defaultCost: 10.75, supplier: 'Top Cuvee', supplierProduct: 'Rouge Petard (Aramon) 750ml @ £10.75 ex VAT — Top Cuvée TOP-W01-7704, min order 6' },
-  'wine-rui-gruner':      { name: 'Rüi Grüner Veltliner',    packMl: 750, defaultCost: 13.50, supplier: 'Top Cuvee', supplierProduct: 'Rüi (Grüner Veltliner/Rosenmuskateller) 750ml @ £13.50 ex VAT — Top Cuvée TOP-W04-3082' },
+  'wine-lentsch-gruner':  { name: 'Lentsch Grüner Veltliner', packMl: 750, defaultCost: 12.90, supplier: 'Good Wine Good People', supplierProduct: 'Lentsch Grüner Veltliner 750ml @ £12.90 ex VAT — Good Wine Good People (backed out of combined order: 12 Cueva Nueva + 12 Lentsch = £302.26 ex VAT, less 12 × £12.29 Cueva)' },
 
   // House cheap red — only used for Kalimoxto (mixed with Coke), NOT
   // pour-by-the-glass. Founder confirmed this is intentionally a cheaper
@@ -425,8 +425,8 @@ export const RECIPES = [
   { id: 'wine-rouge-petard-125', category: 'wine', name: 'Rouge Petard (Aramon) — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-rouge-petard', ml: POUR.WINE_125 }] },
   { id: 'wine-rouge-petard-btl', category: 'wine', name: 'Rouge Petard (Aramon) — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-rouge-petard', ml: 750 }] },
 
-  { id: 'wine-rui-125',          category: 'wine', name: 'Rüi Grüner Veltliner — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-rui-gruner', ml: POUR.WINE_125 }] },
-  { id: 'wine-rui-btl',          category: 'wine', name: 'Rüi Grüner Veltliner — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-rui-gruner', ml: 750 }] },
+  { id: 'wine-lentsch-125',      category: 'wine', name: 'Lentsch Grüner Veltliner — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-lentsch-gruner', ml: POUR.WINE_125 }] },
+  { id: 'wine-lentsch-btl',      category: 'wine', name: 'Lentsch Grüner Veltliner — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-lentsch-gruner', ml: 750 }] },
 
   // ─── COCKTAILS ──
   // Founder spec (Aug 2025): 35ml Vida Mezcal, 25ml Green Chartreuse,
