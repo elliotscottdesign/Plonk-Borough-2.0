@@ -254,10 +254,11 @@ export const INGREDIENTS = {
   // ─── Purees & juices ─────────────────────────────────────────────
   // Funkin purees come from LWC (not Drinks Club), sold per single 1kg pouch
   // (LWC catalog: Units 1 = one 1kg pouch), so packMl stays 1000 — no case
-  // maths here. Mango locked from the LWC catalog Jun 2026 @ £9.52 ex VAT/kg.
-  // Passion Fruit price still PLACEHOLDER — awaiting the LWC line.
+  // maths here. Founder confirmed (Jun 2026) every Funkin puree prices the
+  // same @ £9.52 ex VAT/kg (the mango line on the LWC catalog), applied
+  // across the range — no placeholders left.
   'mango-puree':            { name: 'Funkin Mango Puree',    packMl: 1000, defaultCost: 9.52, supplier: 'LWC', supplierProduct: 'Funkin Mango Puree 1kg pouch @ £9.52 ex VAT (LWC catalog, Jun 2026)' },
-  'passion-fruit-puree':    { name: 'Funkin Passion Fruit Puree', packMl: 1000, defaultCost: 9.00, supplier: 'LWC', supplierProduct: 'Funkin Passion Fruit Puree 1kg pouch — confirm LWC invoice price (PLACEHOLDER)' },
+  'passion-fruit-puree':    { name: 'Funkin Passion Fruit Puree', packMl: 1000, defaultCost: 9.52, supplier: 'LWC', supplierProduct: 'Funkin Passion Fruit Puree 1kg pouch @ £9.52 ex VAT (LWC — Funkin range priced flat, founder-confirmed Jun 2026)' },
   // Eager juices come in cases of 8 × 1L cartons (Drinks Club listing
   // shows unit size 1000ml but the listed price is for the case of 8).
   // packMl stored as the case total (8000ml) so cost-per-ml works out
