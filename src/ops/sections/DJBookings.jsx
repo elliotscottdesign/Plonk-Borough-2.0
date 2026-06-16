@@ -143,7 +143,7 @@ function Calendar({ data, reload }) {
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>📅 Booking calendar</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
-          Open the dates you want to fill — DJs claim them from their portal. <strong style={{ color: '#FFFFFF' }}>Pending</strong> = pre-release · <strong style={{ color: '#FFFFFF' }}>Confirmed</strong> = main events calendar.
+          Tap a date, then either <strong style={{ color: '#FFFFFF' }}>Open for DJs to claim</strong> (they fill it from their portal) or <strong style={{ color: '#FFFFFF' }}>🎛️ Build a night</strong> yourself — pick a DJ and set all the details. <strong style={{ color: '#FFFFFF' }}>Pending</strong> = pre-release · <strong style={{ color: '#FFFFFF' }}>Confirmed</strong> = main events calendar.
           Sessions: <em>Thu {timeLabel(SESSIONS[4])} · Fri {timeLabel(SESSIONS[5])} · Sat {timeLabel(SESSIONS[6])}</em>.
         </div>
       </div>
@@ -158,7 +158,7 @@ function Calendar({ data, reload }) {
       </div>
 
       <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth}
-        cellFor={calCell} onDay={(d) => { setSelDate(d); setAdding(null) }} selected={selDate} rich
+        cellFor={calCell} onDay={(d) => { setSelDate(d); setBuildKey(null) }} selected={selDate} rich
         legend={<>
           <span>Booked nights show artwork + DJ. Border &amp; dot:</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
@@ -201,7 +201,7 @@ function Calendar({ data, reload }) {
                     )}
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                    {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn(status === 'open' ? 'ghost' : 'gold')}>{status === 'open' ? 'Close' : 'Open for DJs'}</button>}
+                    {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>{status === 'open' ? 'Close (remove from marketplace)' : 'Open for DJs to claim'}</button>}
                     {!booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('gold')}>{buildKey === key ? '✕ Close' : '🎛️ Build a night'}</button>}
                     {booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('ghost')}>{buildKey === key ? '✕ Close' : '✏️ Edit details'}</button>}
                     {booked && status === 'pending' && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
@@ -276,7 +276,7 @@ function Events({ data, reload }) {
     try {
       await djAdmin('editEvent', {
         date: s.date, slot: s.slot || 'main', newDate: form.date, nightName: form.nightName,
-        subgenres: (form.subgenres || '').split(',').map(x => x.trim()).filter(Boolean),
+        subgenres: (form.subgenres || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 4),
         setType: form.setType, promoTrack: form.promoTrack,
       })
       setEditing(null); await reload()
@@ -447,7 +447,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
-    onSave({ djId, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean), setType, promoTrack, imgData })
+    onSave({ djId, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
   }
 
   return (
