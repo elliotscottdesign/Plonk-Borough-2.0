@@ -382,16 +382,47 @@ export const RECIPES = [
   { id: 'wine-topcuvee-250', category: 'wine', name: 'Top Cuvee Orange — 250ml', sellPrice: 9.5,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_250 }] },
   { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
 
-  { id: 'wine-favonius-btl',     category: 'wine', name: 'Favonius Orange — Bottle',  sellPrice: 40, ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
-  { id: 'wine-doom-rouge-btl',   category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
-  { id: 'wine-gueule-btl',       category: 'wine', name: "Gueule d'Amour — Bottle",   sellPrice: 40, ingredients: [{ id: 'wine-gueule-damour', ml: 750 }] },
-  { id: 'wine-beaujolais-btl',   category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
-  { id: 'wine-chinchin-btl',     category: 'wine', name: 'Chin Chin Vinho Verde — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-chinchin-verde', ml: 750 }] },
-  { id: 'wine-cueva-btl',        category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
-  { id: 'wine-doom-fizz-btl',    category: 'wine', name: 'Doom Juice Fizz — Bottle',  sellPrice: 40, ingredients: [{ id: 'wine-doom-fizz', ml: 750 }] },
-  { id: 'wine-vigna-btl',        category: 'wine', name: 'Vigna Rose Pet Nat — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-vigna-petnat', ml: 750 }] },
-  { id: 'wine-prosecco-btl',     category: 'wine', name: 'Prosecco — Bottle',         sellPrice: 35, ingredients: [{ id: 'wine-prosecco', ml: 750 }] },
-  { id: 'wine-mini-prosecco',    category: 'wine', name: 'Mini Prosecco 20cl',        sellPrice: 8.5, ingredients: [{ id: 'wine-mini-prosecco', ml: 200 }] },
+  // ── Glass + bottle for every wine on sale (sandbox). Still wines carry a
+  //    175ml + 250ml glass; sparkling carries a 125ml flute. The glass SELL
+  //    prices below are EDITABLE STARTING POINTS seeded off the house ratio
+  //    (175 ≈ bottle ÷ 5, 250 ≈ bottle ÷ 3.7) — tweak them live in the tool
+  //    to work out the real till prices. Bottle prices are today's menu.
+  { id: 'wine-favonius-175',   category: 'wine', name: 'Favonius Orange — 175ml',  sellPrice: 8,    ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_175 }] },
+  { id: 'wine-favonius-250',   category: 'wine', name: 'Favonius Orange — 250ml',  sellPrice: 11,   ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_250 }] },
+  { id: 'wine-favonius-btl',   category: 'wine', name: 'Favonius Orange — Bottle', sellPrice: 40,   ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
+
+  { id: 'wine-doom-rouge-175', category: 'wine', name: 'Doom Juice Rouge — 175ml', sellPrice: 8,    ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_175 }] },
+  { id: 'wine-doom-rouge-250', category: 'wine', name: 'Doom Juice Rouge — 250ml', sellPrice: 11,   ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_250 }] },
+  { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40,  ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
+
+  { id: 'wine-gueule-175',     category: 'wine', name: "Gueule d'Amour — 175ml",   sellPrice: 8,    ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_175 }] },
+  { id: 'wine-gueule-250',     category: 'wine', name: "Gueule d'Amour — 250ml",   sellPrice: 11,   ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_250 }] },
+  { id: 'wine-gueule-btl',     category: 'wine', name: "Gueule d'Amour — Bottle",  sellPrice: 40,   ingredients: [{ id: 'wine-gueule-damour', ml: 750 }] },
+
+  { id: 'wine-beaujolais-175', category: 'wine', name: 'Beaujolais Nouveau — 175ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_175 }] },
+  { id: 'wine-beaujolais-250', category: 'wine', name: 'Beaujolais Nouveau — 250ml', sellPrice: 11, ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_250 }] },
+  { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
+
+  { id: 'wine-chinchin-175',   category: 'wine', name: 'Chin Chin Vinho Verde — 175ml', sellPrice: 7,   ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_175 }] },
+  { id: 'wine-chinchin-250',   category: 'wine', name: 'Chin Chin Vinho Verde — 250ml', sellPrice: 9.5, ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_250 }] },
+  { id: 'wine-chinchin-btl',   category: 'wine', name: 'Chin Chin Vinho Verde — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-chinchin-verde', ml: 750 }] },
+
+  // Cueva Nueva is a vermut — 175/250 glasses seeded for consistency, but you
+  // may serve it as a smaller aperitif pour; adjust the ml/price in the tool.
+  { id: 'wine-cueva-175',      category: 'wine', name: 'Cueva Nueva Vermut — 175ml', sellPrice: 10,   ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_175 }] },
+  { id: 'wine-cueva-250',      category: 'wine', name: 'Cueva Nueva Vermut — 250ml', sellPrice: 13.5, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_250 }] },
+  { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50,  ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
+
+  { id: 'wine-doom-fizz-125',  category: 'wine', name: 'Doom Juice Fizz — 125ml flute', sellPrice: 8,  ingredients: [{ id: 'wine-doom-fizz', ml: POUR.WINE_125 }] },
+  { id: 'wine-doom-fizz-btl',  category: 'wine', name: 'Doom Juice Fizz — Bottle',  sellPrice: 40,   ingredients: [{ id: 'wine-doom-fizz', ml: 750 }] },
+
+  { id: 'wine-vigna-125',      category: 'wine', name: 'Vigna Rose Pet Nat — 125ml flute', sellPrice: 8, ingredients: [{ id: 'wine-vigna-petnat', ml: POUR.WINE_125 }] },
+  { id: 'wine-vigna-btl',      category: 'wine', name: 'Vigna Rose Pet Nat — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-vigna-petnat', ml: 750 }] },
+
+  { id: 'wine-prosecco-125',   category: 'wine', name: 'Prosecco — 125ml flute',    sellPrice: 7,    ingredients: [{ id: 'wine-prosecco', ml: POUR.WINE_125 }] },
+  { id: 'wine-prosecco-btl',   category: 'wine', name: 'Prosecco — Bottle',         sellPrice: 35,   ingredients: [{ id: 'wine-prosecco', ml: 750 }] },
+
+  { id: 'wine-mini-prosecco',  category: 'wine', name: 'Mini Prosecco 20cl',        sellPrice: 8.5,  ingredients: [{ id: 'wine-mini-prosecco', ml: 200 }] },
 
   // ─── COCKTAILS ──
   // Founder spec (Aug 2025): 35ml Vida Mezcal, 25ml Green Chartreuse,
