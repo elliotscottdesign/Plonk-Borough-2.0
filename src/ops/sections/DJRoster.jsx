@@ -34,7 +34,7 @@ export default function DJRoster({ djs, slots, release, reload }) {
   const [q, setQ] = useState('')
   const [copied, setCopied] = useState(null)
   const [busy, setBusy] = useState(false)
-  const [tab, setTab] = useState('vetted')        // 'vetted' | 'pending'
+  const [tab, setTab] = useState('vetted')        // 'vetted' | 'resident' | 'pending'
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkSource, setBulkSource] = useState('instagram')
@@ -126,6 +126,7 @@ export default function DJRoster({ djs, slots, release, reload }) {
 
   // Release-window timing (messaging-order, not a hard lock).
   const startedAt = release?.started_at ? new Date(release.started_at).getTime() : null
+  const openedAllAt = release?.opened_all_at ? new Date(release.opened_all_at).getTime() : null
   const hrs = startedAt ? (Date.now() - startedAt) / 3600000 : null
   const group2Open = hrs !== null && hrs >= 24
   const within6h = hrs !== null && hrs >= 18 && hrs < 24
@@ -135,7 +136,7 @@ export default function DJRoster({ djs, slots, release, reload }) {
       <Avatar d={d} size={30} />
       <div style={{ flex: 1, minWidth: 0, fontSize: 13, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{d.dj_name}{!complete(d) && <span style={{ fontSize: 10, color: '#FCD34D', marginLeft: 6 }}>○ profile incomplete</span>}</div>
       {d.phone
-        ? <button onClick={() => waSend(d, msgNewDates(d, priority))} disabled={!priority && startedAt && !group2Open} style={btn(priority ? 'green' : 'gold')}>📲 Message</button>
+        ? <button onClick={() => waSend(d, msgNewDates(d, priority))} disabled={!priority && !group2Open} style={btn(priority ? 'green' : 'gold')}>📲 Message</button>
         : <span style={{ fontSize: 10, color: '#F87171' }}>no number</span>}
     </div>
   )
@@ -235,9 +236,9 @@ export default function DJRoster({ djs, slots, release, reload }) {
             {g1.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None — every resident played last month.</div> : g1.map(d => resRow(d, true))}
           </div>
 
-          {startedAt && !group2Open && g1.some(d => d.phone) && (
+          {within6h && g1.some(d => d.phone) && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
-              <div style={{ fontSize: 11, color: within6h ? '#F59E0B' : 'rgba(255,255,255,0.5)', marginBottom: 6 }}>⏳ 6-hour closing nudge {within6h ? '— send now!' : `(due ${fmtT(startedAt + 18 * 3600000)})`} — to first-dibs DJs who haven't booked yet:</div>
+              <div style={{ fontSize: 11, color: '#F59E0B', marginBottom: 6 }}>⏳ 6-hour closing nudge — send now to first-dibs DJs who haven't booked yet:</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                 {g1.filter(d => d.phone).map(d => <button key={d.id} onClick={() => waSend(d, msg6h(d))} style={btn('ghost')}>⏳ {d.dj_name}</button>)}
               </div>
@@ -250,8 +251,18 @@ export default function DJRoster({ djs, slots, release, reload }) {
             {g2.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None.</div> : g2.map(d => resRow(d, false))}
           </div>
 
-          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
-            Once residents are sorted, message the rest from the <strong style={{ color: '#fff' }}>Vetted</strong> tab. Messages send from <em>your</em> WhatsApp (one tap each) and carry each DJ's personal booking link. Add a resident with the <strong style={{ color: '#fff' }}>☆ Make resident</strong> button on their card.
+          <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>③ Release to everyone else</div>
+              {startedAt && !openedAllAt && (
+                <button onClick={() => { if (window.confirm(group2Open ? `Open ${nextMonthLabel} to non-resident & pending DJs now?` : "The 24h resident window hasn't closed yet — open to everyone anyway?")) rel('releaseOpenAll') }} disabled={busy} style={btn('gold')}>▶ Open to all (non-residents)</button>)}
+              {openedAllAt && <span style={{ fontSize: 11, color: '#34D399', fontWeight: 600 }}>✅ Opened {fmtT(openedAllAt)}</span>}
+            </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
+              {openedAllAt
+                ? <>Now message the rest from the <strong style={{ color: '#fff' }}>Vetted</strong> tab (and Pending DJs once approved). Messages send from <em>your</em> WhatsApp (one tap each).</>
+                : <>Once residents have had their pick, open it up — then message the rest from the <strong style={{ color: '#fff' }}>Vetted</strong> tab. Messages send from <em>your</em> WhatsApp (one tap each) and carry each DJ's personal booking link. Add a resident with the <strong style={{ color: '#fff' }}>☆ Make resident</strong> button on their card.</>}
+            </div>
           </div>
         </div>
       )}

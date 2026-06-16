@@ -149,13 +149,10 @@ export const INGREDIENTS = {
   'wine-conejos-malditos':{ name: 'Los Conejos Malditos (red)', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos (red) 750ml @ £10.00 ex VAT — Top Cuvée TOP-W02-7501 (founder-confirmed red; £10.00 = TC Los Conejos list price)' },
   'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6' },
   'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 10.35, supplier: 'Top Cuvee', supplierProduct: 'House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000' },
-  'wine-favonius-orange': { name: 'Favonius Orange',         packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
-  'wine-gueule-damour':   { name: "Gueule d'Amour Cab Franc", packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Noble Rot', supplierProduct: 'Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory.' },
   'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 12.29, supplier: 'Good Wine Good People', supplierProduct: 'Cueva Nueva NV 750ml (GWSPV1, case 12×750) @ £12.29 ex VAT — GWGP invoice GWGPT-369, 24 Feb 2026' },
-  'wine-doom-fizz':       { name: 'Doom Juice Fizz',         packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.15, supplier: 'Top Cuvee', supplierProduct: 'Vigna Rosa (Lambrusco Blend, Sparkling Italian Red) 750ml @ £13.15 ex VAT — Top Cuvée TOP-W05-1002' },
   // Prosecco + the 20cl minis come from Drinks Club (founder, Jun 2026) —
   // the cheap line, not a Top Cuvee natural fizz. Amore della Vita is the
@@ -390,14 +387,8 @@ export const RECIPES = [
   { id: 'wine-topcuvee-125', category: 'wine', name: 'Top Cuvee Orange — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_125 }] },
   { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
 
-  { id: 'wine-favonius-125',   category: 'wine', name: 'Favonius Orange — 125ml',  sellPrice: 8,  ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_125 }] },
-  { id: 'wine-favonius-btl',   category: 'wine', name: 'Favonius Orange — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
-
   { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
   { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
-
-  { id: 'wine-gueule-125',     category: 'wine', name: "Gueule d'Amour — 125ml",   sellPrice: 8,  ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_125 }] },
-  { id: 'wine-gueule-btl',     category: 'wine', name: "Gueule d'Amour — Bottle",  sellPrice: 40, ingredients: [{ id: 'wine-gueule-damour', ml: 750 }] },
 
   { id: 'wine-beaujolais-125', category: 'wine', name: 'Beaujolais Nouveau — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_125 }] },
   { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
@@ -409,9 +400,6 @@ export const RECIPES = [
   // smaller as an aperitif (drop the ml in the tool to suit).
   { id: 'wine-cueva-125',      category: 'wine', name: 'Cueva Nueva Vermut — 125ml', sellPrice: 10, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_125 }] },
   { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
-
-  { id: 'wine-doom-fizz-125',  category: 'wine', name: 'Doom Juice Fizz — 125ml flute', sellPrice: 8,  ingredients: [{ id: 'wine-doom-fizz', ml: POUR.WINE_125 }] },
-  { id: 'wine-doom-fizz-btl',  category: 'wine', name: 'Doom Juice Fizz — Bottle',  sellPrice: 40, ingredients: [{ id: 'wine-doom-fizz', ml: 750 }] },
 
   { id: 'wine-vigna-125',      category: 'wine', name: 'Vigna Rose Pet Nat — 125ml flute', sellPrice: 8, ingredients: [{ id: 'wine-vigna-petnat', ml: POUR.WINE_125 }] },
   { id: 'wine-vigna-btl',      category: 'wine', name: 'Vigna Rose Pet Nat — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-vigna-petnat', ml: 750 }] },
