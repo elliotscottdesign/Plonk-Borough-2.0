@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -90,16 +90,24 @@ export default function DJBookings() {
 
 function Calendar({ data, reload }) {
   const { djs, slots } = data
-  const [adding, setAdding] = useState(null)
-  const [form, setForm] = useState({ djId: '', night: '' })
+  const [buildKey, setBuildKey] = useState(null)   // which slot's build/edit form is open
   const [busy, setBusy] = useState(false)
 
   const sessions = upcomingSessions(WEEKS_AHEAD)
   const byKey = {}
   for (const s of (slots || [])) byKey[s.date + '|' + (s.slot || 'main')] = s   // keyed by date + slot
   const act = async (action, payload) => { setBusy(true); try { await djAdmin(action, payload); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const startAdd = (key) => { setAdding(key); setForm({ djId: '', night: '' }) }
-  const saveAdd = async (date, slot) => { if (!form.djId) return; await act('book', { date, slot, djId: form.djId, nightName: form.night }); setAdding(null) }
+  // Build a new night (book) or edit a booked one (editEvent), then attach artwork.
+  const saveNight = async (date, slot, isNew, d) => {
+    if (isNew && !d.djId) return
+    setBusy(true)
+    try {
+      if (isNew) await djAdmin('book', { date, slot, djId: d.djId, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
+      else await djAdmin('editEvent', { date, slot, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
+      if (d.imgData) await djAdmin('eventPhoto', { date, slot, dataUrl: d.imgData })
+      await reload(); setBuildKey(null)
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
 
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
@@ -194,18 +202,22 @@ function Calendar({ data, reload }) {
                   </div>
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                     {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn(status === 'open' ? 'ghost' : 'gold')}>{status === 'open' ? 'Close' : 'Open for DJs'}</button>}
-                    {!booked && status === 'open' && <button onClick={() => startAdd(key)} disabled={busy} style={btn('ghost')}>+ Add DJ</button>}
+                    {!booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('gold')}>{buildKey === key ? '✕ Close' : '🎛️ Build a night'}</button>}
+                    {booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('ghost')}>{buildKey === key ? '✕ Close' : '✏️ Edit details'}</button>}
                     {booked && status === 'pending' && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
                     {booked && status === 'confirmed' && <button onClick={() => act('unconfirm', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
                     {booked && <button onClick={() => act('removeBooking', { date, slot: def.slot })} disabled={busy} style={btn('red')}>Remove</button>}
                   </div>
-                  {adding === key && (
-                    <div style={{ width: '100%', display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                      <Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v }))} placeholder="— pick a DJ from the roster —" width={220} options={(djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} />
-                      <input value={form.night} onChange={e => setForm(f => ({ ...f, night: e.target.value }))} placeholder="Night name (optional)" style={inp(170)} />
-                      <button onClick={() => saveAdd(date, def.slot)} disabled={busy || !form.djId} style={btn('gold')}>Save</button>
-                      <button onClick={() => setAdding(null)} style={btn('ghost')}>Cancel</button>
-                    </div>
+                  {buildKey === key && (
+                    <NightForm
+                      djs={djs}
+                      slotRow={slot}
+                      isSession={def.kind === 'session'}
+                      showDj={!booked}
+                      busy={busy}
+                      onSave={(d) => saveNight(date, def.slot, !booked, d)}
+                      onCancel={() => setBuildKey(null)}
+                    />
                   )}
                 </div>
               )
@@ -274,8 +286,6 @@ function Events({ data, reload }) {
     if (window.confirm(`Delete this event — ${s.dj?.dj_name || 'DJ'} on ${fmt(s.date)}?\n\nThis removes it from the calendar and the public events page, and can't be undone.`)) act('deleteEvent', s)
   }
   const editIsSession = (d) => !!d && [4, 5, 6].includes(new Date(d + 'T00:00:00Z').getUTCDay())
-  const lbl = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.6)' }
-  const hint = { color: 'rgba(255,255,255,0.4)', fontWeight: 400 }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -367,19 +377,30 @@ function Events({ data, reload }) {
 }
 
 // Branded No Dice dropdown (replaces native <select> so the open list is on-brand).
+// Opens UPWARD when there isn't room below (so the list is never clipped off the
+// bottom of the page).
 function Dropdown({ value, onChange, options, placeholder = 'Select…', width = 220 }) {
   const [open, setOpen] = useState(false)
+  const [up, setUp] = useState(false)
+  const ref = useRef(null)
   const sel = options.find(o => o.value === value)
+  const toggle = () => {
+    if (!open && ref.current) {
+      const r = ref.current.getBoundingClientRect()
+      setUp(window.innerHeight - r.bottom < 280 && r.top > 280)
+    }
+    setOpen(o => !o)
+  }
   return (
-    <div style={{ position: 'relative', width }}>
-      <button type="button" onClick={() => setOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: `1px solid ${open ? '#DA1B33' : 'rgba(255,255,255,0.18)'}`, color: sel ? '#FFFFFF' : 'rgba(255,255,255,0.5)', cursor: 'pointer', textAlign: 'left' }}>
+    <div ref={ref} style={{ position: 'relative', width }}>
+      <button type="button" onClick={toggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: `1px solid ${open ? '#DA1B33' : 'rgba(255,255,255,0.18)'}`, color: sel ? '#FFFFFF' : 'rgba(255,255,255,0.5)', cursor: 'pointer', textAlign: 'left' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sel ? sel.label : placeholder}</span>
         <span style={{ color: '#DA1B33', fontSize: 10 }}>▼</span>
       </button>
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-          <div style={{ position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 8, maxHeight: 260, overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}>
+          <div style={{ position: 'absolute', ...(up ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 8, maxHeight: 260, overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}>
             {options.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No DJs yet</div>}
             {options.map(o => (
               <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false) }}
@@ -402,3 +423,63 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const inp = (w) => ({ width: w, minWidth: 120, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none' })
+const lbl = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11, color: 'rgba(255,255,255,0.6)' }
+const hint = { color: 'rgba(255,255,255,0.4)', fontWeight: 400 }
+
+// Full "build / edit a DJ night" form — gives admins the same toolkit DJs have
+// (DJ · night name · genres or set type · promo track · per-event artwork). Used
+// for building a new night (showDj=true) and for editing a booked one.
+function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) {
+  const [djId, setDjId] = useState(slotRow?.dj_id || '')
+  const [nightName, setNightName] = useState(slotRow?.night_name || '')
+  const [genres, setGenres] = useState((slotRow?.subgenres || []).join(', '))
+  const [setType, setSetType] = useState(slotRow?.set_type || 'dj_set')
+  const [promoTrack, setPromoTrack] = useState(slotRow?.promo_track || '')
+  const [imgData, setImgData] = useState('')
+  const [imgErr, setImgErr] = useState('')
+  const djPhoto = (djs || []).find(d => d.id === djId)?.image_url || ''
+  const preview = imgData || slotRow?.event_image_url || djPhoto
+
+  const pickImg = async (file) => {
+    if (!file) return
+    setImgErr('')
+    try { setImgData(await resizeImage(file)) } catch (e) { setImgErr(e.message || 'Could not read that image') }
+  }
+  const submit = () => {
+    if (showDj && !djId) return
+    onSave({ djId, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean), setType, promoTrack, imgData })
+  }
+
+  return (
+    <div style={{ width: '100%', marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {showDj && (
+        <label style={lbl}>DJ
+          <Dropdown value={djId} onChange={setDjId} placeholder="— pick a DJ from the roster —" width={250}
+            options={(djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} />
+        </label>
+      )}
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <label style={lbl}>Night name<input value={nightName} onChange={e => setNightName(e.target.value)} placeholder="(optional)" style={inp(200)} /></label>
+        {isSession
+          ? <label style={lbl}>Genres <span style={hint}>(comma, up to 4)</span><input value={genres} onChange={e => setGenres(e.target.value)} placeholder="House, Disco, Funk" style={inp(260)} /></label>
+          : <label style={lbl}>Set type <span style={hint}>(Open Decks)</span><Dropdown value={setType} onChange={setSetType} width={200} options={SET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></label>}
+      </div>
+      <label style={lbl}>Promo track <span style={hint}>(name or link — drives the Instagram post)</span><input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or link" style={inp(320)} /></label>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div style={lbl}>Artwork <span style={hint}>(overrides the DJ photo for this night)</span></div>
+        {preview
+          ? <Avatar d={{ image_url: preview, dj_name: '?' }} size={46} />
+          : <div style={{ width: 46, height: 46, borderRadius: 8, border: '1px dashed rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase' }}>none</div>}
+        <label style={{ ...btn('ghost'), display: 'inline-block', cursor: 'pointer' }}>
+          {imgData ? 'Change image' : 'Upload image'}
+          <input type="file" accept="image/*" hidden onChange={e => pickImg(e.target.files?.[0])} />
+        </label>
+        {imgErr && <span style={{ fontSize: 11, color: '#F87171' }}>{imgErr}</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={submit} disabled={busy || (showDj && !djId)} style={btn('gold')}>{busy ? 'Saving…' : (showDj ? 'Build night' : 'Save details')}</button>
+        <button onClick={onCancel} disabled={busy} style={btn('ghost')}>Cancel</button>
+      </div>
+    </div>
+  )
+}

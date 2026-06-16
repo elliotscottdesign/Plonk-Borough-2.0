@@ -52,7 +52,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -128,17 +128,40 @@ Deno.serve(async (req) => {
       // Remove the event entirely — gone from admin, the calendar and the public feed.
       await sb.from("dj_slots").delete().eq("date", date).eq("slot", slot);
       break;
+    case "eventPhoto": {
+      // Per-event artwork (overrides the DJ's profile photo for this night only).
+      // Admin-built nights can have artwork set here; the DJ can also change it.
+      const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl || "");
+      if (!m) return json({ error: "bad image" }, 400);
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      const ext = m[1].includes("png") ? "png" : "jpg";
+      const key = `events/${date}-${slot}.${ext}`;
+      const up = await sb.storage.from("dj-photos").upload(key, bytes, { contentType: m[1], upsert: true });
+      if (up.error) return json({ error: up.error.message }, 500);
+      const { data: p } = sb.storage.from("dj-photos").getPublicUrl(key);
+      await sb.from("dj_slots").update({ event_image_url: `${p.publicUrl}?v=${Date.now()}`, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    }
+    case "removeEventPhoto":
+      await sb.from("dj_slots").update({ event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
     case "book": {
-      // Admin manually assigns a DJ. Seed kind + display genres from their profile
-      // so the Events view / public feed render; the DJ can refine via their portal.
+      // Admin builds a night for a DJ. Uses the details from the admin form when
+      // passed (so admins have the full DJ toolkit), else seeds display genres
+      // from the DJ's profile. The DJ can still refine via their portal.
       const { data: dj } = await sb.from("djs").select("genres").eq("id", djId).maybeSingle();
-      const subs = String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
-      const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
+      const session = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay());
+      const passed = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
+        .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
+      const subs = passed.length ? passed : String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
       await sb.from("dj_slots").upsert({
         date, slot, dj_id: djId, status: "pending", night_name: nightName || null,
-        genre: dj?.genres || null, genres: subs, subgenres: subs, kind: k,
-        set_type: k === "opendecks" ? "dj_set" : null, promo_track: null, promo_ok: false,
-        event_image_url: null, updated_at: now(),
+        genre: session ? (subs.join(" / ") || dj?.genres || null) : null,
+        genres: session ? subs : [], subgenres: session ? subs : [],
+        kind: session ? "session" : "opendecks",
+        set_type: session ? null : (setType || "dj_set"),
+        promo_track: (promoTrack || "").trim() || null, promo_ok: !!promoOk,
+        updated_at: now(),
       }, { onConflict: "date,slot" });
       break;
     }
