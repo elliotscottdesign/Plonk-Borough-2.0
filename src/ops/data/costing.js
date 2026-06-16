@@ -146,23 +146,23 @@ export const INGREDIENTS = {
 
   // ─── Wine — 750ml bottles ────────────────────────────────────────
   'wine-blanco-blanco':   { name: 'Blanco Blanco (white)',    packMl: 750, defaultCost: 11.55, supplier: 'Top Cuvee', supplierProduct: 'Blanco Blanco (Xarel-lo/Garnacha/Trepat) 750ml @ £11.55 ex VAT — Top Cuvée MOD-W07-9837, min order 6' },
-  'wine-conejos-malditos':{ name: 'Los Conejos Malditos (red)', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos 750ml @ £10.00 ex VAT — Top Cuvée TOP-W02-7501 (listed as Blanco/white — confirm vs our "red" label)' },
+  'wine-conejos-malditos':{ name: 'Los Conejos Malditos (red)', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos (red) 750ml @ £10.00 ex VAT — Top Cuvée TOP-W02-7501 (founder-confirmed red; £10.00 = TC Los Conejos list price)' },
   'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6' },
   'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 10.35, supplier: 'Top Cuvee', supplierProduct: 'House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000' },
   'wine-favonius-orange': { name: 'Favonius Orange',         packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
   'wine-gueule-damour':   { name: "Gueule d'Amour Cab Franc", packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
-  'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Top Cuvée Beaujolais-Villages (Gamay) 750ml @ £14.35 ex VAT — TOP-W01-6351 (list has Villages, not Nouveau — confirm which we stock)' },
-  'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Top Cuvee' },
+  'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)' },
+  'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Noble Rot', supplierProduct: 'Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory.' },
   'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 12.29, supplier: 'Good Wine Good People', supplierProduct: 'Cueva Nueva NV 750ml (GWSPV1, case 12×750) @ £12.29 ex VAT — GWGP invoice GWGPT-369, 24 Feb 2026' },
   'wine-doom-fizz':       { name: 'Doom Juice Fizz',         packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.15, supplier: 'Top Cuvee', supplierProduct: 'Vigna Rosa (Lambrusco Blend, Sparkling Italian Red) 750ml @ £13.15 ex VAT — Top Cuvée TOP-W05-1002' },
-  // Prosecco is bought through Top Cuvee like the rest of the wine. The
-  // Drinks Club Jun-26 sheet lists Amore della Vita at £6.75 ex VAT as a
-  // comparison price (lower than typical Top Cuvee) — kept as the
-  // ballpark until the Top Cuvee invoice lands.
-  'wine-prosecco':        { name: 'Prosecco',                packMl: 750, defaultCost: 8.00, supplier: 'Top Cuvee' },
-  'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Top Cuvee' },
+  // Prosecco + the 20cl minis come from Drinks Club (founder, Jun 2026) —
+  // the cheap line, not a Top Cuvee natural fizz. Amore della Vita is the
+  // Drinks Club Jun-26 listing @ £6.75 ex VAT/750ml. Mini 20cl price is a
+  // cheap ballpark — drop in the real Drinks Club mini line when picked.
+  'wine-prosecco':        { name: 'Prosecco (Amore della Vita)', packMl: 750, defaultCost: 6.75, supplier: 'Drinks Club', supplierProduct: 'Amore della Vita Prosecco 750ml @ £6.75 ex VAT (Drinks Club Jun-26)' },
+  'wine-mini-prosecco':   { name: 'Mini Prosecco 20cl',      packMl: 200, defaultCost: 2.50, supplier: 'Drinks Club' },
   // New Top Cuvée lines added Jun 2026 from the wholesale price list.
   'wine-rouge-petard':    { name: 'Rouge Petard (Aramon)',   packMl: 750, defaultCost: 10.75, supplier: 'Top Cuvee', supplierProduct: 'Rouge Petard (Aramon) 750ml @ £10.75 ex VAT — Top Cuvée TOP-W01-7704, min order 6' },
   'wine-lentsch-gruner':  { name: 'Lentsch Grüner Veltliner', packMl: 750, defaultCost: 12.90, supplier: 'Good Wine Good People', supplierProduct: 'Lentsch Grüner Veltliner 750ml @ £12.90 ex VAT — Good Wine Good People (backed out of combined order: 12 Cueva Nueva + 12 Lentsch = £302.26 ex VAT, less 12 × £12.29 Cueva)' },
