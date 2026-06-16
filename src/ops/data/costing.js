@@ -145,12 +145,12 @@ export const INGREDIENTS = {
   'craft-bigdrop-paradiso':{ name: 'Big Drop Paradiso Citra IPA 0.5%', packMl: 440, defaultCost: 2.00, supplier: 'Drinks Club' },
 
   // ─── Wine — 750ml bottles ────────────────────────────────────────
-  'wine-blanco-blanco':   { name: 'Blanco Blanco (white)',    packMl: 750, defaultCost: 7.50, supplier: 'Top Cuvee' },
+  'wine-blanco-blanco':   { name: 'Blanco Blanco (white)',    packMl: 750, defaultCost: 11.55, supplier: 'Top Cuvee', supplierProduct: 'Blanco Blanco (Xarel-lo/Garnacha/Trepat) 750ml @ £11.55 ex VAT — Top Cuvée MOD-W07-9837, min order 6' },
   'wine-conejos-malditos':{ name: 'Los Conejos Malditos (red)', packMl: 750, defaultCost: 7.50, supplier: 'Top Cuvee' },
-  'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 8.00, supplier: 'Top Cuvee' },
-  'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 8.00, supplier: 'Top Cuvee' },
+  'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6' },
+  'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 10.35, supplier: 'Top Cuvee', supplierProduct: 'House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000' },
   'wine-favonius-orange': { name: 'Favonius Orange',         packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
-  'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
+  'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
   'wine-gueule-damour':   { name: "Gueule d'Amour Cab Franc", packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Top Cuvee' },
