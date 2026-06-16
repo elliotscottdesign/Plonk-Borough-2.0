@@ -18,7 +18,7 @@ const Center = ({ children }) => (
 const Photo = ({ d, size = 92 }) => {
   if (d?.image_url) return <img src={d.image_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${RED}` }} />
   const initials = (d?.dj_name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: `1px solid ${LINE}` }}>{initials}</div>
+  return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: `2px dashed ${RED}` }}>{initials}</div>
 }
 
 export default function DJPortal() {
@@ -176,6 +176,11 @@ export default function DJPortal() {
   if (!(sdj.email || '').trim()) need.push('email')
   const inp = { width: '100%', boxSizing: 'border-box', padding: '12px 14px', fontSize: 15, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', marginTop: 4 }
   const label = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }
+  // Required-field cues: a red * on each mandatory label, plus a live outline on
+  // the pill — red while still empty, green once filled. These 7 fields are what
+  // gate the bookings calendar (see `need` above); optional fields stay neutral.
+  const req = () => <span title="Required before you can book a date" style={{ color: RED, marginLeft: 5, fontWeight: 700 }}>*</span>
+  const reqInp = (v) => ({ ...inp, border: `1px solid ${(v || '').toString().trim() ? '#34D399' : RED}` })
   // Time left on a 24h hold (drafts). held_at + 24h − now.
   const holdLeft = (heldAt) => {
     if (!heldAt) return ''
@@ -318,7 +323,7 @@ export default function DJPortal() {
               <div className="serif" style={{ fontSize: 20, color: '#fff' }}>{form.dj_name || 'Your profile'}</div>
               <div style={{ fontSize: 12, color: complete ? '#34D399' : '#FCD34D', marginTop: 2, fontWeight: 600 }}>{complete ? '● Profile complete — pick your dates below' : `○ Still needed: ${need.join(', ')}`}</div>
               <label style={{ display: 'inline-block', marginTop: 8, fontSize: 12, color: RED, cursor: 'pointer', borderBottom: `1px solid ${RED}` }}>
-                {form.image_url ? 'Change photo' : 'Upload a photo'}
+                {form.image_url ? 'Change photo' : 'Upload a photo *'}
                 <input type="file" accept="image/*" onChange={onPhoto} style={{ display: 'none' }} />
               </label>
               {photoErr && <div style={{ fontSize: 11, color: '#F87171', marginTop: 6, lineHeight: 1.4 }}>{photoErr}</div>}
@@ -326,24 +331,28 @@ export default function DJPortal() {
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <div><div style={label}>DJ / artist name</div><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={inp} /></div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.62)', lineHeight: 1.5, background: 'rgba(218,27,51,0.07)', border: '1px solid rgba(218,27,51,0.25)', borderRadius: 8, padding: '9px 12px' }}>
+              <span style={{ color: RED, fontWeight: 700 }}>*</span> = required before you can book a date. Fields outlined in <span style={{ color: RED, fontWeight: 600 }}>red</span> still need filling in — they turn <span style={{ color: '#34D399', fontWeight: 600 }}>green</span> once done.
+            </div>
+            <div><div style={label}>DJ / artist name{req()}</div><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={reqInp(form.dj_name)} /></div>
             <div>
-              <div style={label}>Music you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— pick at least 5</span></div>
+              <div style={label}>Music you play{req()} <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— pick at least 5</span></div>
               <div style={{ marginTop: 8 }}>
                 <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
               </div>
-              <div style={{ fontSize: 11, marginTop: 6, color: genreCount(form.genres) >= 5 ? '#34D399' : '#FCD34D' }}>
+              <div style={{ fontSize: 11, marginTop: 6, color: genreCount(form.genres) >= 5 ? '#34D399' : RED }}>
                 {genreCount(form.genres)}/5 minimum{genreCount(form.genres) >= 5 ? ' ✓' : ''} <span style={{ color: 'rgba(255,255,255,0.4)' }}>· you can change these any time</span>
               </div>
             </div>
-            <div><div style={label}>Instagram</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={inp} /></div>
+            <div><div style={label}>Instagram{req()}</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={reqInp(form.instagram)} /></div>
             <div>
-              <div style={label}>How you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— tap any that apply</span></div>
+              <div style={label}>How you play{req()} <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— tap any that apply</span></div>
               <div style={{ marginTop: 8 }}><FormatPicker selected={parseFormats(form.format)} onChange={a => onField('format', joinFormats(a))} /></div>
+              {!(form.format || '').trim() && <div style={{ fontSize: 11, marginTop: 6, color: RED }}>Tap at least one</div>}
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
-              <div style={{ flex: 1 }}><div style={label}>Phone</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={inp} /></div>
-              <div style={{ flex: 1 }}><div style={label}>Email</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={inp} /></div>
+              <div style={{ flex: 1 }}><div style={label}>Phone{req()}</div><input value={form.phone || ''} onChange={e => onField('phone', e.target.value)} style={reqInp(form.phone)} /></div>
+              <div style={{ flex: 1 }}><div style={label}>Email{req()}</div><input value={form.email || ''} onChange={e => onField('email', e.target.value)} style={reqInp(form.email)} /></div>
             </div>
             <div><div style={label}>SoundCloud <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
             <div style={{ display: 'flex', gap: 12 }}>
