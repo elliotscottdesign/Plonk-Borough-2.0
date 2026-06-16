@@ -364,65 +364,59 @@ export const RECIPES = [
   { id: 'craft-lowrise',         category: 'craft', name: 'Lowrise Lager 4%',          sellPrice: 5.5, ingredients: [{ id: 'btl-lowrise-lager',    ml: POUR.CAN_440 }] },
   { id: 'craft-bigdrop-paradiso', category: 'craft', name: 'Big Drop Paradiso Citra 0.5%', sellPrice: 5.5, ingredients: [{ id: 'craft-bigdrop-paradiso', ml: POUR.CAN_440 }] },
 
-  // ─── WINE — by glass and by bottle ──
-  { id: 'wine-blanco-125', category: 'wine', name: 'Blanco Blanco — 125ml', sellPrice: 5, ingredients: [{ id: 'wine-blanco-blanco', ml: POUR.WINE_125 }] },
-  { id: 'wine-blanco-175', category: 'wine', name: 'Blanco Blanco — 175ml', sellPrice: 7,    ingredients: [{ id: 'wine-blanco-blanco', ml: POUR.WINE_175 }] },
-  { id: 'wine-blanco-250', category: 'wine', name: 'Blanco Blanco — 250ml', sellPrice: 9.5,  ingredients: [{ id: 'wine-blanco-blanco', ml: POUR.WINE_250 }] },
+  // ─── WINE — 125ml glass + bottle only ───────────────────────────────
+  // Founder pricing model (Jun 2026): we won't serve 175ml or 250ml. Each
+  // wine sells as a small 125ml glass (low, "affordable-looking" headline
+  // price) and a bottle. The bottle is the value play — it should always
+  // work out cheaper per ml than buying 6 × 125ml glasses, so the saving
+  // only lands when you buy the bottle.
+  //
+  // SEED PRICES below are editable starting points: 125ml glass = bottle ÷ 5
+  // (so 6 glasses ≈ 1.2 × bottle → a clear ~17% bottle saving); bottles are
+  // today's menu. BREAK-EVEN: keep each 125ml above (bottle ÷ 6) or the
+  // glasses get cheaper than the bottle and the bottle saving disappears.
+  { id: 'wine-blanco-125', category: 'wine', name: 'Blanco Blanco — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-blanco-blanco', ml: POUR.WINE_125 }] },
   { id: 'wine-blanco-btl', category: 'wine', name: 'Blanco Blanco — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-blanco-blanco', ml: 750 }] },
 
-  { id: 'wine-conejos-175', category: 'wine', name: 'Los Conejos Malditos — 175ml', sellPrice: 7,    ingredients: [{ id: 'wine-conejos-malditos', ml: POUR.WINE_175 }] },
-  { id: 'wine-conejos-250', category: 'wine', name: 'Los Conejos Malditos — 250ml', sellPrice: 9.5,  ingredients: [{ id: 'wine-conejos-malditos', ml: POUR.WINE_250 }] },
+  { id: 'wine-conejos-125', category: 'wine', name: 'Los Conejos Malditos — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-conejos-malditos', ml: POUR.WINE_125 }] },
   { id: 'wine-conejos-btl', category: 'wine', name: 'Los Conejos Malditos — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-conejos-malditos', ml: 750 }] },
 
-  { id: 'wine-doom-rose-175', category: 'wine', name: 'Doom Juice Rosé — 175ml', sellPrice: 7,    ingredients: [{ id: 'wine-doom-rose', ml: POUR.WINE_175 }] },
-  { id: 'wine-doom-rose-250', category: 'wine', name: 'Doom Juice Rosé — 250ml', sellPrice: 9.5,  ingredients: [{ id: 'wine-doom-rose', ml: POUR.WINE_250 }] },
+  { id: 'wine-doom-rose-125', category: 'wine', name: 'Doom Juice Rosé — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-doom-rose', ml: POUR.WINE_125 }] },
   { id: 'wine-doom-rose-btl', category: 'wine', name: 'Doom Juice Rosé — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-doom-rose', ml: 750 }] },
 
-  { id: 'wine-topcuvee-175', category: 'wine', name: 'Top Cuvee Orange — 175ml', sellPrice: 7,    ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_175 }] },
-  { id: 'wine-topcuvee-250', category: 'wine', name: 'Top Cuvee Orange — 250ml', sellPrice: 9.5,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_250 }] },
+  { id: 'wine-topcuvee-125', category: 'wine', name: 'Top Cuvee Orange — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_125 }] },
   { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
 
-  // ── Glass + bottle for every wine on sale (sandbox). Still wines carry a
-  //    175ml + 250ml glass; sparkling carries a 125ml flute. The glass SELL
-  //    prices below are EDITABLE STARTING POINTS seeded off the house ratio
-  //    (175 ≈ bottle ÷ 5, 250 ≈ bottle ÷ 3.7) — tweak them live in the tool
-  //    to work out the real till prices. Bottle prices are today's menu.
-  { id: 'wine-favonius-175',   category: 'wine', name: 'Favonius Orange — 175ml',  sellPrice: 8,    ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_175 }] },
-  { id: 'wine-favonius-250',   category: 'wine', name: 'Favonius Orange — 250ml',  sellPrice: 11,   ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_250 }] },
-  { id: 'wine-favonius-btl',   category: 'wine', name: 'Favonius Orange — Bottle', sellPrice: 40,   ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
+  { id: 'wine-favonius-125',   category: 'wine', name: 'Favonius Orange — 125ml',  sellPrice: 8,  ingredients: [{ id: 'wine-favonius-orange', ml: POUR.WINE_125 }] },
+  { id: 'wine-favonius-btl',   category: 'wine', name: 'Favonius Orange — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
 
-  { id: 'wine-doom-rouge-175', category: 'wine', name: 'Doom Juice Rouge — 175ml', sellPrice: 8,    ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_175 }] },
-  { id: 'wine-doom-rouge-250', category: 'wine', name: 'Doom Juice Rouge — 250ml', sellPrice: 11,   ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_250 }] },
-  { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40,  ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
+  { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
+  { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
 
-  { id: 'wine-gueule-175',     category: 'wine', name: "Gueule d'Amour — 175ml",   sellPrice: 8,    ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_175 }] },
-  { id: 'wine-gueule-250',     category: 'wine', name: "Gueule d'Amour — 250ml",   sellPrice: 11,   ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_250 }] },
-  { id: 'wine-gueule-btl',     category: 'wine', name: "Gueule d'Amour — Bottle",  sellPrice: 40,   ingredients: [{ id: 'wine-gueule-damour', ml: 750 }] },
+  { id: 'wine-gueule-125',     category: 'wine', name: "Gueule d'Amour — 125ml",   sellPrice: 8,  ingredients: [{ id: 'wine-gueule-damour', ml: POUR.WINE_125 }] },
+  { id: 'wine-gueule-btl',     category: 'wine', name: "Gueule d'Amour — Bottle",  sellPrice: 40, ingredients: [{ id: 'wine-gueule-damour', ml: 750 }] },
 
-  { id: 'wine-beaujolais-175', category: 'wine', name: 'Beaujolais Nouveau — 175ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_175 }] },
-  { id: 'wine-beaujolais-250', category: 'wine', name: 'Beaujolais Nouveau — 250ml', sellPrice: 11, ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_250 }] },
+  { id: 'wine-beaujolais-125', category: 'wine', name: 'Beaujolais Nouveau — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_125 }] },
   { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
 
-  { id: 'wine-chinchin-175',   category: 'wine', name: 'Chin Chin Vinho Verde — 175ml', sellPrice: 7,   ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_175 }] },
-  { id: 'wine-chinchin-250',   category: 'wine', name: 'Chin Chin Vinho Verde — 250ml', sellPrice: 9.5, ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_250 }] },
+  { id: 'wine-chinchin-125',   category: 'wine', name: 'Chin Chin Vinho Verde — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_125 }] },
   { id: 'wine-chinchin-btl',   category: 'wine', name: 'Chin Chin Vinho Verde — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-chinchin-verde', ml: 750 }] },
 
-  // Cueva Nueva is a vermut — 175/250 glasses seeded for consistency, but you
-  // may serve it as a smaller aperitif pour; adjust the ml/price in the tool.
-  { id: 'wine-cueva-175',      category: 'wine', name: 'Cueva Nueva Vermut — 175ml', sellPrice: 10,   ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_175 }] },
-  { id: 'wine-cueva-250',      category: 'wine', name: 'Cueva Nueva Vermut — 250ml', sellPrice: 13.5, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_250 }] },
-  { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50,  ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
+  // Cueva Nueva is a vermut — 125ml seeded at bottle ÷ 5; you may pour it
+  // smaller as an aperitif (drop the ml in the tool to suit).
+  { id: 'wine-cueva-125',      category: 'wine', name: 'Cueva Nueva Vermut — 125ml', sellPrice: 10, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_125 }] },
+  { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
 
   { id: 'wine-doom-fizz-125',  category: 'wine', name: 'Doom Juice Fizz — 125ml flute', sellPrice: 8,  ingredients: [{ id: 'wine-doom-fizz', ml: POUR.WINE_125 }] },
-  { id: 'wine-doom-fizz-btl',  category: 'wine', name: 'Doom Juice Fizz — Bottle',  sellPrice: 40,   ingredients: [{ id: 'wine-doom-fizz', ml: 750 }] },
+  { id: 'wine-doom-fizz-btl',  category: 'wine', name: 'Doom Juice Fizz — Bottle',  sellPrice: 40, ingredients: [{ id: 'wine-doom-fizz', ml: 750 }] },
 
   { id: 'wine-vigna-125',      category: 'wine', name: 'Vigna Rose Pet Nat — 125ml flute', sellPrice: 8, ingredients: [{ id: 'wine-vigna-petnat', ml: POUR.WINE_125 }] },
   { id: 'wine-vigna-btl',      category: 'wine', name: 'Vigna Rose Pet Nat — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-vigna-petnat', ml: 750 }] },
 
-  { id: 'wine-prosecco-125',   category: 'wine', name: 'Prosecco — 125ml flute',    sellPrice: 7,    ingredients: [{ id: 'wine-prosecco', ml: POUR.WINE_125 }] },
-  { id: 'wine-prosecco-btl',   category: 'wine', name: 'Prosecco — Bottle',         sellPrice: 35,   ingredients: [{ id: 'wine-prosecco', ml: 750 }] },
+  { id: 'wine-prosecco-125',   category: 'wine', name: 'Prosecco — 125ml flute',    sellPrice: 7,  ingredients: [{ id: 'wine-prosecco', ml: POUR.WINE_125 }] },
+  { id: 'wine-prosecco-btl',   category: 'wine', name: 'Prosecco — Bottle',         sellPrice: 35, ingredients: [{ id: 'wine-prosecco', ml: 750 }] },
 
-  { id: 'wine-mini-prosecco',  category: 'wine', name: 'Mini Prosecco 20cl',        sellPrice: 8.5,  ingredients: [{ id: 'wine-mini-prosecco', ml: 200 }] },
+  { id: 'wine-mini-prosecco',  category: 'wine', name: 'Mini Prosecco 20cl',        sellPrice: 8.5, ingredients: [{ id: 'wine-mini-prosecco', ml: 200 }] },
 
   // ─── COCKTAILS ──
   // Founder spec (Aug 2025): 35ml Vida Mezcal, 25ml Green Chartreuse,
