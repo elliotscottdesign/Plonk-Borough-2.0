@@ -87,6 +87,12 @@ export default function OpsApp() {
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '18px 13px 56px' : '28px 24px 64px' }}>
+          {/* No Dice wordmark — brand every backend section like the DJ Bookings page.
+              Skipped for tabs that already render their own wordmark: DJ Bookings has
+              an inline one; Operations' sub-tools self-brand via OpsBrandHeader. */}
+          {!['djbookings', 'operations'].includes(tab) && (
+            <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 18 }} />
+          )}
           <Active />
         </div>
       </div>

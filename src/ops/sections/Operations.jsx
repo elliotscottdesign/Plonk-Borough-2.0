@@ -54,6 +54,13 @@ export default function Operations() {
         })}
       </div>
 
+      {/* No Dice wordmark for the stock tools — Costing/Consumables/Suppliers/
+          Cocktail Specs already self-brand via OpsBrandHeader, so only the bare
+          ones need it here (keeps the backend branded like DJ Bookings). */}
+      {['stock', 'stocklist', 'perishables'].includes(tool) && (
+        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block' }} />
+      )}
+
       {tool === 'stock' && (
         <>
           <div className="serif" style={{ fontSize: 22, color: 'var(--cream)' }}>Stock Orders</div>
