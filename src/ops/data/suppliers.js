@@ -263,6 +263,24 @@ export const SUPPLIERS = [
     group: 'produce',
   },
 
+  // ─── LWC ─ Funkin purees + general on-trade ─────────────────────
+  {
+    id: 'lwc',
+    name: 'LWC Drinks',
+    categories: ['Mixers / syrups', 'Spirits', 'Beer (keg)', 'Soft drinks'],
+    address: 'LWC London depot — confirm with rep',
+    phone: '01902 711811',
+    email: '',
+    repName: '',
+    website: 'https://www.lwc-drinks.co.uk',
+    tradePortal: 'https://catalog.lwc.co.uk',
+    tradePortalNote: 'LWC trade catalogue — login required. Funkin purees ship as 6 × 1kg pouches per case at trade.',
+    paymentTerms: '',
+    notes: 'Historic supplier for Funkin purees (mango, passion fruit). One of the largest UK on-trade wholesalers. Confirm whether No Dice Hackney still has an active account or whether the puree line has moved to Drinks Club / Matthew Clark.',
+    priority: 'secondary',
+    group: 'spirits',
+  },
+
   // ─── Club Mate (direct / via Mr Lemonade) ───────────────────────
   {
     id: 'club-mate',
