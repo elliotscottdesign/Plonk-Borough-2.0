@@ -260,9 +260,17 @@ export const INGREDIENTS = {
   // Eager juices come in cases of 8 × 1L cartons (Drinks Club listing
   // shows unit size 1000ml but the listed price is for the case of 8).
   // packMl stored as the case total (8000ml) so cost-per-ml works out
-  // honest — previously off by 8× and dragging Paloma / Bloody Mary /
-  // Mango Mojito / Plonker's Punch margins way below where they really are.
-  'tomato-juice':           { name: 'Big Tom / Eager Tomato', packMl: 8000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice case of 8 × 1L (SO1EAGTO) @ £16.64 = £2.08/L' },
+  // honest — previously off by 8× and dragging Paloma / Mango Mojito /
+  // Plonker's Punch margins way below where they really are.
+  // Eager tomato now powers the two Micheladas only; the Bloody Mary
+  // pours Big Tom (next line), founder-confirmed Jun 2026.
+  'tomato-juice':           { name: 'Eager Tomato',         packMl: 8000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice case of 8 × 1L (SO1EAGTO) @ £16.64 = £2.08/L' },
+  // Big Tom — the spiced tomato juice the Bloody Mary is built on. Standard
+  // trade pack is a case of 24 × 250ml bottles @ £17.99 = 6000ml total →
+  // £3.00/L. Richer & spicier than Eager. Supplier defaults to Drinks Club
+  // to sit with the other juices — edit in the UI if it actually invoices
+  // through Brakes.
+  'big-tom-juice':          { name: 'Big Tom Spiced Tomato', packMl: 6000, defaultCost: 17.99, supplier: 'Drinks Club', supplierProduct: 'Big Tom Spiced Tomato Juice case of 24 × 250ml @ £17.99 = £3.00/L' },
   'grapefruit-juice':       { name: 'Eager Pink Grapefruit', packMl: 8000, defaultCost: 19.28, supplier: 'Drinks Club', supplierProduct: 'Eager Pink Grapefruit case of 8 × 1L (SO1EAGPG) @ £19.28 = £2.41/L' },
   'orange-juice':           { name: 'Eager Orange (smooth)', packMl: 8000, defaultCost: 18.56, supplier: 'Drinks Club', supplierProduct: 'Eager Orange Smooth case of 8 × 1L (SO1EAGOS) @ £18.56 = £2.32/L' },
   'coconut-cream':          { name: 'Coconut cream',         packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
@@ -734,7 +742,7 @@ export const RECIPES = [
     notes: 'Shaker throw 8 times. Cubes to top in highball. S+P rim. Celery + lemon.',
     ingredients: [
       { id: 'vodka',           ml: 50 },
-      { id: 'tomato-juice',    ml: 75 },
+      { id: 'big-tom-juice',   ml: 75 },
       { id: 'lemon-juice',     ml: 20 },
       { id: 'worcestershire',  ml: 2 },
       { id: 'tabasco',         ml: 2 },
