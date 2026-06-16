@@ -154,7 +154,7 @@ export const INGREDIENTS = {
   'wine-gueule-damour':   { name: "Gueule d'Amour Cab Franc", packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Top Cuvee' },
-  'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 14.00, supplier: 'Top Cuvee' },
+  'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 12.29, supplier: 'Good Wine Good People', supplierProduct: 'Cueva Nueva NV 750ml (GWSPV1, case 12×750) @ £12.29 ex VAT — GWGP invoice GWGPT-369, 24 Feb 2026' },
   'wine-doom-fizz':       { name: 'Doom Juice Fizz',         packMl: 750, defaultCost: 11.00, supplier: 'Top Cuvee' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.00, supplier: 'Top Cuvee' },
   // Prosecco is bought through Top Cuvee like the rest of the wine. The
