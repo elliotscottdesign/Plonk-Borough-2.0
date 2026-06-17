@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 Single-page React app deployed at **nodice.bar** (custom domain via [public/CNAME](public/CNAME)). Vite + React 18 + Tailwind 3 + Recharts + lucide-react.
 
-**Venue / brand:** "No Dice" is the operating venue at **Hackney — London Fields, 407 Mentmore Terrace, E8 3PH**, owned by **No Dice Hackney Ltd** (operating subsidiary of No Dice Bars Ltd). All customer-facing surfaces (the Landing page, the public World Cup bookings page at `/world-cup`, anything new) reference Hackney / London Fields. The legal entity "No Dice Borough Ltd" is retained inside the gated `/borough` investor deck and adjacent financial / legal artefacts that specifically pitch the original Borough entity — see the working-style rule above.
+**Venue / brand:** "No Dice" is the operating venue at **Hackney — London Fields, 407 Mentmore Terrace, E8 3PH**, owned by **No Dice Hackney Ltd** (operating subsidiary of No Dice Bars Ltd). All customer-facing surfaces (the Landing page, the public World Cup bookings page at `/worldcup`, anything new) reference Hackney / London Fields. The legal entity "No Dice Borough Ltd" is retained inside the gated `/borough` investor deck and adjacent financial / legal artefacts that specifically pitch the original Borough entity — see the working-style rule above.
 
 **Group structure:** `No Dice Bars Ltd` (parent / holding co) → wholly-owns `No Dice Borough Ltd` (the original Borough venue subsidiary; appears in the `/borough` deck) and `No Dice Hackney Ltd` (the current operating venue subsidiary; appears throughout `src/hackney/`, the IP-licence template, etc.).
 
