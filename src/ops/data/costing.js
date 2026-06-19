@@ -146,7 +146,7 @@ export const INGREDIENTS = {
 
   // ─── Wine — 750ml bottles ────────────────────────────────────────
   'wine-blanco-blanco':   { name: 'Blanco Blanco (white)',    packMl: 750, defaultCost: 11.55, supplier: 'Top Cuvee', supplierProduct: 'Blanco Blanco (Xarel-lo/Garnacha/Trepat) 750ml @ £11.55 ex VAT — Top Cuvée MOD-W07-9837, min order 6' },
-  'wine-conejos-malditos':{ name: 'Los Conejos Malditos (red)', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos (red) 750ml @ £10.00 ex VAT — Top Cuvée TOP-W02-7501 (founder-confirmed red; £10.00 = TC Los Conejos list price)' },
+  'wine-conejos-malditos':{ name: 'Los Conejos Malditos Tinto', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos Tinto (Tempranillo) 750ml @ £10.00 ex VAT — Top Cuvée (menu confirms red/Tinto; £10 pegged to the TC Los Conejos list line)' },
   'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6' },
   'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 10.35, supplier: 'Top Cuvee', supplierProduct: 'House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000' },
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
@@ -376,22 +376,22 @@ export const RECIPES = [
   // today's menu. BREAK-EVEN: keep each 125ml above (bottle ÷ 6) or the
   // glasses get cheaper than the bottle and the bottle saving disappears.
   { id: 'wine-blanco-125', category: 'wine', name: 'Blanco Blanco — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-blanco-blanco', ml: POUR.WINE_125 }] },
-  { id: 'wine-blanco-btl', category: 'wine', name: 'Blanco Blanco — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-blanco-blanco', ml: 750 }] },
+  { id: 'wine-blanco-btl', category: 'wine', name: 'Blanco Blanco — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-blanco-blanco', ml: 750 }] },
 
   { id: 'wine-conejos-125', category: 'wine', name: 'Los Conejos Malditos — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-conejos-malditos', ml: POUR.WINE_125 }] },
-  { id: 'wine-conejos-btl', category: 'wine', name: 'Los Conejos Malditos — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-conejos-malditos', ml: 750 }] },
+  { id: 'wine-conejos-btl', category: 'wine', name: 'Los Conejos Malditos — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-conejos-malditos', ml: 750 }] },
 
   { id: 'wine-doom-rose-125', category: 'wine', name: 'Doom Juice Rosé — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-doom-rose', ml: POUR.WINE_125 }] },
-  { id: 'wine-doom-rose-btl', category: 'wine', name: 'Doom Juice Rosé — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-doom-rose', ml: 750 }] },
+  { id: 'wine-doom-rose-btl', category: 'wine', name: 'Doom Juice Rosé — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-doom-rose', ml: 750 }] },
 
   { id: 'wine-topcuvee-125', category: 'wine', name: 'Top Cuvee Orange — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_125 }] },
-  { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
+  { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
 
   { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
   { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
 
   { id: 'wine-beaujolais-125', category: 'wine', name: 'Beaujolais Nouveau — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_125 }] },
-  { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
+  { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 45, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
 
   { id: 'wine-chinchin-125',   category: 'wine', name: 'Chin Chin Vinho Verde — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_125 }] },
   { id: 'wine-chinchin-btl',   category: 'wine', name: 'Chin Chin Vinho Verde — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-chinchin-verde', ml: 750 }] },
