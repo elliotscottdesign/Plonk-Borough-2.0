@@ -109,10 +109,9 @@ export default function Costing() {
       }}>
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12 }}>
           <span style={{ color: dim, textTransform: 'uppercase', letterSpacing: '0.16em', fontWeight: 700 }}>Wastage</span>
-          <input
-            type="number" min={0} max={20} step={1}
+          <NumField
             value={wastagePct}
-            onChange={(e) => setWastage(parseFloat(e.target.value) || 0)}
+            onChange={(v) => setWastage(v)}
             style={inpSmall}
           />
           <span style={{ color: dim }}>%</span>
@@ -195,10 +194,9 @@ export default function Costing() {
                   }}>
                     <td style={td}>{r.name}</td>
                     <td style={td}>
-                      <input
-                        type="number" step={0.5} min={0}
+                      <NumField
                         value={sellInc}
-                        onChange={(e) => setSell(r.id, parseFloat(e.target.value) || 0)}
+                        onChange={(v) => setSell(r.id, v)}
                         style={inp}
                       />
                     </td>
@@ -279,10 +277,9 @@ function RecipeEditor({ recipe, costs, setCost, wastagePct }) {
             </div>
             <div style={{ textAlign: 'right', color: dim }}>{isCount ? `× ${ing.ml}` : `${ing.ml} ml`}</div>
             <div style={{ textAlign: 'right' }}>
-              <input
-                type="number" step={0.05} min={0}
+              <NumField
                 value={packCost}
-                onChange={(e) => setCost(ing.id, parseFloat(e.target.value) || 0)}
+                onChange={(v) => setCost(ing.id, v)}
                 style={{ ...inp, width: 90, textAlign: 'right' }}
               />
             </div>
@@ -311,10 +308,9 @@ function Stat({ label, value, valueColor = cream, editable = false, onChange, in
       <div style={{ fontSize: 10, letterSpacing: '0.22em', textTransform: 'uppercase', color: dim, fontWeight: 700 }}>{label}</div>
       {editable ? (
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <input
-            type="number" min={0} max={100} step={1}
+          <NumField
             value={inputValue}
-            onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+            onChange={onChange}
             style={{ ...inpSmall, width: 60 }}
           />
           <span style={{ color: valueColor, fontSize: 14 }}>%</span>
@@ -323,6 +319,37 @@ function Stat({ label, value, valueColor = cream, editable = false, onChange, in
         <div style={{ fontSize: 18, fontWeight: 700, color: valueColor }}>{value}</div>
       )}
     </div>
+  )
+}
+
+// ─── Editable number field ────────────────────────────────────────────
+// Fixes the stuck-leading-zero bug. A plain `value={number}` input with
+// `parseFloat(...) || 0` coerces the field to 0 on every keystroke, so a
+// typed entry leaves a sticky "0" and won't hold. This keeps a local draft
+// string while the field is focused (what you type stays put), selects-all
+// on focus (your first keystroke replaces the old value instead of appending
+// to it), accepts digits + a single decimal point, and commits the real
+// number live as you type. Leaving it blank reverts to the saved value.
+function NumField({ value, onChange, style }) {
+  const [draft, setDraft] = useState(null)
+  const shown = draft != null ? draft : (value == null ? '' : String(value))
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={shown}
+      onFocus={(e) => { setDraft(value == null ? '' : String(value)); e.target.select() }}
+      onChange={(e) => {
+        let v = e.target.value.replace(/[^0-9.]/g, '')
+        const dot = v.indexOf('.')
+        if (dot !== -1) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '')
+        setDraft(v)
+        const n = parseFloat(v)
+        if (!isNaN(n)) onChange(n)
+      }}
+      onBlur={() => setDraft(null)}
+      style={style}
+    />
   )
 }
 
