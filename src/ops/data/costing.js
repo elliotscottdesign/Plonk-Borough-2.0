@@ -387,8 +387,8 @@ export const RECIPES = [
   { id: 'wine-topcuvee-125', category: 'wine', name: 'Top Cuvee Orange — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_125 }] },
   { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
 
-  { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
-  { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
+  { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
+  { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
 
   { id: 'wine-beaujolais-125', category: 'wine', name: 'Beaujolais Nouveau — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_125 }] },
   { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 45, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
