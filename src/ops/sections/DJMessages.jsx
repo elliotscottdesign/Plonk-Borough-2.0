@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { djAdmin, inviteLink, fillTemplate, tplBody, TEMPLATE_KEYS, DEFAULT_TEMPLATES } from '../../dj/api.js'
 import { Avatar, igHref } from './DJRoster.jsx'
 
@@ -86,7 +86,14 @@ function SendTab({ djs, templates, reload, nextMonthLabel }) {
   const [copied, setCopied] = useState(null)
 
   // Load the chosen template's copy into the editable draft (blank for freeform).
-  useEffect(() => { setDraft(sendKey === 'free' ? '' : tplBody(templates, sendKey)); setSent(new Set()) }, [sendKey, templates])
+  // Re-sync the draft whenever the saved copy changes, but only clear the
+  // "Opened" ticks on an actual template switch — NOT on a reload (e.g. after
+  // Save as default), so you never lose your place mid-blast.
+  const prevKey = useRef(sendKey)
+  useEffect(() => {
+    setDraft(sendKey === 'free' ? '' : tplBody(templates, sendKey))
+    if (prevKey.current !== sendKey) { setSent(new Set()); prevKey.current = sendKey }
+  }, [sendKey, templates])
 
   const statusOf = (d) => d.status || 'vetted'
   const pool = djs.filter(d => audience === 'resident' ? d.resident : audience === 'pending' ? statusOf(d) === 'pending' : statusOf(d) === 'vetted')

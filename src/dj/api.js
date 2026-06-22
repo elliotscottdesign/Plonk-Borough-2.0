@@ -68,9 +68,13 @@ E`,
 // Replace {name}/{link}/{month} placeholders; leaves unknown {tokens} untouched.
 export const fillTemplate = (body, vars = {}) =>
   String(body || '').replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m))
-// Look up a template body from the loaded list, falling back to the built-in default.
-export const tplBody = (templates, key) =>
-  ((Array.isArray(templates) ? templates.find(t => t.key === key) : null)?.body) || DEFAULT_TEMPLATES[key] || ''
+// Look up a template body from the loaded list, falling back to the built-in
+// default ONLY when no row is persisted — a saved empty body stays empty (so
+// clearing a template in the admin isn't silently reverted to the default).
+export const tplBody = (templates, key) => {
+  const t = Array.isArray(templates) ? templates.find(x => x.key === key) : null
+  return t ? t.body : (DEFAULT_TEMPLATES[key] || '')
+}
 
 // AI rewrite of a night's Instagram caption (Claude, via the dj-caption edge
 // function). Admin-only (SEND_SECRET). `event` is the confirmed slot; we also
