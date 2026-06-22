@@ -45,6 +45,7 @@ export default function DJBookings() {
   const [data, setData] = useState(null)
   const [err, setErr] = useState('')
   const [loading, setLoading] = useState(true)
+  const [eventsFilter, setEventsFilter] = useState('all')   // which list the Events tab shows (stat cards deep-link here)
 
   const reload = async () => {
     try { setData(await djAdmin('load')); setErr('') }
@@ -84,15 +85,15 @@ export default function DJBookings() {
       ) : view === 'messages' ? (
         <Messages data={data} reload={reload} />
       ) : view === 'events' ? (
-        <Events data={data} reload={reload} />
+        <Events data={data} reload={reload} filter={eventsFilter} setFilter={setEventsFilter} />
       ) : (
-        <Calendar data={data} reload={reload} />
+        <Calendar data={data} reload={reload} onJump={(f) => { setEventsFilter(f); setView('events') }} />
       )}
     </div>
   )
 }
 
-function Calendar({ data, reload }) {
+function Calendar({ data, reload, onJump }) {
   const { djs, slots } = data
   const [buildKey, setBuildKey] = useState(null)   // which slot's build/edit form is open
   const [busy, setBusy] = useState(false)
@@ -137,10 +138,14 @@ function Calendar({ data, reload }) {
     return { tone, kind: defs[0].kind, disabled: false, events, openCount }
   }
 
-  const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id).length
-  const held = (slots || []).filter(s => s.status === 'held').length
-  const pending = (slots || []).filter(s => s.status === 'pending').length
-  const confirmed = (slots || []).filter(s => s.status === 'confirmed').length
+  // Counts scoped to upcoming so the headline matches the list you land on when
+  // you tap a card (past nights live under the Events tab's Past filter).
+  const todayStr = iso(now)
+  const up = (s) => s.date >= todayStr
+  const open = (slots || []).filter(s => s.status === 'open' && !s.dj_id && up(s)).length
+  const held = (slots || []).filter(s => s.status === 'held' && up(s)).length
+  const pending = (slots || []).filter(s => s.status === 'pending' && up(s)).length
+  const confirmed = (slots || []).filter(s => s.status === 'confirmed' && up(s)).length
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -153,11 +158,11 @@ function Calendar({ data, reload }) {
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-        {[['Open for DJs', open, '#DA1B33'], ['Holding (draft)', held, '#F59E0B'], ['Pending sign-off', pending, '#FCD34D'], ['Confirmed', confirmed, '#34D399']].map(([label, n, c]) => (
-          <div key={label} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '12px 18px', minWidth: 130 }}>
+        {[['Open for DJs', open, '#DA1B33', 'open'], ['Holding (draft)', held, '#F59E0B', 'held'], ['Pending sign-off', pending, '#FCD34D', 'pending'], ['Confirmed', confirmed, '#34D399', 'confirmed']].map(([label, n, c, fkey]) => (
+          <button key={label} onClick={() => onJump && onJump(fkey)} title={`See the ${label} list in Events`} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderRadius: 10, padding: '12px 18px', minWidth: 130, textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit' }}>
             <div className="serif" style={{ fontSize: 26, color: c, lineHeight: 1 }}>{n}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4 }}>{label}</div>
-          </div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.08em', marginTop: 4, display: 'flex', alignItems: 'center', gap: 5 }}>{label} <span style={{ color: c, opacity: 0.8 }}>→</span></div>
+          </button>
         ))}
       </div>
 
@@ -235,10 +240,31 @@ function Calendar({ data, reload }) {
 
 // Events — confirmed upcoming nights (the "what's on") + Instagram captions +
 // full management: edit, suspend (hide from the public page), or delete any event.
-function Events({ data, reload }) {
+function Events({ data, reload, filter, setFilter }) {
   const today = new Date(); today.setHours(0, 0, 0, 0)
   const todayStr = iso(today)
-  const events = (data.slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= todayStr).sort((a, b) => a.date.localeCompare(b.date))
+  // Every booking with a DJ attached is an "event" — draft (held) → pending →
+  // confirmed. The tab lists them all (filterable), plus open dates and past.
+  const isPast = (s) => s.date < todayStr
+  const withDj = (data.slots || []).filter(s => s.dj_id)
+  const upcomingDj = withDj.filter(s => !isPast(s))
+  const openSlots = (data.slots || []).filter(s => s.status === 'open' && !s.dj_id && !isPast(s)).sort((a, b) => a.date.localeCompare(b.date))
+  const counts = {
+    all: upcomingDj.length,
+    held: upcomingDj.filter(s => s.status === 'held').length,
+    pending: upcomingDj.filter(s => s.status === 'pending').length,
+    confirmed: upcomingDj.filter(s => s.status === 'confirmed').length,
+    open: openSlots.length,
+    past: withDj.filter(isPast).length,
+  }
+  const cur = counts[filter] !== undefined ? filter : 'all'
+  const events = cur === 'past'
+    ? withDj.filter(isPast).sort((a, b) => b.date.localeCompare(a.date))
+    : cur === 'all'
+      ? upcomingDj.slice().sort((a, b) => a.date.localeCompare(b.date))
+      : cur === 'open'
+        ? []
+        : upcomingDj.filter(s => s.status === cur).sort((a, b) => a.date.localeCompare(b.date))
   const [copied, setCopied] = useState(null)
   const [ai, setAi] = useState({})   // { [ckey]: { loading, text, error, setup, copied } }
   const [editing, setEditing] = useState(null)   // ckey currently being edited
@@ -296,43 +322,73 @@ function Events({ data, reload }) {
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎪 Events</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
-          Your <strong style={{ color: '#FFFFFF' }}>confirmed</strong> upcoming nights — signed off from the Calendar. These also power the public events feed (for the customer site). Use <em>✏️ Edit</em>, <em>⏸ Suspend</em> (hide from the public page, keep it here) or <em>🗑 Delete</em> to manage any event. <em>📋 Instagram caption</em> copies a ready-to-post template; <em>✨ AI rewrite</em> writes a punchier, on-brand version with Claude.
+          Every night in the system — <strong style={{ color: '#F59E0B' }}>drafts</strong> a DJ is still filling in, <strong style={{ color: '#FCD34D' }}>pending</strong> your sign-off, and <strong style={{ color: '#34D399' }}>confirmed</strong> — plus open dates and past events. Confirmed nights power the public events feed. <em>✏️ Edit</em>, <em>✓ Sign off</em>, <em>⏸ Suspend</em> or <em>🗑 Delete</em> to manage; <em>📋 / ✨</em> build the Instagram caption.
         </div>
       </div>
-      {events.length === 0 ? (
-        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No confirmed nights yet — sign one off from the Calendar tab.</div>
+
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[['all', 'All active'], ['held', '⏳ Drafts'], ['pending', '✋ Pending'], ['confirmed', '✓ Confirmed'], ['open', '◻ Open dates'], ['past', '🕓 Past']].map(([k, label]) => (
+          <button key={k} onClick={() => setFilter(k)} style={{ padding: '7px 13px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: cur === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${cur === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: cur === k ? '#DA1B33' : '#FFFFFF', fontWeight: cur === k ? 600 : 400 }}>{label} <span style={{ opacity: 0.6 }}>{counts[k]}</span></button>
+        ))}
+      </div>
+
+      {cur === 'open' ? (
+        openSlots.length === 0 ? (
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>No open dates right now — open some from the Calendar tab.</div>
+        ) : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{openSlots.map(s => {
+          const sess = sessionForSlot(s.date, s.slot); const sLab = slotLabel(s.date, s.slot)
+          return (
+            <div key={s.date + '-' + (s.slot || 'main')} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: '3px solid #DA1B33', borderRadius: 10, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+              <div style={{ flex: 1, minWidth: 180 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: '#fff' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {sess?.day} {timeLabel(sess)}{sLab ? ` · ${sLab}` : ''}</span></div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{s.kind === 'opendecks' ? 'Open Decks' : 'Session'} · waiting for a DJ to claim</div>
+              </div>
+              <button onClick={() => act('close', s)} disabled={busy} style={btn('ghost')}>Close (remove)</button>
+            </div>
+          )
+        })}</div>
+      ) : events.length === 0 ? (
+        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>{cur === 'past' ? 'No past events yet.' : 'Nothing here yet — sign nights off from the Calendar, or wait for DJs to claim dates.'}</div>
       ) : events.map(s => {
         const session = sessionForSlot(s.date, s.slot)
         const sLab = slotLabel(s.date, s.slot)
         const k = ckey(s)
         const a = ai[k] || {}
         const sus = !!s.suspended
+        const past = isPast(s)
+        const meta = { held: { label: 'Draft', color: '#F59E0B' }, pending: { label: 'Pending', color: '#FCD34D' }, confirmed: { label: 'Confirmed', color: '#34D399' } }[s.status] || { label: s.status, color: '#9CA3AF' }
+        const showCap = !past && (s.status === 'confirmed' || s.status === 'pending')
         return (
-          <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: `3px solid ${sus ? '#9CA3AF' : '#34D399'}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, opacity: sus ? 0.72 : 1 }}>
+          <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: `3px solid ${sus ? '#9CA3AF' : past ? '#6B7280' : meta.color}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, opacity: sus ? 0.72 : past ? 0.85 : 1 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>
               <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
               <div style={{ flex: 1, minWidth: 200 }}>
-                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span>{sus && <span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span><span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: past ? '#9CA3AF' : meta.color, border: `1px solid ${past ? '#9CA3AF' : meta.color}66`, borderRadius: 999, padding: '1px 7px' }}>{past ? 'Past' : meta.label}</span>{sus && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
                 <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
                 {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
                 {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
-                <button onClick={() => copyCap(s)} style={btn(copied === k ? 'green' : 'gold')}>{copied === k ? '✓ Caption copied' : '📋 Instagram caption'}</button>
-                <button onClick={() => aiRewrite(s)} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
-              </div>
+              {showCap && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
+                  <button onClick={() => copyCap(s)} style={btn(copied === k ? 'green' : 'gold')}>{copied === k ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+                  <button onClick={() => aiRewrite(s)} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
+                </div>
+              )}
             </div>
 
-            {/* Manage: edit / suspend / delete */}
+            {/* Manage — actions depend on the event's status */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
-              {sus
+              {s.status === 'pending' && !past && <button onClick={() => act('signoff', s)} disabled={busy} style={btn('green')}>✓ Sign off</button>}
+              {s.status === 'confirmed' && !past && (sus
                 ? <button onClick={() => act('unsuspend', s)} disabled={busy} style={btn('green')}>▶️ Restore (show publicly)</button>
-                : <button onClick={() => act('suspend', s)} disabled={busy} style={btn('ghost')}>⏸ Suspend (hide publicly)</button>}
+                : <button onClick={() => act('suspend', s)} disabled={busy} style={btn('ghost')}>⏸ Suspend (hide publicly)</button>)}
+              {s.status === 'confirmed' && !past && <button onClick={() => act('unconfirm', s)} disabled={busy} style={btn('ghost')}>↩ Un-confirm</button>}
               <button onClick={() => onDelete(s)} disabled={busy} style={btn('red')}>🗑 Delete</button>
             </div>
+            {s.status === 'held' && !past && <div style={{ fontSize: 11, color: '#F59E0B' }}>⏳ Draft — the DJ is still filling this in{s.held_at ? ` · ${heldLeft(s.held_at)}` : ''}. Edit or remove it if needed.</div>}
 
             {editing === k && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -352,7 +408,7 @@ function Events({ data, reload }) {
               </div>
             )}
 
-            {(a.text || a.error) && (
+            {showCap && (a.text || a.error) && (
               <div style={{ background: a.error ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${a.error ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {a.error ? (
                   <div style={{ fontSize: 12.5, color: a.setup ? '#FDE68A' : '#F87171', lineHeight: 1.6 }}>
