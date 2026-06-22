@@ -149,6 +149,10 @@ export const INGREDIENTS = {
   'wine-conejos-malditos':{ name: 'Los Conejos Malditos Tinto', packMl: 750, defaultCost: 10.00, supplier: 'Top Cuvee', supplierProduct: 'Los Conejos Malditos Tinto (Tempranillo) 750ml @ £10.00 ex VAT — Top Cuvée (menu confirms red/Tinto; £10 pegged to the TC Los Conejos list line)' },
   'wine-doom-rose':       { name: 'Doom Juice Rosé',         packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6' },
   'wine-topcuvee-orange': { name: 'Top Cuvee House Orange',  packMl: 750, defaultCost: 10.35, supplier: 'Top Cuvee', supplierProduct: 'House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000' },
+  // Favonius — back on the menu (Jun 2026) as a bottle-only orange (Fernão
+  // Pires / Arinto). Cost below is a PLACEHOLDER estimate — needs the real
+  // ex-VAT invoice price (wasn't on the Top Cuvée list under this name).
+  'wine-favonius-orange': { name: 'Favonius Orange (Fernão Pires/Arinto)', packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee', supplierProduct: 'Favonius Orange (Fernão Pires/Arinto) 750ml — Top Cuvée; £12.00 PLACEHOLDER, real cost TBC' },
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Noble Rot', supplierProduct: 'Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory.' },
@@ -386,6 +390,9 @@ export const RECIPES = [
 
   { id: 'wine-topcuvee-125', category: 'wine', name: 'Top Cuvee Orange — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-topcuvee-orange', ml: POUR.WINE_125 }] },
   { id: 'wine-topcuvee-btl', category: 'wine', name: 'Top Cuvee Orange — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-topcuvee-orange', ml: 750 }] },
+
+  // Favonius — bottle-only on the menu (£45), no glass pour.
+  { id: 'wine-favonius-btl', category: 'wine', name: 'Favonius Orange — Bottle', sellPrice: 45, ingredients: [{ id: 'wine-favonius-orange', ml: 750 }] },
 
   { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
   { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
