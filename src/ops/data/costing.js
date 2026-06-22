@@ -198,10 +198,12 @@ export const INGREDIENTS = {
   'syrup-house':          { name: 'House syrup batch',    packMl: 1000, defaultCost: 4.00, supplier: 'Brakes' },
 
   // ─── Mixers & garnishes ─────────────────────────────────────────
-  'lime-juice':           { name: 'Lime juice (fresh)',   packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
-  // Fresh watermelon juice, pressed in-house (Brakes watermelon). Cost is an
-  // estimate (~£3/L of finished juice) — refine from real watermelon yield.
-  'watermelon-juice':     { name: 'Watermelon juice (fresh)', packMl: 1000, defaultCost: 3.00, supplier: 'Brakes' },
+  'lime-juice':           { name: 'Lime juice (fresh)',   packMl: 1000, defaultCost: 7.15, supplier: 'Brakes', supplierProduct: 'Brakes LIMES case of 60 @ £12.00 (code 7250) = £0.20/lime → ~£7.15/L at ~28ml/lime' },
+  // Fresh watermelon juice, pressed in-house. Brakes "MELONS WATER" 20kg case
+  // @ £31.54 (order 9103278, 20 Jun 2026) = £1.58/kg. At ~50% yield to finished
+  // juice (rind/seed/pulp loss) that's ~£3.15/L — bump the cost if your real
+  // yield per melon differs.
+  'watermelon-juice':     { name: 'Watermelon juice (fresh)', packMl: 1000, defaultCost: 3.15, supplier: 'Brakes', supplierProduct: 'Brakes MELONS WATER 20kg @ £31.54 (code 7315) → ~£3.15/L at ~50% juice yield' },
   'lemon-juice':          { name: 'Lemon juice (fresh)',  packMl: 1000, defaultCost: 7.00, supplier: 'Brakes' },
   'pineapple-juice':      { name: 'Pineapple juice',      packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
   'grenadine':            { name: 'Grenadine',            packMl: 700, defaultCost: 4.93, supplier: 'Drinks Club', supplierProduct: 'Monin Grenadine 700ml (OTS7MONGR)' },
