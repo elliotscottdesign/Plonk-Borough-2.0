@@ -397,7 +397,7 @@ export const RECIPES = [
   { id: 'wine-doom-rouge-125', category: 'wine', name: 'Doom Juice Rouge — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-doom-rouge', ml: POUR.WINE_125 }] },
   { id: 'wine-doom-rouge-btl', category: 'wine', name: 'Doom Juice Rouge — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-doom-rouge', ml: 750 }] },
 
-  { id: 'wine-beaujolais-125', category: 'wine', name: 'Beaujolais Nouveau — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-beaujolais', ml: POUR.WINE_125 }] },
+  // Beaujolais — bottle-only on the menu (£45), no glass pour.
   { id: 'wine-beaujolais-btl', category: 'wine', name: 'Beaujolais Nouveau — Bottle', sellPrice: 45, ingredients: [{ id: 'wine-beaujolais', ml: 750 }] },
 
   { id: 'wine-chinchin-125',   category: 'wine', name: 'Chin Chin Vinho Verde — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_125 }] },
