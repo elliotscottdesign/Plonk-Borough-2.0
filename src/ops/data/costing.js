@@ -152,7 +152,7 @@ export const INGREDIENTS = {
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Noble Rot', supplierProduct: 'Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory.' },
-  'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut',      packMl: 750, defaultCost: 12.29, supplier: 'Good Wine Good People', supplierProduct: 'Cueva Nueva NV 750ml (GWSPV1, case 12×750) @ £12.29 ex VAT — GWGP invoice GWGPT-369, 24 Feb 2026' },
+  'wine-cueva-vermut':    { name: 'Cueva Nueva Vermut (500ml)', packMl: 500, defaultCost: 12.29, supplier: 'Good Wine Good People', supplierProduct: 'Cueva Nueva NV vermouth 500ml @ £12.29 ex VAT — GWGP invoice GWGPT-369 (founder-confirmed 500ml bottle, not 750ml)' },
   'wine-vigna-petnat':    { name: 'Vigna Rose Pet Nat',      packMl: 750, defaultCost: 13.15, supplier: 'Top Cuvee', supplierProduct: 'Vigna Rosa (Lambrusco Blend, Sparkling Italian Red) 750ml @ £13.15 ex VAT — Top Cuvée TOP-W05-1002' },
   // Prosecco + the 20cl minis come from Drinks Club (founder, Jun 2026) —
   // the cheap line, not a Top Cuvee natural fizz. Amore della Vita is the
@@ -399,7 +399,7 @@ export const RECIPES = [
   // Cueva Nueva is a vermut — 125ml seeded at bottle ÷ 5; you may pour it
   // smaller as an aperitif (drop the ml in the tool to suit).
   { id: 'wine-cueva-125',      category: 'wine', name: 'Cueva Nueva Vermut — 125ml', sellPrice: 10, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_125 }] },
-  { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 750 }] },
+  { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle (500ml)', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 500 }] },
 
   { id: 'wine-vigna-125',      category: 'wine', name: 'Vigna Rose Pet Nat — 125ml flute', sellPrice: 8, ingredients: [{ id: 'wine-vigna-petnat', ml: POUR.WINE_125 }] },
   { id: 'wine-vigna-btl',      category: 'wine', name: 'Vigna Rose Pet Nat — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-vigna-petnat', ml: 750 }] },
@@ -411,7 +411,7 @@ export const RECIPES = [
 
   // New Top Cuvée wines (Jun 2026) — same 125ml glass + bottle model.
   { id: 'wine-rouge-petard-125', category: 'wine', name: 'Rouge Petard (Aramon) — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-rouge-petard', ml: POUR.WINE_125 }] },
-  { id: 'wine-rouge-petard-btl', category: 'wine', name: 'Rouge Petard (Aramon) — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-rouge-petard', ml: 750 }] },
+  { id: 'wine-rouge-petard-btl', category: 'wine', name: 'Rouge Petard (Aramon) — Bottle', sellPrice: 39, ingredients: [{ id: 'wine-rouge-petard', ml: 750 }] },
 
   { id: 'wine-lentsch-125',      category: 'wine', name: 'Lentsch Grüner Veltliner — 125ml', sellPrice: 8,  ingredients: [{ id: 'wine-lentsch-gruner', ml: POUR.WINE_125 }] },
   { id: 'wine-lentsch-btl',      category: 'wine', name: 'Lentsch Grüner Veltliner — Bottle', sellPrice: 40, ingredients: [{ id: 'wine-lentsch-gruner', ml: 750 }] },
