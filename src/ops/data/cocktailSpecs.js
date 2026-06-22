@@ -33,6 +33,18 @@ export const SPECS = [
     batchNote: 'CAN BATCH BOTTLES — NO COFFEE',
   },
   {
+    id: 'watermelon-daiquiri', section: 'shake', name: 'Watermelon Daiquiri', method: 'Shake', glass: 'Coupe',
+    ingredients: [
+      'Fresh watermelon juice — 50 ml',
+      'Lime — 12.5 ml',
+      'Sugar syrup — 20 ml',
+      'Havana Club 3 — 35 ml',
+      'Foamer — dash',
+    ],
+    garnish: 'Watermelon slice + sprig of mint',
+    build: 'Ice the coupe to chill. Build all in the shaker, shake over ice, strain into the chilled coupe.',
+  },
+  {
     id: 'classic-margarita', section: 'shake', name: 'Classic Margarita', method: 'Shake', glass: 'Coupe',
     ingredients: [
       'Silver tequila — 50 ml',

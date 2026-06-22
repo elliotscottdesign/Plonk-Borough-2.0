@@ -63,6 +63,9 @@ export const INGREDIENTS = {
   'mezcal-house':         { name: 'House Mezcal',        packMl: 700, defaultCost: 40.11, supplier: 'Drinks Club', supplierProduct: 'Madre Mezcal Espadin 700ml (SPM7MADES)' },
   'cachaca':              { name: 'Cachaça',             packMl: 700, defaultCost: 16.43, supplier: 'Drinks Club', supplierProduct: 'Velho Barreiro Cachaca 700ml (SPC7VEBCA)' },
   'rum-havana-especial':  { name: 'Havana Especial',     packMl: 700, defaultCost: 15.65, supplier: 'Drinks Club', supplierProduct: 'Havana Club Anejo Especial 700ml (SPR7HACAE)' },
+  // Havana Club 3 Año (white) — the daiquiri base. Cost is an estimate;
+  // confirm the Drinks Club price.
+  'rum-havana-3':         { name: 'Havana Club 3yr',     packMl: 700, defaultCost: 14.00, supplier: 'Drinks Club', supplierProduct: 'Havana Club Añejo 3 Años 700ml — £14.00 estimate, confirm price' },
   'rum-wray-nephew':      { name: 'Wray & Nephew',       packMl: 700, defaultCost: 25.05, supplier: 'Drinks Club', supplierProduct: 'Wray & Nephew White Overproof 700ml (SPR7WRNWO)' },
   'bourbon':              { name: 'Bourbon',             packMl: 700, defaultCost: 19.74, supplier: 'Drinks Club', supplierProduct: 'Four Roses Yellow Label 700ml (SPW7FORYL)' },
   'whiskey-house':        { name: 'House Whiskey',       packMl: 700, defaultCost: 19.76, supplier: 'Drinks Club', supplierProduct: 'Jameson 700ml (SPW7JAM)' },
@@ -196,6 +199,9 @@ export const INGREDIENTS = {
 
   // ─── Mixers & garnishes ─────────────────────────────────────────
   'lime-juice':           { name: 'Lime juice (fresh)',   packMl: 1000, defaultCost: 8.00, supplier: 'Brakes' },
+  // Fresh watermelon juice, pressed in-house (Brakes watermelon). Cost is an
+  // estimate (~£3/L of finished juice) — refine from real watermelon yield.
+  'watermelon-juice':     { name: 'Watermelon juice (fresh)', packMl: 1000, defaultCost: 3.00, supplier: 'Brakes' },
   'lemon-juice':          { name: 'Lemon juice (fresh)',  packMl: 1000, defaultCost: 7.00, supplier: 'Brakes' },
   'pineapple-juice':      { name: 'Pineapple juice',      packMl: 1000, defaultCost: 2.50, supplier: 'Brakes' },
   'grenadine':            { name: 'Grenadine',            packMl: 700, defaultCost: 4.93, supplier: 'Drinks Club', supplierProduct: 'Monin Grenadine 700ml (OTS7MONGR)' },
@@ -487,6 +493,20 @@ export const RECIPES = [
       { id: 'rum-wray-nephew',    ml: 12.5 },
       { id: 'pineapple-juice',    ml: 150 },
       { id: 'grenadine',          ml: 10 },
+    ],
+  },
+  // Founder spec (Jun 2026): shaken. Ice the coupe, build in shaker, shake
+  // over ice, strain into the chilled coupe. Watermelon slice + mint sprig.
+  {
+    id: 'cocktail-watermelon-daiquiri', category: 'cocktail', name: 'Watermelon Daiquiri', sellPrice: 10,
+    notes: 'Shaken. Ice the coupe to chill, strain in. Watermelon slice + mint sprig.',
+    ingredients: [
+      { id: 'watermelon-juice',  ml: 50 },
+      { id: 'lime-juice',        ml: 12.5 },
+      { id: 'sugar-syrup',       ml: 20 },
+      { id: 'rum-havana-3',      ml: 35 },
+      { id: 'foamer',            ml: 1 },
+      { id: 'mint-leaf',         ml: 3 },
     ],
   },
   // Founder spec (Aug 2025): 25ml Cazcabel Blanco, 25ml lime, topped
