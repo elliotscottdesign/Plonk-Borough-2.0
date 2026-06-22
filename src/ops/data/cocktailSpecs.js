@@ -163,16 +163,16 @@ export const SPECS = [
 
   // ─── BUILD / STIR ────────────────────────────────────────────────
   {
-    id: 'plonkers-punch', section: 'build', name: "Plonker's Punch", method: 'Build', glass: 'Highball',
+    id: 'royal-flush', section: 'build', name: 'Royal Flush', method: 'Build', glass: 'Highball',
     ingredients: [
-      'Havana Especial — 30 ml',
-      'Triple sec / Dry Curaçao — 20 ml',
-      'Pineapple juice — 50 ml',
-      'Wray & Nephew — 10 ml',
-      'Grenadine — top',
+      'Havana Especial — 25 ml (1 shot)',
+      'Triple sec — 12.5 ml (½ shot)',
+      'Wray & Nephew — 12.5 ml (½ shot)',
+      'Pineapple juice — 150 ml',
+      'Grenadine — poured over',
     ],
     garnish: 'Pineapple slice',
-    build: 'Build in highball, on cubes to top. Use the premixed juice. Batch make juice in advance.',
+    build: 'Build in highball on cubes, top with 150ml pineapple, grenadine poured over. Use the premixed juice.',
   },
   {
     id: 'negroni', section: 'build', name: 'Negroni', method: 'Build / Stir', glass: 'Rock Glass',
@@ -359,7 +359,7 @@ export const SPECS = [
     build: 'Fill jug with cubes, pour in Pimm\'s, top with lemonade, stir before serving.',
   },
   {
-    id: 'jug-plonkers-punch', section: 'jugs', name: "Plonker's Punch (Jug)", method: 'Build', glass: 'Rock glass jug',
+    id: 'jug-royal-flush', section: 'jugs', name: 'Royal Flush (Jug)', method: 'Build', glass: 'Rock glass jug',
     ingredients: [
       'Havana Especial — 120 ml',
       'Triple sec — 60 ml',
@@ -395,13 +395,13 @@ export const SPECS = [
     build: 'Shake and pour over crushed ice.',
   },
   {
-    id: 'mock-plonkers-punch', section: 'mocktails', name: "Mocktail Plonker's Punch", method: 'Build', glass: 'Highball',
+    id: 'mock-royal-flush', section: 'mocktails', name: 'Mocktail Royal Flush', method: 'Build', glass: 'Highball',
     ingredients: [
       'Orange + pineapple — equal parts',
       'Grenadine — top',
     ],
     garnish: 'Orange wedge',
-    build: 'Highball glass filled with cubes, pour equal amounts of pineapple and orange to the top, top with grenadine to create gradient. Use juice premix for plonkers.',
+    build: 'Highball glass filled with cubes, pour equal amounts of pineapple and orange to the top, top with grenadine to create gradient. Use the juice premix.',
   },
 
   // ─── SHRUBS ──────────────────────────────────────────────────────

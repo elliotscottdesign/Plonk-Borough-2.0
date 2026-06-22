@@ -267,7 +267,7 @@ export const INGREDIENTS = {
   // shows unit size 1000ml but the listed price is for the case of 8).
   // packMl stored as the case total (8000ml) so cost-per-ml works out
   // honest — previously off by 8× and dragging Paloma / Mango Mojito /
-  // Plonker's Punch margins way below where they really are.
+  // Royal Flush margins way below where they really are.
   // Eager tomato now powers the two Micheladas only; the Bloody Mary
   // pours Big Tom (next line), founder-confirmed Jun 2026.
   'tomato-juice':           { name: 'Eager Tomato',         packMl: 8000, defaultCost: 16.64, supplier: 'Drinks Club', supplierProduct: 'Eager Tomato Juice case of 8 × 1L (SO1EAGTO) @ £16.64 = £2.08/L' },
@@ -477,10 +477,10 @@ export const RECIPES = [
   },
   // Founder spec (Jun 2026): 1 shot Havana (25ml), ½ shot Triple Sec
   // (12.5ml), ½ shot Wray & Nephew (12.5ml), 150ml pineapple, grenadine
-  // poured over. Formerly known as Plonker's Punch.
+  // poured over.
   {
     id: 'cocktail-royal-flush', category: 'cocktail', name: 'Royal Flush', sellPrice: 10,
-    notes: 'Formerly Plonker’s Punch. Long over cubes, 150ml pineapple, grenadine poured over.',
+    notes: 'Long over cubes, 150ml pineapple, grenadine poured over.',
     ingredients: [
       { id: 'rum-havana-especial', ml: 25 },
       { id: 'triple-sec',         ml: 12.5 },
@@ -750,17 +750,6 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'cocktail-plonkers-punch', category: 'cocktail', name: "Plonker's Punch", sellPrice: 11,
-    notes: 'Build in highball, cubes to top. Premixed juice. Pineapple slice.',
-    ingredients: [
-      { id: 'rum-havana-especial', ml: 30 },
-      { id: 'triple-sec',          ml: 20 },
-      { id: 'pineapple-juice',     ml: 50 },
-      { id: 'rum-wray-nephew',     ml: 10 },
-      { id: 'grenadine',           ml: 10 },
-    ],
-  },
-  {
     id: 'cocktail-negroni', category: 'cocktail', name: 'Negroni', sellPrice: 11,
     notes: 'Build over cubes, stir 20 sec, add more ice + garnish. No straw.',
     ingredients: [
@@ -938,7 +927,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'jug-plonkers-punch', category: 'jug', name: "Plonker's Punch (Jug)", sellPrice: 32,
+    id: 'jug-royal-flush', category: 'jug', name: 'Royal Flush (Jug)', sellPrice: 32,
     notes: 'Cubes + rum + triple sec + juices + grenadine finish. Premixed juices.',
     ingredients: [
       { id: 'rum-havana-especial', ml: 120 },
@@ -973,7 +962,7 @@ export const RECIPES = [
     ],
   },
   {
-    id: 'mock-plonkers-punch', category: 'mocktail', name: "Mocktail Plonker's Punch", sellPrice: 6,
+    id: 'mock-royal-flush', category: 'mocktail', name: 'Mocktail Royal Flush', sellPrice: 6,
     notes: 'Highball + cubes + equal pineapple/orange + grenadine top (gradient).',
     ingredients: [
       { id: 'pineapple-juice', ml: 100 },
