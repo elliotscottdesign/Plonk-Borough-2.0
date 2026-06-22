@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { djAdmin, inviteLink, resizeImage } from '../../dj/api.js'
+import { djAdmin, inviteLink, resizeImage, fillTemplate, tplBody } from '../../dj/api.js'
 import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from '../../dj/FormatPicker.jsx'
 
@@ -28,7 +28,7 @@ const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean
 const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url)
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
-export default function DJRoster({ djs, slots, release, reload }) {
+export default function DJRoster({ djs, slots, release, templates, reload }) {
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [q, setQ] = useState('')
@@ -97,7 +97,7 @@ export default function DJRoster({ djs, slots, release, reload }) {
   // founder just hits send (sent from their own WhatsApp — no API needed).
   const waInvite = (d) => {
     const num = waNumber(d.phone)
-    const msg = `Hey ${d.dj_name || 'there'}, I hope you are well! I have nearly got the business back open and I wanna book the DJs and events in again.\n\nI am struggling a bit to get open with money etc, literally doing this on empty right now, so if there is any way you can do a set for £60 (what I pay bar staff for 4 hours) and drinks and food that would be amazing.\n\nI am hoping to get sponsorship for events soon to get back to normal. I am also making a promotional tool to make DJs more money for mates they bring. So…. either way of course I wanna get you back in again!! So.....\n\nWelcome to the No Dice DJ roster….\n\nHere's your private link to set up your profile and grab the nights you want to play:\n${inviteLink(d.token)}\n\nIt walks you through everything, any questions, give us a shout. I hope the app makes everyone's lives easier! Much love E`
+    const msg = fillTemplate(tplBody(templates, 'invite'), { name: d.dj_name || 'there', link: inviteLink(d.token) })
     const url = `https://wa.me/${num}?text=${encodeURIComponent(msg)}`
     window.open(url, '_blank', 'noopener,noreferrer')
   }
@@ -121,8 +121,9 @@ export default function DJRoster({ djs, slots, release, reload }) {
     if (!num) { alert(`No WhatsApp number on file for ${d.dj_name || 'this DJ'} — add one via Edit.`); return }
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
-  const msgNewDates = (d, priority) => `Hey ${d.dj_name || 'there'}, the ${nextMonthLabel} dates are live at No Dice! 🎧\n\n${priority ? "As a resident you get FIRST pick — grab your night before it opens to the rest. You've got 24 hours on this one." : 'Grab your resident night — get in quick before they go.'}\n\nYour link: ${inviteLink(d.token)}\n\nAny Qs, shout. E`
-  const msg6h = (d) => `Hey ${d.dj_name || 'there'}, ⏳ ~6 hours left to grab your No Dice resident slot before it opens to everyone — book here:\n${inviteLink(d.token)}\nE`
+  const tvars = (d) => ({ name: d.dj_name || 'there', link: inviteLink(d.token), month: nextMonthLabel })
+  const msgNewDates = (d, priority) => fillTemplate(tplBody(templates, priority ? 'release_first' : 'release_played'), tvars(d))
+  const msg6h = (d) => fillTemplate(tplBody(templates, 'release_6h'), tvars(d))
 
   // Release-window timing (messaging-order, not a hard lock).
   const startedAt = release?.started_at ? new Date(release.started_at).getTime() : null

@@ -109,6 +109,39 @@ begin
   return c;
 end $$;
 
+-- ── Messages: editable WhatsApp templates the admin sends to DJs ─────────────
+-- One row per template key. Edited in /ops → DJ Bookings → Messages → Templates.
+-- {name}, {link} and {month} are auto-filled per DJ at send time. Seeded below
+-- with the original hard-coded copy so nothing changes until the founder edits.
+create table if not exists public.dj_templates (
+  key         text primary key,
+  body        text not null,
+  updated_at  timestamptz default now()
+);
+alter table public.dj_templates enable row level security;   -- service-role only
+
+-- ── Messages: inbound notes a DJ leaves from their portal ────────────────────
+-- The inbound side of the hub. WhatsApp replies can't flow back (no API) — these
+-- are in-app notes. read_at = null means the admin hasn't read it yet.
+create table if not exists public.dj_notes (
+  id          uuid primary key default gen_random_uuid(),
+  dj_id       uuid references public.djs(id) on delete cascade,
+  body        text not null,
+  created_at  timestamptz default now(),
+  read_at     timestamptz
+);
+alter table public.dj_notes enable row level security;       -- service-role only
+create index if not exists dj_notes_created_idx on public.dj_notes (created_at desc);
+
+-- Seed the templates with the original copy (idempotent — only inserts if absent,
+-- so a template edited in the admin is never overwritten by re-running this).
+insert into public.dj_templates (key, body) values
+  ('invite', E'Hey {name}, I hope you are well! I have nearly got the business back open and I wanna book the DJs and events in again.\n\nI am struggling a bit to get open with money etc, literally doing this on empty right now, so if there is any way you can do a set for £60 (what I pay bar staff for 4 hours) and drinks and food that would be amazing.\n\nI am hoping to get sponsorship for events soon to get back to normal. I am also making a promotional tool to make DJs more money for mates they bring. So…. either way of course I wanna get you back in again!! So.....\n\nWelcome to the No Dice DJ roster….\n\nHere''s your private link to set up your profile and grab the nights you want to play:\n{link}\n\nIt walks you through everything, any questions, give us a shout. I hope the app makes everyone''s lives easier! Much love E'),
+  ('release_first', E'Hey {name}, the {month} dates are live at No Dice! 🎧\n\nAs a resident you get FIRST pick — grab your night before it opens to the rest. You''ve got 24 hours on this one.\n\nYour link: {link}\n\nAny Qs, shout. E'),
+  ('release_played', E'Hey {name}, the {month} dates are live at No Dice! 🎧\n\nGrab your resident night — get in quick before they go.\n\nYour link: {link}\n\nAny Qs, shout. E'),
+  ('release_6h', E'Hey {name}, ⏳ ~6 hours left to grab your No Dice resident slot before it opens to everyone — book here:\n{link}\nE')
+on conflict (key) do nothing;
+
 -- Public photo storage for DJ profile images
 insert into storage.buckets (id, name, public) values ('dj-photos','dj-photos',true)
   on conflict (id) do nothing;

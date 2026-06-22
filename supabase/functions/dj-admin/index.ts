@@ -46,14 +46,18 @@ async function snapshot(sb: any) {
   if (error) return json({ error: error.message }, 500);  // e.g. tables not created yet
   const { data: slots } = await sb.from("dj_slots").select("*, dj:djs(id,dj_name,image_url,instagram,genres,format)").order("date");
   const { data: release } = await sb.from("dj_release_state").select("*").eq("id", 1).maybeSingle();
-  return json({ djs: djs || [], slots: slots || [], release: release || null });
+  // Messages hub: editable templates + inbound DJ notes. Both degrade to [] if
+  // the tables haven't been created yet (frontend falls back to default copy).
+  const { data: templates } = await sb.from("dj_templates").select("*");
+  const { data: notes } = await sb.from("dj_notes").select("*, dj:djs(id,dj_name,image_url,instagram,phone)").order("created_at", { ascending: false }).limit(300);
+  return json({ djs: djs || [], slots: slots || [], release: release || null, templates: templates || [], notes: notes || [] });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, key, body } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -197,6 +201,20 @@ Deno.serve(async (req) => {
       break;
     case "releaseReset":
       await sb.from("dj_release_state").update({ started_at: null, opened_all_at: null, month: null, updated_at: now() }).eq("id", 1);
+      break;
+    case "saveTemplate":
+      // Edit the WhatsApp copy a template sends ({name}/{link}/{month} fill per DJ).
+      if (!key) return json({ error: "missing template key" }, 400);
+      await sb.from("dj_templates").upsert({ key, body: String(body ?? ""), updated_at: now() }, { onConflict: "key" });
+      break;
+    case "markNoteRead":
+      await sb.from("dj_notes").update({ read_at: now() }).eq("id", id);
+      break;
+    case "markAllNotesRead":
+      await sb.from("dj_notes").update({ read_at: now() }).is("read_at", null);
+      break;
+    case "deleteNote":
+      await sb.from("dj_notes").delete().eq("id", id);
       break;
     case "bulkAdd": {
       // Drop a list of contacts in as PENDING (e.g. Instagram handles, a new sheet).

@@ -48,6 +48,7 @@ export default function DJPortal() {
   const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
   const [claimSlot, setClaimSlot] = useState('main') // which session-of-the-day the open panel is for
   const [chooser, setChooser] = useState(null)       // { date, slots } when a day has >1 open session
+  const [note, setNote] = useState('')               // "Message No Dice" compose box
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -63,6 +64,12 @@ export default function DJPortal() {
   const save = async () => {
     setBusy(true)
     try { refresh(await djPortal(token, 'save', { profile: form })); flash('Saved ✓') }
+    catch (e) { flash(e.message) } finally { setBusy(false) }
+  }
+  const sendNote = async () => {
+    const t = note.trim(); if (!t) return
+    setBusy(true)
+    try { refresh(await djPortal(token, 'leaveNote', { body: t })); setNote(''); flash('Sent to No Dice ✓') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const onPhoto = async (e) => {
@@ -364,6 +371,27 @@ export default function DJPortal() {
             </div>
             <button onClick={save} disabled={busy} style={{ marginTop: 4, padding: '13px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save profile'}</button>
           </div>
+        </div>
+
+        {/* Message No Dice — leave a note (the inbound side of the Messages hub) */}
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+          <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 4 }}>Message No Dice</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>Leave a note — a question, a date you'd love, anything. We'll see it our side and usually get back to you on WhatsApp.</div>
+          <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="Type your message…" style={{ ...inp, resize: 'vertical' }} />
+          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+            <button onClick={sendNote} disabled={busy || !note.trim()} style={{ padding: '11px 20px', fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: (busy || !note.trim()) ? 0.5 : 1 }}>{busy ? 'Sending…' : 'Send'}</button>
+          </div>
+          {(st.notes || []).length > 0 && (
+            <div style={{ marginTop: 14, borderTop: `1px solid ${LINE}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>Your messages</div>
+              {(st.notes || []).map(n => (
+                <div key={n.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 12px' }}>
+                  <div style={{ fontSize: 13, color: '#eee', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{fmtDate((n.created_at || '').slice(0, 10))} · {n.read_at ? '✓ seen by No Dice' : 'sent'}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* Your booked dates */}

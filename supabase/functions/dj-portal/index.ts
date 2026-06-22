@@ -146,14 +146,17 @@ async function state(sb: any, id: string) {
     dj: s.dj?.dj_name || "DJ", instagram: s.dj?.instagram || null,
     image: s.event_image_url || s.dj?.image_url || null,   // event image overrides profile
   }));
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map((b: any) => ({ ...b, slot: b.slot || "main" })), schedule });
+  // The DJ's own notes to No Dice (so they can see what they've sent + whether
+  // it's been read). Degrades to [] if the table isn't created yet.
+  const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map((b: any) => ({ ...b, slot: b.slot || "main" })), schedule, notes: myNotes || [] });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoOk, setType } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoOk, setType, body } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
   if (!token) return json({ error: "missing token" }, 400);
 
@@ -338,6 +341,20 @@ Deno.serve(async (req) => {
     // Release a held draft OR a pending request back to the open marketplace.
     await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["held", "pending"]);
+    return state(sb, dj.id);
+  }
+
+  if (action === "leaveNote") {
+    // The DJ leaves a note for No Dice (the inbound side of the Messages hub).
+    // Allowed for pending DJs too — messaging shouldn't wait on approval.
+    const text = String(body || "").trim();
+    if (!text) return json({ error: "Write a message first." }, 400);
+    await sb.from("dj_notes").insert({ dj_id: dj.id, body: text.slice(0, 2000) });
+    // Best-effort heads-up to the admin — never blocks the note.
+    await sendMail(ADMIN_EMAIL, `New note from ${dj.dj_name || "a DJ"}`, emailShell(
+      "No Dice · DJ Admin", `${esc(dj.dj_name || "A DJ")} left you a note`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd;white-space:pre-wrap">${esc(text)}</p>`,
+      { text: "Open Messages", link: OPS }));
     return state(sb, dj.id);
   }
 

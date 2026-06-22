@@ -24,6 +24,54 @@ export async function djAdmin(action, payload = {}) {
 
 export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURIComponent(token)}`
 
+// ── Message templates (the WhatsApp copy the admin sends to DJs) ─────────────
+// Live bodies come from the dj_templates table (editable in /ops → DJ Bookings →
+// Messages). These DEFAULTS are the fallback before a template is saved, and the
+// copy the seed/admin starts from. {name}/{link}/{month} fill per-DJ at send time.
+export const TEMPLATE_KEYS = [
+  { key: 'invite', label: 'Roster invite', vars: ['name', 'link'], hint: 'Sent from the Roster (📲 WhatsApp invite) and the group blast.' },
+  { key: 'release_first', label: 'New dates · first dibs', vars: ['name', 'link', 'month'], hint: 'Residents who did NOT play last month — sent on release day.' },
+  { key: 'release_played', label: 'New dates · played last month', vars: ['name', 'link', 'month'], hint: 'Residents who played last month — sent after the 24h head-start.' },
+  { key: 'release_6h', label: '6-hour closing nudge', vars: ['name', 'link', 'month'], hint: 'Reminder to first-dibs residents in the final hours.' },
+]
+export const DEFAULT_TEMPLATES = {
+  invite: `Hey {name}, I hope you are well! I have nearly got the business back open and I wanna book the DJs and events in again.
+
+I am struggling a bit to get open with money etc, literally doing this on empty right now, so if there is any way you can do a set for £60 (what I pay bar staff for 4 hours) and drinks and food that would be amazing.
+
+I am hoping to get sponsorship for events soon to get back to normal. I am also making a promotional tool to make DJs more money for mates they bring. So…. either way of course I wanna get you back in again!! So.....
+
+Welcome to the No Dice DJ roster….
+
+Here's your private link to set up your profile and grab the nights you want to play:
+{link}
+
+It walks you through everything, any questions, give us a shout. I hope the app makes everyone's lives easier! Much love E`,
+  release_first: `Hey {name}, the {month} dates are live at No Dice! 🎧
+
+As a resident you get FIRST pick — grab your night before it opens to the rest. You've got 24 hours on this one.
+
+Your link: {link}
+
+Any Qs, shout. E`,
+  release_played: `Hey {name}, the {month} dates are live at No Dice! 🎧
+
+Grab your resident night — get in quick before they go.
+
+Your link: {link}
+
+Any Qs, shout. E`,
+  release_6h: `Hey {name}, ⏳ ~6 hours left to grab your No Dice resident slot before it opens to everyone — book here:
+{link}
+E`,
+}
+// Replace {name}/{link}/{month} placeholders; leaves unknown {tokens} untouched.
+export const fillTemplate = (body, vars = {}) =>
+  String(body || '').replace(/\{(\w+)\}/g, (m, k) => (vars[k] != null ? String(vars[k]) : m))
+// Look up a template body from the loaded list, falling back to the built-in default.
+export const tplBody = (templates, key) =>
+  ((Array.isArray(templates) ? templates.find(t => t.key === key) : null)?.body) || DEFAULT_TEMPLATES[key] || ''
+
 // AI rewrite of a night's Instagram caption (Claude, via the dj-caption edge
 // function). Admin-only (SEND_SECRET). `event` is the confirmed slot; we also
 // send the free template caption as the source of truth for date/time/address.
