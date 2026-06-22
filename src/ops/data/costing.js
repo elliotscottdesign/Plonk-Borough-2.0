@@ -475,16 +475,17 @@ export const RECIPES = [
       { id: 'lime-wedge',        ml: 8 },
     ],
   },
-  // Founder spec (Aug 2025): 25ml Havana Especial, 10ml Wray & Nephew
-  // float, 25ml Triple Sec, top pineapple juice, grenadine float.
+  // Founder spec (Jun 2026): 1 shot Havana (25ml), ½ shot Triple Sec
+  // (12.5ml), ½ shot Wray & Nephew (12.5ml), 150ml pineapple, grenadine
+  // poured over. Formerly known as Plonker's Punch.
   {
     id: 'cocktail-royal-flush', category: 'cocktail', name: 'Royal Flush', sellPrice: 10,
-    notes: 'Long, pineapple top. W&N float + grenadine float.',
+    notes: 'Formerly Plonker’s Punch. Long over cubes, 150ml pineapple, grenadine poured over.',
     ingredients: [
       { id: 'rum-havana-especial', ml: 25 },
-      { id: 'rum-wray-nephew',    ml: 10 },
-      { id: 'triple-sec',         ml: 25 },
-      { id: 'pineapple-juice',    ml: 100 },
+      { id: 'triple-sec',         ml: 12.5 },
+      { id: 'rum-wray-nephew',    ml: 12.5 },
+      { id: 'pineapple-juice',    ml: 150 },
       { id: 'grenadine',          ml: 10 },
     ],
   },
