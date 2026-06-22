@@ -152,7 +152,7 @@ export const INGREDIENTS = {
   // Favonius — back on the menu (Jun 2026) as a bottle-only orange (Fernão
   // Pires / Arinto). Cost below is a PLACEHOLDER estimate — needs the real
   // ex-VAT invoice price (wasn't on the Top Cuvée list under this name).
-  'wine-favonius-orange': { name: 'Favonius Orange (Fernão Pires/Arinto)', packMl: 750, defaultCost: 12.00, supplier: 'Top Cuvee', supplierProduct: 'Favonius Orange (Fernão Pires/Arinto) 750ml — Top Cuvée; £12.00 PLACEHOLDER, real cost TBC' },
+  'wine-favonius-orange': { name: 'Favonius Orange (Fernão Pires/Arinto)', packMl: 750, defaultCost: 15.00, supplier: 'Top Cuvee', supplierProduct: 'Favonius Orange (Fernão Pires/Arinto) 750ml — Top Cuvée; £15.00 provisional cost (founder, for now), confirm vs real invoice' },
   'wine-doom-rouge':      { name: 'Doom Juice Rouge (chilled)', packMl: 750, defaultCost: 11.90, supplier: 'Top Cuvee', supplierProduct: 'Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6' },
   'wine-beaujolais':      { name: 'Beaujolais Nouveau',      packMl: 750, defaultCost: 14.35, supplier: 'Top Cuvee', supplierProduct: 'Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)' },
   'wine-chinchin-verde':  { name: 'Chin Chin Vinho Verde',   packMl: 750, defaultCost: 9.00, supplier: 'Noble Rot', supplierProduct: 'Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory.' },
