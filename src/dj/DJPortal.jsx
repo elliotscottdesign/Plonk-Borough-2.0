@@ -49,6 +49,7 @@ export default function DJPortal() {
   const [claimSlot, setClaimSlot] = useState('main') // which session-of-the-day the open panel is for
   const [chooser, setChooser] = useState(null)       // { date, slots } when a day has >1 open session
   const [note, setNote] = useState('')               // "Message No Dice" compose box
+  const [b2bId, setB2bId] = useState('')             // optional back-to-back partner for the night being booked
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -105,9 +106,9 @@ export default function DJPortal() {
     catch (e) { setEventPhotoErr(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
-  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr('') }
+  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr(''); setB2bId('') }
   const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); setClaimSlot('main'); resetPanel() }
-  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr('') }
+  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr(''); setB2bId(b.dj_id2 || '') }
   const holdExpired = (heldAt) => !!heldAt && (new Date(heldAt).getTime() + 24 * 3600 * 1000 <= Date.now())
   // If a hold lapsed mid-action, flash + reload the live state and drop the stale panel.
   const handleErr = async (e) => {
@@ -141,7 +142,7 @@ export default function DJPortal() {
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
-      refresh(await djPortal(token, 'draft', { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      refresh(await djPortal(token, 'draft', { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType, dj_id2: b2bId }))
       closePanel()
       flash('Draft saved ✓ — finish within your 24h.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
@@ -155,7 +156,7 @@ export default function DJPortal() {
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
       const action = mode === 'edit' ? 'edit' : 'claim'
-      refresh(await djPortal(token, action, { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType }))
+      refresh(await djPortal(token, action, { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType, dj_id2: b2bId }))
       closePanel()
       flash(mode === 'edit' ? 'Night updated ✓' : 'Date requested ✓ — No Dice will confirm.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
@@ -247,6 +248,16 @@ export default function DJPortal() {
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
         {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
         <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
+        {(st.roster || []).length > 0 && (
+          <div>
+            <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Back-to-back with <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>(optional — play this {session ? 'session' : 'night'} b2b with another DJ)</span></div>
+            <select value={b2bId} onChange={e => setB2bId(e.target.value)} style={{ ...inp, appearance: 'auto', cursor: 'pointer' }}>
+              <option value="">— just me —</option>
+              {(st.roster || []).map(r => <option key={r.id} value={r.id}>{r.dj_name}</option>)}
+            </select>
+            {b2bId && session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4, lineHeight: 1.4 }}>This counts as their one paid session for the month too.</div>}
+          </div>
+        )}
         {session ? (
           <>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span></div>
@@ -403,6 +414,7 @@ export default function DJPortal() {
               const sLab = slotLabel(b.date, b.slot)
               const held = b.status === 'held'
               const statusColor = b.status === 'confirmed' ? '#34D399' : '#FCD34D'
+              const isPrimary = !b.dj_id || b.dj_id === (st.dj && st.dj.id)   // false when I'm the b2b partner (the lead DJ manages it)
               return (
                 <div key={b.date + '-' + (b.slot || 'main')} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
                   {(b.event_image_url || sdj.image_url) && <img src={b.event_image_url || sdj.image_url} alt="" title={b.event_image_url ? 'Event image' : 'Profile photo'} style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${b.event_image_url ? RED : LINE}`, flexShrink: 0 }} />}
@@ -416,10 +428,14 @@ export default function DJPortal() {
                   </div>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: statusColor }}>{b.status === 'confirmed' ? 'Confirmed' : held ? 'Draft' : 'Requested'}</span>
-                    <div style={{ display: 'flex', gap: 12 }}>
-                      <button onClick={() => held ? resumeDraft(b) : startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{held ? 'continue' : 'edit'}</button>
-                      {(held || b.status === 'pending') && <button onClick={() => cancel(b.date, b.slot)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
-                    </div>
+                    {isPrimary ? (
+                      <div style={{ display: 'flex', gap: 12 }}>
+                        <button onClick={() => held ? resumeDraft(b) : startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{held ? 'continue' : 'edit'}</button>
+                        {(held || b.status === 'pending') && <button onClick={() => cancel(b.date, b.slot)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'right', lineHeight: 1.4 }}>{b.partner || 'The lead DJ'}<br />manages this night</div>
+                    )}
                   </div>
                 </div>
               )

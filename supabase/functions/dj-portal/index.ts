@@ -118,6 +118,22 @@ async function notifyRequest(dj: any, date: string, info: { session: boolean; ni
   ]);
 }
 
+// Validate an optional back-to-back partner the DJ picked. Returns { partner }
+// (the id, or null for solo) or { error }. For sessions, enforces the partner's
+// own one-paid-session-per-month limit so a b2b can't double-book them.
+async function checkPartner(sb: any, partnerId: any, selfId: string, date: string, session: boolean): Promise<{ partner?: string | null; error?: string }> {
+  const pid = String(partnerId || "");
+  if (!pid || pid === selfId) return { partner: null };
+  const { data: p } = await sb.from("djs").select("id,status").eq("id", pid).maybeSingle();
+  if (!p || (p.status && p.status !== "vetted")) return { error: "That back-to-back DJ isn't on the roster yet." };
+  if (session) {
+    const { start, next } = monthRange(date);
+    const { data: ex } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${pid},dj_id2.eq.${pid}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
+    if (ex && ex.length) return { error: "That DJ already has a Thu/Fri/Sat session that month — only one paid session per DJ per month." };
+  }
+  return { partner: pid };
+}
+
 async function state(sb: any, id: string) {
   const today = todayISO();
   const { data: me } = await sb.from("djs").select("*").eq("id", id).maybeSingle();
@@ -162,14 +178,16 @@ async function state(sb: any, id: string) {
   // The DJ's own notes to No Dice (so they can see what they've sent + whether
   // it's been read). Degrades to [] if the table isn't created yet.
   const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map(withPartner), schedule, notes: myNotes || [] });
+  // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
+  const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map(withPartner), schedule, notes: myNotes || [], roster: roster || [] });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoOk, setType, body } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
   if (!token) return json({ error: "missing token" }, 400);
 
@@ -273,6 +291,7 @@ Deno.serve(async (req) => {
     };
     if (session) { upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
     else { upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
+    upd.dj_id2 = (dj_id2 && dj_id2 !== dj.id) ? dj_id2 : null;   // b2b partner (validated on claim)
     await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("dj_id", dj.id).eq("status", "held");
     return state(sb, dj.id);
   }
@@ -312,6 +331,9 @@ Deno.serve(async (req) => {
       upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
     }
 
+    const pr = await checkPartner(sb, dj_id2, dj.id, date, session);
+    if (pr.error) return json({ error: pr.error }, 409);
+    upd.dj_id2 = pr.partner;
     // The DJ must be holding this date (they picked it first). Confirms held → pending.
     const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("status", "held").eq("dj_id", dj.id).select("date");
     if (error) return json({ error: error.message }, 500);
@@ -346,6 +368,9 @@ Deno.serve(async (req) => {
     } else {
       upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
     }
+    const pr = await checkPartner(sb, dj_id2, dj.id, date, session);
+    if (pr.error) return json({ error: pr.error }, 409);
+    upd.dj_id2 = pr.partner;
     await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("dj_id", dj.id);
     return state(sb, dj.id);
   }

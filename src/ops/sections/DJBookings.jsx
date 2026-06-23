@@ -304,7 +304,7 @@ function Events({ data, reload, filter, setFilter }) {
   }
   const startEdit = (s) => {
     setEditing(ckey(s))
-    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '' })
+    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
     setBusy(true)
@@ -313,6 +313,7 @@ function Events({ data, reload, filter, setFilter }) {
         date: s.date, slot: s.slot || 'main', newDate: form.date, nightName: form.nightName,
         subgenres: (form.subgenres || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 4),
         setType: form.setType, promoTrack: form.promoTrack,
+        djId: form.djId, djId2: form.djId2 && form.djId2 !== form.djId ? form.djId2 : '',
       })
       setEditing(null); await reload()
     } catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -407,6 +408,12 @@ function Events({ data, reload, filter, setFilter }) {
                     : <label style={lbl}>Date<input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp(160)} /></label>}
                   <label style={lbl}>Night name<input value={form.nightName} onChange={e => setForm(f => ({ ...f, nightName: e.target.value }))} placeholder="(optional)" style={inp(190)} /></label>
                 </div>
+                {s.status !== 'held' && (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <label style={lbl}>DJ<Dropdown value={form.djId} onChange={v => setForm(f => ({ ...f, djId: v, djId2: f.djId2 === v ? '' : f.djId2 }))} width={200} options={(data.djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} /></label>
+                    <label style={lbl}>Second DJ <span style={hint}>(back-to-back · optional)</span><Dropdown value={form.djId2} onChange={v => setForm(f => ({ ...f, djId2: v }))} width={200} options={[{ value: '', label: '— none (solo) —' }, ...(data.djs || []).filter(r => (r.status || 'vetted') === 'vetted' && r.id !== form.djId).map(r => ({ value: r.id, label: r.dj_name }))]} /></label>
+                  </div>
+                )}
                 {editIsSession(form.date)
                   ? <label style={lbl}>Genres <span style={hint}>(comma-separated, up to 4)</span><input value={form.subgenres} onChange={e => setForm(f => ({ ...f, subgenres: e.target.value }))} placeholder="House, Disco, Funk" style={inp(300)} /></label>
                   : <label style={lbl}>Set type <span style={hint}>(Open Decks night)</span><Dropdown value={form.setType} onChange={v => setForm(f => ({ ...f, setType: v }))} width={220} options={SET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></label>}

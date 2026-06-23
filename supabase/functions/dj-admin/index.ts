@@ -118,7 +118,8 @@ Deno.serve(async (req) => {
       };
       if (session) { upd.subgenres = subs; upd.genres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
       else { upd.subgenres = []; upd.genres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
-      if (djId2 !== undefined) upd.dj_id2 = djId2 || null;   // add/change/clear the back-to-back partner
+      if (djId !== undefined && djId) upd.dj_id = djId;       // change the lead DJ (admin only)
+      if (djId2 !== undefined) upd.dj_id2 = djId2 || null;    // add/change/clear the back-to-back partner
       if (tgt !== date) upd.date = tgt;
       const { error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
       if (error) return json({ error: error.message }, 500);
