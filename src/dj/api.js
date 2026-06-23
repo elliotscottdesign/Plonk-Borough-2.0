@@ -30,8 +30,8 @@ export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURI
 // copy the seed/admin starts from. {name}/{link}/{month} fill per-DJ at send time.
 export const TEMPLATE_KEYS = [
   { key: 'invite', label: 'Roster invite', vars: ['name', 'link'], hint: 'Sent from the Roster (📲 WhatsApp invite) and the group blast.' },
-  { key: 'release_first', label: 'New dates · first dibs', vars: ['name', 'link', 'month'], hint: 'Residents who did NOT play last month — sent on release day.' },
-  { key: 'release_played', label: 'New dates · played last month', vars: ['name', 'link', 'month'], hint: 'Residents who played last month — sent after the 24h head-start.' },
+  { key: 'release_first', label: 'New dates · first dibs', vars: ['name', 'link', 'month'], hint: 'First-dibs batch — sent on release day to whichever resident group goes first (set by the release order).' },
+  { key: 'release_played', label: 'New dates · second batch', vars: ['name', 'link', 'month'], hint: 'Second batch — the other resident group (after the 24h head-start), and the copy used for “all residents at once”.' },
   { key: 'release_6h', label: '6-hour closing nudge', vars: ['name', 'link', 'month'], hint: 'Reminder to first-dibs residents in the final hours.' },
 ]
 export const DEFAULT_TEMPLATES = {

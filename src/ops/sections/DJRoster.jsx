@@ -147,7 +147,9 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
     window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank', 'noopener,noreferrer')
   }
   const tvars = (d) => ({ name: d.dj_name || 'there', link: inviteLink(d.token), month: nextMonthLabel })
-  const msgNewDates = (d, priority) => fillTemplate(tplBody(templates, priority ? 'release_first' : 'release_played'), tvars(d))
+  // 'all at once' messages everyone together with no 24h promise → use the
+  // second-batch copy, not the first-dibs/"you've got 24 hours" copy.
+  const msgNewDates = (d, priority) => fillTemplate(tplBody(templates, (priority && releaseMode !== 'all_residents') ? 'release_first' : 'release_played'), tvars(d))
   const msg6h = (d) => fillTemplate(tplBody(templates, 'release_6h'), tvars(d))
 
   // Release-window timing (messaging-order, not a hard lock).
@@ -194,11 +196,11 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   else if (releaseMode === 'everyone') { g1 = []; g2 = []; g1Label = ''; g2Label = '' }
   else { g1 = freshG; g2 = playedG; g1Label = "Didn't play last month"; g2Label = 'Played last month' }
   const twoGroup = releaseMode === 'fresh_first' || releaseMode === 'played_first'
-  const openNextMonth = (slots || []).filter(s => s.status === 'open' && !s.dj_id && (s.date || '').startsWith(nextMonthYM)).length
+  const openNextMonth = new Set((slots || []).filter(s => s.status === 'open' && !s.dj_id && (s.date || '').startsWith(nextMonthYM)).map(s => s.date)).size
   const openAndRelease = async () => {
     if (!window.confirm(`Open every Mon–Sat night in ${nextMonthLabel} for DJs and start the “${modeLabel(pickMode)}” release?`)) return
     setBusy(true)
-    try { await djAdmin('openMonth', { month: nextMonthYM }); await djAdmin('releaseStart', { month: nextMonthLabel, mode: pickMode }); await reload() }
+    try { await djAdmin('openMonth', { month: nextMonthYM }); await djAdmin('releaseStart', { month: nextMonthYM, mode: pickMode }); await reload() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const inTab = tab === 'resident' ? residentsAll : (djs || []).filter(d => statusOf(d) === tab)
@@ -325,7 +327,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ fontSize: 11, fontWeight: 700, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.06em' }}>③ Release to everyone else</div>
               {startedAt && !openedAllAt && (
-                <button onClick={() => { if (window.confirm(group2Open ? `Open ${nextMonthLabel} to non-resident & pending DJs now?` : "The 24h resident window hasn't closed yet — open to everyone anyway?")) rel('releaseOpenAll') }} disabled={busy} style={btn('gold')}>▶ Open to all (non-residents)</button>)}
+                <button onClick={() => { if (window.confirm((!twoGroup || group2Open) ? `Open ${nextMonthLabel} to non-resident & pending DJs now?` : "The 24h resident window hasn't closed yet — open to everyone anyway?")) rel('releaseOpenAll') }} disabled={busy} style={btn('gold')}>▶ Open to all (non-residents)</button>)}
               {openedAllAt && <span style={{ fontSize: 11, color: '#34D399', fontWeight: 600 }}>✅ Opened {fmtT(openedAllAt)}</span>}
             </div>
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6 }}>
