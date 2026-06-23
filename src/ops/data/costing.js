@@ -240,8 +240,9 @@ export const INGREDIENTS = {
 
   // ─── Extra spirits / liqueurs ─ Drinks Club prices verified ─────
   'vodka':                  { name: 'Vodka (well)',          packMl: 700, defaultCost: 14.53, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Blue 700ml (SPV7ABSBL)' },
-  // Sambuca — cost is an estimate (~£11/70cl ex VAT); confirm the Drinks Club price.
-  'sambuca':                { name: 'Sambuca',               packMl: 700, defaultCost: 11.00, supplier: 'Drinks Club', supplierProduct: 'Sambuca 700ml — £11.00 estimate, confirm Drinks Club price' },
+  // Sambuca — house pour is Antica @ £13.85 ex VAT/70cl. Premium option:
+  // Luxardo Black @ £17 ex VAT (swap the cost in if poured).
+  'sambuca':                { name: 'Sambuca (Antica)',      packMl: 700, defaultCost: 13.85, supplier: 'Drinks Club', supplierProduct: 'Antica Sambuca 700ml @ £13.85 ex VAT (Luxardo Black premium @ £17 ex VAT)' },
   'vodka-vanilla':          { name: 'Vanilla Vodka',         packMl: 700, defaultCost: 16.86, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Vanilla 700ml (SPV7ABSVA)' },
   'gin-house':              { name: 'House Gin (Hanbury LD)', packMl: 2100, defaultCost: 64.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury London Dry Refill 2.1L (HD011)' },
   'rum-spiced':             { name: 'Spiced Rum (Cut)',      packMl: 700, defaultCost: 20.76, supplier: 'Drinks Club', supplierProduct: 'Cut Spiced Rum 700ml (SPR7CUTSR)' },
