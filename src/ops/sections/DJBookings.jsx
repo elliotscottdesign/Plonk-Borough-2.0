@@ -124,9 +124,10 @@ function Calendar({ data, reload, onJump }) {
     const defs = slotsForDate(dateStr)
     if (!defs.length) return null
     const rows = defs.map(d => byKey[dateStr + '|' + d.slot]).filter(Boolean)
-    if (!rows.length) return { tone: 'closed', kind: defs[0].kind, disabled: false }
+    const closedTone = defs[0].kind === 'opendecks' ? 'closed-opendecks' : 'closed-session'   // not opened yet → dashed, coloured by kind
+    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false }
     const has = (st) => rows.some(r => r.status === st)
-    const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : 'closed'
+    const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : closedTone
     // Booked nights → thumbnail + detail cards in the cell (public-viewer rules).
     const events = rows.filter(r => r.dj_id).map(r => {
       const sess = sessionForSlot(dateStr, r.slot)
@@ -174,7 +175,7 @@ function Calendar({ data, reload, onJump }) {
           <span>Booked nights show artwork + DJ. Border &amp; dot:</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FCD34D', marginRight: 5, verticalAlign: 'middle' }} />pending/draft</span>
-          <span>An <strong style={{ color: '#fff' }}>open</strong> tag = a slot that day is still free. Empty days: dashed = closed · red = open for DJs.</span>
+          <span><span style={{ color: '#34D399' }}>Green</span> = Open Decks · <span style={{ color: '#DA1B33' }}>red</span> = paid session. <strong style={{ color: '#fff' }}>Solid</strong> = open for DJs to claim · <strong style={{ color: '#fff' }}>dashed</strong> = not opened yet (tap to open).</span>
         </>} />
 
       {selDate ? (() => {

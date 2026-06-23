@@ -20,8 +20,11 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 
 const tones = {
   closed: { border: '1px dashed rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.5)', background: 'transparent' },
-  open: { border: `1px solid ${RED}`, color: '#fff', background: 'rgba(218,27,51,0.12)' },               // paid session, open for DJs → red
-  'open-decks': { border: '1px solid #34D399', color: '#fff', background: 'rgba(52,211,153,0.12)' },      // Open Decks night, open for DJs → green
+  open: { border: `1px solid ${RED}`, color: '#fff', background: 'rgba(218,27,51,0.12)' },               // paid session, open for DJs → solid red
+  'open-decks': { border: '1px solid #34D399', color: '#fff', background: 'rgba(52,211,153,0.12)' },      // Open Decks night, open for DJs → solid green
+  // Bookable but NOT yet opened for DJs (admin only): kind-coloured + dashed.
+  'closed-session': { border: `1px dashed rgba(218,27,51,0.5)`, color: 'rgba(255,255,255,0.55)', background: 'transparent' },     // paid session, not opened → dashed red
+  'closed-opendecks': { border: '1px dashed rgba(52,211,153,0.5)', color: 'rgba(255,255,255,0.55)', background: 'transparent' }, // Open Decks, not opened → dashed green
   pending: { border: '1px solid #FCD34D', color: '#fff', background: 'transparent' },
   confirmed: { border: '1px solid #34D399', color: '#fff', background: 'transparent' },
   'mine-pending': { border: '1px solid #FCD34D', color: '#fff', background: 'rgba(252,211,36,0.18)' },
