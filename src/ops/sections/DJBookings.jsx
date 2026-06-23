@@ -107,8 +107,8 @@ function Calendar({ data, reload, onJump }) {
     if (isNew && !d.djId) return
     setBusy(true)
     try {
-      if (isNew) await djAdmin('book', { date, slot, djId: d.djId, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
-      else await djAdmin('editEvent', { date, slot, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
+      if (isNew) await djAdmin('book', { date, slot, djId: d.djId, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
+      else await djAdmin('editEvent', { date, slot, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
       if (d.imgData) await djAdmin('eventPhoto', { date, slot, dataUrl: d.imgData })
       await reload(); setBuildKey(null)
     } catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -132,7 +132,9 @@ function Calendar({ data, reload, onJump }) {
       const sess = sessionForSlot(dateStr, r.slot)
       const genres = Array.isArray(r.subgenres) ? r.subgenres : []
       const sub = r.night_name ? `"${r.night_name}"` : (genres.length ? genres.join(' · ') : (r.kind === 'opendecks' ? 'Open Decks' : 'DJ set'))
-      return { image: r.event_image_url || r.dj?.image_url || '', title: r.dj?.dj_name || 'DJ', time: fmtStart(sess?.start), sub, status: r.status }
+      const p2 = r.dj_id2 ? (djs || []).find(d => d.id === r.dj_id2)?.dj_name : null
+      const title = p2 ? `${r.dj?.dj_name || 'DJ'} b2b ${p2}` : (r.dj?.dj_name || 'DJ')
+      return { image: r.event_image_url || r.dj?.image_url || '', title, time: fmtStart(sess?.start), sub, status: r.status }
     })
     const openCount = rows.filter(r => r.status === 'open' && !r.dj_id).length   // other slots still free that day
     return { tone, kind: defs[0].kind, disabled: false, events, openCount }
@@ -189,6 +191,7 @@ function Calendar({ data, reload, onJump }) {
               const status = slot ? slot.status : 'closed'
               const accent = status === 'confirmed' ? '#34D399' : status === 'pending' ? '#FCD34D' : status === 'held' ? '#F59E0B' : status === 'open' ? '#DA1B33' : 'rgba(255,255,255,0.25)'
               const booked = slot && slot.dj_id
+              const b2bName = slot?.dj_id2 ? ((djs || []).find(d => d.id === slot.dj_id2)?.dj_name || 'DJ') : null
               const sLab = slotLabel(date, def.slot)
               return (
                 <div key={def.slot} style={{ borderLeft: `3px solid ${accent}`, paddingLeft: 12, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
@@ -201,7 +204,7 @@ function Calendar({ data, reload, onJump }) {
                       <>
                         <Avatar d={{ ...(slot.dj || { dj_name: '?' }), image_url: slot.event_image_url || slot.dj?.image_url }} size={34} />
                         <div style={{ fontSize: 13, color: '#FFFFFF' }}>
-                          <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status === 'held' ? 'draft' : status}</span></div>
+                          <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{b2bName ? <> <span style={{ color: '#DA1B33', fontWeight: 700 }}>b2b</span> <strong>{b2bName}</strong></> : null}{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status === 'held' ? 'draft' : status}</span></div>
                           {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
                           {status === 'held' && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 3, fontWeight: 600 }}>⏳ Draft — DJ is filling in details{slot.held_at ? ` · ${heldLeft(slot.held_at)}` : ''}</div>}
                         </div>
@@ -361,6 +364,7 @@ function Events({ data, reload, filter, setFilter }) {
         const sus = !!s.suspended
         const past = isPast(s)
         const meta = { held: { label: 'Draft', color: '#F59E0B' }, pending: { label: 'Pending', color: '#FCD34D' }, confirmed: { label: 'Confirmed', color: '#34D399' } }[s.status] || { label: s.status, color: '#9CA3AF' }
+        const b2bName = s.dj_id2 ? ((data.djs || []).find(d => d.id === s.dj_id2)?.dj_name || 'DJ') : null
         const showCap = !past && (s.status === 'confirmed' || s.status === 'pending')
         return (
           <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: `3px solid ${sus ? '#9CA3AF' : past ? '#6B7280' : meta.color}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, opacity: sus ? 0.72 : past ? 0.85 : 1 }}>
@@ -368,7 +372,7 @@ function Events({ data, reload, filter, setFilter }) {
               <Avatar d={{ ...(s.dj || { dj_name: '?' }), image_url: s.event_image_url || s.dj?.image_url }} size={48} />
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span><span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: past ? '#9CA3AF' : meta.color, border: `1px solid ${past ? '#9CA3AF' : meta.color}66`, borderRadius: 999, padding: '1px 7px' }}>{past ? 'Past' : meta.label}</span>{sus && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
-                <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
+                <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{b2bName ? <> <span style={{ color: '#DA1B33', fontWeight: 700 }}>b2b</span> <strong>{b2bName}</strong> <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#DA1B33', border: '1px solid rgba(218,27,51,0.5)', borderRadius: 999, padding: '1px 6px' }}>B2B</span></> : null}{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
                 {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
@@ -376,8 +380,8 @@ function Events({ data, reload, filter, setFilter }) {
               </div>
               {showCap && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
-                  <button onClick={() => copyCap(s)} style={btn(copied === k ? 'green' : 'gold')}>{copied === k ? '✓ Caption copied' : '📋 Instagram caption'}</button>
-                  <button onClick={() => aiRewrite(s)} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
+                  <button onClick={() => copyCap({ ...s, dj2name: b2bName })} style={btn(copied === k ? 'green' : 'gold')}>{copied === k ? '✓ Caption copied' : '📋 Instagram caption'}</button>
+                  <button onClick={() => aiRewrite({ ...s, dj2name: b2bName })} disabled={a.loading} style={{ ...btn('ghost'), opacity: a.loading ? 0.6 : 1, cursor: a.loading ? 'default' : 'pointer' }}>{a.loading ? '✨ Writing…' : (a.text ? '✨ Try again' : '✨ AI rewrite')}</button>
                 </div>
               )}
             </div>
@@ -497,6 +501,7 @@ const hint = { color: 'rgba(255,255,255,0.4)', fontWeight: 400 }
 // for building a new night (showDj=true) and for editing a booked one.
 function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) {
   const [djId, setDjId] = useState(slotRow?.dj_id || '')
+  const [djId2, setDjId2] = useState(slotRow?.dj_id2 || '')   // optional back-to-back partner
   const [nightName, setNightName] = useState(slotRow?.night_name || '')
   const [genres, setGenres] = useState((slotRow?.subgenres || []).join(', '))
   const [setType, setSetType] = useState(slotRow?.set_type || 'dj_set')
@@ -513,7 +518,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
-    onSave({ djId, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
+    onSave({ djId, djId2, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
   }
 
   return (
@@ -524,6 +529,10 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
             options={(djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} />
         </label>
       )}
+      <label style={lbl}>Second DJ <span style={hint}>(optional — pick one to make it a back-to-back)</span>
+        <Dropdown value={djId2} onChange={setDjId2} placeholder="— none (solo) —" width={250}
+          options={[{ value: '', label: '— none (solo) —' }, ...(djs || []).filter(r => (r.status || 'vetted') === 'vetted' && r.id !== djId).map(r => ({ value: r.id, label: r.dj_name }))]} />
+      </label>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
         <label style={lbl}>Night name<input value={nightName} onChange={e => setNightName(e.target.value)} placeholder="(optional)" style={inp(200)} /></label>
         {isSession

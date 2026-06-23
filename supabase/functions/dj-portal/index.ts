@@ -131,25 +131,38 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, slot: s.slot || "main", kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at,event_image_url";
-  const { data: mine } = await sb.from("dj_slots").select(cols).eq("dj_id", id).gte("date", today).order("date");
-  const myBookings = (mine || []).map((b: any) => ({ ...b, slot: b.slot || "main", blocked: neighBlocked(b.date) }));
-  const { data: past } = await sb.from("dj_slots").select(cols).eq("dj_id", id).lt("date", today).order("date", { ascending: false });
+  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at,event_image_url,dj_id,dj_id2";
+  // Include nights where this DJ is the back-to-back partner (dj_id2), not just primary.
+  const meFilter = `dj_id.eq.${id},dj_id2.eq.${id}`;
+  const { data: mine } = await sb.from("dj_slots").select(cols).or(meFilter).gte("date", today).order("date");
+  const { data: past } = await sb.from("dj_slots").select(cols).or(meFilter).lt("date", today).order("date", { ascending: false });
   // Line-up: every OTHER DJ's upcoming booked night (pending + confirmed). Public
   // fields only — name + Instagram + what/when — never phone/email.
   const { data: sched } = await sb.from("dj_slots")
-    .select("date,slot,status,night_name,subgenres,kind,set_type,event_image_url, dj:djs(dj_name,instagram,image_url)")
+    .select("date,slot,status,night_name,subgenres,kind,set_type,event_image_url,dj_id2, dj:djs(dj_name,instagram,image_url)")
     .not("dj_id", "is", null).neq("dj_id", id).in("status", ["pending", "confirmed"]).gte("date", today).order("date");
-  const schedule = (sched || []).map((s: any) => ({
+
+  // Resolve back-to-back partner names (dj_id2 has no FK embed) across all three lists.
+  const partnerOf = (b: any) => b.dj_id2 ? (b.dj_id === id ? b.dj_id2 : b.dj_id) : null;
+  const pIds = new Set<string>();
+  for (const b of [...(mine || []), ...(past || [])]) { const pid = partnerOf(b); if (pid) pIds.add(pid); }
+  for (const s of sched || []) if (s.dj_id2) pIds.add(s.dj_id2);
+  const pMap: Record<string, any> = {};
+  if (pIds.size) { const { data: pd } = await sb.from("djs").select("id,dj_name").in("id", [...pIds]); for (const p of pd || []) pMap[p.id] = p; }
+  const withPartner = (b: any) => ({ ...b, slot: b.slot || "main", blocked: neighBlocked(b.date), partner: partnerOf(b) ? (pMap[partnerOf(b)]?.dj_name || null) : null, b2b: !!b.dj_id2 });
+
+  const myBookings = (mine || []).map(withPartner);
+  // Drop my own b2b nights from the line-up (they're already in My bookings).
+  const schedule = (sched || []).filter((s: any) => s.dj_id2 !== id).map((s: any) => ({
     date: s.date, slot: s.slot || "main", status: s.status, night_name: s.night_name || null, subgenres: arr(s.subgenres),
     kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), set_type: s.set_type || null,
-    dj: s.dj?.dj_name || "DJ", instagram: s.dj?.instagram || null,
+    dj: s.dj?.dj_name || "DJ", dj2: s.dj_id2 ? (pMap[s.dj_id2]?.dj_name || null) : null, b2b: !!s.dj_id2, instagram: s.dj?.instagram || null,
     image: s.event_image_url || s.dj?.image_url || null,   // event image overrides profile
   }));
   // The DJ's own notes to No Dice (so they can see what they've sent + whether
   // it's been read). Degrades to [] if the table isn't created yet.
   const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map((b: any) => ({ ...b, slot: b.slot || "main" })), schedule, notes: myNotes || [] });
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map(withPartner), schedule, notes: myNotes || [] });
 }
 
 Deno.serve(async (req) => {

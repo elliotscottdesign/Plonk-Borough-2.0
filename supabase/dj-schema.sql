@@ -70,6 +70,11 @@ alter table public.dj_slots add column if not exists set_type text;      -- open
 alter table public.dj_slots add column if not exists held_at timestamptz;        -- when the hold started (deadline = +24h)
 alter table public.dj_slots add column if not exists reminder_sent boolean default false;  -- 2h-warning email sent
 alter table public.dj_slots add column if not exists event_image_url text;  -- per-event artwork (overrides DJ profile photo for that night)
+-- Back-to-back: an optional SECOND DJ sharing the same slot (two friends doing a
+-- b2b set). Plain uuid (no FK) on purpose — a second FK to djs would make the
+-- existing dj:djs(...) embeds on dj_slots ambiguous; the app resolves the partner
+-- from the djs list instead.
+alter table public.dj_slots add column if not exists dj_id2 uuid;
 -- Admin can temporarily hide a confirmed event from the public feed without deleting
 -- it (Events tab → Suspend / Restore). Stays in admin; excluded from events-feed.
 alter table public.dj_slots add column if not exists suspended boolean not null default false;

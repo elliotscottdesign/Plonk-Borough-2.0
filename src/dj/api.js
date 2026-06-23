@@ -141,6 +141,7 @@ export const setTypeLabel = (v) => (SET_TYPES.find(s => s.value === v) || {}).la
 // or the feed shape ({date, dj, instagram, genres, ...}).
 export function instagramCaption(ev) {
   const dj = ev?.dj?.dj_name || ev?.dj || 'TBA'
+  const dj2 = (typeof ev?.dj2 === 'string' ? ev.dj2 : '') || ev?.dj2name || ''   // back-to-back partner
   const ig = ev?.dj?.instagram || ev?.instagram || ''
   const subs = ev?.subgenres || ev?.genres || []
   const fmt = ev?.dj?.format || ev?.format || ''
@@ -152,7 +153,7 @@ export function instagramCaption(ev) {
   const lines = [
     `🎧 ${title} — ${dateStr}`,
     '',
-    `${dj}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
+    `${dj}${dj2 ? ` b2b ${dj2}` : ''}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
   ]
   if (subs.length) lines.push(subs.join(' · '))
   if (fmt) lines.push(`🎛️ ${fmt}`)

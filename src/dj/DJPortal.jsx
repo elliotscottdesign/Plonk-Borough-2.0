@@ -409,6 +409,7 @@ export default function DJPortal() {
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
+                    {b.b2b && b.partner && <div style={{ fontSize: 12, color: RED, fontWeight: 600 }}>🔁 Back-to-back with {b.partner}</div>}
                     {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                     {b.kind === 'opendecks' && !held && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                     {held && <div style={{ fontSize: 11, color: '#FCD34D', marginTop: 3, fontWeight: 600 }}>⏳ Draft — finish to confirm · {holdLeft(b.held_at)}</div>}
@@ -449,7 +450,7 @@ export default function DJPortal() {
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
                         </div>
-                        <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
+                        <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.b2b && e.dj2 ? <span style={{ color: RED }}> b2b {e.dj2}</span> : null}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
                         {e.subgenres.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{e.subgenres.join(' · ')}</div>}
                         {!session && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{e.set_type ? ` · ${setTypeLabel(e.set_type)}` : ''}</div>}
                       </div>
@@ -478,6 +479,7 @@ export default function DJPortal() {
                     <div key={b.date + '-' + (b.slot || 'main')} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 10, padding: '10px 14px', marginBottom: 8, opacity: 0.85 }}>
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                       {b.night_name && <div style={{ fontSize: 11, color: RED }}>"{b.night_name}"</div>}
+                      {b.b2b && b.partner && <div style={{ fontSize: 11, color: RED }}>🔁 b2b {b.partner}</div>}
                       {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
                       {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                     </div>

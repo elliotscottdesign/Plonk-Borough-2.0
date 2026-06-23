@@ -28,16 +28,25 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await sb.from("dj_slots")
-    .select("date,slot,night_name,subgenres,kind,set_type,promo_track,event_image_url, dj:djs(dj_name,image_url,instagram,format)")
+    .select("date,slot,night_name,subgenres,kind,set_type,promo_track,event_image_url,dj_id2, dj:djs(dj_name,image_url,instagram,format)")
     .eq("status", "confirmed").neq("suspended", true).gte("date", today).order("date");
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
+  // Back-to-back: resolve the optional second DJ (dj_id2 has no FK embed) in one query.
+  const partnerIds = [...new Set((data || []).map((s: any) => s.dj_id2).filter(Boolean))];
+  const partners: Record<string, any> = {};
+  if (partnerIds.length) {
+    const { data: pd } = await sb.from("djs").select("id,dj_name,instagram").in("id", partnerIds);
+    for (const p of pd || []) partners[p.id] = p;
+  }
   const events = (data || []).map((s: any) => {
     const slot = s.slot || "main";
+    const p2 = s.dj_id2 ? partners[s.dj_id2] : null;
     const sess = (slot !== "main" && SLOT_TIMES[slot]) ? SLOT_TIMES[slot] : (SESSIONS[new Date(s.date + "T00:00:00Z").getUTCDay()] || {});
     return {
       date: s.date, slot, weekday: sess.day, start: sess.start, end: sess.end, kind: s.kind || sess.kind,
       dj: s.dj?.dj_name || null, image: s.event_image_url || s.dj?.image_url || null, instagram: s.dj?.instagram || null,
       format: s.dj?.format || null,
+      dj2: p2?.dj_name || null, instagram2: p2?.instagram || null, b2b: !!p2,
       night_name: s.night_name || null, genres: Array.isArray(s.subgenres) ? s.subgenres : [],
       set_type: s.set_type || null, promo_track: s.promo_track || null,
     };

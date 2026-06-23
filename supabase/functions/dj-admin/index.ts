@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, key, body } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, key, body } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -118,6 +118,7 @@ Deno.serve(async (req) => {
       };
       if (session) { upd.subgenres = subs; upd.genres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
       else { upd.subgenres = []; upd.genres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
+      if (djId2 !== undefined) upd.dj_id2 = djId2 || null;   // add/change/clear the back-to-back partner
       if (tgt !== date) upd.date = tgt;
       const { error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
       if (error) return json({ error: error.message }, 500);
@@ -160,7 +161,7 @@ Deno.serve(async (req) => {
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
       const subs = passed.length ? passed : String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
       await sb.from("dj_slots").upsert({
-        date, slot, dj_id: djId, status: "pending", night_name: nightName || null,
+        date, slot, dj_id: djId, dj_id2: djId2 || null, status: "pending", night_name: nightName || null,
         genre: session ? (subs.join(" / ") || dj?.genres || null) : null,
         genres: session ? subs : [], subgenres: session ? subs : [],
         kind: session ? "session" : "opendecks",
