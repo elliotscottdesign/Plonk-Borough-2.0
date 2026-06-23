@@ -41,6 +41,14 @@ const missingFields = (d) => {
   return m
 }
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
+// The release orders the founder can pick from when dropping next month's dates.
+const RELEASE_MODES = [
+  { key: 'played_first', label: 'Regulars first', desc: 'Residents who played last month get the 24h head-start, then the rest' },
+  { key: 'fresh_first', label: 'Fresh faces first', desc: "Residents who didn't play last month go first — spreads nights around" },
+  { key: 'all_residents', label: 'All residents at once', desc: 'Message every resident together, no 24h wait' },
+  { key: 'everyone', label: 'Open to everyone now', desc: 'Open to all DJs immediately — no resident priority' },
+]
+const modeLabel = (k) => (RELEASE_MODES.find(m => m.key === k) || {}).label || k
 
 export default function DJRoster({ djs, slots, release, templates, reload }) {
   const [editing, setEditing] = useState(null)
@@ -118,6 +126,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
 
   // ── Residents tier + monthly release ──────────────────────────────────────
   const [, setTick] = useState(0)   // re-render each minute so the countdown ticks
+  const [pickMode, setPickMode] = useState('played_first')   // release order chosen before starting
   useEffect(() => { const t = setInterval(() => setTick(x => x + 1), 60000); return () => clearInterval(t) }, [])
   const rel = async (action, payload = {}) => { setBusy(true); try { await djAdmin(action, payload); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setResident = (d, on) => rel('setResident', { id: d.id, resident: on })
@@ -128,7 +137,9 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   const lmFrom = isoD(new Date(_now.getFullYear(), _now.getMonth() - 1, 1))
   const lmTo = isoD(new Date(_now.getFullYear(), _now.getMonth(), 0))
   const playedLastMonth = new Set((slots || []).filter(s => s.status === 'confirmed' && s.dj_id && s.date >= lmFrom && s.date <= lmTo).map(s => s.dj_id))
-  const nextMonthLabel = new Date(_now.getFullYear(), _now.getMonth() + 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const _nm = new Date(_now.getFullYear(), _now.getMonth() + 1, 1)
+  const nextMonthLabel = _nm.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const nextMonthYM = `${_nm.getFullYear()}-${String(_nm.getMonth() + 1).padStart(2, '0')}`
 
   const waSend = (d, msg) => {
     const num = waNumber(d.phone)
@@ -172,8 +183,24 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   const pendingN = (djs || []).filter(d => statusOf(d) === 'pending').length
   const residentsAll = (djs || []).filter(d => d.resident)
   const residentN = residentsAll.length
-  const g1 = residentsAll.filter(d => !playedLastMonth.has(d.id))   // first dibs — didn't play last month
-  const g2 = residentsAll.filter(d => playedLastMonth.has(d.id))    // played last month
+  const playedG = residentsAll.filter(d => playedLastMonth.has(d.id))
+  const freshG = residentsAll.filter(d => !playedLastMonth.has(d.id))
+  // The chosen release order decides who's in the first-dibs batch (g1) vs the
+  // after-24h batch (g2). Live mode once started, else the picker value.
+  const releaseMode = release?.release_mode || pickMode
+  let g1, g2, g1Label, g2Label
+  if (releaseMode === 'played_first') { g1 = playedG; g2 = freshG; g1Label = 'Played last month'; g2Label = "Didn't play last month" }
+  else if (releaseMode === 'all_residents') { g1 = residentsAll; g2 = []; g1Label = 'All residents'; g2Label = '' }
+  else if (releaseMode === 'everyone') { g1 = []; g2 = []; g1Label = ''; g2Label = '' }
+  else { g1 = freshG; g2 = playedG; g1Label = "Didn't play last month"; g2Label = 'Played last month' }
+  const twoGroup = releaseMode === 'fresh_first' || releaseMode === 'played_first'
+  const openNextMonth = (slots || []).filter(s => s.status === 'open' && !s.dj_id && (s.date || '').startsWith(nextMonthYM)).length
+  const openAndRelease = async () => {
+    if (!window.confirm(`Open every Mon–Sat night in ${nextMonthLabel} for DJs and start the “${modeLabel(pickMode)}” release?`)) return
+    setBusy(true)
+    try { await djAdmin('openMonth', { month: nextMonthYM }); await djAdmin('releaseStart', { month: nextMonthLabel, mode: pickMode }); await reload() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const inTab = tab === 'resident' ? residentsAll : (djs || []).filter(d => statusOf(d) === tab)
   const filtered = inTab.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
   const ready = inTab.filter(complete).length
@@ -231,27 +258,53 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
       {tab === 'resident' && (
         <div style={{ background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.3)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-            <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📣 Message residents — {nextMonthLabel} dates</div>
-            {!startedAt
-              ? <button onClick={() => { if (window.confirm(`Start the priority window for ${nextMonthLabel}? Message the first-dibs group now; the rest unlock after 24h.`)) rel('releaseStart', { month: nextMonthLabel }) }} disabled={busy} style={btn('gold')}>▶ Start priority window</button>
-              : <button onClick={() => { if (window.confirm('Reset this window? Clears the timer so you can start fresh next month.')) rel('releaseReset') }} disabled={busy} style={btn('ghost')}>↺ Reset window</button>}
+            <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📣 {nextMonthLabel} release</div>
+            {startedAt && <button onClick={() => { if (window.confirm('Reset this release? Clears the window so you can start fresh.')) rel('releaseReset') }} disabled={busy} style={btn('ghost')}>↺ Reset</button>}
           </div>
 
-          {startedAt && (
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px', lineHeight: 1.6 }}>
-              Priority window opened <strong style={{ color: '#fff' }}>{fmtT(startedAt)}</strong>.{' '}
-              {group2Open
-                ? <><strong style={{ color: '#34D399' }}>24h up — Group 2 is open</strong>, message them now.</>
-                : <>Group 2 opens <strong style={{ color: '#FCD34D' }}>{fmtT(startedAt + 24 * 3600000)}</strong> (~{Math.max(0, Math.ceil(24 - hrs))}h).{within6h && <strong style={{ color: '#F59E0B' }}> ⏳ Under 6h left — send the nudge below.</strong>}</>}
+          {/* Not started → open next month + pick the release order */}
+          {!startedAt && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>{openNextMonth}</strong> night{openNextMonth === 1 ? '' : 's'} already open for {nextMonthLabel}. Pick the release order, then one tap opens every Mon–Sat night and starts it.</div>
+              <div>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Release order</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {RELEASE_MODES.map(m => (
+                    <button key={m.key} onClick={() => setPickMode(m.key)} style={{ textAlign: 'left', padding: '9px 12px', borderRadius: 8, cursor: 'pointer', background: pickMode === m.key ? 'rgba(218,27,51,0.14)' : 'rgba(255,255,255,0.04)', border: `1px solid ${pickMode === m.key ? '#DA1B33' : 'rgba(255,255,255,0.12)'}`, color: '#fff' }}>
+                      <div style={{ fontSize: 13, fontWeight: 600 }}>{pickMode === m.key ? '● ' : '○ '}{m.label}</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{m.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button onClick={openAndRelease} disabled={busy} style={btn('gold')}>🚀 Open {nextMonthLabel} &amp; release</button>
+                <button onClick={() => { if (window.confirm(`Open every Mon–Sat night in ${nextMonthLabel} for DJs (without starting the release yet)?`)) rel('openMonth', { month: nextMonthYM }) }} disabled={busy} style={btn('ghost')}>Just open the dates</button>
+              </div>
             </div>
           )}
 
-          <div>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>① First dibs · didn't play last month ({g1.length})</div>
-            {g1.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None — every resident played last month.</div> : g1.map(d => resRow(d, true))}
-          </div>
+          {startedAt && (
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px', lineHeight: 1.6 }}>
+              <strong style={{ color: '#fff' }}>{modeLabel(releaseMode)}</strong> · opened {fmtT(startedAt)}.{' '}
+              {releaseMode === 'everyone'
+                ? <>Open to <strong style={{ color: '#34D399' }}>everyone</strong> — message all DJs from the Vetted tab.</>
+                : releaseMode === 'all_residents'
+                  ? <>Message all residents below, then open it to the rest.</>
+                  : group2Open
+                    ? <><strong style={{ color: '#34D399' }}>24h up — group 2 is open</strong>, message them now.</>
+                    : <>Group 2 opens <strong style={{ color: '#FCD34D' }}>{fmtT(startedAt + 24 * 3600000)}</strong> (~{Math.max(0, Math.ceil(24 - hrs))}h).{within6h && <strong style={{ color: '#F59E0B' }}> ⏳ Under 6h left — send the nudge below.</strong>}</>}
+            </div>
+          )}
 
-          {within6h && g1.some(d => d.phone) && (
+          {startedAt && releaseMode !== 'everyone' && (
+            <div>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#34D399', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>{twoGroup ? '① ' : ''}{g1Label} ({g1.length})</div>
+              {g1.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No residents in this group.</div> : g1.map(d => resRow(d, true))}
+            </div>
+          )}
+
+          {startedAt && twoGroup && within6h && g1.some(d => d.phone) && (
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <div style={{ fontSize: 11, color: '#F59E0B', marginBottom: 6 }}>⏳ 6-hour closing nudge — send now to first-dibs DJs who haven't booked yet:</div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -260,11 +313,13 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
             </div>
           )}
 
-          <div style={{ opacity: (!startedAt || group2Open) ? 1 : 0.5 }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>② Played last month · message after 24h ({g2.length})</div>
-            {startedAt && !group2Open && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>Hold off until the 24h window closes (their buttons unlock then).</div>}
-            {g2.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None.</div> : g2.map(d => resRow(d, false))}
-          </div>
+          {startedAt && twoGroup && (
+            <div style={{ opacity: group2Open ? 1 : 0.5 }}>
+              <div style={{ fontSize: 11, fontWeight: 700, color: '#FCD34D', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>② {g2Label} · message after 24h ({g2.length})</div>
+              {!group2Open && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginBottom: 4 }}>Hold off until the 24h window closes (their buttons unlock then).</div>}
+              {g2.length === 0 ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>None.</div> : g2.map(d => resRow(d, false))}
+            </div>
+          )}
 
           <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>

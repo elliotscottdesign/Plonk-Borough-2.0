@@ -59,6 +59,11 @@ create table if not exists public.dj_release_state (
   constraint dj_release_singleton check (id = 1)
 );
 alter table public.dj_release_state enable row level security;   -- service-role only
+-- Which release order the founder picked for the current window:
+-- 'fresh_first' (residents who didn't play last month first) | 'played_first'
+-- (residents who played last month first) | 'all_residents' (all at once) |
+-- 'everyone' (open to all immediately, no resident priority).
+alter table public.dj_release_state add column if not exists release_mode text;
 
 alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;

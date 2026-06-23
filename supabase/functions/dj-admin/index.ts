@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, key, body } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, mode, key, body } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -193,10 +193,35 @@ Deno.serve(async (req) => {
       // Resident tier — guaranteed-monthly DJs who get first dibs on new dates.
       await sb.from("djs").update({ resident: !!resident, updated_at: now() }).eq("id", id);
       break;
-    case "releaseStart":
-      // Start the monthly priority window (records when the first batch was messaged).
-      await sb.from("dj_release_state").upsert({ id: 1, month: month || null, started_at: now(), opened_all_at: null, updated_at: now() }, { onConflict: "id" });
+    case "releaseStart": {
+      // Start the monthly resident release in the chosen order. 'everyone' opens
+      // to all immediately (no resident priority window).
+      const everyone = mode === "everyone";
+      await sb.from("dj_release_state").upsert({ id: 1, month: month || null, release_mode: mode || "fresh_first", started_at: now(), opened_all_at: everyone ? now() : null, updated_at: now() }, { onConflict: "id" });
       break;
+    }
+    case "openMonth": {
+      // Bulk-open every bookable night (Mon-Sat) in the given month ("YYYY-MM").
+      // Saturday gets two slots (sat_pm afternoon + main evening). Idempotent —
+      // existing rows (booked or already open) are left untouched. Skips past dates.
+      const mt = /^(\d{4})-(\d{2})$/.exec(String(month || ""));
+      if (!mt) return json({ error: "bad month (expected YYYY-MM)" }, 400);
+      const yr = +mt[1], mo = +mt[2] - 1;
+      const today = now().slice(0, 10);
+      const daysIn = new Date(Date.UTC(yr, mo + 1, 0)).getUTCDate();
+      const rows: Record<string, unknown>[] = [];
+      for (let d = 1; d <= daysIn; d++) {
+        const dateStr = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
+        if (dateStr < today) continue;
+        const wd = new Date(dateStr + "T00:00:00Z").getUTCDay();
+        if (wd === 0) continue;   // Sunday — not bookable
+        const session = [4, 5, 6].includes(wd);
+        rows.push({ date: dateStr, slot: "main", status: "open", kind: session ? "session" : "opendecks" });
+        if (wd === 6) rows.push({ date: dateStr, slot: "sat_pm", status: "open", kind: "session" });
+      }
+      if (rows.length) await sb.from("dj_slots").upsert(rows, { onConflict: "date,slot", ignoreDuplicates: true });
+      break;
+    }
     case "releaseOpenAll":
       await sb.from("dj_release_state").update({ opened_all_at: now(), updated_at: now() }).eq("id", 1);
       break;
