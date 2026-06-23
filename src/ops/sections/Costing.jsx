@@ -4,11 +4,13 @@ import {
   RECIPES,
   CATEGORIES,
   VAT_RATE,
+  HAPPY_HOUR,
   loadOverrides,
   saveOverrides,
   costForRecipe,
   marginForRecipe,
   priceToHitMargin,
+  hhItemMargin,
 } from '../data/costing.js'
 import OpsBrandHeader from '../components/OpsBrandHeader.jsx'
 
@@ -36,21 +38,23 @@ const fmtPct = (n) => `${Math.round(n * 100)}%`
 
 export default function Costing() {
   const [activeCat, setActiveCat] = useState('cocktail')
+  const [view, setView] = useState('normal')   // 'normal' | 'happy'
   const [state, setState] = useState(() => loadOverrides())
   const [expanded, setExpanded] = useState(null)
 
   // Persist on every change.
   useEffect(() => { saveOverrides(state) }, [state])
 
-  const { costs, sells, targets, wastagePct } = state
+  const { costs, sells, targets, hhPrices, wastagePct } = state
 
   const setCost = (id, val) => setState((s) => ({ ...s, costs: { ...s.costs, [id]: val } }))
   const setSell = (id, val) => setState((s) => ({ ...s, sells: { ...s.sells, [id]: val } }))
   const setTarget = (key, val) => setState((s) => ({ ...s, targets: { ...s.targets, [key]: val } }))
+  const setHhPrice = (key, val) => setState((s) => ({ ...s, hhPrices: { ...s.hhPrices, [key]: val } }))
   const setWastage = (val) => setState((s) => ({ ...s, wastagePct: val }))
   const resetAll = () => {
-    if (confirm('Reset all cost overrides + sell-price overrides + targets back to seed defaults?')) {
-      setState({ costs: {}, sells: {}, targets: {}, wastagePct: 5 })
+    if (confirm('Reset all cost overrides + sell-price overrides + targets + happy-hour prices back to seed defaults?')) {
+      setState({ costs: {}, sells: {}, targets: {}, hhPrices: {}, wastagePct: 5 })
       setExpanded(null)
     }
   }
@@ -121,6 +125,16 @@ export default function Costing() {
         </div>
       </div>
 
+      {/* ─── View toggle: full margin sheet vs happy-hour ──────────── */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setView('normal')} style={viewTab(view === 'normal')}>Full margin sheet</button>
+        <button onClick={() => setView('happy')} style={viewTab(view === 'happy')}>⚡ Happy Hour</button>
+      </div>
+
+      {view === 'happy' && <HappyHourView state={state} setHhPrice={setHhPrice} />}
+
+      {view === 'normal' && (
+      <>
       {/* ─── Category tabs ────────────────────────────────────────── */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         {CATEGORIES.map((c) => {
@@ -235,9 +249,86 @@ export default function Costing() {
         Cost / serve = sum of (pack £ ÷ pack ml × ml poured) plus {wastagePct}% wastage. Ingredients tagged "each" (lime
         wedge, gilda) are counted, not ml'd.
       </p>
+      </>
+      )}
     </div>
   )
 }
+
+// ─── Happy Hour view — every HH line at its discounted price + margin ──
+// Sections (Cocktails £7, Pints £5, Wine £5/£30, Doubles £6, Shots £3).
+// Each row's happy-hour price is editable and saved; cost-per-serve and GP
+// recompute live off the same ingredient costs as the full sheet.
+function HappyHourView({ state, setHhPrice }) {
+  const { costs, hhPrices, wastagePct } = state
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 12, color: dim }}>
+        Happy hour: <strong style={{ color: cream }}>{HAPPY_HOUR.note}</strong>. Prices are inc-VAT and editable — margins recompute live.
+      </div>
+      {HAPPY_HOUR.sections.map((section) => {
+        const rows = section.items.map((item) => {
+          const price = hhPrices[item.key] ?? section.price
+          const { cost, gp, gpPct } = hhItemMargin(item, price, costs, wastagePct)
+          return { item, price, cost, gp, gpPct }
+        })
+        const avg = rows.length ? rows.reduce((a, r) => a + r.gpPct, 0) / rows.length : 0
+        return (
+          <div key={section.key} style={{
+            background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, overflow: 'hidden',
+          }}>
+            <div style={{
+              display: 'flex', alignItems: 'baseline', gap: 12, padding: '10px 14px',
+              background: ink2, borderBottom: '1px solid rgba(255,255,255,0.08)',
+            }}>
+              <span className="serif" style={{ fontSize: 16, color: gold }}>{section.label}</span>
+              <span style={{ fontSize: 12, color: dim }}>default £{section.price}</span>
+              <span style={{ marginLeft: 'auto', fontSize: 12, color: dim }}>
+                avg GP <strong style={{ color: hhColor(avg) }}>{fmtPct(avg)}</strong>
+              </span>
+            </div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <thead>
+                <tr style={{ background: ink2 }}>
+                  <th style={th}>Item</th>
+                  <th style={th}>HH £ (inc VAT)</th>
+                  <th style={th}>Cost £ / serve</th>
+                  <th style={th}>GP £</th>
+                  <th style={th}>GP %</th>
+                  <th style={th}>Flag</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map(({ item, price, cost, gp, gpPct }) => {
+                  const c = hhColor(gpPct)
+                  const flag = gpPct >= 0.6 ? '✓' : gpPct >= 0.45 ? '⚠' : '✕'
+                  return (
+                    <tr key={item.key} style={{ borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+                      <td style={td}>{item.name}</td>
+                      <td style={td}>
+                        <NumField value={price} onChange={(v) => setHhPrice(item.key, v)} style={inp} />
+                      </td>
+                      <td style={td}>{fmtMoney(cost)}</td>
+                      <td style={td}>{fmtMoney(gp)}</td>
+                      <td style={{ ...td, color: c, fontWeight: 700 }}>{fmtPct(gpPct)}</td>
+                      <td style={{ ...td, color: c, fontSize: 16, fontWeight: 700 }}>{flag}</td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      })}
+      <p style={{ fontSize: 11, color: dim, lineHeight: 1.5 }}>
+        Doubles are a 50ml measure + {/* mixer */}post-mix; shots are 25ml. Costs come from the same ingredient prices as the
+        full sheet — edit a cost there and it flows through here. Green ≥ 60% · amber 45–60% · red &lt; 45%.
+      </p>
+    </div>
+  )
+}
+
+const hhColor = (p) => (p >= 0.6 ? green : p >= 0.45 ? amber : red)
 
 // ─── Recipe editor — per-ingredient cost + volume ───────────────────
 function RecipeEditor({ recipe, costs, setCost, wastagePct }) {
@@ -372,3 +463,9 @@ const btnGhost = {
   background: 'transparent', color: cream, border: '1px solid rgba(255,255,255,0.18)',
   padding: '5px 12px', borderRadius: 6, cursor: 'pointer', fontSize: 12,
 }
+const viewTab = (on) => ({
+  padding: '9px 18px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 600,
+  background: on ? 'rgba(201,168,76,0.18)' : ink2,
+  border: `2px solid ${on ? gold : 'rgba(255,255,255,0.12)'}`,
+  color: on ? gold : cream, letterSpacing: '0.04em',
+})

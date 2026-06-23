@@ -112,8 +112,9 @@ export const INGREDIENTS = {
   // ─── Draught kegs ─ Drinks Club 26-27 (Camden Ink keg is 30L) ────
   'keg-camden-hells':     { name: 'Camden Hells (keg)',    packMl: 50000, defaultCost: 142.28, supplier: 'Drinks Club', supplierProduct: 'Camden Hells Lager Keg 50L (BR50CAMHLKE)' },
   'keg-camden-stout':     { name: 'Camden Stout (keg)',    packMl: 30000, defaultCost:  84.42, supplier: 'Drinks Club', supplierProduct: 'Camden Ink Stout Keg 30L (BR30CAMINKE)' },
-  // SoCal IPA not on the Drinks Club Jun-26 sheet — ballpark default kept.
-  'keg-socal-ipa':        { name: 'SoCal IPA (keg)',       packMl: 50000, defaultCost: 180.00, supplier: 'Drinks Club' },
+  // Five Points XPA — the tap that replaced SoCal IPA (founder, Jun 2026).
+  // 30L keg @ £82.42 ex VAT (list £96.96 less 15%).
+  'keg-fivepoints-xpa':   { name: 'Five Points XPA (keg)', packMl: 30000, defaultCost: 82.42, supplier: 'Five Points', supplierProduct: 'Five Points XPA Keg 30L @ £82.42 ex VAT (£96.96 list − 15%)' },
   // Umbrella Cider not specifically listed; Red Fin Fresh Apple is the closest comparable.
   'keg-umbrella-cider':   { name: 'Umbrella Cider (keg)',  packMl: 50000, defaultCost: 118.04, supplier: 'Drinks Club', supplierProduct: 'Red Fin Fresh Apple Keg 50L (BR50REFFAKEG) — used as comparable' },
 
@@ -349,8 +350,8 @@ export const RECIPES = [
   { id: 'draught-camden-hells-jug', category: 'draught', name: 'Camden Hells — Jug',   sellPrice: 27,   ingredients: [{ id: 'keg-camden-hells',  ml: POUR.PINT * 4 }] },
   { id: 'draught-camden-stout-pt',  category: 'draught', name: 'Camden Stout — Pint',  sellPrice: 7,    ingredients: [{ id: 'keg-camden-stout',  ml: POUR.PINT }] },
   { id: 'draught-camden-stout-hf',  category: 'draught', name: 'Camden Stout — Half',  sellPrice: 3.6,  ingredients: [{ id: 'keg-camden-stout',  ml: POUR.HALF }] },
-  { id: 'draught-socal-pt',         category: 'draught', name: 'SoCal IPA — Pint',     sellPrice: 7,    ingredients: [{ id: 'keg-socal-ipa',     ml: POUR.PINT }] },
-  { id: 'draught-socal-hf',         category: 'draught', name: 'SoCal IPA — Half',     sellPrice: 3.6,  ingredients: [{ id: 'keg-socal-ipa',     ml: POUR.HALF }] },
+  { id: 'draught-fivepoints-pt',    category: 'draught', name: 'Five Points XPA — Pint', sellPrice: 7,   ingredients: [{ id: 'keg-fivepoints-xpa', ml: POUR.PINT }] },
+  { id: 'draught-fivepoints-hf',    category: 'draught', name: 'Five Points XPA — Half', sellPrice: 3.6, ingredients: [{ id: 'keg-fivepoints-xpa', ml: POUR.HALF }] },
   { id: 'draught-umbrella-pt',      category: 'draught', name: 'Umbrella Cider — Pint', sellPrice: 7,   ingredients: [{ id: 'keg-umbrella-cider', ml: POUR.PINT }] },
   { id: 'draught-umbrella-hf',      category: 'draught', name: 'Umbrella Cider — Half', sellPrice: 3.6, ingredients: [{ id: 'keg-umbrella-cider', ml: POUR.HALF }] },
 
@@ -786,6 +787,14 @@ export const RECIPES = [
     ],
   },
   {
+    id: 'cocktail-classic-martini', category: 'cocktail', name: 'Classic / Dirty Martini', sellPrice: 11,
+    notes: 'Stirred, strained into a chilled coupe. Olive (dirty) or lemon twist (classic).',
+    ingredients: [
+      { id: 'vodka',         ml: POUR.SPIRIT_DOUBLE },
+      { id: 'vermouth-dry',  ml: 10 },
+    ],
+  },
+  {
     id: 'cocktail-bloody-mary', category: 'cocktail', name: 'Bloody Mary', sellPrice: 11,
     notes: 'Shaker throw 8 times. Cubes to top in highball. S+P rim. Celery + lemon.',
     ingredients: [
@@ -1008,16 +1017,17 @@ export const STORE_KEY = 'ndb_ops_costing_v1'
 export function loadOverrides() {
   try {
     const raw = localStorage.getItem(STORE_KEY)
-    if (!raw) return { costs: {}, sells: {}, targets: {}, wastagePct: 5 }
+    if (!raw) return { costs: {}, sells: {}, targets: {}, hhPrices: {}, wastagePct: 5 }
     const parsed = JSON.parse(raw)
     return {
       costs: parsed.costs || {},
       sells: parsed.sells || {},
       targets: parsed.targets || {},
+      hhPrices: parsed.hhPrices || {},
       wastagePct: typeof parsed.wastagePct === 'number' ? parsed.wastagePct : 5,
     }
   } catch {
-    return { costs: {}, sells: {}, targets: {}, wastagePct: 5 }
+    return { costs: {}, sells: {}, targets: {}, hhPrices: {}, wastagePct: 5 }
   }
 }
 
@@ -1056,4 +1066,84 @@ export function priceToHitMargin(cost, targetGp) {
   if (targetGp >= 1) return Infinity
   const net = cost / (1 - targetGp)
   return net * (1 + VAT_RATE)
+}
+
+// ───────────────────────────────────────────────────────────────────────
+// HAPPY HOUR — the discounted menu (all day Mon, Tue–Fri 'til 7pm).
+// Each item points at either a RECIPE (cocktails/pints/wines) or a raw
+// spirit MEASURE (doubles/shots). Section `price` is the default inc-VAT
+// happy-hour price; it's editable per row in the Happy Hour view and the
+// margin recomputes live off the same ingredient costs as the normal sheet.
+// ───────────────────────────────────────────────────────────────────────
+export const MIXER_ML = 150   // post-mix soda/cola/lemonade in a double + mixer
+
+export const HAPPY_HOUR = {
+  note: "All day Monday · Tuesday–Friday 'til 7pm",
+  sections: [
+    { key: 'cocktails', label: 'Cocktails', price: 7, items: [
+      { key: 'hh-negroni',  name: 'Negroni',                  recipe: 'cocktail-negroni' },
+      { key: 'hh-tommys',   name: "Tommy's Margarita",        recipe: 'cocktail-tommys-marg' },
+      { key: 'hh-martini',  name: 'Classic / Dirty Martini',  recipe: 'cocktail-classic-martini' },
+      { key: 'hh-royal',    name: 'Royal Flush',              recipe: 'cocktail-royal-flush' },
+      { key: 'hh-lagerita', name: 'Lagerita / Michelada',     recipe: 'cocktail-lagerita' },
+    ] },
+    { key: 'pints', label: 'Pints', price: 5, items: [
+      { key: 'hh-hells',    name: 'Camden Hells',   recipe: 'draught-camden-hells-pt' },
+      { key: 'hh-stout',    name: 'Camden Stout',   recipe: 'draught-camden-stout-pt' },
+      { key: 'hh-xpa',      name: 'Five Points XPA', recipe: 'draught-fivepoints-pt' },
+      { key: 'hh-umbrella', name: 'Umbrella Cider', recipe: 'draught-umbrella-pt' },
+    ] },
+    { key: 'wine-glass', label: 'Wine — Glass (125ml)', price: 5, items: [
+      { key: 'hh-wg-red',      name: 'Red — Los Conejos',     recipe: 'wine-conejos-125' },
+      { key: 'hh-wg-white',    name: 'White — Blanco Blanco',  recipe: 'wine-blanco-125' },
+      { key: 'hh-wg-rose',     name: 'Rosé — Doom Juice',      recipe: 'wine-doom-rose-125' },
+      { key: 'hh-wg-orange',   name: 'Orange — TC House',      recipe: 'wine-topcuvee-125' },
+      { key: 'hh-wg-vermouth', name: 'Vermouth — Cueva (50ml)', recipe: 'wine-cueva-double' },
+    ] },
+    { key: 'wine-bottle', label: 'Wine — Bottle', price: 30, items: [
+      { key: 'hh-wb-red',      name: 'Red — Los Conejos',     recipe: 'wine-conejos-btl' },
+      { key: 'hh-wb-white',    name: 'White — Blanco Blanco',  recipe: 'wine-blanco-btl' },
+      { key: 'hh-wb-rose',     name: 'Rosé — Doom Juice',      recipe: 'wine-doom-rose-btl' },
+      { key: 'hh-wb-orange',   name: 'Orange — TC House',      recipe: 'wine-topcuvee-btl' },
+      { key: 'hh-wb-vermouth', name: 'Vermouth — Cueva',       recipe: 'wine-cueva-btl' },
+    ] },
+    { key: 'doubles', label: 'Doubles (50ml + mixer)', price: 6, items: [
+      { key: 'hh-d-absolut',   name: 'Absolut',           spirit: 'vodka',         ml: 50, mixer: true },
+      { key: 'hh-d-beefeater', name: 'Beefeater (house gin)', spirit: 'gin-house', ml: 50, mixer: true },
+      { key: 'hh-d-havana',    name: 'Havana 3',          spirit: 'rum-havana-3',  ml: 50, mixer: true },
+      { key: 'hh-d-fourroses', name: 'Four Roses',        spirit: 'bourbon',       ml: 50, mixer: true },
+      { key: 'hh-d-jameson',   name: 'Jamesons',          spirit: 'whiskey-house', ml: 50, mixer: true },
+      { key: 'hh-d-cazcabel',  name: 'Cazcabel Tequila',  spirit: 'tequila-silver', ml: 50, mixer: true },
+    ] },
+    { key: 'shots', label: 'Shots (25ml)', price: 3, items: [
+      { key: 'hh-s-tequila', name: 'Tequila',      spirit: 'tequila-silver', ml: 25 },
+      { key: 'hh-s-sambuca', name: 'Sambuca',      spirit: 'sambuca',        ml: 25 },
+      { key: 'hh-s-house',   name: 'House spirit', spirit: 'gin-house',      ml: 25 },
+    ] },
+  ],
+}
+
+// Cost-per-serve for a happy-hour item — recipe-based or a raw spirit measure.
+export function hhItemCost(item, costOverrides, wastagePct) {
+  if (item.recipe) {
+    const r = RECIPES.find((x) => x.id === item.recipe)
+    return r ? costForRecipe(r, costOverrides, wastagePct) : 0
+  }
+  const it = INGREDIENTS[item.spirit]
+  if (!it || !it.packMl) return 0
+  const packCost = costOverrides[item.spirit] ?? it.defaultCost ?? 0
+  let raw = (packCost / it.packMl) * item.ml
+  if (item.mixer) {
+    const mix = INGREDIENTS['postmix-soda']
+    if (mix && mix.packMl) raw += (mix.defaultCost / mix.packMl) * MIXER_ML
+  }
+  return raw * (1 + wastagePct / 100)
+}
+
+// Margin for a happy-hour item at a given inc-VAT happy-hour price.
+export function hhItemMargin(item, hhPrice, costOverrides, wastagePct) {
+  const cost = hhItemCost(item, costOverrides, wastagePct)
+  const net = hhPrice / (1 + VAT_RATE)
+  const gp = net - cost
+  return { cost, hhPrice, sellNet: net, gp, gpPct: net > 0 ? gp / net : 0 }
 }
