@@ -21,7 +21,7 @@ const SESSIONS = {
 }
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 const fmt = (s) => new Date(s + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
-const timeLabel = (s) => `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}`
+const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}` : ''
 // "20:00" → "8pm" (start only) — matches the public events viewer's time format.
 const fmtStart = (hhmm) => { if (!hhmm) return ''; const h = +hhmm.slice(0, 2), m = +hhmm.slice(3, 5); const ap = h >= 12 ? 'pm' : 'am'; const h12 = h % 12 === 0 ? 12 : h % 12; return `${h12}${m ? ':' + String(m).padStart(2, '0') : ''}${ap}` }
 const heldLeft = (heldAt) => {
@@ -177,6 +177,7 @@ function Calendar({ data, reload, onJump }) {
 
       {selDate ? (() => {
         const date = selDate
+        const past = date < todayStr   // past dates: no sign-off/un-confirm (avoids a "confirmed 🎉" email for a night that's gone)
         const defs = slotsForDate(date)
         if (!defs.length) return null
         return (
@@ -213,8 +214,8 @@ function Calendar({ data, reload, onJump }) {
                     {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>{status === 'open' ? 'Close (remove from marketplace)' : 'Open for DJs to claim'}</button>}
                     {!booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('gold')}>{buildKey === key ? '✕ Close' : '🎛️ Build a night'}</button>}
                     {booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('ghost')}>{buildKey === key ? '✕ Close' : '✏️ Edit details'}</button>}
-                    {booked && status === 'pending' && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
-                    {booked && status === 'confirmed' && <button onClick={() => act('unconfirm', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
+                    {booked && status === 'pending' && !past && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
+                    {booked && status === 'confirmed' && !past && <button onClick={() => act('unconfirm', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
                     {booked && <button onClick={() => act('removeBooking', { date, slot: def.slot })} disabled={busy} style={btn('red')}>Remove</button>}
                   </div>
                   {buildKey === key && (
@@ -313,7 +314,10 @@ function Events({ data, reload, filter, setFilter }) {
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const onDelete = (s) => {
-    if (window.confirm(`Delete this event — ${s.dj?.dj_name || 'DJ'} on ${fmt(s.date)}?\n\nThis removes it from the calendar and the public events page, and can't be undone.`)) act('deleteEvent', s)
+    // Only confirmed, un-suspended, upcoming nights are actually on the public feed.
+    const wasPublic = s.status === 'confirmed' && !s.suspended && !isPast(s)
+    const where = wasPublic ? 'the calendar and the public events page' : 'the calendar'
+    if (window.confirm(`Delete this event — ${s.dj?.dj_name || 'DJ'} on ${fmt(s.date)}?\n\nThis removes it from ${where}, and can't be undone.`)) act('deleteEvent', s)
   }
   const editIsSession = (d) => !!d && [4, 5, 6].includes(new Date(d + 'T00:00:00Z').getUTCDay())
 
@@ -393,7 +397,9 @@ function Events({ data, reload, filter, setFilter }) {
             {editing === k && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                  <label style={lbl}>Date<input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp(160)} /></label>
+                  {s.status === 'held'
+                    ? <div style={lbl}>Date<div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{fmt(form.date)} <span style={{ color: '#F59E0B' }}>· can't move — the DJ is holding this date</span></div></div>
+                    : <label style={lbl}>Date<input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp(160)} /></label>}
                   <label style={lbl}>Night name<input value={form.nightName} onChange={e => setForm(f => ({ ...f, nightName: e.target.value }))} placeholder="(optional)" style={inp(190)} /></label>
                 </div>
                 {editIsSession(form.date)
