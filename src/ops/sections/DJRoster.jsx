@@ -26,6 +26,20 @@ const ext = (v) => v ? (/^https?:/.test(v) ? v : 'https://' + v) : null
 const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean).length
 // All fields required except Spotify/YouTube, and at least 5 genres.
 const complete = (d) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url)
+// Exactly what a profile is still missing — so the admin can see what's blocking a
+// DJ from finishing (mirrors the required fields the DJ portal enforces).
+const missingFields = (d) => {
+  const m = []
+  if (!d?.dj_name || d.dj_name === 'New DJ') m.push('a name')
+  const gc = genreCount(d?.genres)
+  if (gc < 5) m.push(`${gc}/5 genres`)
+  if (!d?.instagram) m.push('Instagram')
+  if (!d?.format) m.push('format (how they play)')
+  if (!d?.phone) m.push('phone')
+  if (!d?.email) m.push('email')
+  if (!d?.image_url) m.push('a photo')
+  return m
+}
 const chips = (g) => (g || '').split(/[/,]/).map(x => x.trim()).filter(Boolean)
 
 export default function DJRoster({ djs, slots, release, templates, reload }) {
@@ -297,6 +311,11 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
                 </div>
                 <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Incomplete'}</span>
               </div>
+              {!done && !isEdit && missingFields(d).length > 0 && (
+                <div style={{ marginTop: 10, fontSize: 11.5, color: '#FCD34D', background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.25)', borderRadius: 7, padding: '7px 10px', lineHeight: 1.5 }}>
+                  <strong style={{ color: '#FDE68A' }}>Still needs:</strong> {missingFields(d).join(' · ')}
+                </div>
+              )}
 
               {isEdit ? (
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginTop: 12, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.08)' }}>

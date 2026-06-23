@@ -20,7 +20,8 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 
 const tones = {
   closed: { border: '1px dashed rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.5)', background: 'transparent' },
-  open: { border: `1px solid ${RED}`, color: '#fff', background: 'rgba(218,27,51,0.12)' },
+  open: { border: `1px solid ${RED}`, color: '#fff', background: 'rgba(218,27,51,0.12)' },               // paid session, open for DJs → red
+  'open-decks': { border: '1px solid #34D399', color: '#fff', background: 'rgba(52,211,153,0.12)' },      // Open Decks night, open for DJs → green
   pending: { border: '1px solid #FCD34D', color: '#fff', background: 'transparent' },
   confirmed: { border: '1px solid #34D399', color: '#fff', background: 'transparent' },
   'mine-pending': { border: '1px solid #FCD34D', color: '#fff', background: 'rgba(252,211,36,0.18)' },
@@ -52,7 +53,9 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const info = cellFor(dateStr)
           const isSel = selected === dateStr
           const clickable = info && !info.disabled
-          const t = info ? (tones[info.tone] || {}) : {}
+          // An "open for DJs" day is coloured by kind: Open Decks → green, paid session → red.
+          const toneKey = info ? (info.tone === 'open' && info.kind === 'opendecks' ? 'open-decks' : info.tone) : null
+          const t = info ? (tones[toneKey] || {}) : {}
           const evs = (rich && info && Array.isArray(info.events)) ? info.events : []
 
           // Rich cell: booked day → thumbnail + DJ + time + detail (public-viewer style).
