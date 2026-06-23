@@ -240,6 +240,8 @@ export const INGREDIENTS = {
 
   // ─── Extra spirits / liqueurs ─ Drinks Club prices verified ─────
   'vodka':                  { name: 'Vodka (well)',          packMl: 700, defaultCost: 14.53, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Blue 700ml (SPV7ABSBL)' },
+  // Sambuca — cost is an estimate (~£11/70cl ex VAT); confirm the Drinks Club price.
+  'sambuca':                { name: 'Sambuca',               packMl: 700, defaultCost: 11.00, supplier: 'Drinks Club', supplierProduct: 'Sambuca 700ml — £11.00 estimate, confirm Drinks Club price' },
   'vodka-vanilla':          { name: 'Vanilla Vodka',         packMl: 700, defaultCost: 16.86, supplier: 'Drinks Club', supplierProduct: 'Absolut Vodka Vanilla 700ml (SPV7ABSVA)' },
   'gin-house':              { name: 'House Gin (Hanbury LD)', packMl: 2100, defaultCost: 64.00, supplier: 'True Brew Co Ltd (Hanbury Distillery)', supplierProduct: 'Hanbury London Dry Refill 2.1L (HD011)' },
   'rum-spiced':             { name: 'Spiced Rum (Cut)',      packMl: 700, defaultCost: 20.76, supplier: 'Drinks Club', supplierProduct: 'Cut Spiced Rum 700ml (SPR7CUTSR)' },
@@ -411,9 +413,9 @@ export const RECIPES = [
   { id: 'wine-chinchin-125',   category: 'wine', name: 'Chin Chin Vinho Verde — 125ml', sellPrice: 7,  ingredients: [{ id: 'wine-chinchin-verde', ml: POUR.WINE_125 }] },
   { id: 'wine-chinchin-btl',   category: 'wine', name: 'Chin Chin Vinho Verde — Bottle', sellPrice: 35, ingredients: [{ id: 'wine-chinchin-verde', ml: 750 }] },
 
-  // Cueva Nueva is a vermut — 125ml seeded at bottle ÷ 5; you may pour it
-  // smaller as an aperitif (drop the ml in the tool to suit).
-  { id: 'wine-cueva-125',      category: 'wine', name: 'Cueva Nueva Vermut — 125ml', sellPrice: 10, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.WINE_125 }] },
+  // Cueva Nueva is a vermut — served as a spirit-style 50ml DOUBLE measure,
+  // not a 125ml wine pour (founder, Jun 2026). £6 normal.
+  { id: 'wine-cueva-double',   category: 'wine', name: 'Cueva Nueva Vermut — Double (50ml)', sellPrice: 6, ingredients: [{ id: 'wine-cueva-vermut', ml: POUR.SPIRIT_DOUBLE }] },
   { id: 'wine-cueva-btl',      category: 'wine', name: 'Cueva Nueva Vermut — Bottle (500ml)', sellPrice: 50, ingredients: [{ id: 'wine-cueva-vermut', ml: 500 }] },
 
   { id: 'wine-vigna-125',      category: 'wine', name: 'Vigna Rose Pet Nat — 125ml flute', sellPrice: 8, ingredients: [{ id: 'wine-vigna-petnat', ml: POUR.WINE_125 }] },
@@ -607,6 +609,7 @@ export const RECIPES = [
   },
 
   // ─── SHOOTERS ──
+  { id: 'shot-sambuca', category: 'shot', name: 'Sambuca (shot)', sellPrice: 4, ingredients: [{ id: 'sambuca', ml: POUR.SPIRIT_SINGLE }] },
   {
     id: 'shot-pickleback', category: 'shot', name: 'Pickleback', sellPrice: 6,
     ingredients: [
