@@ -248,7 +248,7 @@ Deno.serve(async (req) => {
     const session = isSession(date);
     if (session) {
       const { start, next } = monthRange(date);
-      const { data: existing } = await sb.from("dj_slots").select("date").eq("dj_id", dj.id).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).gte("date", start).lt("date", next);
+      const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).gte("date", start).lt("date", next);
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
     }
     const { data: updated, error } = await sb.from("dj_slots").update({
@@ -298,7 +298,7 @@ Deno.serve(async (req) => {
       if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
       // one paid session per DJ per calendar month (counts other holds too; not this date)
       const { start, next } = monthRange(date);
-      const { data: existing } = await sb.from("dj_slots").select("date").eq("dj_id", dj.id).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
+      const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
       // adjacency: sub-genre booked the day before/after
       const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);

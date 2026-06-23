@@ -518,14 +518,14 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
-    onSave({ djId, djId2, nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
+    onSave({ djId, djId2: djId2 && djId2 !== djId ? djId2 : '', nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
   }
 
   return (
     <div style={{ width: '100%', marginTop: 6, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.08)', display: 'flex', flexDirection: 'column', gap: 10 }}>
       {showDj && (
         <label style={lbl}>DJ
-          <Dropdown value={djId} onChange={setDjId} placeholder="— pick a DJ from the roster —" width={250}
+          <Dropdown value={djId} onChange={(v) => { setDjId(v); if (v && v === djId2) setDjId2('') }} placeholder="— pick a DJ from the roster —" width={250}
             options={(djs || []).filter(r => (r.status || 'vetted') === 'vetted').map(r => ({ value: r.id, label: r.dj_name }))} />
         </label>
       )}
