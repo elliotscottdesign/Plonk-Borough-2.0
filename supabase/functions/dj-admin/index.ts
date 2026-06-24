@@ -40,6 +40,14 @@ async function sendMail(to: string, subject: string, html: string) {
     });
   } catch (_) { /* best-effort — never break the sign-off */ }
 }
+const emailShell = (heading: string, bodyHtml: string, token?: string) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#000;color:#fff;padding:28px;border-radius:12px;max-width:560px;margin:auto">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#DA1B33;margin:0 0 14px">No Dice · DJ Portal</p>
+    <h1 style="font-size:22px;margin:0 0 12px">${heading}</h1>
+    ${bodyHtml}
+    ${token ? `<p style="margin:22px 0"><a href="${PORTAL}?t=${encodeURIComponent(token)}" style="background:#DA1B33;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">Open my portal</a></p>` : ""}
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
 
 async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
@@ -99,7 +107,7 @@ Deno.serve(async (req) => {
     case "removeBooking":
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.
-      await sb.from("dj_slots").update({ status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      await sb.from("dj_slots").update({ status: "open", dj_id: null, dj_id2: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "editEvent": {
       // Admin edits a created event in place (Events tab). Optionally moves it to a
@@ -108,6 +116,17 @@ Deno.serve(async (req) => {
       if (tgt !== date) {
         const { data: clash } = await sb.from("dj_slots").select("date").eq("date", tgt).eq("slot", slot).maybeSingle();
         if (clash) return json({ error: "That date already has a booking in this slot — pick another." }, 409);
+      }
+      // Detect a genuine lead-DJ swap so neither DJ is silently re-assigned. The
+      // Events edit always re-sends the lead, so this only fires on an actual change.
+      let oldLead: any = null, newLead: any = null;
+      if (djId !== undefined && djId) {
+        const { data: cur } = await sb.from("dj_slots").select("dj_id, dj:djs(dj_name,email,token)").eq("date", date).eq("slot", slot).maybeSingle();
+        if (cur && (cur as any).dj_id && (cur as any).dj_id !== djId) {
+          oldLead = (cur as any).dj;
+          const { data: nd } = await sb.from("djs").select("dj_name,email,token").eq("id", djId).maybeSingle();
+          newLead = nd;
+        }
       }
       const subs = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
@@ -123,6 +142,13 @@ Deno.serve(async (req) => {
       if (tgt !== date) upd.date = tgt;
       const { error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
       if (error) return json({ error: error.message }, 500);
+      if (oldLead || newLead) {
+        const dStr = niceDate(tgt);
+        if (oldLead?.email) await sendMail(oldLead.email, `Update to your No Dice night — ${dStr}`, emailShell(`A change to ${dStr}`,
+          `<p style="font-size:15px;line-height:1.6;color:#ddd">Hi ${esc(oldLead.dj_name || "")}, your night on <strong style="color:#fff">${dStr}</strong> has been reassigned by No Dice. If that's a surprise, give us a shout.</p>`, oldLead.token));
+        if (newLead?.email) await sendMail(newLead.email, `You're on at No Dice — ${dStr}`, emailShell(`You're booked for ${dStr}`,
+          `<p style="font-size:15px;line-height:1.6;color:#ddd">Hi ${esc(newLead.dj_name || "")}, No Dice has put you on the night on <strong style="color:#fff">${dStr}</strong>. Open your portal to add your track and artwork.</p>`, newLead.token));
+      }
       break;
     }
     case "suspend":

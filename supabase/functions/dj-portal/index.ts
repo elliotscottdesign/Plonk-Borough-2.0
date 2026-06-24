@@ -270,7 +270,7 @@ Deno.serve(async (req) => {
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
     }
     const { data: updated, error } = await sb.from("dj_slots").update({
-      dj_id: dj.id, status: "held", kind: session ? "session" : "opendecks",
+      dj_id: dj.id, dj_id2: null, status: "held", kind: session ? "session" : "opendecks",
       held_at: new Date().toISOString(), reminder_sent: false, updated_at: new Date().toISOString(),
     }).eq("date", date).eq("slot", slot).eq("status", "open").select("date");
     if (error) return json({ error: error.message }, 500);
@@ -291,7 +291,8 @@ Deno.serve(async (req) => {
     };
     if (session) { upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
     else { upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
-    upd.dj_id2 = (dj_id2 && dj_id2 !== dj.id) ? dj_id2 : null;   // b2b partner (validated on claim)
+    const dp = await checkPartner(sb, dj_id2, dj.id, date, session);
+    upd.dj_id2 = dp.error ? null : dp.partner;   // drop an invalid / over-cap partner silently on a draft
     await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("dj_id", dj.id).eq("status", "held");
     return state(sb, dj.id);
   }
@@ -377,7 +378,7 @@ Deno.serve(async (req) => {
 
   if (action === "cancel") {
     // Release a held draft OR a pending request back to the open marketplace.
-    await sb.from("dj_slots").update({ dj_id: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
+    await sb.from("dj_slots").update({ dj_id: null, dj_id2: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["held", "pending"]);
     return state(sb, dj.id);
   }

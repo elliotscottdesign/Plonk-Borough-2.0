@@ -253,7 +253,7 @@ export default function DJPortal() {
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Back-to-back with <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>(optional — play this {session ? 'session' : 'night'} b2b with another DJ)</span></div>
             <select value={b2bId} onChange={e => setB2bId(e.target.value)} style={{ ...inp, appearance: 'auto', cursor: 'pointer' }}>
               <option value="">— just me —</option>
-              {(st.roster || []).map(r => <option key={r.id} value={r.id}>{r.dj_name}</option>)}
+              {(st.roster || []).filter(r => r.id !== (st.dj && st.dj.id)).map(r => <option key={r.id} value={r.id}>{r.dj_name}</option>)}
             </select>
             {b2bId && session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4, lineHeight: 1.4 }}>This counts as their one paid session for the month too.</div>}
           </div>
