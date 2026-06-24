@@ -60,7 +60,7 @@ export default function DJPortal() {
 
   const refresh = (d) => { setSt(d); setForm(d.dj) }
   const onField = (k, v) => setForm(f => ({ ...f, [k]: v }))
-  const flash = (m) => { setMsg(m); setTimeout(() => setMsg(''), 3500) }
+  const flash = (m, ms = 3500) => { setMsg(m); setTimeout(() => setMsg(''), ms) }
 
   const save = async () => {
     setBusy(true)
@@ -215,11 +215,20 @@ export default function DJPortal() {
     const slots = openByDate[dateStr]
     if (!slots || !slots.length) return null
     const anySession = slots.some(o => (o.kind || kindFor(dateStr, o.slot)) === 'session')
+    // Paid-session date in a month where I've already got my one paid session →
+    // keep it tappable so the tap can explain why (instead of a silent dead cell).
+    const capped = anySession && bookedSessionMonths.has(monthKey(dateStr)) && !bookable(dateStr).length
+    if (capped) return { tone: 'closed', kind: 'session', disabled: false, capped: true }
     if (!bookable(dateStr).length) return { tone: 'closed', kind: anySession ? 'session' : 'opendecks', disabled: true }
     return { tone: 'open', kind: anySession ? 'session' : 'opendecks', disabled: false }
   }
+  const sessionCapped = (date) => (openByDate[date] || []).some(o => (o.kind || kindFor(date, o.slot)) === 'session') && bookedSessionMonths.has(monthKey(date)) && !bookable(date).length
   // Tap a date: one open session → straight to hold; two+ (Saturdays) → pick afternoon/evening.
   const pickDate = (date) => {
+    if (sessionCapped(date)) {
+      flash("You've already got a paid session booked this month — it's one paid Thu/Fri/Sat session per DJ a month. Book a paid session next month, or grab a free Open Decks night (Mon/Tue/Wed) this month 🎚️", 9000)
+      return
+    }
     const slots = bookable(date)
     if (slots.length === 0) return
     if (slots.length === 1) startClaim(date, slots[0].slot)
@@ -262,6 +271,7 @@ export default function DJPortal() {
           <>
             <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>What will you play? <span style={{ color: RED }}>tap up to {MAX_SUBS} sub-genres</span> · <span style={{ color: subs.length ? '#34D399' : 'rgba(255,255,255,0.5)' }}>{subs.length}/{MAX_SUBS}</span></div>
             <SubgenrePicker selected={subs} onChange={setSubs} blocked={blocked} max={MAX_SUBS} />
+            {blocked.length > 0 && <div style={{ fontSize: 11, color: '#FCD34D', lineHeight: 1.5, marginTop: 6 }}>⚠️ <strong>{blocked.join(', ')}</strong> {blocked.length === 1 ? 'is' : 'are'} greyed out — already booked the night before or after, so {blocked.length === 1 ? "it can't" : "they can't"} go on this date. Pick other genres, or choose another date.</div>}
           </>
         ) : (
           <div>

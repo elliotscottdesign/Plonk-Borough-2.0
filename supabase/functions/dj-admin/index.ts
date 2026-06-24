@@ -104,6 +104,11 @@ Deno.serve(async (req) => {
     case "unconfirm":
       await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
+    case "forcePending":
+      // Founder override: push a stuck DJ draft (held) straight to pending so it can
+      // be signed off — bypasses the DJ-side booking rules (cap, adjacency, etc).
+      await sb.from("dj_slots").update({ status: "pending", held_at: null, reminder_sent: false, updated_at: now() }).eq("date", date).eq("slot", slot).eq("status", "held");
+      break;
     case "removeBooking":
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.

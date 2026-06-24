@@ -218,6 +218,7 @@ function Calendar({ data, reload, onJump }) {
                     {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>{status === 'open' ? 'Close (remove from marketplace)' : 'Open for DJs to claim'}</button>}
                     {!booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('gold')}>{buildKey === key ? '✕ Close' : '🎛️ Build a night'}</button>}
                     {booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('ghost')}>{buildKey === key ? '✕ Close' : '✏️ Edit details'}</button>}
+                    {booked && status === 'held' && !past && <button onClick={() => act('forcePending', { date, slot: def.slot })} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
                     {booked && status === 'pending' && !past && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
                     {booked && status === 'confirmed' && !past && <button onClick={() => act('unconfirm', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
                     {booked && <button onClick={() => act('removeBooking', { date, slot: def.slot })} disabled={busy} style={btn('red')}>Remove</button>}
@@ -391,6 +392,7 @@ function Events({ data, reload, filter, setFilter }) {
             {/* Manage — actions depend on the event's status */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
+              {s.status === 'held' && !past && <button onClick={() => act('forcePending', s)} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
               {s.status === 'pending' && !past && <button onClick={() => act('signoff', s)} disabled={busy} style={btn('green')}>✓ Sign off</button>}
               {s.status === 'confirmed' && !past && (sus
                 ? <button onClick={() => act('unsuspend', s)} disabled={busy} style={btn('green')}>▶️ Restore (show publicly)</button>
@@ -398,7 +400,7 @@ function Events({ data, reload, filter, setFilter }) {
               {s.status === 'confirmed' && !past && <button onClick={() => act('unconfirm', s)} disabled={busy} style={btn('ghost')}>↩ Un-confirm</button>}
               <button onClick={() => onDelete(s)} disabled={busy} style={btn('red')}>🗑 Delete</button>
             </div>
-            {s.status === 'held' && !past && <div style={{ fontSize: 11, color: '#F59E0B' }}>⏳ Draft — the DJ is still filling this in{s.held_at ? ` · ${heldLeft(s.held_at)}` : ''}. Edit or remove it if needed.</div>}
+            {s.status === 'held' && !past && <div style={{ fontSize: 11, color: '#F59E0B' }}>⏳ Draft — the DJ is still filling this in{s.held_at ? ` · ${heldLeft(s.held_at)}` : ''}. If they're stuck, <strong style={{ color: '#fff' }}>▶ Push to pending</strong> to take it over, then edit &amp; sign off.</div>}
 
             {editing === k && (
               <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
