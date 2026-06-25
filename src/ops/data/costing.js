@@ -1081,9 +1081,9 @@ export const HAPPY_HOUR = {
   note: "All day Monday · Tuesday–Friday 'til 7pm",
   sections: [
     { key: 'cocktails', label: 'Cocktails', price: 7, items: [
-      { key: 'hh-negroni',  name: 'Negroni',                  recipe: 'cocktail-negroni' },
-      { key: 'hh-tommys',   name: "Tommy's Margarita",        recipe: 'cocktail-tommys-marg' },
-      { key: 'hh-martini',  name: 'Classic / Dirty Martini',  recipe: 'cocktail-classic-martini' },
+      { key: 'hh-negroni',   name: 'Negroni',                 recipe: 'cocktail-negroni' },
+      { key: 'hh-daiquiri',  name: 'Watermelon Daiquiri',     recipe: 'cocktail-watermelon-daiquiri' },
+      { key: 'hh-martini',   name: 'Classic / Dirty Martini', recipe: 'cocktail-classic-martini' },
       { key: 'hh-royal',    name: 'Royal Flush',              recipe: 'cocktail-royal-flush' },
       { key: 'hh-lagerita', name: 'Lagerita / Michelada',     recipe: 'cocktail-lagerita' },
     ] },
