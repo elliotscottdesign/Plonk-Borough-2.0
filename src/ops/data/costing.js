@@ -864,7 +864,6 @@ export const RECIPES = [
     ingredients: [
       { id: 'tequila-silver',       ml: 25 },
       { id: 'lime-juice',           ml: 25 },
-      { id: 'tomato-juice',         ml: 50 },
       { id: 'valentina-hot-sauce',  ml: 12.5 },
       { id: 'worcestershire',       ml: 12.5 },
       { id: 'keg-camden-hells',     ml: 200 },
@@ -917,7 +916,6 @@ export const RECIPES = [
     id: 'spritz-michelada-sol', category: 'spritz', name: 'Michelada (Sol)', sellPrice: 9,
     notes: 'Tajín rim. Pour everything except Sol on cubes. Stir. Top with Sol + serve rest alongside.',
     ingredients: [
-      { id: 'tomato-juice',     ml: 50 },
       { id: 'lime-juice',       ml: 15 },
       { id: 'tabasco',          ml: 2 },
       { id: 'worcestershire',   ml: 1 },
