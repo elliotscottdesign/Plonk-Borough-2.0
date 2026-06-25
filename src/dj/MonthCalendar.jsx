@@ -61,6 +61,28 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const t = info ? (tones[toneKey] || {}) : {}
           const evs = (rich && info && Array.isArray(info.events)) ? info.events : []
 
+          // Multi-session day (Saturday: afternoon 4–8pm + evening 8pm–12am) → show
+          // each session on its own row so both are clear at a glance (admin view).
+          if (rich && info && Array.isArray(info.daySlots) && info.daySlots.length > 1 && info.daySlots.some(s => s.status !== 'closed')) {
+            const sc = (st) => st === 'confirmed' ? '#34D399' : (st === 'pending' || st === 'held') ? '#FCD34D' : st === 'open' ? RED : 'rgba(255,255,255,0.28)'
+            return (
+              <button key={i} type="button" className="cal-rich-cell" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
+                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.16)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', background: '#0A0A0A' }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
+                  <span style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>2 sessions</span>
+                </div>
+                {info.daySlots.map((s, j) => (
+                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 6px', borderTop: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0 }}>
+                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc(s.status), flexShrink: 0 }} />
+                    <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, whiteSpace: 'nowrap' }}>{s.start}</span>
+                    <span style={{ fontSize: 9, color: s.dj ? '#fff' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{s.dj || (s.status === 'open' ? 'Open' : s.status === 'closed' ? '—' : s.status)}</span>
+                  </div>
+                ))}
+              </button>
+            )
+          }
+
           // Rich cell: booked day → thumbnail + DJ + time + detail (public-viewer style).
           if (rich && evs.length) {
             const e0 = evs[0]
@@ -109,7 +131,9 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                 cursor: clickable ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: 0, position: 'relative',
               }}>
               <span>{d}</span>
-              {info && info.kind && <span style={{ width: 5, height: 5, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} />}
+              {info && info.kind && (info.slots > 1
+                ? <span style={{ display: 'flex', alignItems: 'center', gap: 2 }} title="Two sessions — afternoon + evening"><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} /><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} /></span>
+                : <span style={{ width: 5, height: 5, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} />)}
             </button>
           )
         })}

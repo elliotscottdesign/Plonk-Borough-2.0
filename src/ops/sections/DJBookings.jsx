@@ -125,7 +125,20 @@ function Calendar({ data, reload, onJump }) {
     if (!defs.length) return null
     const rows = defs.map(d => byKey[dateStr + '|' + d.slot]).filter(Boolean)
     const closedTone = defs[0].kind === 'opendecks' ? 'closed-opendecks' : 'closed-session'   // not opened yet → dashed, coloured by kind
-    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false }
+    // Per-session detail for the cell — drives the two-row Saturday layout
+    // (afternoon 4–8pm + evening 8pm–12am) so both sessions are visible at a glance.
+    const daySlots = defs.map(def => {
+      const r = byKey[dateStr + '|' + def.slot]
+      const sess = sessionForSlot(dateStr, def.slot)
+      const p2 = r?.dj_id2 ? (djs || []).find(d => d.id === r.dj_id2)?.dj_name : null
+      return {
+        slot: def.slot, start: fmtStart(sess?.start), label: slotLabel(dateStr, def.slot),
+        status: r ? r.status : 'closed',
+        dj: r?.dj_id ? (p2 ? `${r.dj?.dj_name || 'DJ'} b2b ${p2}` : (r.dj?.dj_name || 'DJ')) : null,
+        image: r?.event_image_url || r?.dj?.image_url || '',
+      }
+    })
+    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false, daySlots }
     const has = (st) => rows.some(r => r.status === st)
     const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : closedTone
     // Booked nights → thumbnail + detail cards in the cell (public-viewer rules).
@@ -138,7 +151,7 @@ function Calendar({ data, reload, onJump }) {
       return { image: r.event_image_url || r.dj?.image_url || '', title, time: fmtStart(sess?.start), sub, status: r.status }
     })
     const openCount = rows.filter(r => r.status === 'open' && !r.dj_id).length   // other slots still free that day
-    return { tone, kind: defs[0].kind, disabled: false, events, openCount }
+    return { tone, kind: defs[0].kind, disabled: false, events, openCount, daySlots }
   }
 
   // Counts scoped to upcoming so the headline matches the list you land on when
@@ -176,6 +189,7 @@ function Calendar({ data, reload, onJump }) {
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FCD34D', marginRight: 5, verticalAlign: 'middle' }} />pending/draft</span>
           <span><span style={{ color: '#34D399' }}>Green</span> = Open Decks · <span style={{ color: '#DA1B33' }}>red</span> = paid session. <strong style={{ color: '#fff' }}>Solid</strong> = open for DJs to claim · <strong style={{ color: '#fff' }}>dashed</strong> = not opened yet (tap to open).</span>
+          <span>🕓 Saturdays show <strong style={{ color: '#fff' }}>both</strong> sessions — afternoon <strong style={{ color: '#fff' }}>4–8pm</strong> + evening <strong style={{ color: '#fff' }}>8pm–12am</strong>.</span>
         </>} />
 
       {selDate ? (() => {

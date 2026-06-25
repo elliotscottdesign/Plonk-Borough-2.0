@@ -220,7 +220,7 @@ export default function DJPortal() {
     const capped = anySession && bookedSessionMonths.has(monthKey(dateStr)) && !bookable(dateStr).length
     if (capped) return { tone: 'closed', kind: 'session', disabled: false, capped: true }
     if (!bookable(dateStr).length) return { tone: 'closed', kind: anySession ? 'session' : 'opendecks', disabled: true }
-    return { tone: 'open', kind: anySession ? 'session' : 'opendecks', disabled: false }
+    return { tone: 'open', kind: anySession ? 'session' : 'opendecks', disabled: false, slots: slots.length }
   }
   const sessionCapped = (date) => (openByDate[date] || []).some(o => (o.kind || kindFor(date, o.slot)) === 'session') && bookedSessionMonths.has(monthKey(date)) && !bookable(date).length
   // Tap a date: one open session → straight to hold; two+ (Saturdays) → pick afternoon/evening.
@@ -532,6 +532,7 @@ export default function DJPortal() {
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: RED, marginRight: 5, verticalAlign: 'middle' }} />Session (paid)</span>
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
                 <span style={{ color: '#FCD34D' }}>your bookings highlighted</span>
+                <span>🕓 Saturdays have <strong style={{ color: '#fff' }}>two</strong> paid sessions — afternoon <strong style={{ color: '#fff' }}>4–8pm</strong> + evening <strong style={{ color: '#fff' }}>8pm–12am</strong> (tap to pick)</span>
               </>} />
             <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to hold it — you'll then have 24h to fill in the details.</div>
           </>
