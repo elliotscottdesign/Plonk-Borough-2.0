@@ -250,7 +250,7 @@ export default function DJPortal() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ fontWeight: 700 }}>
             {editing && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 999, padding: '1px 7px', marginRight: 6 }}>Editing</span>}
-            {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#34D399', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? (sLabel ? `Session · ${sLabel}` : 'Session') : 'Open Decks'}</span>
+            {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#F97316', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(249,115,22,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? (sLabel ? `Session · ${sLabel}` : 'Session') : 'Open Decks'}</span>
           </div>
           <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
         </div>
@@ -530,7 +530,7 @@ export default function DJPortal() {
             <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth} cellFor={cellFor} onDay={pickDate} selected={claiming}
               legend={<>
                 <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: RED, marginRight: 5, verticalAlign: 'middle' }} />Session (paid)</span>
-                <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
+                <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#F97316', marginRight: 5, verticalAlign: 'middle' }} />Open Decks</span>
                 <span style={{ color: '#FCD34D' }}>your bookings highlighted</span>
                 <span>🕓 Saturdays have <strong style={{ color: '#fff' }}>two</strong> paid sessions — afternoon <strong style={{ color: '#fff' }}>4–8pm</strong> + evening <strong style={{ color: '#fff' }}>8pm–12am</strong> (tap to pick)</span>
               </>} />

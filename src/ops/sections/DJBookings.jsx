@@ -188,7 +188,7 @@ function Calendar({ data, reload, onJump }) {
           <span>Booked nights show artwork + DJ. Border &amp; dot:</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#34D399', marginRight: 5, verticalAlign: 'middle' }} />confirmed</span>
           <span><span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: '#FCD34D', marginRight: 5, verticalAlign: 'middle' }} />pending/draft</span>
-          <span><span style={{ color: '#34D399' }}>Green</span> = Open Decks · <span style={{ color: '#DA1B33' }}>red</span> = paid session. <strong style={{ color: '#fff' }}>Solid</strong> = open for DJs to claim · <strong style={{ color: '#fff' }}>dashed</strong> = not opened yet (tap to open).</span>
+          <span><span style={{ color: '#F97316' }}>Orange</span> = Open Decks · <span style={{ color: '#DA1B33' }}>red</span> = paid session · <span style={{ color: '#34D399' }}>green</span> = confirmed. <strong style={{ color: '#fff' }}>Solid</strong> = open for DJs to claim · <strong style={{ color: '#fff' }}>dashed</strong> = not opened yet (tap to open).</span>
           <span>🕓 Saturdays show <strong style={{ color: '#fff' }}>both</strong> sessions — afternoon <strong style={{ color: '#fff' }}>4–8pm</strong> + evening <strong style={{ color: '#fff' }}>8pm–12am</strong>.</span>
         </>} />
 
@@ -212,7 +212,7 @@ function Calendar({ data, reload, onJump }) {
                 <div key={def.slot} style={{ borderLeft: `3px solid ${accent}`, paddingLeft: 12, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 150 }}>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{def.day}{sLab ? ` · ${sLab}` : ''} · {timeLabel(def)}</div>
-                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: def.kind === 'session' ? '#DA1B33' : '#34D399', border: `1px solid ${def.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(52,211,153,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{def.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
+                    <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: def.kind === 'session' ? '#DA1B33' : '#F97316', border: `1px solid ${def.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(249,115,22,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{def.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
                   </div>
                   <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
                     {booked ? (

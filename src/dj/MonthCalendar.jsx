@@ -13,7 +13,7 @@ import React from 'react'
 //       (admin Events calendar). cellFor may then also return
 //       events: [{ image, title, time, sub, status }] — matches the public
 //       events viewer at /events. Off by default (DJ portal keeps plain cells).
-const RED = '#DA1B33', LINE = 'rgba(255,255,255,0.12)'
+const RED = '#DA1B33', ORANGE = '#F97316', LINE = 'rgba(255,255,255,0.12)'   // ORANGE = Open Decks (distinct from confirmed-green)
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -21,10 +21,10 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 const tones = {
   closed: { border: '1px dashed rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.5)', background: 'transparent' },
   open: { border: `1px solid ${RED}`, color: '#fff', background: 'rgba(218,27,51,0.12)' },               // paid session, open for DJs → solid red
-  'open-decks': { border: '1px solid #34D399', color: '#fff', background: 'rgba(52,211,153,0.12)' },      // Open Decks night, open for DJs → solid green
+  'open-decks': { border: `1px solid ${ORANGE}`, color: '#fff', background: 'rgba(249,115,22,0.12)' },     // Open Decks night, open for DJs → solid orange
   // Bookable but NOT yet opened for DJs (admin only): kind-coloured + dashed.
   'closed-session': { border: `1px dashed rgba(218,27,51,0.5)`, color: 'rgba(255,255,255,0.55)', background: 'transparent' },     // paid session, not opened → dashed red
-  'closed-opendecks': { border: '1px dashed rgba(52,211,153,0.5)', color: 'rgba(255,255,255,0.55)', background: 'transparent' }, // Open Decks, not opened → dashed green
+  'closed-opendecks': { border: '1px dashed rgba(249,115,22,0.55)', color: 'rgba(255,255,255,0.55)', background: 'transparent' }, // Open Decks, not opened → dashed orange
   pending: { border: '1px solid #FCD34D', color: '#fff', background: 'transparent' },
   confirmed: { border: '1px solid #34D399', color: '#fff', background: 'transparent' },
   'mine-pending': { border: '1px solid #FCD34D', color: '#fff', background: 'rgba(252,211,36,0.18)' },
@@ -56,7 +56,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const info = cellFor(dateStr)
           const isSel = selected === dateStr
           const clickable = info && !info.disabled
-          // An "open for DJs" day is coloured by kind: Open Decks → green, paid session → red.
+          // An "open for DJs" day is coloured by kind: Open Decks → orange, paid session → red.
           const toneKey = info ? (info.tone === 'open' && info.kind === 'opendecks' ? 'open-decks' : info.tone) : null
           const t = info ? (tones[toneKey] || {}) : {}
           const evs = (rich && info && Array.isArray(info.events)) ? info.events : []
@@ -132,8 +132,8 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
               }}>
               <span>{d}</span>
               {info && info.kind && (info.slots > 1
-                ? <span style={{ display: 'flex', alignItems: 'center', gap: 2 }} title="Two sessions — afternoon + evening"><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} /><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} /></span>
-                : <span style={{ width: 5, height: 5, borderRadius: '50%', background: info.kind === 'session' ? RED : '#34D399' }} />)}
+                ? <span style={{ display: 'flex', alignItems: 'center', gap: 2 }} title="Two sessions — afternoon + evening"><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : ORANGE }} /><span style={{ width: 4, height: 4, borderRadius: '50%', background: info.kind === 'session' ? RED : ORANGE }} /></span>
+                : <span style={{ width: 5, height: 5, borderRadius: '50%', background: info.kind === 'session' ? RED : ORANGE }} />)}
             </button>
           )
         })}
