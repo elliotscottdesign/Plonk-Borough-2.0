@@ -202,6 +202,15 @@ export default function DJPortal() {
   const openByDate = {}
   for (const o of st.openSlots) { if (!openByDate[o.date]) openByDate[o.date] = []; openByDate[o.date].push(o) }
   const mineMap = Object.fromEntries(st.myBookings.map(b => [b.date, b]))
+  // Booking horizon — dates are released a few months at a time. The last open
+  // date tells DJs how far ahead they can book; future months with nothing open
+  // get a "not released yet" note instead of looking empty/broken.
+  const openDates = st.openSlots.map(o => o.date)
+  const lastOpenDate = openDates.length ? openDates.reduce((a, b) => a > b ? a : b) : null
+  const lastOpenLabel = lastOpenDate ? new Date(lastOpenDate + 'T00:00:00').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : null
+  const viewMonthHasOpen = openDates.some(d => { const dt = new Date(d + 'T00:00:00'); return dt.getFullYear() === viewY && dt.getMonth() === viewM })
+  const viewIsFuture = viewY > now.getFullYear() || (viewY === now.getFullYear() && viewM > now.getMonth())
+  const viewMonthLabel = new Date(viewY, viewM, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
   const shiftMonth = (n) => { let m = viewM + n, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m) }
   const canPrevMonth = viewY > now.getFullYear() || (viewY === now.getFullYear() && viewM > now.getMonth())
   // Open session-of-day slots a DJ can still book (sessions hidden once their month is used).
@@ -534,7 +543,9 @@ export default function DJPortal() {
                 <span style={{ color: '#FCD34D' }}>your bookings highlighted</span>
                 <span>🕓 Saturdays have <strong style={{ color: '#fff' }}>two</strong> paid sessions — afternoon <strong style={{ color: '#fff' }}>4–8pm</strong> + evening <strong style={{ color: '#fff' }}>8pm–12am</strong> (tap to pick)</span>
               </>} />
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center' }}>Tap a red-outlined date to hold it — you'll then have 24h to fill in the details.</div>
+            {(!viewMonthHasOpen && viewIsFuture)
+              ? <div style={{ fontSize: 12, color: '#FCD34D', marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>🔒 {viewMonthLabel} dates aren't released yet — we open them closer to the time.{lastOpenLabel ? ` You can book through ${lastOpenLabel}.` : ''}</div>
+              : <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, textAlign: 'center', lineHeight: 1.5 }}>Tap an open date to hold it — you'll then have 24h to fill in the details.{lastOpenLabel ? ` Dates are open through ${lastOpenLabel}.` : ''}</div>}
           </>
         )}
         {/* Two sessions on one day (Saturdays) — pick which before holding. */}
