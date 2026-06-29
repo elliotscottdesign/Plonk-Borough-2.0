@@ -139,6 +139,11 @@ export const setTypeLabel = (v) => (SET_TYPES.find(s => s.value === v) || {}).la
 // Ready-to-post Instagram caption for a confirmed night. Accepts the admin slot
 // shape ({date, dj:{dj_name,instagram}, subgenres, night_name, set_type, kind})
 // or the feed shape ({date, dj, instagram, genres, ...}).
+// Promo artist/track are NAMES only — flag anything that looks like a URL/link:
+// a scheme, www., any domain-with-a-path, or a known music-link host. Avoids
+// false-positives on dotted names like "will.i.am" / "M.I.A." (no path, not a host).
+export const looksLink = (s) => /(https?:\/\/|www\.|[\w-]+\.[a-z]{2,}\/|\b(soundcloud|youtu|spoti|bit\.ly|linktr|hearthis|mixcloud|bandcamp|tidal|deezer|audiomack|hypeddit|fanlink|toneden)\b)/i.test(s || '')
+
 export function instagramCaption(ev) {
   const dj = ev?.dj?.dj_name || ev?.dj || 'TBA'
   const dj2 = (typeof ev?.dj2 === 'string' ? ev.dj2 : '') || ev?.dj2name || ''   // back-to-back partner
@@ -157,6 +162,8 @@ export function instagramCaption(ev) {
   ]
   if (subs.length) lines.push(subs.join(' · '))
   if (fmt) lines.push(`🎛️ ${fmt}`)
+  const promo = [ev?.promo_artist, ev?.promo_track].filter(Boolean).join(' — ')
+  if (promo) lines.push(`🎵 ${promo}`)
   lines.push(`${session ? '' : (setTypeLabel(ev.set_type) || 'Open Decks') + ' · free entry · '}${s?.day || ''} ${timeLabel(s)}`)
   lines.push('📍 407 Mentmore Terrace, London Fields, E8 3PH')
   lines.push('')

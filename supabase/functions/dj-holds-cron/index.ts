@@ -30,8 +30,8 @@ Deno.serve(async (req) => {
     if (age >= 24 * H) {
       // Expired — free the date.
       await sb.from("dj_slots").update({
-        status: "open", dj_id: null, night_name: null, genre: null, genres: [], subgenres: [],
-        promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false,
+        status: "open", dj_id: null, dj_id2: null, night_name: null, genre: null, genres: [], subgenres: [],
+        promo_track: null, promo_artist: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false,
         event_image_url: null, updated_at: nowISO,
       }).eq("date", h.date).eq("slot", (h as any).slot || "main").eq("status", "held");
       released++;

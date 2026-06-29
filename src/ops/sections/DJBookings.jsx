@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import Messages from './DJMessages.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, looksLink } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -322,6 +322,7 @@ function Events({ data, reload, filter, setFilter }) {
     setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
+    if (looksLink(form.promoArtist) || looksLink(form.promoTrack)) { alert('No links in the promo boxes — just the artist name and the track name.'); return }
     setBusy(true)
     try {
       await djAdmin('editEvent', {
@@ -548,6 +549,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
+    if (looksLink(promoArtist) || looksLink(promoTrack)) { alert('No links in the promo boxes — just the artist name and the track name.'); return }
     onSave({ djId, djId2: djId2 && djId2 !== djId ? djId2 : '', nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, promoArtist, imgData })
   }
 

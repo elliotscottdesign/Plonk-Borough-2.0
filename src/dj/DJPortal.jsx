@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel } from './api.js'
+import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
@@ -11,8 +11,6 @@ import DJRules from './DJRules.jsx'
 // Branded No Dice (red on black). Mobile-first (DJs book from their phones).
 
 const RED = '#DA1B33', INK = '#000000', CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
-// Promo artist/track are NAMES only — flag anything that looks like a URL/link.
-const looksLink = (s) => /(https?:\/\/|www\.|[\w-]+\.(com|net|org|io|co|uk|fm|me|app|link|cloud|tv))/i.test(s || '')
 
 const Center = ({ children }) => (
   <div style={{ minHeight: '100vh', background: INK, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans',sans-serif", padding: 32, textAlign: 'center', lineHeight: 1.6 }}>{children}</div>
@@ -153,7 +151,7 @@ export default function DJPortal() {
   const claim = async (date) => {
     const session = kindFor(date, claimSlot) === 'session'
     if (session && !subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
-    if (!promoArtist.trim()) { flash('Add the artist name for your promo track.'); return }
+    if (mode !== 'edit' && !promoArtist.trim()) { flash('Add the artist name for your promo track.'); return }
     if (!promoTrack.trim()) { flash('Add the track name for your promo.'); return }
     if (looksLink(promoArtist) || looksLink(promoTrack)) { flash('No links please — just type the artist and the track name.'); return }
     if (!promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }

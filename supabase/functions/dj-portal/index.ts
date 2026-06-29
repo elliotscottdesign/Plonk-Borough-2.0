@@ -35,7 +35,7 @@ const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.t
 const isComplete = (d: any) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url);
 const arr = (x: any) => Array.isArray(x) ? x : [];
 // Promo fields are NAMES only — reject anything that looks like a URL/link.
-const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.(com|net|org|io|co|uk|fm|me|app|link|cloud|tv))/i.test(s || "");
+const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.[a-z]{2,}\/|\b(soundcloud|youtu|spoti|bit\.ly|linktr|hearthis|mixcloud|bandcamp|tidal|deezer|audiomack|hypeddit|fanlink|toneden)\b)/i.test(s || "");
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
 
 // ── Email notifications (Resend) ──────────────────────────────────────────
@@ -352,17 +352,20 @@ Deno.serve(async (req) => {
     // Edit an existing booking (pending OR confirmed) live — keeps the date, dj
     // and current status; re-validates promo + sub-genre adjacency.
     if (!date) return json({ error: "missing date" }, 400);
-    const { data: existing } = await sb.from("dj_slots").select("date,status,kind").eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["pending", "confirmed"]).maybeSingle();
+    const { data: existing } = await sb.from("dj_slots").select("date,status,kind,promo_artist,promo_track").eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["pending", "confirmed"]).maybeSingle();
     if (!existing) return json({ error: "That date isn't one of your bookings." }, 404);
     const session = isSession(date);
     const track = (promoTrack || "").trim();
     const artist = (promoArtist || "").trim();
-    if (!artist) return json({ error: "Add the artist's name for your promo track (just the name — no links)." }, 400);
+    // Pre-split bookings have no artist — don't force one on edit (only require it
+    // if this booking already had an artist). Track is always required.
+    const hadArtist = !!((existing as any).promo_artist || "").trim();
+    if (hadArtist && !artist) return json({ error: "Add the artist's name for your promo track (just the name — no links)." }, 400);
     if (!track) return json({ error: "Add the track name for your promo (just the name — no links)." }, 400);
     if (looksLikeLink(artist) || looksLikeLink(track)) return json({ error: "No links please — just type the artist's name and the track name." }, 400);
     if (!promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
 
-    const upd: Record<string, unknown> = { night_name: nightName || null, promo_track: track, promo_artist: artist, promo_ok: true, updated_at: new Date().toISOString() };
+    const upd: Record<string, unknown> = { night_name: nightName || null, promo_track: track, promo_artist: artist || null, promo_ok: true, updated_at: new Date().toISOString() };
     if (session) {
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);

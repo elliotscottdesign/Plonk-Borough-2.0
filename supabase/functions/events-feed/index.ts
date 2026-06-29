@@ -2,7 +2,7 @@
 // PUBLIC, read-only feed of CONFIRMED upcoming DJ nights (no auth) — the single
 // source the customer nodice.bar events page can fetch (and the team view / IG
 // captions read the same shape). Only public DJ fields are exposed.
-// GET (or POST) → [{ date, weekday, start, end, kind, dj, image, instagram, night_name, genres, set_type, promo_track }]
+// GET (or POST) → [{ date, weekday, start, end, kind, dj, image, instagram, night_name, genres, set_type, promo_track, promo_artist }]
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
