@@ -107,8 +107,8 @@ function Calendar({ data, reload, onJump }) {
     if (isNew && !d.djId) return
     setBusy(true)
     try {
-      if (isNew) await djAdmin('book', { date, slot, djId: d.djId, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
-      else await djAdmin('editEvent', { date, slot, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack })
+      if (isNew) await djAdmin('book', { date, slot, djId: d.djId, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack, promoArtist: d.promoArtist })
+      else await djAdmin('editEvent', { date, slot, djId2: d.djId2, nightName: d.nightName, subgenres: d.subgenres, setType: d.setType, promoTrack: d.promoTrack, promoArtist: d.promoArtist })
       if (d.imgData) await djAdmin('eventPhoto', { date, slot, dataUrl: d.imgData })
       await reload(); setBuildKey(null)
     } catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -220,7 +220,7 @@ function Calendar({ data, reload, onJump }) {
                         <Avatar d={{ ...(slot.dj || { dj_name: '?' }), image_url: slot.event_image_url || slot.dj?.image_url }} size={34} />
                         <div style={{ fontSize: 13, color: '#FFFFFF' }}>
                           <div><strong>{slot.dj?.dj_name || 'DJ'}</strong>{b2bName ? <> <span style={{ color: '#DA1B33', fontWeight: 700 }}>b2b</span> <strong>{b2bName}</strong></> : null}{slot.genre ? ` · ${slot.genre}` : ''}{slot.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{slot.night_name}"</em></> : null}<span style={{ marginLeft: 8, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.1em', color: accent, fontWeight: 700 }}>{status === 'held' ? 'draft' : status}</span></div>
-                          {(slot.set_type || slot.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && slot.promo_track ? ' · ' : ''}{slot.promo_track ? `🎵 ${slot.promo_track}` : ''}</div>}
+                          {(slot.set_type || slot.promo_track || slot.promo_artist) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{slot.set_type ? setTypeLabel(slot.set_type) : ''}{slot.set_type && (slot.promo_track || slot.promo_artist) ? ' · ' : ''}{(slot.promo_artist || slot.promo_track) ? `🎵 ${[slot.promo_artist, slot.promo_track].filter(Boolean).join(' — ')}` : ''}</div>}
                           {status === 'held' && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 3, fontWeight: 600 }}>⏳ Draft — DJ is filling in details{slot.held_at ? ` · ${heldLeft(slot.held_at)}` : ''}</div>}
                         </div>
                       </>
@@ -319,7 +319,7 @@ function Events({ data, reload, filter, setFilter }) {
   }
   const startEdit = (s) => {
     setEditing(ckey(s))
-    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
+    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
     setBusy(true)
@@ -327,7 +327,7 @@ function Events({ data, reload, filter, setFilter }) {
       await djAdmin('editEvent', {
         date: s.date, slot: s.slot || 'main', newDate: form.date, nightName: form.nightName,
         subgenres: (form.subgenres || '').split(',').map(x => x.trim()).filter(Boolean).slice(0, 4),
-        setType: form.setType, promoTrack: form.promoTrack,
+        setType: form.setType, promoTrack: form.promoTrack, promoArtist: form.promoArtist,
         djId: form.djId, djId2: form.djId2 && form.djId2 !== form.djId ? form.djId2 : '',
       })
       setEditing(null); await reload()
@@ -393,7 +393,7 @@ function Events({ data, reload, filter, setFilter }) {
                 {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
-                {s.promo_track && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {s.promo_track}</div>}
+                {(s.promo_artist || s.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {[s.promo_artist, s.promo_track].filter(Boolean).join(' — ')}</div>}
               </div>
               {showCap && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
@@ -433,7 +433,12 @@ function Events({ data, reload, filter, setFilter }) {
                 {editIsSession(form.date)
                   ? <label style={lbl}>Genres <span style={hint}>(comma-separated, up to 4)</span><input value={form.subgenres} onChange={e => setForm(f => ({ ...f, subgenres: e.target.value }))} placeholder="House, Disco, Funk" style={inp(300)} /></label>
                   : <label style={lbl}>Set type <span style={hint}>(Open Decks night)</span><Dropdown value={form.setType} onChange={v => setForm(f => ({ ...f, setType: v }))} width={220} options={SET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></label>}
-                <label style={lbl}>Promo track <span style={hint}>(name or link)</span><input value={form.promoTrack} onChange={e => setForm(f => ({ ...f, promoTrack: e.target.value }))} placeholder="Track name or link" style={inp(320)} /></label>
+                <div style={lbl}>Promo track <span style={hint}>(names only — no links)</span>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+                    <input value={form.promoArtist || ''} onChange={e => setForm(f => ({ ...f, promoArtist: e.target.value }))} placeholder="Artist name" style={inp(170)} />
+                    <input value={form.promoTrack || ''} onChange={e => setForm(f => ({ ...f, promoTrack: e.target.value }))} placeholder="Track name" style={inp(170)} />
+                  </div>
+                </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => saveEdit(s)} disabled={busy} style={btn('gold')}>Save changes</button>
                   <button onClick={() => setEditing(null)} disabled={busy} style={btn('ghost')}>Cancel</button>
@@ -530,6 +535,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   const [genres, setGenres] = useState((slotRow?.subgenres || []).join(', '))
   const [setType, setSetType] = useState(slotRow?.set_type || 'dj_set')
   const [promoTrack, setPromoTrack] = useState(slotRow?.promo_track || '')
+  const [promoArtist, setPromoArtist] = useState(slotRow?.promo_artist || '')
   const [imgData, setImgData] = useState('')
   const [imgErr, setImgErr] = useState('')
   const djPhoto = (djs || []).find(d => d.id === djId)?.image_url || ''
@@ -542,7 +548,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
-    onSave({ djId, djId2: djId2 && djId2 !== djId ? djId2 : '', nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, imgData })
+    onSave({ djId, djId2: djId2 && djId2 !== djId ? djId2 : '', nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, promoArtist, imgData })
   }
 
   return (
@@ -563,7 +569,12 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
           ? <label style={lbl}>Genres <span style={hint}>(comma, up to 4)</span><input value={genres} onChange={e => setGenres(e.target.value)} placeholder="House, Disco, Funk" style={inp(260)} /></label>
           : <label style={lbl}>Set type <span style={hint}>(Open Decks)</span><Dropdown value={setType} onChange={setSetType} width={200} options={SET_TYPES.map(t => ({ value: t.value, label: t.label }))} /></label>}
       </div>
-      <label style={lbl}>Promo track <span style={hint}>(name or link — drives the Instagram post)</span><input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or link" style={inp(320)} /></label>
+      <div style={lbl}>Promo track <span style={hint}>(names only — no links — drives the Instagram post)</span>
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 2 }}>
+          <input value={promoArtist} onChange={e => setPromoArtist(e.target.value)} placeholder="Artist name" style={inp(170)} />
+          <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name" style={inp(170)} />
+        </div>
+      </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <div style={lbl}>Artwork <span style={hint}>(overrides the DJ photo for this night)</span></div>
         {preview

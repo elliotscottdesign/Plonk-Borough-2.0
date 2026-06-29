@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoOk, resident, month, mode, key, body } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -112,7 +112,7 @@ Deno.serve(async (req) => {
     case "removeBooking":
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.
-      await sb.from("dj_slots").update({ status: "open", dj_id: null, dj_id2: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      await sb.from("dj_slots").update({ status: "open", dj_id: null, dj_id2: null, night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_artist: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "editEvent": {
       // Admin edits a created event in place (Events tab). Optionally moves it to a
@@ -137,7 +137,7 @@ Deno.serve(async (req) => {
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
       const session = [4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
       const upd: Record<string, unknown> = {
-        night_name: nightName || null, promo_track: (promoTrack || "").trim() || null,
+        night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_artist: (promoArtist || "").trim() || null,
         kind: session ? "session" : "opendecks", updated_at: now(),
       };
       if (session) { upd.subgenres = subs; upd.genres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
@@ -198,7 +198,7 @@ Deno.serve(async (req) => {
         genres: session ? subs : [], subgenres: session ? subs : [],
         kind: session ? "session" : "opendecks",
         set_type: session ? null : (setType || "dj_set"),
-        promo_track: (promoTrack || "").trim() || null, promo_ok: !!promoOk,
+        promo_track: (promoTrack || "").trim() || null, promo_artist: (promoArtist || "").trim() || null, promo_ok: !!promoOk,
         updated_at: now(),
       }, { onConflict: "date,slot" });
       break;

@@ -34,6 +34,8 @@ const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.t
 // All fields required except SoundCloud/Spotify/YouTube, and at least 5 genres.
 const isComplete = (d: any) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url);
 const arr = (x: any) => Array.isArray(x) ? x : [];
+// Promo fields are NAMES only — reject anything that looks like a URL/link.
+const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.(com|net|org|io|co|uk|fm|me|app|link|cloud|tv))/i.test(s || "");
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
 
 // ── Email notifications (Resend) ──────────────────────────────────────────
@@ -95,7 +97,7 @@ async function maybeSignup(sb: any, before: any, merged: any) {
 }
 
 // Fire the "date requested" emails when a DJ submits a booking for sign-off.
-async function notifyRequest(dj: any, date: string, info: { session: boolean; nightName?: string; subgenres?: any; setType?: string; promoTrack?: string }) {
+async function notifyRequest(dj: any, date: string, info: { session: boolean; nightName?: string; subgenres?: any; setType?: string; promoTrack?: string; promoArtist?: string }) {
   const name = dj.dj_name || "A DJ", ig = dj.instagram || "no IG", dStr = niceDate(date);
   const what = info.session ? (arr(info.subgenres).join(" · ") || "DJ set") : "Open Decks";
   const link = `${PORTAL}?t=${encodeURIComponent(dj.token)}`;
@@ -112,7 +114,7 @@ async function notifyRequest(dj: any, date: string, info: { session: boolean; ni
          <li>Date: ${dStr}</li>
          <li>${info.session ? "Paid session" : "Open Decks"}${info.nightName ? ` · "${esc(info.nightName)}"` : ""}</li>
          <li>${esc(what)}</li>
-         <li>Promo track: ${esc(info.promoTrack || "—")}</li>
+         <li>Promo track: ${esc([info.promoArtist, info.promoTrack].filter(Boolean).join(" — ") || "—")}</li>
        </ul>`,
       { text: "Review & sign off", link: OPS })),
   ]);
@@ -147,7 +149,7 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, slot: s.slot || "main", kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_ok,set_type,held_at,event_image_url,dj_id,dj_id2";
+  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_artist,promo_ok,set_type,held_at,event_image_url,dj_id,dj_id2";
   // Include nights where this DJ is the back-to-back partner (dj_id2), not just primary.
   const meFilter = `dj_id.eq.${id},dj_id2.eq.${id}`;
   const { data: mine } = await sb.from("dj_slots").select(cols).or(meFilter).gte("date", today).order("date");
@@ -187,7 +189,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
   if (!token) return json({ error: "missing token" }, 400);
 
@@ -287,7 +289,7 @@ Deno.serve(async (req) => {
     const session = isSession(date);
     const subs = arr(subgenres).slice(0, 4);
     const upd: Record<string, unknown> = {
-      night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_ok: !!promoOk, updated_at: new Date().toISOString(),
+      night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_artist: (promoArtist || "").trim() || null, promo_ok: !!promoOk, updated_at: new Date().toISOString(),
     };
     if (session) { upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / ") || null; upd.set_type = null; }
     else { upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set"; }
@@ -302,13 +304,16 @@ Deno.serve(async (req) => {
     if (!date) return json({ error: "missing date" }, 400);
     const session = isSession(date);
     const track = (promoTrack || "").trim();
-    // A promo track is now required for EVERY night (it drives the Instagram post).
-    if (!track) return json({ error: "Add a track (name or link) we'll use to promote your night on Instagram." }, 400);
+    const artist = (promoArtist || "").trim();
+    // Promo = artist NAME + track NAME (no links) — drives the Instagram post.
+    if (!artist) return json({ error: "Add the artist's name for your promo track (just the name — no links)." }, 400);
+    if (!track) return json({ error: "Add the track name for your promo (just the name — no links)." }, 400);
+    if (looksLikeLink(artist) || looksLikeLink(track)) return json({ error: "No links please — just type the artist's name and the track name." }, 400);
     if (!promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
 
     const upd: Record<string, unknown> = {
       dj_id: dj.id, status: "pending", night_name: nightName || null,
-      promo_track: track, promo_ok: true, kind: session ? "session" : "opendecks",
+      promo_track: track, promo_artist: artist, promo_ok: true, kind: session ? "session" : "opendecks",
       held_at: null, updated_at: new Date().toISOString(),
     };
 
@@ -339,7 +344,7 @@ Deno.serve(async (req) => {
     const { data: updated, error } = await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot).eq("status", "held").eq("dj_id", dj.id).select("date");
     if (error) return json({ error: error.message }, 500);
     if (!updated || !updated.length) return json({ error: "Your hold on that date has expired — pick it again from the calendar." }, 409);
-    await notifyRequest(dj, date, { session, nightName, subgenres, setType, promoTrack: track });
+    await notifyRequest(dj, date, { session, nightName, subgenres, setType, promoTrack: track, promoArtist: artist });
     return state(sb, dj.id);
   }
 
@@ -351,10 +356,13 @@ Deno.serve(async (req) => {
     if (!existing) return json({ error: "That date isn't one of your bookings." }, 404);
     const session = isSession(date);
     const track = (promoTrack || "").trim();
-    if (!track) return json({ error: "Add a track (name or link) we'll use to promote your night on Instagram." }, 400);
+    const artist = (promoArtist || "").trim();
+    if (!artist) return json({ error: "Add the artist's name for your promo track (just the name — no links)." }, 400);
+    if (!track) return json({ error: "Add the track name for your promo (just the name — no links)." }, 400);
+    if (looksLikeLink(artist) || looksLikeLink(track)) return json({ error: "No links please — just type the artist's name and the track name." }, 400);
     if (!promoOk) return json({ error: "Please tick that you have the rights to use the track for promo." }, 400);
 
-    const upd: Record<string, unknown> = { night_name: nightName || null, promo_track: track, promo_ok: true, updated_at: new Date().toISOString() };
+    const upd: Record<string, unknown> = { night_name: nightName || null, promo_track: track, promo_artist: artist, promo_ok: true, updated_at: new Date().toISOString() };
     if (session) {
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
@@ -378,7 +386,7 @@ Deno.serve(async (req) => {
 
   if (action === "cancel") {
     // Release a held draft OR a pending request back to the open marketplace.
-    await sb.from("dj_slots").update({ dj_id: null, dj_id2: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
+    await sb.from("dj_slots").update({ dj_id: null, dj_id2: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_artist: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["held", "pending"]);
     return state(sb, dj.id);
   }

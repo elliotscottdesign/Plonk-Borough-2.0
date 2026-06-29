@@ -11,6 +11,8 @@ import DJRules from './DJRules.jsx'
 // Branded No Dice (red on black). Mobile-first (DJs book from their phones).
 
 const RED = '#DA1B33', INK = '#000000', CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
+// Promo artist/track are NAMES only — flag anything that looks like a URL/link.
+const looksLink = (s) => /(https?:\/\/|www\.|[\w-]+\.(com|net|org|io|co|uk|fm|me|app|link|cloud|tv))/i.test(s || '')
 
 const Center = ({ children }) => (
   <div style={{ minHeight: '100vh', background: INK, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans',sans-serif", padding: 32, textAlign: 'center', lineHeight: 1.6 }}>{children}</div>
@@ -37,6 +39,7 @@ export default function DJPortal() {
   const [night, setNight] = useState('')
   const [subs, setSubs] = useState([])   // sub-genre names selected for the claim (max 4)
   const [promoTrack, setPromoTrack] = useState('')
+  const [promoArtist, setPromoArtist] = useState('')
   const [promoOk, setPromoOk] = useState(false)
   const [setType, setSetType] = useState('dj_set')
   const now = new Date()
@@ -106,9 +109,9 @@ export default function DJPortal() {
     catch (e) { setEventPhotoErr(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
-  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr(''); setB2bId('') }
+  const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoArtist(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr(''); setB2bId('') }
   const closePanel = () => { setClaiming(null); setMode('claim'); setPanelAt('bottom'); setClaimSlot('main'); resetPanel() }
-  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr(''); setB2bId(b.dj_id2 || '') }
+  const prefill = (b) => { setNight(b.night_name || ''); setSubs(b.subgenres || []); setPromoTrack(b.promo_track || ''); setPromoArtist(b.promo_artist || ''); setPromoOk(!!b.promo_ok); setSetType(b.set_type || 'dj_set'); setEventImg(b.event_image_url || ''); setEventPhotoErr(''); setB2bId(b.dj_id2 || '') }
   const holdExpired = (heldAt) => !!heldAt && (new Date(heldAt).getTime() + 24 * 3600 * 1000 <= Date.now())
   // If a hold lapsed mid-action, flash + reload the live state and drop the stale panel.
   const handleErr = async (e) => {
@@ -142,7 +145,7 @@ export default function DJPortal() {
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
-      refresh(await djPortal(token, 'draft', { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType, dj_id2: b2bId }))
+      refresh(await djPortal(token, 'draft', { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoArtist: promoArtist.trim(), promoOk, setType, dj_id2: b2bId }))
       closePanel()
       flash('Draft saved ✓ — finish within your 24h.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
@@ -150,13 +153,15 @@ export default function DJPortal() {
   const claim = async (date) => {
     const session = kindFor(date, claimSlot) === 'session'
     if (session && !subs.length) { flash('Pick at least one sub-genre you’ll play.'); return }
-    if (!promoTrack.trim()) { flash('Add a track (name or link) to promote your night.'); return }
+    if (!promoArtist.trim()) { flash('Add the artist name for your promo track.'); return }
+    if (!promoTrack.trim()) { flash('Add the track name for your promo.'); return }
+    if (looksLink(promoArtist) || looksLink(promoTrack)) { flash('No links please — just type the artist and the track name.'); return }
     if (!promoOk) { flash('Tick that you have the rights to use the track for promo.'); return }
     setBusy(true)
     const genres = [...new Set(subs.map(genreOfSub).filter(Boolean))]
     try {
       const action = mode === 'edit' ? 'edit' : 'claim'
-      refresh(await djPortal(token, action, { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoOk, setType, dj_id2: b2bId }))
+      refresh(await djPortal(token, action, { date, slot: claimSlot, nightName: night, genres, subgenres: subs, promoTrack: promoTrack.trim(), promoArtist: promoArtist.trim(), promoOk, setType, dj_id2: b2bId }))
       closePanel()
       flash(mode === 'edit' ? 'Night updated ✓' : 'Date requested ✓ — No Dice will confirm.')
     } catch (e) { await handleErr(e) } finally { setBusy(false) }
@@ -289,8 +294,10 @@ export default function DJPortal() {
           </div>
         )}
         <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'} · <span style={{ color: RED }}>name or link · required</span></div>
-          <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name or SoundCloud / YouTube link" style={inp} />
+          <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Track to promote this {session ? 'session' : 'night'} · <span style={{ color: RED }}>required</span></div>
+          <div style={{ fontSize: 11.5, color: '#FCD34D', margin: '6px 0 8px', lineHeight: 1.45 }}>⚠️ <strong>No links</strong> — just type the artist's name and the track name.</div>
+          <input value={promoArtist} onChange={e => setPromoArtist(e.target.value)} placeholder="Artist name" style={inp} />
+          <input value={promoTrack} onChange={e => setPromoTrack(e.target.value)} placeholder="Track name" style={{ ...inp, marginTop: 8 }} />
           <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start', marginTop: 8, fontSize: 12, color: 'rgba(255,255,255,0.7)', cursor: 'pointer', lineHeight: 1.45 }}>
             <input type="checkbox" checked={promoOk} onChange={e => setPromoOk(e.target.checked)} style={{ marginTop: 2, accentColor: RED }} />
             It's my own mix/edit, or I have the rights to use it for No Dice promo (Instagram etc.).

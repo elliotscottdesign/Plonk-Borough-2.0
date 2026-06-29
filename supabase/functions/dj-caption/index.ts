@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
     e?.night_name ? `Night name: ${e.night_name}` : "",
     e?.kind === "opendecks" ? "This is an Open Decks night (free, relaxed)" : "This is a paid DJ session",
     e?.set_type ? `Set type: ${e.set_type}` : "",
-    e?.promo_track ? `Track to feature: ${e.promo_track}` : "",
+    (e?.promo_artist || e?.promo_track) ? `Track to feature: ${[e.promo_artist, e.promo_track].filter(Boolean).join(" — ")}` : "",
   ].filter(Boolean).join("\n");
 
   const userMsg = `Write the Instagram caption for this No Dice night.

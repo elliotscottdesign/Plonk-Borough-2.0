@@ -28,7 +28,7 @@ Deno.serve(async (req) => {
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await sb.from("dj_slots")
-    .select("date,slot,night_name,subgenres,kind,set_type,promo_track,event_image_url,dj_id2, dj:djs(dj_name,image_url,instagram,format)")
+    .select("date,slot,night_name,subgenres,kind,set_type,promo_track,promo_artist,event_image_url,dj_id2, dj:djs(dj_name,image_url,instagram,format)")
     .eq("status", "confirmed").neq("suspended", true).gte("date", today).order("date");
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   // Back-to-back: resolve the optional second DJ (dj_id2 has no FK embed) in one query.
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
       format: s.dj?.format || null,
       dj2: p2?.dj_name || null, instagram2: p2?.instagram || null, b2b: !!p2,
       night_name: s.night_name || null, genres: Array.isArray(s.subgenres) ? s.subgenres : [],
-      set_type: s.set_type || null, promo_track: s.promo_track || null,
+      set_type: s.set_type || null, promo_track: s.promo_track || null, promo_artist: s.promo_artist || null,
     };
   });
   return new Response(JSON.stringify(events), { headers: { ...cors, "Content-Type": "application/json" } });

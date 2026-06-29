@@ -68,7 +68,8 @@ alter table public.dj_release_state add column if not exists release_mode text;
 alter table public.dj_slots add column if not exists genres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists subgenres jsonb default '[]'::jsonb;
 alter table public.dj_slots add column if not exists kind text;          -- session | opendecks
-alter table public.dj_slots add column if not exists promo_track text;   -- required for every night (drives the IG post)
+alter table public.dj_slots add column if not exists promo_track text;   -- the TRACK name (drives the IG post)
+alter table public.dj_slots add column if not exists promo_artist text;  -- the ARTIST name (paired with promo_track — names only, no links)
 alter table public.dj_slots add column if not exists promo_ok boolean default false;
 alter table public.dj_slots add column if not exists set_type text;      -- open decks: dj_set | records | listening
 -- Date-hold reservation: a DJ picks an open date (status='held') and has 24h to finish.
