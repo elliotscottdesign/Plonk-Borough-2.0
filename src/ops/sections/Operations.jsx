@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import StockOrder from './StockOrder.jsx'
 import StockList from './StockList.jsx'
+import StockCheck from './StockCheck.jsx'
 import Perishables from './Perishables.jsx'
 import Costing from './Costing.jsx'
 import Consumables from './Consumables.jsx'
@@ -13,6 +14,7 @@ import CocktailSpecs from './CocktailSpecs.jsx'
 const OPS_TOOLS = [
   { key: 'stock', label: 'Stock Orders', icon: '🛒', live: true, blurb: 'Kegs, spirits & softs to order this week, scaled from real till data.' },
   { key: 'stocklist', label: 'Stock List', icon: '📋', live: true, blurb: 'Every product behind the bar, by product, with never-sold lines flagged.' },
+  { key: 'stockcheck', label: 'Stock Check', icon: '✅', live: true, blurb: 'Weekly count-and-order sheet — draught, cider, post-mix, fresh, wine, snacks. Printable.' },
   { key: 'perishables', label: 'Perishables', icon: '🍋', live: true, blurb: 'Brakes fruit/veg spend & forecast — limes, garnish, the lot.' },
   { key: 'costing', label: 'Costing', icon: '💷', live: true, blurb: 'Live cost-per-serve and gross margin for every menu line. Editable.' },
   { key: 'consumables', label: 'Consumables', icon: '🧴', live: true, blurb: 'BCS Supplies operating costs — 14-month spend tracker, latest unit price, on-hand input.' },
@@ -68,6 +70,7 @@ export default function Operations() {
         </>
       )}
       {tool === 'stocklist' && <StockList />}
+      {tool === 'stockcheck' && <StockCheck />}
       {tool === 'perishables' && <Perishables />}
       {tool === 'costing' && <Costing />}
       {tool === 'consumables' && <Consumables />}
