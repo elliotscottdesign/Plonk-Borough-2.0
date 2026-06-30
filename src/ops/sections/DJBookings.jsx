@@ -138,7 +138,7 @@ function Calendar({ data, reload, onJump }) {
         image: r?.event_image_url || r?.dj?.image_url || '',
       }
     })
-    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false, daySlots }
+    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false, daySlots, slots: defs.length }
     const has = (st) => rows.some(r => r.status === st)
     const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : closedTone
     // Booked nights → thumbnail + detail cards in the cell (public-viewer rules).
@@ -151,7 +151,7 @@ function Calendar({ data, reload, onJump }) {
       return { image: r.event_image_url || r.dj?.image_url || '', title, time: fmtStart(sess?.start), sub, status: r.status }
     })
     const openCount = rows.filter(r => r.status === 'open' && !r.dj_id).length   // other slots still free that day
-    return { tone, kind: defs[0].kind, disabled: false, events, openCount, daySlots }
+    return { tone, kind: defs[0].kind, disabled: false, events, openCount, daySlots, slots: defs.length }
   }
 
   // Counts scoped to upcoming so the headline matches the list you land on when

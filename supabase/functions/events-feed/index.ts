@@ -23,6 +23,13 @@ const SESSIONS: Record<number, { day: string; start: string; end: string; kind: 
 const SLOT_TIMES: Record<string, { day: string; start: string; end: string; kind: string }> = {
   sat_pm: { day: "Saturday", start: "16:00", end: "20:00", kind: "session" },
 };
+// One-off dates that override the weekday pattern (keep in sync with api.js SPECIAL_DATES).
+const SPECIAL_DATES: Record<string, Record<string, { day: string; start: string; end: string; kind: string }>> = {
+  "2026-08-30": {
+    sat_pm: { day: "Sunday", start: "16:00", end: "20:00", kind: "session" },
+    main: { day: "Sunday", start: "20:00", end: "00:00", kind: "session" },
+  },
+};
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
@@ -42,7 +49,7 @@ Deno.serve(async (req) => {
   const events = (data || []).map((s: any) => {
     const slot = s.slot || "main";
     const p2 = s.dj_id2 ? partners[s.dj_id2] : null;
-    const sess = (slot !== "main" && SLOT_TIMES[slot]) ? SLOT_TIMES[slot] : (SESSIONS[new Date(s.date + "T00:00:00Z").getUTCDay()] || {});
+    const sess = SPECIAL_DATES[s.date]?.[slot] || ((slot !== "main" && SLOT_TIMES[slot]) ? SLOT_TIMES[slot] : (SESSIONS[new Date(s.date + "T00:00:00Z").getUTCDay()] || {}));
     return {
       date: s.date, slot, weekday: sess.day, start: sess.start, end: sess.end, kind: s.kind || sess.kind,
       dj: s.dj?.dj_name || null, image: s.event_image_url || s.dj?.image_url || null, instagram: s.dj?.instagram || null,

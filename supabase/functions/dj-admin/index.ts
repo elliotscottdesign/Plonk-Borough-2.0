@@ -241,10 +241,16 @@ Deno.serve(async (req) => {
       const yr = +mt[1], mo = +mt[2] - 1;
       const today = now().slice(0, 10);
       const daysIn = new Date(Date.UTC(yr, mo + 1, 0)).getUTCDate();
+      // One-off dates that override the weekday pattern (e.g. a bank-holiday Sunday
+      // run as a two-session paid day like a Saturday). Keep in sync with api.js SPECIAL_DATES.
+      const SPECIAL_DATES: Record<string, { slot: string; kind: string }[]> = {
+        "2026-08-30": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
+      };
       const rows: Record<string, unknown>[] = [];
       for (let d = 1; d <= daysIn; d++) {
         const dateStr = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         if (dateStr < today) continue;
+        if (SPECIAL_DATES[dateStr]) { for (const x of SPECIAL_DATES[dateStr]) rows.push({ date: dateStr, slot: x.slot, status: "open", kind: x.kind }); continue; }
         const wd = new Date(dateStr + "T00:00:00Z").getUTCDay();
         const session = [4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
         rows.push({ date: dateStr, slot: "main", status: "open", kind: session ? "session" : "opendecks" });

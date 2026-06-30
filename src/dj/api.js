@@ -92,9 +92,9 @@ export async function djCaption(event, avoid = '') {
   return data
 }
 
-// Weekly sessions (JS getDay: Mon=1 … Sat=6).
+// Weekly sessions (JS getDay: Sun=0 … Sat=6).
 //   Thu/Fri/Sat = paid DJ sessions (genre picker, adjacent-day rule, 1 per month).
-//   Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
+//   Sun/Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
 export const SESSIONS = {
   0: { day: 'Sunday', start: '19:00', end: '23:00', kind: 'opendecks' },
   1: { day: 'Monday', start: '19:00', end: '23:00', kind: 'opendecks' },
@@ -109,9 +109,18 @@ export const SESSIONS = {
 export const EXTRA_SLOTS = {
   6: [{ slot: 'sat_pm', day: 'Saturday', start: '16:00', end: '20:00', kind: 'session' }],
 }
+// One-off special days that override the normal weekday pattern — e.g. a bank-
+// holiday Sunday run as a two-session PAID day like a Saturday (4–8pm + 8pm–12am).
+export const SPECIAL_DATES = {
+  '2026-08-30': [   // August bank-holiday Sunday weekender
+    { slot: 'sat_pm', day: 'Sunday', start: '16:00', end: '20:00', kind: 'session' },
+    { slot: 'main', day: 'Sunday', start: '20:00', end: '00:00', kind: 'session' },
+  ],
+}
 const wdOf = (dateStr) => new Date(dateStr + 'T00:00:00').getDay()
 // All bookable slots for a date (main + extras), earliest start first.
 export function slotsForDate(dateStr) {
+  if (SPECIAL_DATES[dateStr]) return SPECIAL_DATES[dateStr].slice().sort((a, b) => a.start.localeCompare(b.start))
   const wd = wdOf(dateStr)
   const out = []
   if (SESSIONS[wd]) out.push({ slot: 'main', ...SESSIONS[wd] })

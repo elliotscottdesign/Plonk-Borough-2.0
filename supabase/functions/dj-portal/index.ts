@@ -2,8 +2,9 @@
 // DJ-facing API. Auth = the DJ's private `token`. Deploy --no-verify-jwt.
 //
 // Session kinds (by weekday): Thu/Fri/Sat = paid sessions (genre picker,
-// adjacent-day rule, ONE per DJ per calendar month). Mon/Tue/Wed = Open Decks
-// (unpaid, no genre rules, unlimited, set-type). A promo track (name/link) +
+// adjacent-day rule, ONE per DJ per calendar month). Sun/Mon/Tue/Wed = Open Decks
+// (unpaid, no genre rules, unlimited, set-type). Plus one-off SPECIAL_SESSION_DATES
+// (e.g. a bank-holiday Sunday) run as paid sessions. A promo track (name) +
 // rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
@@ -28,7 +29,9 @@ const json = (o: unknown, s = 200) => new Response(JSON.stringify(o), { status: 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const shift = (d: string, n: number) => { const dt = new Date(d + "T00:00:00Z"); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10); };
 const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
-const isSession = (d: string) => [4, 5, 6].includes(dow(d));
+// One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
+const SPECIAL_SESSION_DATES = new Set(["2026-08-30"]);
+const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
 // All fields required except SoundCloud/Spotify/YouTube, and at least 5 genres.
@@ -269,7 +272,7 @@ Deno.serve(async (req) => {
     if (session) {
       const { start, next } = monthRange(date);
       const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).gte("date", start).lt("date", next);
-      if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
+      if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Sun–Wed) are unlimited." }, 409);
     }
     const { data: updated, error } = await sb.from("dj_slots").update({
       dj_id: dj.id, dj_id2: null, status: "held", kind: session ? "session" : "opendecks",
@@ -324,7 +327,7 @@ Deno.serve(async (req) => {
       // one paid session per DJ per calendar month (counts other holds too; not this date)
       const { start, next } = monthRange(date);
       const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
-      if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Mon–Wed) are unlimited." }, 409);
+      if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Sun–Wed) are unlimited." }, 409);
       // adjacency: sub-genre booked the day before/after
       const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
       const blocked = new Set<string>();
