@@ -139,6 +139,29 @@ export function slotLabel(dateStr, slot) {
 }
 export const sessionFor = (dateStr, slot) => sessionForSlot(dateStr, slot)
 export const kindFor = (dateStr, slot) => sessionForSlot(dateStr, slot)?.kind || 'session'
+
+// ── World Cup 2026 knockout clashes ─────────────────────────────────────────
+// England/Brazil knockout matches that could clash with a DJ night. UK times;
+// `end` includes a worst-case extra-time + penalties window (~2h45 from kick-off).
+// Results-dependent fixtures are confirmed:false — CONFIRM as the bracket firms up.
+export const WC_MATCHES = [
+  { date: '2026-07-01', label: 'England · Round of 32 (v DR Congo)', ko: '17:00', end: '19:45', confirmed: true },
+  { date: '2026-07-09', label: 'Quarter-final · England or Brazil?', ko: '21:00', end: '23:45', confirmed: false },
+  { date: '2026-07-10', label: 'Quarter-final · England or Brazil?', ko: '21:00', end: '23:45', confirmed: false },
+  { date: '2026-07-11', label: 'Quarter-final · England or Brazil?', ko: '21:00', end: '23:45', confirmed: false },
+]
+const _mins = (t) => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5)
+const _ampm = (t) => { let h = +String(t).slice(0, 2); const m = +String(t).slice(3, 5); const ap = h >= 12 ? 'pm' : 'am'; h = h % 12 || 12; return `${h}${m ? ':' + String(m).padStart(2, '0') : ''}${ap}` }
+// World Cup clash for a (date, session)? → a tooltip note (match window incl. ET/pens
+// + alternative DJ-set times), or '' when there's no overlap.
+export function wcClash(dateStr, slot) {
+  const mt = (WC_MATCHES || []).find(x => x.date === dateStr)
+  if (!mt || !slot || !slot.start) return ''
+  const sS = _mins(slot.start), sE = slot.end === '00:00' ? 1440 : _mins(slot.end)
+  if (_mins(mt.end) <= sS || _mins(mt.ko) >= sE) return ''   // no time overlap
+  const setLabel = `${_ampm(slot.start)}–${slot.end === '00:00' ? '12am' : _ampm(slot.end)}`
+  return `⚽ ${mt.label}${mt.confirmed ? '' : ' — confirm fixture'}\nKick-off ${_ampm(mt.ko)} → ~${_ampm(mt.end)} UK (incl. extra time + penalties).\nClashes with this ${setLabel} DJ set.\nOptions: start the DJ ~${_ampm(mt.end)} (after the final whistle) · use the 4–8pm afternoon slot · or move to another night.`
+}
 export const SET_TYPES = [
   { value: 'dj_set', label: 'Full DJ set' },
   { value: 'records', label: 'Record selections' },

@@ -84,6 +84,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                           : <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />}
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, whiteSpace: 'nowrap' }}>{s.start}</span>
                         <span style={{ fontSize: 9, color: booked ? '#fff' : 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{s.dj || (s.status === 'open' ? 'Open' : s.status === 'closed' ? '—' : s.status)}</span>
+                        {s.clash && <span title={s.clash} style={{ marginLeft: 'auto', fontSize: 10, flexShrink: 0, cursor: 'help' }}>⚽</span>}
                       </div>
                     )
                   })}
@@ -115,6 +116,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                     : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>No art</div>}
                   <span style={{ position: 'absolute', left: 4, top: 4, background: 'rgba(0,0,0,0.78)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '0 6px', lineHeight: '16px' }}>{d}</span>
                   <div style={{ position: 'absolute', right: 4, top: 4, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
+                    {info.clash && <span title={info.clash} style={{ background: 'rgba(0,0,0,0.8)', fontSize: 10, borderRadius: 999, padding: '1px 5px', lineHeight: '14px', cursor: 'help' }}>⚽</span>}
                     {evs.length > 1 && <span style={{ background: RED, color: '#fff', fontSize: 9, fontWeight: 700, borderRadius: 999, padding: '1px 6px', lineHeight: '14px' }}>{evs.length}</span>}
                     {openCount > 0 && <span style={{ background: 'rgba(218,27,51,0.9)', color: '#fff', fontSize: 8, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', borderRadius: 999, padding: '1px 6px', lineHeight: '14px' }}>{openCount > 1 ? `${openCount} open` : 'open'}</span>}
                   </div>

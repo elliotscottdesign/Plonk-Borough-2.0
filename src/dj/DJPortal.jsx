@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink } from './api.js'
+import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
@@ -255,6 +255,7 @@ export default function DJPortal() {
     const s = sessionForSlot(date, claimSlot)
     const session = s?.kind === 'session'
     const sLabel = slotLabel(date, claimSlot)
+    const clash = wcClash(date, s)
     const editing = mode === 'edit'
     const mine = mineMap[date]
     return (
@@ -267,6 +268,7 @@ export default function DJPortal() {
           <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
+        {clash && <div style={{ fontSize: 12, color: '#F59E0B', lineHeight: 1.5, whiteSpace: 'pre-line', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px' }}>{clash}</div>}
         {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Sun–Wed as you want.</div>}
         <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
         {(st.roster || []).length > 0 && (

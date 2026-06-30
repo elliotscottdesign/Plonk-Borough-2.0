@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import Messages from './DJMessages.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, looksLink } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, looksLink, wcClash } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -136,9 +136,11 @@ function Calendar({ data, reload, onJump }) {
         status: r ? r.status : 'closed',
         dj: r?.dj_id ? (p2 ? `${r.dj?.dj_name || 'DJ'} b2b ${p2}` : (r.dj?.dj_name || 'DJ')) : null,
         image: r?.event_image_url || r?.dj?.image_url || '',
+        clash: wcClash(dateStr, def),   // World Cup clash note (or '')
       }
     })
-    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false, daySlots, slots: defs.length }
+    const cellClash = daySlots.map(s => s.clash).find(Boolean) || ''   // any clash on this day
+    if (!rows.length) return { tone: closedTone, kind: defs[0].kind, disabled: false, daySlots, slots: defs.length, clash: cellClash }
     const has = (st) => rows.some(r => r.status === st)
     const tone = (has('pending') || has('held')) ? 'pending' : has('open') ? 'open' : has('confirmed') ? 'confirmed' : closedTone
     // Booked nights → thumbnail + detail cards in the cell (public-viewer rules).
@@ -151,7 +153,7 @@ function Calendar({ data, reload, onJump }) {
       return { image: r.event_image_url || r.dj?.image_url || '', title, time: fmtStart(sess?.start), sub, status: r.status }
     })
     const openCount = rows.filter(r => r.status === 'open' && !r.dj_id).length   // other slots still free that day
-    return { tone, kind: defs[0].kind, disabled: false, events, openCount, daySlots, slots: defs.length }
+    return { tone, kind: defs[0].kind, disabled: false, events, openCount, daySlots, slots: defs.length, clash: cellClash }
   }
 
   // Counts scoped to upcoming so the headline matches the list you land on when
@@ -208,11 +210,13 @@ function Calendar({ data, reload, onJump }) {
               const booked = slot && slot.dj_id
               const b2bName = slot?.dj_id2 ? ((djs || []).find(d => d.id === slot.dj_id2)?.dj_name || 'DJ') : null
               const sLab = slotLabel(date, def.slot)
+              const clash = wcClash(date, def)
               return (
                 <div key={def.slot} style={{ borderLeft: `3px solid ${accent}`, paddingLeft: 12, display: 'flex', alignItems: 'flex-start', gap: 14, flexWrap: 'wrap' }}>
                   <div style={{ minWidth: 150 }}>
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{def.day}{sLab ? ` · ${sLab}` : ''} · {timeLabel(def)}</div>
                     <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: def.kind === 'session' ? '#DA1B33' : '#F97316', border: `1px solid ${def.kind === 'session' ? 'rgba(218,27,51,0.5)' : 'rgba(249,115,22,0.5)'}`, borderRadius: 999, padding: '1px 7px', display: 'inline-block', marginTop: 4 }}>{def.kind === 'session' ? 'Paid session' : 'Open Decks'}</span>
+                    {clash && <div style={{ fontSize: 10.5, color: '#F59E0B', marginTop: 6, lineHeight: 1.45, whiteSpace: 'pre-line', maxWidth: 230 }}>{clash}</div>}
                   </div>
                   <div style={{ flex: 1, minWidth: 180, display: 'flex', alignItems: 'center', gap: 10 }}>
                     {booked ? (
@@ -376,6 +380,7 @@ function Events({ data, reload, filter, setFilter }) {
         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14 }}>{cur === 'past' ? 'No past events yet.' : 'Nothing here yet — sign nights off from the Calendar, or wait for DJs to claim dates.'}</div>
       ) : events.map(s => {
         const session = sessionForSlot(s.date, s.slot)
+        const clash = wcClash(s.date, session)
         const sLab = slotLabel(s.date, s.slot)
         const k = ckey(s)
         const a = ai[k] || {}
@@ -395,6 +400,7 @@ function Events({ data, reload, filter, setFilter }) {
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
                 {(s.promo_artist || s.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {[s.promo_artist, s.promo_track].filter(Boolean).join(' — ')}</div>}
+                {clash && <div style={{ fontSize: 11, color: '#F59E0B', marginTop: 6, lineHeight: 1.45, whiteSpace: 'pre-line', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 7, padding: '7px 10px' }}>{clash}</div>}
               </div>
               {showCap && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6, alignItems: 'stretch' }}>
