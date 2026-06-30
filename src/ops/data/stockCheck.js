@@ -95,6 +95,87 @@ export const STOCK_CHECK = {
         { key: 'sc-olives', name: 'Olives',        unit: 'tub' },
       ],
     },
+
+    // ─── Backbar spirits — grouped by type (count shelf by shelf) ──────
+    {
+      key: 'sp-gin', label: 'Backbar — Gin', supplier: 'Hanbury (True Brew Co)',
+      items: [
+        { key: 'sp-gin-house',     name: 'House Gin — Hanbury London Dry', unit: '2.1L refill' },
+        { key: 'sp-gin-cranberry', name: 'Hanbury Spiced Cranberry Gin',   unit: '2.1L refill' },
+      ],
+    },
+    {
+      key: 'sp-vodka', label: 'Backbar — Vodka', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-vodka', name: 'Vodka (Absolut Blue)', unit: '700ml' },
+      ],
+    },
+    {
+      key: 'sp-agave', label: 'Backbar — Tequila & Mezcal', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-teq-silver',   name: 'Cazcabel Blanco (silver)', unit: '700ml' },
+        { key: 'sp-teq-reposado', name: 'Cazcabel Reposado',        unit: '700ml' },
+        { key: 'sp-mezcal-vida',  name: 'Vida Mezcal',              unit: '700ml' },
+        { key: 'sp-mezcal-house', name: 'Madre Mezcal (house)',     unit: '700ml' },
+      ],
+    },
+    {
+      key: 'sp-rum', label: 'Backbar — Rum & Cachaça', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-cachaca',    name: 'Cachaça (Velho Barreiro)', unit: '700ml' },
+        { key: 'sp-havana-esp', name: 'Havana Especial',          unit: '700ml' },
+        { key: 'sp-havana-3',   name: 'Havana Club 3yr',          unit: '700ml' },
+        { key: 'sp-havana-7',   name: 'Havana Club 7yr',          unit: '700ml' },
+        { key: 'sp-wray',       name: 'Wray & Nephew Overproof',  unit: '700ml' },
+        { key: 'sp-kraken',     name: 'Kraken Black Spiced',      unit: '700ml' },
+      ],
+    },
+    {
+      key: 'sp-whisky', label: 'Backbar — Whisky & Bourbon', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-bourbon', name: 'Four Roses Bourbon',      unit: '700ml' },
+        { key: 'sp-whiskey', name: 'Jameson (house whiskey)',  unit: '700ml' },
+      ],
+    },
+    {
+      key: 'sp-liqueurs', label: 'Backbar — Liqueurs', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-triple-sec',   name: 'Triple Sec',             unit: '700ml' },
+        { key: 'sp-kahlua',       name: 'Kahlúa',                 unit: '700ml' },
+        { key: 'sp-baileys',      name: 'Baileys',                unit: '700ml' },
+        { key: 'sp-st-germain',   name: 'St Germain',             unit: '700ml' },
+        { key: 'sp-chartreuse',   name: 'Green Chartreuse',       unit: '700ml' },
+        { key: 'sp-limoncello',   name: 'Limoncello (Luxardo)',   unit: '700ml' },
+        { key: 'sp-amaretto',     name: 'Disaronno Amaretto',     unit: '700ml' },
+        { key: 'sp-kings-ginger', name: "King's Ginger Liqueur",  unit: '500ml' },
+        { key: 'sp-passionfruit', name: 'Passion Fruit Liqueur',  unit: '700ml' },
+        { key: 'sp-falernum',     name: 'Velvet Falernum',        unit: '700ml' },
+        { key: 'sp-sambuca',      name: 'Sambuca (Antica)',       unit: '700ml' },
+      ],
+    },
+    {
+      key: 'sp-aperitivo', label: 'Backbar — Aperitivo & Vermouth', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-campari',    name: 'Campari',                unit: '700ml' },
+        { key: 'sp-aperol',     name: 'Aperol',                 unit: '700ml' },
+        { key: 'sp-amaro',      name: 'Amaro Montenegro',       unit: '700ml' },
+        { key: 'sp-cynar',      name: 'Cynar',                  unit: '700ml' },
+        { key: 'sp-vermut',     name: 'Vermut (El Bandarra)',   unit: '1L' },
+        { key: 'sp-verm-sweet', name: 'Sweet Vermouth (Martini Rosso)',  unit: '750ml' },
+        { key: 'sp-verm-dry',   name: 'Dry Vermouth (Martini Extra Dry)', unit: '750ml' },
+        { key: 'sp-cocchi',     name: 'Cocchi Americano',       unit: '750ml' },
+      ],
+    },
+    {
+      key: 'sp-other', label: 'Backbar — Absinthe & other', supplier: 'Drinks Club',
+      items: [
+        { key: 'sp-abs-choc',    name: 'Chocolate Absinthe', unit: '700ml', supplier: "Devil's Botany" },
+        { key: 'sp-abs-london',  name: 'London Absinthe',    unit: '700ml', supplier: "Devil's Botany" },
+        { key: 'sp-abs-regalis', name: 'Absinthe Regalis',   unit: '700ml', supplier: "Devil's Botany" },
+        { key: 'sp-umeshu',      name: 'Akashi-Tai Plum Sake', unit: '500ml' },
+        { key: 'sp-foamer',      name: "Ms Better's Foamer", unit: '120ml' },
+      ],
+    },
   ],
 }
 
