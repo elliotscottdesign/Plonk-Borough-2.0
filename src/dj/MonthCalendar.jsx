@@ -61,24 +61,33 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const t = info ? (tones[toneKey] || {}) : {}
           const evs = (rich && info && Array.isArray(info.events)) ? info.events : []
 
-          // Multi-session day (Saturday: afternoon 4–8pm + evening 8pm–12am) → show
-          // each session on its own row so both are clear at a glance (admin view).
+          // Multi-session day (Saturday: afternoon 4–8pm + evening 8pm–12am) → each
+          // session is its own coloured box (green+thumbnail when booked, red when
+          // open) so it's obvious at a glance which of the two is taken vs free.
           if (rich && info && Array.isArray(info.daySlots) && info.daySlots.length > 1 && info.daySlots.some(s => s.status !== 'closed')) {
-            const sc = (st) => st === 'confirmed' ? '#34D399' : (st === 'pending' || st === 'held') ? '#FCD34D' : st === 'open' ? RED : 'rgba(255,255,255,0.28)'
+            const sc = (st) => st === 'confirmed' ? '#34D399' : st === 'pending' ? '#FCD34D' : st === 'held' ? '#F59E0B' : st === 'open' ? RED : 'rgba(255,255,255,0.3)'
+            const bg = (st) => st === 'confirmed' ? 'rgba(52,211,153,0.10)' : st === 'pending' ? 'rgba(252,211,77,0.10)' : st === 'held' ? 'rgba(245,158,11,0.10)' : st === 'open' ? 'rgba(218,27,51,0.10)' : 'transparent'
             return (
               <button key={i} type="button" className="cal-rich-cell" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
-                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.16)', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px', background: '#0A0A0A' }}>
+                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px' }}>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
                   <span style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>2 sessions</span>
                 </div>
-                {info.daySlots.map((s, j) => (
-                  <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '4px 6px', borderTop: '1px solid rgba(255,255,255,0.06)', flex: 1, minWidth: 0 }}>
-                    <span style={{ width: 5, height: 5, borderRadius: '50%', background: sc(s.status), flexShrink: 0 }} />
-                    <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, whiteSpace: 'nowrap' }}>{s.start}</span>
-                    <span style={{ fontSize: 9, color: s.dj ? '#fff' : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{s.dj || (s.status === 'open' ? 'Open' : s.status === 'closed' ? '—' : s.status)}</span>
-                  </div>
-                ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '0 4px 4px' }}>
+                  {info.daySlots.map((s, j) => {
+                    const c = sc(s.status), booked = !!s.dj
+                    return (
+                      <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 5, border: s.status === 'closed' ? `1px dashed ${c}` : `1px solid ${c}`, background: bg(s.status), borderRadius: 6, padding: '3px 5px', minWidth: 0 }}>
+                        {booked && s.image
+                          ? <img src={s.image} alt="" loading="lazy" style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} />
+                          : <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />}
+                        <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, whiteSpace: 'nowrap' }}>{s.start}</span>
+                        <span style={{ fontSize: 9, color: booked ? '#fff' : 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{s.dj || (s.status === 'open' ? 'Open' : s.status === 'closed' ? '—' : s.status)}</span>
+                      </div>
+                    )
+                  })}
+                </div>
               </button>
             )
           }

@@ -246,8 +246,7 @@ Deno.serve(async (req) => {
         const dateStr = `${yr}-${String(mo + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
         if (dateStr < today) continue;
         const wd = new Date(dateStr + "T00:00:00Z").getUTCDay();
-        if (wd === 0) continue;   // Sunday — not bookable
-        const session = [4, 5, 6].includes(wd);
+        const session = [4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
         rows.push({ date: dateStr, slot: "main", status: "open", kind: session ? "session" : "opendecks" });
         if (wd === 6) rows.push({ date: dateStr, slot: "sat_pm", status: "open", kind: "session" });
       }

@@ -96,6 +96,7 @@ export async function djCaption(event, avoid = '') {
 //   Thu/Fri/Sat = paid DJ sessions (genre picker, adjacent-day rule, 1 per month).
 //   Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
 export const SESSIONS = {
+  0: { day: 'Sunday', start: '19:00', end: '23:00', kind: 'opendecks' },
   1: { day: 'Monday', start: '19:00', end: '23:00', kind: 'opendecks' },
   2: { day: 'Tuesday', start: '19:00', end: '23:00', kind: 'opendecks' },
   3: { day: 'Wednesday', start: '19:00', end: '23:00', kind: 'opendecks' },

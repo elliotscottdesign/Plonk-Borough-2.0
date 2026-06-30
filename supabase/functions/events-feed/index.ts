@@ -11,6 +11,7 @@ const cors = {
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
 const SESSIONS: Record<number, { day: string; start: string; end: string; kind: string }> = {
+  0: { day: "Sunday", start: "19:00", end: "23:00", kind: "opendecks" },
   1: { day: "Monday", start: "19:00", end: "23:00", kind: "opendecks" },
   2: { day: "Tuesday", start: "19:00", end: "23:00", kind: "opendecks" },
   3: { day: "Wednesday", start: "19:00", end: "23:00", kind: "opendecks" },
