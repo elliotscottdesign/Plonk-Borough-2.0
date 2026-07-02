@@ -23,6 +23,15 @@ export const rotaAddStaff = (staff) => call({ action: 'addStaff', secret: SEND_S
 export const rotaSaveStaff = (id, patch) => call({ action: 'saveStaff', secret: SEND_SECRET, id, ...patch })
 export const rotaRemoveStaff = (id) => call({ action: 'removeStaff', secret: SEND_SECRET, id })
 
+// Rota calendar: full founder view (staff + upcoming shifts + claims) + release/assign.
+export const rotaLoad = () => call({ action: 'load', secret: SEND_SECRET })
+export const rotaReleaseMonth = (month, headcount) => call({ action: 'releaseMonth', secret: SEND_SECRET, month, headcount })
+export const rotaOpenDay = (date, headcount) => call({ action: 'openDay', secret: SEND_SECRET, date, headcount })
+export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: SEND_SECRET, shiftId })
+export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
+export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })
+export const rotaUnassign = (shiftId, staffId) => call({ action: 'unassignShift', secret: SEND_SECRET, shiftId, staffId })
+
 // ── Staff portal (Slice 2 — login issues a personal token) ───────────────────
 export const rotaLogin = (email, password) => call({ action: 'login', email, password })
 export const rotaMe = (token) => call({ action: 'me', token })

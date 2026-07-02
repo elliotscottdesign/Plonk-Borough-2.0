@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaAdmin, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
+import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
+import RotaCalendar from './RotaCalendar.jsx'
 
 // ─── Staff Rota — team roster (admin) ────────────────────────────────────────
 // Reads/writes the Supabase `staff` table via the `rota` edge function. Each
@@ -30,8 +31,11 @@ const missing = (s) => {
 
 export default function StaffRota() {
   const [staff, setStaff] = useState([])
+  const [shifts, setShifts] = useState([])
+  const [claims, setClaims] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [view, setView] = useState('team')   // 'team' (roster) | 'rota' (shift calendar)
   const [editing, setEditing] = useState(null)
   const [form, setForm] = useState({})
   const [busy, setBusy] = useState(false)
@@ -40,7 +44,7 @@ export default function StaffRota() {
 
   const load = async () => {
     setLoading(true); setErr('')
-    try { const r = await rotaAdmin(); setStaff(r.staff || []) }
+    try { const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []) }
     catch (e) { setErr(e.message || 'Could not load the team.') }
     finally { setLoading(false) }
   }
@@ -87,9 +91,18 @@ export default function StaffRota() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['team', '👥 Team'], ['rota', '🗓️ Rota']].map(([k, lbl]) => (
+          <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
+        ))}
+      </div>
+
+      {view === 'rota' ? (
+        <RotaCalendar staff={staff} shifts={shifts} claims={claims} reload={load} />
+      ) : (<>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>👥 Staff Rota</div>
+          <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>👥 The team</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
             {staff.length} team member{staff.length === 1 ? '' : 's'} · <span style={{ color: '#34D399' }}>{readyN} ready to log in</span>{staff.length - readyN > 0 && <> · <span style={{ color: '#FCD34D' }}>{staff.length - readyN} incomplete</span></>}
           </div>
@@ -218,6 +231,7 @@ export default function StaffRota() {
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
         <strong style={{ color: '#fff' }}>How it works:</strong> add each team member here with their full profile, set them a <strong style={{ color: '#fff' }}>login password</strong>, and mark the days they can't work. Once they're <span style={{ color: '#34D399' }}>Ready</span> they'll be able to log into the staff portal, set their monthly availability, and pick from the shifts you release — coming in the next update. You (the founder) stay the master login.
       </div>
+      </>)}
     </div>
   )
 }
