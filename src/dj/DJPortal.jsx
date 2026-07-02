@@ -16,7 +16,7 @@ const Center = ({ children }) => (
   <div style={{ minHeight: '100vh', background: INK, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: "'DM Sans',sans-serif", padding: 32, textAlign: 'center', lineHeight: 1.6 }}>{children}</div>
 )
 const Photo = ({ d, size = 92 }) => {
-  if (d?.image_url) return <img src={d.image_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${RED}` }} />
+  if (d?.image_url) return <img src={d.image_url} alt="" style={{ width: size, height: size, borderRadius: '50%', objectFit: 'contain', background: '#1a1a1a', border: `2px solid ${RED}` }} />
   const initials = (d?.dj_name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
   return <div style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#1a1a1a', color: '#fff', fontSize: size * 0.34, fontWeight: 700, border: `2px dashed ${RED}` }}>{initials}</div>
 }
@@ -307,7 +307,7 @@ export default function DJPortal() {
           <div style={{ fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Event image <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>(optional — used instead of your profile photo for this night)</span></div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             {(eventImg || sdj.image_url)
-              ? <img src={eventImg || sdj.image_url} alt="" style={{ width: 54, height: 54, borderRadius: 8, objectFit: 'cover', border: `1px solid ${eventImg ? RED : LINE}`, flexShrink: 0 }} />
+              ? <img src={eventImg || sdj.image_url} alt="" style={{ width: 54, height: 54, borderRadius: 8, objectFit: 'contain', background: '#1a1a1a', border: `1px solid ${eventImg ? RED : LINE}`, flexShrink: 0 }} />
               : <div style={{ width: 54, height: 54, borderRadius: 8, background: '#1a1a1a', border: `1px solid ${LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: 'rgba(255,255,255,0.4)', flexShrink: 0 }}>🎵</div>}
             <div style={{ flex: 1, minWidth: 0 }}>
               <label style={{ display: 'inline-block', fontSize: 12, color: RED, cursor: 'pointer', borderBottom: `1px solid ${RED}` }}>
@@ -443,7 +443,7 @@ export default function DJPortal() {
               const isPrimary = !b.dj_id || b.dj_id === (st.dj && st.dj.id)   // false when I'm the b2b partner (the lead DJ manages it)
               return (
                 <div key={b.date + '-' + (b.slot || 'main')} style={{ background: CARD, border: `1px solid ${LINE}`, borderLeft: `3px solid ${statusColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10 }}>
-                  {(b.event_image_url || sdj.image_url) && <img src={b.event_image_url || sdj.image_url} alt="" title={b.event_image_url ? 'Event image' : 'Profile photo'} style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${b.event_image_url ? RED : LINE}`, flexShrink: 0 }} />}
+                  {(b.event_image_url || sdj.image_url) && <img src={b.event_image_url || sdj.image_url} alt="" title={b.event_image_url ? 'Event image' : 'Profile photo'} style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'contain', background: '#1a1a1a', border: `1px solid ${b.event_image_url ? RED : LINE}`, flexShrink: 0 }} />}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
@@ -486,7 +486,7 @@ export default function DJPortal() {
                   const session = e.kind === 'session'
                   return (
                     <div key={e.date + '-' + (e.slot || 'main')} style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${e.status === 'confirmed' ? '#34D399' : '#FCD34D'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-                      {e.image && <img src={e.image} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'cover', border: `1px solid ${LINE}`, flexShrink: 0 }} />}
+                      {e.image && <img src={e.image} alt="" style={{ width: 40, height: 40, borderRadius: 7, objectFit: 'contain', background: '#1a1a1a', border: `1px solid ${LINE}`, flexShrink: 0 }} />}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
                           <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(e.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
