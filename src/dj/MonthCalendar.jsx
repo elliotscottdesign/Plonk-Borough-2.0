@@ -80,7 +80,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                     return (
                       <div key={j} style={{ display: 'flex', alignItems: 'center', gap: 5, border: s.status === 'closed' ? `1px dashed ${c}` : `1px solid ${c}`, background: bg(s.status), borderRadius: 6, padding: '3px 5px', minWidth: 0 }}>
                         {booked && s.image
-                          ? <img src={s.image} alt="" loading="lazy" style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'contain', background: '#0a0a0a', flexShrink: 0 }} />
+                          ? <img src={s.image} alt="" loading="lazy" style={{ width: 18, height: 18, borderRadius: 4, objectFit: 'cover', objectPosition: 'center top', background: '#0a0a0a', flexShrink: 0 }} />
                           : <span style={{ width: 6, height: 6, borderRadius: '50%', background: c, flexShrink: 0 }} />}
                         <span style={{ fontSize: 8.5, fontWeight: 700, color: RED, whiteSpace: 'nowrap' }}>{s.start}</span>
                         <span style={{ fontSize: 9, color: booked ? '#fff' : 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }}>{s.dj || (s.status === 'open' ? 'Open' : s.status === 'closed' ? '—' : s.status)}</span>
@@ -112,7 +112,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                 }}>
                 <div style={{ position: 'relative', width: '100%', height: 70, background: '#0A0A0A', flexShrink: 0 }}>
                   {e0.image
-                    ? <img src={e0.image} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
+                    ? <img src={e0.image} alt="" loading="lazy" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'center top', display: 'block' }} />
                     : <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 8, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)' }}>No art</div>}
                   <span style={{ position: 'absolute', left: 4, top: 4, background: 'rgba(0,0,0,0.78)', color: '#fff', fontSize: 10, fontWeight: 700, borderRadius: 999, padding: '0 6px', lineHeight: '16px' }}>{d}</span>
                   <div style={{ position: 'absolute', right: 4, top: 4, display: 'flex', flexDirection: 'column', gap: 3, alignItems: 'flex-end' }}>
