@@ -40,6 +40,9 @@ alter table public.staff add column if not exists feedback_notes text;
 alter table public.staff add column if not exists work_rules text;
 alter table public.staff add column if not exists password text;
 alter table public.staff add column if not exists active boolean default true;
+-- One login per email (case-insensitive) so a duplicate can't create a silent
+-- auth ambiguity. Null emails are exempt (a member added before their email is set).
+create unique index if not exists staff_email_lower_uniq on public.staff (lower(email)) where email is not null;
 
 -- 2) Released shifts — the founder opens specific shift patterns on a date; staff
 --    claim the ones they can work. Strict patterns: staff pick whether, not what.

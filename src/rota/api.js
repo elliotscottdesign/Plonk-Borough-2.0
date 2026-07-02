@@ -32,6 +32,11 @@ export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadc
 export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })
 export const rotaUnassign = (shiftId, staffId) => call({ action: 'unassignShift', secret: SEND_SECRET, shiftId, staffId })
 
-// ── Staff portal (Slice 2 — login issues a personal token) ───────────────────
+// ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (email, password) => call({ action: 'login', email, password })
 export const rotaMe = (token) => call({ action: 'me', token })
+export const rotaMyState = (token) => call({ action: 'myState', token })
+export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })
+export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data })
+export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
+export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift', token, shiftId })

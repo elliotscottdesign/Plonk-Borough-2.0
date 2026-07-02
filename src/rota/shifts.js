@@ -50,9 +50,14 @@ export function fmtMin(m) {
   const ap = h >= 12 ? 'pm' : 'am'; h = h % 12 || 12
   return `${h}${mm ? ':' + String(mm).padStart(2, '0') : ''}${ap}`
 }
-export const shiftTimeLabel = (s) => `${fmtMin(s.start)}–${fmtMin(s.end)}`
-export const shiftHours = (s) => Math.round(((s.end - s.start) / 60) * 10) / 10
+// Accept both pattern objects (.start/.end) and DB shift rows (.start_min/.end_min).
+const _s = (s) => s.start ?? s.start_min
+const _e = (s) => s.end ?? s.end_min
+export const shiftTimeLabel = (s) => `${fmtMin(_s(s))}–${fmtMin(_e(s))}`
+export const shiftHours = (s) => Math.round(((_e(s) - _s(s)) / 60) * 10) / 10
 
 // 'HH:MM' → minutes; and minutes-from-open for a same-clock time on a shift that
 // may cross midnight (used later when comparing availability windows to a shift).
 export const hhmmToMin = (t) => { const [h, m] = String(t || '').split(':').map(Number); return (h || 0) * 60 + (m || 0) }
+// minutes → 'HH:MM' clock time (wraps next-day: 1440→'00:00', 1500→'01:00').
+export const minToHHMM = (m) => { const t = ((m % 1440) + 1440) % 1440; return `${String(Math.floor(t / 60)).padStart(2, '0')}:${String(t % 60).padStart(2, '0')}` }
