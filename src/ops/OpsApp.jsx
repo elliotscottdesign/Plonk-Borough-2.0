@@ -5,6 +5,7 @@ import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
 import HelpOut from './sections/HelpOut.jsx'
+import StaffRota from './sections/StaffRota.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -12,6 +13,7 @@ import useIsMobile from '../lib/useIsMobile.js'
 // collapses into a ☰ menu so the links don't crash into each other / the page.
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
+  { key: 'rota',          label: 'Staff Rota',    Component: StaffRota },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
   { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },
   { key: 'reports',       label: 'Reports',       Component: Reports },
