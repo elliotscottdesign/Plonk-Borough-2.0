@@ -29,6 +29,32 @@ const staffByToken = async (sb: any, token: unknown) => {
   return (data || [])[0] || null;
 };
 
+// ── Email (Resend) — founder alerts + the "shift back on the board" broadcast ──
+const RESEND = Deno.env.get("RESEND_API_KEY");
+const ADMIN_EMAIL = Deno.env.get("ADMIN_EMAIL") || "elliot@nodice.bar";
+const OPS_URL = "https://team.nodice.bar/ops";
+const PORTAL_URL = "https://team.nodice.bar/rota";
+const esc = (s: unknown) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" } as Record<string, string>)[c]);
+const niceDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+async function sendMail(to: string, subject: string, html: string) {
+  if (!RESEND || !to) return;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "No Dice <elliot@nodice.bar>", to, subject, html }),
+    });
+  } catch (_) { /* best-effort — never break the action */ }
+}
+const emailShell = (heading: string, bodyHtml: string, cta?: { href: string; label: string }) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#000;color:#fff;padding:28px;border-radius:12px;max-width:560px;margin:auto">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#DA1B33;margin:0 0 14px">No Dice · Rota</p>
+    <h1 style="font-size:22px;margin:0 0 12px">${heading}</h1>
+    ${bodyHtml}
+    ${cta ? `<p style="margin:22px 0"><a href="${cta.href}" style="background:#DA1B33;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">${cta.label}</a></p>` : ""}
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+
 const ROLES = ["Bar Staff", "Supervisor", "Asst. Manager", "Manager"];
 const clean = (v: unknown) => (typeof v === "string" ? v.trim() : v);
 
@@ -137,6 +163,8 @@ Deno.serve(async (req) => {
             : { available: true };
           n++;
         }
+        // Existing row's last-update — used to debounce the founder alert below.
+        const { data: prevAv } = await sb.from("staff_availability").select("updated_at").eq("staff_id", me.id).eq("month", month).maybeSingle();
         // Don't let them un-mark a day they're already rostered on (keeps the
         // founder's rota and the member's availability from disagreeing).
         const { data: myClaims } = await sb.from("staff_shift_claims").select("shift:staff_shifts(date)").eq("staff_id", me.id);
@@ -147,12 +175,22 @@ Deno.serve(async (req) => {
         const { error } = await sb.from("staff_availability")
           .upsert({ staff_id: me.id, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
         if (error) return json({ error: error.message }, 400);
+        // Founder alert — at most ~once per 3h per (staff, month), so a run of
+        // taps while they fill the month doesn't spam the inbox.
+        const lastMs = prevAv?.updated_at ? new Date(prevAv.updated_at).getTime() : 0;
+        if (Object.keys(data).length && Date.now() - lastMs > 3 * 3600 * 1000) {
+          const monthName = new Date(month + "-01T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
+          await sendMail(ADMIN_EMAIL, `${me.name} set their availability — ${monthName}`,
+            emailShell(`${esc(me.name)} updated their availability`,
+              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> has marked availability in <strong style="color:#fff">${monthName}</strong>. You can release shifts for them now.</p>`,
+              { href: OPS_URL, label: "Open the rota" }));
+        }
         return json({ ok: true });
       }
 
       if (action === "claimShift") {
         if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
-        const { data: shift } = await sb.from("staff_shifts").select("id,date").eq("id", b.shiftId).maybeSingle();
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label").eq("id", b.shiftId).maybeSingle();
         if (!shift) return json({ error: "That shift is no longer available — refresh." }, 404);
         // Must have marked availability on that day first.
         const { data: avRow } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", shift.date.slice(0, 7)).maybeSingle();
@@ -165,12 +203,32 @@ Deno.serve(async (req) => {
           if (m.includes("duplicate")) return json({ error: "You're already on that shift." }, 409);
           return json({ error: "Couldn't grab that shift — refresh and try again." }, 400);
         }
+        // Tell the founder, with a link to the rota overview.
+        await sendMail(ADMIN_EMAIL, `${me.name} took a shift — ${niceDate(shift.date)}`,
+          emailShell(`${esc(me.name)} grabbed a shift`,
+            `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> took the <strong style="color:#fff">${esc(shift.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(shift.date)}</strong>. Log in to see the rota and what still needs covering.</p>`,
+            { href: OPS_URL, label: "See the rota overview" }));
         return json({ ok: true });
       }
 
       if (action === "releaseShift") {
+        const { data: sh } = await sb.from("staff_shifts").select("date,label").eq("id", b.shiftId).maybeSingle();
         const { error } = await sb.from("staff_shift_claims").delete().eq("shift_id", b.shiftId).eq("staff_id", me.id);
         if (error) return json({ error: error.message }, 400);
+        // Back on the board → broadcast to the team + tell the founder.
+        // (Eligibility filtering by ability/role comes with the tags model.)
+        if (sh) {
+          const subject = `A ${sh.label || "shift"} is back on the board — ${niceDate(sh.date)}`;
+          const html = emailShell(`Shift available: ${esc(sh.label)} · ${niceDate(sh.date)}`,
+            `<p style="color:#ccc;line-height:1.6">A <strong style="color:#fff">${esc(sh.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(sh.date)}</strong> has just opened up — first to grab it gets it.</p>`,
+            { href: PORTAL_URL, label: "Log in to take the shift" });
+          const { data: team } = await sb.from("staff").select("email").eq("active", true).neq("id", me.id);
+          for (const t of team || []) if (t.email) await sendMail(t.email, subject, html);
+          await sendMail(ADMIN_EMAIL, `Shift dropped — ${niceDate(sh.date)} needs covering`,
+            emailShell(`${esc(me.name)} dropped a shift`,
+              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> cancelled the <strong style="color:#fff">${esc(sh.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(sh.date)}</strong>. It's back on the board — the team's been notified.</p>`,
+              { href: OPS_URL, label: "See the rota" }));
+        }
         return json({ ok: true });
       }
 
