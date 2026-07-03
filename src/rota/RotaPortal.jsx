@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta } from './api.js'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
-import { CHECKLISTS, CHECKLIST_ORDER, checklistCount, doneCount } from './checklists.js'
+import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import TrainingView from './TrainingView.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
@@ -318,13 +318,14 @@ function ChecklistView({ token }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Today · {dayName(today)} {today.slice(8)}. Tick tasks as you go — it saves automatically.</div>
         {CHECKLIST_ORDER.map(k => {
-          const c = CHECKLISTS[k], total = checklistCount(k), done = doneCount(k, subs[k]?.items || {}), sub = subs[k]?.submitted
+          const c = CHECKLISTS[k], total = checklistCount(k, today), done = doneCount(k, subs[k]?.items || {}, today), sub = subs[k]?.submitted
           return (
             <button key={k} onClick={() => open(k)} style={{ textAlign: 'left', background: CARD, border: `1px solid ${sub ? 'rgba(52,211,153,0.4)' : LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ fontSize: 24 }}>{c.icon}</div>
+              <div style={{ fontSize: 24, flexShrink: 0 }}>{c.icon}</div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontSize: 15, fontWeight: 700 }}>{c.title} {sub && <span style={{ fontSize: 10, color: GREEN, fontWeight: 700 }}>✓ submitted</span>}</div>
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{done}/{total} done</div>
+                {c.blurb && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 1, lineHeight: 1.4 }}>{c.blurb}</div>}
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 3 }}>{done}/{total} done</div>
                 <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.1)', marginTop: 7, overflow: 'hidden' }}>
                   <div style={{ height: '100%', width: `${total ? Math.round((done / total) * 100) : 0}%`, background: done >= total ? GREEN : RED }} />
                 </div>
@@ -338,7 +339,8 @@ function ChecklistView({ token }) {
   }
 
   // Open one checklist.
-  const c = CHECKLISTS[openKey], total = checklistCount(openKey), done = doneCount(openKey, items)
+  const c = CHECKLISTS[openKey], secs = checklistSections(openKey, today), total = checklistCount(openKey, today), done = doneCount(openKey, items, today)
+  const multi = secs.length > 1
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -349,13 +351,13 @@ function ChecklistView({ token }) {
         </div>
       </div>
 
-      {c.sections.map((sec, si) => (
+      {secs.map((sec, si) => (
         <div key={si} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
-          {c.sections.length > 1 && <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: RED, fontWeight: 700, padding: '10px 14px 4px' }}>{sec.title}</div>}
+          {multi && <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: RED, fontWeight: 700, padding: '10px 14px 4px' }}>{sec.title}</div>}
           {sec.items.map((text, ii) => {
             const on = !!items[text]
             return (
-              <button key={ii} onClick={() => toggle(text)} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, width: '100%', textAlign: 'left', padding: '11px 14px', background: on ? 'rgba(52,211,153,0.07)' : 'transparent', border: 'none', borderTop: ii === 0 && !(c.sections.length > 1) ? 'none' : `1px solid rgba(255,255,255,0.06)`, cursor: 'pointer', color: '#fff' }}>
+              <button key={ii} onClick={() => toggle(text)} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, width: '100%', textAlign: 'left', padding: '11px 14px', background: on ? 'rgba(52,211,153,0.07)' : 'transparent', border: 'none', borderTop: ii === 0 && !multi ? 'none' : `1px solid rgba(255,255,255,0.06)`, cursor: 'pointer', color: '#fff' }}>
                 <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: `2px solid ${on ? GREEN : 'rgba(255,255,255,0.3)'}`, background: on ? GREEN : 'transparent', color: '#06281C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, marginTop: 1 }}>{on ? '✓' : ''}</span>
                 <span style={{ fontSize: 13.5, lineHeight: 1.4, color: on ? 'rgba(255,255,255,0.55)' : '#fff', textDecoration: on ? 'line-through' : 'none' }}>{text}</span>
               </button>

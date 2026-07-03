@@ -123,10 +123,158 @@ export const CHECKLISTS = {
       },
     ],
   },
+
+  toilet: {
+    key: 'toilet', title: 'Toilet checks', icon: '🚻',
+    blurb: 'Check both toilets clean, stocked & working through the day.',
+    sections: [
+      {
+        title: 'Both toilets checked — clean, stocked & working',
+        items: ['12pm', '2pm', '4pm', '6pm', '8pm', '10pm'],
+      },
+    ],
+  },
+
+  'deep-clean': {
+    key: 'deep-clean', title: 'Deep Clean', icon: '🧽',
+    blurb: 'Quiet-shift deep clean (Mon–Wed). Photograph when done, then start fresh next week.',
+    sections: [
+      {
+        title: 'Deep clean',
+        items: [
+          'After deep clean — fill the slushie machine with a new batch',
+          'Organise the pre-mix / juice / syrup bottles, remove old labels & wash',
+          'Glass washer deep clean / salting (inside & outside)',
+          'Clean the shelves next to the glass washer & under the beer taps',
+          'Deep clean the freezer',
+          'Deep clean the golf course — balls & leaves in the deep corners',
+          'Clean the bin area at the back door / mop it',
+          'Refill soap in the toilets / check Febreze is stocked',
+          'All glasses through the dishwasher, polished & put back',
+          'Clean the shelf under the bar-back sink & restock',
+          'Wipe down & hoover the golf course (do NOT hoover if the course is wet)',
+          'Stools & chairs cleaned down',
+          'Clean front & back windows, inside and out',
+          'Clean the front signs',
+          'Sweep the back-door area',
+          'Check board games for parts (notes inside the box lids)',
+          'Clean & organise the cages / stockroom, ready for stocktake & deliveries',
+          'Empty & clean the slushie machine (record any waste on the till)',
+          'Beer line clean',
+          'Clean the beer couplers',
+          'Dust all arcade machines & give them a proper clean',
+          'Wash all bar shelves, incl. under the stations; wash the plastic grip mats',
+          'Clean the bar fridges, check product dates, deep clean the small white fridge',
+          'Mop & sweep under all shelves — check for mouse droppings',
+          'Pour pipe cleaner down all sinks',
+        ],
+      },
+    ],
+  },
+
+  kitchen: {
+    key: 'kitchen', title: 'Kitchen', icon: '🌭',
+    blurb: 'Kitchen open, close & weekly.',
+    sections: [
+      {
+        title: 'Opening',
+        items: [
+          'Check the bookings to gauge how busy the shift will be & sausage levels',
+          'Complete the temp sheet (at least once per day)',
+          'Check all fridge items are covered, labelled & in date',
+          'Set up the bain marie, turn on the grill',
+          'Check sauce / topping / red onion / chilli levels — prep if needed',
+          'Defrost food if required',
+        ],
+      },
+      {
+        title: 'Closing',
+        items: [
+          'Pack & label toppings',
+          'Clean: wipe all surfaces, clean the grill & bain marie, sinks clean & empty',
+          'Wash the hot dog baskets',
+          'Take buns, sausages & sauces out of the freezer for next day',
+          'Prep for nachos — guac (fresh avocado), salsa (toms), chop red onion',
+          'Take the rubbish out & clean the bin',
+          'Pass on the group chat any ingredients we ran out of / are low',
+          'Switch off all kitchen equipment sockets',
+        ],
+      },
+      {
+        title: 'Weekly',
+        items: [
+          'Prep chilli / curry',
+          'Ordering (sausages, fruit, food, teas, bar snacks, nachos, sour cream, toms, avocado, cheese)',
+          'Organise & clean the big fridge, ready for deliveries',
+          'Organise & clean the big freezer, ready for deliveries',
+          'Sort the plastic containers — clean & remove old labels',
+          'Clean & organise all kitchen shelves',
+          'Clean the kitchen walls',
+        ],
+      },
+    ],
+  },
+
+  weekly: {
+    key: 'weekly', title: 'Weekly (managers)', icon: '📅',
+    blurb: 'Manager weekly jobs — ordering, admin & checks.',
+    sections: [
+      {
+        title: 'This week',
+        items: [
+          'Check rota / bookings / hire enquiries & plan the day / week',
+          'Toilet checklist printed & put up in the toilets',
+          'Tick sheets printed & on clipboards',
+          "Previous week's tick sheets filed in the bar folder",
+          'Check the temp check was fully completed for last week & file it',
+          'Weekly fire alarm test',
+          '1st Tuesday of the month: test the emergency lights',
+          'Order: Enotria / Nectar',
+          'Order: Five Points / other beer',
+          'Order: cleaning supplies, consumables & stationery',
+          'Check golf supplies (balls, clubs, pencils, scorecards) & order if low',
+          'Record & update expenses on the spreadsheet',
+          'Empty kegs put in the garden at end of shift',
+          'Take in deliveries — report discrepancies, rotate & put away',
+          'Check sell-by / opened dates on juices, softs, beers, ciders — old stock to the front',
+          'Throw away any garnishes / juices that will go off',
+          'Rota done',
+          'Stock take done',
+        ],
+      },
+    ],
+  },
+
+  foh: {
+    key: 'foh', title: 'FOH clean', icon: '🧴',
+    blurb: "Today's front-of-house cleaning — the tasks change each day.",
+    byWeekday: {
+      1: ['Change the sign outside (50% off games)', 'Beer lines cleaning', 'Wash golf course balls & tidy the course', 'Wipe all bar shelves & bottles (top spirits + above the padlock boxes)', 'Clean up the games shelf (Jenga equal in each basket)', 'Check food containers / bottles — remove any stickers', 'Clean the bar fridges (dry shelves, take the door out, clean the gaps)', 'Empty ash trays & wash them', 'Water the plants'],
+      2: ['Record am/pm temp', 'Cleaning products stock take', 'Sweep the garden — remove spider webs, clean & replace ashtrays', 'Clean the stockroom — empty kegs out, sweep & mop the floor', 'Clean all speed pourers — soak in warm soapy water, dry & put back', 'Refill all cleaning sprays (big refill bottles on the garden benches — read the instructions)', 'Wipe everything under the sink next to the glass washer', 'Wipe the garden tables before closing', 'Water the plants'],
+      3: ['Change the sign outside', 'Check nuts & soft-drink best-before dates — put shortest shelf-life on sale', 'Snack stock take', 'Clean & wipe dry the shelf beneath the kitchen sink', 'Wash all trays & jugs, wipe the glass washer', 'Check food containers / bottles — remove any stickers', 'Empty ash trays & wash them', 'Water the plants'],
+      4: ['Record am/pm temp', 'Wipe the pool balls', 'Check for broken cues — fix if needed', 'Make shrubs — buy ingredients', 'Garden maintenance — remove spider webs & weeds from the plant pots', 'Wipe the garden tables before closing', 'Water the plants'],
+      5: ['Change the sign outside', 'Tidy the golf course', 'Refill soap', 'Clean the postmix shelves & machine — remove dust & sticky stains, clean the fan', 'Brush the pool tables before the tournament', 'Empty ash trays & wash them', 'Water the plants'],
+      6: ['Record am/pm temp', 'Clean all windows inside & out — blue roll + glass cleaner', 'Sweep the beer garden', 'Check food containers / bottles — remove any stickers', 'Clean the floor behind the stations (back of the postmix)', 'Wipe the garden tables before closing', 'Water the plants'],
+      0: ['Change the sign outside', 'Wash golf course balls & tidy the course', 'Clean the bar fridges (dry shelves, take the door out, clean the gaps)', 'Clean up the games shelf (Jenga equal in each basket)', 'Empty ash trays & wash them', 'Water the plants'],
+    },
+  },
 }
 
-export const CHECKLIST_ORDER = ['opening', 'during', 'closing']
-export const checklistItems = (key) => (CHECKLISTS[key]?.sections || []).flatMap(s => s.items)
-export const checklistCount = (key) => checklistItems(key).length
+const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+export const CHECKLIST_ORDER = ['opening', 'during', 'closing', 'toilet', 'foh', 'deep-clean', 'kitchen', 'weekly']
+
+// Sections for a checklist on a given date — FOH's tasks change by weekday.
+export function checklistSections(key, dateStr) {
+  const c = CHECKLISTS[key]
+  if (!c) return []
+  if (c.byWeekday) {
+    const wd = dateStr ? new Date(dateStr + 'T00:00:00Z').getUTCDay() : new Date().getDay()
+    const items = c.byWeekday[wd] || []
+    return items.length ? [{ title: `${DAY_NAMES[wd]} tasks`, items }] : []
+  }
+  return c.sections || []
+}
+export const checklistItems = (key, dateStr) => checklistSections(key, dateStr).flatMap(s => s.items)
+export const checklistCount = (key, dateStr) => checklistItems(key, dateStr).length
 // How many of a submission's items are ticked (ignores stale keys not in the template).
-export const doneCount = (key, items) => checklistItems(key).filter(t => items && items[t]).length
+export const doneCount = (key, items, dateStr) => checklistItems(key, dateStr).filter(t => items && items[t]).length

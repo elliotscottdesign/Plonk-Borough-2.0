@@ -52,10 +52,10 @@ export default function ChecklistLog() {
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{fmtDate(date)}</div>
           {byDate[date].map(s => {
             const c = CHECKLISTS[s.checklist_key]
-            const total = checklistCount(s.checklist_key), done = doneCount(s.checklist_key, s.items || {})
+            const total = checklistCount(s.checklist_key, s.date), done = doneCount(s.checklist_key, s.items || {}, s.date)
             const pct = total ? Math.round((done / total) * 100) : 0
             const col = done >= total ? GREEN : done > 0 ? AMBER : RED
-            const missing = checklistItems(s.checklist_key).filter(t => !(s.items || {})[t])
+            const missing = checklistItems(s.checklist_key, s.date).filter(t => !(s.items || {})[t])
             const isOpen = open === s.id
             return (
               <div key={s.id} style={{ background: '#0A0A0A', border: `1px solid ${s.submitted ? 'rgba(52,211,153,0.35)' : LINE}`, borderRadius: 10, overflow: 'hidden' }}>
