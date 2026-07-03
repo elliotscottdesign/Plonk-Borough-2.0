@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta } from './api.js'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
+import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import TrainingView from './TrainingView.jsx'
 
@@ -237,17 +238,21 @@ export default function RotaPortal() {
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need
+                    const eligible = canWork(staff, sh)
+                    const hasReq = (sh.ability && sh.ability !== 'bar') || (sh.min_rank && sh.min_rank > 1)
                     return (
-                      <div key={sh.id} style={{ display: 'flex', alignItems: 'center', gap: 10, borderLeft: `3px solid ${sh.mine ? GREEN : full ? 'rgba(255,255,255,0.25)' : RED}`, paddingLeft: 10 }}>
+                      <div key={sh.id} style={{ display: 'flex', alignItems: 'center', gap: 10, borderLeft: `3px solid ${sh.mine ? GREEN : full ? 'rgba(255,255,255,0.25)' : eligible ? RED : 'rgba(255,255,255,0.25)'}`, paddingLeft: 10 }}>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{sh.label} <span style={{ color: RED, fontWeight: 700 }}>{shiftTimeLabel(sh)}</span></div>
-                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h · {sh.filled}/{need} filled</div>
+                          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h · {sh.filled}/{need} filled{hasReq ? ` · ${abilityIcon(sh.ability || 'bar')} ${abilityLabel(sh.ability || 'bar')}${sh.min_rank > 1 ? ` · ${rankLabel(sh.min_rank)}+` : ''}` : ''}</div>
                         </div>
                         {sh.mine
                           ? <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>
-                            : <button onClick={() => claim(sh.id)} disabled={busy || !avail} style={btn(avail ? 'red' : 'muted')}>Grab it</button>}
+                            : !eligible
+                              ? <span style={{ fontSize: 10.5, color: '#FCD34D', textAlign: 'right', maxWidth: 108, lineHeight: 1.3 }}>{whyCantWork(staff, sh)}</span>
+                              : <button onClick={() => claim(sh.id)} disabled={busy || !avail} style={btn(avail ? 'red' : 'muted')}>Grab it</button>}
                       </div>
                     )
                   })}
@@ -387,9 +392,11 @@ function ProfileView({ staff, onSave, busy }) {
         <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Set by the manager</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {staff.role && <span style={chip}>{staff.role}</span>}
+          {(staff.abilities || []).map((a, i) => <span key={i} style={{ ...chip, color: GREEN, borderColor: 'rgba(52,211,153,0.4)' }}>{abilityIcon(a)} {abilityLabel(a)}</span>)}
           {(staff.skills || []).map((s, i) => <span key={i} style={chip}>{s}</span>)}
           {staff.training_status && <span style={{ ...chip, color: GREEN, borderColor: 'rgba(52,211,153,0.4)' }}>{staff.training_status}</span>}
         </div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>{(staff.abilities || []).length ? 'You can pick up ' + (staff.abilities || []).map(abilityLabel).join(', ') + ' shifts.' : "You're not signed off for any shift type yet — ask the manager."}</div>
         {staff.training_notes && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 10, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Training:</strong> {staff.training_notes}</div>}
         {staff.feedback_notes && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Feedback:</strong> {staff.feedback_notes}</div>}
         {staff.work_rules && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Notes:</strong> {staff.work_rules}</div>}

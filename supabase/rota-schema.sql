@@ -40,6 +40,7 @@ alter table public.staff add column if not exists feedback_notes text;
 alter table public.staff add column if not exists work_rules text;
 alter table public.staff add column if not exists password text;
 alter table public.staff add column if not exists active boolean default true;
+alter table public.staff add column if not exists abilities text[] default '{}';   -- 'bar' | 'kitchen' | 'foh' | 'golf' (what training lets them work)
 -- One login per email (case-insensitive) so a duplicate can't create a silent
 -- auth ambiguity. Null emails are exempt (a member added before their email is set).
 create unique index if not exists staff_email_lower_uniq on public.staff (lower(email)) where email is not null;
@@ -66,6 +67,8 @@ alter table public.staff_shifts add column if not exists start_min integer;   --
 alter table public.staff_shifts add column if not exists end_min integer;      -- 1440 = 00:00, 1500 = 01:00 next day
 alter table public.staff_shifts add column if not exists label text;           -- 'Open' | 'Close' | 'Open–Close'
 alter table public.staff_shifts add column if not exists headcount integer not null default 1;
+alter table public.staff_shifts add column if not exists ability text default 'bar';    -- required ability to work it
+alter table public.staff_shifts add column if not exists min_rank integer default 1;    -- 1 Bar Staff .. 4 Manager (higher may cover lower)
 
 -- 2b) Shift claims — who is on each shift. One row per (shift, staff). A shift is
 --     FULL when its claim count reaches the shift's headcount. source: 'staff'

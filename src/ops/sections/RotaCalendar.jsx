@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
-import { rotaReleaseMonth, rotaOpenDay, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign } from '../../rota/api.js'
+import { rotaReleaseMonth, rotaOpenDay, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign, rotaSetShiftReq } from '../../rota/api.js'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName } from '../../rota/shifts.js'
+import { ABILITIES, RANKS } from '../../rota/roles.js'
 
 // ─── Rota calendar (founder) ─────────────────────────────────────────────────
 // The founder releases the fixed bar-team shift patterns onto a month, sets how
@@ -48,6 +49,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const bump = (sh, delta) => act(() => rotaSetHeadcount(sh.id, Math.max(1, (sh.headcount || 1) + delta)))
   const assign = (shiftId, staffId) => { setAssignFor(null); act(() => rotaAssign(shiftId, staffId)) }
   const unassign = (shiftId, staffId) => act(() => rotaUnassign(shiftId, staffId))
+  const setReq = (sh, patch) => act(() => rotaSetShiftReq(sh.id, patch))
 
   // Calendar grid (weeks start Monday, UTC math — matches the rest of the app).
   const startDow = (new Date(Date.UTC(viewY, viewM, 1)).getUTCDay() + 6) % 7
@@ -163,6 +165,17 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
                   <button onClick={() => closeShift(sh)} disabled={busy} style={btn('red')}>Delete</button>
                 </div>
 
+                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+                  <span>Needs</span>
+                  <select value={sh.ability || 'bar'} onChange={e => setReq(sh, { ability: e.target.value })} disabled={busy} style={reqSel}>
+                    {ABILITIES.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}
+                  </select>
+                  <span>· min role</span>
+                  <select value={sh.min_rank || 1} onChange={e => setReq(sh, { min_rank: +e.target.value })} disabled={busy} style={reqSel}>
+                    {RANKS.map((r, i) => <option key={r} value={i + 1}>{r}{i === 0 ? ' (anyone)' : '+'}</option>)}
+                  </select>
+                </div>
+
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                   {cl.map(c => {
                     const p = staffById[c.staff_id]
@@ -206,4 +219,5 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const stepper = { width: 24, height: 24, borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+const reqSel = { padding: '4px 6px', fontSize: 11, borderRadius: 6, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', cursor: 'pointer' }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })

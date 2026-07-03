@@ -31,6 +31,7 @@ export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: 
 export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
 export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })
 export const rotaUnassign = (shiftId, staffId) => call({ action: 'unassignShift', secret: SEND_SECRET, shiftId, staffId })
+export const rotaSetShiftReq = (shiftId, patch) => call({ action: 'setShiftReq', secret: SEND_SECRET, shiftId, ...patch })
 
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (email, password) => call({ action: 'login', email, password })

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
+import { ABILITIES } from '../../rota/roles.js'
 import { MODULE_META, cocktailKey } from '../../rota/training.js'
 import { SPECS } from '../data/cocktailSpecs.js'
 import RotaCalendar from './RotaCalendar.jsx'
@@ -65,6 +66,10 @@ export default function StaffRota() {
     const cur = Array.isArray(f.skills) ? f.skills : []
     return { ...f, skills: cur.includes(sk) ? cur.filter(x => x !== sk) : [...cur, sk] }
   })
+  const toggleAbility = (ab) => setForm(f => {
+    const cur = Array.isArray(f.abilities) ? f.abilities : []
+    return { ...f, abilities: cur.includes(ab) ? cur.filter(x => x !== ab) : [...cur, ab] }
+  })
 
   const addNew = async () => {
     setBusy(true); setQ('')
@@ -81,6 +86,7 @@ export default function StaffRota() {
         name: form.name, email: form.email, phone: form.phone, address: form.address,
         emergency_name: form.emergency_name, emergency_phone: form.emergency_phone, emergency_relation: form.emergency_relation,
         role: form.role, skills: Array.isArray(form.skills) ? form.skills : [],
+        abilities: Array.isArray(form.abilities) ? form.abilities : [],
         training_status: form.training_status, training_notes: form.training_notes,
         feedback_notes: form.feedback_notes, work_rules: form.work_rules, active: form.active !== false,
       }
@@ -182,6 +188,14 @@ export default function StaffRota() {
                     <Field label="Name"><input value={form.emergency_name || ''} onChange={e => onField('emergency_name', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Their phone"><input value={form.emergency_phone || ''} onChange={e => onField('emergency_phone', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Relationship (e.g. mum, partner)" wide><input value={form.emergency_relation || ''} onChange={e => onField('emergency_relation', e.target.value)} style={inp('100%')} /></Field>
+
+                    <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Trained to work — controls which shifts they can take</div>
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                      {ABILITIES.map(a => {
+                        const on = (form.abilities || []).includes(a.key)
+                        return <button key={a.key} type="button" onClick={() => toggleAbility(a.key)} style={{ padding: '6px 12px', fontSize: 12.5, borderRadius: 999, cursor: 'pointer', background: on ? '#34D399' : 'transparent', color: on ? '#06281C' : 'rgba(255,255,255,0.8)', border: `1px solid ${on ? '#34D399' : 'rgba(255,255,255,0.18)'}`, fontWeight: on ? 700 : 400 }}>{a.icon} {a.label}{on ? ' ✓' : ''}</button>
+                      })}
+                    </div>
 
                     <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Skills / stations they're signed off on</div>
                     <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 6, flexWrap: 'wrap' }}>

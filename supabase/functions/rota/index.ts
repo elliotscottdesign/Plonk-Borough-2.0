@@ -75,6 +75,12 @@ const shiftsForDate = (d: string) => SHIFT_PATTERNS[dow(d)] || [];
 const todayISO = () => new Date().toISOString().slice(0, 10);
 const clampHead = (v: unknown, dflt: number) => Math.max(1, Math.min(20, parseInt(String(v)) || dflt));
 
+// Abilities + role hierarchy (mirror of src/rota/roles.js). Higher rank covers lower.
+const ABILITY_KEYS = ["bar", "kitchen", "foh", "golf"];
+const ROLE_RANK: Record<string, number> = { "Bar Staff": 1, "Supervisor": 2, "Asst. Manager": 3, "Manager": 4 };
+const staffRank = (role: unknown) => ROLE_RANK[String(role || "")] || 1;
+const cleanAbilities = (v: unknown) => Array.isArray(v) ? v.filter((x) => ABILITY_KEYS.includes(String(x))) : [];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: any = {};
@@ -191,8 +197,13 @@ Deno.serve(async (req) => {
 
       if (action === "claimShift") {
         if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
-        const { data: shift } = await sb.from("staff_shifts").select("id,date,label").eq("id", b.shiftId).maybeSingle();
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label,ability,min_rank").eq("id", b.shiftId).maybeSingle();
         if (!shift) return json({ error: "That shift is no longer available — refresh." }, 404);
+        // Eligibility: right ability + role at or above the shift's level (the founder
+        // can still assign it to anyone as an override).
+        const needAb = shift.ability || "bar";
+        if (!(me.abilities || []).includes(needAb)) return json({ error: `That shift needs ${needAb} training — ask the manager to add it to your profile.` }, 403);
+        if (staffRank(me.role) < (shift.min_rank || 1)) return json({ error: "That shift is for a higher position — the manager can assign it to you if needed." }, 403);
         // Must have marked availability on that day first.
         const { data: avRow } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", shift.date.slice(0, 7)).maybeSingle();
         if (!avRow?.data?.[shift.date]) return json({ error: "Mark yourself available on that day first (Availability tab), then grab the shift." }, 409);
@@ -213,18 +224,18 @@ Deno.serve(async (req) => {
       }
 
       if (action === "releaseShift") {
-        const { data: sh } = await sb.from("staff_shifts").select("date,label").eq("id", b.shiftId).maybeSingle();
+        const { data: sh } = await sb.from("staff_shifts").select("date,label,ability,min_rank").eq("id", b.shiftId).maybeSingle();
         const { error } = await sb.from("staff_shift_claims").delete().eq("shift_id", b.shiftId).eq("staff_id", me.id);
         if (error) return json({ error: error.message }, 400);
-        // Back on the board → broadcast to the team + tell the founder.
-        // (Eligibility filtering by ability/role comes with the tags model.)
+        // Back on the board → broadcast to ELIGIBLE staff (right ability + rank) + tell the founder.
         if (sh) {
           const subject = `A ${sh.label || "shift"} is back on the board — ${niceDate(sh.date)}`;
           const html = emailShell(`Shift available: ${esc(sh.label)} · ${niceDate(sh.date)}`,
             `<p style="color:#ccc;line-height:1.6">A <strong style="color:#fff">${esc(sh.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(sh.date)}</strong> has just opened up — first to grab it gets it.</p>`,
             { href: PORTAL_URL, label: "Log in to take the shift" });
-          const { data: team } = await sb.from("staff").select("email").eq("active", true).neq("id", me.id);
-          for (const t of team || []) if (t.email) await sendMail(t.email, subject, html);
+          const { data: team } = await sb.from("staff").select("email,abilities,role").eq("active", true).neq("id", me.id);
+          const eligible = (team || []).filter((t: any) => (t.abilities || []).includes(sh.ability || "bar") && staffRank(t.role) >= (sh.min_rank || 1));
+          for (const t of eligible) if (t.email) await sendMail(t.email, subject, html);
           await sendMail(ADMIN_EMAIL, `Shift dropped — ${niceDate(sh.date)} needs covering`,
             emailShell(`${esc(me.name)} dropped a shift`,
               `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> cancelled the <strong style="color:#fff">${esc(sh.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(sh.date)}</strong>. It's back on the board — the team's been notified.</p>`,
@@ -296,6 +307,7 @@ Deno.serve(async (req) => {
         emergency_relation: clean(b.emergency_relation) || null,
         role: clean(b.role) || null,
         skills: Array.isArray(b.skills) ? b.skills : [],
+        abilities: cleanAbilities(b.abilities),
         training_status: clean(b.training_status) || null,
         training_notes: clean(b.training_notes) || null,
         feedback_notes: clean(b.feedback_notes) || null,
@@ -319,6 +331,7 @@ Deno.serve(async (req) => {
         if (k in b) patch[k] = clean(b[k]) || null;
       }
       if ("skills" in b) patch.skills = Array.isArray(b.skills) ? b.skills : [];
+      if ("abilities" in b) patch.abilities = cleanAbilities(b.abilities);
       if ("active" in b) patch.active = !!b.active;
       // Password only changes when a non-empty value is sent (blank = leave as-is).
       if ("password" in b && clean(b.password)) patch.password = clean(b.password);
@@ -391,7 +404,7 @@ Deno.serve(async (req) => {
       for (const date of dates) {
         if (date < today) continue;   // never open a past date
         for (const s of shiftsForDate(date)) {
-          rows.push({ date, shift_key: s.key, label: s.label, position: s.label, role: s.role, start_min: s.start, end_min: s.end, status: "open", headcount });
+          rows.push({ date, shift_key: s.key, label: s.label, position: s.label, role: s.role, ability: s.role || "bar", min_rank: 1, start_min: s.start, end_min: s.end, status: "open", headcount });
         }
       }
       if (rows.length) {
@@ -416,6 +429,18 @@ Deno.serve(async (req) => {
       const { error } = await sb.from("staff_shifts").update({ headcount: hc }).eq("id", b.shiftId);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, headcount: hc });
+    }
+
+    // ── Set a shift's requirement: which ability + minimum role to take it ─────
+    if (action === "setShiftReq") {
+      if (!b.shiftId) return json({ error: "no shift" }, 400);
+      const patch: Record<string, unknown> = {};
+      if ("ability" in b) patch.ability = ABILITY_KEYS.includes(String(b.ability)) ? b.ability : "bar";
+      if ("min_rank" in b) patch.min_rank = Math.max(1, Math.min(4, parseInt(String(b.min_rank)) || 1));
+      if (!Object.keys(patch).length) return json({ error: "nothing to set" }, 400);
+      const { error } = await sb.from("staff_shifts").update(patch).eq("id", b.shiftId);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
     }
 
     // ── Founder assigns a staff member to a shift ─────────────────────────────
