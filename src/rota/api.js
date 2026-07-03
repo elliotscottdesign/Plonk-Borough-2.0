@@ -48,6 +48,11 @@ export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ 
 export const rotaCompleteTraining = (token, itemKey) => call({ action: 'completeTraining', token, itemKey })
 export const rotaUncompleteTraining = (token, itemKey) => call({ action: 'uncompleteTraining', token, itemKey })
 
+// Onboarding — sign the statement of intent + upload passport / right-to-work.
+export const rotaSignStatement = (token, signature) => call({ action: 'signStatement', token, signature })
+export const rotaUploadDoc = (token, kind, data) => call({ action: 'uploadDoc', token, kind, data })
+export const rotaGetDoc = (staffId, kind) => call({ action: 'getDoc', secret: SEND_SECRET, staffId, kind })
+
 // Training docs — the built-in seed is the default; founder edits override it.
 export const rotaGetTrainingDoc = (moduleKey) => call({ action: 'getTrainingDoc', moduleKey })
 export const rotaSaveTrainingDoc = (moduleKey, content) => call({ action: 'saveTrainingDoc', secret: SEND_SECRET, moduleKey, content })

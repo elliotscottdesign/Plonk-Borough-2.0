@@ -81,6 +81,15 @@ const ROLE_RANK: Record<string, number> = { "Bar Staff": 1, "Supervisor": 2, "As
 const staffRank = (role: unknown) => ROLE_RANK[String(role || "")] || 1;
 const cleanAbilities = (v: unknown) => Array.isArray(v) ? v.filter((x) => ABILITY_KEYS.includes(String(x))) : [];
 
+// Onboarding gate (mirror of src/rota/statement.js). The calendar stays locked
+// until the statement is signed + all payroll / right-to-work details are in.
+const SOI_VERSION = "2026-07";
+const onboardingOk = (s: any, docKinds: Set<string>) => !!(
+  s?.soi_signed_at && s?.name && s?.phone && s?.address && s?.dob &&
+  s?.emergency_name && s?.emergency_phone && s?.ni_number &&
+  s?.bank_name && s?.bank_sort && s?.bank_account &&
+  docKinds.has("passport") && docKinds.has("rtw"));
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: any = {};
@@ -135,17 +144,19 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
 
       if (action === "myState") {
         const today = todayISO();
-        const [{ data: shifts }, { data: av }, { data: train }] = await Promise.all([
+        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }] = await Promise.all([
           sb.from("staff_shifts").select("*").gte("date", today).order("date"),
           sb.from("staff_availability").select("month,data").eq("staff_id", me.id),
           sb.from("training_completions").select("item_key").eq("staff_id", me.id),
+          sb.from("staff_documents").select("kind").eq("staff_id", me.id),
         ]);
+        const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
         const { data: claims } = ids.length
           ? await sb.from("staff_shift_claims").select("shift_id,staff_id").in("shift_id", ids)
@@ -158,14 +169,17 @@ Deno.serve(async (req) => {
           ok: true, staff: publicStaff(me), availability,
           shifts: (shifts || []).map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
+          docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
+          soi_version: SOI_VERSION,
         });
       }
 
       if (action === "saveProfile") {
-        // Staff edit their OWN contact + next-of-kin only. Role/skills/training/
-        // password/active stay founder-controlled.
+        // Staff edit their OWN contact, next-of-kin + onboarding/payroll details.
+        // Role/skills/abilities/training/password/active stay founder-controlled.
         const patch: any = {};
-        for (const k of ["name", "phone", "address", "emergency_name", "emergency_phone", "emergency_relation"]) {
+        for (const k of ["name", "phone", "address", "emergency_name", "emergency_phone", "emergency_relation",
+          "dob", "ni_number", "bank_name", "bank_sort", "bank_account"]) {
           if (k in b) patch[k] = clean(b[k]) || null;
         }
         if (!Object.keys(patch).length) return json({ error: "nothing to save" }, 400);
@@ -219,6 +233,11 @@ Deno.serve(async (req) => {
 
       if (action === "claimShift") {
         if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
+        // Onboarding gate (freelance bar roles) — statement signed + payroll / right-to-work in.
+        if (["Bar Staff", "Asst. Manager"].includes(me.role)) {
+          const { data: myDocs } = await sb.from("staff_documents").select("kind").eq("staff_id", me.id);
+          if (!onboardingOk(me, new Set((myDocs || []).map((d: any) => d.kind)))) return json({ error: "Finish your onboarding first — sign the statement and complete your details to unlock shifts." }, 403);
+        }
         const { data: shift } = await sb.from("staff_shifts").select("id,date,label,ability,min_rank").eq("id", b.shiftId).maybeSingle();
         if (!shift) return json({ error: "That shift is no longer available — refresh." }, 404);
         // Eligibility: right ability + role at or above the shift's level (the founder
@@ -306,6 +325,25 @@ Deno.serve(async (req) => {
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true });
       }
+
+      // ── Onboarding: sign the statement of intent + upload documents ────────────
+      if (action === "signStatement") {
+        const sig = clean(b.signature);
+        if (!sig || String(sig).length < 2) return json({ error: "Type your full name to sign." }, 400);
+        const { error } = await sb.from("staff").update({ soi_signed_at: new Date().toISOString(), soi_signature: sig, soi_version: SOI_VERSION }).eq("id", me.id);
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
+      }
+      if (action === "uploadDoc") {
+        const kind = b.kind === "rtw" ? "rtw" : b.kind === "passport" ? "passport" : "";
+        const data = String(b.data || "");
+        if (!kind) return json({ error: "bad document type" }, 400);
+        if (!data.startsWith("data:")) return json({ error: "Pick a file to upload." }, 400);
+        if (data.length > 6_000_000) return json({ error: "That file's too big — keep it under ~4MB." }, 413);
+        const { error } = await sb.from("staff_documents").upsert({ staff_id: me.id, kind, data, uploaded_at: new Date().toISOString() }, { onConflict: "staff_id,kind" });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
+      }
     }
 
     // ── Everything below is founder-only ───────────────────────────────────────
@@ -349,7 +387,7 @@ Deno.serve(async (req) => {
       // Only apply fields that were actually sent, so a partial save never nulls the rest.
       for (const k of ["name", "email", "phone", "address", "emergency_name", "emergency_phone",
         "emergency_relation", "role", "training_status", "training_notes", "feedback_notes",
-        "work_rules"]) {
+        "work_rules", "dob", "ni_number", "bank_name", "bank_sort", "bank_account"]) {
         if (k in b) patch[k] = clean(b[k]) || null;
       }
       if ("skills" in b) patch.skills = Array.isArray(b.skills) ? b.skills : [];
@@ -373,11 +411,12 @@ Deno.serve(async (req) => {
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
       const today = todayISO();
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", today).order("date"),
         sb.from("staff_shift_claims").select("*"),
         sb.from("training_completions").select("staff_id,item_key"),
+        sb.from("staff_documents").select("staff_id,kind,uploaded_at"),   // which docs each has (no data)
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
@@ -386,6 +425,7 @@ Deno.serve(async (req) => {
         shifts: shifts || [],
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // only claims on upcoming shifts
         training: training || [],   // all completions — for per-staff progress in the admin
+        docs: docs || [],           // which staff have uploaded passport / rtw
       });
     }
 
@@ -441,6 +481,14 @@ Deno.serve(async (req) => {
       const { error } = await sb.from("menus").delete().eq("id", b.id);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
+    }
+
+    // ── Founder: view a staff member's uploaded document (passport / right-to-work) ──
+    if (action === "getDoc") {
+      if (!b.staffId || !b.kind) return json({ error: "missing" }, 400);
+      const { data } = await sb.from("staff_documents").select("data,kind,uploaded_at").eq("staff_id", b.staffId).eq("kind", b.kind).maybeSingle();
+      if (!data) return json({ error: "not uploaded" }, 404);
+      return json({ ok: true, ...data });
     }
 
     // ── Release a whole month of shifts from the fixed patterns ────────────────

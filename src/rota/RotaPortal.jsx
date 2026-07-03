@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react'
-import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta } from './api.js'
+import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc } from './api.js'
+import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
+import { fileToDataUrl } from './menuFile.js'
+import { resizeImage } from '../dj/api.js'
+import StatementDoc from './StatementDoc.jsx'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
@@ -66,6 +70,7 @@ export default function RotaPortal() {
   const [staff, setStaff] = useState(null)
   const [shifts, setShifts] = useState([])
   const [training, setTraining] = useState([])            // completed item_keys
+  const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -89,7 +94,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setErr('')
     } catch (e) {
       if (/log in/i.test(e.message)) { logout() } else setErr(e.message)
     } finally { setReady(true) }
@@ -202,7 +207,11 @@ export default function RotaPortal() {
           </>
         )}
 
-        {view === 'shifts' && (
+        {view === 'shifts' && calendarLocked(staff, docs) && (
+          <Onboarding token={token} staff={staff} docs={docs} reload={() => loadState(token)} goProfile={() => setView('profile')} />
+        )}
+
+        {view === 'shifts' && !calendarLocked(staff, docs) && (
           <>
             {Object.keys(monthAvail).length === 0 && (
               <div style={{ fontSize: 12.5, color: '#FCD34D', background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.25)', borderRadius: 8, padding: '9px 12px', marginBottom: 12, lineHeight: 1.5 }}>
@@ -271,7 +280,7 @@ export default function RotaPortal() {
         {view === 'menus' && <MenusView />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} reload={() => loadState(token)} />
         )}
       </div>
     </Shell>
@@ -410,12 +419,68 @@ function MenusView() {
   )
 }
 
-function ProfileView({ staff, onSave, busy }) {
+// Onboarding gate — shown on the Shifts tab until a freelance member has signed
+// the statement + completed all their payroll / right-to-work details.
+function Onboarding({ token, staff, docs, reload, goProfile }) {
+  const [sig, setSig] = useState('')
+  const [busy, setBusy] = useState(false)
+  const signed = !!staff.soi_signed_at
+  const sign = async () => {
+    if (sig.trim().length < 2) { alert('Type your full name to sign.'); return }
+    setBusy(true)
+    try { await rotaSignStatement(token, sig.trim()); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const detailsMissing = ONBOARDING_STEPS.some(s => s.key !== 'statement' && !s.done(staff, docs || {}))
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.3)', borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>🔒 Your shift calendar is locked</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', marginTop: 4, lineHeight: 1.5 }}>Finish the steps below to unlock shifts — it's how we make sure we can pay you and that you're set up to work legally in the UK.</div>
+      </div>
+      <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', fontWeight: 700, marginBottom: 8 }}>Onboarding checklist</div>
+        {ONBOARDING_STEPS.map(step => {
+          const done = step.done(staff, docs || {})
+          return (
+            <div key={step.key} style={{ display: 'flex', gap: 10, alignItems: 'flex-start', padding: '6px 0', fontSize: 13 }}>
+              <span style={{ color: done ? GREEN : 'rgba(255,255,255,0.3)', fontWeight: 800, flexShrink: 0 }}>{done ? '✓' : '○'}</span>
+              <span style={{ color: done ? 'rgba(255,255,255,0.55)' : '#fff' }}>{step.label}</span>
+            </div>
+          )
+        })}
+        {detailsMissing && <button onClick={goProfile} style={{ ...btn('red'), marginTop: 10 }}>Complete your details in Profile →</button>}
+      </div>
+      <div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 8 }}>{signed ? '✓ You’ve signed the Statement of Intent' : 'Read & sign the Statement of Intent'}</div>
+        <StatementDoc signature={staff.soi_signature} signedAt={staff.soi_signed_at} version={staff.soi_version} name={staff.name} />
+        {!signed && (
+          <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, marginTop: 10, display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>Type your full name to confirm you've read and understood the above.</div>
+            <input value={sig} onChange={e => setSig(e.target.value)} placeholder="Your full name" style={inp} />
+            <button onClick={sign} disabled={busy} style={{ ...btn('red'), padding: '12px' }}>{busy ? 'Signing…' : "I've read & agree — sign"}</button>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+function ProfileView({ staff, onSave, busy, token, docs, reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
+    dob: staff.dob || '', ni_number: staff.ni_number || '', bank_name: staff.bank_name || '', bank_sort: staff.bank_sort || '', bank_account: staff.bank_account || '',
   })
   const on = (k, v) => setF(s => ({ ...s, [k]: v }))
+  const [uploading, setUploading] = useState('')
+  const upload = async (kind, e) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
+    setUploading(kind)
+    try {
+      const url = file.type.startsWith('image/') ? await resizeImage(file) : await fileToDataUrl(file)
+      await rotaUploadDoc(token, kind, url); await reload?.()
+    } catch (er) { alert(er.message || 'Upload failed') } finally { setUploading('') }
+  }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
@@ -442,10 +507,36 @@ function ProfileView({ staff, onSave, busy }) {
         <L label="Name"><input value={f.emergency_name} onChange={e => on('emergency_name', e.target.value)} style={inp} /></L>
         <L label="Their phone"><input value={f.emergency_phone} onChange={e => on('emergency_phone', e.target.value)} style={inp} /></L>
         <L label="Relationship" wide><input value={f.emergency_relation} onChange={e => on('emergency_relation', e.target.value)} style={inp} /></L>
+
+        <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', borderTop: `1px dashed ${LINE}`, paddingTop: 10 }}>Payroll &amp; right to work</div>
+        <L label="Date of birth"><input type="date" value={f.dob} onChange={e => on('dob', e.target.value)} style={inp} /></L>
+        <L label="National Insurance no."><input value={f.ni_number} onChange={e => on('ni_number', e.target.value)} placeholder="QQ 12 34 56 C" style={inp} /></L>
+        <L label="Bank — account name" wide><input value={f.bank_name} onChange={e => on('bank_name', e.target.value)} style={inp} /></L>
+        <L label="Sort code"><input value={f.bank_sort} onChange={e => on('bank_sort', e.target.value)} placeholder="00-00-00" style={inp} /></L>
+        <L label="Account number"><input value={f.bank_account} onChange={e => on('bank_account', e.target.value)} style={inp} /></L>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button onClick={() => onSave(f)} disabled={busy} style={btn('red')}>{busy ? 'Saving…' : 'Save details'}</button>
         </div>
       </div>
+
+      <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Documents — passport &amp; right to work</div>
+        {[['passport', 'Passport / photo ID'], ['rtw', 'Proof of right to work in the UK']].map(([kind, label]) => (
+          <div key={kind} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ color: docs?.[kind] ? GREEN : 'rgba(255,255,255,0.3)', fontWeight: 800, flexShrink: 0 }}>{docs?.[kind] ? '✓' : '○'}</span>
+            <div style={{ flex: 1, minWidth: 130, fontSize: 13, color: '#fff' }}>{label}{docs?.[kind] && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginLeft: 6 }}>uploaded ✓</span>}</div>
+            <label style={{ ...btn('ghost'), cursor: 'pointer' }}>{uploading === kind ? 'Uploading…' : docs?.[kind] ? 'Replace' : 'Upload'}<input type="file" accept="image/*,application/pdf" onChange={e => upload(kind, e)} disabled={!!uploading} style={{ display: 'none' }} /></label>
+          </div>
+        ))}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>Photo or PDF. Held securely — only used to pay you and meet legal duties.</div>
+      </div>
+
+      {staff.soi_signed_at && (
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Your signed Statement of Intent</div>
+          <StatementDoc signature={staff.soi_signature} signedAt={staff.soi_signed_at} version={staff.soi_version} name={staff.name} />
+        </div>
+      )}
     </div>
   )
 }

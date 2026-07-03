@@ -41,6 +41,15 @@ alter table public.staff add column if not exists work_rules text;
 alter table public.staff add column if not exists password text;
 alter table public.staff add column if not exists active boolean default true;
 alter table public.staff add column if not exists abilities text[] default '{}';   -- 'bar' | 'kitchen' | 'foh' | 'golf' (what training lets them work)
+-- Onboarding / payroll / right-to-work (must be complete before the calendar opens).
+alter table public.staff add column if not exists dob date;
+alter table public.staff add column if not exists ni_number text;
+alter table public.staff add column if not exists bank_name text;
+alter table public.staff add column if not exists bank_sort text;
+alter table public.staff add column if not exists bank_account text;
+alter table public.staff add column if not exists soi_signed_at timestamptz;   -- statement of intent
+alter table public.staff add column if not exists soi_signature text;          -- typed full name
+alter table public.staff add column if not exists soi_version text;            -- which version they signed
 -- One login per email (case-insensitive) so a duplicate can't create a silent
 -- auth ambiguity. Null emails are exempt (a member added before their email is set).
 create unique index if not exists staff_email_lower_uniq on public.staff (lower(email)) where email is not null;
@@ -200,6 +209,19 @@ create table if not exists public.menus (
 );
 create index if not exists menus_created_idx on public.menus (created_at desc);
 alter table public.menus enable row level security;
+
+-- 8) Staff documents — passport copy + right-to-work proof (base64 data URLs).
+--    Kept out of the main staff load; the founder fetches one on demand to review.
+create table if not exists public.staff_documents (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff(id) on delete cascade,
+  kind text not null,             -- 'passport' | 'rtw'
+  data text,                      -- base64 data URL
+  uploaded_at timestamptz default now(),
+  unique (staff_id, kind)
+);
+create index if not exists staff_documents_staff_idx on public.staff_documents (staff_id);
+alter table public.staff_documents enable row level security;
 
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).

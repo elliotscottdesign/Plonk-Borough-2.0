@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
+import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
 import { ABILITIES } from '../../rota/roles.js'
+import { onboardingComplete, requiresOnboarding, onboardingMissing } from '../../rota/statement.js'
+import { openDataUrl } from '../../rota/menuFile.js'
+import StatementDoc from '../../rota/StatementDoc.jsx'
 import { MODULE_META, cocktailKey } from '../../rota/training.js'
 import { SPECS } from '../data/cocktailSpecs.js'
 import RotaCalendar from './RotaCalendar.jsx'
@@ -40,6 +43,9 @@ export default function StaffRota() {
   const [shifts, setShifts] = useState([])
   const [claims, setClaims] = useState([])
   const [trained, setTrained] = useState({})   // staff_id → Set(item_key)
+  const [docsBy, setDocsBy] = useState({})     // staff_id → { passport, rtw }
+  const [viewSoi, setViewSoi] = useState(false)
+  const openDoc = async (staffId, kind) => { try { const r = await rotaGetDoc(staffId, kind); openDataUrl(r.data) } catch (e) { alert(e.message || 'Not uploaded') } }
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [view, setView] = useState('team')   // 'team' (roster) | 'rota' (shift calendar)
@@ -54,6 +60,7 @@ export default function StaffRota() {
     try {
       const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || [])
       const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
+      const dm = {}; for (const d of r.docs || []) (dm[d.staff_id] ||= {})[d.kind] = true; setDocsBy(dm)
     }
     catch (e) { setErr(e.message || 'Could not load the team.') }
     finally { setLoading(false) }
@@ -61,7 +68,7 @@ export default function StaffRota() {
   useEffect(() => { load() }, [])
   useEffect(() => { if (editing) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [editing])
 
-  const startEdit = (s) => { setEditing(s.id); setForm({ ...s, password: '' }) }
+  const startEdit = (s) => { setEditing(s.id); setForm({ ...s, password: '' }); setViewSoi(false) }
   const onField = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const toggleSkill = (sk) => setForm(f => {
     const cur = Array.isArray(f.skills) ? f.skills : []
@@ -90,6 +97,7 @@ export default function StaffRota() {
         abilities: Array.isArray(form.abilities) ? form.abilities : [],
         training_status: form.training_status, training_notes: form.training_notes,
         feedback_notes: form.feedback_notes, work_rules: form.work_rules, active: form.active !== false,
+        dob: form.dob, ni_number: form.ni_number, bank_name: form.bank_name, bank_sort: form.bank_sort, bank_account: form.bank_account,
       }
       if (form.password && form.password.trim()) patch.password = form.password.trim()   // blank = leave existing
       await rotaSaveStaff(editing, patch)
@@ -164,6 +172,9 @@ export default function StaffRota() {
                     {(() => { const mods = MODULE_META.filter(m => trained[s.id]?.has(m.key)).length, ck = SPECS.filter(x => trained[s.id]?.has(cocktailKey(x.id))).length; return (
                       <div style={{ marginTop: 7, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>🎓 <strong style={{ color: mods >= MODULE_META.length ? '#34D399' : '#fff' }}>{mods}/{MODULE_META.length}</strong> training · 🍸 <strong style={{ color: ck >= SPECS.length ? '#34D399' : '#fff' }}>{ck}/{SPECS.length}</strong> cocktails</div>
                     ) })()}
+                    {requiresOnboarding(s.role) && (onboardingComplete(s, docsBy[s.id])
+                      ? <div style={{ fontSize: 11, color: '#34D399', marginTop: 4 }}>✓ Onboarded — statement signed &amp; details complete</div>
+                      : <div style={{ fontSize: 11, color: '#FCD34D', marginTop: 4 }}>⏳ Onboarding: {onboardingMissing(s, docsBy[s.id]).length} to do{s.soi_signed_at ? '' : ' · statement unsigned'} — calendar locked</div>)}
                   </div>
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Incomplete'}</span>
                 </div>
@@ -226,6 +237,22 @@ export default function StaffRota() {
                     </Field>
                     <Field label="Training progress notes" wide><textarea value={form.training_notes || ''} onChange={e => onField('training_notes', e.target.value)} rows={2} style={{ ...inp('100%'), resize: 'vertical' }} /></Field>
                     <Field label="Feedback notes" wide><textarea value={form.feedback_notes || ''} onChange={e => onField('feedback_notes', e.target.value)} rows={2} style={{ ...inp('100%'), resize: 'vertical' }} /></Field>
+
+                    <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Payroll &amp; right to work</div>
+                    <Field label="Date of birth"><input type="date" value={form.dob || ''} onChange={e => onField('dob', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="National Insurance no."><input value={form.ni_number || ''} onChange={e => onField('ni_number', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="Bank — account name"><input value={form.bank_name || ''} onChange={e => onField('bank_name', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="Sort code"><input value={form.bank_sort || ''} onChange={e => onField('bank_sort', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="Account number" wide><input value={form.bank_account || ''} onChange={e => onField('bank_account', e.target.value)} style={inp('100%')} /></Field>
+                    <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                      {docsBy[s.id]?.passport ? <button type="button" onClick={() => openDoc(s.id, 'passport')} style={btn('ghost')}>📄 View passport</button> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Passport ○ not uploaded</span>}
+                      {docsBy[s.id]?.rtw ? <button type="button" onClick={() => openDoc(s.id, 'rtw')} style={btn('ghost')}>📄 View right-to-work</button> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Right-to-work ○ not uploaded</span>}
+                    </div>
+                    <div style={{ gridColumn: '1 / -1', fontSize: 11.5, color: s.soi_signed_at ? '#34D399' : '#FCD34D', display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      {s.soi_signed_at ? `✓ Statement signed by ${s.soi_signature || s.name} on ${new Date(s.soi_signed_at).toLocaleDateString('en-GB')}` : '○ Statement of Intent not signed yet'}
+                      {s.soi_signed_at && <button type="button" onClick={() => setViewSoi(v => !v)} style={{ ...btn('ghost'), padding: '4px 10px' }}>{viewSoi ? 'Hide' : '📄 View / print'}</button>}
+                    </div>
+                    {viewSoi && s.soi_signed_at && <div style={{ gridColumn: '1 / -1' }}><StatementDoc signature={s.soi_signature} signedAt={s.soi_signed_at} version={s.soi_version} name={s.name} /></div>}
 
                     <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Shift rules &amp; login</div>
                     <Field label="Days / times they CAN'T work" wide>
