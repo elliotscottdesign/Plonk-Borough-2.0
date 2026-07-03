@@ -163,8 +163,10 @@ Deno.serve(async (req) => {
             : { available: true };
           n++;
         }
-        // Existing row's last-update — used to debounce the founder alert below.
-        const { data: prevAv } = await sb.from("staff_availability").select("updated_at").eq("staff_id", me.id).eq("month", month).maybeSingle();
+        // Previous availability for this month — so we alert the founder only on the
+        // "went from nothing → set it" transition, not on every autosaved tap.
+        const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
+        const prevDays = prevAv?.data ? Object.keys(prevAv.data).length : 0;
         // Don't let them un-mark a day they're already rostered on (keeps the
         // founder's rota and the member's availability from disagreeing).
         const { data: myClaims } = await sb.from("staff_shift_claims").select("shift:staff_shifts(date)").eq("staff_id", me.id);
@@ -175,10 +177,9 @@ Deno.serve(async (req) => {
         const { error } = await sb.from("staff_availability")
           .upsert({ staff_id: me.id, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
         if (error) return json({ error: error.message }, 400);
-        // Founder alert — at most ~once per 3h per (staff, month), so a run of
-        // taps while they fill the month doesn't spam the inbox.
-        const lastMs = prevAv?.updated_at ? new Date(prevAv.updated_at).getTime() : 0;
-        if (Object.keys(data).length && Date.now() - lastMs > 3 * 3600 * 1000) {
+        // Founder alert on the "just set their availability" transition (nothing → some),
+        // so the per-tap autosave doesn't spam but the founder is told once per month.
+        if (prevDays === 0 && Object.keys(data).length > 0) {
           const monthName = new Date(month + "-01T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
           await sendMail(ADMIN_EMAIL, `${me.name} set their availability — ${monthName}`,
             emailShell(`${esc(me.name)} updated their availability`,
