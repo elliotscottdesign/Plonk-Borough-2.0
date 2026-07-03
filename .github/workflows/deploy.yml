@@ -12,6 +12,12 @@ on:
         description: 'Base64 encoded file content'
         required: false
 
+# Serialise Pages deploys — overlapping runs from quick successive pushes were
+# leaving the github-pages environment locked and failing the deploy step.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
