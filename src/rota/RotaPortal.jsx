@@ -9,7 +9,8 @@ import TrainingView from './TrainingView.jsx'
 // available each month, and pick from the shifts the founder has released.
 // Token-authed (login → token in localStorage). Founder stays the master login.
 
-const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BG = '#0B0B0C', CARD = '#111113', LINE = 'rgba(255,255,255,0.12)'
+// Match the DJ portal exactly — the No Dice portal brand: red on pure black.
+const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BG = '#000000', CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -144,16 +145,16 @@ export default function RotaPortal() {
   if (!token || !staff) {
     return (
       <Shell>
-        <div style={{ maxWidth: 380, margin: '8vh auto 0', padding: '0 4px' }}>
-          <div className="serif" style={{ fontSize: 26, color: '#fff', marginBottom: 4 }}>No Dice · Staff</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginBottom: 22 }}>Log in to set your availability and pick your shifts.</div>
-          <form onSubmit={doLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ maxWidth: 380, margin: '11vh auto 0', padding: '0 20px', textAlign: 'center' }}>
+          <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 210, maxWidth: '72%', display: 'block', margin: '0 auto 8px' }} />
+          <div style={{ fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 26 }}>Staff Portal</div>
+          <form onSubmit={doLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
             <input value={login.email} onChange={e => setLogin(l => ({ ...l, email: e.target.value }))} placeholder="Email" autoComplete="username" style={inp} />
             <input value={login.password} onChange={e => setLogin(l => ({ ...l, password: e.target.value }))} placeholder="Password" type="password" autoComplete="current-password" style={inp} />
             {err && <div style={{ fontSize: 12.5, color: '#F87171' }}>{err}</div>}
-            <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '11px', fontSize: 14, marginTop: 4 }}>{busy ? 'Logging in…' : 'Log in'}</button>
+            <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '12px', fontSize: 14, marginTop: 4 }}>{busy ? 'Logging in…' : 'Log in'}</button>
           </form>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 16, lineHeight: 1.6 }}>No login yet? Ask the manager to add you and set your password.</div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 18, lineHeight: 1.6 }}>No login yet? Ask the manager to add you and set your password.</div>
         </div>
       </Shell>
     )
@@ -163,7 +164,8 @@ export default function RotaPortal() {
 
   return (
     <Shell>
-      <div style={{ maxWidth: 620, margin: '0 auto', padding: '18px 14px 60px' }}>
+      <div style={{ maxWidth: 620, margin: '0 auto', padding: '16px 14px 60px' }}>
+        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 140, display: 'block', margin: '0 auto 14px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <Avatar name={staff.name} />
           <div style={{ flex: 1, minWidth: 0 }}>

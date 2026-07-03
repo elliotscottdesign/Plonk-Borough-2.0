@@ -7,7 +7,7 @@ import { SPECS, SPEC_SECTIONS } from '../ops/data/cocktailSpecs.js'
 // Read the No Dice training modules + Bar Manual and mark each complete, plus a
 // Cocktails subsection (live specs) with a "trained" box per drink. Phone-first.
 
-const RED = '#DA1B33', GREEN = '#34D399', CARD = '#111113', LINE = 'rgba(255,255,255,0.12)'
+const RED = '#DA1B33', GREEN = '#34D399', CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
 
 // Render a body string that uses "\n• " bullet lines.
 function Body({ text }) {
