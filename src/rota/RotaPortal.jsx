@@ -3,6 +3,8 @@ import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClai
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
+import { rotaMenus } from './api.js'
+import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
@@ -161,7 +163,7 @@ export default function RotaPortal() {
     )
   }
 
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -265,6 +267,8 @@ export default function RotaPortal() {
         {view === 'checklists' && <ChecklistView token={token} />}
 
         {view === 'training' && <TrainingView token={token} training={training} onToggle={(key, on) => setTraining(prev => on ? [...new Set([...prev, key])] : prev.filter(k => k !== key))} />}
+
+        {view === 'menus' && <MenusView />}
 
         {view === 'profile' && (
           <ProfileView staff={staff} onSave={saveProfile} busy={busy} />
@@ -376,6 +380,32 @@ function ChecklistView({ token }) {
       <button onClick={submit} disabled={busy} style={{ ...btn(subs[openKey]?.submitted ? 'ghost' : 'red'), padding: '13px', fontSize: 14, width: '100%' }}>
         {subs[openKey]?.submitted ? '✓ Submitted — tap to re-submit' : `Submit ${c.title.toLowerCase()} checklist`}
       </button>
+    </div>
+  )
+}
+
+// Menus — the founder's uploaded menus; tap to open + print to the bar printer.
+function MenusView() {
+  const [menus, setMenus] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  useEffect(() => { rotaMenus().then(r => setMenus(r.menus || [])).catch(() => {}).finally(() => setLoading(false)) }, [])
+  const open = async (id) => { setBusy(true); try { await openMenu(id) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  if (loading) return <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Loading menus…</div>
+  if (!menus.length) return <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '20px 16px', lineHeight: 1.6 }}>No menus up yet — check back before your shift.</div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a menu to open it, then print from your browser to the bar printer.</div>
+      {menus.map(m => (
+        <button key={m.id} onClick={() => open(m.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff' }}>
+          <span style={{ fontSize: 24, flexShrink: 0 }}>{m.kind === 'image' ? '🖼️' : '📄'}</span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open &amp; print</div>
+          </div>
+          <span style={{ fontSize: 18 }}>🖨️</span>
+        </button>
+      ))}
     </div>
   )
 }

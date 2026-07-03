@@ -53,6 +53,12 @@ export const rotaGetTrainingDoc = (moduleKey) => call({ action: 'getTrainingDoc'
 export const rotaSaveTrainingDoc = (moduleKey, content) => call({ action: 'saveTrainingDoc', secret: SEND_SECRET, moduleKey, content })
 export const rotaResetTrainingDoc = (moduleKey) => call({ action: 'resetTrainingDoc', secret: SEND_SECRET, moduleKey })
 
+// Menus — list (light), fetch one (data); founder upload/delete.
+export const rotaMenus = () => call({ action: 'menus' })
+export const rotaGetMenu = (id) => call({ action: 'getMenu', id })
+export const rotaAddMenu = (title, kind, data) => call({ action: 'addMenu', secret: SEND_SECRET, title, kind, data })
+export const rotaDeleteMenu = (id) => call({ action: 'deleteMenu', secret: SEND_SECRET, id })
+
 // Founder: recent checklist submissions + all training completions.
 export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })
 export const rotaTrainingLog = () => call({ action: 'trainingLog', secret: SEND_SECRET })

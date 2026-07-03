@@ -121,6 +121,19 @@ Deno.serve(async (req) => {
       return json({ ok: true, content: data?.content || null, updated_at: data?.updated_at || null });
     }
 
+    // ── Menus — list (no data, lightweight) + fetch one (data). Public. ────────
+    if (action === "menus") {
+      const { data } = await sb.from("menus").select("id,title,kind,created_at").eq("active", true).order("created_at", { ascending: false });
+      return json({ ok: true, menus: data || [] });
+    }
+    if (action === "getMenu") {
+      const id = String(b.id || "");
+      if (!id) return json({ error: "no id" }, 400);
+      const { data } = await sb.from("menus").select("title,kind,data").eq("id", id).maybeSingle();
+      if (!data) return json({ error: "not found" }, 404);
+      return json({ ok: true, ...data });
+    }
+
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
     if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining"].includes(action)) {
       const me = await staffByToken(sb, b.token);
@@ -408,6 +421,24 @@ Deno.serve(async (req) => {
       const key = String(b.moduleKey || "").slice(0, 60);
       if (!key) return json({ error: "no module" }, 400);
       const { error } = await sb.from("training_docs").delete().eq("module_key", key);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
+    // ── Founder: upload / delete a menu ───────────────────────────────────────
+    if (action === "addMenu") {
+      const title = clean(b.title);
+      const data = String(b.data || "");
+      const kind = b.kind === "image" ? "image" : "pdf";
+      if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
+      if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
+      const { error } = await sb.from("menus").insert({ title, kind, data });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "deleteMenu") {
+      if (!b.id) return json({ error: "no id" }, 400);
+      const { error } = await sb.from("menus").delete().eq("id", b.id);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
     }

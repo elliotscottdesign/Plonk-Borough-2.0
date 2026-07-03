@@ -188,6 +188,19 @@ create table if not exists public.training_docs (
 );
 alter table public.training_docs enable row level security;
 
+-- 7) Menus — the founder uploads the week's menus (PDF or image); staff view +
+--    print them from their portal. `data` is a base64 data URL.
+create table if not exists public.menus (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  kind text default 'pdf',        -- 'pdf' | 'image'
+  data text,                      -- base64 data URL
+  active boolean default true,
+  created_at timestamptz default now()
+);
+create index if not exists menus_created_idx on public.menus (created_at desc);
+alter table public.menus enable row level security;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;
