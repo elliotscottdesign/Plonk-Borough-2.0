@@ -81,15 +81,16 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
 
       if (action === "myState") {
         const today = todayISO();
-        const [{ data: shifts }, { data: av }] = await Promise.all([
+        const [{ data: shifts }, { data: av }, { data: train }] = await Promise.all([
           sb.from("staff_shifts").select("*").gte("date", today).order("date"),
           sb.from("staff_availability").select("month,data").eq("staff_id", me.id),
+          sb.from("training_completions").select("item_key").eq("staff_id", me.id),
         ]);
         const ids = (shifts || []).map((s: any) => s.id);
         const { data: claims } = ids.length
@@ -102,6 +103,7 @@ Deno.serve(async (req) => {
         return json({
           ok: true, staff: publicStaff(me), availability,
           shifts: (shifts || []).map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id) })),
+          training: (train || []).map((t: any) => t.item_key),
         });
       }
 
@@ -196,6 +198,22 @@ Deno.serve(async (req) => {
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true });
       }
+
+      // ── Training: mark a module or a cocktail complete / undo ─────────────────
+      if (action === "completeTraining") {
+        const item = String(b.itemKey || "").slice(0, 120);
+        if (!item) return json({ error: "no item" }, 400);
+        const { error } = await sb.from("training_completions").upsert({ staff_id: me.id, item_key: item }, { onConflict: "staff_id,item_key", ignoreDuplicates: true });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
+      }
+      if (action === "uncompleteTraining") {
+        const item = String(b.itemKey || "").slice(0, 120);
+        if (!item) return json({ error: "no item" }, 400);
+        const { error } = await sb.from("training_completions").delete().eq("staff_id", me.id).eq("item_key", item);
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
+      }
     }
 
     // ── Everything below is founder-only ───────────────────────────────────────
@@ -285,6 +303,12 @@ Deno.serve(async (req) => {
       const nameOf: Record<string, string> = {};
       for (const s of names || []) nameOf[s.id] = s.name;
       return json({ ok: true, submissions: (subs || []).map((s: any) => ({ ...s, staff_name: s.staff_id ? nameOf[s.staff_id] || null : null })) });
+    }
+
+    // ── Founder: all training completions (staff × item matrix) ───────────────
+    if (action === "trainingLog") {
+      const { data: comps } = await sb.from("training_completions").select("staff_id,item_key,completed_at");
+      return json({ ok: true, completions: comps || [] });
     }
 
     // ── Release a whole month of shifts from the fixed patterns ────────────────

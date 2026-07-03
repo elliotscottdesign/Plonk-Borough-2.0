@@ -162,6 +162,19 @@ begin
     staff_id = p_staff, updated_at = now();
 end; $$ language plpgsql;
 
+-- 5) Training completions — one row per (staff, item). item_key is a training
+--    module ('fire-safety') OR a cocktail ('cocktail:espresso-martini'), so the
+--    same table tracks module sign-offs and per-cocktail training.
+create table if not exists public.training_completions (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff(id) on delete cascade,
+  item_key text not null,
+  completed_at timestamptz default now(),
+  unique (staff_id, item_key)
+);
+create index if not exists training_completions_staff_idx on public.training_completions (staff_id);
+alter table public.training_completions enable row level security;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta } from './api.js'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistCount, doneCount } from './checklists.js'
+import TrainingView from './TrainingView.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -60,6 +61,7 @@ export default function RotaPortal() {
   const [token, setToken] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null))
   const [staff, setStaff] = useState(null)
   const [shifts, setShifts] = useState([])
+  const [training, setTraining] = useState([])            // completed item_keys
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -83,7 +85,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setErr('')
     } catch (e) {
       if (/log in/i.test(e.message)) { logout() } else setErr(e.message)
     } finally { setReady(true) }
@@ -98,7 +100,7 @@ export default function RotaPortal() {
       setStaff(r.staff); await loadState(r.token)
     } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
   }
-  const logout = () => { localStorage.removeItem(TOKEN_KEY); setToken(null); setStaff(null); setShifts([]); setAvailability({}) }
+  const logout = () => { localStorage.removeItem(TOKEN_KEY); setToken(null); setStaff(null); setShifts([]); setAvailability({}); setTraining([]) }
   // A stale token can go 401 mid-session ("Please log in again.") — clear it and
   // bounce to login rather than alerting on every action.
   const handleErr = (e) => { if (/log in/i.test(e.message || '')) logout(); else alert(e.message) }
@@ -157,7 +159,7 @@ export default function RotaPortal() {
     )
   }
 
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -171,9 +173,9 @@ export default function RotaPortal() {
           <button onClick={logout} style={btn('ghost')}>Log out</button>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 16 }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
           {TABS.map(([k, ic, lbl]) => (
-            <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ padding: '10px 6px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ic} {lbl}</button>
+            <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ flex: '1 1 28%', minWidth: 92, padding: '10px 4px', fontSize: 12, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{ic} {lbl}</button>
           ))}
         </div>
 
@@ -254,6 +256,8 @@ export default function RotaPortal() {
         )}
 
         {view === 'checklists' && <ChecklistView token={token} />}
+
+        {view === 'training' && <TrainingView token={token} training={training} onToggle={(key, on) => setTraining(prev => on ? [...new Set([...prev, key])] : prev.filter(k => k !== key))} />}
 
         {view === 'profile' && (
           <ProfileView staff={staff} onSave={saveProfile} busy={busy} />

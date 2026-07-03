@@ -44,5 +44,9 @@ export const rotaGetChecklist = (token, date, key) => call({ action: 'getCheckli
 export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })
 export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ action: 'saveChecklist', token, date, key, note, submit })
 
-// Founder: recent checklist submissions for the Operations view.
+export const rotaCompleteTraining = (token, itemKey) => call({ action: 'completeTraining', token, itemKey })
+export const rotaUncompleteTraining = (token, itemKey) => call({ action: 'uncompleteTraining', token, itemKey })
+
+// Founder: recent checklist submissions + all training completions.
 export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })
+export const rotaTrainingLog = () => call({ action: 'trainingLog', secret: SEND_SECRET })
