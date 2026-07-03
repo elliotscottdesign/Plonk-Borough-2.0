@@ -35,6 +35,7 @@ export const rotaSetShiftReq = (shiftId, patch) => call({ action: 'setShiftReq',
 
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (email, password) => call({ action: 'login', email, password })
+export const rotaSignup = (name, email, password, code) => call({ action: 'signup', name, email, password, code })
 export const rotaMe = (token) => call({ action: 'me', token })
 export const rotaMyState = (token) => call({ action: 'myState', token })
 export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })

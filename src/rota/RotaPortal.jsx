@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -82,6 +82,9 @@ export default function RotaPortal() {
   const [vm, setVm] = useState(now.getMonth())
   const [selDate, setSelDate] = useState(null)
   const [login, setLogin] = useState({ email: '', password: '' })
+  const joinCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('join') : null
+  const [mode, setMode] = useState(joinCode ? 'signup' : 'login')   // 'login' | 'signup'
+  const [signup, setSignup] = useState({ name: '', email: '', password: '' })
 
   useEffect(() => {
     document.body.style.background = BG; document.body.style.color = '#fff'; document.title = 'No Dice · Staff Rota'
@@ -106,6 +109,16 @@ export default function RotaPortal() {
     setBusy(true); setErr('')
     try {
       const r = await rotaLogin(login.email.trim(), login.password)
+      localStorage.setItem(TOKEN_KEY, r.token); setToken(r.token)
+      setStaff(r.staff); await loadState(r.token)
+    } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
+  }
+  const doSignup = async (e) => {
+    e?.preventDefault?.()
+    if (!signup.name.trim() || !signup.email.trim() || !signup.password) { setErr('Fill in your name, email and a password.'); return }
+    setBusy(true); setErr('')
+    try {
+      const r = await rotaSignup(signup.name.trim(), signup.email.trim(), signup.password, joinCode || '')
       localStorage.setItem(TOKEN_KEY, r.token); setToken(r.token)
       setStaff(r.staff); await loadState(r.token)
     } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
@@ -156,14 +169,31 @@ export default function RotaPortal() {
       <Shell>
         <div style={{ maxWidth: 380, margin: '11vh auto 0', padding: '0 20px', textAlign: 'center' }}>
           <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 210, maxWidth: '72%', display: 'block', margin: '0 auto 8px' }} />
-          <div style={{ fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 26 }}>Staff Portal</div>
-          <form onSubmit={doLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
-            <input value={login.email} onChange={e => setLogin(l => ({ ...l, email: e.target.value }))} placeholder="Email" autoComplete="username" style={inp} />
-            <input value={login.password} onChange={e => setLogin(l => ({ ...l, password: e.target.value }))} placeholder="Password" type="password" autoComplete="current-password" style={inp} />
-            {err && <div style={{ fontSize: 12.5, color: '#F87171' }}>{err}</div>}
-            <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '12px', fontSize: 14, marginTop: 4 }}>{busy ? 'Logging in…' : 'Log in'}</button>
-          </form>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 18, lineHeight: 1.6 }}>No login yet? Ask the manager to add you and set your password.</div>
+          <div style={{ fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 22 }}>{mode === 'signup' ? 'Join the team' : 'Staff Portal'}</div>
+
+          {mode === 'signup' ? (
+            <>
+              <form onSubmit={doSignup} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+                <input value={signup.name} onChange={e => setSignup(s => ({ ...s, name: e.target.value }))} placeholder="Full name" autoComplete="name" style={inp} />
+                <input value={signup.email} onChange={e => setSignup(s => ({ ...s, email: e.target.value }))} placeholder="Email" type="email" autoComplete="email" style={inp} />
+                <input value={signup.password} onChange={e => setSignup(s => ({ ...s, password: e.target.value }))} placeholder="Choose a password" type="password" autoComplete="new-password" style={inp} />
+                {err && <div style={{ fontSize: 12.5, color: '#F87171' }}>{err}</div>}
+                <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '12px', fontSize: 14, marginTop: 4 }}>{busy ? 'Creating…' : 'Sign up'}</button>
+              </form>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 16 }}>Already have a login? <button onClick={() => { setMode('login'); setErr('') }} style={linkBtn}>Log in</button></div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 14, lineHeight: 1.6 }}>Next you'll sign the Statement of Intent and add your details — then your shifts unlock.</div>
+            </>
+          ) : (
+            <>
+              <form onSubmit={doLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
+                <input value={login.email} onChange={e => setLogin(l => ({ ...l, email: e.target.value }))} placeholder="Email" autoComplete="username" style={inp} />
+                <input value={login.password} onChange={e => setLogin(l => ({ ...l, password: e.target.value }))} placeholder="Password" type="password" autoComplete="current-password" style={inp} />
+                {err && <div style={{ fontSize: 12.5, color: '#F87171' }}>{err}</div>}
+                <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '12px', fontSize: 14, marginTop: 4 }}>{busy ? 'Logging in…' : 'Log in'}</button>
+              </form>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 18, lineHeight: 1.6 }}>{joinCode ? <>New here? <button onClick={() => { setMode('signup'); setErr('') }} style={linkBtn}>Sign up</button></> : 'No login yet? Ask the manager for a sign-up link.'}</div>
+            </>
+          )}
         </div>
       </Shell>
     )
@@ -584,3 +614,4 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const inp = { width: '100%', minWidth: 0, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', boxSizing: 'border-box' }
+const linkBtn = { background: 'none', border: 'none', padding: 0, color: RED, fontWeight: 700, fontSize: 'inherit', cursor: 'pointer', textDecoration: 'underline' }

@@ -112,6 +112,22 @@ Deno.serve(async (req) => {
       return json({ ok: true, staff: publicStaff(s), token: s.token });
     }
 
+    // ── Public self sign-up (shareable link carries the join code) ──────────────
+    if (action === "signup") {
+      if (String(b.code || "") !== (Deno.env.get("SIGNUP_CODE") || "NODICE")) {
+        return json({ error: "This sign-up link isn't valid any more — ask the manager for the current one." }, 403);
+      }
+      const name = clean(b.name);
+      const email = String(b.email || "").trim().toLowerCase();
+      const pw = String(b.password || "");
+      if (!name || String(name).length < 2) return json({ error: "Enter your full name." }, 400);
+      if (!/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email address." }, 400);
+      if (pw.length < 4) return json({ error: "Choose a password (at least 4 characters)." }, 400);
+      const { data, error } = await sb.from("staff").insert({ name, email, password: pw, role: "Bar Staff", active: true }).select("*").single();
+      if (error) return json({ error: /duplicate/i.test(error.message) ? "That email is already registered — try logging in instead." : error.message }, 400);
+      return json({ ok: true, staff: publicStaff(data), token: data.token });
+    }
+
     // ── Staff portal: load own profile by token ────────────────────────────────
     if (action === "me") {
       const token = String(b.token || "");
