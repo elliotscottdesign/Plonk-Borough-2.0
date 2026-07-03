@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
 import RotaCalendar from './RotaCalendar.jsx'
+import ChecklistLog from './ChecklistLog.jsx'
 
 // ─── Staff Rota — team roster (admin) ────────────────────────────────────────
 // Reads/writes the Supabase `staff` table via the `rota` edge function. Each
@@ -91,14 +92,16 @@ export default function StaffRota() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div style={{ display: 'flex', gap: 6 }}>
-        {[['team', '👥 Team'], ['rota', '🗓️ Rota']].map(([k, lbl]) => (
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['checklists', '📋 Checklists']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
       </div>
 
       {view === 'rota' ? (
         <RotaCalendar staff={staff} shifts={shifts} claims={claims} reload={load} />
+      ) : view === 'checklists' ? (
+        <ChecklistLog />
       ) : (<>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>

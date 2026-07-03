@@ -116,6 +116,52 @@ create table if not exists public.staff_availability (
   unique (staff_id, month)
 );
 
+-- 4) Checklist submissions — one row per (date, checklist) that the shift team
+--    fills on their phone. `items` maps each task text → true when ticked.
+create table if not exists public.checklist_submissions (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  checklist_key text not null,        -- 'opening' | 'during' | 'closing' | …
+  staff_id uuid references public.staff(id) on delete set null,   -- who last saved
+  items jsonb default '{}'::jsonb,     -- { "Switch on all lights": true, … }
+  note text,
+  submitted boolean default false,
+  submitted_at timestamptz,
+  updated_at timestamptz default now(),
+  unique (date, checklist_key)
+);
+create index if not exists checklist_submissions_date_idx on public.checklist_submissions (date);
+alter table public.checklist_submissions enable row level security;
+
+-- A shift checklist is ONE shared sheet the team fills together. Toggle a single
+-- task atomically (jsonb merge under the row lock) so two phones ticking at once
+-- never overwrite each other.
+create or replace function public.checklist_toggle(p_date date, p_key text, p_staff uuid, p_item text, p_on boolean)
+returns void as $$
+begin
+  insert into public.checklist_submissions (date, checklist_key, staff_id, items, updated_at)
+    values (p_date, p_key, p_staff, case when p_on then jsonb_build_object(p_item, true) else '{}'::jsonb end, now())
+  on conflict (date, checklist_key) do update set
+    items = case when p_on then checklist_submissions.items || jsonb_build_object(p_item, true)
+                 else checklist_submissions.items - p_item end,
+    staff_id = p_staff, updated_at = now();
+end; $$ language plpgsql;
+
+-- Note + submit flag. `submitted` is STICKY (a later tick can never un-submit it),
+-- and the submit time is stamped once, on the first false→true transition.
+create or replace function public.checklist_meta(p_date date, p_key text, p_staff uuid, p_note text, p_submit boolean)
+returns void as $$
+begin
+  insert into public.checklist_submissions (date, checklist_key, staff_id, note, submitted, submitted_at, updated_at)
+    values (p_date, p_key, p_staff, p_note, p_submit, case when p_submit then now() else null end, now())
+  on conflict (date, checklist_key) do update set
+    note = p_note,
+    submitted = checklist_submissions.submitted or p_submit,
+    submitted_at = case when checklist_submissions.submitted_at is not null then checklist_submissions.submitted_at
+                        when p_submit then now() else null end,
+    staff_id = p_staff, updated_at = now();
+end; $$ language plpgsql;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;

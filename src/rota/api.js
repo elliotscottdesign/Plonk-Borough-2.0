@@ -40,3 +40,9 @@ export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', t
 export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data })
 export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
 export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift', token, shiftId })
+export const rotaGetChecklist = (token, date, key) => call({ action: 'getChecklist', token, date, key })
+export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })
+export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ action: 'saveChecklist', token, date, key, note, submit })
+
+// Founder: recent checklist submissions for the Operations view.
+export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })

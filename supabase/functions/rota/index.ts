@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
 
@@ -171,6 +171,31 @@ Deno.serve(async (req) => {
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true });
       }
+
+      // ── Shift checklists: load / save today's (opening|during|closing) ────────
+      if (action === "getChecklist") {
+        const date = String(b.date || ""), key = String(b.key || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !key) return json({ error: "bad date or checklist" }, 400);
+        const { data } = await sb.from("checklist_submissions").select("*").eq("date", date).eq("checklist_key", key).maybeSingle();
+        return json({ ok: true, submission: data || null });
+      }
+
+      if (action === "saveChecklist") {
+        const date = String(b.date || ""), key = String(b.key || "");
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !key) return json({ error: "bad date or checklist" }, 400);
+        // One task toggle → atomic jsonb merge (concurrent-safe shared sheet).
+        if (b.toggle && typeof b.toggle === "object" && !Array.isArray(b.toggle)) {
+          const item = String(b.toggle.item || "").slice(0, 400);
+          if (!item) return json({ error: "no item" }, 400);
+          const { error } = await sb.rpc("checklist_toggle", { p_date: date, p_key: key, p_staff: me.id, p_item: item, p_on: !!b.toggle.on });
+          if (error) return json({ error: error.message }, 400);
+          return json({ ok: true });
+        }
+        // Note + submit (submit is sticky server-side).
+        const { error } = await sb.rpc("checklist_meta", { p_date: date, p_key: key, p_staff: me.id, p_note: clean(b.note) || null, p_submit: !!b.submit });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
+      }
     }
 
     // ── Everything below is founder-only ───────────────────────────────────────
@@ -248,6 +273,18 @@ Deno.serve(async (req) => {
         shifts: shifts || [],
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // only claims on upcoming shifts
       });
+    }
+
+    // ── Founder: recent checklist submissions (Operations view) ───────────────
+    if (action === "checklistLog") {
+      const days = Math.max(1, Math.min(90, parseInt(String(b.days)) || 21));
+      const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+      const { data: subs } = await sb.from("checklist_submissions").select("*").gte("date", since).order("date", { ascending: false });
+      const ids = [...new Set((subs || []).map((s: any) => s.staff_id).filter(Boolean))];
+      const { data: names } = ids.length ? await sb.from("staff").select("id,name").in("id", ids) : { data: [] };
+      const nameOf: Record<string, string> = {};
+      for (const s of names || []) nameOf[s.id] = s.name;
+      return json({ ok: true, submissions: (subs || []).map((s: any) => ({ ...s, staff_name: s.staff_id ? nameOf[s.staff_id] || null : null })) });
     }
 
     // ── Release a whole month of shifts from the fixed patterns ────────────────

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
-import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift } from './api.js'
+import { rotaLogin, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta } from './api.js'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
+import { CHECKLISTS, CHECKLIST_ORDER, checklistCount, doneCount } from './checklists.js'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -156,7 +157,7 @@ export default function RotaPortal() {
     )
   }
 
-  const TABS = [['shifts', '🗓️ My shifts'], ['availability', '✅ Availability'], ['profile', '👤 Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -164,15 +165,15 @@ export default function RotaPortal() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <Avatar name={staff.name} />
           <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{staff.name}</div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{staff.name}</div>
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>{staff.role || 'Team'}{staff.training_status ? ` · ${staff.training_status}` : ''}</div>
           </div>
           <button onClick={logout} style={btn('ghost')}>Log out</button>
         </div>
 
-        <div style={{ display: 'flex', gap: 6, marginBottom: 16 }}>
-          {TABS.map(([k, lbl]) => (
-            <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ flex: 1, padding: '9px 6px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400 }}>{lbl}</button>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, marginBottom: 16 }}>
+          {TABS.map(([k, ic, lbl]) => (
+            <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ padding: '10px 6px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ic} {lbl}</button>
           ))}
         </div>
 
@@ -252,11 +253,117 @@ export default function RotaPortal() {
           </>
         )}
 
+        {view === 'checklists' && <ChecklistView token={token} />}
+
         {view === 'profile' && (
           <ProfileView staff={staff} onSave={saveProfile} busy={busy} />
         )}
       </div>
     </Shell>
+  )
+}
+
+// Shift checklists — pick opening / during / closing, tick tasks on your phone.
+// Every tap autosaves; "Submit" marks it done for the founder to see.
+function ChecklistView({ token }) {
+  const dateNow = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}` }
+  const [today, setToday] = useState(dateNow)   // re-derived each loadAll so a new day (reopened) is correct
+  const [subs, setSubs] = useState({})
+  const [openKey, setOpenKey] = useState(null)
+  const [items, setItems] = useState({})
+  const [note, setNote] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy] = useState(false)
+  const [savedAt, setSavedAt] = useState(false)
+
+  useEffect(() => { loadAll() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  const loadAll = async () => {
+    const t = dateNow(); setToday(t); setLoading(true)
+    try {
+      const res = await Promise.all(CHECKLIST_ORDER.map(k => rotaGetChecklist(token, t, k)))
+      const m = {}; CHECKLIST_ORDER.forEach((k, i) => { m[k] = res[i].submission })
+      setSubs(m)
+    } catch (e) { /* leave empty; portal-level handleErr covers auth */ } finally { setLoading(false) }
+  }
+  const open = (k) => { const s = subs[k]; setItems(s?.items || {}); setNote(s?.note || ''); setOpenKey(k); setSavedAt(false) }
+  // Each task toggle is an atomic per-item save (two phones can tick at once).
+  const toggle = (text) => {
+    const on = !items[text]
+    const next = { ...items }; if (on) next[text] = true; else delete next[text]
+    setItems(next)
+    setSubs(s => ({ ...s, [openKey]: { ...(s[openKey] || {}), items: next } }))
+    rotaToggleChecklist(token, today, openKey, text, on).then(() => setSavedAt(true))
+      .catch(e => { setItems(p => { const r = { ...p }; if (on) delete r[text]; else r[text] = true; return r }); alert(e.message) })
+  }
+  // Note + submit (submit is sticky on the server).
+  const saveMeta = (submit) => {
+    setBusy(true)
+    rotaSaveChecklistMeta(token, today, openKey, note, submit)
+      .then(() => { setSubs(s => ({ ...s, [openKey]: { ...(s[openKey] || {}), note, submitted: submit || s[openKey]?.submitted } })); setSavedAt(true) })
+      .catch(e => alert(e.message)).finally(() => setBusy(false))
+  }
+  const submit = () => saveMeta(true)
+
+  if (loading) return <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Loading checklists…</div>
+
+  // Overview: the three checklists for today.
+  if (!openKey) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Today · {dayName(today)} {today.slice(8)}. Tick tasks as you go — it saves automatically.</div>
+        {CHECKLIST_ORDER.map(k => {
+          const c = CHECKLISTS[k], total = checklistCount(k), done = doneCount(k, subs[k]?.items || {}), sub = subs[k]?.submitted
+          return (
+            <button key={k} onClick={() => open(k)} style={{ textAlign: 'left', background: CARD, border: `1px solid ${sub ? 'rgba(52,211,153,0.4)' : LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ fontSize: 24 }}>{c.icon}</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700 }}>{c.title} {sub && <span style={{ fontSize: 10, color: GREEN, fontWeight: 700 }}>✓ submitted</span>}</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{done}/{total} done</div>
+                <div style={{ height: 5, borderRadius: 3, background: 'rgba(255,255,255,0.1)', marginTop: 7, overflow: 'hidden' }}>
+                  <div style={{ height: '100%', width: `${total ? Math.round((done / total) * 100) : 0}%`, background: done >= total ? GREEN : RED }} />
+                </div>
+              </div>
+              <div style={{ color: RED, fontSize: 18 }}>›</div>
+            </button>
+          )
+        })}
+      </div>
+    )
+  }
+
+  // Open one checklist.
+  const c = CHECKLISTS[openKey], total = checklistCount(openKey), done = doneCount(openKey, items)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <button onClick={() => { setOpenKey(null); loadAll() }} style={btn('ghost')}>‹ Back</button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{c.icon} {c.title}</div>
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{done}/{total} done{busy ? ' · saving…' : savedAt ? ' · saved ✓' : ''}</div>
+        </div>
+      </div>
+
+      {c.sections.map((sec, si) => (
+        <div key={si} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+          {c.sections.length > 1 && <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: RED, fontWeight: 700, padding: '10px 14px 4px' }}>{sec.title}</div>}
+          {sec.items.map((text, ii) => {
+            const on = !!items[text]
+            return (
+              <button key={ii} onClick={() => toggle(text)} style={{ display: 'flex', alignItems: 'flex-start', gap: 11, width: '100%', textAlign: 'left', padding: '11px 14px', background: on ? 'rgba(52,211,153,0.07)' : 'transparent', border: 'none', borderTop: ii === 0 && !(c.sections.length > 1) ? 'none' : `1px solid rgba(255,255,255,0.06)`, cursor: 'pointer', color: '#fff' }}>
+                <span style={{ flexShrink: 0, width: 22, height: 22, borderRadius: 6, border: `2px solid ${on ? GREEN : 'rgba(255,255,255,0.3)'}`, background: on ? GREEN : 'transparent', color: '#06281C', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 900, marginTop: 1 }}>{on ? '✓' : ''}</span>
+                <span style={{ fontSize: 13.5, lineHeight: 1.4, color: on ? 'rgba(255,255,255,0.55)' : '#fff', textDecoration: on ? 'line-through' : 'none' }}>{text}</span>
+              </button>
+            )
+          })}
+        </div>
+      ))}
+
+      <textarea value={note} onChange={e => setNote(e.target.value)} onBlur={() => saveMeta(false)} placeholder="Anything to flag? (low stock, breakages, issues…)" rows={2} style={{ ...inp, resize: 'vertical' }} />
+
+      <button onClick={submit} disabled={busy} style={{ ...btn(subs[openKey]?.submitted ? 'ghost' : 'red'), padding: '13px', fontSize: 14, width: '100%' }}>
+        {subs[openKey]?.submitted ? '✓ Submitted — tap to re-submit' : `Submit ${c.title.toLowerCase()} checklist`}
+      </button>
+    </div>
   )
 }
 
