@@ -112,6 +112,15 @@ Deno.serve(async (req) => {
       return json({ ok: true, staff: publicStaff(s) });
     }
 
+    // ── Training doc override for a module (founder edits). Not sensitive; the
+    //    frontend merges this over the built-in seed. Loaded lazily per module. ──
+    if (action === "getTrainingDoc") {
+      const key = String(b.moduleKey || "").slice(0, 60);
+      if (!key) return json({ error: "no module" }, 400);
+      const { data } = await sb.from("training_docs").select("content,updated_at").eq("module_key", key).maybeSingle();
+      return json({ ok: true, content: data?.content || null, updated_at: data?.updated_at || null });
+    }
+
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
     if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining"].includes(action)) {
       const me = await staffByToken(sb, b.token);
@@ -383,6 +392,24 @@ Deno.serve(async (req) => {
     if (action === "trainingLog") {
       const { data: comps } = await sb.from("training_completions").select("staff_id,item_key,completed_at");
       return json({ ok: true, completions: comps || [] });
+    }
+
+    // ── Founder: save / reset a training document override ─────────────────────
+    if (action === "saveTrainingDoc") {
+      const key = String(b.moduleKey || "").slice(0, 60);
+      const content = (b.content && typeof b.content === "object" && !Array.isArray(b.content)) ? b.content : null;
+      if (!key || !content) return json({ error: "missing module or content" }, 400);
+      if (JSON.stringify(content).length > 900_000) return json({ error: "Too big — use fewer / smaller images." }, 413);
+      const { error } = await sb.from("training_docs").upsert({ module_key: key, content, updated_at: new Date().toISOString() }, { onConflict: "module_key" });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "resetTrainingDoc") {
+      const key = String(b.moduleKey || "").slice(0, 60);
+      if (!key) return json({ error: "no module" }, 400);
+      const { error } = await sb.from("training_docs").delete().eq("module_key", key);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
     }
 
     // ── Release a whole month of shifts from the fixed patterns ────────────────

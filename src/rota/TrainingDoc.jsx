@@ -1,17 +1,30 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
+import { moduleByKey } from './training.js'
+import { rotaGetTrainingDoc } from './api.js'
 
 // ─── Training document renderer (shared: staff portal + founder admin) ───────
 // Dark theme on screen; a "Print version" button prints a clean black-&-white,
 // low-ink page for on-site hard copies (any staff member can print, over WiFi).
-// `module` = { icon, title, intro, sections:[{heading, body}], keyPoints:[] }.
+// Pass `moduleKey` to load the founder's saved edits (override) over the built-in
+// seed; or `module` for a pre-merged preview (the editor).
 
 const RED = '#DA1B33', CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
 
-export default function TrainingDoc({ module }) {
-  const m = module
-  if (!m) return null
+export default function TrainingDoc({ moduleKey, module: moduleProp }) {
+  const seed = moduleProp || moduleByKey(moduleKey)
+  const [override, setOverride] = useState(null)
+  const [loading, setLoading] = useState(!moduleProp && !!moduleKey)
+  useEffect(() => {
+    if (moduleProp || !moduleKey) return
+    let alive = true; setLoading(true)
+    rotaGetTrainingDoc(moduleKey).then(r => { if (alive) setOverride(r.content || null) }).catch(() => {}).finally(() => { if (alive) setLoading(false) })
+    return () => { alive = false }
+  }, [moduleKey, moduleProp])
+  if (!seed) return null
+  const m = override ? { ...seed, ...override } : seed
   return (
     <div>
+      {loading && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>loading latest…</div>}
       <div className="tr-doc-actions" style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
         <button onClick={() => window.print()} style={{ padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, background: 'rgba(255,255,255,0.06)', color: '#fff', border: `1px solid ${LINE}` }}>🖨️ Print version</button>
       </div>

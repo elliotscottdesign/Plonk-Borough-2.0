@@ -178,6 +178,16 @@ create table if not exists public.training_completions (
 create index if not exists training_completions_staff_idx on public.training_completions (staff_id);
 alter table public.training_completions enable row level security;
 
+-- 6) Training doc overrides — the founder's edits to a training module. The built-in
+--    seed (src/rota/training.js) is the default; a row here overrides it. content =
+--    { intro, sections:[{heading, body, image?}], keyPoints:[] } (images = data URLs).
+create table if not exists public.training_docs (
+  module_key text primary key,
+  content jsonb not null default '{}'::jsonb,
+  updated_at timestamptz default now()
+);
+alter table public.training_docs enable row level security;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;

@@ -48,6 +48,11 @@ export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ 
 export const rotaCompleteTraining = (token, itemKey) => call({ action: 'completeTraining', token, itemKey })
 export const rotaUncompleteTraining = (token, itemKey) => call({ action: 'uncompleteTraining', token, itemKey })
 
+// Training docs — the built-in seed is the default; founder edits override it.
+export const rotaGetTrainingDoc = (moduleKey) => call({ action: 'getTrainingDoc', moduleKey })
+export const rotaSaveTrainingDoc = (moduleKey, content) => call({ action: 'saveTrainingDoc', secret: SEND_SECRET, moduleKey, content })
+export const rotaResetTrainingDoc = (moduleKey) => call({ action: 'resetTrainingDoc', secret: SEND_SECRET, moduleKey })
+
 // Founder: recent checklist submissions + all training completions.
 export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })
 export const rotaTrainingLog = () => call({ action: 'trainingLog', secret: SEND_SECRET })

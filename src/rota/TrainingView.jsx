@@ -80,7 +80,7 @@ export default function TrainingView({ token, training = [], onToggle }) {
           <button onClick={() => setSel(null)} style={btn('ghost')}>‹ Back</button>
           {on && <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>✓ Completed</span>}
         </div>
-        <TrainingDoc module={m} />
+        <TrainingDoc moduleKey={m.key} />
         <button onClick={() => toggle(m.key)} style={{ ...btn(on ? 'ghost' : 'red'), padding: '13px', fontSize: 14, width: '100%' }}>
           {on ? '✓ Completed — tap to undo' : "I've read this — mark complete"}
         </button>

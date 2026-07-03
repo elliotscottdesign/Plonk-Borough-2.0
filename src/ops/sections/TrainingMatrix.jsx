@@ -3,6 +3,7 @@ import { rotaTrainingLog } from '../../rota/api.js'
 import { MODULE_META, MODULES, TRAINING_CATEGORIES, moduleByKey, cocktailKey } from '../../rota/training.js'
 import { SPECS } from '../data/cocktailSpecs.js'
 import TrainingDoc from '../../rota/TrainingDoc.jsx'
+import TrainingEditor from '../../rota/TrainingEditor.jsx'
 
 // ─── Training matrix (founder) ───────────────────────────────────────────────
 // Who's completed which training module + how many cocktails they're signed off
@@ -16,6 +17,8 @@ export default function TrainingMatrix({ staff = [] }) {
   const [err, setErr] = useState('')
   const [tab, setTab] = useState('matrix')     // 'matrix' | 'docs'
   const [docKey, setDocKey] = useState(null)   // module being viewed in Documents
+  const [editingDoc, setEditingDoc] = useState(false)
+  const [docReloadKey, setDocReloadKey] = useState(0)
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -88,8 +91,13 @@ export default function TrainingMatrix({ staff = [] }) {
         </div>
       </>) : docKey ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <button onClick={() => setDocKey(null)} style={{ ...btn, alignSelf: 'flex-start' }}>‹ All documents</button>
-          <TrainingDoc module={moduleByKey(docKey)} />
+          <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => { setDocKey(null); setEditingDoc(false) }} style={btn}>‹ All documents</button>
+            {!editingDoc && <button onClick={() => setEditingDoc(true)} style={btn}>✏️ Edit this doc</button>}
+          </div>
+          {editingDoc
+            ? <TrainingEditor moduleKey={docKey} onClose={() => { setEditingDoc(false); setDocReloadKey(k => k + 1) }} />
+            : <TrainingDoc key={docReloadKey} moduleKey={docKey} />}
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
