@@ -22,6 +22,7 @@ const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
 const TOKEN_KEY = 'nd_rota_token'
+const INTEREST_SUGGESTIONS = ['Gardening', 'Painting', 'Carpentry', 'Sign-writing', 'Cooking', 'Photography', 'DJ / music', 'Plants', 'Art & design', 'Coffee', 'Sports', 'Gaming']
 
 // Reusable month grid (weeks start Monday, UTC math). renderDay(dateStr,dayNum)
 // returns the cell's inner content; clickable(dateStr) gates taps.
@@ -470,8 +471,11 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
     name: staff.name || '', phone: staff.phone || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
     dob: staff.dob || '', ni_number: staff.ni_number || '', bank_name: staff.bank_name || '', bank_sort: staff.bank_sort || '', bank_account: staff.bank_account || '',
+    interests: Array.isArray(staff.interests) ? staff.interests : [],
   })
   const on = (k, v) => setF(s => ({ ...s, [k]: v }))
+  const addInterest = (v) => { const t = String(v || '').trim(); if (!t) return; setF(s => ({ ...s, interests: [...new Set([...(s.interests || []), t])] })) }
+  const rmInterest = (v) => setF(s => ({ ...s, interests: (s.interests || []).filter(x => x !== v) }))
   const [uploading, setUploading] = useState('')
   const upload = async (kind, e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
@@ -516,6 +520,28 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         <L label="Account number"><input value={f.bank_account} onChange={e => on('bank_account', e.target.value)} style={inp} /></L>
         <div style={{ gridColumn: '1 / -1', display: 'flex', justifyContent: 'flex-end' }}>
           <button onClick={() => onSave(f)} disabled={busy} style={btn('red')}>{busy ? 'Saving…' : 'Save details'}</button>
+        </div>
+      </div>
+
+      <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Interests &amp; hobbies</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 4, lineHeight: 1.5 }}>Tell us what you're into — add at least 5. We might match these to jobs around the bar (gardening, painting, carpentry, sign-writing…).</div>
+        {(f.interests || []).length > 0 && (
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+            {(f.interests || []).map((it, i) => (
+              <span key={i} style={{ ...chip, display: 'inline-flex', alignItems: 'center', gap: 6 }}>{it}<button onClick={() => rmInterest(it)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 12, padding: 0, lineHeight: 1 }}>✕</button></span>
+            ))}
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 10 }}>
+          {INTEREST_SUGGESTIONS.filter(s => !(f.interests || []).includes(s)).map(s => (
+            <button key={s} onClick={() => addInterest(s)} style={{ padding: '5px 11px', fontSize: 12, borderRadius: 999, cursor: 'pointer', background: 'transparent', color: 'rgba(255,255,255,0.8)', border: `1px solid ${LINE}` }}>+ {s}</button>
+          ))}
+        </div>
+        <input placeholder="Add your own (press Enter)" onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); addInterest(e.target.value); e.target.value = '' } }} style={{ ...inp, marginTop: 10 }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10, gap: 10, flexWrap: 'wrap' }}>
+          <span style={{ fontSize: 11.5, color: (f.interests || []).length >= 5 ? GREEN : '#FCD34D' }}>{(f.interests || []).length >= 5 ? `✓ ${(f.interests || []).length} added` : `${(f.interests || []).length}/5 — add ${5 - (f.interests || []).length} more`}</span>
+          <button onClick={() => onSave(f)} disabled={busy} style={btn('red')}>{busy ? 'Saving…' : 'Save interests'}</button>
         </div>
       </div>
 

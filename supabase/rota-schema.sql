@@ -41,6 +41,7 @@ alter table public.staff add column if not exists work_rules text;
 alter table public.staff add column if not exists password text;
 alter table public.staff add column if not exists active boolean default true;
 alter table public.staff add column if not exists abilities text[] default '{}';   -- 'bar' | 'kitchen' | 'foh' | 'golf' (what training lets them work)
+alter table public.staff add column if not exists interests text[] default '{}';   -- hobbies/interests the staff type in (e.g. gardening, painting) — to match jobs
 -- Onboarding / payroll / right-to-work (must be complete before the calendar opens).
 alter table public.staff add column if not exists dob date;
 alter table public.staff add column if not exists ni_number text;

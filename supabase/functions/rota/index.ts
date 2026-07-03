@@ -80,6 +80,7 @@ const ABILITY_KEYS = ["bar", "kitchen", "foh", "golf"];
 const ROLE_RANK: Record<string, number> = { "Bar Staff": 1, "Supervisor": 2, "Asst. Manager": 3, "Manager": 4 };
 const staffRank = (role: unknown) => ROLE_RANK[String(role || "")] || 1;
 const cleanAbilities = (v: unknown) => Array.isArray(v) ? v.filter((x) => ABILITY_KEYS.includes(String(x))) : [];
+const cleanInterests = (v: unknown) => Array.isArray(v) ? [...new Set(v.map((x) => String(x).trim().slice(0, 60)).filter(Boolean))].slice(0, 30) : [];
 
 // Onboarding gate (mirror of src/rota/statement.js). The calendar stays locked
 // until the statement is signed + all payroll / right-to-work details are in.
@@ -182,6 +183,7 @@ Deno.serve(async (req) => {
           "dob", "ni_number", "bank_name", "bank_sort", "bank_account"]) {
           if (k in b) patch[k] = clean(b[k]) || null;
         }
+        if ("interests" in b) patch.interests = cleanInterests(b.interests);
         if (!Object.keys(patch).length) return json({ error: "nothing to save" }, 400);
         const { error } = await sb.from("staff").update(patch).eq("id", me.id);
         if (error) return json({ error: error.message }, 400);
@@ -392,6 +394,7 @@ Deno.serve(async (req) => {
       }
       if ("skills" in b) patch.skills = Array.isArray(b.skills) ? b.skills : [];
       if ("abilities" in b) patch.abilities = cleanAbilities(b.abilities);
+      if ("interests" in b) patch.interests = cleanInterests(b.interests);
       if ("active" in b) patch.active = !!b.active;
       // Password only changes when a non-empty value is sent (blank = leave as-is).
       if ("password" in b && clean(b.password)) patch.password = clean(b.password);

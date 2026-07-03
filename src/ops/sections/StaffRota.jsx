@@ -175,6 +175,7 @@ export default function StaffRota() {
                     {requiresOnboarding(s.role) && (onboardingComplete(s, docsBy[s.id])
                       ? <div style={{ fontSize: 11, color: '#34D399', marginTop: 4 }}>✓ Onboarded — statement signed &amp; details complete</div>
                       : <div style={{ fontSize: 11, color: '#FCD34D', marginTop: 4 }}>⏳ Onboarding: {onboardingMissing(s, docsBy[s.id]).length} to do{s.soi_signed_at ? '' : ' · statement unsigned'} — calendar locked</div>)}
+                    {(s.interests || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', marginTop: 5, lineHeight: 1.5 }}>💡 <strong style={{ color: '#fff' }}>Into:</strong> {(s.interests || []).join(' · ')}</div>}
                   </div>
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Incomplete'}</span>
                 </div>
