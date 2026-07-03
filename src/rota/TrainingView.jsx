@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react'
 import { rotaCompleteTraining, rotaUncompleteTraining } from './api.js'
 import { MODULES, MODULE_META, TRAINING_CATEGORIES, moduleByKey, cocktailKey } from './training.js'
 import { SPECS, SPEC_SECTIONS } from '../ops/data/cocktailSpecs.js'
+import TrainingDoc from './TrainingDoc.jsx'
 
 // ─── Staff training (portal) ─────────────────────────────────────────────────
 // Read the No Dice training modules + Bar Manual and mark each complete, plus a
@@ -77,24 +78,9 @@ export default function TrainingView({ token, training = [], onToggle }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <button onClick={() => setSel(null)} style={btn('ghost')}>‹ Back</button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 700 }}>{m.icon} {m.title}</div>
-            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{m.category}</div>
-          </div>
+          {on && <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>✓ Completed</span>}
         </div>
-        {m.intro && <div style={{ fontSize: 13.5, lineHeight: 1.6, color: 'rgba(255,255,255,0.75)', fontStyle: 'italic' }}>{m.intro}</div>}
-        {m.sections.map((sec, i) => (
-          <div key={i} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{sec.heading}</div>
-            <Body text={sec.body} />
-          </div>
-        ))}
-        {m.keyPoints?.length > 0 && (
-          <div style={{ background: 'rgba(218,27,51,0.06)', border: '1px solid rgba(218,27,51,0.3)', borderRadius: 12, padding: 14 }}>
-            <div style={{ fontSize: 12, fontWeight: 700, color: RED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>Must remember</div>
-            {m.keyPoints.map((k, i) => <div key={i} style={{ fontSize: 13, lineHeight: 1.5, color: '#fff', display: 'flex', gap: 8, marginTop: i ? 6 : 0 }}><span style={{ color: RED, flexShrink: 0 }}>›</span>{k}</div>)}
-          </div>
-        )}
+        <TrainingDoc module={m} />
         <button onClick={() => toggle(m.key)} style={{ ...btn(on ? 'ghost' : 'red'), padding: '13px', fontSize: 14, width: '100%' }}>
           {on ? '✓ Completed — tap to undo' : "I've read this — mark complete"}
         </button>

@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, STAFF_ROLES } from '../../rota/api.js'
+import { MODULE_META, cocktailKey } from '../../rota/training.js'
+import { SPECS } from '../data/cocktailSpecs.js'
 import RotaCalendar from './RotaCalendar.jsx'
 import ChecklistLog from './ChecklistLog.jsx'
 import TrainingMatrix from './TrainingMatrix.jsx'
@@ -35,6 +37,7 @@ export default function StaffRota() {
   const [staff, setStaff] = useState([])
   const [shifts, setShifts] = useState([])
   const [claims, setClaims] = useState([])
+  const [trained, setTrained] = useState({})   // staff_id → Set(item_key)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [view, setView] = useState('team')   // 'team' (roster) | 'rota' (shift calendar)
@@ -46,7 +49,10 @@ export default function StaffRota() {
 
   const load = async () => {
     setLoading(true); setErr('')
-    try { const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []) }
+    try {
+      const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || [])
+      const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
+    }
     catch (e) { setErr(e.message || 'Could not load the team.') }
     finally { setLoading(false) }
   }
@@ -146,6 +152,9 @@ export default function StaffRota() {
                       {s.email && <span>{s.email}</span>}
                       {s.phone && <span>{s.phone}</span>}
                     </div>
+                    {(() => { const mods = MODULE_META.filter(m => trained[s.id]?.has(m.key)).length, ck = SPECS.filter(x => trained[s.id]?.has(cocktailKey(x.id))).length; return (
+                      <div style={{ marginTop: 7, fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>🎓 <strong style={{ color: mods >= MODULE_META.length ? '#34D399' : '#fff' }}>{mods}/{MODULE_META.length}</strong> training · 🍸 <strong style={{ color: ck >= SPECS.length ? '#34D399' : '#fff' }}>{ck}/{SPECS.length}</strong> cocktails</div>
+                    ) })()}
                   </div>
                   <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: done ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{done ? '● Ready' : '○ Incomplete'}</span>
                 </div>

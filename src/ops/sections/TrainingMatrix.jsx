@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react'
 import { rotaTrainingLog } from '../../rota/api.js'
-import { MODULE_META, cocktailKey } from '../../rota/training.js'
+import { MODULE_META, MODULES, TRAINING_CATEGORIES, moduleByKey, cocktailKey } from '../../rota/training.js'
 import { SPECS } from '../data/cocktailSpecs.js'
+import TrainingDoc from '../../rota/TrainingDoc.jsx'
 
 // ─── Training matrix (founder) ───────────────────────────────────────────────
 // Who's completed which training module + how many cocktails they're signed off
@@ -13,6 +14,8 @@ export default function TrainingMatrix({ staff = [] }) {
   const [byStaff, setByStaff] = useState({})   // staff_id → Set(item_key)
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
+  const [tab, setTab] = useState('matrix')     // 'matrix' | 'docs'
+  const [docKey, setDocKey] = useState(null)   // module being viewed in Documents
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -38,45 +41,79 @@ export default function TrainingMatrix({ staff = [] }) {
           <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎓 Training</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Who's completed which module, and how many cocktails they're trained on.</div>
         </div>
-        <button onClick={load} disabled={loading} style={btn}>↻ Refresh</button>
+        {tab === 'matrix' && <button onClick={load} disabled={loading} style={btn}>↻ Refresh</button>}
       </div>
 
-      {err && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '10px 12px' }}>{err}</div>}
+      <div style={{ display: 'flex', gap: 6 }}>
+        {[['matrix', '✅ Progress'], ['docs', '📄 Documents']].map(([k, lbl]) => (
+          <button key={k} onClick={() => { setTab(k); setDocKey(null) }} style={{ padding: '7px 14px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: tab === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${tab === k ? RED : LINE}`, color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: tab === k ? 700 : 400 }}>{lbl}</button>
+        ))}
+      </div>
 
-      {loading ? (
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', padding: '24px 0', textAlign: 'center' }}>Loading…</div>
-      ) : people.length === 0 ? (
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '24px 16px' }}>No active team members yet — add them on the Team tab.</div>
-      ) : (
-        <div style={{ overflowX: 'auto', border: `1px solid ${LINE}`, borderRadius: 10, background: '#0A0A0A' }}>
-          <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${LINE}` }}>
-                <th style={{ ...th, position: 'sticky', left: 0, background: '#0A0A0A', textAlign: 'left', minWidth: 130 }}>Team member</th>
-                {MODULE_META.map(m => <th key={m.key} title={m.title} style={{ ...th, fontSize: 15, cursor: 'help' }}>{m.icon}</th>)}
-                <th style={{ ...th, fontSize: 15 }} title="Cocktails trained">🍸</th>
-              </tr>
-            </thead>
-            <tbody>
-              {people.map(s => (
-                <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-                  <td style={{ ...td, position: 'sticky', left: 0, background: '#0A0A0A', textAlign: 'left', fontWeight: 600, color: '#fff' }}>
-                    {s.name}
-                    <div style={{ fontSize: 10, color: modN(s.id) >= MODULE_META.length ? GREEN : 'rgba(255,255,255,0.45)', fontWeight: 400 }}>{modN(s.id)}/{MODULE_META.length} modules</div>
-                  </td>
-                  {MODULE_META.map(m => (
-                    <td key={m.key} style={td}>{done(s.id, m.key) ? <span style={{ color: GREEN, fontWeight: 800 }}>✓</span> : <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>}</td>
-                  ))}
-                  <td style={{ ...td, fontWeight: 700, color: cocktailN(s.id) >= SPECS.length ? GREEN : cocktailN(s.id) > 0 ? '#fff' : 'rgba(255,255,255,0.3)' }}>{cocktailN(s.id)}/{SPECS.length}</td>
+      {tab === 'matrix' ? (<>
+        {err && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '10px 12px' }}>{err}</div>}
+        {loading ? (
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', padding: '24px 0', textAlign: 'center' }}>Loading…</div>
+        ) : people.length === 0 ? (
+          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '24px 16px' }}>No active team members yet — add them on the Team tab.</div>
+        ) : (
+          <div style={{ overflowX: 'auto', border: `1px solid ${LINE}`, borderRadius: 10, background: '#0A0A0A' }}>
+            <table style={{ borderCollapse: 'collapse', fontSize: 12, width: '100%' }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${LINE}` }}>
+                  <th style={{ ...th, position: 'sticky', left: 0, background: '#0A0A0A', textAlign: 'left', minWidth: 130 }}>Team member</th>
+                  {MODULE_META.map(m => <th key={m.key} title={m.title} style={{ ...th, fontSize: 15, cursor: 'help' }}>{m.icon}</th>)}
+                  <th style={{ ...th, fontSize: 15 }} title="Cocktails trained">🍸</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {people.map(s => (
+                  <tr key={s.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
+                    <td style={{ ...td, position: 'sticky', left: 0, background: '#0A0A0A', textAlign: 'left', fontWeight: 600, color: '#fff' }}>
+                      {s.name}
+                      <div style={{ fontSize: 10, color: modN(s.id) >= MODULE_META.length ? GREEN : 'rgba(255,255,255,0.45)', fontWeight: 400 }}>{modN(s.id)}/{MODULE_META.length} modules</div>
+                    </td>
+                    {MODULE_META.map(m => (
+                      <td key={m.key} style={td}>{done(s.id, m.key) ? <span style={{ color: GREEN, fontWeight: 800 }}>✓</span> : <span style={{ color: 'rgba(255,255,255,0.2)' }}>·</span>}</td>
+                    ))}
+                    <td style={{ ...td, fontWeight: 700, color: cocktailN(s.id) >= SPECS.length ? GREEN : cocktailN(s.id) > 0 ? '#fff' : 'rgba(255,255,255,0.3)' }}>{cocktailN(s.id)}/{SPECS.length}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 8, padding: '12px 14px' }}>
+          Hover a column icon for the module name. Staff mark their own training complete in the portal as they read each module and get signed off on cocktails.
+        </div>
+      </>) : docKey ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <button onClick={() => setDocKey(null)} style={{ ...btn, alignSelf: 'flex-start' }}>‹ All documents</button>
+          <TrainingDoc module={moduleByKey(docKey)} />
+        </div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Every training document staff see — read them, or open the print version for a black-&-white hard copy.</div>
+          {TRAINING_CATEGORIES.map(cat => {
+            const rows = MODULES.filter(m => m.category === cat)
+            if (!rows.length) return null
+            return (
+              <div key={cat} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', fontWeight: 700 }}>{cat}</div>
+                <div style={{ background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+                  {rows.map((m, i) => (
+                    <button key={m.key} onClick={() => setDocKey(m.key)} style={{ display: 'flex', alignItems: 'center', gap: 11, width: '100%', textAlign: 'left', padding: '12px 14px', background: 'transparent', border: 'none', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)', cursor: 'pointer', color: '#fff' }}>
+                      <span style={{ fontSize: 19, flexShrink: 0 }}>{m.icon}</span>
+                      <span style={{ flex: 1, minWidth: 0, fontSize: 14 }}>{m.title}</span>
+                      <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>read / print ›</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 8, padding: '12px 14px' }}>
-        Hover a column icon for the module name. Staff mark their own training complete in the portal (Training tab) as they read each module and get signed off on cocktails.
-      </div>
     </div>
   )
 }

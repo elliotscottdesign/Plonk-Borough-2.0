@@ -279,10 +279,11 @@ Deno.serve(async (req) => {
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
       const today = todayISO();
-      const [{ data: staff }, { data: shifts }, { data: claims }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", today).order("date"),
         sb.from("staff_shift_claims").select("*"),
+        sb.from("training_completions").select("staff_id,item_key"),
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
@@ -290,6 +291,7 @@ Deno.serve(async (req) => {
         staff: (staff || []).map(publicStaff),
         shifts: shifts || [],
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // only claims on upcoming shifts
+        training: training || [],   // all completions — for per-staff progress in the admin
       });
     }
 
