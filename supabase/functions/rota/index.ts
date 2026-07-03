@@ -233,8 +233,8 @@ Deno.serve(async (req) => {
 
       if (action === "claimShift") {
         if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
-        // Onboarding gate (freelance bar roles) — statement signed + payroll / right-to-work in.
-        if (["Bar Staff", "Asst. Manager"].includes(me.role)) {
+        // Onboarding gate (all rostered roles) — statement signed + payroll / right-to-work in.
+        if (["Bar Staff", "Supervisor", "Asst. Manager", "Manager"].includes(me.role)) {
           const { data: myDocs } = await sb.from("staff_documents").select("kind").eq("staff_id", me.id);
           if (!onboardingOk(me, new Set((myDocs || []).map((d: any) => d.kind)))) return json({ error: "Finish your onboarding first — sign the statement and complete your details to unlock shifts." }, 403);
         }

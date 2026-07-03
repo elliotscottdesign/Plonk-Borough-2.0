@@ -35,8 +35,8 @@ export const ONBOARDING_STEPS = [
 export const onboardingComplete = (s, docs) => ONBOARDING_STEPS.every(step => step.done(s, docs || {}))
 export const onboardingMissing = (s, docs) => ONBOARDING_STEPS.filter(step => !step.done(s, docs || {}))
 
-// The statement + onboarding gate applies to freelance bar team roles.
-export const ONBOARDING_ROLES = ['Bar Staff', 'Asst. Manager']
+// The statement + onboarding gate applies to every rostered role.
+export const ONBOARDING_ROLES = ['Bar Staff', 'Supervisor', 'Asst. Manager', 'Manager']
 export const requiresOnboarding = (role) => ONBOARDING_ROLES.includes(role)
 // Locked = this role needs onboarding AND it isn't finished.
 export const calendarLocked = (s, docs) => requiresOnboarding(s?.role) && !onboardingComplete(s, docs)
