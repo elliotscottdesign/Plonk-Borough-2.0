@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
+import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaRemindStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
 import { ABILITIES } from '../../rota/roles.js'
 import { onboardingComplete, requiresOnboarding, onboardingMissing } from '../../rota/statement.js'
 import { openDataUrl } from '../../rota/menuFile.js'
@@ -20,6 +20,10 @@ import MenuAdmin from './MenuAdmin.jsx'
 const TRAINING = ['Trial', 'In training', 'Signed off']
 // Common bar stations/skills — quick-add chips (founder can also type their own).
 const SKILL_SUGGESTIONS = ['Till', 'Cocktails', 'Draught', 'Barback', 'Floor', 'Open', 'Close', 'Cellar', 'Cash-up', 'Keyholder']
+
+// Each staff row carries a permanent token; this link logs them straight in.
+const PORTAL_URL = 'https://team.nodice.bar/rota'
+const loginLink = (s) => `${PORTAL_URL}?t=${s.token}`
 
 function Avatar({ name, size = 46 }) {
   const initials = (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -272,9 +276,7 @@ export default function StaffRota() {
                     </div>
                   </div>
                 ) : (
-                  <div style={{ marginTop: 10, display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
-                    <button onClick={() => startEdit(s)} style={btn('ghost')}>Edit profile</button>
-                  </div>
+                  <CardActions s={s} onEdit={() => startEdit(s)} />
                 )}
               </div>
             )
@@ -302,6 +304,51 @@ function Field({ label, wide, children }) {
       <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
       {children}
     </label>
+  )
+}
+
+// Founder-only footer on each Team card: the staffer's login (email + password,
+// so the founder can read/relay it) plus three one-tap ways to send them their
+// personal login link — copy, WhatsApp, or a branded email (server-sent).
+function CardActions({ s, onEdit }) {
+  const [copied, setCopied] = useState('')       // '' | 'link' | 'pw'
+  const [sending, setSending] = useState(false)
+  const [sent, setSent] = useState(false)
+  const link = loginLink(s)
+  const copy = async (text, tag) => {
+    try { await navigator.clipboard.writeText(text); setCopied(tag); setTimeout(() => setCopied(''), 2000) } catch { /* clipboard blocked */ }
+  }
+  const whatsapp = () => {
+    const digits = (s.phone || '').replace(/\D/g, '')
+    const intl = digits ? (digits.startsWith('0') ? '44' + digits.slice(1) : digits) : ''   // best-effort UK; blank = pick contact in WhatsApp
+    const msg = `Hi ${(s.name || '').split(' ')[0]}! Here's your No Dice staff login — tap to go straight in, no password needed:\n${link}`
+    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
+  }
+  const emailLink = async () => {
+    if (!s.email) { alert('Add an email for this person first, then you can send their login.'); return }
+    setSending(true)
+    try { await rotaRemindStaff(s.id); setSent(true); setTimeout(() => setSent(false), 4000) }
+    catch (e) { alert(e.message || 'Could not send the email.') } finally { setSending(false) }
+  }
+  const code = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11, color: '#fff', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 6px' }
+  const mini = { background: 'none', border: 'none', color: '#DA1B33', fontWeight: 700, fontSize: 11, cursor: 'pointer', padding: 0, textDecoration: 'underline' }
+  return (
+    <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>
+        <span>🔑 Login</span>
+        {s.email ? <code style={code}>{s.email}</code> : <span style={{ color: '#FCD34D' }}>no email yet</span>}
+        <span style={{ opacity: 0.4 }}>·</span>
+        {s.password
+          ? <><code style={code}>{s.password}</code><button onClick={() => copy(s.password, 'pw')} style={mini}>{copied === 'pw' ? 'Copied ✓' : 'copy'}</button></>
+          : <span style={{ color: '#FCD34D' }}>no password set</span>}
+      </div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+        <button onClick={() => copy(link, 'link')} style={btn('ghost')}>{copied === 'link' ? 'Copied ✓' : '🔗 Copy link'}</button>
+        <button onClick={whatsapp} style={{ ...btn('ghost'), color: '#25D366', borderColor: 'rgba(37,211,102,0.45)' }}>WhatsApp</button>
+        <button onClick={emailLink} disabled={sending || !s.email} title={s.email ? '' : 'Add an email first'} style={{ ...btn('ghost'), opacity: s.email ? 1 : 0.5, cursor: s.email ? 'pointer' : 'not-allowed' }}>{sent ? 'Sent ✓' : sending ? 'Sending…' : '✉️ Email login'}</button>
+        <button onClick={onEdit} style={btn('ghost')}>Edit profile</button>
+      </div>
+    </div>
   )
 }
 

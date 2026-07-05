@@ -82,7 +82,9 @@ export default function RotaPortal() {
   const [vm, setVm] = useState(now.getMonth())
   const [selDate, setSelDate] = useState(null)
   const [login, setLogin] = useState({ email: '', password: '' })
-  const joinCode = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('join') : null
+  const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
+  const joinCode = params.get('join')
+  const magicToken = params.get('t')   // personal login link the founder shares — logs straight in
   const [mode, setMode] = useState(joinCode ? 'signup' : 'login')   // 'login' | 'signup'
   const [signup, setSignup] = useState({ name: '', email: '', password: '' })
 
@@ -90,6 +92,13 @@ export default function RotaPortal() {
     document.body.style.background = BG; document.body.style.color = '#fff'; document.title = 'No Dice · Staff Rota'
   }, [])
   useEffect(() => {
+    // A shared login link (?t=<token>) is authoritative — adopt it, then wipe it
+    // from the address bar so the token isn't left on screen or re-shared.
+    if (magicToken) {
+      localStorage.setItem(TOKEN_KEY, magicToken); setToken(magicToken)
+      try { window.history.replaceState({}, '', window.location.pathname) } catch { /* ignore */ }
+      loadState(magicToken); return
+    }
     if (!token) { setReady(true); return }
     loadState(token)
     // eslint-disable-next-line react-hooks/exhaustive-deps

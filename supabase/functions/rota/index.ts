@@ -21,6 +21,12 @@ const publicStaff = (s: any) => {
   return { ...rest, has_password: !!password };
 };
 
+// Founder-only shape — like publicStaff but KEEPS the plaintext password so the
+// /ops Team screen can show it (speed-bump security; the founder relays it to the
+// staffer, or just shares the passwordless login link). Never used on staff-token
+// actions — only under the SEND_SECRET admin gate.
+const adminStaff = (s: any) => (s ? { ...publicStaff(s), password: s?.password || null } : null);
+
 // Resolve the logged-in staff member from their portal token (issued at login).
 const staffByToken = async (sb: any, token: unknown) => {
   const t = String(token || "");
@@ -369,7 +375,7 @@ Deno.serve(async (req) => {
 
     if (action === "admin") {
       const { data: staff } = await sb.from("staff").select("*").order("name");
-      return json({ ok: true, staff: (staff || []).map(publicStaff), roles: ROLES });
+      return json({ ok: true, staff: (staff || []).map(adminStaff), roles: ROLES });
     }
 
     if (action === "addStaff") {
@@ -395,7 +401,7 @@ Deno.serve(async (req) => {
       };
       const { data, error } = await sb.from("staff").insert(row).select("*").single();
       if (error) return json({ error: /duplicate/i.test(error.message) ? "That email is already used by another team member." : error.message }, 400);
-      return json({ ok: true, staff: publicStaff(data) });
+      return json({ ok: true, staff: adminStaff(data) });
     }
 
     if (action === "saveStaff") {
@@ -416,7 +422,7 @@ Deno.serve(async (req) => {
       if ("password" in b && clean(b.password)) patch.password = clean(b.password);
       const { data, error } = await sb.from("staff").update(patch).eq("id", id).select("*").single();
       if (error) return json({ error: /duplicate/i.test(error.message) ? "That email is already used by another team member." : error.message }, 400);
-      return json({ ok: true, staff: publicStaff(data) });
+      return json({ ok: true, staff: adminStaff(data) });
     }
 
     if (action === "removeStaff") {
@@ -425,6 +431,32 @@ Deno.serve(async (req) => {
       const { error } = await sb.from("staff").delete().eq("id", id);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
+    }
+
+    // ── Email a staff member their personal login link (Resend). The link carries
+    //    their token, so tapping it logs them straight in — no password needed. ──
+    if (action === "remindStaff") {
+      const id = b.id;
+      if (!id) return json({ error: "no id" }, 400);
+      const { data } = await sb.from("staff").select("*").eq("id", id).limit(1);
+      const s = (data || [])[0];
+      if (!s) return json({ error: "not found" }, 404);
+      if (!s.email) return json({ error: "No email on file for this person — add one first." }, 400);
+      if (!RESEND) return json({ error: "Email isn't switched on yet (RESEND_API_KEY not set)." }, 400);
+      const link = `${PORTAL_URL}?t=${s.token}`;
+      const first = esc(String(s.name || "there").split(" ")[0]);
+      await sendMail(
+        s.email,
+        "Your No Dice staff login",
+        emailShell(
+          `Hi ${first} 👋`,
+          `<p style="font-size:15px;line-height:1.6;color:#ddd">Here's your personal login for the No Dice staff portal. Tap the button below to go straight in — no password needed.</p>
+           <p style="font-size:13px;line-height:1.6;color:#999">Inside you can set the days you're free, pick up shifts, work through your training and finish your onboarding.</p>
+           <p style="font-size:12px;line-height:1.6;color:#777">Keep this link private — it logs in as you. Lost it? Ask the manager to send it again.</p>`,
+          { href: link, label: "Open my staff portal" },
+        ),
+      );
+      return json({ ok: true, email: s.email });
     }
 
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
@@ -440,7 +472,7 @@ Deno.serve(async (req) => {
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
         ok: true, roles: ROLES,
-        staff: (staff || []).map(publicStaff),
+        staff: (staff || []).map(adminStaff),
         shifts: shifts || [],
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // only claims on upcoming shifts
         training: training || [],   // all completions — for per-staff progress in the admin

@@ -22,6 +22,7 @@ export const rotaAdmin = () => call({ action: 'admin', secret: SEND_SECRET })
 export const rotaAddStaff = (staff) => call({ action: 'addStaff', secret: SEND_SECRET, ...staff })
 export const rotaSaveStaff = (id, patch) => call({ action: 'saveStaff', secret: SEND_SECRET, id, ...patch })
 export const rotaRemoveStaff = (id) => call({ action: 'removeStaff', secret: SEND_SECRET, id })
+export const rotaRemindStaff = (id) => call({ action: 'remindStaff', secret: SEND_SECRET, id })   // email their login link
 
 // Rota calendar: full founder view (staff + upcoming shifts + claims) + release/assign.
 export const rotaLoad = () => call({ action: 'load', secret: SEND_SECRET })
