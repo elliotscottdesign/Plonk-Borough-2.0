@@ -314,15 +314,22 @@ function CardActions({ s, onEdit }) {
   const [copied, setCopied] = useState('')       // '' | 'link' | 'pw'
   const [sending, setSending] = useState(false)
   const [sent, setSent] = useState(false)
+  const [showPw, setShowPw] = useState(false)    // password hidden until the founder taps "show"
   const link = loginLink(s)
+  const inactive = s.active === false
+  const canSend = !!s.token && !inactive         // the link only works with a token and an active account
   const copy = async (text, tag) => {
-    try { await navigator.clipboard.writeText(text); setCopied(tag); setTimeout(() => setCopied(''), 2000) } catch { /* clipboard blocked */ }
+    try { await navigator.clipboard.writeText(text); setCopied(tag); setTimeout(() => setCopied(''), 2000) }
+    catch { window.prompt('Copy this:', text) }   // clipboard blocked → show it so nothing is lost
   }
   const whatsapp = () => {
-    const digits = (s.phone || '').replace(/\D/g, '')
-    const intl = digits ? (digits.startsWith('0') ? '44' + digits.slice(1) : digits) : ''   // best-effort UK; blank = pick contact in WhatsApp
+    // Best-effort UK normalisation (mirrors the DJ roster): strip 00 / +, turn a
+    // leading 0 into 44. Blank = open WhatsApp so the founder picks the contact.
+    let d = (s.phone || '').replace(/\D/g, '')
+    if (d.startsWith('00')) d = d.slice(2)
+    else if (d.startsWith('0')) d = '44' + d.slice(1)
     const msg = `Hi ${(s.name || '').split(' ')[0]}! Here's your No Dice staff login — tap to go straight in, no password needed:\n${link}`
-    window.open(`https://wa.me/${intl}?text=${encodeURIComponent(msg)}`, '_blank')
+    window.open(`https://wa.me/${d}?text=${encodeURIComponent(msg)}`, '_blank')
   }
   const emailLink = async () => {
     if (!s.email) { alert('Add an email for this person first, then you can send their login.'); return }
@@ -332,6 +339,7 @@ function CardActions({ s, onEdit }) {
   }
   const code = { fontFamily: 'ui-monospace, Menlo, monospace', fontSize: 11, color: '#fff', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 5, padding: '1px 6px' }
   const mini = { background: 'none', border: 'none', color: '#DA1B33', fontWeight: 700, fontSize: 11, cursor: 'pointer', padding: 0, textDecoration: 'underline' }
+  const off = { opacity: 0.4, cursor: 'not-allowed' }
   return (
     <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 7, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>
@@ -339,13 +347,21 @@ function CardActions({ s, onEdit }) {
         {s.email ? <code style={code}>{s.email}</code> : <span style={{ color: '#FCD34D' }}>no email yet</span>}
         <span style={{ opacity: 0.4 }}>·</span>
         {s.password
-          ? <><code style={code}>{s.password}</code><button onClick={() => copy(s.password, 'pw')} style={mini}>{copied === 'pw' ? 'Copied ✓' : 'copy'}</button></>
+          ? <><code style={code}>{showPw ? s.password : '••••••••'}</code>
+              <button onClick={() => setShowPw(v => !v)} style={mini}>{showPw ? 'hide' : 'show'}</button>
+              <button onClick={() => copy(s.password, 'pw')} style={mini}>{copied === 'pw' ? 'Copied ✓' : 'copy'}</button></>
           : <span style={{ color: '#FCD34D' }}>no password set</span>}
       </div>
+      {canSend && !s.password && (
+        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginBottom: 8 }}>The login link works even without a password — they just tap it.</div>
+      )}
+      {inactive && (
+        <div style={{ fontSize: 10.5, color: '#FCD34D', marginBottom: 8 }}>Inactive — reactivate them (Edit profile) to send a working login.</div>
+      )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <button onClick={() => copy(link, 'link')} style={btn('ghost')}>{copied === 'link' ? 'Copied ✓' : '🔗 Copy link'}</button>
-        <button onClick={whatsapp} style={{ ...btn('ghost'), color: '#25D366', borderColor: 'rgba(37,211,102,0.45)' }}>WhatsApp</button>
-        <button onClick={emailLink} disabled={sending || !s.email} title={s.email ? '' : 'Add an email first'} style={{ ...btn('ghost'), opacity: s.email ? 1 : 0.5, cursor: s.email ? 'pointer' : 'not-allowed' }}>{sent ? 'Sent ✓' : sending ? 'Sending…' : '✉️ Email login'}</button>
+        <button onClick={() => copy(link, 'link')} disabled={!canSend} title={canSend ? '' : (inactive ? 'Reactivate first' : 'No login link yet')} style={{ ...btn('ghost'), ...(canSend ? {} : off) }}>{copied === 'link' ? 'Copied ✓' : '🔗 Copy link'}</button>
+        <button onClick={whatsapp} disabled={!canSend} title={!canSend ? (inactive ? 'Reactivate first' : 'No login link yet') : (s.phone ? '' : 'No number saved — WhatsApp will let you pick the contact')} style={{ ...btn('ghost'), color: '#25D366', borderColor: 'rgba(37,211,102,0.45)', ...(canSend ? {} : off) }}>WhatsApp</button>
+        <button onClick={emailLink} disabled={sending || !canSend || !s.email} title={!s.email ? 'Add an email first' : (canSend ? '' : 'Reactivate first')} style={{ ...btn('ghost'), ...((canSend && s.email) ? {} : off) }}>{sent ? 'Sent ✓' : sending ? 'Sending…' : '✉️ Email login'}</button>
         <button onClick={onEdit} style={btn('ghost')}>Edit profile</button>
       </div>
     </div>

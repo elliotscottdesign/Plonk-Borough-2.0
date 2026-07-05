@@ -40,6 +40,10 @@ alter table public.staff add column if not exists feedback_notes text;
 alter table public.staff add column if not exists work_rules text;
 alter table public.staff add column if not exists password text;
 alter table public.staff add column if not exists active boolean default true;
+-- Personal login token (powers the shareable /rota?t=<token> login link). Back-fill
+-- any older row that predates this column so every member has a working link.
+alter table public.staff add column if not exists token text unique default replace(gen_random_uuid()::text, '-', '');
+update public.staff set token = replace(gen_random_uuid()::text, '-', '') where token is null;
 alter table public.staff add column if not exists abilities text[] default '{}';   -- 'bar' | 'kitchen' | 'foh' | 'golf' (what training lets them work)
 alter table public.staff add column if not exists interests text[] default '{}';   -- hobbies/interests the staff type in (e.g. gardening, painting) — to match jobs
 -- Onboarding / payroll / right-to-work (must be complete before the calendar opens).

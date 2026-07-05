@@ -170,6 +170,9 @@ Deno.serve(async (req) => {
     if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
+      // A deactivated member's personal link must stop working too — the same
+      // block password login enforces (a magic link can't be a back door in).
+      if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
 
       if (action === "myState") {
         const today = todayISO();
@@ -441,6 +444,7 @@ Deno.serve(async (req) => {
       const { data } = await sb.from("staff").select("*").eq("id", id).limit(1);
       const s = (data || [])[0];
       if (!s) return json({ error: "not found" }, 404);
+      if (s.active === false) return json({ error: "This person is inactive — reactivate them first to send a login." }, 400);
       if (!s.email) return json({ error: "No email on file for this person — add one first." }, 400);
       if (!RESEND) return json({ error: "Email isn't switched on yet (RESEND_API_KEY not set)." }, 400);
       const link = `${PORTAL_URL}?t=${s.token}`;
