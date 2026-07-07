@@ -14,18 +14,22 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
-// Public shape of a staff row — never leak the password over the wire.
+// Public shape of a staff row — never leak the password, and keep pay/hours
+// (hourly_rate, target_hours) founder-only so they never reach a staff portal.
 const publicStaff = (s: any) => {
   if (!s) return null;
-  const { password, ...rest } = s;
+  const { password, hourly_rate, target_hours, ...rest } = s;
   return { ...rest, has_password: !!password };
 };
 
-// Founder-only shape — like publicStaff but KEEPS the plaintext password so the
-// /ops Team screen can show it (speed-bump security; the founder relays it to the
-// staffer, or just shares the passwordless login link). Never used on staff-token
-// actions — only under the SEND_SECRET admin gate.
-const adminStaff = (s: any) => (s ? { ...publicStaff(s), password: s?.password || null } : null);
+// Founder-only shape — like publicStaff but KEEPS the plaintext password (speed-bump
+// security; the founder relays it or shares the passwordless login link) AND the
+// pay/hours fields the /ops week-overview needs. Only used under the SEND_SECRET gate.
+const adminStaff = (s: any) => (s ? { ...publicStaff(s), password: s?.password || null, hourly_rate: s?.hourly_rate ?? null, target_hours: s?.target_hours ?? null } : null);
+// £/h and hours-a-week parsers (founder input). Blank/invalid → null; sane caps.
+const cleanRate = (v: unknown) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(1000, Math.round(n * 100) / 100) : null; };
+const cleanHours = (v: unknown) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(168, Math.round(n * 10) / 10) : null; };
+const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Casual"];
 
 // Resolve the logged-in staff member from their portal token (issued at login).
 const staffByToken = async (sb: any, token: unknown) => {
@@ -404,6 +408,9 @@ Deno.serve(async (req) => {
         work_rules: clean(b.work_rules) || null,
         password: clean(b.password) || null,
         active: b.active !== false,
+        hourly_rate: cleanRate(b.hourly_rate),
+        target_hours: cleanHours(b.target_hours),
+        employment_type: EMPLOYMENT_TYPES.includes(String(b.employment_type)) ? String(b.employment_type) : null,
       };
       const { data, error } = await sb.from("staff").insert(row).select("*").single();
       if (error) return json({ error: /duplicate/i.test(error.message) ? "That email is already used by another team member." : error.message }, 400);
@@ -424,6 +431,9 @@ Deno.serve(async (req) => {
       if ("abilities" in b) patch.abilities = cleanAbilities(b.abilities);
       if ("interests" in b) patch.interests = cleanInterests(b.interests);
       if ("active" in b) patch.active = !!b.active;
+      if ("hourly_rate" in b) patch.hourly_rate = cleanRate(b.hourly_rate);       // management-only pay
+      if ("target_hours" in b) patch.target_hours = cleanHours(b.target_hours);   // hours/week they want
+      if ("employment_type" in b) patch.employment_type = EMPLOYMENT_TYPES.includes(String(b.employment_type)) ? String(b.employment_type) : null;
       // Password only changes when a non-empty value is sent (blank = leave as-is).
       if ("password" in b && clean(b.password)) patch.password = clean(b.password);
       const { data, error } = await sb.from("staff").update(patch).eq("id", id).select("*").single();

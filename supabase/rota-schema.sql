@@ -52,6 +52,12 @@ alter table public.staff add column if not exists ni_number text;
 alter table public.staff add column if not exists bank_name text;
 alter table public.staff add column if not exists bank_sort text;
 alter table public.staff add column if not exists bank_account text;
+-- Pay & hours — founder/management-only (never editable by staff in their portal).
+-- hourly_rate (£/h) drives the weekly wage spend; target_hours is the hours/week the
+-- member wants for their part-time/full-time role (drives the week-overview chart).
+alter table public.staff add column if not exists hourly_rate numeric;
+alter table public.staff add column if not exists target_hours numeric;
+alter table public.staff add column if not exists employment_type text;   -- 'Full-time' | 'Part-time' | 'Casual'
 alter table public.staff add column if not exists soi_signed_at timestamptz;   -- statement of intent
 alter table public.staff add column if not exists soi_signature text;          -- typed full name
 alter table public.staff add column if not exists soi_version text;            -- which version they signed

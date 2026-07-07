@@ -103,6 +103,9 @@ export default function StaffRota() {
         training_status: form.training_status, training_notes: form.training_notes,
         feedback_notes: form.feedback_notes, work_rules: form.work_rules, active: form.active !== false,
         dob: form.dob, ni_number: form.ni_number, bank_name: form.bank_name, bank_sort: form.bank_sort, bank_account: form.bank_account,
+        hourly_rate: form.hourly_rate === '' ? null : form.hourly_rate,
+        target_hours: form.target_hours === '' ? null : form.target_hours,
+        employment_type: form.employment_type || null,
       }
       if (form.password && form.password.trim()) patch.password = form.password.trim()   // blank = leave existing
       await rotaSaveStaff(editing, patch)
@@ -271,6 +274,20 @@ export default function StaffRota() {
                       {s.soi_signed_at && <button type="button" onClick={() => setViewSoi(v => !v)} style={{ ...btn('ghost'), padding: '4px 10px' }}>{viewSoi ? 'Hide' : '📄 View / print'}</button>}
                     </div>
                     {viewSoi && s.soi_signed_at && <div style={{ gridColumn: '1 / -1' }}><StatementDoc signature={s.soi_signature} signedAt={s.soi_signed_at} version={s.soi_version} name={s.name} /></div>}
+
+                    <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Pay &amp; hours <span style={{ color: 'rgba(255,255,255,0.35)', textTransform: 'none', letterSpacing: 0 }}>· management only, never shown to staff</span></div>
+                    <Field label="Hourly rate (£)">
+                      <input type="number" min={0} step="0.25" value={form.hourly_rate ?? ''} onChange={e => onField('hourly_rate', e.target.value)} placeholder="e.g. 13.50" style={inp('100%')} />
+                    </Field>
+                    <Field label="Target hours / week">
+                      <input type="number" min={0} max={60} step="1" value={form.target_hours ?? ''} onChange={e => onField('target_hours', e.target.value)} placeholder="e.g. 40 full-time, 20 part-time" style={inp('100%')} />
+                    </Field>
+                    <Field label="Employment type" wide>
+                      <select value={form.employment_type || ''} onChange={e => onField('employment_type', e.target.value)} style={inp('100%')}>
+                        <option value="">— not set —</option>
+                        {['Full-time', 'Part-time', 'Casual'].map(t => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                    </Field>
 
                     <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Shift rules &amp; login</div>
                     <Field label="Days / times they CAN'T work" wide>

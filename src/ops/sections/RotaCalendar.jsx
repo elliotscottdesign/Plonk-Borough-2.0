@@ -20,6 +20,48 @@ function Avatar({ name, size = 26 }) {
   return <div title={name} style={{ width: size, height: size, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: `hsl(${hue} 42% 24%)`, color: '#fff', fontSize: size * 0.36, fontWeight: 700, flexShrink: 0 }}>{initials}</div>
 }
 
+// A progress ring (clock/gauge) showing hours-assigned vs target for one staffer.
+function Ring({ pct, color, hasTarget, size = 44 }) {
+  const r = (size - 7) / 2, c = 2 * Math.PI * r
+  const frac = hasTarget ? Math.min(1, Math.max(0, pct)) : 0
+  return (
+    <div style={{ position: 'relative', width: size, height: size, flexShrink: 0 }}>
+      <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.10)" strokeWidth={5} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={color} strokeWidth={5} strokeLinecap="round" strokeDasharray={c} strokeDashoffset={c * (1 - frac)} />
+      </svg>
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: '#fff' }}>{hasTarget ? `${Math.round(pct * 100)}%` : '–'}</div>
+    </div>
+  )
+}
+
+// One person's line in the week overview: ring + name/type + hours-vs-target + cost.
+function WeekRow({ row }) {
+  const { s, hrs, target, cost, rate } = row
+  const pct = target ? hrs / target : 0
+  const color = target == null ? 'rgba(255,255,255,0.28)' : hrs > target + 0.05 ? '#60A5FA' : hrs >= target ? GREEN : hrs > 0 ? AMBER : RED
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <Ring pct={pct} color={color} hasTarget={target != null} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {s.name || 'Unnamed'}{s.employment_type ? <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {s.employment_type}</span> : null}
+        </div>
+        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
+          <strong style={{ color: '#fff' }}>{hrs}h</strong>{target != null ? ` / ${target}h target` : ' · no target set'}
+          {target != null && hrs > target + 0.05 && <span style={{ color: '#60A5FA' }}> · +{Math.round((hrs - target) * 10) / 10}h over</span>}
+          {target != null && hrs < target - 0.05 && <span style={{ color: AMBER }}> · {Math.round((target - hrs) * 10) / 10}h short</span>}
+          {target != null && hrs >= target - 0.05 && hrs <= target + 0.05 && <span style={{ color: GREEN }}> · on target</span>}
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{cost == null ? '—' : gbp(cost)}</div>
+        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>{rate == null ? 'no rate' : `£${rate}/h`}</div>
+      </div>
+    </div>
+  )
+}
+
 export default function RotaCalendar({ staff = [], shifts = [], claims = [], reload }) {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
@@ -29,6 +71,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const [headcount, setHeadcount] = useState(2)   // default headcount when releasing
   const [assignFor, setAssignFor] = useState(null) // shift id whose assign-picker is open
   const [build, setBuild] = useState({ start: '18:00', end: '23:00', headcount: 2, ability: 'bar', min_rank: 1, label: '' })   // custom shift builder
+  const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
+  const [overviewOpen, setOverviewOpen] = useState(true)
 
   const staffById = Object.fromEntries(staff.map(s => [s.id, s]))
   const activeStaff = staff.filter(s => s.active !== false)
@@ -38,6 +82,28 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   for (const arr of Object.values(shiftsByDate)) arr.sort((a, b) => (a.start_min || 0) - (b.start_min || 0))
   const claimsByShift = {}
   for (const c of claims) (claimsByShift[c.shift_id] ||= []).push(c)
+
+  // ── Week overview: assigned hours vs each person's target + wage spend ───────
+  const weekDates = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i))
+  const weekEnd = weekDates[6]
+  const weekSet = new Set(weekDates)
+  const hoursByStaff = {}   // staff_id → hours assigned this week
+  for (const sh of shifts) {
+    if (!weekSet.has(sh.date)) continue
+    const hrs = shiftHours(sh)
+    for (const c of (claimsByShift[sh.id] || [])) hoursByStaff[c.staff_id] = (hoursByStaff[c.staff_id] || 0) + hrs
+  }
+  const weekRows = staff.filter(s => s.active !== false).map(s => {
+    const hrs = Math.round((hoursByStaff[s.id] || 0) * 10) / 10
+    const rate = s.hourly_rate == null || s.hourly_rate === '' ? null : Number(s.hourly_rate)
+    const target = s.target_hours == null || s.target_hours === '' ? null : Number(s.target_hours)
+    const cost = rate != null ? Math.round(hrs * rate * 100) / 100 : null
+    return { s, hrs, rate, target, cost }
+  }).sort((a, b) => b.hrs - a.hrs || (a.s.name || '').localeCompare(b.s.name || ''))
+  const totalHours = Math.round(weekRows.reduce((a, r) => a + r.hrs, 0) * 10) / 10
+  const totalSpend = weekRows.reduce((a, r) => a + (r.cost || 0), 0)
+  const missingRate = weekRows.some(r => r.hrs > 0 && r.rate == null)
+  const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null)
 
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const atCurrentMonth = viewY === now.getFullYear() && viewM === now.getMonth()
@@ -91,6 +157,32 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
           </label>
           <button onClick={releaseMonth} disabled={busy} style={btn('gold')}>🚀 Open {MONTHS[viewM]} shifts</button>
         </div>
+      </div>
+
+      {/* Week overview — hours vs target + wage spend (founder only) */}
+      <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 14 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            <button onClick={() => setOverviewOpen(o => !o)} title={overviewOpen ? 'Hide breakdown' : 'Show breakdown'} style={{ ...weekNav, width: 26 }}>{overviewOpen ? '▾' : '▸'}</button>
+            <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>📊 Week</span>
+            <button onClick={() => setWeekStart(w => addDaysISO(w, -7))} style={weekNav}>◀</button>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{fmtDay(weekStart)} – {fmtDayMon(weekEnd)}</div>
+            <button onClick={() => setWeekStart(w => addDaysISO(w, 7))} style={weekNav}>▶</button>
+            <button onClick={() => setWeekStart(mondayOf(todayStr))} style={{ ...btn('ghost'), padding: '4px 9px', fontSize: 11 }}>This week</button>
+          </div>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wage spend this week</div>
+            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{gbp(totalSpend)} <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>· {totalHours}h assigned</span></div>
+          </div>
+        </div>
+        {missingRate && <div style={{ fontSize: 11, color: AMBER, marginTop: 8 }}>⚠️ Some assigned staff have no hourly rate, so their pay isn't in the total — set it in Team → Edit profile → Pay &amp; hours.</div>}
+        {overviewOpen && (
+          <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
+            {overviewRows.length === 0
+              ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No one assigned this week yet and no targets set. Assign shifts below, and set each person's target hours &amp; rate in Team → Edit profile.</div>
+              : overviewRows.map(r => <WeekRow key={r.s.id} row={r} />)}
+          </div>
+        )}
       </div>
 
       {/* Month nav */}
@@ -254,6 +346,13 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const stepper = { width: 24, height: 24, borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }
+const weekNav = { width: 30, height: 28, borderRadius: 7, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }
+// Week-overview date helpers (UTC, Monday-start — matches the rest of the app).
+const addDaysISO = (d, n) => { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
+const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
+const fmtDay = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
+const fmtDayMon = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+const gbp = (n) => '£' + Number(n || 0).toLocaleString('en-GB', { maximumFractionDigits: 2 })
 const reqSel = { padding: '4px 6px', fontSize: 11, borderRadius: 6, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', cursor: 'pointer' }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })
 const fieldLbl = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 9.5, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }
