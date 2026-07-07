@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { rotaReleaseMonth, rotaOpenDay, rotaAddShift, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign, rotaSetShiftReq } from '../../rota/api.js'
-import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, hhmmToMin } from '../../rota/shifts.js'
+import { rotaReleaseMonth, rotaOpenDay, rotaAddShift, rotaEditShift, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign, rotaSetShiftReq } from '../../rota/api.js'
+import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, hhmmToMin, minToHHMM } from '../../rota/shifts.js'
 import { ABILITIES, RANKS } from '../../rota/roles.js'
 
 // ─── Rota calendar (founder) ─────────────────────────────────────────────────
@@ -73,6 +73,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const [build, setBuild] = useState({ start: '18:00', end: '23:00', headcount: 2, ability: 'bar', min_rank: 1, label: '' })   // custom shift builder
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
+  const [editShiftId, setEditShiftId] = useState(null)   // shift being time-edited
+  const [editForm, setEditForm] = useState({ start: '', end: '', label: '' })
 
   const staffById = Object.fromEntries(staff.map(s => [s.id, s]))
   const activeStaff = staff.filter(s => s.active !== false)
@@ -121,6 +123,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
     start_min: hhmmToMin(build.start), end_min: hhmmToMin(build.end),
     headcount: build.headcount, ability: build.ability, min_rank: build.min_rank, label: build.label.trim(),
   }))
+  const startEditShift = (sh) => { setEditShiftId(sh.id); setEditForm({ start: minToHHMM(sh.start_min), end: minToHHMM(sh.end_min), label: sh.label || '' }) }
+  const saveEditShift = (sh) => act(async () => {
+    await rotaEditShift(sh.id, { start_min: hhmmToMin(editForm.start), end_min: hhmmToMin(editForm.end), label: editForm.label.trim() })
+    setEditShiftId(null)
+  })
 
   // Calendar grid (weeks start Monday, UTC math — matches the rest of the app).
   const startDow = (new Date(Date.UTC(viewY, viewM, 1)).getUTCDay() + 6) % 7
@@ -255,12 +262,17 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
             const need = sh.headcount || 1
             const full = cl.length >= need
             const available = activeStaff.filter(s => !cl.some(c => c.staff_id === s.id))   // active + not already on
+            const editingThis = editShiftId === sh.id
+            const es = hhmmToMin(editForm.start), ee0 = hhmmToMin(editForm.end)
+            const eDurMin = (ee0 <= es ? ee0 + 1440 : ee0) - es
+            const eValid = eDurMin >= 60 && eDurMin <= 18 * 60
             return (
               <div key={sh.id} style={{ borderLeft: `3px solid ${boxColor(cl.length, need)}`, paddingLeft: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                   <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{sh.label}</div>
                   <div style={{ fontSize: 12, color: RED, fontWeight: 700 }}>{shiftTimeLabel(sh)}</div>
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h</div>
+                  <button onClick={() => editingThis ? setEditShiftId(null) : startEditShift(sh)} disabled={busy} style={{ ...btn('ghost'), padding: '4px 9px' }}>{editingThis ? 'Close' : '✏️ Edit'}</button>
                   <div style={{ flex: 1 }} />
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'rgba(255,255,255,0.7)' }}>
                     <span>Need</span>
@@ -270,6 +282,21 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
                   </div>
                   <button onClick={() => closeShift(sh)} disabled={busy} style={btn('red')}>Delete</button>
                 </div>
+
+                {editingThis && (
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '10px 12px' }}>
+                    <label style={fieldLbl}>Start<input type="time" value={editForm.start} onChange={e => setEditForm(f => ({ ...f, start: e.target.value }))} style={timeInp} /></label>
+                    <label style={fieldLbl}>End<input type="time" value={editForm.end} onChange={e => setEditForm(f => ({ ...f, end: e.target.value }))} style={timeInp} /></label>
+                    <label style={{ ...fieldLbl, flex: 1, minWidth: 120 }}>Name<input value={editForm.label} maxLength={40} onChange={e => setEditForm(f => ({ ...f, label: e.target.value }))} placeholder="e.g. Open, Close, Setup" style={{ ...timeInp, width: '100%' }} /></label>
+                    <button onClick={() => saveEditShift(sh)} disabled={busy || !eValid} style={btn('gold')}>Save times</button>
+                    <button onClick={() => setEditShiftId(null)} style={btn('ghost')}>Cancel</button>
+                    <span style={{ fontSize: 11.5, color: eValid ? 'rgba(255,255,255,0.6)' : '#F59E0B', width: '100%' }}>
+                      {fmtMin(es)}–{fmtMin(ee0)} · {Math.round(eDurMin / 60 * 10) / 10}h{ee0 <= es ? ' · ends next day' : ''}
+                      {!eValid && (eDurMin < 60 ? ' · too short (min 1h)' : ' · too long (max 18h)')}
+                      {cl.length > 0 && eValid ? ` · ${cl.length} assigned ${cl.length === 1 ? 'person stays' : 'people stay'} on` : ''}
+                    </span>
+                  </div>
+                )}
 
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
                   <span>Needs</span>

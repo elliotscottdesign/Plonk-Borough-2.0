@@ -49,6 +49,20 @@ const niceDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("e
 // Minutes-from-midnight → '6pm' / '1am' (mirror of src/rota/shifts.js fmtMin). Used to
 // auto-name a custom shift when the founder doesn't give it one.
 const fmtMinTs = (m: number) => { const t = ((m % 1440) + 1440) % 1440; let h = Math.floor(t / 60); const mm = t % 60; const ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return `${h}${mm ? ":" + String(mm).padStart(2, "0") : ""}${ap}`; };
+// Validate/normalise a custom shift's start & end (minutes-from-midnight). end ≤ start
+// means it finishes the next day. Returns {start,end} or {error}. Shared by add/edit.
+const toMinOfDay = (v: unknown) => { const n = parseInt(String(v)); return Number.isFinite(n) ? ((n % 1440) + 1440) % 1440 : null; };
+const normalizeShiftTimes = (sv: unknown, ev: unknown): { start: number; end: number } | { error: string } => {
+  const start = toMinOfDay(sv);
+  let end = toMinOfDay(ev);
+  if (start === null || end === null) return { error: "Set a start and end time." };
+  if (end <= start) end += 1440;
+  const dur = end - start;
+  if (dur < 60) return { error: "That shift is under an hour — check the times." };
+  if (dur > 18 * 60) return { error: "That shift is over 18 hours — check the times." };
+  return { start, end };
+};
+const cleanShiftLabel = (v: unknown, start: number, end: number) => (String(v || "").replace(/\s+/g, " ").trim().slice(0, 60)) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;
 async function sendMail(to: string, subject: string, html: string) {
   if (!RESEND || !to) return;
   try {
@@ -595,23 +609,30 @@ Deno.serve(async (req) => {
       const date = String(b.date || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a valid date." }, 400);
       if (date < todayISO()) return json({ error: "That date is in the past." }, 400);
-      const toMin = (v: unknown) => { const n = parseInt(String(v)); return Number.isFinite(n) ? ((n % 1440) + 1440) % 1440 : null; };
-      const start = toMin(b.start_min);
-      let end = toMin(b.end_min);
-      if (start === null || end === null) return json({ error: "Set a start and end time." }, 400);
-      if (end <= start) end += 1440;   // finishes the next day (e.g. 6pm–1am)
-      const dur = end - start;
-      if (dur < 60) return json({ error: "That shift is under an hour — check the times." }, 400);
-      if (dur > 18 * 60) return json({ error: "That shift is over 18 hours — check the times." }, 400);
+      const t = normalizeShiftTimes(b.start_min, b.end_min);
+      if ("error" in t) return json({ error: t.error }, 400);
+      const { start, end } = t;
       const ability = ABILITY_KEYS.includes(String(b.ability)) ? String(b.ability) : "bar";
       const min_rank = Math.max(1, Math.min(4, parseInt(String(b.min_rank)) || 1));
       const headcount = clampHead(b.headcount, 1);
-      const label = (String(b.label || "").replace(/\s+/g, " ").trim().slice(0, 60)) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;   // cap free text
+      const label = cleanShiftLabel(b.label, start, end);
       const shift_key = "custom:" + crypto.randomUUID().slice(0, 8);   // unique per (date, shift_key)
       const { data, error } = await sb.from("staff_shifts").insert({
         date, shift_key, label, position: label, role: ability, ability, min_rank,
         start_min: start, end_min: end, status: "open", headcount,
       }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, shift: data });
+    }
+
+    // ── Edit an existing shift's times / name (assignments are kept) ───────────
+    if (action === "editShift") {
+      if (!b.shiftId) return json({ error: "no shift" }, 400);
+      const t = normalizeShiftTimes(b.start_min, b.end_min);
+      if ("error" in t) return json({ error: t.error }, 400);
+      const patch: Record<string, unknown> = { start_min: t.start, end_min: t.end };
+      if ("label" in b) { const lbl = cleanShiftLabel(b.label, t.start, t.end); patch.label = lbl; patch.position = lbl; }
+      const { data, error } = await sb.from("staff_shifts").update(patch).eq("id", b.shiftId).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, shift: data });
     }
