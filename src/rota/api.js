@@ -28,6 +28,7 @@ export const rotaRemindStaff = (id) => call({ action: 'remindStaff', secret: SEN
 export const rotaLoad = () => call({ action: 'load', secret: SEND_SECRET })
 export const rotaReleaseMonth = (month, headcount) => call({ action: 'releaseMonth', secret: SEND_SECRET, month, headcount })
 export const rotaOpenDay = (date, headcount) => call({ action: 'openDay', secret: SEND_SECRET, date, headcount })
+export const rotaAddShift = (date, patch) => call({ action: 'addShift', secret: SEND_SECRET, date, ...patch })   // custom shift: {start_min,end_min,headcount,ability,min_rank,label}
 export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: SEND_SECRET, shiftId })
 export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
 export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })

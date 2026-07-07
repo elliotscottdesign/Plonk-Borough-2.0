@@ -42,6 +42,9 @@ const OPS_URL = "https://team.nodice.bar/ops";
 const PORTAL_URL = "https://team.nodice.bar/rota";
 const esc = (s: unknown) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" } as Record<string, string>)[c]);
 const niceDate = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+// Minutes-from-midnight → '6pm' / '1am' (mirror of src/rota/shifts.js fmtMin). Used to
+// auto-name a custom shift when the founder doesn't give it one.
+const fmtMinTs = (m: number) => { const t = ((m % 1440) + 1440) % 1440; let h = Math.floor(t / 60); const mm = t % 60; const ap = h >= 12 ? "pm" : "am"; h = h % 12 || 12; return `${h}${mm ? ":" + String(mm).padStart(2, "0") : ""}${ap}`; };
 async function sendMail(to: string, subject: string, html: string) {
   if (!RESEND || !to) return;
   try {
@@ -573,6 +576,34 @@ Deno.serve(async (req) => {
         if (error) return json({ error: error.message }, 400);
       }
       return json({ ok: true, opened: rows.length });
+    }
+
+    // ── Build a custom shift on a day — any start/end time, staffing & role ────
+    //    (the founder isn't limited to the fixed Open/Close patterns). An end time
+    //    at or before the start means it finishes the next day, e.g. 6pm→1am.
+    if (action === "addShift") {
+      const date = String(b.date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a valid date." }, 400);
+      if (date < todayISO()) return json({ error: "That date is in the past." }, 400);
+      const toMin = (v: unknown) => { const n = parseInt(String(v)); return Number.isFinite(n) ? ((n % 1440) + 1440) % 1440 : null; };
+      const start = toMin(b.start_min);
+      let end = toMin(b.end_min);
+      if (start === null || end === null) return json({ error: "Set a start and end time." }, 400);
+      if (end <= start) end += 1440;   // finishes the next day (e.g. 6pm–1am)
+      const dur = end - start;
+      if (dur < 60) return json({ error: "That shift is under an hour — check the times." }, 400);
+      if (dur > 18 * 60) return json({ error: "That shift is over 18 hours — check the times." }, 400);
+      const ability = ABILITY_KEYS.includes(String(b.ability)) ? String(b.ability) : "bar";
+      const min_rank = Math.max(1, Math.min(4, parseInt(String(b.min_rank)) || 1));
+      const headcount = clampHead(b.headcount, 1);
+      const label = (clean(b.label) as string) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;
+      const shift_key = "custom:" + crypto.randomUUID().slice(0, 8);   // unique per (date, shift_key)
+      const { data, error } = await sb.from("staff_shifts").insert({
+        date, shift_key, label, position: label, role: ability, ability, min_rank,
+        start_min: start, end_min: end, status: "open", headcount,
+      }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, shift: data });
     }
 
     // ── Delete a released shift (cascades its claims) ──────────────────────────

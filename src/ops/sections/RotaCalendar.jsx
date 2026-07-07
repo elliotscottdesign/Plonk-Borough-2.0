@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
-import { rotaReleaseMonth, rotaOpenDay, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign, rotaSetShiftReq } from '../../rota/api.js'
-import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName } from '../../rota/shifts.js'
+import { rotaReleaseMonth, rotaOpenDay, rotaAddShift, rotaCloseShift, rotaSetHeadcount, rotaAssign, rotaUnassign, rotaSetShiftReq } from '../../rota/api.js'
+import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, hhmmToMin } from '../../rota/shifts.js'
 import { ABILITIES, RANKS } from '../../rota/roles.js'
 
 // ─── Rota calendar (founder) ─────────────────────────────────────────────────
@@ -28,6 +28,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const [busy, setBusy] = useState(false)
   const [headcount, setHeadcount] = useState(2)   // default headcount when releasing
   const [assignFor, setAssignFor] = useState(null) // shift id whose assign-picker is open
+  const [build, setBuild] = useState({ start: '18:00', end: '23:00', headcount: 2, ability: 'bar', min_rank: 1, label: '' })   // custom shift builder
 
   const staffById = Object.fromEntries(staff.map(s => [s.id, s]))
   const activeStaff = staff.filter(s => s.active !== false)
@@ -50,6 +51,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const assign = (shiftId, staffId) => { setAssignFor(null); act(() => rotaAssign(shiftId, staffId)) }
   const unassign = (shiftId, staffId) => act(() => rotaUnassign(shiftId, staffId))
   const setReq = (sh, patch) => act(() => rotaSetShiftReq(sh.id, patch))
+  const addShift = () => act(() => rotaAddShift(selDate, {
+    start_min: hhmmToMin(build.start), end_min: hhmmToMin(build.end),
+    headcount: build.headcount, ability: build.ability, min_rank: build.min_rank, label: build.label.trim(),
+  }))
 
   // Calendar grid (weeks start Monday, UTC math — matches the rest of the app).
   const startDow = (new Date(Date.UTC(viewY, viewM, 1)).getUTCDay() + 6) % 7
@@ -63,6 +68,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
 
   const selShifts = selDate ? (shiftsByDate[selDate] || []) : []
   const selPattern = selDate ? shiftsForDate(selDate) : []
+  // Live preview for the custom-shift builder (end ≤ start ⇒ finishes next day).
+  const bStart = hhmmToMin(build.start), bEnd0 = hhmmToMin(build.end)
+  const bDur = Math.round((((bEnd0 <= bStart ? bEnd0 + 1440 : bEnd0) - bStart) / 60) * 10) / 10
+  const bNextDay = bEnd0 <= bStart
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -139,10 +148,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
           {selShifts.length === 0 ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>
-                Not released yet. This {dayName(selDate)} runs{' '}
-                {selPattern.map((p, i) => <span key={i}><strong style={{ color: '#fff' }}>{p.label} {shiftTimeLabel(p)}</strong>{i < selPattern.length - 1 ? ' + ' : ''}</span>)}.
+                No shifts on this day yet. The usual {dayName(selDate)} pattern is{' '}
+                {selPattern.map((p, i) => <span key={i}><strong style={{ color: '#fff' }}>{p.label} {shiftTimeLabel(p)}</strong>{i < selPattern.length - 1 ? ' + ' : ''}</span>)}
+                {' '}— add it in one tap, or build your own below.
               </div>
-              <div><button onClick={() => openDay(selDate)} disabled={busy} style={btn('gold')}>Open this day (new shifts: {headcount} each)</button></div>
+              <div><button onClick={() => openDay(selDate)} disabled={busy} style={btn('gold')}>Add the usual {dayName(selDate)} shift{selPattern.length === 1 ? '' : 's'} ({headcount} each)</button></div>
             </div>
           ) : selShifts.map(sh => {
             const cl = claimsByShift[sh.id] || []
@@ -202,11 +212,29 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
               </div>
             )
           })}
+
+          {/* Build a custom shift — any start/end time, staffing & role */}
+          <div style={{ borderTop: '1px dashed rgba(255,255,255,0.12)', paddingTop: 12, marginTop: 2 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>➕ Build a shift</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>Set your own times and staffing — you're not limited to the open/close pattern.</div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+              <label style={fieldLbl}>Start<input type="time" value={build.start} onChange={e => setBuild(b => ({ ...b, start: e.target.value }))} style={timeInp} /></label>
+              <label style={fieldLbl}>End<input type="time" value={build.end} onChange={e => setBuild(b => ({ ...b, end: e.target.value }))} style={timeInp} /></label>
+              <label style={fieldLbl}>Staff<input type="number" min={1} max={20} value={build.headcount} onChange={e => setBuild(b => ({ ...b, headcount: Math.max(1, Math.min(20, +e.target.value || 1)) }))} style={{ ...timeInp, width: 60, textAlign: 'center' }} /></label>
+              <label style={fieldLbl}>Needs<select value={build.ability} onChange={e => setBuild(b => ({ ...b, ability: e.target.value }))} style={reqSel}>{ABILITIES.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}</select></label>
+              <label style={fieldLbl}>Min role<select value={build.min_rank} onChange={e => setBuild(b => ({ ...b, min_rank: +e.target.value }))} style={reqSel}>{RANKS.map((r, i) => <option key={r} value={i + 1}>{r}{i === 0 ? ' (anyone)' : '+'}</option>)}</select></label>
+              <label style={{ ...fieldLbl, flex: 1, minWidth: 120 }}>Name (optional)<input value={build.label} onChange={e => setBuild(b => ({ ...b, label: e.target.value }))} placeholder="e.g. Setup, Barback" style={{ ...timeInp, width: '100%' }} /></label>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
+              <button onClick={addShift} disabled={busy || bDur < 1} style={btn('gold')}>Add shift</button>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{fmtMin(bStart)}–{fmtMin(bEnd0)} · {bDur}h{bNextDay ? ' · ends next day' : ''}</span>
+            </div>
+          </div>
         </div>
       )}
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#fff' }}>Shift patterns:</strong> Mon–Thu one open-to-close shift (2pm–12am) · Fri &amp; Sat split into Open (11am–6pm) + Close (6pm–1am) · Sun split into Open (11am–5:30pm) + Close (5:30pm–12am). Minimum shift 6 hours. Assign people yourself here, or (coming next) let staff pick released shifts from their own portal.
+        <strong style={{ color: '#fff' }}>Two ways to add shifts:</strong> tap a day and hit <strong style={{ color: '#fff' }}>Add the usual … shift</strong> for the standard pattern (Mon–Thu 2pm–12am · Fri/Sat Open + Close · Sun Open + Close), or use <strong style={{ color: '#fff' }}>➕ Build a shift</strong> to set your own times, length, staffing and role. Assign people here, or let staff pick released shifts from their own portal.
       </div>
     </div>
   )
@@ -221,3 +249,5 @@ const btn = (kind) => {
 const stepper = { width: 24, height: 24, borderRadius: 6, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 14, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }
 const reqSel = { padding: '4px 6px', fontSize: 11, borderRadius: 6, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', cursor: 'pointer' }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })
+const fieldLbl = { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 9.5, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }
+const timeInp = { padding: '7px 8px', fontSize: 13, borderRadius: 7, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', colorScheme: 'dark', boxSizing: 'border-box' }
