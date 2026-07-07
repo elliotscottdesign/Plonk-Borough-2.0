@@ -596,7 +596,7 @@ Deno.serve(async (req) => {
       const ability = ABILITY_KEYS.includes(String(b.ability)) ? String(b.ability) : "bar";
       const min_rank = Math.max(1, Math.min(4, parseInt(String(b.min_rank)) || 1));
       const headcount = clampHead(b.headcount, 1);
-      const label = (clean(b.label) as string) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;
+      const label = (String(b.label || "").replace(/\s+/g, " ").trim().slice(0, 60)) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;   // cap free text
       const shift_key = "custom:" + crypto.randomUUID().slice(0, 8);   // unique per (date, shift_key)
       const { data, error } = await sb.from("staff_shifts").insert({
         date, shift_key, label, position: label, role: ability, ability, min_rank,

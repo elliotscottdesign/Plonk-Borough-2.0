@@ -69,9 +69,13 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const selShifts = selDate ? (shiftsByDate[selDate] || []) : []
   const selPattern = selDate ? shiftsForDate(selDate) : []
   // Live preview for the custom-shift builder (end ≤ start ⇒ finishes next day).
+  // Guard in MINUTES so it matches the backend exactly (1h–18h) — rounded hours
+  // would let 59 min show as "1h" and slip past a `< 1` check the server rejects.
   const bStart = hhmmToMin(build.start), bEnd0 = hhmmToMin(build.end)
-  const bDur = Math.round((((bEnd0 <= bStart ? bEnd0 + 1440 : bEnd0) - bStart) / 60) * 10) / 10
+  const bDurMin = (bEnd0 <= bStart ? bEnd0 + 1440 : bEnd0) - bStart
+  const bDur = Math.round((bDurMin / 60) * 10) / 10
   const bNextDay = bEnd0 <= bStart
+  const bValid = bDurMin >= 60 && bDurMin <= 18 * 60
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -223,11 +227,14 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
               <label style={fieldLbl}>Staff<input type="number" min={1} max={20} value={build.headcount} onChange={e => setBuild(b => ({ ...b, headcount: Math.max(1, Math.min(20, +e.target.value || 1)) }))} style={{ ...timeInp, width: 60, textAlign: 'center' }} /></label>
               <label style={fieldLbl}>Needs<select value={build.ability} onChange={e => setBuild(b => ({ ...b, ability: e.target.value }))} style={reqSel}>{ABILITIES.map(a => <option key={a.key} value={a.key}>{a.icon} {a.label}</option>)}</select></label>
               <label style={fieldLbl}>Min role<select value={build.min_rank} onChange={e => setBuild(b => ({ ...b, min_rank: +e.target.value }))} style={reqSel}>{RANKS.map((r, i) => <option key={r} value={i + 1}>{r}{i === 0 ? ' (anyone)' : '+'}</option>)}</select></label>
-              <label style={{ ...fieldLbl, flex: 1, minWidth: 120 }}>Name (optional)<input value={build.label} onChange={e => setBuild(b => ({ ...b, label: e.target.value }))} placeholder="e.g. Setup, Barback" style={{ ...timeInp, width: '100%' }} /></label>
+              <label style={{ ...fieldLbl, flex: 1, minWidth: 120 }}>Name (optional)<input value={build.label} maxLength={40} onChange={e => setBuild(b => ({ ...b, label: e.target.value }))} placeholder="e.g. Setup, Barback" style={{ ...timeInp, width: '100%' }} /></label>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, flexWrap: 'wrap' }}>
-              <button onClick={addShift} disabled={busy || bDur < 1} style={btn('gold')}>Add shift</button>
-              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{fmtMin(bStart)}–{fmtMin(bEnd0)} · {bDur}h{bNextDay ? ' · ends next day' : ''}</span>
+              <button onClick={addShift} disabled={busy || !bValid} style={btn('gold')}>Add shift</button>
+              <span style={{ fontSize: 11.5, color: bValid ? 'rgba(255,255,255,0.6)' : '#F59E0B' }}>
+                {fmtMin(bStart)}–{fmtMin(bEnd0)} · {bDur}h{bNextDay ? ' · ends next day' : ''}
+                {!bValid && (bDurMin < 60 ? ' · too short (min 1h)' : ' · too long (max 18h)')}
+              </span>
             </div>
           </div>
         </div>
