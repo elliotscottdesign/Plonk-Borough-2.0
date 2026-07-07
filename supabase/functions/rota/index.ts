@@ -640,6 +640,48 @@ Deno.serve(async (req) => {
       return json({ ok: true, shift: data });
     }
 
+    // ── Save a whole day's roster from the drag grid (full replace) ───────────
+    //    Each block = one person's shift (headcount 1, that person assigned). We
+    //    delete the day's shifts and recreate exactly the painted blocks, so the
+    //    grid is the single source of truth for who works when that day.
+    //    Times are absolute minutes-from-the-date's-midnight (next-day > 1440),
+    //    NOT wrapped — the grid already produces them in that space.
+    if (action === "saveDayRoster") {
+      const date = String(b.date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a valid date." }, 400);
+      if (date < todayISO()) return json({ error: "That date is in the past." }, 400);
+      const blocks = Array.isArray(b.blocks) ? b.blocks : [];
+      const rows: any[] = [];
+      const meta: { staffId: string }[] = [];
+      for (let i = 0; i < blocks.length; i++) {
+        const bl = blocks[i] || {};
+        const staffId = String(bl.staffId || "");
+        const start = Math.round(Number(bl.start_min));
+        const end = Math.round(Number(bl.end_min));
+        if (!staffId) return json({ error: "Every shift needs a team member." }, 400);
+        if (!Number.isFinite(start) || !Number.isFinite(end)) return json({ error: "A shift has bad times." }, 400);
+        const dur = end - start;
+        if (dur < 30) return json({ error: "A shift must be at least 30 minutes." }, 400);
+        if (dur > 18 * 60) return json({ error: "A shift can't be over 18 hours." }, 400);
+        if (start < 0 || end > 1680) return json({ error: "Shift times are out of range." }, 400);   // ≤ 04:00 next day
+        const lbl = `${fmtMinTs(start)}–${fmtMinTs(end)}`;
+        rows.push({ date, shift_key: `roster:${i}`, label: lbl, position: lbl, role: "bar", ability: "bar", min_rank: 1, start_min: start, end_min: end, status: "open", headcount: 1 });
+        meta.push({ staffId });
+      }
+      const { error: delErr } = await sb.from("staff_shifts").delete().eq("date", date);
+      if (delErr) return json({ error: delErr.message }, 400);
+      if (rows.length) {
+        const { data: ins, error: insErr } = await sb.from("staff_shifts").insert(rows).select("id,shift_key");
+        if (insErr) return json({ error: insErr.message }, 400);
+        const idByKey: Record<string, string> = {};
+        for (const s of ins || []) idByKey[s.shift_key] = s.id;
+        const claimRows = meta.map((m, i) => ({ shift_id: idByKey[`roster:${i}`], staff_id: m.staffId, status: "confirmed", source: "admin" }));
+        const { error: cErr } = await sb.from("staff_shift_claims").insert(claimRows);
+        if (cErr) return json({ error: cErr.message }, 400);
+      }
+      return json({ ok: true, count: rows.length });
+    }
+
     // ── Delete a released shift (cascades its claims) ──────────────────────────
     if (action === "closeShift") {
       if (!b.shiftId) return json({ error: "no shift" }, 400);
