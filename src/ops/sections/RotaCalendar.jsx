@@ -45,7 +45,9 @@ function WeekRow({ row }) {
       <Ring pct={pct} color={color} hasTarget={target != null} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {s.name || 'Unnamed'}{s.employment_type ? <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {s.employment_type}</span> : null}
+          {s.name || 'Unnamed'}
+          {s.active === false ? <span style={{ fontSize: 10, color: '#F59E0B', fontWeight: 700, textTransform: 'uppercase' }}> · inactive</span> : null}
+          {s.employment_type ? <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> · {s.employment_type}</span> : null}
         </div>
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
           <strong style={{ color: '#fff' }}>{hrs}h</strong>{target != null ? ` / ${target}h target` : ' · no target set'}
@@ -56,7 +58,7 @@ function WeekRow({ row }) {
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{cost == null ? '—' : gbp(cost)}</div>
-        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>{rate == null ? 'no rate' : `£${rate}/h`}</div>
+        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>{rate == null ? 'no rate' : `£${Number.isInteger(rate) ? rate : rate.toFixed(2)}/h`}</div>
       </div>
     </div>
   )
@@ -95,10 +97,13 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
     const hrs = shiftHours(sh)
     for (const c of (claimsByShift[sh.id] || [])) hoursByStaff[c.staff_id] = (hoursByStaff[c.staff_id] || 0) + hrs
   }
-  const weekRows = staff.filter(s => s.active !== false).map(s => {
+  // Active staff, plus anyone deactivated who still holds hours this week (so their
+  // committed cost isn't silently dropped from the total — they're flagged inactive).
+  const weekRows = staff.filter(s => s.active !== false || (hoursByStaff[s.id] || 0) > 0).map(s => {
     const hrs = Math.round((hoursByStaff[s.id] || 0) * 10) / 10
     const rate = s.hourly_rate == null || s.hourly_rate === '' ? null : Number(s.hourly_rate)
-    const target = s.target_hours == null || s.target_hours === '' ? null : Number(s.target_hours)
+    const targetN = s.target_hours == null || s.target_hours === '' ? NaN : Number(s.target_hours)
+    const target = Number.isFinite(targetN) && targetN > 0 ? targetN : null   // 0 / blank = no target
     const cost = rate != null ? Math.round(hrs * rate * 100) / 100 : null
     return { s, hrs, rate, target, cost }
   }).sort((a, b) => b.hrs - a.hrs || (a.s.name || '').localeCompare(b.s.name || ''))

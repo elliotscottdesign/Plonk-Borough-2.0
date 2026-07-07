@@ -18,17 +18,18 @@ const json = (body: unknown, status = 200) =>
 // (hourly_rate, target_hours) founder-only so they never reach a staff portal.
 const publicStaff = (s: any) => {
   if (!s) return null;
-  const { password, hourly_rate, target_hours, ...rest } = s;
+  const { password, hourly_rate, target_hours, employment_type, ...rest } = s;
   return { ...rest, has_password: !!password };
 };
 
 // Founder-only shape — like publicStaff but KEEPS the plaintext password (speed-bump
 // security; the founder relays it or shares the passwordless login link) AND the
 // pay/hours fields the /ops week-overview needs. Only used under the SEND_SECRET gate.
-const adminStaff = (s: any) => (s ? { ...publicStaff(s), password: s?.password || null, hourly_rate: s?.hourly_rate ?? null, target_hours: s?.target_hours ?? null } : null);
+const adminStaff = (s: any) => (s ? { ...publicStaff(s), password: s?.password || null, hourly_rate: s?.hourly_rate ?? null, target_hours: s?.target_hours ?? null, employment_type: s?.employment_type ?? null } : null);
 // £/h and hours-a-week parsers (founder input). Blank/invalid → null; sane caps.
 const cleanRate = (v: unknown) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(1000, Math.round(n * 100) / 100) : null; };
-const cleanHours = (v: unknown) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) && n >= 0 ? Math.min(168, Math.round(n * 10) / 10) : null; };
+// A target of 0 (or blank/invalid) means "no target" — never a real 0-hour goal.
+const cleanHours = (v: unknown) => { if (v === "" || v == null) return null; const n = Number(v); return Number.isFinite(n) && n > 0 ? Math.min(168, Math.round(n * 10) / 10) : null; };
 const EMPLOYMENT_TYPES = ["Full-time", "Part-time", "Casual"];
 
 // Resolve the logged-in staff member from their portal token (issued at login).
@@ -492,10 +493,12 @@ Deno.serve(async (req) => {
 
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
-      const today = todayISO();
+      // Include the recent past (~6 months) so the week overview counts the whole
+      // current week (not just today-onward) and can look back at past weeks' spend.
+      const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
       const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
-        sb.from("staff_shifts").select("*").gte("date", today).order("date"),
+        sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
         sb.from("training_completions").select("staff_id,item_key"),
         sb.from("staff_documents").select("staff_id,kind,uploaded_at"),   // which docs each has (no data)
@@ -505,7 +508,7 @@ Deno.serve(async (req) => {
         ok: true, roles: ROLES,
         staff: (staff || []).map(adminStaff),
         shifts: shifts || [],
-        claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // only claims on upcoming shifts
+        claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // claims on the loaded shifts
         training: training || [],   // all completions — for per-staff progress in the admin
         docs: docs || [],           // which staff have uploaded passport / rtw
       });
