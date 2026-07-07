@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaRemindStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
 import { ABILITIES } from '../../rota/roles.js'
-import { onboardingComplete, requiresOnboarding, onboardingMissing } from '../../rota/statement.js'
+import { onboardingComplete, requiresOnboarding, onboardingMissing, SOI_VERSION } from '../../rota/statement.js'
 import { openDataUrl } from '../../rota/menuFile.js'
 import StatementDoc from '../../rota/StatementDoc.jsx'
 import { MODULE_META, cocktailKey } from '../../rota/training.js'
@@ -49,6 +49,7 @@ export default function StaffRota() {
   const [trained, setTrained] = useState({})   // staff_id → Set(item_key)
   const [docsBy, setDocsBy] = useState({})     // staff_id → { passport, rtw }
   const [viewSoi, setViewSoi] = useState(false)
+  const [showStatement, setShowStatement] = useState(false)   // founder's reference copy of the Statement of Intent
   const openDoc = async (staffId, kind) => { try { const r = await rotaGetDoc(staffId, kind); openDataUrl(r.data) } catch (e) { alert(e.message || 'Not uploaded') } }
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -118,6 +119,17 @@ export default function StaffRota() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {showStatement && (
+        <div onClick={() => setShowStatement(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '5vh 16px', overflowY: 'auto' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#000', border: '1px solid rgba(255,255,255,0.14)', borderRadius: 14, padding: 20, maxWidth: 720, width: '100%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Reference copy — this is what each team member reads &amp; signs · current version {SOI_VERSION}</div>
+              <button onClick={() => setShowStatement(false)} style={{ ...btn('ghost'), padding: '4px 10px', flexShrink: 0 }}>✕ Close</button>
+            </div>
+            <StatementDoc />
+          </div>
+        </div>
+      )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
         {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
@@ -141,6 +153,7 @@ export default function StaffRota() {
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={() => setShowStatement(true)} style={btn('ghost')}>📄 Statement of Intent</button>
           <input value={q} onChange={e => setQ(e.target.value)} placeholder="Search team…" style={inp(170)} />
           <button onClick={addNew} disabled={busy} style={btn('gold')}>+ Add team member</button>
         </div>
