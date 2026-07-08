@@ -283,13 +283,9 @@ Deno.serve(async (req) => {
         // "went from nothing → set it" transition, not on every autosaved tap.
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
         const prevDays = prevAv?.data ? Object.keys(prevAv.data).length : 0;
-        // Don't let them un-mark a day they're already rostered on (keeps the
-        // founder's rota and the member's availability from disagreeing).
-        const { data: myClaims } = await sb.from("staff_shift_claims").select("shift:staff_shifts(date)").eq("staff_id", me.id);
-        for (const c of myClaims || []) {
-          const d = (c as any).shift?.date;
-          if (d && d.startsWith(month + "-") && !data[d]) return json({ error: `You're on a shift on ${d} — drop that shift first, then update your availability.` }, 409);
-        }
+        // Availability is just "days I can work" — purely an input the founder uses
+        // when building the rota. It is independent of who's rostered, so a member
+        // can freely mark/un-mark any day (no "you're on a shift" block).
         const { error } = await sb.from("staff_availability")
           .upsert({ staff_id: me.id, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
         if (error) return json({ error: error.message }, 400);
