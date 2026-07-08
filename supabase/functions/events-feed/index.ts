@@ -34,10 +34,19 @@ const SPECIAL_DATES: Record<string, Record<string, { day: string; start: string;
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
-  const today = new Date().toISOString().slice(0, 10);
+  // Founder rule (2026-07-08): show DJ nights from the last 30 days
+  // through today onward. Previously the feed was strict-future only
+  // (`gte(today)`), which meant customers browsing the July calendar
+  // saw a blank slot where last week's DJ set had actually happened —
+  // the mistake felt like "you cancelled the DJ", not "the DJ played".
+  // 30-day look-back is a compromise: enough for a customer to see
+  // last month's roster, small enough to keep the feed lean.
+  const lookback = new Date();
+  lookback.setDate(lookback.getDate() - 30);
+  const fromIso = lookback.toISOString().slice(0, 10);
   const { data, error } = await sb.from("dj_slots")
     .select("date,slot,night_name,subgenres,kind,set_type,promo_track,promo_artist,event_image_url,dj_id2, dj:djs(dj_name,image_url,instagram,format)")
-    .eq("status", "confirmed").neq("suspended", true).gte("date", today).order("date");
+    .eq("status", "confirmed").neq("suspended", true).gte("date", fromIso).order("date");
   if (error) return new Response(JSON.stringify({ error: error.message }), { status: 500, headers: { ...cors, "Content-Type": "application/json" } });
   // Back-to-back: resolve the optional second DJ (dj_id2 has no FK embed) in one query.
   const partnerIds = [...new Set((data || []).map((s: any) => s.dj_id2).filter(Boolean))];
