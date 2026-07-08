@@ -140,6 +140,44 @@ Deno.serve(async (req) => {
       return json({ ok: true, staff: publicStaff(s), token: s.token });
     }
 
+    // ── Daily hub: who's rostered TODAY + their clock status (public — the shared
+    //    WhatsApp link opens this before anyone signs in). First names + times only. ──
+    if (action === "todayRoster") {
+      const today = todayISO();
+      const { data: shifts } = await sb.from("staff_shifts").select("id,start_min,end_min").eq("date", today);
+      const sids = (shifts || []).map((s: any) => s.id);
+      const byShift: Record<string, any> = {}; for (const s of shifts || []) byShift[s.id] = s;
+      const { data: claims } = sids.length ? await sb.from("staff_shift_claims").select("staff_id,shift_id").in("shift_id", sids) : { data: [] };
+      const staffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
+      const { data: staff } = staffIds.length ? await sb.from("staff").select("id,name,active").in("id", staffIds) : { data: [] };
+      const { data: clocks } = staffIds.length ? await sb.from("shift_clock").select("staff_id,clock_in,clock_out").eq("date", today).in("staff_id", staffIds) : { data: [] };
+      const clockBy: Record<string, any> = {}; for (const c of clocks || []) clockBy[c.staff_id] = c;
+      const nameBy: Record<string, any> = {}; for (const s of staff || []) if (s.active !== false) nameBy[s.id] = s.name;
+      // Per staff: earliest start + latest end across their shifts today.
+      const span: Record<string, { start: number; end: number }> = {};
+      for (const c of claims || []) {
+        const sh = byShift[c.shift_id]; if (!sh || !(c.staff_id in nameBy)) continue;
+        const cur = span[c.staff_id];
+        span[c.staff_id] = cur ? { start: Math.min(cur.start, sh.start_min), end: Math.max(cur.end, sh.end_min) } : { start: sh.start_min, end: sh.end_min };
+      }
+      const roster = Object.keys(span).map((id) => ({
+        staffId: id, name: nameBy[id], first: String(nameBy[id] || "").split(" ")[0],
+        start_min: span[id].start, end_min: span[id].end,
+        clockIn: clockBy[id]?.clock_in || null, clockOut: clockBy[id]?.clock_out || null,
+      })).sort((a, b) => a.start_min - b.start_min || a.first.localeCompare(b.first));
+      return json({ ok: true, date: today, roster });
+    }
+
+    // ── Daily hub sign-in: tap your name + password → your token (no email needed). ──
+    if (action === "clockLogin") {
+      const { data } = await sb.from("staff").select("*").eq("id", String(b.staffId || "")).maybeSingle();
+      if (!data) return json({ error: "Couldn't find you — reload the page." }, 404);
+      if (data.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+      if (!data.password) return json({ error: "You don't have a password yet — ask the manager to set you one." }, 400);
+      if (String(b.password || "") !== data.password) return json({ error: "Wrong password — try again." }, 401);
+      return json({ ok: true, staff: publicStaff(data), token: data.token });
+    }
+
     // ── Public self sign-up (shareable link carries the join code) ──────────────
     if (action === "signup") {
       if (String(b.code || "") !== (Deno.env.get("SIGNUP_CODE") || "NODICE")) {
@@ -189,7 +227,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -200,12 +238,13 @@ Deno.serve(async (req) => {
         const today = todayISO();
         const noteFrom = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);   // last week's handovers
         const noteTo = new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);      // + upcoming briefings
-        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }, { data: notes }] = await Promise.all([
+        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }, { data: notes }, { data: clockRow }] = await Promise.all([
           sb.from("staff_shifts").select("*").gte("date", today).order("date"),
           sb.from("staff_availability").select("month,data").eq("staff_id", me.id),
           sb.from("training_completions").select("item_key").eq("staff_id", me.id),
           sb.from("staff_documents").select("kind").eq("staff_id", me.id),
           sb.from("shift_notes").select("*").gte("date", noteFrom).lte("date", noteTo).order("created_at", { ascending: false }),
+          sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle(),
         ]);
         const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
@@ -225,6 +264,8 @@ Deno.serve(async (req) => {
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
+          clock: clockRow || null,
+          rosteredToday: (shifts || []).some((s: any) => s.date === today && mine.has(s.id)),
           soi_version: SOI_VERSION,
         });
       }
@@ -267,6 +308,28 @@ Deno.serve(async (req) => {
         const { error } = await sb.from("shift_notes").delete().eq("id", b.id).eq("staff_id", me.id);
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true });
+      }
+
+      // Clock in — stamps the real start time for today (first tap wins).
+      if (action === "clockIn") {
+        const today = todayISO();
+        const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
+        if (existing?.clock_in) return json({ ok: true, clock: existing });   // already started
+        const { data, error } = await sb.from("shift_clock")
+          .upsert({ staff_id: me.id, date: today, clock_in: new Date().toISOString(), approved: false }, { onConflict: "staff_id,date" })
+          .select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, clock: data });
+      }
+      // Clock out — stamps the real end time for today.
+      if (action === "clockOut") {
+        const today = todayISO();
+        const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
+        if (!existing?.clock_in) return json({ error: "Start your shift first." }, 400);
+        const { data, error } = await sb.from("shift_clock")
+          .update({ clock_out: new Date().toISOString(), approved: false }).eq("id", existing.id).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, clock: data });
       }
 
       if (action === "saveAvailability") {
@@ -513,6 +576,22 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ── Founder: adjust / approve a person's clocked hours for a day ────────────
+    if (action === "setClock") {
+      const staffId = String(b.staffId || "");
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : "";
+      if (!staffId || !date) return json({ error: "missing staff or date" }, 400);
+      const patch: Record<string, unknown> = {};
+      if ("clock_in" in b) patch.clock_in = b.clock_in || null;     // ISO timestamp or null
+      if ("clock_out" in b) patch.clock_out = b.clock_out || null;
+      if ("approved" in b) patch.approved = !!b.approved;
+      if (!Object.keys(patch).length) return json({ error: "nothing to set" }, 400);
+      const { data, error } = await sb.from("shift_clock")
+        .upsert({ staff_id: staffId, date, ...patch }, { onConflict: "staff_id,date" }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, clock: data });
+    }
+
     // ── Email a staff member their personal login link (Resend). The link carries
     //    their token, so tapping it logs them straight in — no password needed. ──
     if (action === "remindStaff") {
@@ -546,13 +625,14 @@ Deno.serve(async (req) => {
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
       const noteFrom = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
         sb.from("training_completions").select("staff_id,item_key"),
         sb.from("staff_documents").select("staff_id,kind,uploaded_at"),   // which docs each has (no data)
         sb.from("shift_notes").select("*").gte("date", noteFrom).order("created_at", { ascending: false }),
+        sb.from("shift_clock").select("*").gte("date", windowStart),
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
@@ -563,6 +643,7 @@ Deno.serve(async (req) => {
         training: training || [],   // all completions — for per-staff progress in the admin
         docs: docs || [],           // which staff have uploaded passport / rtw
         notes: notes || [],         // shift notes board (recent + upcoming)
+        clocks: clocks || [],       // actual clock in/out per staff per day
       });
     }
 

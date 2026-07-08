@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote } from '../../rota/api.js'
+import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName } from '../../rota/shifts.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
 
@@ -30,7 +30,7 @@ function Ring({ pct, color, hasTarget, size = 44 }) {
 
 // One person's line in the week overview: ring + name/type + hours-vs-target + cost.
 function WeekRow({ row }) {
-  const { s, hrs, target, cost, rate } = row
+  const { s, hrs, actualHrs, target, cost, rate } = row
   const pct = target ? hrs / target : 0
   const color = target == null ? 'rgba(255,255,255,0.28)' : hrs > target + 0.05 ? '#60A5FA' : hrs >= target ? GREEN : hrs > 0 ? AMBER : RED
   return (
@@ -44,6 +44,7 @@ function WeekRow({ row }) {
         </div>
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
           <strong style={{ color: '#fff' }}>{hrs}h</strong>{target != null ? ` / ${target}h target` : ' · no target set'}
+          {actualHrs > 0 && <span style={{ color: '#60A5FA' }}> · {actualHrs}h actual ✓</span>}
           {target != null && hrs > target + 0.05 && <span style={{ color: '#60A5FA' }}> · +{Math.round((hrs - target) * 10) / 10}h over</span>}
           {target != null && hrs < target - 0.05 && <span style={{ color: AMBER }}> · {Math.round((target - hrs) * 10) / 10}h short</span>}
           {target != null && hrs >= target - 0.05 && hrs <= target + 0.05 && <span style={{ color: GREEN }}> · on target</span>}
@@ -57,7 +58,7 @@ function WeekRow({ row }) {
   )
 }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], reload }) {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
@@ -72,6 +73,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     setBusy(true); try { await rotaAddDayNote(selDate, body); setNoteText(''); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const deleteNote = async (id) => { setBusy(true); try { await rotaDeleteDayNote(id); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const approveClock = async (staffId, date, approved) => { setBusy(true); try { await rotaSetClock(staffId, date, { approved }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // clock lookups: worked minutes + by staff|date
+  const clockDur = (c) => (c && c.clock_in && c.clock_out) ? Math.max(0, Math.round((new Date(c.clock_out) - new Date(c.clock_in)) / 60000)) : 0
+  const clockMap = {}
+  for (const c of clocks) clockMap[`${c.staff_id}|${c.date}`] = c
 
   // date → shift rows (sorted by start); shift_id → claim rows.
   const shiftsByDate = {}
@@ -90,15 +96,20 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     const hrs = shiftHours(sh)
     for (const c of (claimsByShift[sh.id] || [])) hoursByStaff[c.staff_id] = (hoursByStaff[c.staff_id] || 0) + hrs
   }
+  // Approved actual worked minutes per staffer this week (drives pay once approved).
+  const actualByStaff = {}
+  for (const c of clocks) { if (weekSet.has(c.date) && c.approved) actualByStaff[c.staff_id] = (actualByStaff[c.staff_id] || 0) + clockDur(c) }
   // Active staff, plus anyone deactivated who still holds hours this week (so their
   // committed cost isn't silently dropped from the total — they're flagged inactive).
   const weekRows = staff.filter(s => s.active !== false || (hoursByStaff[s.id] || 0) > 0).map(s => {
-    const hrs = Math.round((hoursByStaff[s.id] || 0) * 10) / 10
+    const hrs = Math.round((hoursByStaff[s.id] || 0) * 10) / 10                 // rostered (planned)
+    const actualHrs = Math.round(((actualByStaff[s.id] || 0) / 60) * 10) / 10   // approved actual
+    const payHrs = actualHrs > 0 ? actualHrs : hrs                              // approved actual once it exists, else rostered
     const rate = s.hourly_rate == null || s.hourly_rate === '' ? null : Number(s.hourly_rate)
     const targetN = s.target_hours == null || s.target_hours === '' ? NaN : Number(s.target_hours)
     const target = Number.isFinite(targetN) && targetN > 0 ? targetN : null   // 0 / blank = no target
-    const cost = rate != null ? Math.round(hrs * rate * 100) / 100 : null
-    return { s, hrs, rate, target, cost }
+    const cost = rate != null ? Math.round(payHrs * rate * 100) / 100 : null
+    return { s, hrs, actualHrs, payHrs, rate, target, cost }
   }).sort((a, b) => b.hrs - a.hrs || (a.s.name || '').localeCompare(b.s.name || ''))
   const totalHours = Math.round(weekRows.reduce((a, r) => a + r.hrs, 0) * 10) / 10
   const totalSpend = weekRows.reduce((a, r) => a + (r.cost || 0), 0)
@@ -258,6 +269,38 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
               )
             })()}
           </div>
+
+          {/* Actual hours from clock in/out — approve to feed the week's wage total */}
+          {(() => {
+            const dayClocks = clocks.filter(c => c.date === selDate && (c.clock_in || c.clock_out))
+            if (dayClocks.length === 0) return null
+            const nameById = {}; for (const s of staff) nameById[s.id] = s.name
+            const fmtT = (t) => t ? new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '—'
+            const rosteredMin = {}
+            for (const sh of selShifts) { const hrs = (sh.end_min - sh.start_min); for (const c of (claimsByShift[sh.id] || [])) rosteredMin[c.staff_id] = (rosteredMin[c.staff_id] || 0) + hrs }
+            return (
+              <div style={{ borderTop: '1px dashed rgba(255,255,255,0.12)', paddingTop: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>⏱ Actual hours worked</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>From clock in/out. Approve each once you're happy — approved hours are what the week's wage total uses.</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {dayClocks.map(c => {
+                    const worked = clockDur(c), wh = Math.floor(worked / 60), wm = worked % 60
+                    const rost = Math.round((rosteredMin[c.staff_id] || 0) / 60 * 10) / 10
+                    const done = !!c.clock_out
+                    return (
+                      <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: c.approved ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${c.approved ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '8px 10px' }}>
+                        <div style={{ flex: 1, minWidth: 150 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{nameById[c.staff_id] || 'Unknown'}</div>
+                          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>In {fmtT(c.clock_in)} · Out {done ? fmtT(c.clock_out) : 'still on'}{done ? ` · worked ${wh}h${wm ? ` ${wm}m` : ''}` : ''} <span style={{ color: 'rgba(255,255,255,0.4)' }}>· rostered {rost}h</span></div>
+                        </div>
+                        {done && <button onClick={() => approveClock(c.staff_id, selDate, !c.approved)} disabled={busy} style={c.approved ? btn('ghost') : btn('gold')}>{c.approved ? '✓ Approved' : 'Approve'}</button>}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
         </div>
       )}
 

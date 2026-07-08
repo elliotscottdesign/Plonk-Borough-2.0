@@ -268,6 +268,22 @@ create table if not exists public.shift_notes (
 create index if not exists shift_notes_date_idx on public.shift_notes (date);
 alter table public.shift_notes enable row level security;
 
+-- 10) Shift clock — actual worked time per member per day. Staff clock in/out from
+--     the daily hub; the founder reviews & approves; approved hours drive the wage
+--     total (vs the rostered plan). One row per (staff, day).
+create table if not exists public.shift_clock (
+  id uuid primary key default gen_random_uuid(),
+  staff_id uuid not null references public.staff(id) on delete cascade,
+  date date not null,
+  clock_in timestamptz,
+  clock_out timestamptz,
+  approved boolean default false,
+  created_at timestamptz default now(),
+  unique (staff_id, date)
+);
+create index if not exists shift_clock_date_idx on public.shift_clock (date);
+alter table public.shift_clock enable row level security;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;

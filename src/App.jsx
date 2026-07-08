@@ -31,6 +31,7 @@ import MarketingApp from './marketing/MarketingApp.jsx'
 import DJPortal from './dj/DJPortal.jsx'
 import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
+import DailyHub from './rota/DailyHub.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -94,6 +95,11 @@ const isHelpOutPath = () =>
 const isRotaPath = () =>
   typeof window !== 'undefined' &&
   /^\/rota(\/|$)/.test(window.location.pathname)
+
+// Daily clock-in hub — the shared link the team opens each shift. /today.
+const isTodayPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/today(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&
@@ -226,13 +232,16 @@ export default function App() {
   // Standalone (its own login), sits before the root fallback below.
   if (isRotaPath()) return <RotaPortal />
 
+  // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
+  if (isTodayPath()) return <DailyHub />
+
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.
   // Any unrecognised path (incl. the SPA fallback) also lands here so
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath() && !isTodayPath())) {
     // This repo now lives at team.nodice.bar (the public customer site owns
     // nodice.bar). Root + any unrecognised path shows the branded team hub —
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.

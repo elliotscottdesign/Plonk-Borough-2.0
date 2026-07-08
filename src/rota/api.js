@@ -37,6 +37,13 @@ export const rotaAddDayNote = (date, body) => call({ action: 'addDayNote', secre
 export const rotaDeleteDayNote = (id) => call({ action: 'deleteDayNote', secret: SEND_SECRET, id })
 export const rotaAddShiftNote = (token, date, body) => call({ action: 'addShiftNote', token, date, body })
 export const rotaDeleteShiftNote = (token, id) => call({ action: 'deleteShiftNote', token, id })
+
+// Daily clock-in hub — the shared /today link.
+export const rotaTodayRoster = () => call({ action: 'todayRoster' })                              // public: who's on today + clock status
+export const rotaClockLogin = (staffId, password) => call({ action: 'clockLogin', staffId, password })   // tap name + password → token
+export const rotaClockIn = (token) => call({ action: 'clockIn', token })
+export const rotaClockOut = (token) => call({ action: 'clockOut', token })
+export const rotaSetClock = (staffId, date, patch) => call({ action: 'setClock', secret: SEND_SECRET, staffId, date, ...patch })   // founder adjust/approve
 export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: SEND_SECRET, shiftId })
 export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
 export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })

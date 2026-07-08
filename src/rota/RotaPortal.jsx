@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -73,6 +73,8 @@ export default function RotaPortal() {
   const [training, setTraining] = useState([])            // completed item_keys
   const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
   const [notePopup, setNotePopup] = useState([])          // today's manager briefings shown on open
+  const [clock, setClock] = useState(null)                // today's clock in/out
+  const [rosteredToday, setRosteredToday] = useState(false)
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
   const [ready, setReady] = useState(false)
@@ -109,7 +111,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setRosteredToday(!!r.rosteredToday); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -183,6 +185,8 @@ export default function RotaPortal() {
   const claim = (id) => act(() => rotaClaimShift(token, id))
   const release = (id) => act(() => rotaReleaseShift(token, id))
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
+  const doClockIn = async () => { setBusy(true); try { const r = await rotaClockIn(token); setClock(r.clock) } catch (e) { handleErr(e) } finally { setBusy(false) } }
+  const doClockOut = async () => { if (!window.confirm('End your shift now? This records your finish time.')) return; setBusy(true); try { const r = await rotaClockOut(token); setClock(r.clock) } catch (e) { handleErr(e) } finally { setBusy(false) } }
 
   // ── Render states ───────────────────────────────────────────────────────────
   if (!ready) return <Center>Loading…</Center>
@@ -236,6 +240,26 @@ export default function RotaPortal() {
           </div>
           <button onClick={logout} style={btn('ghost')}>Log out</button>
         </div>
+
+        {rosteredToday && (() => {
+          const fmtT = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+          const started = clock?.clock_in, ended = clock?.clock_out
+          const workedMin = started && ended ? Math.round((new Date(ended) - new Date(started)) / 60000) : 0
+          const wh = Math.floor(workedMin / 60), wm = workedMin % 60
+          const bg = ended ? 'rgba(255,255,255,0.05)' : started ? 'rgba(52,211,153,0.10)' : 'rgba(218,27,51,0.12)'
+          const bd = ended ? LINE : started ? 'rgba(52,211,153,0.45)' : 'rgba(218,27,51,0.5)'
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: bg, border: `1px solid ${bd}`, borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+              <div style={{ fontSize: 13.5, color: '#fff', fontWeight: 600 }}>
+                {ended ? <>✅ Shift done — you worked <strong>{wh}h{wm ? ` ${wm}m` : ''}</strong> today.</>
+                  : started ? <>🟢 On shift since <strong>{fmtT(started)}</strong>.</>
+                    : <>You're on today — tap to clock in.</>}
+              </div>
+              {!started && <button onClick={doClockIn} disabled={busy} style={{ ...btn('red'), padding: '10px 16px' }}>▶ Start my shift</button>}
+              {started && !ended && <button onClick={doClockOut} disabled={busy} style={{ ...btn('ghost'), padding: '10px 16px' }}>■ End my shift</button>}
+            </div>
+          )
+        })()}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
           {TABS.map(([k, ic, lbl]) => (
