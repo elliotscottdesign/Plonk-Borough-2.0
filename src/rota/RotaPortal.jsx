@@ -580,7 +580,7 @@ function Onboarding({ token, staff, docs, reload, goProfile }) {
 
 function ProfileView({ staff, onSave, busy, token, docs, reload }) {
   const [f, setF] = useState({
-    name: staff.name || '', phone: staff.phone || '', address: staff.address || '',
+    name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
     dob: staff.dob || '', ni_number: staff.ni_number || '', bank_name: staff.bank_name || '', bank_sort: staff.bank_sort || '', bank_account: staff.bank_account || '',
     interests: Array.isArray(staff.interests) ? staff.interests : [],
@@ -617,7 +617,7 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Your details — keep these up to date</div>
         <L label="Full name" wide><input value={f.name} onChange={e => on('name', e.target.value)} style={inp} /></L>
         <L label="Phone"><input value={f.phone} onChange={e => on('phone', e.target.value)} style={inp} /></L>
-        <L label="Email (login)"><input value={staff.email || ''} disabled style={{ ...inp, opacity: 0.55 }} /></L>
+        <L label="Email (your login)"><input value={f.email} onChange={e => on('email', e.target.value)} type="email" autoComplete="email" placeholder="you@email.com" style={inp} /></L>
         <L label="Home address" wide><input value={f.address} onChange={e => on('address', e.target.value)} style={inp} /></L>
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', borderTop: `1px dashed ${LINE}`, paddingTop: 10 }}>Next of kin / emergency contact</div>
         <L label="Name"><input value={f.emergency_name} onChange={e => on('emergency_name', e.target.value)} style={inp} /></L>

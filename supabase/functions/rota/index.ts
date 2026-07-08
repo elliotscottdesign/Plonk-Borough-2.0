@@ -238,9 +238,16 @@ Deno.serve(async (req) => {
           if (k in b) patch[k] = clean(b[k]) || null;
         }
         if ("interests" in b) patch.interests = cleanInterests(b.interests);
+        // Their own login email — normalise + validate; the unique index means a
+        // clash with another member returns a friendly message, not a raw error.
+        if ("email" in b) {
+          const email = String(b.email || "").trim().toLowerCase();
+          if (email && !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email address (like you@email.com)." }, 400);
+          patch.email = email || null;
+        }
         if (!Object.keys(patch).length) return json({ error: "nothing to save" }, 400);
         const { error } = await sb.from("staff").update(patch).eq("id", me.id);
-        if (error) return json({ error: error.message }, 400);
+        if (error) return json({ error: /duplicate/i.test(error.message) ? "That email is already used by another team member — check it's yours." : error.message }, 400);
         return json({ ok: true, staff: publicStaff({ ...me, ...patch }) });
       }
 
