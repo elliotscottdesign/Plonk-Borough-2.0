@@ -625,7 +625,7 @@ Deno.serve(async (req) => {
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
       const noteFrom = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }, { data: availability }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
@@ -633,6 +633,7 @@ Deno.serve(async (req) => {
         sb.from("staff_documents").select("staff_id,kind,uploaded_at"),   // which docs each has (no data)
         sb.from("shift_notes").select("*").gte("date", noteFrom).order("created_at", { ascending: false }),
         sb.from("shift_clock").select("*").gte("date", windowStart),
+        sb.from("staff_availability").select("staff_id,month,data"),
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
@@ -644,6 +645,7 @@ Deno.serve(async (req) => {
         docs: docs || [],           // which staff have uploaded passport / rtw
         notes: notes || [],         // shift notes board (recent + upcoming)
         clocks: clocks || [],       // actual clock in/out per staff per day
+        availability: availability || [],   // each member's marked-available days (AI rota input)
       });
     }
 
