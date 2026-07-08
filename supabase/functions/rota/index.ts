@@ -210,15 +210,18 @@ Deno.serve(async (req) => {
         const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
         const { data: claims } = ids.length
-          ? await sb.from("staff_shift_claims").select("shift_id,staff_id").in("shift_id", ids)
+          ? await sb.from("staff_shift_claims").select("shift_id,staff_id,source").in("shift_id", ids)
           : { data: [] };
-        const filled: Record<string, number> = {}; const mine = new Set<string>();
-        for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) mine.add(c.shift_id); }
+        const filled: Record<string, number> = {}; const mine = new Set<string>(); const mineAdmin = new Set<string>();
+        for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
+        // Only show a staffer their OWN shifts + genuinely-open ones — not every
+        // colleague's per-person block (which would flood the portal).
+        const visibleShifts = (shifts || []).filter((s: any) => mine.has(s.id) || (filled[s.id] || 0) < (s.headcount || 1));
         return json({
           ok: true, staff: publicStaff(me), availability,
-          shifts: (shifts || []).map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id) })),
+          shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
@@ -337,6 +340,10 @@ Deno.serve(async (req) => {
 
       if (action === "releaseShift") {
         const { data: sh } = await sb.from("staff_shifts").select("date,label,ability,min_rank").eq("id", b.shiftId).maybeSingle();
+        // A manager-assigned (admin) shift isn't self-service — the staffer can't drop
+        // it (and we must not fire the "back on the board" broadcast for it).
+        const { data: myClaim } = await sb.from("staff_shift_claims").select("source").eq("shift_id", b.shiftId).eq("staff_id", me.id).maybeSingle();
+        if (myClaim?.source === "admin") return json({ error: "The manager put you on this shift — message them if you can't make it." }, 403);
         const { error } = await sb.from("staff_shift_claims").delete().eq("shift_id", b.shiftId).eq("staff_id", me.id);
         if (error) return json({ error: error.message }, 400);
         // Back on the board → broadcast to ELIGIBLE staff (right ability + rank) + tell the founder.
@@ -683,45 +690,31 @@ Deno.serve(async (req) => {
     }
 
     // ── Save a whole day's roster from the drag grid (full replace) ───────────
-    //    Each block = one person's shift (headcount 1, that person assigned). We
-    //    delete the day's shifts and recreate exactly the painted blocks, so the
-    //    grid is the single source of truth for who works when that day.
-    //    Times are absolute minutes-from-the-date's-midnight (next-day > 1440),
-    //    NOT wrapped — the grid already produces them in that space.
+    //    Each block = one person's shift (headcount 1, that person assigned). The
+    //    replace_day_roster() DB function does the delete + re-insert in ONE
+    //    transaction, so a failed insert can't leave the day empty. Times are
+    //    absolute minutes-from-the-date's-midnight (next-day > 1440), NOT wrapped.
     if (action === "saveDayRoster") {
       const date = String(b.date || "");
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a valid date." }, 400);
       if (date < todayISO()) return json({ error: "That date is in the past." }, 400);
       const blocks = Array.isArray(b.blocks) ? b.blocks : [];
-      const rows: any[] = [];
-      const meta: { staffId: string }[] = [];
-      for (let i = 0; i < blocks.length; i++) {
-        const bl = blocks[i] || {};
-        const staffId = String(bl.staffId || "");
-        const start = Math.round(Number(bl.start_min));
-        const end = Math.round(Number(bl.end_min));
+      const payload: any[] = [];
+      for (const bl of blocks) {
+        const staffId = String((bl || {}).staffId || "");
+        const start = Math.round(Number((bl || {}).start_min));
+        const end = Math.round(Number((bl || {}).end_min));
         if (!staffId) return json({ error: "Every shift needs a team member." }, 400);
         if (!Number.isFinite(start) || !Number.isFinite(end)) return json({ error: "A shift has bad times." }, 400);
         const dur = end - start;
         if (dur < 30) return json({ error: "A shift must be at least 30 minutes." }, 400);
         if (dur > 18 * 60) return json({ error: "A shift can't be over 18 hours." }, 400);
         if (start < 0 || end > 1680) return json({ error: "Shift times are out of range." }, 400);   // ≤ 04:00 next day
-        const lbl = `${fmtMinTs(start)}–${fmtMinTs(end)}`;
-        rows.push({ date, shift_key: `roster:${i}`, label: lbl, position: lbl, role: "bar", ability: "bar", min_rank: 1, start_min: start, end_min: end, status: "open", headcount: 1 });
-        meta.push({ staffId });
+        payload.push({ staff_id: staffId, start_min: start, end_min: end, label: "Shift" });
       }
-      const { error: delErr } = await sb.from("staff_shifts").delete().eq("date", date);
-      if (delErr) return json({ error: delErr.message }, 400);
-      if (rows.length) {
-        const { data: ins, error: insErr } = await sb.from("staff_shifts").insert(rows).select("id,shift_key");
-        if (insErr) return json({ error: insErr.message }, 400);
-        const idByKey: Record<string, string> = {};
-        for (const s of ins || []) idByKey[s.shift_key] = s.id;
-        const claimRows = meta.map((m, i) => ({ shift_id: idByKey[`roster:${i}`], staff_id: m.staffId, status: "confirmed", source: "admin" }));
-        const { error: cErr } = await sb.from("staff_shift_claims").insert(claimRows);
-        if (cErr) return json({ error: cErr.message }, 400);
-      }
-      return json({ ok: true, count: rows.length });
+      const { error } = await sb.rpc("replace_day_roster", { p_date: date, p_blocks: payload });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, count: payload.length });
     }
 
     // ── Delete a released shift (cascades its claims) ──────────────────────────

@@ -211,15 +211,23 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
           </div>
 
-          <DayRosterGrid
-            key={selDate}
-            date={selDate}
-            staff={staff}
-            dayShifts={selShifts}
-            dayClaims={claims.filter(c => selShifts.some(s => s.id === c.shift_id))}
-            busy={busy}
-            onSave={(blocks) => saveRoster(selDate, blocks)}
-          />
+          {(() => {
+            const dayClaims = claims.filter(c => selShifts.some(s => s.id === c.shift_id))
+            // Remount (re-sync from the DB) whenever the day's claims change — e.g. after a
+            // save/reload — so the grid is never a stale snapshot that clobbers newer data.
+            const daySig = dayClaims.map(c => c.id).sort().join(',')
+            return (
+              <DayRosterGrid
+                key={selDate + '|' + daySig}
+                date={selDate}
+                staff={staff}
+                dayShifts={selShifts}
+                dayClaims={dayClaims}
+                busy={busy}
+                onSave={(blocks) => saveRoster(selDate, blocks)}
+              />
+            )
+          })()}
 
           {/* Shift notes for the day — manager briefings (pop up for staff) + the team's handover log */}
           <div style={{ borderTop: '1px dashed rgba(255,255,255,0.12)', paddingTop: 12 }}>

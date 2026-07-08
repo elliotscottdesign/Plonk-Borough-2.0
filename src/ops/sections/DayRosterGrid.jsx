@@ -50,7 +50,8 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
     for (const c of dayClaims) {
       const sh = shiftById[c.shift_id]
       if (!sh) continue
-      bl.push({ key: uid(), staffId: c.staff_id, start: Math.max(WIN_START, sh.start_min), end: Math.min(WIN_END, sh.end_min) })
+      const start = Math.max(WIN_START, sh.start_min), end = Math.min(WIN_END, sh.end_min)
+      if (end - start >= 30) bl.push({ key: uid(), staffId: c.staff_id, start, end })   // skip anything not inside the 10am–2am window
     }
     return mergeBlocks(bl)
   })
@@ -169,11 +170,12 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                   {mine.map(b => {
                     const left = xOfMin(b.start), w = xOfMin(b.end) - xOfMin(b.start)
                     return (
-                      <div key={b.key} style={{ position: 'absolute', top: 5, height: ROW_H - 10, left, width: w, background: `${rc}33`, border: `1.5px solid ${rc}`, borderRadius: 6, display: 'flex', alignItems: 'center', overflow: 'hidden' }}>
-                        <span style={{ fontSize: 9.5, color: '#fff', fontWeight: 600, padding: '0 4px', whiteSpace: 'nowrap', pointerEvents: 'none' }}>{fmtMin(b.start)}–{fmtMin(b.end)}</span>
-                        <button onPointerDown={e => e.stopPropagation()} onClick={() => removeBlock(b.key)} title="Remove" style={{ position: 'absolute', top: -1, right: 1, background: 'none', border: 'none', color: '#fff', fontSize: 12, lineHeight: 1, cursor: 'pointer', padding: 2, opacity: 0.75 }}>✕</button>
+                      <div key={b.key} style={{ position: 'absolute', top: 5, height: ROW_H - 10, left, width: w, background: `${rc}33`, border: `1.5px solid ${rc}`, borderRadius: 6, display: 'flex', alignItems: 'center', overflow: 'visible' }}>
+                        {/* ✕ on the LEFT so it never overlaps the right-edge resize handle */}
+                        <button onPointerDown={e => e.stopPropagation()} onClick={() => removeBlock(b.key)} title="Remove" style={{ position: 'absolute', top: -6, left: -6, zIndex: 3, width: 16, height: 16, borderRadius: '50%', background: '#DA1B33', border: '1px solid #000', color: '#fff', fontSize: 9, lineHeight: 1, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
+                        <span style={{ fontSize: 9.5, color: '#fff', fontWeight: 600, padding: '0 10px 0 5px', whiteSpace: 'nowrap', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtMin(b.start)}–{fmtMin(b.end)}</span>
                         {/* right-edge resize handle */}
-                        <div onPointerDown={e => startResize(e, b)} title="Drag to trim/extend" style={{ position: 'absolute', top: 0, right: 0, width: 9, height: '100%', cursor: 'ew-resize', background: `${rc}`, opacity: 0.55, borderTopRightRadius: 5, borderBottomRightRadius: 5 }} />
+                        <div onPointerDown={e => startResize(e, b)} title="Drag to trim/extend" style={{ position: 'absolute', top: 0, right: 0, zIndex: 1, width: 9, height: '100%', cursor: 'ew-resize', background: `${rc}`, opacity: 0.55, borderTopRightRadius: 5, borderBottomRightRadius: 5 }} />
                       </div>
                     )
                   })}

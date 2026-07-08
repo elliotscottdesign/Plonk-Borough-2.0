@@ -128,6 +128,25 @@ drop trigger if exists trg_enforce_shift_headcount on public.staff_shift_claims;
 create trigger trg_enforce_shift_headcount before insert on public.staff_shift_claims
   for each row execute function public.enforce_shift_headcount();
 
+-- Day roster grid: replace a whole day's roster in ONE transaction. Each element of
+-- p_blocks is { staff_id, start_min, end_min, label }. Deleting + re-inserting inside
+-- one function is atomic, so a failed insert can never leave the day half-wiped.
+create or replace function public.replace_day_roster(p_date date, p_blocks jsonb)
+returns void as $$
+declare b jsonb; new_shift uuid; i int := 0;
+begin
+  delete from public.staff_shifts where date = p_date;
+  for b in select * from jsonb_array_elements(coalesce(p_blocks, '[]'::jsonb)) loop
+    insert into public.staff_shifts (date, shift_key, label, position, role, ability, min_rank, start_min, end_min, status, headcount)
+      values (p_date, 'roster:'||i, coalesce(nullif(trim(b->>'label'),''),'Shift'), coalesce(nullif(trim(b->>'label'),''),'Shift'),
+              'bar', 'bar', 1, (b->>'start_min')::int, (b->>'end_min')::int, 'open', 1)
+      returning id into new_shift;
+    insert into public.staff_shift_claims (shift_id, staff_id, status, source)
+      values (new_shift, (b->>'staff_id')::uuid, 'confirmed', 'admin');
+    i := i + 1;
+  end loop;
+end; $$ language plpgsql;
+
 -- 3) Monthly availability — one row per (staff, month). `data` is a map of
 --    'YYYY-MM-DD' → { from, to } for the days that person can work that month.
 create table if not exists public.staff_availability (

@@ -312,7 +312,9 @@ export default function RotaPortal() {
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h · {sh.filled}/{need} filled{hasReq ? ` · ${abilityIcon(sh.ability || 'bar')} ${abilityLabel(sh.ability || 'bar')}${sh.min_rank > 1 ? ` · ${rankLabel(sh.min_rank)}+` : ''}` : ''}</div>
                         </div>
                         {sh.mine
-                          ? <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>
+                          ? (sh.assigned
+                            ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
+                            : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>)
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>
                             : !eligible
