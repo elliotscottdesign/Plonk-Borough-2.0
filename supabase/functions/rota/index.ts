@@ -189,7 +189,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -198,11 +198,14 @@ Deno.serve(async (req) => {
 
       if (action === "myState") {
         const today = todayISO();
-        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }] = await Promise.all([
+        const noteFrom = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);   // last week's handovers
+        const noteTo = new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);      // + upcoming briefings
+        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }, { data: notes }] = await Promise.all([
           sb.from("staff_shifts").select("*").gte("date", today).order("date"),
           sb.from("staff_availability").select("month,data").eq("staff_id", me.id),
           sb.from("training_completions").select("item_key").eq("staff_id", me.id),
           sb.from("staff_documents").select("kind").eq("staff_id", me.id),
+          sb.from("shift_notes").select("*").gte("date", noteFrom).lte("date", noteTo).order("created_at", { ascending: false }),
         ]);
         const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
@@ -218,6 +221,7 @@ Deno.serve(async (req) => {
           shifts: (shifts || []).map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
+          notes: notes || [],
           soi_version: SOI_VERSION,
         });
       }
@@ -235,6 +239,24 @@ Deno.serve(async (req) => {
         const { error } = await sb.from("staff").update(patch).eq("id", me.id);
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true, staff: publicStaff({ ...me, ...patch }) });
+      }
+
+      // Staff leave a handover note on a day's shift (the next team reads it).
+      if (action === "addShiftNote") {
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : todayISO();
+        const body = String(b.body || "").trim().slice(0, 1000);
+        if (!body) return json({ error: "Write a note first." }, 400);
+        const { data, error } = await sb.from("shift_notes")
+          .insert({ date, staff_id: me.id, author_name: me.name, body, kind: "handover" }).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, note: data });
+      }
+      // Staff may delete their OWN note only.
+      if (action === "deleteShiftNote") {
+        if (!b.id) return json({ error: "no note" }, 400);
+        const { error } = await sb.from("shift_notes").delete().eq("id", b.id).eq("staff_id", me.id);
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true });
       }
 
       if (action === "saveAvailability") {
@@ -464,6 +486,23 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // ── Founder: add / delete a management note on a day (pops up for staff) ────
+    if (action === "addDayNote") {
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : todayISO();
+      const body = String(b.body || "").trim().slice(0, 1000);
+      if (!body) return json({ error: "Write a note first." }, 400);
+      const { data, error } = await sb.from("shift_notes")
+        .insert({ date, staff_id: null, author_name: clean(b.author_name) || "Management", body, kind: "manager" }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, note: data });
+    }
+    if (action === "deleteDayNote") {
+      if (!b.id) return json({ error: "no note" }, 400);
+      const { error } = await sb.from("shift_notes").delete().eq("id", b.id);   // founder can delete any note
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     // ── Email a staff member their personal login link (Resend). The link carries
     //    their token, so tapping it logs them straight in — no password needed. ──
     if (action === "remindStaff") {
@@ -496,12 +535,14 @@ Deno.serve(async (req) => {
       // Include the recent past (~6 months) so the week overview counts the whole
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }] = await Promise.all([
+      const noteFrom = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
         sb.from("training_completions").select("staff_id,item_key"),
         sb.from("staff_documents").select("staff_id,kind,uploaded_at"),   // which docs each has (no data)
+        sb.from("shift_notes").select("*").gte("date", noteFrom).order("created_at", { ascending: false }),
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       return json({
@@ -511,6 +552,7 @@ Deno.serve(async (req) => {
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // claims on the loaded shifts
         training: training || [],   // all completions — for per-staff progress in the admin
         docs: docs || [],           // which staff have uploaded passport / rtw
+        notes: notes || [],         // shift notes board (recent + upcoming)
       });
     }
 

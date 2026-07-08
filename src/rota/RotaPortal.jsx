@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -71,6 +71,8 @@ export default function RotaPortal() {
   const [staff, setStaff] = useState(null)
   const [shifts, setShifts] = useState([])
   const [training, setTraining] = useState([])            // completed item_keys
+  const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
+  const [notePopup, setNotePopup] = useState([])          // today's manager briefings shown on open
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
   const [ready, setReady] = useState(false)
@@ -107,10 +109,22 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setErr('')
+      // Pop up today's management briefings the member hasn't dismissed yet.
+      const today = new Date().toISOString().slice(0, 10)
+      let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
+      const fresh = (r.notes || []).filter(n => n.kind === 'manager' && n.date === today && !seen.includes(n.id))
+      if (fresh.length) setNotePopup(fresh)
     } catch (e) {
       if (/log in/i.test(e.message)) { logout() } else setErr(e.message)
     } finally { setReady(true) }
+  }
+  const dismissNotePopup = () => {
+    try {
+      const seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]')
+      localStorage.setItem('nd_notes_seen', JSON.stringify([...new Set([...seen, ...notePopup.map(n => n.id)])].slice(-200)))
+    } catch { /* ignore */ }
+    setNotePopup([])
   }
   const doLogin = async (e) => {
     e?.preventDefault?.()
@@ -208,7 +222,7 @@ export default function RotaPortal() {
     )
   }
 
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -319,11 +333,68 @@ export default function RotaPortal() {
 
         {view === 'menus' && <MenusView />}
 
+        {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
+
         {view === 'profile' && (
           <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} reload={() => loadState(token)} />
         )}
       </div>
+
+      {notePopup.length > 0 && (
+        <div onClick={dismissNotePopup} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '5vh 16px' }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#0A0A0A', border: `1px solid ${RED}`, borderRadius: 14, padding: 20, maxWidth: 420, width: '100%', maxHeight: '86vh', overflowY: 'auto' }}>
+            <div style={{ fontSize: 12, letterSpacing: '0.16em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 4 }}>📣 Notes for today</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginBottom: 14 }}>From management — please read before your shift.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {notePopup.map(n => (
+                <div key={n.id} style={{ background: 'rgba(218,27,51,0.08)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 10, padding: '10px 12px', fontSize: 14, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
+              ))}
+            </div>
+            <button onClick={dismissNotePopup} style={{ ...btn('red'), width: '100%', padding: '12px', marginTop: 16 }}>Got it</button>
+          </div>
+        </div>
+      )}
     </Shell>
+  )
+}
+
+// Notes tab — today's briefings + the shift handover log, and add your own note.
+function NotesView({ token, notes, staffId, reload }) {
+  const [body, setBody] = useState('')
+  const [busy, setBusy] = useState(false)
+  const today = new Date().toISOString().slice(0, 10)
+  const add = async () => {
+    const t = body.trim(); if (!t) return
+    setBusy(true)
+    try { await rotaAddShiftNote(token, today, t); setBody(''); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const del = async (id) => { setBusy(true); try { await rotaDeleteShiftNote(token, id); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const fmtWhen = (d, created) => {
+    const day = new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    const t = created ? new Date(created).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''
+    return `${day}${t ? ' · ' + t : ''}`
+  }
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={2} placeholder="Leave a handover note for the next shift… e.g. glasswasher needs salt, low on tonic" style={{ flex: 1, minWidth: 0, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+        <button onClick={add} disabled={busy || !body.trim()} style={{ ...btn('red'), opacity: body.trim() ? 1 : 0.5 }}>Post</button>
+      </div>
+      {notes.length === 0 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', padding: '18px 0', textAlign: 'center' }}>No notes yet. Management briefings and shift handovers show up here.</div>}
+      {notes.map(n => {
+        const mgr = n.kind === 'manager'
+        return (
+          <div key={n.id} style={{ background: mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${mgr ? 'rgba(218,27,51,0.35)' : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 3 }}>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}</span>
+              <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)' }}>{fmtWhen(n.date, n.created_at)}</span>
+            </div>
+            <div style={{ fontSize: 14, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
+            {n.staff_id && n.staff_id === staffId && <button onClick={() => del(n.id)} disabled={busy} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 11, cursor: 'pointer', padding: '4px 0 0', textDecoration: 'underline' }}>delete</button>}
+          </div>
+        )
+      })}
+    </div>
   )
 }
 

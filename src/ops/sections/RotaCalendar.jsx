@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { rotaSaveDayRoster } from '../../rota/api.js'
+import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote } from '../../rota/api.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName } from '../../rota/shifts.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
 
@@ -57,7 +57,7 @@ function WeekRow({ row }) {
   )
 }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], reload }) {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
@@ -65,6 +65,13 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
+  const [noteText, setNoteText] = useState('')
+
+  const addNote = async () => {
+    const body = noteText.trim(); if (!body) return
+    setBusy(true); try { await rotaAddDayNote(selDate, body); setNoteText(''); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const deleteNote = async (id) => { setBusy(true); try { await rotaDeleteDayNote(id); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }
 
   // date → shift rows (sorted by start); shift_id → claim rows.
   const shiftsByDate = {}
@@ -213,6 +220,36 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], rel
             busy={busy}
             onSave={(blocks) => saveRoster(selDate, blocks)}
           />
+
+          {/* Shift notes for the day — manager briefings (pop up for staff) + the team's handover log */}
+          <div style={{ borderTop: '1px dashed rgba(255,255,255,0.12)', paddingTop: 12 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>📝 Shift notes</div>
+            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>Your notes pop up for the team when they open this day. Their handover notes appear here too.</div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-start', marginBottom: 10 }}>
+              <textarea value={noteText} onChange={e => setNoteText(e.target.value)} rows={2} placeholder="e.g. Make fresh limes through · we're out of oat milk · deep-clean the ice well" style={{ flex: 1, minWidth: 200, padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+              <button onClick={addNote} disabled={busy || !noteText.trim()} style={{ ...btn('gold'), opacity: noteText.trim() ? 1 : 0.5 }}>Add note</button>
+            </div>
+            {(() => {
+              const dayNotes = notes.filter(n => n.date === selDate)
+              if (dayNotes.length === 0) return <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No notes for this day yet.</div>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {dayNotes.map(n => {
+                    const mgr = n.kind === 'manager'
+                    return (
+                      <div key={n.id} style={{ background: mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${mgr ? 'rgba(218,27,51,0.4)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '8px 10px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                          <span style={{ fontSize: 11, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}</span>
+                          <button onClick={() => deleteNote(n.id)} disabled={busy} title="Delete" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+                        </div>
+                        <div style={{ fontSize: 13, color: '#fff', whiteSpace: 'pre-wrap', marginTop: 2 }}>{n.body}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )
+            })()}
+          </div>
         </div>
       )}
 

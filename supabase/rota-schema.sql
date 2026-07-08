@@ -234,6 +234,21 @@ create table if not exists public.staff_documents (
 create index if not exists staff_documents_staff_idx on public.staff_documents (staff_id);
 alter table public.staff_documents enable row level security;
 
+-- 9) Shift notes — a per-day handover/briefing board. Management notes (staff_id
+--    null, kind 'manager') pop up for staff when they open the portal that day;
+--    staff notes (kind 'handover') are the shift log the next team reads.
+create table if not exists public.shift_notes (
+  id uuid primary key default gen_random_uuid(),
+  date date not null,
+  staff_id uuid references public.staff(id) on delete set null,   -- null = management/founder
+  author_name text,
+  body text not null,
+  kind text default 'handover',   -- 'manager' | 'handover'
+  created_at timestamptz default now()
+);
+create index if not exists shift_notes_date_idx on public.shift_notes (date);
+alter table public.shift_notes enable row level security;
+
 -- Server-only: the `rota` edge function uses the service-role key. Lock the
 -- tables to that (no anon access — staff/founder go through the function).
 alter table public.staff enable row level security;
