@@ -80,8 +80,13 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
     const slot = slotAt(drag.staffId, e.clientX)
     if (drag.mode === 'paint') setDrag(d => ({ ...d, cur: slot }))
     else if (drag.mode === 'resize') {
-      const end = Math.max(drag.startSlot + 1, slot)
-      edit(bs => bs.map(b => b.key === drag.key ? { ...b, end: minOfSlot(end) } : b))
+      if (drag.edge === 'l') {   // drag the LEFT edge — moves the start time
+        const start = Math.min(drag.fixedSlot - 1, Math.max(0, slot))
+        edit(bs => bs.map(b => b.key === drag.key ? { ...b, start: minOfSlot(start) } : b))
+      } else {                   // drag the RIGHT edge — moves the end time
+        const end = Math.max(drag.fixedSlot + 1, slot)
+        edit(bs => bs.map(b => b.key === drag.key ? { ...b, end: minOfSlot(end) } : b))
+      }
     }
   }
   const onUp = () => {
@@ -89,14 +94,18 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
     if (drag.mode === 'paint') {
       const lo = Math.min(drag.anchor, drag.cur), hi = Math.max(drag.anchor + 1, drag.cur)
       edit(bs => mergeBlocks([...bs, { key: uid(), staffId: drag.staffId, start: minOfSlot(lo), end: minOfSlot(hi) }]))
+    } else if (drag.mode === 'resize') {
+      edit(bs => mergeBlocks(bs))   // tidy any overlaps a resize created
     }
     setDrag(null)
   }
-  const startResize = (e, block) => {
+  const startResize = (e, block, edge) => {
     if (busy || saving) return
     e.stopPropagation(); e.preventDefault()
     try { trackRefs.current[block.staffId].setPointerCapture(e.pointerId) } catch { /* ignore */ }
-    setDrag({ staffId: block.staffId, mode: 'resize', key: block.key, startSlot: (block.start - WIN_START) / SLOT, pointerId: e.pointerId })
+    // 'l' fixes the end slot (drag start); 'r' fixes the start slot (drag end).
+    const startSlot = (block.start - WIN_START) / SLOT, endSlot = (block.end - WIN_START) / SLOT
+    setDrag({ staffId: block.staffId, mode: 'resize', key: block.key, edge, fixedSlot: edge === 'l' ? endSlot : startSlot, pointerId: e.pointerId })
   }
   const removeBlock = (key) => edit(bs => bs.filter(b => b.key !== key))
   const clearAll = () => { if (blocks.length && !window.confirm('Clear everyone off this day?')) return; setBlocks([]); setDirty(true) }
@@ -170,12 +179,14 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                   {mine.map(b => {
                     const left = xOfMin(b.start), w = xOfMin(b.end) - xOfMin(b.start)
                     return (
-                      <div key={b.key} style={{ position: 'absolute', top: 5, height: ROW_H - 10, left, width: w, background: `${rc}33`, border: `1.5px solid ${rc}`, borderRadius: 6, display: 'flex', alignItems: 'center', overflow: 'visible' }}>
-                        {/* ✕ on the LEFT so it never overlaps the right-edge resize handle */}
-                        <button onPointerDown={e => e.stopPropagation()} onClick={() => removeBlock(b.key)} title="Remove" style={{ position: 'absolute', top: -6, left: -6, zIndex: 3, width: 16, height: 16, borderRadius: '50%', background: '#DA1B33', border: '1px solid #000', color: '#fff', fontSize: 9, lineHeight: 1, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
-                        <span style={{ fontSize: 9.5, color: '#fff', fontWeight: 600, padding: '0 10px 0 5px', whiteSpace: 'nowrap', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtMin(b.start)}–{fmtMin(b.end)}</span>
-                        {/* right-edge resize handle */}
-                        <div onPointerDown={e => startResize(e, b)} title="Drag to trim/extend" style={{ position: 'absolute', top: 0, right: 0, zIndex: 1, width: 9, height: '100%', cursor: 'ew-resize', background: `${rc}`, opacity: 0.55, borderTopRightRadius: 5, borderBottomRightRadius: 5 }} />
+                      <div key={b.key} style={{ position: 'absolute', top: 5, height: ROW_H - 10, left, width: w, background: `${rc}33`, border: `1.5px solid ${rc}`, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                        {/* LEFT-edge resize handle — drag to change the start time */}
+                        <div onPointerDown={e => startResize(e, b, 'l')} title="Drag to change the start" style={{ position: 'absolute', top: 0, left: 0, zIndex: 2, width: 11, height: '100%', cursor: 'ew-resize', background: rc, opacity: 0.6, borderTopLeftRadius: 5, borderBottomLeftRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: 9, fontWeight: 900 }}>‖</div>
+                        <span style={{ fontSize: 9.5, color: '#fff', fontWeight: 600, padding: '0 12px', whiteSpace: 'nowrap', pointerEvents: 'none', overflow: 'hidden', textOverflow: 'ellipsis' }}>{fmtMin(b.start)}–{fmtMin(b.end)}</span>
+                        {/* RIGHT-edge resize handle — drag to change the end time */}
+                        <div onPointerDown={e => startResize(e, b, 'r')} title="Drag to change the end" style={{ position: 'absolute', top: 0, right: 0, zIndex: 2, width: 11, height: '100%', cursor: 'ew-resize', background: rc, opacity: 0.6, borderTopRightRadius: 5, borderBottomRightRadius: 5, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#000', fontSize: 9, fontWeight: 900 }}>‖</div>
+                        {/* Delete — a clear red circle overhanging the top-right corner */}
+                        <button onPointerDown={e => e.stopPropagation()} onClick={() => removeBlock(b.key)} title="Remove shift" style={{ position: 'absolute', top: -9, right: -9, zIndex: 6, width: 20, height: 20, borderRadius: '50%', background: '#DA1B33', border: '2px solid #000', color: '#fff', fontSize: 11, lineHeight: 1, cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 1px 3px rgba(0,0,0,0.6)' }}>✕</button>
                       </div>
                     )
                   })}
