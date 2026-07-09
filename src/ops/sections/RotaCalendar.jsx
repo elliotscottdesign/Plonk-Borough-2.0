@@ -121,7 +121,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const shiftMonth = (d) => { let m = viewM + d, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m); setSelDate(null) }
 
   // Save the whole day's roster from the grid (throws on error so the grid can alert).
-  const saveRoster = async (date, blocks) => { setBusy(true); try { await rotaSaveDayRoster(date, blocks); await reload() } finally { setBusy(false) } }
+  // The grid is the deliberate roster editor, so an empty save here is an intentional
+  // "clear this day" — pass allowClear so the server accepts it.
+  const saveRoster = async (date, blocks) => { setBusy(true); try { await rotaSaveDayRoster(date, blocks, true); await reload() } finally { setBusy(false) } }
 
   // Calendar grid (weeks start Monday, UTC math — matches the rest of the app).
   const startDow = (new Date(Date.UTC(viewY, viewM, 1)).getUTCDay() + 6) % 7

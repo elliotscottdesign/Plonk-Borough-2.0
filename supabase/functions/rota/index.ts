@@ -785,6 +785,10 @@ Deno.serve(async (req) => {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: "Pick a valid date." }, 400);
       if (date < todayISO()) return json({ error: "That date is in the past." }, 400);
       const blocks = Array.isArray(b.blocks) ? b.blocks : [];
+      // Clearing a whole day to nobody is destructive (hard delete, no undo). Only do
+      // it when the caller explicitly asks (allowClear) — guards against an accidental
+      // empty save (e.g. a mis-generated AI concept) wiping a populated day.
+      if (blocks.length === 0 && b.allowClear !== true) return json({ error: "That would clear the whole day. If you mean to empty it, do it from the Rota grid's Clear day." }, 400);
       const payload: any[] = [];
       for (const bl of blocks) {
         const staffId = String((bl || {}).staffId || "");

@@ -30,7 +30,7 @@ export const rotaReleaseMonth = (month, headcount) => call({ action: 'releaseMon
 export const rotaOpenDay = (date, headcount) => call({ action: 'openDay', secret: SEND_SECRET, date, headcount })
 export const rotaAddShift = (date, patch) => call({ action: 'addShift', secret: SEND_SECRET, date, ...patch })   // custom shift: {start_min,end_min,headcount,ability,min_rank,label}
 export const rotaEditShift = (shiftId, patch) => call({ action: 'editShift', secret: SEND_SECRET, shiftId, ...patch })   // edit times/name: {start_min,end_min,label}
-export const rotaSaveDayRoster = (date, blocks) => call({ action: 'saveDayRoster', secret: SEND_SECRET, date, blocks })   // grid: full-replace a day with per-person blocks [{staffId,start_min,end_min}]
+export const rotaSaveDayRoster = (date, blocks, allowClear = false) => call({ action: 'saveDayRoster', secret: SEND_SECRET, date, blocks, allowClear })   // full-replace a day; allowClear needed to empty a day
 
 // Shift notes — founder briefings (pop up for staff) + staff handover notes.
 export const rotaAddDayNote = (date, body) => call({ action: 'addDayNote', secret: SEND_SECRET, date, body })

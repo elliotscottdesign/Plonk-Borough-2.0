@@ -112,16 +112,21 @@ export function generateWeek(weekStart, staff, availabilityRows) {
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
       // kitchen-manager (Elliot) would be picked to manage every single day.
       const needKitchen = !kitchenCovered && slot.role !== 'manager'
+      // Availability as a hard-ish gate (binary): available OR never-set beat someone
+      // who set availability but NOT this day. Binary (not the finer rank) so managers
+      // still rotate by hours instead of one person who marked every day winning always.
+      const avOk = (s) => (availState(avail[s.id] || new Set(), everSet[s.id], date) >= 1 ? 1 : 0)
       pool.sort((a, b) => {
-        const av = availState(avail[b.id] || new Set(), everSet[b.id], date) - availState(avail[a.id] || new Set(), everSet[a.id], date)
-        if (av) return av
+        // Kitchen cover is a hard service requirement — for the reserved kitchen slot it
+        // outranks even availability (better an unavailable cook than no kitchen; flagged below).
         if (needKitchen) { const k = (isKitchen(b) ? 1 : 0) - (isKitchen(a) ? 1 : 0); if (k) return k }
+        const ao = avOk(a), bo = avOk(b); if (ao !== bo) return bo - ao   // marked-unavailable sinks
         const ta = targetOf(a), tb = targetOf(b)
         const oa = ta != null && (tally[a.id] || 0) >= ta ? 1 : 0
         const ob = tb != null && (tally[b.id] || 0) >= tb ? 1 : 0
         if (oa !== ob) return oa - ob   // someone already at target sinks
         const hd = (tally[a.id] || 0) - (tally[b.id] || 0)
-        if (hd) return hd
+        if (hd) return hd               // fewest hours first — spreads & rotates managers
         return (a.name || '').localeCompare(b.name || '')
       })
       const pick = pool[0]
@@ -130,10 +135,12 @@ export function generateWeek(weekStart, staff, availabilityRows) {
         warnings.push(`${date}: ${slot.role === 'manager' ? 'no manager available' : 'short-staffed'} for ${slot.label}`)
         continue
       }
+      const unavailable = availState(avail[pick.id] || new Set(), everSet[pick.id], date) === 0
       usedToday.add(pick.id)
       tally[pick.id] = (tally[pick.id] || 0) + dur(slot.start, slot.end)
       if (isKitchen(pick)) kitchenCovered = true
-      out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: '' })
+      out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Not marked available' : '' })
+      if (unavailable) warnings.push(`${date}: ${pick.name} isn't marked available`)
     }
     if (!kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
     days.push({ date, open, close, holiday, slots: out })
