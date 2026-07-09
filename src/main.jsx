@@ -17,6 +17,22 @@ if (stashed) {
   }
 }
 
+// Day = light, night = black — ONLY on the internal staff tools
+// (/ops · /rota · /today · /marketing). Flag the document BEFORE React mounts
+// so the scoped light-theme rule in index.css paints from the first frame (no
+// dark flash), and point the mobile status-bar colour at the shade that matches
+// the device's current theme. Investor decks + public pages stay dark on every
+// device.
+const isStaffSurface = /^\/(ops|operations|rota|today|marketing)(\/|$)/.test(location.pathname)
+if (isStaffSurface) {
+  document.documentElement.setAttribute('data-theme', 'auto')
+  const bar = document.querySelector('meta[name="theme-color"]')
+  const mq = window.matchMedia('(prefers-color-scheme: light)')
+  const syncBar = () => { if (bar) bar.setAttribute('content', mq.matches ? '#F5F5F0' : '#0A0A0F') }
+  syncBar()
+  mq.addEventListener('change', syncBar)
+}
+
 const root = ReactDOM.createRoot(document.getElementById('root'))
 
 // Path-based bootstrap dispatch.
@@ -32,7 +48,7 @@ const needsBootstrap = isHackneyPath || isBoroughPath
 
 if (needsBootstrap) {
   document.getElementById('root').innerHTML =
-    '<div style="height:100vh;display:flex;align-items:center;justify-content:center;' +
+    '<div style="height:100dvh;display:flex;align-items:center;justify-content:center;' +
     'background:#0A0A0F;color:#9CA3AF;font-family:system-ui,sans-serif;font-size:13px;' +
     'letter-spacing:0.08em">syncing live data…</div>'
 }

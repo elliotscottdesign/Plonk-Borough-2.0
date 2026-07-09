@@ -193,7 +193,18 @@ export default function App() {
   // is to trigger React to re-evaluate the path-based dispatch below.
   const [, setPathTick] = useState(0)
   useEffect(() => {
-    const onPath = () => setPathTick(n => n + 1)
+    // Keep the day/night light theme scoped to the staff tools even across
+    // in-app (pushState) navigation — mirrors the pre-render flag set in
+    // main.jsx so the investor decks/public pages never pick up the light flip.
+    const STAFF_SURFACE = /^\/(ops|operations|rota|today|marketing)(\/|$)/
+    const syncTheme = () => {
+      if (STAFF_SURFACE.test(window.location.pathname))
+        document.documentElement.setAttribute('data-theme', 'auto')
+      else
+        document.documentElement.removeAttribute('data-theme')
+    }
+    const onPath = () => { syncTheme(); setPathTick(n => n + 1) }
+    syncTheme()
     window.addEventListener('popstate', onPath)
     return () => window.removeEventListener('popstate', onPath)
   }, [])

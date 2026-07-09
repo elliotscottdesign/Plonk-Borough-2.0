@@ -18,7 +18,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
-:root { color-scheme: dark light; }
+:root { color-scheme: dark; }
 
 html, body, #root {
   height: 100%;
@@ -29,16 +29,29 @@ html, body, #root {
 }
 
 /* ── Day = light, night = black (follows the device, same as Claude) ─────────
-   The platform is designed dark; when the device is in LIGHT mode — which, on an
-   "Automatic" device, means daytime — invert the whole thing to a clean light
-   theme. Inverting keeps text/background contrast perfect everywhere (including
-   the many rgba(255,255,255,…) dim text & borders that would otherwise vanish on
-   white). Photos & logos (<img>) are counter-inverted so they still look normal;
-   inline SVG/icons invert with the theme so they stay visible. Add
-   data-keep-color to opt anything else out of the inversion. */
+   SCOPED to the internal staff tools only (/ops · /rota · /today · /marketing).
+   main.jsx + App.jsx set data-theme="auto" on <html> for those paths; the
+   investor decks and public pages keep their designed dark look on every device.
+
+   How it works: when the device is in LIGHT mode — which, on an "Automatic"
+   device, means daytime — invert the whole staff app to a clean light theme.
+   invert(1) hue-rotate(180deg) flips light↔dark while PRESERVING hue, so the
+   brand red, role colours and green/amber/red staffing status all stay correct;
+   only backgrounds and text swap. It also keeps contrast perfect everywhere,
+   including the many rgba(255,255,255,…) dim text & borders that would otherwise
+   vanish on white. Photos & logos (<img>) are counter-inverted so they still look
+   normal; inline SVG/icons invert with the theme so they stay visible. Add
+   data-keep-color to opt anything else out of the inversion.
+
+   The filter is applied to the ROOT <html>, which the CSS spec exempts from
+   creating a containing block — so position:fixed modals still anchor to the
+   viewport and scroll/positioning are unaffected. */
 @media (prefers-color-scheme: light) {
-  html { filter: invert(1) hue-rotate(180deg); }
-  img, video, canvas, [data-keep-color] { filter: invert(1) hue-rotate(180deg); }
+  html[data-theme="auto"] { filter: invert(1) hue-rotate(180deg); }
+  html[data-theme="auto"] img,
+  html[data-theme="auto"] video,
+  html[data-theme="auto"] canvas,
+  html[data-theme="auto"] [data-keep-color] { filter: invert(1) hue-rotate(180deg); }
 }
 
 /* Typography */
