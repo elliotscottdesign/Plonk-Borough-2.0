@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { rotaTodayRoster, rotaClockLogin } from './api.js'
 import { fmtMin } from './shifts.js'
+import AddToHome from './AddToHome.jsx'
 
 // ─── Daily clock-in hub (/today) ─────────────────────────────────────────────
 // The one link the team opens each shift (shared in WhatsApp). It shows who's
@@ -49,13 +50,15 @@ export default function DailyHub() {
   const dateLabel = date ? new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', timeZone: 'UTC' }) : ''
 
   return (
-    <div style={{ minHeight: '100vh', background: '#000', color: '#fff', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
-      <div style={{ maxWidth: 460, margin: '0 auto', padding: '4vh 18px 40px' }}>
+    <div style={{ minHeight: '100dvh', background: '#000', color: '#fff', fontFamily: "'DM Sans', system-ui, sans-serif" }}>
+      <div style={{ maxWidth: 460, margin: '0 auto', padding: 'max(4vh, env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom))' }}>
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 190, maxWidth: '66%', display: 'block', margin: '0 auto 10px' }} />
         <div style={{ textAlign: 'center', marginBottom: 22 }}>
           <div style={{ fontSize: 12, letterSpacing: '0.18em', textTransform: 'uppercase', color: RED, fontWeight: 700 }}>Today's shift</div>
           <div style={{ fontSize: 15, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{dateLabel}</div>
         </div>
+
+        <AddToHome />
 
         {!ready ? (
           <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.5)', padding: '30px 0' }}>Loading…</div>
