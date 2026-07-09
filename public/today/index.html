@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0A0A0F" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>No Dice — Today</title>
+    <script>
+      // Real 200 entry for /today. The installed home-screen app runs in
+      // standalone mode, which shows a dead page if the start URL returns
+      // GitHub Pages' 404 (the SPA fallback only recovers inside normal Safari).
+      // Serving this file at /today gives a 200, then boots the SPA at the root
+      // and restores /today before React mounts (same handshake as 404.html).
+      sessionStorage.setItem('ndb_redirect', '/today');
+      location.replace('/');
+    </script>
+  </head>
+  <body></body>
+</html>

@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="robots" content="noindex,nofollow" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#0A0A0F" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <title>No Dice — Rota</title>
+    <script>
+      // Real 200 entry for /rota (see public/today/index.html for why) — so a
+      // home-screen icon or direct visit works in standalone mode too.
+      sessionStorage.setItem('ndb_redirect', '/rota');
+      location.replace('/');
+    </script>
+  </head>
+  <body></body>
+</html>
