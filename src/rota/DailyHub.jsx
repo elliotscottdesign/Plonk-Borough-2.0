@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import { rotaTodayRoster, rotaClockLogin } from './api.js'
 import { fmtMin } from './shifts.js'
 import AddToHome from './AddToHome.jsx'
+import ManagementLogin from './ManagementLogin.jsx'
 
 // ─── Daily clock-in hub (/today) ─────────────────────────────────────────────
 // The one link the team opens each shift (shared in WhatsApp). It shows who's
@@ -91,6 +92,8 @@ export default function DailyHub() {
             </div>
           </>
         )}
+
+        <ManagementLogin />
       </div>
 
       {pick && (

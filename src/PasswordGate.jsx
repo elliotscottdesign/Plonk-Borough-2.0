@@ -1,49 +1,11 @@
 import React, { useState } from 'react'
 import { useTranslation } from 'react-i18next'
+import { lookupAccess } from './lib/access.js'
 
-// ─── Access codes ──────────────────────────────────────────────────────
-// Live codes. Each grants a role with these orthogonal flags:
-//   - plonk:     Plonk top-tab on the Borough deck (PRIVATE — founder only)
-//   - founder:   full edit access (drives canEdit on every slider/input)
-//   - hackney:   view the /hackney (London Fields) investor deck
-//   - borough:   view the /borough investor deck
-//   - ops:       the internal Operations hub at /ops
-//   - marketing: the internal Marketing hub at /marketing
-//   - role:      a string tag persisted to sessionStorage for any component
-//                that branches on it
-//
-//   888999   — founder: opens EVERYTHING.
-//   NDTEAM   — team staff: Operations + Marketing only (no investor decks).
-//   NODICE88 — Hackney investors: the Hackney deck ONLY (generic view).
-//   NODICE99 — Borough investors: the Borough deck ONLY.
-//   LEONIE   — Leonie Sands (Round 1 prospective): Hackney deck + her
-//              own bespoke "Your Agreement" tab (role:'leonie' gates the
-//              tab in src/hackney/HackneyApp.jsx). Restored June 2026
-//              after a code cleanup accidentally revoked it before her
-//              draft review.
-//   LEE01   — Lee Trott (Round 1 prospective, 1 share / £1k): Hackney
-//              deck + his own "Your Agreement" tab (role:'lee'). Same
-//              standard Round 1 terms as Leonie's draft, personalised
-//              with Lee's name + 1 share figure.
-//   MIKE    — Michael Taylor (Round 1 prospective, figure TBC):
-//              Hackney deck + his own "Your Agreement" tab (role:'mike').
-//              Cloned from Leonie's template; default 5 shares / £5k /
-//              5% until the founder edits the figures.
-//
-// Retiring a code does NOT delete any saved notes/locks/drags — those persist
-// in localStorage and on the lock-sync server keyed by the code STRING (see
-// lib/access-code.js · namespacedKey). Removing a code only disables LOGIN;
-// the data stays intact and recoverable.
-// ───────────────────────────────────────────────────────────────────────
-const ACCESS_CODES = {
-  '888999':   { plonk: true,  founder: true,  hackney: true,  borough: true,  ops: true,  marketing: true,  role: 'founder'          },
-  'NDTEAM':   { plonk: false, founder: false, hackney: false, borough: false, ops: true,  marketing: true,  role: 'team'             },
-  'NODICE88': { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'hackney-investor' },
-  'NODICE99': { plonk: false, founder: false, hackney: false, borough: true,  ops: false, marketing: false, role: 'borough-investor' },
-  'LEONIE':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'leonie'           },
-  'LEE01':   { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'lee'              },
-  'MIKE':    { plonk: false, founder: false, hackney: true,  borough: false, ops: false, marketing: false, role: 'mike'             },
-}
+// Access codes + the flags each grants now live in src/lib/access.js (single
+// source of truth), shared with the /today management log-in. Retiring a code
+// there disables LOGIN only — saved notes/locks/drags persist in localStorage /
+// on the lock-sync server keyed by the code STRING (see lib/access-code.js).
 
 export default function PasswordGate({ onUnlock }) {
   const { t } = useTranslation('gate')
@@ -68,9 +30,8 @@ export default function PasswordGate({ onUnlock }) {
   const attempt = () => {
     // Codes are case-sensitive on the digit form (888999) but the named
     // codes (NDTEAM, NODICE88, NODICE99, LEONIE, LEE01, MIKE) accept any
-    // case for friendliness.
-    const candidate = /^[0-9]+$/.test(input) ? input : input.toUpperCase()
-    const access = ACCESS_CODES[candidate]
+    // case for friendliness. Lookup + normalisation live in lib/access.js.
+    const { candidate, access } = lookupAccess(input)
     if (access) {
       // Pass the canonical access code through alongside the role flags
       // so App.jsx can use it as the per-tenant key for lock-sync.

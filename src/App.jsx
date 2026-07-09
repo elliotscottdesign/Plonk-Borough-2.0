@@ -39,6 +39,7 @@ import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
 import useIsMobile from './lib/useIsMobile.js'
+import { applyAccessSession } from './lib/access.js'
 
 // Path-based deck dispatch.
 //   /                     → public Landing page (marketing, no gate)
@@ -262,44 +263,8 @@ export default function App() {
 
   if (!unlocked) {
     return <PasswordGate onUnlock={({ plonk, founder, hackney, borough, ops, marketing, role, lang: chosenLang, accessCode }) => {
-      sessionStorage.setItem('ndb_unlocked', '1')
-      sessionStorage.removeItem('ndb_plonk')   // legacy key, no longer used
-      // Per-tenant access code — every signed-in user gets their own
-      // private slot for drags + locks. localStorage keys and the
-      // lock-sync server URL are both keyed off this string. Drags
-      // and locks under code A never affect code B's view.
-      if (accessCode) sessionStorage.setItem('ndb_access_code', accessCode)
-      else            sessionStorage.removeItem('ndb_access_code')
-      // Edit-access flag — under the per-tenant model EVERY signed-in
-      // user can drag + lock within their own scope, so this flag is
-      // set on every successful unlock. The original founder/observer
-      // boolean (only 888999 + JOHN1 currently) is preserved as
-      // ndb_role_founder for any future flow that needs to distinguish
-      // the canonical-founder tier.
-      sessionStorage.setItem('ndb_founder', '1')
-      if (founder) sessionStorage.setItem('ndb_role_founder', '1')
-      else         sessionStorage.removeItem('ndb_role_founder')
-      // Plonk visibility — 888999 and JOHN1 get the Plonk top-tab;
-      // BRAZIL and LEONIE do not. Stripped from the tab array below.
-      if (plonk) sessionStorage.setItem('ndb_plonk_access', '1')
-      else       sessionStorage.removeItem('ndb_plonk_access')
-      // Hackney deck visibility — NODICE88 is the dedicated Hackney
-      // investor code. Founder-tier (888999, JOHN1), LEONIE and BRAZIL
-      // also hold it.
-      if (hackney) sessionStorage.setItem('ndb_hackney_access', '1')
-      else         sessionStorage.removeItem('ndb_hackney_access')
-      // Ops hub visibility — founder-tier + the dedicated NDTEAM staff code.
-      if (ops) sessionStorage.setItem('ndb_ops_access', '1')
-      else     sessionStorage.removeItem('ndb_ops_access')
-      // Marketing hub visibility — founder-tier + the NDTEAM team code.
-      if (marketing) sessionStorage.setItem('ndb_marketing_access', '1')
-      else           sessionStorage.removeItem('ndb_marketing_access')
-      // Borough deck visibility — founder (888999) + the NODICE99 Borough code.
-      if (borough) sessionStorage.setItem('ndb_borough_access', '1')
-      else         sessionStorage.removeItem('ndb_borough_access')
-      // Role tag — components can branch on this for role-specific UI
-      // (e.g. BRAZIL sees an explicit "ticket slider locked" badge).
-      sessionStorage.setItem('ndb_role', role || 'investor')
+      // Canonical session unlock (shared with the /today management log-in).
+      applyAccessSession({ plonk, founder, hackney, borough, ops, marketing, role }, accessCode)
       const targetLang = chosenLang && chosenLang !== 'en' ? chosenLang : 'en'
       i18n.changeLanguage(targetLang)
       setPlonkAccess(!!plonk)
