@@ -18,12 +18,27 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+:root { color-scheme: dark light; }
+
 html, body, #root {
   height: 100%;
   background: var(--ink);
   color: var(--cream);
   font-family: 'DM Sans', sans-serif; font-size: 18px;
   -webkit-font-smoothing: antialiased;
+}
+
+/* ── Day = light, night = black (follows the device, same as Claude) ─────────
+   The platform is designed dark; when the device is in LIGHT mode — which, on an
+   "Automatic" device, means daytime — invert the whole thing to a clean light
+   theme. Inverting keeps text/background contrast perfect everywhere (including
+   the many rgba(255,255,255,…) dim text & borders that would otherwise vanish on
+   white). Photos & logos (<img>) are counter-inverted so they still look normal;
+   inline SVG/icons invert with the theme so they stay visible. Add
+   data-keep-color to opt anything else out of the inversion. */
+@media (prefers-color-scheme: light) {
+  html { filter: invert(1) hue-rotate(180deg); }
+  img, video, canvas, [data-keep-color] { filter: invert(1) hue-rotate(180deg); }
 }
 
 /* Typography */
