@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import Messages from './DJMessages.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, looksLink, wcClash } from '../../dj/api.js'
+import DJMedia from './DJMedia.jsx'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -62,7 +63,7 @@ export default function DJBookings() {
       <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 4 }} />
       <div style={{ fontSize: 11, letterSpacing: '0.2em', textTransform: 'uppercase', color: '#DA1B33', fontWeight: 700, marginBottom: 6 }}>DJ Admin</div>
       <div style={{ display: 'flex', gap: 6 }}>
-        {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster'], ['events', '🎪 Events'], ['messages', `💬 Messages${unread ? ` (${unread})` : ''}`]].map(([k, label]) => (
+        {[['calendar', '📅 Calendar'], ['roster', '🎚️ DJ Roster'], ['events', '🎪 Events'], ['media', '📸 Media'], ['messages', `💬 Messages${unread ? ` (${unread})` : ''}`]].map(([k, label]) => (
           <button key={k} onClick={() => setView(k)} style={{
             padding: '7px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
             background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
@@ -82,6 +83,8 @@ export default function DJBookings() {
         <div style={{ color: '#F87171', fontSize: 13, padding: 20 }}>Couldn't load: {err}</div>
       ) : view === 'roster' ? (
         <DJRoster djs={data.djs} slots={data.slots} release={data.release} templates={data.templates} reload={reload} />
+      ) : view === 'media' ? (
+        <DJMedia djs={data.djs} slots={data.slots} />
       ) : view === 'messages' ? (
         <Messages data={data} reload={reload} />
       ) : view === 'events' ? (
@@ -551,7 +554,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   const pickImg = async (file) => {
     if (!file) return
     setImgErr('')
-    try { setImgData(await resizeImage(file)) } catch (e) { setImgErr(e.message || 'Could not read that image') }
+    try { setImgData(await resizeImage(file, PHOTO_MAX_PX, PHOTO_QUALITY)) } catch (e) { setImgErr(e.message || 'Could not read that image') }
   }
   const submit = () => {
     if (showDj && !djId) return

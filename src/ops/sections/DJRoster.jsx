@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { djAdmin, inviteLink, resizeImage, fillTemplate, tplBody } from '../../dj/api.js'
+import { djAdmin, inviteLink, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, fillTemplate, tplBody } from '../../dj/api.js'
 import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from '../../dj/FormatPicker.jsx'
 
@@ -172,7 +172,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file || !editing) return
     setBusy(true)
     try {
-      const dataUrl = await resizeImage(file)   // HEIC auto-converts
+      const dataUrl = await resizeImage(file, PHOTO_MAX_PX, PHOTO_QUALITY)   // HEIC auto-converts; high-res for social reposts
       const snap = await djAdmin('photo', { id: editing, dataUrl })
       const u = (snap.djs || []).find(d => d.id === editing)
       if (u) setForm(u)

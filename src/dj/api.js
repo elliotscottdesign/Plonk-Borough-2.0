@@ -206,6 +206,13 @@ export function instagramCaption(ev) {
 export const fmtDate = (dateStr) => new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 export const timeLabel = (s) => s ? `${s.start.replace(':00', '')}${Number(s.start.slice(0, 2)) < 12 ? 'am' : 'pm'}–${s.end === '00:00' ? '12am' : s.end.replace(':00', '') + 'pm'}` : ''
 
+// DJ photos are downloaded by the founder for reposting on socials, so they're
+// uploaded at high resolution (vs the 1000px default used for incidental images
+// like training/handover snaps). 2000px @ q0.92 is social-ready — sharp on
+// Instagram feed & stories — while staying a modest payload for the edge fn.
+export const PHOTO_MAX_PX = 2000
+export const PHOTO_QUALITY = 0.92
+
 // Decode an image File → downscaled JPEG data URL (keeps uploads small).
 // Tries createImageBitmap (broad format support + correct orientation), falls
 // back to <img>. Throws a friendly error for formats the browser can't read

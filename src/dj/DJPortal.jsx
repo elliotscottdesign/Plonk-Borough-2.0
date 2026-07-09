@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
+import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
@@ -79,7 +79,7 @@ export default function DJPortal() {
     setBusy(true); setPhotoErr(''); setMsg('Saving photo…')
     try {
       await djPortal(token, 'save', { profile: form })   // persist typed details FIRST
-      const dataUrl = await resizeImage(file)            // HEIC auto-converts; details already saved
+      const dataUrl = await resizeImage(file, PHOTO_MAX_PX, PHOTO_QUALITY)   // HEIC auto-converts; high-res for social reposts
       refresh(await djPortal(token, 'photo', { dataUrl }))
       flash('Photo saved ✓')
     } catch (er) {
@@ -91,7 +91,7 @@ export default function DJPortal() {
     const date = claiming, slot = claimSlot
     setBusy(true); setEventPhotoErr(''); setMsg('Saving event image…')
     try {
-      const dataUrl = await resizeImage(file)
+      const dataUrl = await resizeImage(file, PHOTO_MAX_PX, PHOTO_QUALITY)
       const snap = await djPortal(token, 'eventPhoto', { date, slot, dataUrl })
       refresh(snap)
       const b = (snap.myBookings || []).find(x => x.date === date && (x.slot || 'main') === slot)
