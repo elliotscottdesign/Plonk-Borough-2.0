@@ -402,9 +402,11 @@ function NotesView({ token, notes, staffId, reload }) {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-        <textarea value={body} onChange={e => setBody(e.target.value)} rows={2} placeholder="Leave a handover note for the next shift… e.g. glasswasher needs salt, low on tonic" style={{ flex: 1, minWidth: 0, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
-        <button onClick={add} disabled={busy || !body.trim()} style={{ ...btn('red'), opacity: body.trim() ? 1 : 0.5 }}>Post</button>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {/* Full-width, roomy note box. 16px font stops iOS zooming in on tap
+            (the main reason it felt fiddly); drag the corner to make it taller. */}
+        <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Leave a handover note for the next shift… e.g. glasswasher needs salt, low on tonic" style={{ width: '100%', minHeight: 120, padding: '13px 14px', fontSize: 16, lineHeight: 1.5, borderRadius: 10, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
+        <button onClick={add} disabled={busy || !body.trim()} style={{ ...btn('red'), width: '100%', padding: '13px', fontSize: 15, opacity: body.trim() ? 1 : 0.5 }}>{busy ? 'Posting…' : 'Post note'}</button>
       </div>
       {notes.length === 0 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', padding: '18px 0', textAlign: 'center' }}>No notes yet. Management briefings and shift handovers show up here.</div>}
       {notes.map(n => {
