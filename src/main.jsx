@@ -64,3 +64,13 @@ bootstrap.finally(() => {
     </React.StrictMode>
   )
 })
+
+// Register the service worker so Chrome (Android + desktop) treats No Dice as an
+// installable app — enabling "Install app" / the add-to-home-screen prompt.
+// (iOS ignores this and installs via Safari's Share → Add to Home Screen.)
+// The worker does no caching, so it can't serve a stale build.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => { /* non-fatal */ })
+  })
+}
