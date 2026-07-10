@@ -18,7 +18,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="No Dice" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <!-- "black" keeps the installed app's content BELOW the phone status bar
+         (clock/wifi/battery) instead of sliding under it — avoids the header
+         colliding with the status bar in full-screen app mode. -->
+    <meta name="apple-mobile-web-app-status-bar-style" content="black" />
     <!-- Default favicon · dice emoji.
          Hackney route swaps this to a palm tree at runtime (HackneyApp.jsx). -->
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%8E%B2%3C/text%3E%3C/svg%3E" />

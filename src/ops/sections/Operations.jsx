@@ -8,6 +8,7 @@ import Consumables from './Consumables.jsx'
 import Suppliers from './Suppliers.jsx'
 import CocktailSpecs from './CocktailSpecs.jsx'
 import TillGuide from './TillGuide.jsx'
+import useIsMobile from '../../lib/useIsMobile.js'
 
 // Operations section — day-to-day tools. Stock Orders, Stock List, Perishables
 // & Costing are live; the rest are on the roadmap and listed so the team can
@@ -37,17 +38,20 @@ export default function Operations() {
     return OPS_TOOLS.some(t => t.key === q && t.live) ? q : 'stock'
   })()
   const [tool, setTool] = useState(initialTool)
+  const isMobile = useIsMobile()
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      {/* On phones the tool tabs are a single swipeable row instead of a 9-row
+          wrapped wall that buries the content. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0, WebkitOverflowScrolling: 'touch' }}>
         {OPS_TOOLS.map(t => {
           const on = tool === t.key
           return (
             <button key={t.key} onClick={() => t.live && setTool(t.key)}
               title={t.live ? '' : 'Coming soon'}
               style={{
-                padding: '9px 16px', borderRadius: 8, cursor: t.live ? 'pointer' : 'not-allowed',
-                fontSize: 13, opacity: t.live ? 1 : 0.5,
+                padding: isMobile ? '10px 15px' : '9px 16px', borderRadius: 8, cursor: t.live ? 'pointer' : 'not-allowed',
+                fontSize: 13, opacity: t.live ? 1 : 0.5, flexShrink: 0, whiteSpace: 'nowrap',
                 background: on ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)',
                 border: `1px solid ${on ? 'var(--gold)' : 'rgba(255,255,255,0.12)'}`,
                 color: on ? 'var(--gold)' : 'var(--cream)', fontWeight: on ? 600 : 400,
