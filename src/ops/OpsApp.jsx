@@ -13,7 +13,7 @@ import useIsMobile from '../lib/useIsMobile.js'
 // collapses into a ☰ menu so the links don't crash into each other / the page.
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
-  { key: 'rota',          label: 'Staff Rota',    Component: StaffRota },
+  { key: 'rota',          label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
   { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },
   { key: 'reports',       label: 'Reports',       Component: Reports },
@@ -22,17 +22,22 @@ const TABS = [
 ]
 
 export default function OpsApp() {
+  // Founder-only sections (Staff Rota = building rotas + staff admin) are hidden
+  // from team-tier logins (NDTEAM). Only 888999 sets ndb_role_founder.
+  const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
+  const VISIBLE = TABS.filter(t => !t.founderOnly || isFounder)
+
   // Allow a deep link like /operations?tab=helpout (used in the Help Out
   // sign-up alert email) to open straight to a given tab.
   const initialTab = (() => {
     const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
-    return TABS.some(t => t.key === q) ? q : 'operations'
+    return VISIBLE.some(t => t.key === q) ? q : 'operations'
   })()
   const [tab, setTab] = useState(initialTab)
   const [menuOpen, setMenuOpen] = useState(false)
   const isMobile = useIsMobile()
-  const Active = (TABS.find(t => t.key === tab) || TABS[0]).Component
-  const activeLabel = (TABS.find(t => t.key === tab) || TABS[0]).label
+  const Active = (VISIBLE.find(t => t.key === tab) || VISIBLE[0]).Component
+  const activeLabel = (VISIBLE.find(t => t.key === tab) || VISIBLE[0]).label
   const pick = (k) => { setTab(k); setMenuOpen(false) }
 
   const tabStyle = (active) => ({
@@ -64,7 +69,7 @@ export default function OpsApp() {
         ) : (
           <>
             <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-              {TABS.map(t => <button key={t.key} onClick={() => pick(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>)}
+              {VISIBLE.map(t => <button key={t.key} onClick={() => pick(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>)}
             </div>
             <a href="/" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.14em', textDecoration: 'none', whiteSpace: 'nowrap' }}>← nodice.bar</a>
           </>
@@ -74,7 +79,7 @@ export default function OpsApp() {
       {/* Mobile dropdown menu */}
       {isMobile && menuOpen && (
         <div style={{ background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '8px 12px 12px', display: 'flex', flexDirection: 'column', gap: 6, flexShrink: 0, position: 'relative', zIndex: 30 }}>
-          {TABS.map(t => (
+          {VISIBLE.map(t => (
             <button key={t.key} onClick={() => pick(t.key)} style={{
               textAlign: 'left', padding: '13px 14px', borderRadius: 8, cursor: 'pointer',
               background: tab === t.key ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
