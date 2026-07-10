@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName } from '../../rota/shifts.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
+import useIsMobile from '../../lib/useIsMobile.js'
 
 // ─── Rota calendar (founder) ─────────────────────────────────────────────────
 // A month grid of days; tapping a day opens the drag-to-build roster (DayRosterGrid)
@@ -67,6 +68,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
   const [noteText, setNoteText] = useState('')
+  const isMobile = useIsMobile()
 
   const addNote = async () => {
     const body = noteText.trim(); if (!body) return
@@ -307,7 +309,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
       )}
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#fff' }}>Rostering a day:</strong> tap a day to open its grid, then <strong style={{ color: '#fff' }}>drag across a person's row</strong> to set their hours (30-minute slots, colour-coded by role), drag a block's right edge to trim it, and <strong style={{ color: '#fff' }}>Save roster</strong>. Whoever you paint is who's working — their hours &amp; wage flow into the week overview above, and they see their shifts in their own portal.
+        <strong style={{ color: '#fff' }}>Rostering a day:</strong> tap a day to open it, then {isMobile
+          ? <>tap <strong style={{ color: '#fff' }}>+ Add shift</strong> on a person and set their <strong style={{ color: '#fff' }}>start &amp; end</strong> times</>
+          : <><strong style={{ color: '#fff' }}>drag across a person's row</strong> to set their hours (30-minute slots, colour-coded by role), drag a block's right edge to trim it</>}, and <strong style={{ color: '#fff' }}>Save roster</strong>. Whoever's on is who's working — their hours &amp; wage flow into the week overview above, and they see their shifts in their own portal.
       </div>
     </div>
   )

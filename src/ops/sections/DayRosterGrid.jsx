@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react'
 import { fmtMin, dayName } from '../../rota/shifts.js'
+import useIsMobile from '../../lib/useIsMobile.js'
 
 // ─── Day roster grid (founder) ───────────────────────────────────────────────
 // Hour-by-hour, 30-minute slots, one row per staff member. The founder drags to
@@ -20,6 +21,11 @@ const roleColor = (role) => ROLE_COLOR[role] || '#9CA3AF'
 const minOfSlot = (slot) => WIN_START + slot * SLOT
 const xOfMin = (m) => ((m - WIN_START) / SLOT) * SLOT_W
 const clampSlot = (s) => Math.max(0, Math.min(N_SLOTS, s))
+
+// Selectable times for the phone editor — every 30 min across the window.
+const TIME_OPTS = []
+for (let _m = WIN_START; _m <= WIN_END; _m += SLOT) TIME_OPTS.push({ min: _m, label: fmtMin(_m) })
+const selStyle = { fontSize: 14, padding: '9px 10px', borderRadius: 8, background: '#000', color: '#fff', border: '1px solid rgba(255,255,255,0.22)', outline: 'none' }
 
 let _uid = 0
 const uid = () => `b${++_uid}`
@@ -61,6 +67,18 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
   const trackRefs = useRef({})
 
   const edit = (fn) => { setBlocks(fn); setDirty(true) }
+
+  const mobile = useIsMobile()
+
+  // Phone editor: one shift per person via dropdowns. No finger-drag — on touch
+  // it hijacked the page scroll and created shifts by accident. Tap "+ Add
+  // shift" to create; pick Start/End; ✕ to remove.
+  const setShift = (staffId, start, end) => {
+    if (end <= start) end = Math.min(WIN_END, start + SLOT)
+    edit(bs => [...bs.filter(b => b.staffId !== staffId), { key: uid(), staffId, start, end }])
+  }
+  const addShift = (staffId) => setShift(staffId, 1080, 1380)   // default 6pm–11pm; adjust with the pickers
+  const removeShift = (staffId) => edit(bs => bs.filter(b => b.staffId !== staffId))
 
   const slotAt = (staffId, clientX) => {
     const rect = trackRefs.current[staffId].getBoundingClientRect()
@@ -131,7 +149,9 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>
-          Drag across a person's row to add their shift · drag the right edge to trim · ✕ to remove.
+          {mobile
+            ? 'Tap + Add shift, then set the start & end times. Save when done.'
+            : "Drag across a person's row to add their shift · drag the right edge to trim · ✕ to remove."}
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}><strong style={{ color: '#fff' }}>{workingCount}</strong> working · <strong style={{ color: '#fff' }}>{totalHours}h</strong></span>
@@ -140,6 +160,43 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
         </div>
       </div>
 
+      {mobile ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {rows.length === 0 && <div style={{ padding: 20, fontSize: 13, color: 'rgba(255,255,255,0.5)', textAlign: 'center', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10 }}>No active team members yet — add them in the Team tab.</div>}
+          {rows.map(s => {
+            const rc = roleColor(s.role)
+            const bl = blocksByStaff[s.id] || []
+            const sh = bl.length ? { start: Math.min(...bl.map(b => b.start)), end: Math.max(...bl.map(b => b.end)) } : null
+            const hrs = sh ? Math.round((sh.end - sh.start) / 60 * 10) / 10 : 0
+            return (
+              <div key={s.id} style={{ background: '#13131A', border: '1px solid rgba(255,255,255,0.1)', borderLeft: `3px solid ${rc}`, borderRadius: 10, padding: '11px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: rc, flexShrink: 0 }} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.name || 'Unnamed').split(' ')[0]}</div>
+                    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{s.role || '—'}</div>
+                  </div>
+                  {sh && <span style={{ fontSize: 13, fontWeight: 700, color: rc }}>{hrs}h</span>}
+                </div>
+                {sh ? (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <select value={sh.start} onChange={e => setShift(s.id, Number(e.target.value), sh.end)} disabled={busy || saving} style={selStyle}>
+                      {TIME_OPTS.filter(o => o.min < WIN_END).map(o => <option key={o.min} value={o.min}>{o.label}</option>)}
+                    </select>
+                    <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, flexShrink: 0 }}>to</span>
+                    <select value={sh.end} onChange={e => setShift(s.id, sh.start, Number(e.target.value))} disabled={busy || saving} style={selStyle}>
+                      {TIME_OPTS.filter(o => o.min > sh.start).map(o => <option key={o.min} value={o.min}>{o.label}</option>)}
+                    </select>
+                    <button onClick={() => removeShift(s.id)} disabled={busy || saving} title="Remove shift" style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 8, background: 'rgba(218,27,51,0.14)', border: '1px solid rgba(218,27,51,0.5)', color: '#F87171', fontSize: 15, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => addShift(s.id)} disabled={busy || saving} style={{ padding: '9px 16px', borderRadius: 8, background: `${rc}22`, border: `1px solid ${rc}`, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>+ Add shift</button>
+                )}
+              </div>
+            )
+          })}
+        </div>
+      ) : (
       <div style={{ overflowX: 'auto', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, background: '#000' }}>
         <div style={{ minWidth: NAME_W + trackW }}>
           {/* Hour header */}
@@ -196,6 +253,7 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
           })}
         </div>
       </div>
+      )}
 
       {/* Role colour legend */}
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 10, fontSize: 10.5, color: 'rgba(255,255,255,0.55)' }}>
