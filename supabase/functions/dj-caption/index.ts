@@ -93,6 +93,12 @@ Deno.serve(async (req) => {
   }
 
   const e = event || {};
+  // Past nights get a retrospective "day after" recap, not a "come down" promo —
+  // the founder often posts an Instagram reel the day after the event.
+  const isPast = typeof e?.date === "string" && e.date < new Date().toISOString().slice(0, 10);
+  const modeNote = isPast
+    ? `\n\nIMPORTANT — THIS NIGHT HAS ALREADY HAPPENED. Write a RETROSPECTIVE recap caption, as if posting it the day after: past tense, a "what a night" / thank-you feel that celebrates how it went and credits the DJ. Do NOT invite people to attend and do NOT say "free entry", "come down", "tonight" or "this weekend". Keep the date accurate — it's the night that just happened. Still finish with the usual hashtags.`
+    : "";
   const djName = e?.dj?.dj_name || "TBA";
   const ig = e?.dj?.instagram ? String(e.dj.instagram).split(/[\s/]/)[0] : "";
   const genres = Array.isArray(e?.subgenres) ? e.subgenres.join(" / ") : "";
@@ -116,7 +122,7 @@ ${facts}
 The exact date, time and address are in this auto-generated draft — keep them accurate:
 """
 ${template || ""}
-"""${avoid ? `\n\nWrite something clearly different from this previous version:\n"""\n${avoid}\n"""` : ""}
+"""${avoid ? `\n\nWrite something clearly different from this previous version:\n"""\n${avoid}\n"""` : ""}${modeNote}
 
 Return ONLY the finished caption.`;
 

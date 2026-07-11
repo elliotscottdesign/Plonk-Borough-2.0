@@ -391,7 +391,10 @@ function Events({ data, reload, filter, setFilter }) {
         const past = isPast(s)
         const meta = { held: { label: 'Draft', color: '#F59E0B' }, pending: { label: 'Pending', color: '#FCD34D' }, confirmed: { label: 'Confirmed', color: '#34D399' } }[s.status] || { label: s.status, color: '#9CA3AF' }
         const b2bName = s.dj_id2 ? ((data.djs || []).find(d => d.id === s.dj_id2)?.dj_name || 'DJ') : null
-        const showCap = !past && (s.status === 'confirmed' || s.status === 'pending')
+        // Past nights keep the caption + AI-rewrite tools too — the founder often
+        // promotes a night the day after (e.g. an Instagram reel), so past events
+        // get retrospective copy (see instagramCaption / dj-caption past mode).
+        const showCap = past || s.status === 'confirmed' || s.status === 'pending'
         return (
           <div key={k} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.10)', borderLeft: `3px solid ${sus ? '#9CA3AF' : past ? '#6B7280' : meta.color}`, borderRadius: 10, padding: '14px 16px', display: 'flex', flexDirection: 'column', gap: 12, opacity: sus ? 0.72 : past ? 0.85 : 1 }}>
             <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexWrap: 'wrap' }}>

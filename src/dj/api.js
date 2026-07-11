@@ -188,16 +188,23 @@ export function instagramCaption(ev) {
   const session = (ev?.kind || kindFor(ev.date, ev.slot)) === 'session'
   const title = ev?.night_name ? `“${ev.night_name}”` : (session ? 'No Dice Sessions' : 'Open Decks')
   const igTag = ig ? ig.split(/[\s/]/)[0] : ''
-  const lines = [
-    `🎧 ${title} — ${dateStr}`,
-    '',
-    `${dj}${dj2 ? ` b2b ${dj2}` : ''}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
-  ]
+  const past = ev.date < new Date().toISOString().slice(0, 10)   // promoting after the night → retrospective copy
+  const lines = past
+    ? [
+        `✨ What a night — ${title}, ${dateStr}`,
+        '',
+        `${dj}${dj2 ? ` b2b ${dj2}` : ''}${igTag ? ` (${igTag})` : ''} played No Dice, London Fields. 🙌`,
+      ]
+    : [
+        `🎧 ${title} — ${dateStr}`,
+        '',
+        `${dj}${dj2 ? ` b2b ${dj2}` : ''}${igTag ? ` (${igTag})` : ''} on the decks at No Dice, London Fields.`,
+      ]
   if (subs.length) lines.push(subs.join(' · '))
   if (fmt) lines.push(`🎛️ ${fmt}`)
   const promo = [ev?.promo_artist, ev?.promo_track].filter(Boolean).join(' — ')
   if (promo) lines.push(`🎵 ${promo}`)
-  lines.push(`${session ? '' : (setTypeLabel(ev.set_type) || 'Open Decks') + ' · free entry · '}${s?.day || ''} ${timeLabel(s)}`)
+  lines.push(`${session ? '' : (setTypeLabel(ev.set_type) || 'Open Decks') + (past ? ' · ' : ' · free entry · ')}${s?.day || ''} ${timeLabel(s)}`)
   lines.push('📍 407 Mentmore Terrace, London Fields, E8 3PH')
   lines.push('')
   lines.push(['#NoDice', '#LondonFields', '#Hackney', '#DJ', ...subs.slice(0, 3).map(g => '#' + g.replace(/[^a-z0-9]/gi, ''))].join(' '))
