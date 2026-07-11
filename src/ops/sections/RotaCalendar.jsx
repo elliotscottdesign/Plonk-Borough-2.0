@@ -119,7 +119,6 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null)
 
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
-  const atCurrentMonth = viewY === now.getFullYear() && viewM === now.getMonth()
   const shiftMonth = (d) => { let m = viewM + d, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m); setSelDate(null) }
 
   // Save the whole day's roster from the grid (throws on error so the grid can alert).
@@ -175,7 +174,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
       {/* Month nav */}
       <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 14 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-          <button onClick={() => shiftMonth(-1)} disabled={atCurrentMonth} style={{ background: 'transparent', border: 'none', color: atCurrentMonth ? 'rgba(255,255,255,0.2)' : RED, fontSize: 16, cursor: atCurrentMonth ? 'default' : 'pointer', padding: '4px 12px' }}>◀</button>
+          <button onClick={() => shiftMonth(-1)} style={{ background: 'transparent', border: 'none', color: RED, fontSize: 16, cursor: 'pointer', padding: '4px 12px' }}>◀</button>
           <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>{MONTHS[viewM]} {viewY}</div>
           <button onClick={() => shiftMonth(1)} style={{ background: 'transparent', border: 'none', color: RED, fontSize: 16, cursor: 'pointer', padding: '4px 12px' }}>▶</button>
         </div>
@@ -186,13 +185,12 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           {cells.map((d, i) => {
             if (!d) return <div key={i} />
             const dateStr = iso(viewY, viewM, d)
-            const past = dateStr < todayStr
             const rows = shiftsByDate[dateStr] || []
             const pattern = shiftsForDate(dateStr)
             const isSel = selDate === dateStr
             return (
-              <button key={i} type="button" disabled={past} onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: past ? 'default' : 'pointer', opacity: past ? 0.4 : 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+              <button key={i} type="button" onClick={() => setSelDate(dateStr)}
+                style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
                 {(() => {
                   const people = rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length, 0)
