@@ -24,7 +24,18 @@ const SKILL_SUGGESTIONS = ['Till', 'Cocktails', 'Draught', 'Barback', 'Floor', '
 
 // Each staff row carries a permanent token; this link logs them straight in.
 const PORTAL_URL = 'https://team.nodice.bar/rota'
+const TODAY_URL = 'https://team.nodice.bar/today'
 const loginLink = (s) => `${PORTAL_URL}?t=${s.token}`
+
+// A ready-to-send login handover for a staff member: where to sign in + their
+// password (and the tap-straight-in link as a fallback). Used by WhatsApp + Copy
+// so the founder can send someone their password in one tap.
+const loginMessage = (s) => {
+  const first = (s.name || '').split(' ')[0] || 'there'
+  return s.password
+    ? `Hi ${first}! Your No Dice staff login 👇\n\nSign in: ${TODAY_URL} — tap your name, then enter your password.\nPassword: ${s.password}\n\n(Or tap this to go straight in without typing it: ${loginLink(s)})`
+    : `Hi ${first}! Here's your No Dice staff login — tap to go straight in, no password needed:\n${loginLink(s)}`
+}
 
 function Avatar({ name, size = 46 }) {
   const initials = (name || '?').split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
@@ -364,8 +375,7 @@ function CardActions({ s, onEdit }) {
     let d = (s.phone || '').replace(/\D/g, '')
     if (d.startsWith('00')) d = d.slice(2)
     else if (d.startsWith('0')) d = '44' + d.slice(1)
-    const msg = `Hi ${(s.name || '').split(' ')[0]}! Here's your No Dice staff login — tap to go straight in, no password needed:\n${link}`
-    window.open(`https://wa.me/${d}?text=${encodeURIComponent(msg)}`, '_blank')
+    window.open(`https://wa.me/${d}?text=${encodeURIComponent(loginMessage(s))}`, '_blank')
   }
   const emailLink = async () => {
     if (!s.email) { alert('Add an email for this person first, then you can send their login.'); return }
@@ -395,7 +405,7 @@ function CardActions({ s, onEdit }) {
         <div style={{ fontSize: 10.5, color: '#FCD34D', marginBottom: 8 }}>Inactive — reactivate them (Edit profile) to send a working login.</div>
       )}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
-        <button onClick={() => copy(link, 'link')} disabled={!canSend} title={canSend ? '' : (inactive ? 'Reactivate first' : 'No login link yet')} style={{ ...btn('ghost'), ...(canSend ? {} : off) }}>{copied === 'link' ? 'Copied ✓' : '🔗 Copy link'}</button>
+        <button onClick={() => copy(loginMessage(s), 'login')} disabled={!canSend} title={canSend ? '' : (inactive ? 'Reactivate first' : 'No login link yet')} style={{ ...btn('ghost'), ...(canSend ? {} : off) }}>{copied === 'login' ? 'Copied ✓' : '📋 Copy login'}</button>
         <button onClick={whatsapp} disabled={!canSend} title={!canSend ? (inactive ? 'Reactivate first' : 'No login link yet') : (s.phone ? '' : 'No number saved — WhatsApp will let you pick the contact')} style={{ ...btn('ghost'), color: '#25D366', borderColor: 'rgba(37,211,102,0.45)', ...(canSend ? {} : off) }}>WhatsApp</button>
         <button onClick={emailLink} disabled={sending || !canSend || !s.email} title={!s.email ? 'Add an email first' : (canSend ? '' : 'Reactivate first')} style={{ ...btn('ghost'), ...((canSend && s.email) ? {} : off) }}>{sent ? 'Sent ✓' : sending ? 'Sending…' : '✉️ Email login'}</button>
         <button onClick={onEdit} style={btn('ghost')}>Edit profile</button>
