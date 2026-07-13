@@ -1,6 +1,7 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useRef, useMemo } from 'react'
 import { fmtMin, dayName } from '../../rota/shifts.js'
 import useIsMobile from '../../lib/useIsMobile.js'
+import { availabilityIndex, availabilityStatus } from '../../rota/availability.js'
 
 // ─── Day roster grid (founder) ───────────────────────────────────────────────
 // Hour-by-hour, 30-minute slots, one row per staff member. The founder drags to
@@ -46,7 +47,7 @@ function mergeBlocks(blocks) {
   return out
 }
 
-export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSave, busy }) {
+export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSave, busy, availability = [] }) {
   const rows = staff.filter(s => s.active !== false)
   const shiftById = {}
   for (const s of dayShifts) shiftById[s.id] = s
@@ -66,6 +67,16 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
   const [saving, setSaving] = useState(false)
   const trackRefs = useRef({})
 
+  // Availability — the rota builder and each staffer's "Availability" tab now
+  // talk to each other: someone who marked themselves off this day is flagged
+  // red and can't have a shift dropped on them by accident. "Book anyway"
+  // (tap the flag) overrides it for the odd case where you've cleared it with them.
+  const avIdx = useMemo(() => availabilityIndex(availability), [availability])
+  const [override, setOverride] = useState(() => new Set())
+  const avOf = (id) => availabilityStatus(avIdx, id, date)          // 'available' | 'unavailable' | 'unset'
+  const blockedFor = (id) => avOf(id) === 'unavailable' && !override.has(id)
+  const toggleOverride = (id) => setOverride(o => { const n = new Set(o); n.has(id) ? n.delete(id) : n.add(id); return n })
+
   const edit = (fn) => { setBlocks(fn); setDirty(true) }
 
   const mobile = useIsMobile()
@@ -77,7 +88,7 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
     if (end <= start) end = Math.min(WIN_END, start + SLOT)
     edit(bs => [...bs.filter(b => b.staffId !== staffId), { key: uid(), staffId, start, end }])
   }
-  const addShift = (staffId) => setShift(staffId, 1080, 1380)   // default 6pm–11pm; adjust with the pickers
+  const addShift = (staffId) => { if (blockedFor(staffId)) return; setShift(staffId, 1080, 1380) }   // default 6pm–11pm; adjust with the pickers
   const removeShift = (staffId) => edit(bs => bs.filter(b => b.staffId !== staffId))
 
   const slotAt = (staffId, clientX) => {
@@ -86,7 +97,7 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
   }
 
   const onDown = (e, staffId) => {
-    if (busy || saving) return
+    if (busy || saving || blockedFor(staffId)) return
     e.preventDefault()
     const rect = trackRefs.current[staffId].getBoundingClientRect()
     const slot = Math.max(0, Math.min(N_SLOTS - 1, Math.floor((e.clientX - rect.left) / SLOT_W)))
@@ -168,16 +179,24 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
             const bl = blocksByStaff[s.id] || []
             const sh = bl.length ? { start: Math.min(...bl.map(b => b.start)), end: Math.max(...bl.map(b => b.end)) } : null
             const hrs = sh ? Math.round((sh.end - sh.start) / 60 * 10) / 10 : 0
+            const off = avOf(s.id) === 'unavailable'
+            const overridden = override.has(s.id)
+            const blk = off && !overridden
             return (
-              <div key={s.id} style={{ background: '#13131A', border: '1px solid rgba(255,255,255,0.1)', borderLeft: `3px solid ${rc}`, borderRadius: 10, padding: '11px 12px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+              <div key={s.id} style={{ background: '#13131A', border: `1px solid ${blk ? 'rgba(248,113,113,0.4)' : 'rgba(255,255,255,0.1)'}`, borderLeft: `3px solid ${rc}`, borderRadius: 10, padding: '11px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: off ? 8 : 10 }}>
                   <span style={{ width: 9, height: 9, borderRadius: '50%', background: rc, flexShrink: 0 }} />
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 700, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.name || 'Unnamed').split(' ')[0]}</div>
+                    <div style={{ fontSize: 15, fontWeight: 700, color: off ? (overridden ? '#FBBF24' : '#F87171') : '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.name || 'Unnamed').split(' ')[0]}</div>
                     <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{s.role || '—'}</div>
                   </div>
                   {sh && <span style={{ fontSize: 13, fontWeight: 700, color: rc }}>{hrs}h</span>}
                 </div>
+                {off && (
+                  <button onClick={() => toggleOverride(s.id)} style={{ width: '100%', textAlign: 'left', marginBottom: 10, padding: '8px 10px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', background: overridden ? 'rgba(251,191,36,0.1)' : 'rgba(248,113,113,0.1)', border: `1px solid ${overridden ? 'rgba(251,191,36,0.5)' : 'rgba(248,113,113,0.5)'}`, color: overridden ? '#FBBF24' : '#F87171' }}>
+                    {overridden ? '⚠️ Booking despite being marked off — tap to re-block' : '🚫 Marked unavailable this day — tap to book anyway'}
+                  </button>
+                )}
                 {sh ? (
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                     <select value={sh.start} onChange={e => setShift(s.id, Number(e.target.value), sh.end)} disabled={busy || saving} style={selStyle}>
@@ -190,7 +209,7 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                     <button onClick={() => removeShift(s.id)} disabled={busy || saving} title="Remove shift" style={{ marginLeft: 'auto', width: 36, height: 36, borderRadius: 8, background: 'rgba(218,27,51,0.14)', border: '1px solid rgba(218,27,51,0.5)', color: '#F87171', fontSize: 15, cursor: 'pointer', flexShrink: 0, padding: 0 }}>✕</button>
                   </div>
                 ) : (
-                  <button onClick={() => addShift(s.id)} disabled={busy || saving} style={{ padding: '9px 16px', borderRadius: 8, background: `${rc}22`, border: `1px solid ${rc}`, color: '#fff', fontSize: 14, fontWeight: 600, cursor: 'pointer' }}>+ Add shift</button>
+                  <button onClick={() => addShift(s.id)} disabled={busy || saving || blk} title={blk ? 'Marked unavailable this day' : ''} style={{ padding: '9px 16px', borderRadius: 8, background: `${rc}22`, border: `1px solid ${rc}`, color: '#fff', fontSize: 14, fontWeight: 600, cursor: blk ? 'not-allowed' : 'pointer', opacity: blk ? 0.4 : 1 }}>+ Add shift</button>
                 )}
               </div>
             )
@@ -214,6 +233,9 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
           {rows.map((s, ri) => {
             const rc = roleColor(s.role)
             const mine = blocksByStaff[s.id] || []
+            const off = avOf(s.id) === 'unavailable'
+            const overridden = override.has(s.id)
+            const blk = off && !overridden
             const drafting = drag && drag.mode === 'paint' && drag.staffId === s.id
               ? { lo: Math.min(drag.anchor, drag.cur), hi: Math.max(drag.anchor + 1, drag.cur) } : null
             return (
@@ -221,14 +243,16 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                 <div style={{ width: NAME_W, flexShrink: 0, display: 'flex', alignItems: 'center', gap: 7, padding: '0 8px', borderRight: '1px solid rgba(255,255,255,0.12)', borderLeft: `3px solid ${rc}` }}>
                   <span style={{ width: 8, height: 8, borderRadius: '50%', background: rc, flexShrink: 0 }} />
                   <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.name || 'Unnamed').split(' ')[0]}</div>
-                    <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.role || '—'}</div>
+                    <div style={{ fontSize: 12, color: off ? (overridden ? '#FBBF24' : '#F87171') : '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{(s.name || 'Unnamed').split(' ')[0]}</div>
+                    {off
+                      ? <button onClick={() => toggleOverride(s.id)} title={overridden ? 'Booked despite being marked off — click to re-block' : 'Marked unavailable this day — click to book anyway'} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', display: 'block', maxWidth: '100%', textAlign: 'left', fontSize: 9, fontWeight: 700, color: overridden ? '#FBBF24' : '#F87171', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{overridden ? '⚠ booking anyway' : '🚫 unavailable'}</button>
+                      : <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.role || '—'}</div>}
                   </div>
                 </div>
                 <div
                   ref={el => { trackRefs.current[s.id] = el }}
                   onPointerDown={e => onDown(e, s.id)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
-                  style={{ position: 'relative', width: trackW, height: ROW_H, backgroundImage: gridBg, cursor: busy || saving ? 'default' : 'crosshair', touchAction: 'none' }}
+                  style={{ position: 'relative', width: trackW, height: ROW_H, backgroundImage: gridBg, backgroundColor: blk ? 'rgba(248,113,113,0.09)' : undefined, cursor: (busy || saving) ? 'default' : (blk ? 'not-allowed' : 'crosshair'), touchAction: 'none' }}
                 >
                   {drafting && drafting.hi > drafting.lo && (
                     <div style={{ position: 'absolute', top: 5, height: ROW_H - 10, left: drafting.lo * SLOT_W, width: (drafting.hi - drafting.lo) * SLOT_W, background: `${rc}55`, border: `1px dashed ${rc}`, borderRadius: 6 }} />

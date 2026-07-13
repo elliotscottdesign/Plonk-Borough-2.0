@@ -59,7 +59,7 @@ function WeekRow({ row }) {
   )
 }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], reload }) {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
@@ -236,6 +236,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 staff={staff}
                 dayShifts={selShifts}
                 dayClaims={dayClaims}
+                availability={availability}
                 busy={busy}
                 onSave={(blocks) => saveRoster(selDate, blocks)}
               />
