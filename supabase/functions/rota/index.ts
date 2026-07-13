@@ -128,14 +128,23 @@ Deno.serve(async (req) => {
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
 
   try {
-    // ── Staff login: email + password → their profile + token ──────────────────
+    // ── Staff login: NAME + password → their profile + token ───────────────────
+    // One credential for every door — the same name + password the /today hub uses
+    // when you tap your name. Accepts a first name OR a full name, case-insensitive.
     if (action === "login") {
-      const email = String(b.email || "").trim().toLowerCase();
+      const typed = String(b.name || b.email || "").trim().toLowerCase();
       const pw = String(b.password || "");
-      if (!email || !pw) return json({ error: "Enter your email and password." }, 400);
-      const { data } = await sb.from("staff").select("*").ilike("email", email).limit(1);
-      const s = (data || [])[0];
-      if (!s || (s.password || "") !== pw) return json({ error: "Email or password not recognised." }, 401);
+      if (!typed || !pw) return json({ error: "Enter your name and password." }, 400);
+      const { data: all } = await sb.from("staff").select("*");
+      const matches = (all || []).filter((s: any) => {
+        const full = String(s.name || "").trim().toLowerCase();
+        return !!full && (full === typed || full.split(/\s+/)[0] === typed);
+      });
+      if (matches.length === 0) return json({ error: "Name not recognised — check the spelling with your manager." }, 401);
+      // If more than one person goes by that name, tell them apart by the password.
+      const s = matches.length === 1 ? matches[0] : matches.filter((m: any) => (m.password || "") === pw)[0];
+      if (matches.length > 1 && !s) return json({ error: "More than one person goes by that name — type your full name (first + last)." }, 409);
+      if (!s || (s.password || "") !== pw) return json({ error: "Name or password not recognised." }, 401);
       if (s.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
       return json({ ok: true, staff: publicStaff(s), token: s.token });
     }

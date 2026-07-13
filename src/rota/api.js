@@ -51,7 +51,7 @@ export const rotaUnassign = (shiftId, staffId) => call({ action: 'unassignShift'
 export const rotaSetShiftReq = (shiftId, patch) => call({ action: 'setShiftReq', secret: SEND_SECRET, shiftId, ...patch })
 
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
-export const rotaLogin = (email, password) => call({ action: 'login', email, password })
+export const rotaLogin = (name, password) => call({ action: 'login', name, password })   // name + password (same as the /today tap-your-name login)
 export const rotaSignup = (name, email, password, code) => call({ action: 'signup', name, email, password, code })
 export const rotaMe = (token) => call({ action: 'me', token })
 export const rotaMyState = (token) => call({ action: 'myState', token })

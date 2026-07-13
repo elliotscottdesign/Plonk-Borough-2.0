@@ -34,7 +34,7 @@ const loginLink = (s) => `${PORTAL_URL}?t=${s.token}`
 const loginMessage = (s) => {
   const first = (s.name || '').split(' ')[0] || 'there'
   return s.password
-    ? `Hi ${first}! Your No Dice staff login 👇\n\nSign in: ${TODAY_URL} — tap your name, then enter your password.\nPassword: ${s.password}\n\n(Or tap this to go straight in without typing it: ${loginLink(s)})`
+    ? `Hi ${first}! Your No Dice staff login 👇\n\nName: ${s.name || first}\nPassword: ${s.password}\n\nSign in at ${TODAY_URL} — tap (or type) your name, then your password. Same login works on any No Dice screen.\n\n(Or tap this to go straight in: ${loginLink(s)})`
     : `Hi ${first}! Here's your No Dice staff login — tap to go straight in, no password needed:\n${loginLink(s)}`
 }
 

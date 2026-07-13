@@ -85,7 +85,7 @@ export default function RotaPortal() {
   const [vy, setVy] = useState(now.getFullYear())
   const [vm, setVm] = useState(now.getMonth())
   const [selDate, setSelDate] = useState(null)
-  const [login, setLogin] = useState({ email: '', password: '' })
+  const [login, setLogin] = useState({ name: '', password: '' })
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const joinCode = params.get('join')
   const magicToken = params.get('t')   // personal login link the founder shares — logs straight in
@@ -130,10 +130,10 @@ export default function RotaPortal() {
   }
   const doLogin = async (e) => {
     e?.preventDefault?.()
-    if (!login.email.trim() || !login.password) { setErr('Enter your email and password.'); return }
+    if (!login.name.trim() || !login.password) { setErr('Enter your name and password.'); return }
     setBusy(true); setErr('')
     try {
-      const r = await rotaLogin(login.email.trim(), login.password)
+      const r = await rotaLogin(login.name.trim(), login.password)
       localStorage.setItem(TOKEN_KEY, r.token); setToken(r.token)
       setStaff(r.staff); await loadState(r.token)
     } catch (e2) { setErr(e2.message) } finally { setBusy(false) }
@@ -213,7 +213,7 @@ export default function RotaPortal() {
           ) : (
             <>
               <form onSubmit={doLogin} style={{ display: 'flex', flexDirection: 'column', gap: 10, textAlign: 'left' }}>
-                <input value={login.email} onChange={e => setLogin(l => ({ ...l, email: e.target.value }))} placeholder="Email" autoComplete="username" style={inp} />
+                <input value={login.name} onChange={e => setLogin(l => ({ ...l, name: e.target.value }))} placeholder="Your name" autoComplete="username" style={inp} />
                 <input value={login.password} onChange={e => setLogin(l => ({ ...l, password: e.target.value }))} placeholder="Password" type="password" autoComplete="current-password" style={inp} />
                 {err && <div style={{ fontSize: 12.5, color: '#F87171' }}>{err}</div>}
                 <button type="submit" disabled={busy} style={{ ...btn('red'), padding: '12px', fontSize: 14, marginTop: 4 }}>{busy ? 'Logging in…' : 'Log in'}</button>
