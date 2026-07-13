@@ -494,15 +494,53 @@ function Events({ data, reload, filter, setFilter }) {
 function Dropdown({ value, onChange, options, placeholder = 'Select…', width = 220 }) {
   const [open, setOpen] = useState(false)
   const [up, setUp] = useState(false)
+  const [highlight, setHighlight] = useState(-1)
+  const hlRef = useRef(-1)                                  // latest highlight, read-fresh each keypress
+  const setHL = (i) => { hlRef.current = i; setHighlight(i) }
   const ref = useRef(null)
+  const menuRef = useRef(null)
+  const bufRef = useRef({ str: '', t: 0 })   // type-to-jump buffer
   const sel = options.find(o => o.value === value)
   const toggle = () => {
     if (!open && ref.current) {
       const r = ref.current.getBoundingClientRect()
       setUp(window.innerHeight - r.bottom < 280 && r.top > 280)
+      setHL(Math.max(0, options.findIndex(o => o.value === value)))
+      bufRef.current = { str: '', t: 0 }
     }
     setOpen(o => !o)
   }
+  // Focus the menu when it opens so it catches key presses.
+  useEffect(() => { if (open) menuRef.current?.focus() }, [open])
+  const scrollTo = (i) => { menuRef.current?.querySelectorAll('[data-opt]')[i]?.scrollIntoView({ block: 'nearest' }) }
+  const choose = (o) => { if (o) { onChange(o.value); setOpen(false) } }
+
+  const onKeyDown = (e) => {
+    if (e.key === 'Escape') { setOpen(false); return }
+    if (e.key === 'ArrowDown') { e.preventDefault(); const n = Math.min(options.length - 1, hlRef.current + 1); setHL(n); scrollTo(n); return }
+    if (e.key === 'ArrowUp') { e.preventDefault(); const n = Math.max(0, hlRef.current - 1); setHL(n); scrollTo(n); return }
+    if (e.key === 'Enter') { e.preventDefault(); choose(options[hlRef.current]); return }
+    if (e.key.length === 1 && /\S/.test(e.key)) {
+      // Type-to-jump: a letter jumps to the first name/item starting with it;
+      // press the same letter again to cycle; type several letters quickly to
+      // match that prefix — exactly like a native <select>.
+      const now = Date.now(), ch = e.key.toLowerCase(), buf = bufRef.current
+      const continuing = now - buf.t < 700
+      buf.str = continuing ? buf.str + ch : ch
+      buf.t = now
+      const s = buf.str, allSame = [...s].every(c => c === s[0])
+      const starts = (o, p) => String(o.label || '').trim().toLowerCase().startsWith(p)
+      const cur = hlRef.current
+      let idx = -1
+      if (allSame && continuing && s.length > 1) {
+        for (let i = 1; i <= options.length; i++) { const j = (cur + i) % options.length; if (starts(options[j], s[0])) { idx = j; break } }
+      } else {
+        idx = options.findIndex(o => starts(o, allSame ? s[0] : s))
+      }
+      if (idx >= 0) { setHL(idx); scrollTo(idx) }
+    }
+  }
+
   return (
     <div ref={ref} style={{ position: 'relative', width }}>
       <button type="button" onClick={toggle} style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: `1px solid ${open ? '#DA1B33' : 'rgba(255,255,255,0.18)'}`, color: sel ? '#FFFFFF' : 'rgba(255,255,255,0.5)', cursor: 'pointer', textAlign: 'left' }}>
@@ -512,11 +550,11 @@ function Dropdown({ value, onChange, options, placeholder = 'Select…', width =
       {open && (
         <>
           <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />
-          <div style={{ position: 'absolute', ...(up ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 8, maxHeight: 260, overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.6)' }}>
+          <div ref={menuRef} tabIndex={-1} onKeyDown={onKeyDown} style={{ position: 'absolute', ...(up ? { bottom: 'calc(100% + 4px)' } : { top: 'calc(100% + 4px)' }), left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 8, maxHeight: 260, overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.6)', outline: 'none' }}>
             {options.length === 0 && <div style={{ padding: '10px 12px', fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No DJs yet</div>}
-            {options.map(o => (
-              <button key={o.value} type="button" onClick={() => { onChange(o.value); setOpen(false) }}
-                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 13, background: o.value === value ? 'rgba(218,27,51,0.18)' : 'transparent', color: o.value === value ? '#fff' : 'rgba(255,255,255,0.85)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}>
+            {options.map((o, i) => (
+              <button key={o.value} data-opt type="button" onClick={() => choose(o)} onMouseEnter={() => setHighlight(i)}
+                style={{ display: 'block', width: '100%', textAlign: 'left', padding: '9px 12px', fontSize: 13, background: i === highlight ? 'rgba(218,27,51,0.30)' : (o.value === value ? 'rgba(218,27,51,0.12)' : 'transparent'), color: (i === highlight || o.value === value) ? '#fff' : 'rgba(255,255,255,0.85)', border: 'none', borderTop: '1px solid rgba(255,255,255,0.05)', cursor: 'pointer' }}>
                 {o.label}
               </button>
             ))}
