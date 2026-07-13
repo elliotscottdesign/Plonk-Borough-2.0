@@ -14,7 +14,9 @@ export const abilityIcon = (k) => (ABILITIES.find(a => a.key === k) || {}).icon 
 
 // Role hierarchy — higher rank can cover a lower-rank shift, not the other way.
 export const RANKS = ['Bar Staff', 'Supervisor', 'Asst. Manager', 'Manager']   // index+1 = rank
-export const ROLE_RANK = { 'Bar Staff': 1, 'Supervisor': 2, 'Asst. Manager': 3, 'Manager': 4 }
+// Kitchen / Barback is a floor/support role — same rank as Bar Staff (not on the
+// promotion ladder above, so RANKS stays the Bar→Manager progression).
+export const ROLE_RANK = { 'Bar Staff': 1, 'Kitchen / Barback': 1, 'Supervisor': 2, 'Asst. Manager': 3, 'Manager': 4 }
 export const staffRank = (role) => ROLE_RANK[role] || 1
 export const rankLabel = (r) => RANKS[(r || 1) - 1] || 'Bar Staff'
 

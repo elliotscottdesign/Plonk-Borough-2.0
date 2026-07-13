@@ -15,7 +15,7 @@ async function call(payload) {
 }
 
 // Roles a staff member can hold (kept in sync with the edge function + data.js).
-export const STAFF_ROLES = ['Bar Staff', 'Supervisor', 'Asst. Manager', 'Manager']
+export const STAFF_ROLES = ['Bar Staff', 'Kitchen / Barback', 'Supervisor', 'Asst. Manager', 'Manager']
 
 // ── Founder admin (gated /ops) ───────────────────────────────────────────────
 export const rotaAdmin = () => call({ action: 'admin', secret: SEND_SECRET })

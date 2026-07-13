@@ -68,7 +68,7 @@ export function daySlots(dateStr) {
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
-const isKitchen = (s) => (s.abilities || []).includes('kitchen')
+const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
 
 // availByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked available.
 function buildAvail(availabilityRows) {

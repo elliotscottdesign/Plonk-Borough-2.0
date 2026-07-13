@@ -8,6 +8,7 @@ import { MODULE_META, cocktailKey } from '../../rota/training.js'
 import { SPECS } from '../data/cocktailSpecs.js'
 import RotaCalendar from './RotaCalendar.jsx'
 import AiRota from './AiRota.jsx'
+import AvailabilityOverview from './AvailabilityOverview.jsx'
 import ChecklistLog from './ChecklistLog.jsx'
 import TrainingMatrix from './TrainingMatrix.jsx'
 import MenuAdmin from './MenuAdmin.jsx'
@@ -149,13 +150,15 @@ export default function StaffRota() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['ai', '🤖 AI Rota'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus']].map(([k, lbl]) => (
+        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 AI Rota'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
       </div>
 
       {view === 'rota' ? (
         <RotaCalendar staff={staff} shifts={shifts} claims={claims} notes={notes} clocks={clocks} availability={availability} reload={load} />
+      ) : view === 'availability' ? (
+        <AvailabilityOverview staff={staff} availability={availability} />
       ) : view === 'ai' ? (
         <AiRota staff={staff} availability={availability} reload={load} />
       ) : view === 'checklists' ? (

@@ -16,7 +16,7 @@ const WIN_START = 600, WIN_END = 1560, SLOT = 30      // 10:00 … 02:00, 30-min
 const N_SLOTS = (WIN_END - WIN_START) / SLOT          // 32
 const SLOT_W = 26, ROW_H = 40, NAME_W = 134
 
-const ROLE_COLOR = { 'Manager': '#A855F7', 'Asst. Manager': '#3B82F6', 'Supervisor': '#22D3EE', 'Bar Staff': '#34D399' }
+const ROLE_COLOR = { 'Manager': '#A855F7', 'Asst. Manager': '#3B82F6', 'Supervisor': '#22D3EE', 'Bar Staff': '#34D399', 'Kitchen / Barback': '#FB923C' }
 const roleColor = (role) => ROLE_COLOR[role] || '#9CA3AF'
 
 const minOfSlot = (slot) => WIN_START + slot * SLOT
