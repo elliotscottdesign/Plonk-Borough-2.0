@@ -16,7 +16,7 @@ const cream = 'var(--cream)'
 const ink2 = 'rgba(255,255,255,0.04)'
 const dim = 'rgba(245,239,227,0.6)'
 
-export default function CocktailSpecs() {
+export default function CocktailSpecs({ embedded = false }) {
   const [activeSection, setActiveSection] = useState('all')
   const [query, setQuery] = useState('')
 
@@ -38,21 +38,32 @@ export default function CocktailSpecs() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: cream }}>
-      {/* ─── No Dice brand header (hidden in print) ────────────── */}
-      <OpsBrandHeader
-        eyebrow="Operations · Cocktail Specs"
-        title="House cocktail build reference"
-        subtitle={(
-          <>
-            Source of truth for every spec on the bar — from <strong style={{ color: cream }}>Cocktail Specs Update DEC 2025.pdf</strong>.
-            Click <strong style={{ color: cream }}>Print sheet</strong> for an ink-efficient black-on-white download with the No Dice
-            wordmark on every page. Filter or search to narrow.
-          </>
-        )}
-        action={(
+      {/* ─── Header — full brand header in /ops; a compact one when embedded
+              (e.g. the staff portal's Cocktails tab). Hidden in print. ─────── */}
+      {embedded ? (
+        <div className="screen-only" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="serif" style={{ fontSize: 20, color: cream }}>🍸 House cocktail specs</div>
+            <div style={{ fontSize: 12.5, color: dim, marginTop: 2 }}>Every house build — search or filter to find one fast.</div>
+          </div>
           <button onClick={() => window.print()} style={btnPrimary}>Print sheet ↗</button>
-        )}
-      />
+        </div>
+      ) : (
+        <OpsBrandHeader
+          eyebrow="Operations · Cocktail Specs"
+          title="House cocktail build reference"
+          subtitle={(
+            <>
+              Source of truth for every spec on the bar — from <strong style={{ color: cream }}>Cocktail Specs Update DEC 2025.pdf</strong>.
+              Click <strong style={{ color: cream }}>Print sheet</strong> for an ink-efficient black-on-white download with the No Dice
+              wordmark on every page. Filter or search to narrow.
+            </>
+          )}
+          action={(
+            <button onClick={() => window.print()} style={btnPrimary}>Print sheet ↗</button>
+          )}
+        />
+      )}
 
       {/* ─── Toolbar (hidden in print) ──────────────────────────── */}
       <div className="screen-only" style={{

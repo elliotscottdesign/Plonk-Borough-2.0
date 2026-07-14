@@ -10,6 +10,7 @@ import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCou
 import { rotaMenus } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
+import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -82,7 +83,7 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'profile'].includes(t) ? t : 'shifts'
+    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -233,7 +234,7 @@ export default function RotaPortal() {
     )
   }
 
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -371,6 +372,8 @@ export default function RotaPortal() {
         {view === 'training' && <TrainingView token={token} training={training} onToggle={(key, on) => setTraining(prev => on ? [...new Set([...prev, key])] : prev.filter(k => k !== key))} />}
 
         {view === 'menus' && <MenusView />}
+
+        {view === 'cocktails' && <CocktailSpecs embedded />}
 
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
