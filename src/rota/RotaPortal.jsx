@@ -80,7 +80,10 @@ export default function RotaPortal() {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
-  const [view, setView] = useState('shifts')             // 'shifts' | 'availability' | 'profile'
+  const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
+    const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
+    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'profile'].includes(t) ? t : 'shifts'
+  })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
   const [vm, setVm] = useState(now.getMonth())
@@ -89,6 +92,7 @@ export default function RotaPortal() {
   const params = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : new URLSearchParams()
   const joinCode = params.get('join')
   const magicToken = params.get('t')   // personal login link the founder shares — logs straight in
+  const preview = params.get('preview') === '1'   // founder's mirror: adopt the token for THIS session only, don't persist
   const [mode, setMode] = useState(joinCode ? 'signup' : 'login')   // 'login' | 'signup'
   const [signup, setSignup] = useState({ name: '', email: '', password: '' })
 
@@ -99,6 +103,9 @@ export default function RotaPortal() {
     // A shared login link (?t=<token>) is authoritative — adopt it, then wipe it
     // from the address bar so the token isn't left on screen or re-shared.
     if (magicToken) {
+      // Founder preview: use the token for this tab only — don't write it to
+      // localStorage or wipe the URL, so the founder's own /rota login is untouched.
+      if (preview) { setToken(magicToken); loadState(magicToken); return }
       localStorage.setItem(TOKEN_KEY, magicToken); setToken(magicToken)
       try { window.history.replaceState({}, '', window.location.pathname) } catch { /* ignore */ }
       loadState(magicToken); return
@@ -231,6 +238,12 @@ export default function RotaPortal() {
   return (
     <Shell>
       <div style={{ maxWidth: 620, margin: '0 auto', padding: '16px 14px 60px' }}>
+        {preview && (
+          <div style={{ background: 'rgba(96,165,250,0.14)', border: '1px solid rgba(96,165,250,0.5)', borderRadius: 10, padding: '9px 12px', marginBottom: 14, fontSize: 12.5, color: '#93C5FD', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <span>👁 Founder preview — {(staff?.name || '').split(' ')[0] || 'this'}’s portal, exactly as they see it.</span>
+            <button onClick={() => window.close()} style={{ background: 'none', border: '1px solid rgba(96,165,250,0.5)', color: '#93C5FD', borderRadius: 6, padding: '3px 9px', fontSize: 11.5, cursor: 'pointer', whiteSpace: 'nowrap' }}>Close</button>
+          </div>
+        )}
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 140, display: 'block', margin: '0 auto 14px' }} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
           <Avatar name={staff.name} />

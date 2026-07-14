@@ -411,6 +411,7 @@ function CardActions({ s, onEdit }) {
         <button onClick={() => copy(loginMessage(s), 'login')} disabled={!canSend} title={canSend ? '' : (inactive ? 'Reactivate first' : 'No login link yet')} style={{ ...btn('ghost'), ...(canSend ? {} : off) }}>{copied === 'login' ? 'Copied ✓' : '📋 Copy login'}</button>
         <button onClick={whatsapp} disabled={!canSend} title={!canSend ? (inactive ? 'Reactivate first' : 'No login link yet') : (s.phone ? '' : 'No number saved — WhatsApp will let you pick the contact')} style={{ ...btn('ghost'), color: '#25D366', borderColor: 'rgba(37,211,102,0.45)', ...(canSend ? {} : off) }}>WhatsApp</button>
         <button onClick={emailLink} disabled={sending || !canSend || !s.email} title={!s.email ? 'Add an email first' : (canSend ? '' : 'Reactivate first')} style={{ ...btn('ghost'), ...((canSend && s.email) ? {} : off) }}>{sent ? 'Sent ✓' : sending ? 'Sending…' : '✉️ Email login'}</button>
+        <button onClick={() => window.open(`${loginLink(s)}&preview=1&tab=profile`, '_blank', 'noopener')} disabled={!s.token} title={s.token ? 'Open their portal in a new tab — exactly what they see (a read-only mirror)' : 'No login link yet'} style={{ ...btn('ghost'), color: '#60A5FA', borderColor: 'rgba(96,165,250,0.45)', ...(s.token ? {} : off) }}>👁 View as staff</button>
         <button onClick={onEdit} style={btn('ghost')}>Edit profile</button>
       </div>
     </div>
