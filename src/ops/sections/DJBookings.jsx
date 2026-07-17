@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import Messages from './DJMessages.jsx'
 import DJMedia from './DJMedia.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
@@ -72,6 +72,22 @@ export default function DJBookings() {
           }}>{label}</button>
         ))}
       </div>
+
+      {/* View as DJ — open any DJ's own portal, exactly as they see it, for
+          debugging what they're reporting. The /dj?t= link is read-only per visit. */}
+      {data && (data.djs || []).some(d => d.token) && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '9px 13px' }}>
+          <span style={{ fontSize: 12.5, color: '#93C5FD', fontWeight: 700, whiteSpace: 'nowrap' }}>👁 See what a DJ sees</span>
+          <Dropdown
+            value=""
+            placeholder="Pick a DJ → open their page…"
+            width={250}
+            options={(data.djs || []).filter(d => d.token).map(d => ({ value: d.token, label: d.dj_name || 'DJ' }))}
+            onChange={(tok) => { if (tok) window.open(inviteLink(tok), '_blank', 'noopener') }}
+          />
+          <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Opens their portal exactly as they see it — resize the window for phone view.</span>
+        </div>
+      )}
 
       {loading && !data ? (
         <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 14, padding: 20 }}>Loading the live DJ database…</div>
