@@ -12,6 +12,7 @@ import AvailabilityOverview from './AvailabilityOverview.jsx'
 import ChecklistLog from './ChecklistLog.jsx'
 import TrainingMatrix from './TrainingMatrix.jsx'
 import MenuAdmin from './MenuAdmin.jsx'
+import VenueClockSettings from './VenueClockSettings.jsx'
 
 // ─── Staff Rota — team roster (admin) ────────────────────────────────────────
 // Reads/writes the Supabase `staff` table via the `rota` edge function. Each
@@ -150,7 +151,7 @@ export default function StaffRota() {
         </div>
       )}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 AI Rota'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus']].map(([k, lbl]) => (
+        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 AI Rota'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
       </div>
@@ -167,6 +168,8 @@ export default function StaffRota() {
         <TrainingMatrix staff={staff} />
       ) : view === 'menus' ? (
         <MenuAdmin />
+      ) : view === 'settings' ? (
+        <VenueClockSettings />
       ) : (<>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>

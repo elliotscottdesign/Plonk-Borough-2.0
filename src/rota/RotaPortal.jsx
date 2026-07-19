@@ -5,6 +5,7 @@ import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
 import StatementDoc from './StatementDoc.jsx'
 import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
+import { getFix, presenceBadge } from './geo.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -76,6 +77,7 @@ export default function RotaPortal() {
   const [notePopup, setNotePopup] = useState([])          // today's manager briefings shown on open
   const [clock, setClock] = useState(null)                // today's clock in/out
   const [clocks, setClocks] = useState([])                // clock history (past ~90 days), for past-shift actual times
+  const [clockMsg, setClockMsg] = useState('')            // transient note after a clock-in (e.g. off-site flag)
   const [rosteredToday, setRosteredToday] = useState(false)
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
@@ -194,8 +196,25 @@ export default function RotaPortal() {
   const claim = (id) => act(() => rotaClaimShift(token, id))
   const release = (id) => act(() => rotaReleaseShift(token, id))
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
-  const doClockIn = async () => { setBusy(true); try { const r = await rotaClockIn(token); setClock(r.clock) } catch (e) { handleErr(e) } finally { setBusy(false) } }
-  const doClockOut = async () => { if (!window.confirm('End your shift now? This records your finish time.')) return; setBusy(true); try { const r = await rotaClockOut(token); setClock(r.clock) } catch (e) { handleErr(e) } finally { setBusy(false) } }
+  const doClockIn = async () => {
+    setBusy(true); setClockMsg('')
+    try {
+      const fix = await getFix()                          // one-off location check (null if denied — never blocks)
+      const r = await rotaClockIn(token, fix)
+      setClock(r.clock)
+      if (r.presence === 'off-site' || r.presence === 'unverified')
+        setClockMsg("Clocked in ✓ — we couldn't confirm you're at No Dice, so your manager will just double-check this one.")
+    } catch (e) { handleErr(e) } finally { setBusy(false) }
+  }
+  const doClockOut = async () => {
+    if (!window.confirm('End your shift now? This records your finish time.')) return
+    setBusy(true); setClockMsg('')
+    try {
+      const fix = await getFix()
+      const r = await rotaClockOut(token, fix)
+      setClock(r.clock)
+    } catch (e) { handleErr(e) } finally { setBusy(false) }
+  }
 
   // ── Render states ───────────────────────────────────────────────────────────
   if (!ready) return <Center>Loading…</Center>
@@ -263,15 +282,20 @@ export default function RotaPortal() {
           const wh = Math.floor(workedMin / 60), wm = workedMin % 60
           const bg = ended ? 'rgba(255,255,255,0.05)' : started ? 'rgba(52,211,153,0.10)' : 'rgba(218,27,51,0.12)'
           const bd = ended ? LINE : started ? 'rgba(52,211,153,0.45)' : 'rgba(218,27,51,0.5)'
+          const badgeIn = presenceBadge(clock?.presence)
           return (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', background: bg, border: `1px solid ${bd}`, borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
-              <div style={{ fontSize: 13.5, color: '#fff', fontWeight: 600 }}>
-                {ended ? <>✅ Shift done — you worked <strong>{wh}h{wm ? ` ${wm}m` : ''}</strong> today.</>
-                  : started ? <>🟢 On shift since <strong>{fmtT(started)}</strong>.</>
-                    : <>You're on today — tap to clock in.</>}
+            <div style={{ background: bg, border: `1px solid ${bd}`, borderRadius: 12, padding: '12px 14px', marginBottom: 16 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                <div style={{ fontSize: 13.5, color: '#fff', fontWeight: 600 }}>
+                  {ended ? <>✅ Shift done — you worked <strong>{wh}h{wm ? ` ${wm}m` : ''}</strong> today.</>
+                    : started ? <>🟢 On shift since <strong>{fmtT(started)}</strong>.{badgeIn ? <span style={{ fontSize: 11.5, fontWeight: 400, color: badgeIn.color, marginLeft: 8 }}>{badgeIn.icon} {badgeIn.text}</span> : null}</>
+                      : <>You're on today — tap to clock in.</>}
+                </div>
+                {!started && <button onClick={doClockIn} disabled={busy} style={{ ...btn('red'), padding: '10px 16px' }}>{busy ? 'Checking…' : '▶ Start my shift'}</button>}
+                {started && !ended && <button onClick={doClockOut} disabled={busy} style={{ ...btn('ghost'), padding: '10px 16px' }}>{busy ? 'Checking…' : '■ End my shift'}</button>}
               </div>
-              {!started && <button onClick={doClockIn} disabled={busy} style={{ ...btn('red'), padding: '10px 16px' }}>▶ Start my shift</button>}
-              {started && !ended && <button onClick={doClockOut} disabled={busy} style={{ ...btn('ghost'), padding: '10px 16px' }}>■ End my shift</button>}
+              {!started && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, lineHeight: 1.45 }}>📍 When you start, we do a quick one-off location check to confirm you're at No Dice. We never track you between clock-ins.</div>}
+              {clockMsg && <div style={{ fontSize: 11.5, color: '#FCD34D', marginTop: 8, lineHeight: 1.45 }}>{clockMsg}</div>}
             </div>
           )
         })()}
@@ -389,7 +413,7 @@ export default function RotaPortal() {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 16px', fontSize: 12.5 }}>
                             <span style={{ color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(sh)}</strong></span>
                             {inT
-                              ? <span style={{ color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved by manager"> · ✓ approved</span> : null}</span>
+                              ? <span style={{ color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved by manager"> · ✓ approved</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={pb.text}> · {pb.icon}</span> : null })()}</span>
                               : <span style={{ color: AMBER }}>Didn't clock in</span>}
                           </div>
                         </div>

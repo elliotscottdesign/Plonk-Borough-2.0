@@ -41,14 +41,21 @@ export const rotaDeleteShiftNote = (token, id) => call({ action: 'deleteShiftNot
 // Daily clock-in hub — the shared /today link.
 export const rotaTodayRoster = () => call({ action: 'todayRoster' })                              // public: who's on today + clock status
 export const rotaClockLogin = (staffId, password) => call({ action: 'clockLogin', staffId, password })   // tap name + password → token
-export const rotaClockIn = (token) => call({ action: 'clockIn', token })
-export const rotaClockOut = (token) => call({ action: 'clockOut', token })
+export const rotaClockIn = (token, fix) => call({ action: 'clockIn', token, fix })    // fix = {lat,lng,accuracy} | null (venue-presence check)
+export const rotaClockOut = (token, fix) => call({ action: 'clockOut', token, fix })
 export const rotaSetClock = (staffId, date, patch) => call({ action: 'setClock', secret: SEND_SECRET, staffId, date, ...patch })   // founder adjust/approve
 export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: SEND_SECRET, shiftId })
 export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
 export const rotaAssign = (shiftId, staffId) => call({ action: 'assignShift', secret: SEND_SECRET, shiftId, staffId })
 export const rotaUnassign = (shiftId, staffId) => call({ action: 'unassignShift', secret: SEND_SECRET, shiftId, staffId })
 export const rotaSetShiftReq = (shiftId, patch) => call({ action: 'setShiftReq', secret: SEND_SECRET, shiftId, ...patch })
+
+// ── Venue clock-in lock (founder, secret-gated) ──────────────────────────────
+// Restrict clock-in/out to "at the venue" via venue-wifi IP and/or GPS geofence.
+export const rotaGetVenueConfig = () => call({ action: 'getVenueConfig', secret: SEND_SECRET })
+export const rotaSetVenueConfig = (config) => call({ action: 'setVenueConfig', secret: SEND_SECRET, config })   // {enabled,mode,venue_ip,venue_lat,venue_lng,radius_m}
+export const rotaSetVenueLocation = (fix, opts = {}) => call({ action: 'setVenueLocation', secret: SEND_SECRET, fix, ...opts })   // opts: {alsoSetIp,radius_m,mode,enabled}
+export const rotaTestPresence = (fix) => call({ action: 'testPresence', secret: SEND_SECRET, fix })   // dry-run "am I detected on-site?"
 
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (name, password) => call({ action: 'login', name, password })   // name + password (same as the /today tap-your-name login)

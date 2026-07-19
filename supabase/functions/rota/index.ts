@@ -119,6 +119,54 @@ const onboardingOk = (s: any, docKinds: Set<string>) => !!(
   s?.bank_name && s?.bank_sort && s?.bank_account &&
   docKinds.has("passport") && docKinds.has("rtw"));
 
+// ── Venue presence (geofence + venue-wifi) ───────────────────────────────────
+// A soft DETERRENT so staff clock in AT the bar, not from bed. It never blocks an
+// honest punch unless the founder turns on 'block' mode AND the phone is clearly
+// far away. Config = the single-row venue_presence table (id=1). If that table
+// doesn't exist yet (setup SQL not pasted), every check returns 'off' and clock-in
+// behaves exactly as before — so this can ship before the founder sets it up.
+const EARTH_M = 6_371_000;
+function metresBetween(aLat: number, aLng: number, bLat: number, bLng: number) {
+  const rad = Math.PI / 180;
+  const φ1 = aLat * rad, φ2 = bLat * rad;
+  const dφ = (bLat - aLat) * rad, dλ = (bLng - aLng) * rad;
+  const h = Math.sin(dφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(dλ / 2) ** 2;
+  return 2 * EARTH_M * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+}
+// The caller's public IP. Parsed the SAME way for matching AND for learning, so the
+// venue wifi always matches itself regardless of which x-forwarded-for hop is "real".
+function callerIp(req: Request): string | null {
+  const xff = req.headers.get("x-forwarded-for") || "";
+  const first = xff.split(",")[0].trim();
+  return first || req.headers.get("x-real-ip") || null;
+}
+async function venueConfig(sb: any) {
+  try {
+    const { data, error } = await sb.from("venue_presence").select("*").eq("id", 1).maybeSingle();
+    if (error) return null;   // table missing / not set up yet → feature off
+    return data || null;
+  } catch { return null; }
+}
+// Decide a punch's presence. NEVER throws. Returns { label, allow, distance }:
+//   label ∈ 'off' | 'wifi' | 'gps' | 'off-site' | 'unverified'
+//   allow is false ONLY when mode='block' AND the fix is clearly far from the venue.
+async function checkPresence(sb: any, ip: string | null, fix: any) {
+  const cfg = await venueConfig(sb);
+  if (!cfg || !cfg.enabled) return { label: "off", allow: true, distance: null };
+  if (ip && cfg.venue_ip && ip === cfg.venue_ip) return { label: "wifi", allow: true, distance: null };
+  const lat = fix && typeof fix.lat === "number" ? fix.lat : null;
+  const lng = fix && typeof fix.lng === "number" ? fix.lng : null;
+  if (lat != null && lng != null && cfg.venue_lat != null && cfg.venue_lng != null) {
+    const acc = Number(fix.accuracy ?? 9999);
+    const radius = Number(cfg.radius_m || 150);
+    const d = metresBetween(lat, lng, Number(cfg.venue_lat), Number(cfg.venue_lng));
+    if (acc <= 200 && d - acc < radius) return { label: "gps", allow: true, distance: Math.round(d) };            // at the venue
+    if (acc <= 200 && d - acc > 1000) return { label: "off-site", allow: cfg.mode !== "block", distance: Math.round(d) };  // clearly elsewhere
+    return { label: "unverified", allow: true, distance: Math.round(d) };   // borderline / poor accuracy
+  }
+  return { label: "unverified", allow: true, distance: null };   // no usable fix, no wifi match
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: any = {};
@@ -126,6 +174,7 @@ Deno.serve(async (req) => {
   const action = b.action as string;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
+  const clientIp = callerIp(req);   // for the venue-presence (wifi) check
 
   try {
     // ── Staff login: NAME + password → their profile + token ───────────────────
@@ -325,25 +374,34 @@ Deno.serve(async (req) => {
       }
 
       // Clock in — stamps the real start time for today (first tap wins).
+      // Also records where they were (venue wifi / GPS) so off-site punches are flagged.
       if (action === "clockIn") {
         const today = todayISO();
+        const pres = await checkPresence(sb, clientIp, b.fix);
+        if (!pres.allow) return json({ error: "You're not at the venue yet. Head inside and tap again, or ask your manager to start your shift." }, 403);
         const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
         if (existing?.clock_in) return json({ ok: true, clock: existing });   // already started
-        const { data, error } = await sb.from("shift_clock")
-          .upsert({ staff_id: me.id, date: today, clock_in: new Date().toISOString(), approved: false }, { onConflict: "staff_id,date" })
-          .select("*").single();
-        if (error) return json({ error: error.message }, 400);
-        return json({ ok: true, clock: data });
+        const base: any = { staff_id: me.id, date: today, clock_in: new Date().toISOString(), approved: false };
+        const rich = pres.label === "off" ? base
+          : { ...base, ip: clientIp, lat: b.fix?.lat ?? null, lng: b.fix?.lng ?? null, accuracy_m: b.fix?.accuracy ?? null, presence: pres.label };
+        let up = await sb.from("shift_clock").upsert(rich, { onConflict: "staff_id,date" }).select("*").single();
+        if (up.error && rich !== base) up = await sb.from("shift_clock").upsert(base, { onConflict: "staff_id,date" }).select("*").single();   // columns not added yet → fall back
+        if (up.error) return json({ error: up.error.message }, 400);
+        return json({ ok: true, clock: up.data, presence: pres.label });
       }
-      // Clock out — stamps the real end time for today.
+      // Clock out — stamps the real end time for today. Records presence too (flag only —
+      // a clock-out is never blocked, so no one can be left unable to end their shift).
       if (action === "clockOut") {
         const today = todayISO();
+        const pres = await checkPresence(sb, clientIp, b.fix);
         const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
         if (!existing?.clock_in) return json({ error: "Start your shift first." }, 400);
-        const { data, error } = await sb.from("shift_clock")
-          .update({ clock_out: new Date().toISOString(), approved: false }).eq("id", existing.id).select("*").single();
-        if (error) return json({ error: error.message }, 400);
-        return json({ ok: true, clock: data });
+        const base: any = { clock_out: new Date().toISOString(), approved: false };
+        const rich = pres.label === "off" ? base : { ...base, presence_out: pres.label };
+        let up = await sb.from("shift_clock").update(rich).eq("id", existing.id).select("*").single();
+        if (up.error && rich !== base) up = await sb.from("shift_clock").update(base).eq("id", existing.id).select("*").single();
+        if (up.error) return json({ error: up.error.message }, 400);
+        return json({ ok: true, clock: up.data, presence: pres.label });
       }
 
       if (action === "saveAvailability") {
@@ -631,6 +689,51 @@ Deno.serve(async (req) => {
         ),
       );
       return json({ ok: true, email: s.email });
+    }
+
+    // ── Venue clock-in lock config (founder, secret-gated) ─────────────────────
+    // Read the current setup (null config = setup SQL not pasted yet).
+    if (action === "getVenueConfig" && isAdmin()) {
+      const cfg = await venueConfig(sb);
+      return json({ ok: true, config: cfg, ready: cfg !== null });
+    }
+    // Save any config field (toggle on/off, mode warn|block, IP, radius, coords).
+    if (action === "setVenueConfig" && isAdmin()) {
+      const patch: any = { updated_at: new Date().toISOString() };
+      const src = b.config || {};
+      for (const k of ["enabled", "mode", "venue_ip", "venue_ip6", "venue_lat", "venue_lng", "radius_m"]) {
+        if (src[k] !== undefined) patch[k] = src[k] === "" ? null : src[k];
+      }
+      const { data, error } = await sb.from("venue_presence").upsert({ id: 1, ...patch }, { onConflict: "id" }).select("*").single();
+      if (error) return json({ error: "Couldn't save — have you run the setup SQL yet? (" + error.message + ")" }, 400);
+      return json({ ok: true, config: data });
+    }
+    // Pin the venue to wherever the founder is standing now (do this inside the bar):
+    // sets the GPS point + optionally captures the current egress IP as the venue wifi,
+    // and turns the feature on in flag-only mode.
+    if (action === "setVenueLocation" && isAdmin()) {
+      const fix = b.fix || {};
+      if (typeof fix.lat !== "number" || typeof fix.lng !== "number") return json({ error: "No location yet — allow location access, stand inside the venue, and try again." }, 400);
+      const cfg0 = await venueConfig(sb);
+      const patch: any = {
+        id: 1, venue_lat: fix.lat, venue_lng: fix.lng,
+        radius_m: b.radius_m || cfg0?.radius_m || 150,
+        enabled: b.enabled !== undefined ? b.enabled : true,
+        mode: b.mode || cfg0?.mode || "warn",
+        updated_at: new Date().toISOString(),
+      };
+      if (b.alsoSetIp && clientIp) {
+        patch.venue_ip = clientIp;
+        patch.ip_history = [...((cfg0?.ip_history) || []), { ip: clientIp, at: new Date().toISOString() }].slice(-20);
+      }
+      const { data, error } = await sb.from("venue_presence").upsert(patch, { onConflict: "id" }).select("*").single();
+      if (error) return json({ error: "Couldn't save — have you run the setup SQL yet? (" + error.message + ")" }, 400);
+      return json({ ok: true, config: data, capturedIp: b.alsoSetIp ? clientIp : null });
+    }
+    // Dry-run: "does the system think I'm at the venue right now?" — never writes.
+    if (action === "testPresence" && isAdmin()) {
+      const pres = await checkPresence(sb, clientIp, b.fix);
+      return json({ ok: true, ...pres, ip: clientIp });
     }
 
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────

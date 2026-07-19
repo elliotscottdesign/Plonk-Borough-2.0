@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
+import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
 import useIsMobile from '../../lib/useIsMobile.js'
 
@@ -294,7 +295,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                     return (
                       <div key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: c.approved ? 'rgba(52,211,153,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${c.approved ? 'rgba(52,211,153,0.4)' : 'rgba(255,255,255,0.12)'}`, borderRadius: 8, padding: '8px 10px' }}>
                         <div style={{ flex: 1, minWidth: 150 }}>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{nameById[c.staff_id] || 'Unknown'}</div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                            {nameById[c.staff_id] || 'Unknown'}
+                            {(() => { const pb = presenceBadge(c.presence); return pb ? <span style={{ fontSize: 10.5, fontWeight: 700, color: pb.color, border: `1px solid ${pb.color}55`, borderRadius: 5, padding: '1px 5px' }} title={`Clock-in: ${pb.text}`}>{pb.icon} {pb.short}</span> : null })()}
+                            {(() => { const pb = presenceBadge(c.presence_out); return (pb && c.presence_out !== c.presence) ? <span style={{ fontSize: 10.5, fontWeight: 700, color: pb.color, border: `1px solid ${pb.color}55`, borderRadius: 5, padding: '1px 5px' }} title={`Clock-out: ${pb.text}`}>out {pb.icon}</span> : null })()}
+                          </div>
                           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>In {fmtT(c.clock_in)} · Out {done ? fmtT(c.clock_out) : 'still on'}{done ? ` · worked ${wh}h${wm ? ` ${wm}m` : ''}` : ''} <span style={{ color: 'rgba(255,255,255,0.4)' }}>· rostered {rost}h</span></div>
                         </div>
                         {done && <button onClick={() => approveClock(c.staff_id, selDate, !c.approved)} disabled={busy} style={c.approved ? btn('ghost') : btn('gold')}>{c.approved ? '✓ Approved' : 'Approve'}</button>}
@@ -342,7 +347,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 110 }}>{r.name} <span style={{ fontSize: 10.5, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>{r.sh.label}</span></div>
                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(r.sh)}</strong></span>
                             {inT
-                              ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved"> · ✓</span> : null}</span>
+                              ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved"> · ✓</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={`Clock-in: ${pb.text}`}> · {pb.icon} {pb.short}</span> : null })()}</span>
                               : <span style={{ fontSize: 12, color: AMBER }}>Didn't clock in</span>}
                           </div>
                         )
