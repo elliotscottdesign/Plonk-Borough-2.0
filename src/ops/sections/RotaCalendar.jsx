@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
-import { shiftsForDate, fmtMin, shiftHours, dayName } from '../../rota/shifts.js'
+import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
 import useIsMobile from '../../lib/useIsMobile.js'
 
@@ -67,6 +67,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
+  const [pastOpen, setPastOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const isMobile = useIsMobile()
 
@@ -306,6 +307,54 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           })()}
         </div>
       )}
+
+      {/* All past shifts — full history of who worked, rostered vs actual clocked (founder) */}
+      {(() => {
+        const nameById = {}; for (const s of staff) nameById[s.id] = s.name
+        const rows = []
+        for (const sh of shifts) {
+          if (sh.date >= todayStr) continue
+          for (const c of (claimsByShift[sh.id] || [])) rows.push({ date: sh.date, staffId: c.staff_id, name: nameById[c.staff_id] || 'Unknown', sh })
+        }
+        if (!rows.length) return null
+        const byDate = {}
+        for (const r of rows) (byDate[r.date] ||= []).push(r)
+        const dates = Object.keys(byDate).sort((a, b) => b.localeCompare(a))
+        return (
+          <div style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', cursor: 'pointer' }} onClick={() => setPastOpen(o => !o)}>
+              <button style={{ ...weekNav, width: 26 }}>{pastOpen ? '▾' : '▸'}</button>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>📋 All past shifts</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{rows.length} shift{rows.length === 1 ? '' : 's'} worked · rostered vs actual</span>
+            </div>
+            {pastOpen && (
+              <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 520, overflowY: 'auto' }}>
+                {dates.map(date => (
+                  <div key={date}>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: RED, marginBottom: 6 }}>{dayName(date)} {date.slice(8)} {MONTHS[+date.slice(5, 7) - 1]}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {byDate[date].sort((a, b) => (a.name || '').localeCompare(b.name || '')).map(r => {
+                        const clk = clockMap[`${r.staffId}|${r.date}`]
+                        const inT = fmtClockTime(clk?.clock_in), outT = fmtClockTime(clk?.clock_out)
+                        const worked = workedMins(clk?.clock_in, clk?.clock_out)
+                        return (
+                          <div key={r.sh.id + '|' + r.staffId} style={{ display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px' }}>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 110 }}>{r.name} <span style={{ fontSize: 10.5, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>{r.sh.label}</span></div>
+                            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(r.sh)}</strong></span>
+                            {inT
+                              ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved"> · ✓</span> : null}</span>
+                              : <span style={{ fontSize: 12, color: AMBER }}>Didn't clock in</span>}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
         <strong style={{ color: '#fff' }}>Rostering a day:</strong> tap a day to open it, then {isMobile

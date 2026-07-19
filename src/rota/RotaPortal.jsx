@@ -4,7 +4,7 @@ import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboardin
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
 import StatementDoc from './StatementDoc.jsx'
-import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM } from './shifts.js'
+import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -75,6 +75,7 @@ export default function RotaPortal() {
   const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
   const [notePopup, setNotePopup] = useState([])          // today's manager briefings shown on open
   const [clock, setClock] = useState(null)                // today's clock in/out
+  const [clocks, setClocks] = useState([])                // clock history (past ~90 days), for past-shift actual times
   const [rosteredToday, setRosteredToday] = useState(false)
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
@@ -119,7 +120,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setRosteredToday(!!r.rosteredToday); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -361,6 +362,40 @@ export default function RotaPortal() {
                       </div>
                     )
                   })}
+                </div>
+              )
+            })()}
+
+            {(() => {
+              // Past shifts you were on — rostered time vs what you actually clocked.
+              const past = shifts.filter(s => s.mine && s.date < todayStr).sort((a, b) => b.date.localeCompare(a.date))
+              if (!past.length) return null
+              const clockByDate = {}; for (const c of clocks) clockByDate[c.date] = c
+              return (
+                <div style={{ marginTop: 22 }}>
+                  <div className="serif" style={{ fontSize: 17, color: '#fff' }}>Past shifts</div>
+                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', margin: '2px 0 12px' }}>Your rostered times, alongside what you actually clocked.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {past.map(sh => {
+                      const clk = clockByDate[sh.date]
+                      const inT = fmtClockTime(clk?.clock_in), outT = fmtClockTime(clk?.clock_out)
+                      const worked = workedMins(clk?.clock_in, clk?.clock_out)
+                      return (
+                        <div key={sh.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 5 }}>
+                            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{dayName(sh.date).slice(0, 3)} {sh.date.slice(8)} {MONTHS[+sh.date.slice(5, 7) - 1].slice(0, 3)}</div>
+                            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>{sh.label}</div>
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 16px', fontSize: 12.5 }}>
+                            <span style={{ color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(sh)}</strong></span>
+                            {inT
+                              ? <span style={{ color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved by manager"> · ✓ approved</span> : null}</span>
+                              : <span style={{ color: AMBER }}>Didn't clock in</span>}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
                 </div>
               )
             })()}

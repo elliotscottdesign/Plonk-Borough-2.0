@@ -56,6 +56,16 @@ const _e = (s) => s.end ?? s.end_min
 export const shiftTimeLabel = (s) => `${fmtMin(_s(s))}–${fmtMin(_e(s))}`
 export const shiftHours = (s) => Math.round(((_e(s) - _s(s)) / 60) * 10) / 10
 
+// Absolute clock timestamp (ISO) → London-local '6:05pm'. For ACTUAL clock-in/out display.
+export function fmtClockTime(iso) {
+  if (!iso) return null
+  return new Date(iso).toLocaleTimeString('en-GB', { timeZone: 'Europe/London', hour: 'numeric', minute: '2-digit', hour12: true }).replace(/\s/g, '').toLowerCase()
+}
+// Worked minutes between two clock ISO timestamps (0 if either missing).
+export const workedMins = (a, b) => (a && b) ? Math.max(0, Math.round((new Date(b).getTime() - new Date(a).getTime()) / 60000)) : 0
+// Whole-ish hours label from minutes: 315 → '5h 15m', 300 → '5h'.
+export const hoursLabel = (min) => { const h = Math.floor(min / 60), m = min % 60; return m ? `${h}h ${m}m` : `${h}h` }
+
 // 'HH:MM' → minutes; and minutes-from-open for a same-clock time on a shift that
 // may cross midnight (used later when comparing availability windows to a shift).
 export const hhmmToMin = (t) => { const [h, m] = String(t || '').split(':').map(Number); return (h || 0) * 60 + (m || 0) }

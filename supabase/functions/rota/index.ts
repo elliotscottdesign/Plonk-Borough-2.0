@@ -245,15 +245,16 @@ Deno.serve(async (req) => {
 
       if (action === "myState") {
         const today = todayISO();
+        const pastFrom = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);   // ~90 days of shift history
         const noteFrom = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);   // last week's handovers
         const noteTo = new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);      // + upcoming briefings
-        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }, { data: notes }, { data: clockRow }] = await Promise.all([
-          sb.from("staff_shifts").select("*").gte("date", today).order("date"),
+        const [{ data: shifts }, { data: av }, { data: train }, { data: myDocs }, { data: notes }, { data: clocks }] = await Promise.all([
+          sb.from("staff_shifts").select("*").gte("date", pastFrom).order("date"),   // past + future (past filtered to mine below)
           sb.from("staff_availability").select("month,data").eq("staff_id", me.id),
           sb.from("training_completions").select("item_key").eq("staff_id", me.id),
           sb.from("staff_documents").select("kind").eq("staff_id", me.id),
           sb.from("shift_notes").select("*").gte("date", noteFrom).lte("date", noteTo).order("created_at", { ascending: false }),
-          sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle(),
+          sb.from("shift_clock").select("*").eq("staff_id", me.id).gte("date", pastFrom).order("date"),   // their clock history
         ]);
         const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
@@ -264,16 +265,20 @@ Deno.serve(async (req) => {
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
-        // Only show a staffer their OWN shifts + genuinely-open ones — not every
-        // colleague's per-person block (which would flood the portal).
-        const visibleShifts = (shifts || []).filter((s: any) => mine.has(s.id) || (filled[s.id] || 0) < (s.headcount || 1));
+        // Future: their OWN shifts + genuinely-open ones (not every colleague's
+        // per-person block, which would flood the portal). Past: only their own —
+        // their history, so they can see rostered vs actual clocked times.
+        const clockList = clocks || [];
+        const visibleShifts = (shifts || []).filter((s: any) =>
+          mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
           ok: true, staff: publicStaff(me), availability,
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
-          clock: clockRow || null,
+          clock: clockList.find((c: any) => c.date === today) || null,   // today's clock (banner)
+          clocks: clockList,                                              // full clock history (past-shift actuals)
           rosteredToday: (shifts || []).some((s: any) => s.date === today && mine.has(s.id)),
           soi_version: SOI_VERSION,
         });
