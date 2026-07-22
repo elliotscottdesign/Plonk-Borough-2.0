@@ -26,11 +26,28 @@ export default function AiRota({ staff = [], availability = [], reload }) {
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const assignedCount = (day) => day.slots.filter(s => s.staffId).length
 
+  // Readiness: the engine fills from each person's expected hours + availability, so
+  // flag anyone missing those for THIS week (they'd otherwise be guessed at / treated
+  // as always-free). Availability is month-keyed; a week can span two months.
+  const weekMonths = [...new Set([weekStart.slice(0, 7), weekEnd.slice(0, 7)])]
+  const availMonths = {}   // staffId → Set(months with any availability marked)
+  for (const r of availability || []) { if (r?.data && Object.keys(r.data).length) (availMonths[r.staff_id] ||= new Set()).add(r.month) }
+  const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
+  const missingAvail = active.filter(s => !weekMonths.some(m => availMonths[s.id]?.has(m)))
+
   const generate = () => { const r = generateWeek(weekStart, staff, availability); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
 
   const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
   const removeSlot = (di, si) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.filter((_, j) => j !== si) }))
+  // Shorten / lengthen a single shift (30-min steps). Keeps ≥1h, caps the end at 2am.
+  const adjust = (di, si, field, delta) => setDays(ds => ds.map((d, i) => i !== di ? d : {
+    ...d, slots: d.slots.map((s, j) => {
+      if (j !== si) return s
+      if (field === 'start') return { ...s, start: Math.max(0, Math.min(s.end - 60, s.start + delta)) }
+      return { ...s, end: Math.max(s.start + 60, Math.min(1560, s.end + delta)) }   // min 1h, cap 2am
+    }),
+  }))
 
   const blocksOf = (day) => day.slots.filter(s => s.staffId).map(s => ({ staffId: s.staffId, start_min: s.start, end_min: s.end }))
   const applyDay = async (day) => {
@@ -80,6 +97,18 @@ export default function AiRota({ staff = [], availability = [], reload }) {
         </div>
       </div>
 
+      {/* Readiness — the engine fills from expected hours + availability, so flag anyone missing them for this week */}
+      {(missingHours.length > 0 || missingAvail.length > 0) ? (
+        <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: AMBER }}>⚠️ Some rules aren't set for this week</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong> and <strong style={{ color: '#fff' }}>availability</strong>. It'll still generate, but it has to guess for these people:</div>
+          {missingHours.length > 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>}
+          {missingAvail.length > 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>📅 <strong>No availability for this week:</strong> {missingAvail.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— they set it in their portal, or add it in the Availability tab. Until then they're treated as always free.</span></div>}
+        </div>
+      ) : active.length > 0 ? (
+        <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours and availability set for this week — the AI has what it needs.</div>
+      ) : null}
+
       {!days ? (
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 18px', lineHeight: 1.7 }}>
           Pick a week and tap <strong style={{ color: '#fff' }}>✨ Generate</strong>. The AI fills every day with:
@@ -110,14 +139,21 @@ export default function AiRota({ staff = [], availability = [], reload }) {
                     const tag = slotTag(s)
                     const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : active
                     return (
-                      <div key={si} style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.warn ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '5px 7px' }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, color: tag.color, whiteSpace: 'nowrap', minWidth: 66 }}>{tag.txt}</span>
-                        <select value={s.staffId || ''} onChange={e => reassign(di, si, e.target.value)} style={sel}>
-                          <option value="">— unassigned —</option>
-                          {eligible.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
-                        </select>
-                        <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{fmtMin(s.start)}–{fmtMin(s.end)}</span>
-                        <button onClick={() => removeSlot(di, si)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+                      <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.warn ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: tag.color, whiteSpace: 'nowrap', minWidth: 66 }}>{tag.txt}</span>
+                          <select value={s.staffId || ''} onChange={e => reassign(di, si, e.target.value)} style={sel}>
+                            <option value="">— unassigned —</option>
+                            {eligible.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
+                          </select>
+                          <button onClick={() => removeSlot(di, si)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 12, padding: 0 }}>✕</button>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexWrap: 'wrap' }}>
+                          <Stepper label="Start" value={s.start} onDelta={d => adjust(di, si, 'start', d)} />
+                          <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: 11 }}>→</span>
+                          <Stepper label="End" value={s.end} onDelta={d => adjust(di, si, 'end', d)} />
+                          <span style={{ marginLeft: 'auto', fontSize: 10, color: 'rgba(255,255,255,0.55)', fontWeight: 700 }}>{Math.round((s.end - s.start) / 6) / 10}h</span>
+                        </div>
                       </div>
                     )
                   })}
@@ -135,13 +171,26 @@ export default function AiRota({ staff = [], availability = [], reload }) {
             ))}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-            Change anyone with the dropdowns or remove a slot with ✕. <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — you can still fine-tune in the Rota grid afterwards. Holiday dates and staffing rules are set in <code>src/rota/rotaEngine.js</code>.
+            Change anyone with the dropdowns, <strong style={{ color: '#fff' }}>shorten or lengthen a shift</strong> with the −/+ buttons (30-min steps), or remove a slot with ✕. <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — with the exact times you set — and you can still fine-tune in the Rota grid afterwards. Holiday dates and staffing rules are set in <code>src/rota/rotaEngine.js</code>.
           </div>
         </>
       )}
     </div>
   )
 }
+
+// A compact −/+ time stepper (30-min steps) for shortening / lengthening a shift.
+function Stepper({ label, value, onDelta }) {
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+      <span style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</span>
+      <button onClick={() => onDelta(-30)} title="30 min earlier" style={step}>−</button>
+      <span style={{ fontSize: 11, color: '#fff', minWidth: 40, textAlign: 'center', fontWeight: 600 }}>{fmtMin(value)}</span>
+      <button onClick={() => onDelta(30)} title="30 min later" style={step}>+</button>
+    </span>
+  )
+}
+const step = { width: 20, height: 20, borderRadius: 5, cursor: 'pointer', background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 13, lineHeight: 1, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
