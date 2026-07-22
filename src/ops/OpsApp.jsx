@@ -6,6 +6,7 @@ import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
 import HelpOut from './sections/HelpOut.jsx'
 import StaffRota from './sections/StaffRota.jsx'
+import Tournament from './sections/Tournament.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -14,6 +15,7 @@ import useIsMobile from '../lib/useIsMobile.js'
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
   { key: 'rota',          label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
+  { key: 'tournament',    label: 'Tournament',    Component: Tournament, founderOnly: true },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
   { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },
   { key: 'reports',       label: 'Reports',       Component: Reports },
