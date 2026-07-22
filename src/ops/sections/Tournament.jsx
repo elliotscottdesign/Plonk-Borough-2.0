@@ -1,11 +1,14 @@
 import React, { useEffect, useState } from 'react'
-import { tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore } from '../../tournament/api.js'
+import {
+  tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore,
+  tournStartRounds, tournNextRound, tournEnterScore, tournClearScore, tournDeleteLastRound,
+} from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
-// Slice 1: pick a booked pool night, see the paid entrants auto-pulled in, and
-// tidy the roster (add a walk-in, rename, remove) before the night starts.
-// Reads the live booking data; writes only to the pool_* tables. Rounds + knockout
-// arrive in the next slices.
+// Slice 1: pick a booked pool night, see the paid entrants auto-pulled in, tidy the
+// roster. Slice 2: run the Swiss rounds — draw a round, punch in scores, live standings
+// (points → frame difference → Buchholz). Knockout + league land in later slices.
+// Reads the live booking data; writes only to the pool_* tables.
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7', BLUE = '#60A5FA'
 const CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
@@ -17,11 +20,12 @@ export default function Tournament() {
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
-  const [run, setRun] = useState(null)          // { tournament, run, paidCount, participants }
+  const [run, setRun] = useState(null)          // full run state from `open`
   const [busy, setBusy] = useState(false)
   const [walkin, setWalkin] = useState('')
-  const [editing, setEditing] = useState(null)  // participantId being renamed
+  const [editing, setEditing] = useState(null)
   const [editVal, setEditVal] = useState('')
+  const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
 
   const loadList = async () => {
     setLoading(true)
@@ -35,26 +39,24 @@ export default function Tournament() {
     try { const r = await tournOpen(tournamentId); setRun(r); setView('run') }
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
-  const refresh = async () => { if (run) await open(run.tournament.id) }
+  const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
+  const guard = (fn) => async (...a) => { setBusy(true); try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
 
-  const addWalkin = async () => {
-    const name = walkin.trim(); if (!name || !run) return
-    setBusy(true)
-    try { await tournAddManual(run.run.id, name); setWalkin(''); await refresh() }
-    catch (e) { alert(e.message) } finally { setBusy(false) }
+  const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
+  const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
+  const remove = async (p) => { if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return; await guard(() => tournRemove(p.id))() }
+  const restore = (id) => guard(() => tournRestore(id))()
+  const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
+  const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
+  const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
+  const saveScore = async (m) => {
+    const e = scores[m.id] || {}
+    const p1 = e.p1 ?? (m.p1_score ?? ''), p2 = e.p2 ?? (m.p2_score ?? '')
+    if (p1 === '' || p2 === '') { alert('Enter both scores.'); return }
+    await guard(async () => { await tournEnterScore(m.id, p1, p2); setScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
   }
-  const saveRename = async (id) => {
-    const name = editVal.trim(); if (!name) { setEditing(null); return }
-    setBusy(true)
-    try { await tournRename(id, name); setEditing(null); await refresh() }
-    catch (e) { alert(e.message) } finally { setBusy(false) }
-  }
-  const remove = async (p) => {
-    if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return
-    setBusy(true)
-    try { await tournRemove(p.id); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) }
-  }
-  const restore = async (id) => { setBusy(true); try { await tournRestore(id); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const setScore = (id, side, v) => setScores(s => ({ ...s, [id]: { ...s[id], [side]: v.replace(/[^0-9]/g, '').slice(0, 2) } }))
 
   // ── List of pool nights ─────────────────────────────────────────────────────
   if (view === 'list') {
@@ -71,7 +73,7 @@ export default function Tournament() {
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
               <span>{fmtDate(t.event_date)}</span>
               <span style={{ color: tb.c, fontWeight: 700 }}>{tb.txt}</span>
-              {t.run && <span style={{ color: GREEN, fontWeight: 700 }}>· started</span>}
+              {t.run && <span style={{ color: GREEN, fontWeight: 700 }}>· {t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
             </div>
           </div>
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -87,13 +89,13 @@ export default function Tournament() {
           <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
           <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap one to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
         </div>
-        {err && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }}>{err}</div>}
+        {err && <div style={errBox}>{err}</div>}
         {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : (
           <>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Upcoming</div>
-            {upcoming.length === 0 ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.45)' }}>No upcoming pool nights.</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{upcoming.map(card)}</div>}
+            <div style={sectLbl}>Upcoming</div>
+            {upcoming.length === 0 ? <div style={muted}>No upcoming pool nights.</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{upcoming.map(card)}</div>}
             {past.length > 0 && <>
-              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginTop: 6 }}>Past</div>
+              <div style={{ ...sectLbl, marginTop: 6 }}>Past</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, opacity: 0.75 }}>{past.slice(0, 12).map(card)}</div>
             </>}
           </>
@@ -102,13 +104,21 @@ export default function Tournament() {
     )
   }
 
-  // ── One night's roster ──────────────────────────────────────────────────────
+  // ── One night ───────────────────────────────────────────────────────────────
   const t = run.tournament
   const parts = run.participants || []
   const activeParts = parts.filter(p => p.active)
   const removedParts = parts.filter(p => !p.active)
   const tb = typeBadge(t.type)
   const full = activeParts.length >= t.cap
+  const status = run.run.status
+  const rounds = run.rounds || []
+  const matches = run.matches || []
+  const standings = run.standings || []
+  const nameById = Object.fromEntries(parts.map(p => [p.id, p.display_name]))
+  const curRound = rounds[rounds.length - 1]
+  const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← All pool nights</button>
@@ -118,6 +128,7 @@ export default function Tournament() {
           <div className="serif" style={{ fontSize: 21, color: '#fff' }}>{t.name}</div>
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
             <span>{fmtDate(t.event_date)}</span><span style={{ color: tb.c, fontWeight: 700 }}>{tb.txt}</span>
+            {status !== 'setup' && <span style={{ color: GREEN, fontWeight: 700 }}>· {status === 'rounds' ? `Round ${curRound?.ordinal || 1}` : status}</span>}
           </div>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -126,56 +137,122 @@ export default function Tournament() {
         </div>
       </div>
 
-      <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 8, padding: '10px 12px' }}>
-        {run.paidCount} paid online → auto-entered. {t.type === 'doubles' ? 'Doubles show by team name.' : ''} Add a cash walk-in below, rename or remove anyone, then the rounds start next (coming in the next update).
-      </div>
-
-      {/* Roster */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-        {activeParts.map((p, i) => (
-          <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: '9px 11px' }}>
-            <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.35)', minWidth: 20 }}>{i + 1}</span>
-            {editing === p.id ? (
-              <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveRename(p.id); if (e.key === 'Escape') setEditing(null) }} onBlur={() => saveRename(p.id)}
-                style={{ flex: 1, padding: '6px 9px', fontSize: 14, borderRadius: 7, background: '#000', border: `1px solid ${RED}`, color: '#fff', outline: 'none' }} />
-            ) : (
-              <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.display_name}</div>
-            )}
-            <span title={p.source === 'manual' ? 'Walk-in (cash)' : 'Booked online'} style={{ fontSize: 10, fontWeight: 700, color: p.source === 'manual' ? AMBER : GREEN, border: `1px solid ${p.source === 'manual' ? AMBER : GREEN}55`, borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{p.source === 'manual' ? '✋ walk-in' : '🎟️ ticket'}</span>
-            <button onClick={() => { setEditing(p.id); setEditVal(p.display_name) }} disabled={busy} title="Rename" style={iconBtn}>✎</button>
-            <button onClick={() => remove(p)} disabled={busy} title="Remove" style={{ ...iconBtn, color: '#F87171' }}>✕</button>
-          </div>
-        ))}
-        {activeParts.length === 0 && <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.45)', padding: '6px 2px' }}>No entrants yet. They'll appear here as people pay online, or add a walk-in below.</div>}
-      </div>
-
-      {/* Add walk-in */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-        <input value={walkin} onChange={e => setWalkin(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Add a walk-in (name / team)…" disabled={full}
-          style={{ flex: 1, minWidth: 180, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
-        <button onClick={addWalkin} disabled={busy || !walkin.trim() || full} style={{ ...btn('gold'), opacity: (busy || !walkin.trim() || full) ? 0.5 : 1 }}>+ Add walk-in</button>
-        <button onClick={refresh} disabled={busy} style={btn('ghost')} title="Re-check who's paid online">↻ Refresh</button>
-      </div>
-      {full && <div style={{ fontSize: 11.5, color: AMBER }}>This night is full ({t.cap}). Remove someone to add another.</div>}
-
-      {/* Removed (kept so a mistaken removal is one tap back) */}
-      {removedParts.length > 0 && (
-        <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 12 }}>
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Removed</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {removedParts.map(p => (
-              <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 0.6, fontSize: 13 }}>
-                <span style={{ flex: 1, color: 'rgba(255,255,255,0.7)', textDecoration: 'line-through' }}>{p.display_name}</span>
-                <button onClick={() => restore(p.id)} disabled={busy} style={{ ...btn('ghost'), padding: '4px 10px', fontSize: 11 }}>Restore</button>
-              </div>
-            ))}
-          </div>
+      {/* ══ SETUP: roster editing + start ══ */}
+      {status === 'setup' && <>
+        <div style={infoBox}>{run.paidCount} paid online → auto-entered. {t.type === 'doubles' ? 'Doubles show by team name. ' : ''}Add a cash walk-in, rename or remove anyone, then start the rounds.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+          {activeParts.map((p, i) => (
+            <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: '9px 11px' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.35)', minWidth: 20 }}>{i + 1}</span>
+              {editing === p.id
+                ? <input autoFocus value={editVal} onChange={e => setEditVal(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') saveRename(p.id); if (e.key === 'Escape') setEditing(null) }} onBlur={() => saveRename(p.id)} style={{ flex: 1, padding: '6px 9px', fontSize: 14, borderRadius: 7, background: '#000', border: `1px solid ${RED}`, color: '#fff', outline: 'none' }} />
+                : <div style={{ flex: 1, minWidth: 0, fontSize: 14, fontWeight: 600, color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.display_name}</div>}
+              <span style={{ fontSize: 10, fontWeight: 700, color: p.source === 'manual' ? AMBER : GREEN, border: `1px solid ${p.source === 'manual' ? AMBER : GREEN}55`, borderRadius: 5, padding: '2px 6px', flexShrink: 0 }}>{p.source === 'manual' ? '✋ walk-in' : '🎟️ ticket'}</span>
+              <button onClick={() => { setEditing(p.id); setEditVal(p.display_name) }} disabled={busy} title="Rename" style={iconBtn}>✎</button>
+              <button onClick={() => remove(p)} disabled={busy} title="Remove" style={{ ...iconBtn, color: '#F87171' }}>✕</button>
+            </div>
+          ))}
+          {activeParts.length === 0 && <div style={muted}>No entrants yet. They'll appear as people pay online, or add a walk-in below.</div>}
         </div>
-      )}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <input value={walkin} onChange={e => setWalkin(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Add a walk-in (name / team)…" disabled={full} style={{ flex: 1, minWidth: 180, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
+          <button onClick={addWalkin} disabled={busy || !walkin.trim() || full} style={{ ...btn('gold'), opacity: (busy || !walkin.trim() || full) ? 0.5 : 1 }}>+ Add walk-in</button>
+          <button onClick={refresh} disabled={busy} style={btn('ghost')} title="Re-check who's paid online">↻ Refresh</button>
+        </div>
+        {removedParts.length > 0 && (
+          <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 12 }}>
+            <div style={{ ...sectLbl, marginBottom: 8 }}>Removed</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {removedParts.map(p => (
+                <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, opacity: 0.6, fontSize: 13 }}>
+                  <span style={{ flex: 1, color: 'rgba(255,255,255,0.7)', textDecoration: 'line-through' }}>{p.display_name}</span>
+                  <button onClick={() => restore(p.id)} disabled={busy} style={{ ...btn('ghost'), padding: '4px 10px', fontSize: 11 }}>Restore</button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
+      </>}
 
-      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-        <strong style={{ color: '#fff' }}>Next up:</strong> once the field's set, the <strong style={{ color: '#fff' }}>rounds</strong> (Swiss) and live standings — then the <strong style={{ color: '#fff' }}>knockout</strong> bracket — will run from right here.
-      </div>
+      {/* ══ ROUNDS: live standings + score entry ══ */}
+      {status === 'rounds' && <>
+        {/* Standings */}
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· points → frame difference → head-to-head strength</span></div>
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
+              <thead>
+                <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
+                  <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                  {['P', 'W', 'L', 'F', 'A', '+/−', 'Pts'].map(h => <th key={h} style={{ padding: '0 7px 6px' }}>{h}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {standings.map(s => (
+                  <tr key={s.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
+                    <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 700, color: s.rank === 1 ? '#FCD34D' : 'rgba(255,255,255,0.5)' }}>{s.rank === 1 ? '🏆' : s.rank}</td>
+                    <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 600 }}>{s.name}{s.byes > 0 ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}> · bye</span> : null}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.7)' }}>{s.played}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', color: GREEN }}>{s.won}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.6)' }}>{s.lost}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.for}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.against}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 700, color: s.diff > 0 ? GREEN : s.diff < 0 ? '#F87171' : 'rgba(255,255,255,0.6)' }}>{s.diff > 0 ? '+' : ''}{s.diff}</td>
+                    <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 800, color: '#fff', fontSize: 14 }}>{s.pts}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>P played · W won · L lost · F frames for · A against · +/− difference · Pts points</div>
+        </div>
+
+        {/* Rounds — latest first */}
+        {[...rounds].reverse().map(rnd => {
+          const rms = matches.filter(m => m.round_id === rnd.id).sort((a, b) => (a.slot || 0) - (b.slot || 0))
+          const done = rms.filter(m => m.status === 'done').length
+          return (
+            <div key={rnd.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Round {rnd.ordinal}</div>
+                <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                {rms.map(m => {
+                  if (m.is_bye) return <div key={m.id} style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', padding: '6px 2px' }}><strong style={{ color: '#fff' }}>{nameById[m.p1_id]}</strong> — bye <span style={{ color: GREEN }}>(auto-win)</span></div>
+                  const e = scores[m.id] || {}
+                  const v1 = e.p1 ?? (m.p1_score ?? ''), v2 = e.p2 ?? (m.p2_score ?? '')
+                  const doneM = m.status === 'done'
+                  const p1win = doneM && m.winner_id === m.p1_id, p2win = doneM && m.winner_id === m.p2_id
+                  return (
+                    <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 9px', flexWrap: 'wrap' }}>
+                      <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
+                      <input inputMode="numeric" value={v1} onChange={ev => setScore(m.id, 'p1', ev.target.value)} disabled={busy || doneM} style={scoreInp} />
+                      <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
+                      <input inputMode="numeric" value={v2} onChange={ev => setScore(m.id, 'p2', ev.target.value)} disabled={busy || doneM} style={scoreInp} />
+                      <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
+                      {doneM
+                        ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
+                        : <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '6px 12px' }}>Save</button>}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          <button onClick={nextRound} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5 }} title={curDone ? '' : 'Finish scoring this round first'}>+ Add another round</button>
+          <button onClick={undoRound} disabled={busy} style={btn('ghost')}>↩ Undo last round</button>
+          <button onClick={refresh} disabled={busy} style={btn('ghost')}>↻ Refresh</button>
+        </div>
+        {!curDone && <div style={{ fontSize: 11.5, color: AMBER }}>Finish scoring Round {curRound?.ordinal} before adding the next.</div>}
+
+        <div style={infoBox}><strong style={{ color: '#fff' }}>Next up:</strong> when you've played enough rounds, the <strong style={{ color: '#fff' }}>knockout</strong> (top players seeded from these standings), plus the winner emails &amp; league points — coming in the next update.</div>
+      </>}
     </div>
   )
 }
@@ -186,3 +263,8 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
 }
 const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
+const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
+const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }
+const sectLbl = { fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }
+const muted = { fontSize: 12.5, color: 'rgba(255,255,255,0.45)' }

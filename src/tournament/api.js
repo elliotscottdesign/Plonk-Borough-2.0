@@ -21,3 +21,10 @@ export const tournRename = (participantId, name) => call({ action: 'renamePartic
 export const tournRemove = (participantId) => call({ action: 'removeParticipant', participantId })
 export const tournRestore = (participantId) => call({ action: 'restoreParticipant', participantId })
 export const tournDeleteRun = (runId) => call({ action: 'deleteRun', runId })
+
+// Slice 2 — Swiss rounds + standings.
+export const tournStartRounds = (runId) => call({ action: 'startRounds', runId })
+export const tournNextRound = (runId) => call({ action: 'generateNextRound', runId })
+export const tournEnterScore = (matchId, p1_score, p2_score) => call({ action: 'enterScore', matchId, p1_score, p2_score })
+export const tournClearScore = (matchId) => call({ action: 'clearScore', matchId })
+export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound', runId })
