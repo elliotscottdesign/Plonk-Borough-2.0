@@ -87,7 +87,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
-          <div className="serif" style={{ fontSize: 20, color: '#fff' }}>🤖 AI Rota — auto-fill</div>
+          <div className="serif" style={{ fontSize: 20, color: '#fff' }}>🤖 Ai Builder — auto-fill</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>A concept built from your rules. Review &amp; tweak below, then Apply — nothing changes until you do.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
