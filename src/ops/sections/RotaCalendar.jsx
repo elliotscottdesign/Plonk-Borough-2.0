@@ -10,7 +10,7 @@ import useIsMobile from '../../lib/useIsMobile.js'
 // where the founder paints each person's hours. Above it, a week overview of hours
 // vs target + wage spend. Own calendar grid (not the DJ MonthCalendar).
 
-const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', GREY = 'rgba(255,255,255,0.28)'
+const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', GREY = 'rgba(255,255,255,0.28)', PURPLE = '#A855F7'
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -34,7 +34,7 @@ function Ring({ pct, color, hasTarget, size = 44 }) {
 function WeekRow({ row }) {
   const { s, hrs, actualHrs, target, cost, rate } = row
   const pct = target ? hrs / target : 0
-  const color = target == null ? 'rgba(255,255,255,0.28)' : hrs > target + 0.05 ? '#60A5FA' : hrs >= target ? GREEN : hrs > 0 ? AMBER : RED
+  const color = target == null ? 'rgba(255,255,255,0.28)' : hrs > target + 0.05 ? PURPLE : hrs >= target ? GREEN : hrs > 0 ? AMBER : RED
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
       <Ring pct={pct} color={color} hasTarget={target != null} />
@@ -47,7 +47,7 @@ function WeekRow({ row }) {
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
           <strong style={{ color: '#fff' }}>{hrs}h</strong>{target != null ? ` / ${target}h target` : ' · no target set'}
           {actualHrs > 0 && <span style={{ color: '#60A5FA' }}> · {actualHrs}h actual ✓</span>}
-          {target != null && hrs > target + 0.05 && <span style={{ color: '#60A5FA' }}> · +{Math.round((hrs - target) * 10) / 10}h over</span>}
+          {target != null && hrs > target + 0.05 && <span style={{ color: PURPLE, fontWeight: 700 }}> · +{Math.round((hrs - target) * 10) / 10}h over</span>}
           {target != null && hrs < target - 0.05 && <span style={{ color: AMBER }}> · {Math.round((target - hrs) * 10) / 10}h short</span>}
           {target != null && hrs >= target - 0.05 && hrs <= target + 0.05 && <span style={{ color: GREEN }}> · on target</span>}
         </div>
@@ -68,6 +68,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
+  const [sortBy, setSortBy] = useState('hours')   // 'hours' | 'role' | 'name'
   const [pastOpen, setPastOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const isMobile = useIsMobile()
@@ -118,7 +119,14 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const totalHours = Math.round(weekRows.reduce((a, r) => a + r.hrs, 0) * 10) / 10
   const totalSpend = weekRows.reduce((a, r) => a + (r.cost || 0), 0)
   const missingRate = weekRows.some(r => r.hrs > 0 && r.rate == null)
-  const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null)
+  // Sort order the founder can flip: by hours (default), by role (Manager→Bar→Kitchen), or A–Z.
+  const byName = (a, b) => (a.s.name || '').localeCompare(b.s.name || '')
+  const sorters = {
+    hours: (a, b) => b.hrs - a.hrs || byName(a, b),
+    role: (a, b) => roleRank(a.s.role) - roleRank(b.s.role) || byName(a, b),
+    name: byName,
+  }
+  const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null).slice().sort(sorters[sortBy] || sorters.hours)
 
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const shiftMonth = (d) => { let m = viewM + d, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m); setSelDate(null) }
@@ -165,11 +173,19 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
         </div>
         {missingRate && <div style={{ fontSize: 11, color: AMBER, marginTop: 8 }}>⚠️ Some assigned staff have no hourly rate, so their pay isn't in the total — set it in Team → Edit profile → Pay &amp; hours.</div>}
         {overviewOpen && (
-          <div style={{ display: 'grid', gap: 8, marginTop: 12 }}>
-            {overviewRows.length === 0
-              ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No one assigned this week yet and no targets set. Assign shifts below, and set each person's target hours &amp; rate in Team → Edit profile.</div>
-              : overviewRows.map(r => <WeekRow key={r.s.id} row={r} />)}
-          </div>
+          <>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>Sort</span>
+              {[['hours', 'Hours'], ['role', 'Role'], ['name', 'A–Z']].map(([k, lbl]) => (
+                <button key={k} onClick={() => setSortBy(k)} title={k === 'role' ? 'Manager → Bar Staff → Kitchen' : ''} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer', background: sortBy === k ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sortBy === k ? PURPLE : 'rgba(255,255,255,0.14)'}`, color: sortBy === k ? '#fff' : 'rgba(255,255,255,0.6)' }}>{lbl}</button>
+              ))}
+            </div>
+            <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
+              {overviewRows.length === 0
+                ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No one assigned this week yet and no targets set. Assign shifts below, and set each person's target hours &amp; rate in Team → Edit profile.</div>
+                : overviewRows.map(r => <WeekRow key={r.s.id} row={r} />)}
+            </div>
+          </>
         )}
       </div>
 
@@ -370,6 +386,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     </div>
   )
 }
+
+// Role display order for the "by role" sort: Manager → … → Bar Staff → Kitchen.
+const ROLE_ORDER = { 'Manager': 0, 'Asst. Manager': 1, 'Supervisor': 2, 'Bar Staff': 3, 'Kitchen / Barback': 4 }
+const roleRank = (role) => ROLE_ORDER[role] ?? 3   // unknown/blank sits with Bar Staff
 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
