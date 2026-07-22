@@ -51,20 +51,20 @@ export default function AiRota({ staff = [], availability = [], reload }) {
 
   const blocksOf = (day) => day.slots.filter(s => s.staffId).map(s => ({ staffId: s.staffId, start_min: s.start, end_min: s.end }))
   const applyDay = async (day) => {
-    if (day.date < todayStr) { alert("That day is already in the past — it can't be rostered."); return }
     const blocks = blocksOf(day)
     if (blocks.length === 0) { alert('No one is assigned on this day, so there’s nothing to apply — I won’t wipe the day. Assign someone first (or clear a day from the Rota grid).'); return }
-    if (!window.confirm(`Apply this roster to ${dayLabel(day.date)}?\n\nThis REPLACES whatever is currently rostered for that day.`)) return
+    const pastNote = day.date < todayStr ? '\n\n(This is a past day — you\'re editing history.)' : ''
+    if (!window.confirm(`Apply this roster to ${dayLabel(day.date)}?\n\nThis REPLACES whatever is currently rostered for that day.${pastNote}`)) return
     setBusy(true)
     try { await rotaSaveDayRoster(day.date, blocks); setApplied(a => ({ ...a, [day.date]: true })); await reload?.() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const applyWeek = async () => {
-    // Only upcoming days with someone assigned — never wipe a day or write the past.
-    const doable = days.filter(d => d.date >= todayStr && blocksOf(d).length > 0)
-    if (doable.length === 0) { alert('Nothing to apply — the upcoming days have no one assigned yet.'); return }
+    // Every day with someone assigned — past weeks included (editing history), never wipe an empty day.
+    const doable = days.filter(d => blocksOf(d).length > 0)
+    if (doable.length === 0) { alert('Nothing to apply — no one is assigned on any day yet.'); return }
     const skipped = days.length - doable.length
-    if (!window.confirm(`Apply ${doable.length} day${doable.length === 1 ? '' : 's'} (${dayLabel(doable[0].date)} – ${dayLabel(doable[doable.length - 1].date)})?${skipped ? `\n\n${skipped} day(s) skipped — in the past or no one assigned.` : ''}\n\nThis REPLACES the current roster for those days.`)) return
+    if (!window.confirm(`Apply ${doable.length} day${doable.length === 1 ? '' : 's'} (${dayLabel(doable[0].date)} – ${dayLabel(doable[doable.length - 1].date)})?${skipped ? `\n\n${skipped} day(s) skipped — no one assigned.` : ''}\n\nThis REPLACES the current roster for those days.`)) return
     setBusy(true)
     const done = []
     try {
@@ -162,9 +162,9 @@ export default function AiRota({ staff = [], availability = [], reload }) {
                 <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
                   {(() => {
                     const past = day.date < todayStr, none = assignedCount(day) === 0
-                    const off = (busy || past || none) && !applied[day.date]
-                    const label = applied[day.date] ? '✓ Applied' : past ? 'Past day' : none ? 'No one on' : 'Apply this day'
-                    return <button onClick={() => applyDay(day)} disabled={busy || past || none} style={{ ...(applied[day.date] ? btn('ghost') : btn('gold')), ...(off ? { opacity: 0.45, cursor: 'not-allowed' } : {}) }}>{label}</button>
+                    const off = (busy || none) && !applied[day.date]
+                    const label = applied[day.date] ? '✓ Applied' : none ? 'No one on' : past ? 'Apply (past day)' : 'Apply this day'
+                    return <button onClick={() => applyDay(day)} disabled={busy || none} style={{ ...(applied[day.date] ? btn('ghost') : btn('gold')), ...(off ? { opacity: 0.45, cursor: 'not-allowed' } : {}) }}>{label}</button>
                   })()}
                 </div>
               </div>
