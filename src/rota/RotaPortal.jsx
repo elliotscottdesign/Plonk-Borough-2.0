@@ -275,7 +275,7 @@ export default function RotaPortal() {
           <button onClick={logout} style={btn('ghost')}>Log out</button>
         </div>
 
-        {rosteredToday && (() => {
+        {(rosteredToday || (clock?.clock_in && !clock?.clock_out)) && (() => {
           const fmtT = (t) => new Date(t).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
           const started = clock?.clock_in, ended = clock?.clock_out
           const workedMin = started && ended ? Math.round((new Date(ended) - new Date(started)) / 60000) : 0
@@ -413,7 +413,7 @@ export default function RotaPortal() {
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px 16px', fontSize: 12.5 }}>
                             <span style={{ color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(sh)}</strong></span>
                             {inT
-                              ? <span style={{ color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved by manager"> · ✓ approved</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={pb.text}> · {pb.icon}</span> : null })()}</span>
+                              ? <span style={{ color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.auto_out ? <span style={{ color: AMBER }} title="You didn't clock out — we estimated your finish from your rostered end. Tell your manager if it's wrong."> · ⏰ auto</span> : null}{clk.approved ? <span style={{ color: GREEN }} title="Approved by manager"> · ✓ approved</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={pb.text}> · {pb.icon}</span> : null })()}</span>
                               : <span style={{ color: AMBER }}>Didn't clock in</span>}
                           </div>
                         </div>

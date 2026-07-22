@@ -297,6 +297,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                         <div style={{ flex: 1, minWidth: 150 }}>
                           <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                             {nameById[c.staff_id] || 'Unknown'}
+                            {c.auto_out && <span style={{ fontSize: 10.5, fontWeight: 700, color: AMBER, border: `1px solid ${AMBER}66`, borderRadius: 5, padding: '1px 5px' }} title="They forgot to clock out — the system auto-signed-out at their rostered end. Please check the finish time.">⏰ auto-signed-out</span>}
                             {(() => { const pb = presenceBadge(c.presence); return pb ? <span style={{ fontSize: 10.5, fontWeight: 700, color: pb.color, border: `1px solid ${pb.color}55`, borderRadius: 5, padding: '1px 5px' }} title={`Clock-in: ${pb.text}`}>{pb.icon} {pb.short}</span> : null })()}
                             {(() => { const pb = presenceBadge(c.presence_out); return (pb && c.presence_out !== c.presence) ? <span style={{ fontSize: 10.5, fontWeight: 700, color: pb.color, border: `1px solid ${pb.color}55`, borderRadius: 5, padding: '1px 5px' }} title={`Clock-out: ${pb.text}`}>out {pb.icon}</span> : null })()}
                           </div>
@@ -347,7 +348,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 110 }}>{r.name} <span style={{ fontSize: 10.5, fontWeight: 400, color: 'rgba(255,255,255,0.4)' }}>{r.sh.label}</span></div>
                             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Rostered <strong style={{ color: '#fff' }}>{shiftTimeLabel(r.sh)}</strong></span>
                             {inT
-                              ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.approved ? <span style={{ color: GREEN }} title="Approved"> · ✓</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={`Clock-in: ${pb.text}`}> · {pb.icon} {pb.short}</span> : null })()}</span>
+                              ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>Clocked <strong style={{ color: '#60A5FA' }}>{inT}–{outT || '…'}</strong>{worked ? <span style={{ color: '#60A5FA' }}> · {hoursLabel(worked)}</span> : (!outT ? <span style={{ color: AMBER }}> · no clock-out</span> : null)}{clk.auto_out ? <span style={{ color: AMBER }} title="Auto-signed-out — check the finish time"> · ⏰ auto</span> : null}{clk.approved ? <span style={{ color: GREEN }} title="Approved"> · ✓</span> : null}{(() => { const pb = presenceBadge(clk?.presence); return pb ? <span style={{ color: pb.color }} title={`Clock-in: ${pb.text}`}> · {pb.icon} {pb.short}</span> : null })()}</span>
                               : <span style={{ fontSize: 12, color: AMBER }}>Didn't clock in</span>}
                           </div>
                         )

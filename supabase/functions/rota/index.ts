@@ -167,6 +167,59 @@ async function checkPresence(sb: any, ip: string | null, fix: any) {
   return { label: "unverified", allow: true, distance: null };   // no usable fix, no wifi match
 }
 
+// ── Shift day (8am-anchored, London time) ────────────────────────────────────
+// A "shift day" runs 8am → 8am the next morning, so a late shift that ends after
+// midnight still belongs to the day it STARTED. This lets staff clock OUT of last
+// night's shift at 2am (it's still "yesterday" until 8am), and only see the next
+// day's shifts from 8am. Clocking keys on this, not the raw calendar date.
+const SHIFT_DAY_CUTOFF = 8;   // 8am
+function londonHour(d = new Date()): number {
+  const h = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false }).format(d);
+  return (parseInt(h, 10) || 0) % 24;
+}
+function londonDateISO(d = new Date()): string {
+  const p: any = {};
+  for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d)) p[x.type] = x.value;
+  return `${p.year}-${p.month}-${p.day}`;
+}
+function shiftDayISO(d = new Date()): string {
+  const today = londonDateISO(d);
+  if (londonHour(d) < SHIFT_DAY_CUTOFF) {                 // before 8am → still yesterday's shift day
+    const dt = new Date(today + "T12:00:00Z"); dt.setUTCDate(dt.getUTCDate() - 1);
+    return dt.toISOString().slice(0, 10);
+  }
+  return today;
+}
+
+// Auto-sign-out: close any of a staffer's OPEN clocks that belong to an EARLIER shift
+// day (they forgot, and the 8am cut-off has passed). Sets clock_out to the best estimate
+// (clock-in + their rostered length that day, else +8h), leaves approved=false and flags
+// auto_out=true so the founder reviews it. Idempotent — safe to call on every load.
+async function autoCloseStale(sb: any, staffId: string) {
+  const sd = shiftDayISO();
+  const { data: open } = await sb.from("shift_clock").select("*").eq("staff_id", staffId).is("clock_out", null).not("clock_in", "is", null);
+  const stale = (open || []).filter((c: any) => c.date < sd);
+  if (!stale.length) return;
+  const { data: claims } = await sb.from("staff_shift_claims").select("shift_id").eq("staff_id", staffId);
+  const shiftIds = (claims || []).map((c: any) => c.shift_id);
+  for (const c of stale) {
+    let durMin = 8 * 60;   // fallback if we can't find their rostered shift
+    if (shiftIds.length) {
+      const { data: shs } = await sb.from("staff_shifts").select("start_min,end_min").eq("date", c.date).in("id", shiftIds);
+      if (shs && shs.length) durMin = Math.max(...shs.map((s: any) => Math.max(60, s.end_min - s.start_min)));
+    }
+    const endMs = new Date(c.clock_in).getTime() + durMin * 60_000;
+    const patch: any = { clock_out: new Date(endMs).toISOString(), approved: false, auto_out: true };
+    let r = await sb.from("shift_clock").update(patch).eq("id", c.id);
+    if (r.error) await sb.from("shift_clock").update({ clock_out: new Date(endMs).toISOString(), approved: false }).eq("id", c.id);   // auto_out column missing → still close it
+  }
+}
+// A staffer's currently-open clock (clock_in set, no clock_out), most recent first.
+async function openClockOf(sb: any, staffId: string) {
+  const { data } = await sb.from("shift_clock").select("*").eq("staff_id", staffId).is("clock_out", null).not("clock_in", "is", null).order("clock_in", { ascending: false }).limit(1).maybeSingle();
+  return data || null;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: any = {};
@@ -201,7 +254,7 @@ Deno.serve(async (req) => {
     // ── Daily hub: who's rostered TODAY + their clock status (public — the shared
     //    WhatsApp link opens this before anyone signs in). First names + times only. ──
     if (action === "todayRoster") {
-      const today = todayISO();
+      const today = shiftDayISO();   // 8am-anchored, so after-midnight still shows tonight's roster
       const { data: shifts } = await sb.from("staff_shifts").select("id,start_min,end_min").eq("date", today);
       const sids = (shifts || []).map((s: any) => s.id);
       const byShift: Record<string, any> = {}; for (const s of shifts || []) byShift[s.id] = s;
@@ -293,7 +346,8 @@ Deno.serve(async (req) => {
       if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
 
       if (action === "myState") {
-        const today = todayISO();
+        await autoCloseStale(sb, me.id);                   // close any forgotten prior shift before reading state
+        const today = shiftDayISO();                       // 8am-anchored operating day
         const pastFrom = new Date(Date.now() - 90 * 86400000).toISOString().slice(0, 10);   // ~90 days of shift history
         const noteFrom = new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10);   // last week's handovers
         const noteTo = new Date(Date.now() + 28 * 86400000).toISOString().slice(0, 10);      // + upcoming briefings
@@ -326,7 +380,9 @@ Deno.serve(async (req) => {
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
-          clock: clockList.find((c: any) => c.date === today) || null,   // today's clock (banner)
+          // Banner clock = an OPEN shift (whichever day it started, so it persists past
+          // midnight until they clock out) else this shift day's row.
+          clock: clockList.find((c: any) => c.clock_in && !c.clock_out) || clockList.find((c: any) => c.date === today) || null,
           clocks: clockList,                                              // full clock history (past-shift actuals)
           rosteredToday: (shifts || []).some((s: any) => s.date === today && mine.has(s.id)),
           soi_version: SOI_VERSION,
@@ -373,33 +429,49 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
 
-      // Clock in — stamps the real start time for today (first tap wins).
-      // Also records where they were (venue wifi / GPS) so off-site punches are flagged.
+      // Clock in — stamps the real start time for this shift day (first tap wins).
+      // Records presence (wifi/GPS) so off-site punches are flagged. Staff must sign OUT
+      // of any earlier open shift first — we auto-close a forgotten one so they're never stuck.
       if (action === "clockIn") {
-        const today = todayISO();
+        await autoCloseStale(sb, me.id);                     // sign out a forgotten prior shift first
+        const day = shiftDayISO();
+        // If a shift is already OPEN (this or any day), you're already on — return it.
+        // Checked BEFORE the presence gate so a re-tap never shows a misleading "not at venue".
+        const openNow = await openClockOf(sb, me.id);
+        if (openNow) return json({ ok: true, clock: openNow, alreadyOpen: true });
+        // Already did (and finished) this shift day → return it, don't start a second.
+        const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", day).maybeSingle();
+        if (existing?.clock_in) return json({ ok: true, clock: existing });
         const pres = await checkPresence(sb, clientIp, b.fix);
         if (!pres.allow) return json({ error: "You're not at the venue yet. Head inside and tap again, or ask your manager to start your shift." }, 403);
-        const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
-        if (existing?.clock_in) return json({ ok: true, clock: existing });   // already started
-        const base: any = { staff_id: me.id, date: today, clock_in: new Date().toISOString(), approved: false };
+        const base: any = { staff_id: me.id, date: day, clock_in: new Date().toISOString(), approved: false };
         const rich = pres.label === "off" ? base
           : { ...base, ip: clientIp, lat: b.fix?.lat ?? null, lng: b.fix?.lng ?? null, accuracy_m: b.fix?.accuracy ?? null, presence: pres.label };
-        let up = await sb.from("shift_clock").upsert(rich, { onConflict: "staff_id,date" }).select("*").single();
-        if (up.error && rich !== base) up = await sb.from("shift_clock").upsert(base, { onConflict: "staff_id,date" }).select("*").single();   // columns not added yet → fall back
-        if (up.error) return json({ error: up.error.message }, 400);
+        let up = await sb.from("shift_clock").insert(rich).select("*").single();
+        if (up.error && rich !== base) up = await sb.from("shift_clock").insert(base).select("*").single();   // presence columns missing → base insert
+        if (up.error) {   // unique (staff_id,date) race — a parallel tap won; return that row
+          const { data: row } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", day).maybeSingle();
+          if (row) return json({ ok: true, clock: row });
+          return json({ error: up.error.message }, 400);
+        }
         return json({ ok: true, clock: up.data, presence: pres.label });
       }
-      // Clock out — stamps the real end time for today. Records presence too (flag only —
-      // a clock-out is never blocked, so no one can be left unable to end their shift).
+      // Clock out — closes the OPEN shift (whichever day it started), so a 2am clock-out
+      // ends last night's shift, not a non-existent "today" row. Idempotent: a repeat tap
+      // returns the finished row without overwriting the time or un-approving it. Records
+      // presence for the flag, but NEVER blocks — no one can be left unable to end a shift.
       if (action === "clockOut") {
-        const today = todayISO();
+        const open = await openClockOf(sb, me.id);
+        if (!open) {
+          const { data: done } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", shiftDayISO()).maybeSingle();
+          if (done?.clock_out) return json({ ok: true, clock: done });   // already finished — idempotent
+          return json({ error: "Start your shift first." }, 400);
+        }
         const pres = await checkPresence(sb, clientIp, b.fix);
-        const { data: existing } = await sb.from("shift_clock").select("*").eq("staff_id", me.id).eq("date", today).maybeSingle();
-        if (!existing?.clock_in) return json({ error: "Start your shift first." }, 400);
         const base: any = { clock_out: new Date().toISOString(), approved: false };
         const rich = pres.label === "off" ? base : { ...base, presence_out: pres.label };
-        let up = await sb.from("shift_clock").update(rich).eq("id", existing.id).select("*").single();
-        if (up.error && rich !== base) up = await sb.from("shift_clock").update(base).eq("id", existing.id).select("*").single();
+        let up = await sb.from("shift_clock").update(rich).eq("id", open.id).select("*").single();
+        if (up.error && rich !== base) up = await sb.from("shift_clock").update(base).eq("id", open.id).select("*").single();
         if (up.error) return json({ error: up.error.message }, 400);
         return json({ ok: true, clock: up.data, presence: pres.label });
       }
@@ -738,6 +810,13 @@ Deno.serve(async (req) => {
 
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
+      // Auto-sign-out anyone who forgot to clock out on an earlier shift day, so the
+      // founder's hours/wages reflect real (auto-closed, unapproved) figures.
+      {
+        const sd = shiftDayISO();
+        const { data: staleOpen } = await sb.from("shift_clock").select("staff_id").is("clock_out", null).not("clock_in", "is", null).lt("date", sd);
+        for (const sid of [...new Set((staleOpen || []).map((c: any) => c.staff_id))]) await autoCloseStale(sb, sid);
+      }
       // Include the recent past (~6 months) so the week overview counts the whole
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);

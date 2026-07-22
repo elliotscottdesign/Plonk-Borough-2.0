@@ -4,12 +4,14 @@
 // never as an error — a staff clock-in is never blocked by a missing/blocked fix.
 export function getFix({ timeout = 12000 } = {}) {
   return new Promise((resolve) => {
-    if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null)
-    navigator.geolocation.getCurrentPosition(
-      p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }),
-      () => resolve(null),
-      { enableHighAccuracy: true, timeout, maximumAge: 0 },
-    )
+    try {
+      if (typeof navigator === 'undefined' || !navigator.geolocation) return resolve(null)
+      navigator.geolocation.getCurrentPosition(
+        p => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: Math.round(p.coords.accuracy) }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout, maximumAge: 0 },
+      )
+    } catch { resolve(null) }   // a synchronous throw (blocked context) must never reject — a clock-in is never blocked by location
   })
 }
 
