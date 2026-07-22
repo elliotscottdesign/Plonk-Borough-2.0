@@ -808,6 +808,22 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...pres, ip: clientIp });
     }
 
+    // ── AI-rota rules (founder, secret-gated) — editable hours/staffing/holidays ─
+    if (action === "getRotaRules" && isAdmin()) {
+      const { data } = await sb.from("rota_rules").select("data").eq("id", 1).maybeSingle();
+      const rules = data?.data && Object.keys(data.data).length ? data.data : null;
+      return json({ ok: true, rules });
+    }
+    if (action === "setRotaRules" && isAdmin()) {
+      // Store the founder's full rules object (or {} to fall back to engine defaults).
+      const data = (b.rules && typeof b.rules === "object" && !Array.isArray(b.rules)) ? b.rules : {};
+      const { data: saved, error } = await sb.from("rota_rules")
+        .upsert({ id: 1, data, updated_at: new Date().toISOString() }, { onConflict: "id" }).select("data").single();
+      if (error) return json({ error: "Couldn't save the rules — have you run the setup SQL? (" + error.message + ")" }, 400);
+      const rules = saved?.data && Object.keys(saved.data).length ? saved.data : null;
+      return json({ ok: true, rules });
+    }
+
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
       // Auto-sign-out anyone who forgot to clock out on an earlier shift day, so the
@@ -821,7 +837,7 @@ Deno.serve(async (req) => {
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
       const noteFrom = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }, { data: availability }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }, { data: availability }, { data: rulesRow }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
@@ -830,8 +846,10 @@ Deno.serve(async (req) => {
         sb.from("shift_notes").select("*").gte("date", noteFrom).order("created_at", { ascending: false }),
         sb.from("shift_clock").select("*").gte("date", windowStart),
         sb.from("staff_availability").select("staff_id,month,data"),
+        sb.from("rota_rules").select("data").eq("id", 1).maybeSingle(),   // AI-rota rules (null/{} = venue defaults)
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
+      const rotaRules = rulesRow?.data && Object.keys(rulesRow.data).length ? rulesRow.data : null;
       return json({
         ok: true, roles: ROLES,
         staff: (staff || []).map(adminStaff),
@@ -842,6 +860,7 @@ Deno.serve(async (req) => {
         notes: notes || [],         // shift notes board (recent + upcoming)
         clocks: clocks || [],       // actual clock in/out per staff per day
         availability: availability || [],   // each member's marked-available days (AI rota input)
+        rotaRules,                  // founder-edited AI-rota rules (null → engine defaults)
       });
     }
 

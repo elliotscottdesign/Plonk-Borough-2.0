@@ -3,68 +3,102 @@
 // founder reviews, amends, then applies. Times are minutes from the date's midnight
 // (next-day > 1440), matching the roster grid / staff_shifts.
 //
-// Rules (founder, July 2026):
-//  • A manager or assistant manager must be on from 1h before open to 1h after close.
-//  • One member opens 1h early; the rest work to close (the manager block covers both).
-//  • Headcount (total at venue, incl. kitchen): Mon–Thu 2 · Fri 2 then 4 from 6pm ·
-//    Sat 3 then 4 from 6pm · Sun 2.
-//  • At least one kitchen-capable person on each day. Elliot can be manager + kitchen.
-//  • UK London state-school holidays → open 12pm–12am every day.
+// The rules are DATA now (DEFAULT_RULES below), so the founder edits them in the
+// AI Rota tab ("Rota rules") — no code change. generateWeek/hoursFor/daySlots/
+// holidayName all take an optional `rules` object; omit it and the venue defaults
+// (identical to the previous hard-coded behaviour) are used.
+//
+// Rules captured:
+//  • Per weekday: opening hours + how many people (base), plus an optional evening
+//    bump (extra bodies from a given time).
+//  • A manager/assistant manager on from `managerMargin` before open to after close.
+//  • At least one kitchen-capable person each day (requireKitchen).
+//  • School / bank holidays → their own hours every day.
 
-// Public opening hours (JS getUTCDay: 0=Sun..6=Sat), minutes from midnight.
-export const OPENING_HOURS = {
-  1: [900, 1380],   // Mon 3pm–11pm
-  2: [900, 1380],   // Tue 3pm–11pm
-  3: [900, 1380],   // Wed 3pm–11pm
-  4: [960, 1380],   // Thu 4pm–11pm
-  5: [720, 1500],   // Fri 12pm–1am
-  6: [720, 1440],   // Sat 12pm–12am
-  0: [720, 1380],   // Sun 12pm–11pm
+// Weekday index = JS getUTCDay: 0=Sun … 6=Sat. Minutes from midnight (next-day > 1440).
+export const DEFAULT_RULES = {
+  days: {
+    1: { open: 900, close: 1380, base: 2, eveAt: null, eveAdd: 0 },   // Mon 3pm–11pm · 2
+    2: { open: 900, close: 1380, base: 2, eveAt: null, eveAdd: 0 },   // Tue 3pm–11pm · 2
+    3: { open: 900, close: 1380, base: 2, eveAt: null, eveAdd: 0 },   // Wed 3pm–11pm · 2
+    4: { open: 960, close: 1380, base: 2, eveAt: null, eveAdd: 0 },   // Thu 4pm–11pm · 2
+    5: { open: 720, close: 1500, base: 2, eveAt: 1080, eveAdd: 2 },   // Fri 12pm–1am · 2 → 4 from 6pm
+    6: { open: 720, close: 1440, base: 3, eveAt: 1080, eveAdd: 1 },   // Sat 12pm–12am · 3 → 4 from 6pm
+    0: { open: 720, close: 1380, base: 2, eveAt: null, eveAdd: 0 },   // Sun 12pm–11pm · 2
+  },
+  holiday: { open: 720, close: 1440 },   // school/bank holidays: 12pm–12am
+  // UK London state-school holidays (approx — easy to edit). [startISO, endISO, name] inclusive.
+  holidayDates: [
+    ['2026-07-22', '2026-09-02', 'Summer holidays'],
+    ['2026-10-26', '2026-10-30', 'October half-term'],
+    ['2026-12-21', '2027-01-02', 'Christmas holidays'],
+    ['2027-02-15', '2027-02-19', 'February half-term'],
+    ['2027-03-29', '2027-04-11', 'Easter holidays'],
+    ['2027-05-31', '2027-06-04', 'May half-term'],
+    ['2027-07-22', '2027-09-01', 'Summer holidays'],
+  ],
+  managerMargin: 60,       // manager on from open-margin to close+margin
+  requireManager: true,    // reserve a manager/asst-manager slot
+  requireKitchen: true,    // steer one body toward kitchen cover + warn if none
 }
-export const HOLIDAY_HOURS = [720, 1440]   // school holidays: 12pm–12am every day
-const EVE = 1080   // 6pm — the evening staffing bump
 
-// UK London state-school holidays (approx — easy to edit). [startISO, endISO, name] inclusive.
-export const SCHOOL_HOLIDAYS = [
-  ['2026-07-22', '2026-09-02', 'Summer holidays'],
-  ['2026-10-26', '2026-10-30', 'October half-term'],
-  ['2026-12-21', '2027-01-02', 'Christmas holidays'],
-  ['2027-02-15', '2027-02-19', 'February half-term'],
-  ['2027-03-29', '2027-04-11', 'Easter holidays'],
-  ['2027-05-31', '2027-06-04', 'May half-term'],
-  ['2027-07-22', '2027-09-01', 'Summer holidays'],
-]
-export const holidayName = (dateStr) => { for (const [a, b, n] of SCHOOL_HOLIDAYS) if (dateStr >= a && dateStr <= b) return n; return null }
+// Legacy exports (kept so anything importing them still resolves) — derived from defaults.
+export const OPENING_HOURS = Object.fromEntries(Object.entries(DEFAULT_RULES.days).map(([k, d]) => [k, [d.open, d.close]]))
+export const HOLIDAY_HOURS = [DEFAULT_RULES.holiday.open, DEFAULT_RULES.holiday.close]
+export const SCHOOL_HOLIDAYS = DEFAULT_RULES.holidayDates
+
+// Merge a (possibly partial) saved rules object over the defaults, defensively — a
+// missing field can never crash the generator.
+export function withDefaults(rules) {
+  const src = (rules && typeof rules === 'object' && !Array.isArray(rules)) ? rules : {}
+  const days = {}
+  for (let w = 0; w <= 6; w++) days[w] = { ...DEFAULT_RULES.days[w], ...(src.days?.[w] || {}) }
+  return {
+    days,
+    holiday: { ...DEFAULT_RULES.holiday, ...(src.holiday || {}) },
+    holidayDates: Array.isArray(src.holidayDates) ? src.holidayDates.map(r => [...r]) : DEFAULT_RULES.holidayDates.map(r => [...r]),
+    managerMargin: Number.isFinite(+src.managerMargin) ? +src.managerMargin : DEFAULT_RULES.managerMargin,
+    requireManager: src.requireManager !== false,
+    requireKitchen: src.requireKitchen !== false,
+  }
+}
 
 const wd = (dateStr) => new Date(dateStr + 'T00:00:00Z').getUTCDay()
 export const addDaysISO = (d, n) => { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
 
-// Opening hours for a date (school-holiday override → 12pm–12am).
-export function hoursFor(dateStr) {
-  if (holidayName(dateStr)) return { open: HOLIDAY_HOURS[0], close: HOLIDAY_HOURS[1] }
-  const [o, c] = OPENING_HOURS[wd(dateStr)] || [720, 1380]
-  return { open: o, close: c }
+// The holiday covering a date, if any (name), else null.
+export const holidayName = (dateStr, rules) => {
+  const R = withDefaults(rules)
+  for (const [a, b, n] of (R.holidayDates || [])) if (dateStr >= a && dateStr <= b) return n
+  return null
 }
 
-// Headcount tiers (total bodies incl. manager & kitchen) as [from, to, need].
-function staffingTiers(dateStr, open, close) {
-  const w = wd(dateStr)
-  if (w === 5) return [[open, EVE, 2], [EVE, close, 4]]   // Fri: 2 then 4 from 6pm
-  if (w === 6) return [[open, EVE, 3], [EVE, close, 4]]   // Sat: 3 then 4 from 6pm
-  return [[open, close, 2]]                               // Mon–Thu + Sun: 2 all day
+// Opening hours for a date (holiday override → the holiday's hours).
+export function hoursFor(dateStr, rules) {
+  const R = withDefaults(rules)
+  if (holidayName(dateStr, R)) return { open: R.holiday.open, close: R.holiday.close }
+  const d = R.days[wd(dateStr)] || R.days[0]
+  return { open: d.open, close: d.close }
 }
 
 // The shift SLOTS a day needs, before assigning people. The manager slot spans
-// 1h before open → 1h after close (opener + closer + coverage). One slot per body.
-export function daySlots(dateStr) {
-  const { open, close } = hoursFor(dateStr)
-  const tiers = staffingTiers(dateStr, open, close)
-  const baseN = tiers[0][2]
-  const eve = tiers.find(t => t[2] > baseN)
-  const slots = [{ start: open - 60, end: close + 60, role: 'manager', label: 'Manager' }]
-  for (let i = 0; i < baseN - 1; i++) slots.push({ start: open, end: close, role: 'any', label: 'Floor' })
-  if (eve) for (let i = 0; i < eve[2] - baseN; i++) slots.push({ start: EVE, end: close, role: 'any', label: 'Evening' })
-  return { slots, open, close, holiday: holidayName(dateStr) }
+// managerMargin before open → after close (opener + closer + coverage). One slot per body.
+export function daySlots(dateStr, rules) {
+  const R = withDefaults(rules)
+  const { open, close } = hoursFor(dateStr, R)   // holiday-aware hours
+  const d = R.days[wd(dateStr)] || {}
+  // Headcount + evening bump come from the weekday; holidays change only the HOURS.
+  const base = Math.max(0, d.base ?? 2)
+  const eveAt = d.eveAt ?? null
+  const eveAdd = Math.max(0, d.eveAdd ?? 0)
+  const margin = R.managerMargin ?? 60
+  const slots = []
+  if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
+  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0))
+  for (let i = 0; i < floorN; i++) slots.push({ start: open, end: close, role: 'any', label: 'Floor' })
+  // Evening bump: extra bodies from eveAt to close (only if eveAt sits inside opening hours).
+  if (eveAt != null && eveAdd > 0 && eveAt > open && eveAt < close) for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: close, role: 'any', label: 'Evening' })
+  return { slots, open, close, holiday: holidayName(dateStr, R) }
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
@@ -88,7 +122,8 @@ function availState(availSet, everSet, date) {
 
 // Generate a concept week. Returns { days: [{ date, hours, holiday, slots:[{...}] }], warnings }
 // Each slot: { start, end, label, role, staffId|null, name|null, kitchen, warn }
-export function generateWeek(weekStart, staff, availabilityRows) {
+export function generateWeek(weekStart, staff, availabilityRows, rules) {
+  const R = withDefaults(rules)
   const active = (staff || []).filter(s => s.active !== false)
   const avail = buildAvail(availabilityRows)
   const everSet = {}; for (const s of active) everSet[s.id] = !!(avail[s.id] && avail[s.id].size)
@@ -100,7 +135,7 @@ export function generateWeek(weekStart, staff, availabilityRows) {
   const warnings = []
   for (let i = 0; i < 7; i++) {
     const date = addDaysISO(weekStart, i)
-    const { slots, open, close, holiday } = daySlots(date)
+    const { slots, open, close, holiday } = daySlots(date, R)
     const usedToday = new Set()
     let kitchenCovered = false
     const out = []
@@ -111,10 +146,7 @@ export function generateWeek(weekStart, staff, availabilityRows) {
       // (4) fewest hours so far (fair spread), (5) name for stability.
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
       // kitchen-manager (Elliot) would be picked to manage every single day.
-      const needKitchen = !kitchenCovered && slot.role !== 'manager'
-      // Availability as a hard-ish gate (binary): available OR never-set beat someone
-      // who set availability but NOT this day. Binary (not the finer rank) so managers
-      // still rotate by hours instead of one person who marked every day winning always.
+      const needKitchen = R.requireKitchen && !kitchenCovered && slot.role !== 'manager'
       const avOk = (s) => (availState(avail[s.id] || new Set(), everSet[s.id], date) >= 1 ? 1 : 0)
       pool.sort((a, b) => {
         // Kitchen cover is a hard service requirement — for the reserved kitchen slot it
@@ -142,7 +174,7 @@ export function generateWeek(weekStart, staff, availabilityRows) {
       out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Not marked available' : '' })
       if (unavailable) warnings.push(`${date}: ${pick.name} isn't marked available`)
     }
-    if (!kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
+    if (R.requireKitchen && !kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
     days.push({ date, open, close, holiday, slots: out })
   }
   return { days, warnings }

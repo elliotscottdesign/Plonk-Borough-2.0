@@ -57,6 +57,10 @@ export const rotaSetVenueConfig = (config) => call({ action: 'setVenueConfig', s
 export const rotaSetVenueLocation = (fix, opts = {}) => call({ action: 'setVenueLocation', secret: SEND_SECRET, fix, ...opts })   // opts: {alsoSetIp,radius_m,mode,enabled}
 export const rotaTestPresence = (fix) => call({ action: 'testPresence', secret: SEND_SECRET, fix })   // dry-run "am I detected on-site?"
 
+// ── AI-rota rules (founder, secret-gated) — editable hours / staffing / holidays ─
+export const rotaGetRotaRules = () => call({ action: 'getRotaRules', secret: SEND_SECRET })
+export const rotaSetRotaRules = (rules) => call({ action: 'setRotaRules', secret: SEND_SECRET, rules })   // full rules object, or {} to reset to defaults
+
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (name, password) => call({ action: 'login', name, password })   // name + password (same as the /today tap-your-name login)
 export const rotaSignup = (name, email, password, code) => call({ action: 'signup', name, email, password, code })

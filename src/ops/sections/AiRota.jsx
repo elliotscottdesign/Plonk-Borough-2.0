@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { generateWeek, holidayName, addDaysISO, hoursFor } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
 import { rotaSaveDayRoster } from '../../rota/api.js'
+import RotaRulesEditor from './RotaRulesEditor.jsx'
 
 // ─── AI Rota — auto-filled concept the founder reviews, amends & applies ──────
 // Deterministic generator (src/rota/rotaEngine.js) using the venue's rules. This
@@ -12,7 +13,7 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
 const dayLabel = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
-export default function AiRota({ staff = [], availability = [], reload }) {
+export default function AiRota({ staff = [], availability = [], rules = null, reload }) {
   const now = new Date()
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))
   const [days, setDays] = useState(null)
@@ -35,7 +36,7 @@ export default function AiRota({ staff = [], availability = [], reload }) {
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
   const missingAvail = active.filter(s => !weekMonths.some(m => availMonths[s.id]?.has(m)))
 
-  const generate = () => { const r = generateWeek(weekStart, staff, availability); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
+  const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
 
   const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
@@ -96,6 +97,12 @@ export default function AiRota({ staff = [], availability = [], reload }) {
           <button onClick={generate} disabled={busy} style={btn('gold')}>✨ Generate</button>
         </div>
       </div>
+
+      {/* Editable rules the AI builds from — hours, staffing, holidays */}
+      <details style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0 14px' }}>
+        <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '13px 0' }}>⚙️ Rota rules — opening hours, staffing &amp; holidays <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>· what the AI uses (edit &amp; save)</span></summary>
+        <div style={{ paddingBottom: 14 }}><RotaRulesEditor rules={rules} onSaved={reload} /></div>
+      </details>
 
       {/* Readiness — the engine fills from expected hours + availability, so flag anyone missing them for this week */}
       {(missingHours.length > 0 || missingAvail.length > 0) ? (

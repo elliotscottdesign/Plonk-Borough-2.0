@@ -63,6 +63,7 @@ export default function StaffRota() {
   const [notes, setNotes] = useState([])       // shift notes board
   const [clocks, setClocks] = useState([])     // actual clock in/out records
   const [availability, setAvailability] = useState([])   // staff availability (AI rota input)
+  const [rotaRules, setRotaRules] = useState(null)       // founder-edited AI-rota rules (null → defaults)
   const [trained, setTrained] = useState({})   // staff_id → Set(item_key)
   const [docsBy, setDocsBy] = useState({})     // staff_id → { passport, rtw }
   const [viewSoi, setViewSoi] = useState(false)
@@ -80,7 +81,7 @@ export default function StaffRota() {
   const load = async () => {
     setLoading(true); setErr('')
     try {
-      const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || [])
+      const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || []); setRotaRules(r.rotaRules || null)
       const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
       const dm = {}; for (const d of r.docs || []) (dm[d.staff_id] ||= {})[d.kind] = true; setDocsBy(dm)
     }
@@ -161,7 +162,7 @@ export default function StaffRota() {
       ) : view === 'availability' ? (
         <AvailabilityOverview staff={staff} availability={availability} />
       ) : view === 'ai' ? (
-        <AiRota staff={staff} availability={availability} reload={load} />
+        <AiRota staff={staff} availability={availability} rules={rotaRules} reload={load} />
       ) : view === 'checklists' ? (
         <ChecklistLog />
       ) : view === 'training' ? (
