@@ -824,6 +824,32 @@ Deno.serve(async (req) => {
       return json({ ok: true, rules });
     }
 
+    // ── Founder edits a staffer's availability (secret-gated) ──────────────────
+    // Same shape/sanitising as the staff-side saveAvailability, but keyed to any
+    // staffId. The founder can fill in / correct anyone's "days I can work".
+    if (action === "setStaffAvailability" && isAdmin()) {
+      const staffId = String(b.staffId || "");
+      const month = String(b.month || "");
+      if (!staffId) return json({ error: "no staff" }, 400);
+      if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: "bad month" }, 400);
+      const raw = (b.data && typeof b.data === "object" && !Array.isArray(b.data)) ? b.data : {};
+      const data: Record<string, any> = {};
+      let n = 0;
+      for (const k of Object.keys(raw)) {
+        if (n >= 40) break;
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !k.startsWith(month + "-")) continue;
+        const v = raw[k];
+        data[k] = (v && typeof v === "object" && !Array.isArray(v))
+          ? { from: String(v.from || "").slice(0, 5), to: String(v.to || "").slice(0, 5) }
+          : { available: true };
+        n++;
+      }
+      const { error } = await sb.from("staff_availability")
+        .upsert({ staff_id: staffId, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     // ── Rota (founder view): staff + upcoming shifts + who's on them ───────────
     if (action === "load") {
       // Auto-sign-out anyone who forgot to clock out on an earlier shift day, so the

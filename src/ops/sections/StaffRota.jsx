@@ -160,7 +160,7 @@ export default function StaffRota() {
       {view === 'rota' ? (
         <RotaCalendar staff={staff} shifts={shifts} claims={claims} notes={notes} clocks={clocks} availability={availability} reload={load} />
       ) : view === 'availability' ? (
-        <AvailabilityOverview staff={staff} availability={availability} />
+        <AvailabilityOverview staff={staff} availability={availability} reload={load} />
       ) : view === 'ai' ? (
         <AiRota staff={staff} availability={availability} rules={rotaRules} reload={load} />
       ) : view === 'checklists' ? (
