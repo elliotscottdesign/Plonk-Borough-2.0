@@ -177,7 +177,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>Sort</span>
               {[['hours', 'Hours'], ['role', 'Role'], ['name', 'A–Z']].map(([k, lbl]) => (
-                <button key={k} onClick={() => setSortBy(k)} title={k === 'role' ? 'Manager → Bar Staff → Kitchen' : ''} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer', background: sortBy === k ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sortBy === k ? PURPLE : 'rgba(255,255,255,0.14)'}`, color: sortBy === k ? '#fff' : 'rgba(255,255,255,0.6)' }}>{lbl}</button>
+                <button key={k} onClick={() => setSortBy(k)} title={k === 'role' ? 'Manager → Assistant Manager → Bar Staff → Kitchen Staff' : ''} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer', background: sortBy === k ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sortBy === k ? PURPLE : 'rgba(255,255,255,0.14)'}`, color: sortBy === k ? '#fff' : 'rgba(255,255,255,0.6)' }}>{lbl}</button>
               ))}
             </div>
             <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
@@ -387,9 +387,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   )
 }
 
-// Role display order for the "by role" sort: Manager → … → Bar Staff → Kitchen.
+// Role display order for the "by role" sort (founder-set stack):
+// Manager → Assistant Manager → Bar Staff → Kitchen Staff. (Supervisor sits just
+// below Assistant Manager; unknown/blank roles group with Bar Staff.)
 const ROLE_ORDER = { 'Manager': 0, 'Asst. Manager': 1, 'Supervisor': 2, 'Bar Staff': 3, 'Kitchen / Barback': 4 }
-const roleRank = (role) => ROLE_ORDER[role] ?? 3   // unknown/blank sits with Bar Staff
+const roleRank = (role) => ROLE_ORDER[role] ?? 3
 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
