@@ -255,7 +255,7 @@ export default function Tournament() {
                 <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
                   <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
-                  {['P', 'W', 'L', 'F', 'A', '+/−', 'Pts'].map(h => <th key={h} style={{ padding: '0 7px 6px' }}>{h}</th>)}
+                  {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Frames won'], ['A', 'Frames lost'], ['+/−', 'Frame difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
                 </tr>
               </thead>
               <tbody>
@@ -275,7 +275,7 @@ export default function Tournament() {
               </tbody>
             </table>
           </div>
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>P played · W won · L lost · F frames for · A against · +/− difference · Pts points</div>
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.5 }}>P played · W won · L lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>F</strong> frames won · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>A</strong> frames lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>+/−</strong> frame difference (the tiebreaker when level on points) · Pts points</div>
         </div>
 
         {/* Rounds — latest first */}
@@ -338,31 +338,29 @@ export default function Tournament() {
         const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
         const placings = run.placings
         const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
+        const bracketMax = run.run?.settings?.raceTo || 8
         const BracketMatch = ({ m }) => {
           if (m.is_bye) return <div style={{ ...bracketBox, color: 'rgba(255,255,255,0.6)' }}><div style={{ fontWeight: 700, color: '#fff' }}>{nameById[m.p1_id]}</div><div style={{ fontSize: 10.5, color: GREEN }}>bye →</div></div>
           const doneM = m.status === 'done'
           const playable = m.p1_id && m.p2_id && !doneM
           const e = scores[m.id] || {}, v1 = e.p1 ?? (m.p1_score ?? ''), v2 = e.p2 ?? (m.p2_score ?? '')
-          const side = (pid, sc, win) => (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-              <span style={{ fontSize: 13, fontWeight: win ? 800 : 600, color: !pid ? 'rgba(255,255,255,0.3)' : win ? GREEN : doneM ? 'rgba(255,255,255,0.45)' : '#fff', textDecoration: doneM && !win ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pid ? nameById[pid] : 'TBD'}</span>
-              {doneM && <span style={{ fontSize: 13, fontWeight: 800, color: win ? GREEN : 'rgba(255,255,255,0.45)' }}>{sc}</span>}
+          // One line per player: their name on the left, THEIR score on the right —
+          // a dropdown while playable, the final number once done.
+          const row = (pid, side, val, sc, win) => (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 34 }}>
+              <span style={{ fontSize: 13.5, fontWeight: win ? 800 : 600, color: !pid ? 'rgba(255,255,255,0.3)' : win ? GREEN : doneM ? 'rgba(255,255,255,0.45)' : '#fff', textDecoration: doneM && !win ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pid ? nameById[pid] : 'TBD'}</span>
+              {playable && pid
+                ? <ScoreSelect value={val} onPick={x => setScore(m.id, side, x)} disabled={busy} max={bracketMax} compact />
+                : (doneM ? <span style={{ fontSize: 16, fontWeight: 800, color: win ? GREEN : 'rgba(255,255,255,0.45)', minWidth: 20, textAlign: 'center' }}>{sc}</span> : null)}
             </div>
           )
           return (
             <div style={bracketBox}>
-              {side(m.p1_id, m.p1_score, doneM && m.winner_id === m.p1_id)}
+              {row(m.p1_id, 'p1', v1, m.p1_score, doneM && m.winner_id === m.p1_id)}
               <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '5px 0' }} />
-              {side(m.p2_id, m.p2_score, doneM && m.winner_id === m.p2_id)}
-              {playable && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
-                  <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy} max={run.run?.settings?.raceTo || 8} compact />
-                  <span style={{ color: 'rgba(255,255,255,0.35)' }}>–</span>
-                  <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy} max={run.run?.settings?.raceTo || 8} compact />
-                  <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '5px 10px', fontSize: 11, marginLeft: 'auto' }}>Save</button>
-                </div>
-              )}
-              {doneM && !m.is_bye && <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={{ ...iconBtn, width: 24, height: 24, fontSize: 11, marginTop: 6, alignSelf: 'flex-end' }}>✎</button>}
+              {row(m.p2_id, 'p2', v2, m.p2_score, doneM && m.winner_id === m.p2_id)}
+              {playable && <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), width: '100%', padding: '6px', fontSize: 11.5, marginTop: 8 }}>Save result</button>}
+              {doneM && <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={{ ...iconBtn, width: 24, height: 24, fontSize: 11, marginTop: 6, alignSelf: 'flex-end' }}>✎</button>}
             </div>
           )
         }
