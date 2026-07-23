@@ -21,6 +21,45 @@ const json = (body: unknown, status = 200) =>
 
 const clean = (v: unknown, max = 60) => String(v ?? "").trim().slice(0, max);
 
+// ── Email (Resend) — voucher confirmations to winners (reuses the rota pattern) ──
+const RESEND = Deno.env.get("RESEND_API_KEY");
+const esc = (s: unknown) => String(s ?? "").replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" } as Record<string, string>)[c]);
+async function sendMail(to: string, subject: string, html: string) {
+  if (!RESEND || !to) return false;
+  try {
+    await fetch("https://api.resend.com/emails", {
+      method: "POST", headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "No Dice <elliot@nodice.bar>", to, subject, html }),
+    });
+    return true;
+  } catch (_) { return false; }
+}
+const gbp = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
+const voucherEmail = (name: string, place: number, amount: number, code: string, tournName: string) => {
+  const ord = place === 1 ? "1st" : place === 2 ? "2nd" : "3rd";
+  const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+  return `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Pool</p>
+    <h1 style="font-size:24px;margin:0 0 6px">${medal} ${ord} place — nice one, ${esc(name)}!</h1>
+    <p style="font-size:15px;line-height:1.6;color:#ddd">You finished <strong style="color:#fff">${ord}</strong> at <strong style="color:#fff">${esc(tournName)}</strong>. Here's your <strong style="color:#A855F7">${gbp(amount)} bar tab</strong> — on us.</p>
+    <div style="margin:20px 0;padding:16px;border:1px dashed #A855F7;border-radius:12px;text-align:center;background:#160e24">
+      <div style="font-size:12px;color:#b79ae0;text-transform:uppercase;letter-spacing:.1em">Your voucher</div>
+      <div style="font-size:30px;font-weight:800;color:#fff;margin:4px 0">${gbp(amount)}</div>
+      <div style="font-size:18px;font-weight:700;letter-spacing:.14em;color:#A855F7">${code}</div>
+    </div>
+    <p style="font-size:13px;line-height:1.6;color:#aaa">Show this email at the bar to redeem. Valid on your next visit.</p>
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+};
+function shortCode(seed: string) {
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  let out = "";
+  for (let i = 0; i < 6; i++) { out += A[h % 32]; h = (Math.floor(h / 32) ^ Math.imul(h, 2246822519)) >>> 0; }
+  return "ND-" + out;
+}
+
 // Scoring settings (per tournament, in pool_tournaments.settings). Matches the
 // kickertool config the venue uses: race to 8 goals, no draws, 1 point per win
 // (so standings Pts = wins, then ranked on goal difference), byes not rated.
@@ -189,6 +228,62 @@ function computePlacings(matches: any[], standings: any[]) {
   return { first, second, third };
 }
 
+const VOUCHER_PENCE: Record<number, number> = { 1: 3000, 2: 2000, 3: 1000 };   // £30 / £20 / £10
+// Create the 1st/2nd/3rd voucher records + email ticket-holders. Idempotent (unique per
+// tournament+place); only emails an address we actually have, and only once.
+async function finalizeTournament(sb: any, run: any) {
+  const { participants, placings } = await loadRun(sb, run);
+  if (!placings) return { error: "Not finished yet." };
+  const { data: t } = await sb.from("tournaments").select("name").eq("id", run.tournament_id).maybeSingle();
+  const tournName = t?.name || "the No Dice pool tournament";
+  const byId: Record<string, any> = {}; for (const p of participants) byId[p.id] = p;
+  const vouchers: any[] = [];
+  for (const place of [1, 2, 3]) {
+    const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third;
+    if (!pid) continue;
+    const p = byId[pid];
+    let { data: v } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).maybeSingle();
+    if (!v) {
+      let email: string | null = null;
+      if (p?.entry_id) { const { data: e } = await sb.from("tournament_entries").select("captain_email").eq("id", p.entry_id).maybeSingle(); email = e?.captain_email || null; }
+      const ins = await sb.from("pool_vouchers").insert({ pool_tournament_id: run.id, participant_id: pid, place, amount_pence: VOUCHER_PENCE[place], code: shortCode(run.id + place), display_name: p?.display_name || null, email }).select("*").single();
+      v = ins.data;
+    }
+    if (v && v.email && !v.emailed_at) {
+      const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+      const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
+      if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+    }
+    vouchers.push(v);
+  }
+  return { vouchers };
+}
+
+// The live league for a discipline: aggregate every finished night (excluding season
+// finals). Points: 1st 5 · 2nd 4 · 3rd 3 · show-up 1 · top of the rounds table +1.
+// Tiebreak on cumulative season goal/frame difference. Top 8 qualify for the grand final.
+async function computeLeague(sb: any, discipline: string) {
+  const { data: runs } = await sb.from("pool_tournaments").select("*, tournaments(name,event_date,tournament_type)").eq("status", "done");
+  const relevant = (runs || []).filter((r: any) => r.tournaments && r.tournaments.tournament_type === discipline && !/season final/i.test(r.tournaments.name || ""));
+  relevant.sort((a: any, b: any) => String(a.tournaments.event_date).localeCompare(String(b.tournaments.event_date)));
+  const table: Record<string, any> = {};
+  for (const run of relevant) {
+    const { participants, standings, placings } = await loadRun(sb, run);
+    const nameById: Record<string, string> = {}; for (const p of participants) nameById[p.id] = p.display_name;
+    const keyOf = (id: string) => (nameById[id] || "").trim().toLowerCase();
+    const ensure = (id: string) => { const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
+    for (const p of participants.filter((p: any) => p.active)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
+    for (const s of standings) { const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
+    if (standings[0]) { const e = table[keyOf(standings[0].id)]; if (e) e.pts += 1; }
+    if (placings) {
+      const add = (pid: string | null, pts: number, f: string) => { if (!pid) return; const e = table[keyOf(pid)]; if (e) { e.pts += pts; e[f]++; } };
+      add(placings.first, 5, "wins"); add(placings.second, 4, "seconds"); add(placings.third, 3, "thirds");
+    }
+  }
+  const arr = (Object.values(table) as any[]).sort((a, b) => b.pts - a.pts || b.frameDiff - a.frameDiff || String(a.name).localeCompare(String(b.name))).map((r, i) => ({ ...r, rank: i + 1, qualifies: i < 8 }));
+  return { discipline, nights: relevant.length, table: arr };
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   let b: any = {};
@@ -196,6 +291,14 @@ Deno.serve(async (req) => {
   const action = b.action as string;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
+
+  // ── Public reads (no secret — the nodice.bar site + bar-TV pages call these) ──
+  try {
+    if (action === "getLeague") {
+      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
+      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+    }
+  } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 
   if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
@@ -248,10 +351,11 @@ Deno.serve(async (req) => {
       if (run.status === "setup") for (const row of toAdd) { await sb.from("pool_participants").insert(row); }
 
       const data = await loadRun(sb, run);
+      const { data: vouchers } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).order("place");
       return json({
         ok: true,
         tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 12 },
-        run, paidCount: (entries || []).length, ...data,
+        run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
 
@@ -306,7 +410,11 @@ Deno.serve(async (req) => {
           const semis = (allBr || []).filter((x: any) => x.bracket_round === rounds - 1 && !x.is_third_place && x.status === "done");
           if (semis.length === 2) await sb.from("pool_matches").update({ p1_id: semis[0].winner_id === semis[0].p1_id ? semis[0].p2_id : semis[0].p1_id, p2_id: semis[1].winner_id === semis[1].p1_id ? semis[1].p2_id : semis[1].p1_id }).eq("id", tpm.id);
         }
-        if (m.bracket_round === rounds && !m.is_third_place) await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", m.pool_tournament_id);
+        if (m.bracket_round === rounds && !m.is_third_place) {
+          await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", m.pool_tournament_id);
+          const { data: doneRun } = await sb.from("pool_tournaments").select("*").eq("id", m.pool_tournament_id).maybeSingle();
+          if (doneRun) await finalizeTournament(sb, doneRun);   // create + email the 1st/2nd/3rd vouchers
+        }
       }
       return json({ ok: true });
     }
@@ -334,6 +442,31 @@ Deno.serve(async (req) => {
       const gen = await generateBracket(sb, run, standings, thirdPlace);
       if ((gen as any).error) return json({ error: (gen as any).error }, 400);
       return json({ ok: true, ...gen });
+    }
+
+    // Re-run voucher creation / emails for a finished night (idempotent).
+    if (action === "finalize") {
+      const runId = clean(b.runId, 40);
+      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      const r = await finalizeTournament(sb, run);
+      if ((r as any).error) return json({ error: (r as any).error }, 400);
+      return json({ ok: true, ...r });
+    }
+    // Seed a season final (grand final) from the league's top 8.
+    if (action === "seedFromLeague") {
+      const runId = clean(b.runId, 40);
+      const { data: run } = await sb.from("pool_tournaments").select("*, tournaments(tournament_type)").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      if (run.status !== "setup") return json({ error: "Seed the grand final before it starts." }, 400);
+      const discipline = (run as any).tournaments?.tournament_type === "doubles" ? "doubles" : "singles";
+      const league = await computeLeague(sb, discipline);
+      const top8 = league.table.slice(0, 8);
+      const { data: existing } = await sb.from("pool_participants").select("display_name").eq("pool_tournament_id", runId);
+      const have = new Set((existing || []).map((p: any) => (p.display_name || "").trim().toLowerCase()));
+      let added = 0;
+      for (const r of top8) { if (have.has(r.key)) continue; await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: r.name, source: "manual", seed: r.rank }); added++; }
+      return json({ ok: true, added, top8 });
     }
     // Undo the latest round (delete it + its matches).
     if (action === "deleteLastRound") {

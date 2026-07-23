@@ -31,3 +31,8 @@ export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound',
 
 // Slice 3 — knockout bracket.
 export const tournStartKnockout = (runId, thirdPlace) => call({ action: 'startKnockout', runId, thirdPlace })
+
+// Slice 4 — vouchers + league + grand final.
+export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
+export const tournFinalize = (runId) => call({ action: 'finalize', runId })                  // re-run voucher emails
+export const tournSeedFromLeague = (runId) => call({ action: 'seedFromLeague', runId })       // grand final: add league top-8

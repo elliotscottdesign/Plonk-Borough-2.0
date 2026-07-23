@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore,
   tournStartRounds, tournNextRound, tournEnterScore, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout,
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
@@ -28,6 +28,9 @@ export default function Tournament() {
   const [editVal, setEditVal] = useState('')
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
   const [thirdPlace, setThirdPlace] = useState(false)   // knockout: play a 3rd-place match?
+  const [leagueView, setLeagueView] = useState(false)   // showing the season league table
+  const [league, setLeague] = useState(null)
+  const [leagueDisc, setLeagueDisc] = useState('singles')
 
   const loadList = async () => {
     setLoading(true)
@@ -53,6 +56,10 @@ export default function Tournament() {
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm('Cut to the knockout? The top players seed into a single-elimination bracket from the standings.')) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace))() }
+  const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
+  const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
     const e = scores[m.id] || {}
     const p1 = e.p1 ?? (m.p1_score ?? ''), p2 = e.p2 ?? (m.p2_score ?? '')
@@ -60,6 +67,48 @@ export default function Tournament() {
     await guard(async () => { await tournEnterScore(m.id, p1, p2); setScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
   }
   const setScore = (id, side, v) => setScores(s => ({ ...s, [id]: { ...s[id], [side]: v.replace(/[^0-9]/g, '').slice(0, 2) } }))
+
+  // ── Season league table ─────────────────────────────────────────────────────
+  if (leagueView) {
+    const rows = league?.table || []
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Pool nights</button>
+        <div>
+          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 League table</div>
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season frame difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {['singles', 'doubles'].map(d => <button key={d} onClick={() => loadLeague(d)} style={{ ...pill(leagueDisc === d), textTransform: 'capitalize' }}>{d}</button>)}
+        </div>
+        {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished {leagueDisc} nights yet — the league fills in as tournaments complete.</div> : (
+          <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
+              <thead><tr style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th><th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                {['Nights', '🥇', '🥈', '🥉', '+/−', 'Pts'].map(h => <th key={h} style={{ padding: '0 8px 6px', textAlign: 'right' }}>{h}</th>)}
+              </tr></thead>
+              <tbody>
+                {rows.map(r => (
+                  <tr key={r.key} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff', background: r.qualifies ? 'rgba(168,85,247,0.12)' : 'transparent' }}>
+                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 700, color: r.rank <= 8 ? PURPLE : 'rgba(255,255,255,0.5)' }}>{r.rank}{r.rank <= 8 ? ' ✦' : ''}</td>
+                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 600 }}>{r.name}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: 'rgba(255,255,255,0.55)' }}>{r.nights}</td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>{r.wins || ''}</td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>{r.seconds || ''}</td>
+                    <td style={{ padding: '8px', textAlign: 'right' }}>{r.thirds || ''}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', color: r.frameDiff > 0 ? GREEN : r.frameDiff < 0 ? '#F87171' : 'rgba(255,255,255,0.55)' }}>{r.frameDiff > 0 ? '+' : ''}{r.frameDiff}</td>
+                    <td style={{ padding: '8px', textAlign: 'right', fontWeight: 800, fontSize: 15, color: PURPLE }}>{r.pts}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>✦ = top 8 · qualifies for the grand final. This same table shows live on nodice.bar.</div>
+          </div>
+        )}
+      </div>
+    )
+  }
 
   // ── List of pool nights ─────────────────────────────────────────────────────
   if (view === 'list') {
@@ -88,9 +137,12 @@ export default function Tournament() {
     }
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <div>
-          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
-          <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap one to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap one to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
+          </div>
+          <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
         </div>
         {err && <div style={errBox}>{err}</div>}
         {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : (
@@ -174,6 +226,9 @@ export default function Tournament() {
               ))}
             </div>
           </div>
+        )}
+        {/season final|grand final/i.test(t.name || '') && (
+          <button onClick={seedGrandFinal} disabled={busy} style={{ ...pill(true), alignSelf: 'flex-start', padding: '9px 14px' }} title="Add the league's top 8 as entrants">✦ Seed the top 8 from the league</button>
         )}
         <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
       </>}
@@ -302,13 +357,30 @@ export default function Tournament() {
         }
         return (
           <>
-            {placings && (
-              <div style={{ background: 'rgba(252,211,77,0.1)', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>🥈 2nd: <strong style={{ color: '#fff' }}>{nameById[placings.second] || '—'}</strong> · 🥉 3rd: <strong style={{ color: '#fff' }}>{nameById[placings.third] || '—'}</strong></div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Vouchers: £30 / £20 / £10 — auto-emailed once that step is switched on (next update).</div>
-              </div>
-            )}
+            {placings && (() => {
+              const vByPlace = Object.fromEntries((run.vouchers || []).map(v => [v.place, v]))
+              return (
+                <div style={{ background: 'rgba(168,85,247,0.10)', border: `1px solid ${PURPLE}88`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {[1, 2, 3].map(place => {
+                      const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third
+                      if (!pid) return null
+                      const v = vByPlace[place], medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉', amt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
+                      return (
+                        <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                          <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}</span>
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>{amt} tab</span>
+                          {v?.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
+                          {v?.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v?.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <button onClick={resendVouchers} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start', padding: '6px 12px', fontSize: 11.5 }}>↻ Re-issue / email vouchers</button>
+                </div>
+              )
+            })()}
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
@@ -340,6 +412,7 @@ const btn = (kind) => {
 const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
 const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
+const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? PURPLE : 'rgba(255,255,255,0.2)'}`, background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', color: '#fff' })
 const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
 const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }
 const sectLbl = { fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }
