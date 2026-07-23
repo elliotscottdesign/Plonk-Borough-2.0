@@ -66,7 +66,18 @@ export default function Tournament() {
     if (p1 === '' || p2 === '') { alert('Enter both scores.'); return }
     await guard(async () => { await tournEnterScore(m.id, p1, p2); setScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
   }
-  const setScore = (id, side, v) => setScores(s => ({ ...s, [id]: { ...s[id], [side]: v.replace(/[^0-9]/g, '').slice(0, 2) } }))
+  // Race to WIN (8). Pick the loser's frames (0–7) and the winner auto-jumps to 8;
+  // pick 8 for a side and it's the winner (the other side clears so you set the loser).
+  const setScore = (id, side, raw) => setScores(s => {
+    const WIN = run?.run?.settings?.raceTo || 8
+    const cur = s[id] || {}, other = side === 'p1' ? 'p2' : 'p1'
+    const v = raw === '' ? '' : Number(raw)
+    let next
+    if (v === '') next = { ...cur, [side]: '' }
+    else if (v < WIN) next = { ...cur, [side]: v, [other]: WIN }
+    else next = { ...cur, [side]: WIN, [other]: (cur[other] === WIN || cur[other] == null || cur[other] === '') ? '' : cur[other] }
+    return { ...s, [id]: next }
+  })
 
   // ── Season league table ─────────────────────────────────────────────────────
   if (leagueView) {
@@ -287,9 +298,9 @@ export default function Tournament() {
                   return (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 9px', flexWrap: 'wrap' }}>
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
-                      <input inputMode="numeric" value={v1} onChange={ev => setScore(m.id, 'p1', ev.target.value)} disabled={busy || doneM} style={scoreInp} />
+                      <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
-                      <input inputMode="numeric" value={v2} onChange={ev => setScore(m.id, 'p2', ev.target.value)} disabled={busy || doneM} style={scoreInp} />
+                      <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
                       <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
                       {doneM
                         ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
@@ -345,9 +356,9 @@ export default function Tournament() {
               {side(m.p2_id, m.p2_score, doneM && m.winner_id === m.p2_id)}
               {playable && (
                 <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
-                  <input inputMode="numeric" value={v1} onChange={ev => setScore(m.id, 'p1', ev.target.value)} disabled={busy} style={{ ...scoreInp, width: 34, padding: '5px 0', fontSize: 13 }} />
+                  <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy} max={run.run?.settings?.raceTo || 8} compact />
                   <span style={{ color: 'rgba(255,255,255,0.35)' }}>–</span>
-                  <input inputMode="numeric" value={v2} onChange={ev => setScore(m.id, 'p2', ev.target.value)} disabled={busy} style={{ ...scoreInp, width: 34, padding: '5px 0', fontSize: 13 }} />
+                  <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy} max={run.run?.settings?.raceTo || 8} compact />
                   <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '5px 10px', fontSize: 11, marginLeft: 'auto' }}>Save</button>
                 </div>
               )}
@@ -411,6 +422,17 @@ const btn = (kind) => {
 }
 const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
+// A 0–8 frames dropdown (opens the list of numbers). compact = bracket size.
+function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
+  const v = value === '' || value == null ? '' : String(value)
+  return (
+    <select value={v} onChange={e => onPick(e.target.value)} disabled={disabled}
+      style={{ width: compact ? 44 : 52, padding: compact ? '5px 2px' : '7px 2px', fontSize: compact ? 14 : 16, fontWeight: 800, textAlign: 'center', textAlignLast: 'center', borderRadius: 7, background: '#000', border: `1px solid ${v !== '' ? PURPLE : LINE}`, color: '#fff', outline: 'none', cursor: disabled ? 'default' : 'pointer', appearance: 'none', WebkitAppearance: 'none' }}>
+      <option value="">–</option>
+      {Array.from({ length: max + 1 }, (_, n) => <option key={n} value={n}>{n}</option>)}
+    </select>
+  )
+}
 const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
 const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? PURPLE : 'rgba(255,255,255,0.2)'}`, background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', color: '#fff' })
 const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
