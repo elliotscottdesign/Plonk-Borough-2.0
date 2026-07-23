@@ -12,7 +12,8 @@ import {
 // Reads the live booking data; writes only to the pool_* tables.
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7', BLUE = '#60A5FA'
-const CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
+// Purple league branding across the whole tournament section (cards, borders, buttons).
+const CARD = '#160e24', LINE = 'rgba(168,85,247,0.25)'
 const fmtDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
 const typeBadge = (t) => t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
 
@@ -415,10 +416,10 @@ export default function Tournament() {
 
 const btn = (kind) => {
   const base = { padding: '9px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: '1px solid transparent', whiteSpace: 'nowrap' }
-  if (kind === 'gold') return { ...base, background: RED, color: '#fff' }
-  return { ...base, background: 'rgba(255,255,255,0.06)', color: '#fff', border: '1px solid rgba(255,255,255,0.2)' }
+  if (kind === 'gold') return { ...base, background: PURPLE, color: '#fff', boxShadow: '0 2px 10px rgba(168,85,247,0.35)' }   // primary CTA — purple like the league
+  return { ...base, background: 'rgba(168,85,247,0.10)', color: '#fff', border: '1px solid rgba(168,85,247,0.3)' }
 }
-const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
+const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(168,85,247,0.10)', border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
 // A 0–8 frames dropdown (opens the list of numbers). compact = bracket size.
 function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
@@ -433,7 +434,7 @@ function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
 }
 const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
 const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? PURPLE : 'rgba(255,255,255,0.2)'}`, background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', color: '#fff' })
-const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
+const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.6)', background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
 const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }
 const sectLbl = { fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }
 const muted = { fontSize: 12.5, color: 'rgba(255,255,255,0.45)' }
