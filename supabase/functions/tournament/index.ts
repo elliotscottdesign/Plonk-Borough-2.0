@@ -21,9 +21,10 @@ const json = (body: unknown, status = 200) =>
 
 const clean = (v: unknown, max = 60) => String(v ?? "").trim().slice(0, max);
 
-// Scoring settings (per tournament, in pool_tournaments.settings). Pool has no draws
-// by default (race to N frames); points 3/0. All overridable later.
-const DEFAULT_SETTINGS = { winPts: 3, drawPts: 1, lossPts: 0, drawsAllowed: false };
+// Scoring settings (per tournament, in pool_tournaments.settings). Matches the
+// kickertool config the venue uses: race to 8 goals, no draws, 1 point per win
+// (so standings Pts = wins, then ranked on goal difference), byes not rated.
+const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: false };
 const settingsOf = (run: any) => ({ ...DEFAULT_SETTINGS, ...(run?.settings || {}) });
 
 // Live standings from the ROUNDS matches only (bracket matches excluded). Ranked by
@@ -34,7 +35,10 @@ function computeStandings(participants: any[], matches: any[], settings: any) {
   for (const p of participants) if (p.active) st[p.id] = { id: p.id, name: p.display_name, seed: p.seed, played: 0, won: 0, drawn: 0, lost: 0, for: 0, against: 0, byes: 0, pts: 0, opps: [] as string[] };
   for (const m of matches) {
     if (m.status !== "done" || !m.round_id) continue;   // only completed round matches
-    if (m.is_bye) { const s = st[m.p1_id]; if (s) { s.played++; s.won++; s.byes++; s.pts += settings.winPts; } continue; }
+    if (m.is_bye) {   // byes: rated (a win) only if the setting is on — kickertool's default is off
+      const s = st[m.p1_id]; if (s) { s.byes++; if (settings.rateByes) { s.played++; s.won++; s.pts += settings.winPts; } }
+      continue;
+    }
     const a = st[m.p1_id], b = st[m.p2_id]; if (!a || !b) continue;
     const af = m.p1_score ?? 0, bf = m.p2_score ?? 0;
     a.for += af; a.against += bf; b.for += bf; b.against += af;
@@ -86,7 +90,8 @@ async function loadRun(sb: any, run: any) {
     sb.from("pool_matches").select("*").eq("pool_tournament_id", run.id).order("created_at"),
   ]);
   const standings = computeStandings(participants || [], matches || [], settingsOf(run));
-  return { participants: participants || [], rounds: rounds || [], matches: matches || [], standings };
+  const placings = computePlacings(matches || [], standings);
+  return { participants: participants || [], rounds: rounds || [], matches: matches || [], standings, placings };
 }
 
 // Create the next round's matches (Swiss). Guards that the current round is fully scored.
@@ -108,6 +113,80 @@ async function generateRound(sb: any, run: any) {
   for (const [a, bId] of pairs) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: a, p2_id: bId, status: "pending" });
   if (byeId) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: byeId, p2_id: null, is_bye: true, winner_id: byeId, status: "done", p1_score: 0, p2_score: 0 });
   return { round };
+}
+
+// ── Knockout bracket (single elimination) ────────────────────────────────────
+// Standard seeding order for a bracket of `size` (power of 2): keeps top seeds apart
+// (1 & 2 meet only in the final). seedOrder(8) = [1,8,4,5,2,7,3,6].
+function seedOrder(size: number): number[] {
+  let pls = [1, 2];
+  while (pls.length < size) {
+    const sum = pls.length * 2 + 1;
+    const next: number[] = [];
+    for (const p of pls) { next.push(p); next.push(sum - p); }
+    pls = next;
+  }
+  return pls;
+}
+// Build the whole single-elim tree from the standings order (seed 1 = top of standings).
+// Byes fill up to the next power of two and auto-advance the seeded player.
+async function generateBracket(sb: any, run: any, standings: any[], thirdPlace: boolean) {
+  const N = standings.length;
+  if (N < 2) return { error: "Need at least 2 players for a knockout." };
+  let size = 2; while (size < N) size *= 2;
+  const rounds = Math.round(Math.log2(size));
+  const order = seedOrder(size);
+  const bySeed = (seed: number) => (seed <= N ? standings[seed - 1].id : null);
+  const idByRS: Record<string, string> = {};
+  // Insert from the final backwards so each match knows the match it feeds into.
+  for (let r = rounds; r >= 1; r--) {
+    const count = size / Math.pow(2, r);
+    for (let slot = 0; slot < count; slot++) {
+      const next_match_id = r < rounds ? idByRS[`${r + 1}:${Math.floor(slot / 2)}`] : null;
+      const next_slot = r < rounds ? (slot % 2) + 1 : null;
+      let p1: string | null = null, p2: string | null = null, isBye = false, winner: string | null = null, status = "pending";
+      if (r === 1) {
+        p1 = bySeed(order[2 * slot]); p2 = bySeed(order[2 * slot + 1]);
+        if (p1 && !p2) { isBye = true; winner = p1; status = "done"; }
+        else if (!p1 && p2) { p1 = p2; p2 = null; isBye = true; winner = p1; status = "done"; }
+      }
+      const { data: m } = await sb.from("pool_matches").insert({
+        pool_tournament_id: run.id, bracket_round: r, bracket_slot: slot,
+        p1_id: p1, p2_id: p2, is_bye: isBye, winner_id: winner, status, next_match_id, next_slot,
+      }).select("id").single();
+      idByRS[`${r}:${slot}`] = m!.id;
+    }
+  }
+  // Cascade round-1 bye winners forward into their next match's slot.
+  const { data: r1 } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", run.id).eq("bracket_round", 1);
+  for (const m of r1 || []) if (m.status === "done" && m.winner_id && m.next_match_id) {
+    await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: m.winner_id }).eq("id", m.next_match_id);
+  }
+  // Optional 3rd-place match (fed by the two semi-final losers when they're known).
+  if (thirdPlace && rounds >= 2) {
+    await sb.from("pool_matches").insert({ pool_tournament_id: run.id, bracket_round: rounds, bracket_slot: 1, is_third_place: true, status: "pending" });
+  }
+  await sb.from("pool_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", run.id);
+  return { size, rounds };
+}
+
+// Final 1st / 2nd / 3rd from a completed bracket. 3rd = the 3rd-place-match winner if
+// there is one, else the better-standing beaten semi-finalist (kickertool's default).
+function computePlacings(matches: any[], standings: any[]) {
+  const br = matches.filter((m) => m.bracket_round != null && !m.is_third_place);
+  if (!br.length) return null;
+  const rounds = Math.max(...br.map((m) => m.bracket_round));
+  const final = br.find((m) => m.bracket_round === rounds && m.bracket_slot === 0);
+  if (!final || final.status !== "done" || !final.winner_id) return null;
+  const first = final.winner_id;
+  const second = final.winner_id === final.p1_id ? final.p2_id : final.p1_id;
+  const semis = br.filter((m) => m.bracket_round === rounds - 1 && m.status === "done");
+  const semiLosers = semis.map((m) => (m.winner_id === m.p1_id ? m.p2_id : m.p1_id)).filter(Boolean);
+  const tpm = matches.find((m) => m.is_third_place);
+  let third: string | null = null;
+  if (tpm && tpm.status === "done") third = tpm.winner_id;
+  else { const rank: Record<string, number> = {}; standings.forEach((s, i) => (rank[s.id] = i)); third = [...semiLosers].sort((a, b) => (rank[a] ?? 99) - (rank[b] ?? 99))[0] || null; }
+  return { first, second, third };
 }
 
 Deno.serve(async (req) => {
@@ -201,7 +280,7 @@ Deno.serve(async (req) => {
       return json({ ok: true, round: gen.round });
     }
 
-    // Enter / correct a match score. winner = higher score; equal = draw (if allowed).
+    // Enter / correct a match score (rounds OR bracket). winner = higher score.
     if (action === "enterScore") {
       const matchId = clean(b.matchId, 40);
       const p1 = Math.max(0, Math.min(99, parseInt(String(b.p1_score)) || 0));
@@ -209,19 +288,52 @@ Deno.serve(async (req) => {
       const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m) return json({ error: "Match not found." }, 404);
       if (m.is_bye) return json({ error: "That's a bye — no score to enter." }, 400);
+      const isBracket = m.bracket_round != null;
+      if (isBracket && (!m.p1_id || !m.p2_id)) return json({ error: "This match is waiting on an earlier result." }, 400);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", m.pool_tournament_id).maybeSingle();
       const s = settingsOf(run);
-      if (p1 === p2 && !s.drawsAllowed) return json({ error: "That's a draw — pool matches need a winner. Adjust the score." }, 400);
+      if (p1 === p2 && (isBracket || !s.drawsAllowed)) return json({ error: "Needs a winner — a tie isn't allowed here. Adjust the score." }, 400);
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done" }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
+      // Bracket: push the winner into the next match, feed a 3rd-place match, finish on the final.
+      if (isBracket && winner) {
+        if (m.next_match_id && m.next_slot) await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: winner }).eq("id", m.next_match_id);
+        const { data: allBr } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", m.pool_tournament_id).not("bracket_round", "is", null);
+        const rounds = Math.max(...(allBr || []).map((x: any) => x.bracket_round));
+        const tpm = (allBr || []).find((x: any) => x.is_third_place);
+        if (tpm && m.bracket_round === rounds - 1) {
+          const semis = (allBr || []).filter((x: any) => x.bracket_round === rounds - 1 && !x.is_third_place && x.status === "done");
+          if (semis.length === 2) await sb.from("pool_matches").update({ p1_id: semis[0].winner_id === semis[0].p1_id ? semis[0].p2_id : semis[0].p1_id, p2_id: semis[1].winner_id === semis[1].p1_id ? semis[1].p2_id : semis[1].p1_id }).eq("id", tpm.id);
+        }
+        if (m.bracket_round === rounds && !m.is_third_place) await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", m.pool_tournament_id);
+      }
       return json({ ok: true });
     }
-    // Reopen a match (clear its score).
+    // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
     if (action === "clearScore") {
       const matchId = clean(b.matchId, 40);
-      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, winner_id: null, status: "pending" }).eq("id", matchId).eq("is_bye", false);
+      const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
+      if (!m || m.is_bye) return json({ ok: true });
+      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, winner_id: null, status: "pending" }).eq("id", matchId);
+      if (m.bracket_round != null && m.winner_id && m.next_match_id && m.next_slot) {
+        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, winner_id: null, status: "pending" }).eq("id", m.next_match_id);
+      }
       return json({ ok: true });
+    }
+    // Start the knockout: seed the bracket from the final rounds standings.
+    if (action === "startKnockout") {
+      const runId = clean(b.runId, 40);
+      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      if (run.status === "knockout" || run.status === "done") return json({ error: "Knockout already started." }, 400);
+      const { standings, matches } = await loadRun(sb, run);
+      if (matches.some((m: any) => m.round_id && m.status !== "done")) return json({ error: "Finish scoring the current round first." }, 400);
+      const s = settingsOf(run);
+      const thirdPlace = b.thirdPlace != null ? !!b.thirdPlace : !!s.thirdPlaceMatch;
+      const gen = await generateBracket(sb, run, standings, thirdPlace);
+      if ((gen as any).error) return json({ error: (gen as any).error }, 400);
+      return json({ ok: true, ...gen });
     }
     // Undo the latest round (delete it + its matches).
     if (action === "deleteLastRound") {

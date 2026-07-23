@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore,
   tournStartRounds, tournNextRound, tournEnterScore, tournClearScore, tournDeleteLastRound,
+  tournStartKnockout,
 } from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
@@ -26,6 +27,7 @@ export default function Tournament() {
   const [editing, setEditing] = useState(null)
   const [editVal, setEditVal] = useState('')
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
+  const [thirdPlace, setThirdPlace] = useState(false)   // knockout: play a 3rd-place match?
 
   const loadList = async () => {
     setLoading(true)
@@ -50,6 +52,7 @@ export default function Tournament() {
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
+  const startKnockout = async () => { if (!window.confirm('Cut to the knockout? The top players seed into a single-elimination bracket from the standings.')) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace))() }
   const saveScore = async (m) => {
     const e = scores[m.id] || {}
     const p1 = e.p1 ?? (m.p1_score ?? ''), p2 = e.p2 ?? (m.p2_score ?? '')
@@ -251,8 +254,80 @@ export default function Tournament() {
         </div>
         {!curDone && <div style={{ fontSize: 11.5, color: AMBER }}>Finish scoring Round {curRound?.ordinal} before adding the next.</div>}
 
-        <div style={infoBox}><strong style={{ color: '#fff' }}>Next up:</strong> when you've played enough rounds, the <strong style={{ color: '#fff' }}>knockout</strong> (top players seeded from these standings), plus the winner emails &amp; league points — coming in the next update.</div>
+        {/* Cut to the knockout */}
+        <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>🏆 When you've played enough rounds — cut to the knockout</div>
+          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={thirdPlace} onChange={e => setThirdPlace(e.target.checked)} />
+            <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong> (off = kickertool-style, 3rd goes to the higher-placed beaten semi-finalist)</span>
+          </label>
+          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5 }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — seed from standings</button>
+        </div>
       </>}
+
+      {/* ══ KNOCKOUT: single-elim bracket ══ */}
+      {(status === 'knockout' || status === 'done') && (() => {
+        const bmatches = matches.filter(m => m.bracket_round != null && !m.is_third_place)
+        const tpm = matches.find(m => m.is_third_place)
+        const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
+        const placings = run.placings
+        const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
+        const BracketMatch = ({ m }) => {
+          if (m.is_bye) return <div style={{ ...bracketBox, color: 'rgba(255,255,255,0.6)' }}><div style={{ fontWeight: 700, color: '#fff' }}>{nameById[m.p1_id]}</div><div style={{ fontSize: 10.5, color: GREEN }}>bye →</div></div>
+          const doneM = m.status === 'done'
+          const playable = m.p1_id && m.p2_id && !doneM
+          const e = scores[m.id] || {}, v1 = e.p1 ?? (m.p1_score ?? ''), v2 = e.p2 ?? (m.p2_score ?? '')
+          const side = (pid, sc, win) => (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 13, fontWeight: win ? 800 : 600, color: !pid ? 'rgba(255,255,255,0.3)' : win ? GREEN : doneM ? 'rgba(255,255,255,0.45)' : '#fff', textDecoration: doneM && !win ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pid ? nameById[pid] : 'TBD'}</span>
+              {doneM && <span style={{ fontSize: 13, fontWeight: 800, color: win ? GREEN : 'rgba(255,255,255,0.45)' }}>{sc}</span>}
+            </div>
+          )
+          return (
+            <div style={bracketBox}>
+              {side(m.p1_id, m.p1_score, doneM && m.winner_id === m.p1_id)}
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '5px 0' }} />
+              {side(m.p2_id, m.p2_score, doneM && m.winner_id === m.p2_id)}
+              {playable && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 7 }}>
+                  <input inputMode="numeric" value={v1} onChange={ev => setScore(m.id, 'p1', ev.target.value)} disabled={busy} style={{ ...scoreInp, width: 34, padding: '5px 0', fontSize: 13 }} />
+                  <span style={{ color: 'rgba(255,255,255,0.35)' }}>–</span>
+                  <input inputMode="numeric" value={v2} onChange={ev => setScore(m.id, 'p2', ev.target.value)} disabled={busy} style={{ ...scoreInp, width: 34, padding: '5px 0', fontSize: 13 }} />
+                  <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '5px 10px', fontSize: 11, marginLeft: 'auto' }}>Save</button>
+                </div>
+              )}
+              {doneM && !m.is_bye && <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={{ ...iconBtn, width: 24, height: 24, fontSize: 11, marginTop: 6, alignSelf: 'flex-end' }}>✎</button>}
+            </div>
+          )
+        }
+        return (
+          <>
+            {placings && (
+              <div style={{ background: 'rgba(252,211,77,0.1)', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)' }}>🥈 2nd: <strong style={{ color: '#fff' }}>{nameById[placings.second] || '—'}</strong> · 🥉 3rd: <strong style={{ color: '#fff' }}>{nameById[placings.third] || '—'}</strong></div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Vouchers: £30 / £20 / £10 — auto-emailed once that step is switched on (next update).</div>
+              </div>
+            )}
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
+            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
+              {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
+                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: 'space-around' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{roundLabel(r)}</div>
+                  {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => <BracketMatch key={m.id} m={m} />)}
+                </div>
+              ))}
+            </div>
+            {tpm && (
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>3rd-place match</div>
+                <div style={{ maxWidth: 220 }}><BracketMatch m={tpm} /></div>
+              </div>
+            )}
+            <button onClick={refresh} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>↻ Refresh</button>
+          </>
+        )
+      })()}
     </div>
   )
 }
@@ -264,6 +339,7 @@ const btn = (kind) => {
 }
 const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
+const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
 const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
 const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }
 const sectLbl = { fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }
