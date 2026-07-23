@@ -30,7 +30,7 @@ export const tournClearScore = (matchId) => call({ action: 'clearScore', matchId
 export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound', runId })
 
 // Slice 3 — knockout bracket.
-export const tournStartKnockout = (runId, thirdPlace) => call({ action: 'startKnockout', runId, thirdPlace })
+export const tournStartKnockout = (runId, thirdPlace, raceTo) => call({ action: 'startKnockout', runId, thirdPlace, raceTo })
 
 // Slice 4 — vouchers + league + grand final.
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)

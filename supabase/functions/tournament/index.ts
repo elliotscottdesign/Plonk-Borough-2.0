@@ -448,7 +448,12 @@ Deno.serve(async (req) => {
       if (matches.some((m: any) => m.round_id && m.status !== "done")) return json({ error: "Finish scoring the current round first." }, 400);
       const s = settingsOf(run);
       const thirdPlace = b.thirdPlace != null ? !!b.thirdPlace : !!s.thirdPlaceMatch;
-      const gen = await generateBracket(sb, run, standings, thirdPlace);
+      // Match length for the knockout (race to N frames). Clamp to a sane 3–15.
+      const raceTo = b.raceTo != null ? Math.min(15, Math.max(3, Math.round(Number(b.raceTo) || s.raceTo))) : s.raceTo;
+      // Persist the chosen knockout options so the bracket score entry & standings
+      // read the right race target, and re-opens show what was picked.
+      await sb.from("pool_tournaments").update({ settings: { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo } }).eq("id", runId);
+      const gen = await generateBracket(sb, { ...run, settings: { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo } }, standings, thirdPlace);
       if ((gen as any).error) return json({ error: (gen as any).error }, 400);
       return json({ ok: true, ...gen });
     }

@@ -29,6 +29,7 @@ export default function Tournament() {
   const [editVal, setEditVal] = useState('')
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
   const [thirdPlace, setThirdPlace] = useState(false)   // knockout: play a 3rd-place match?
+  const [koRaceTo, setKoRaceTo] = useState(8)           // knockout: race to how many frames?
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
@@ -56,7 +57,7 @@ export default function Tournament() {
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
-  const startKnockout = async () => { if (!window.confirm('Cut to the knockout? The top players seed into a single-elimination bracket from the standings.')) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace))() }
+  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo))() }
   const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
@@ -321,14 +322,32 @@ export default function Tournament() {
         </div>
         {!curDone && <div style={{ fontSize: 11.5, color: AMBER }}>Finish scoring Round {curRound?.ordinal} before adding the next.</div>}
 
-        {/* Cut to the knockout */}
-        <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>🏆 When you've played enough rounds — cut to the knockout</div>
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={thirdPlace} onChange={e => setThirdPlace(e.target.checked)} />
-            <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong> (off = kickertool-style, 3rd goes to the higher-placed beaten semi-finalist)</span>
+        {/* ── Knockout options → then cut to the bracket ── */}
+        <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(168,85,247,0.06)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, marginTop: 2 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>🏆 Knockout options</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: -6, lineHeight: 1.5 }}>Set these before you cut over — they apply to every knockout match. When you've played enough rounds, hit start and the top players seed into the bracket from the standings.</div>
+
+          {/* Match length — race to N frames */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Match length</span>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[5, 6, 7, 8, 9].map(n => {
+                const on = koRaceTo === n
+                return (
+                  <button key={n} onClick={() => setKoRaceTo(n)} style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: `1px solid ${on ? PURPLE : 'rgba(168,85,247,0.3)'}`, background: on ? PURPLE : 'rgba(168,85,247,0.10)', color: '#fff' }}>{n}</button>
+                )
+              })}
+            </div>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>race to <strong style={{ color: '#fff' }}>{koRaceTo}</strong> frames — first to {koRaceTo} wins the match</span>
+          </div>
+
+          {/* 3rd-place match */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={thirdPlace} onChange={e => setThirdPlace(e.target.checked)} style={{ marginTop: 2 }} />
+            <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong> <span style={{ color: 'rgba(255,255,255,0.45)' }}>(off = kickertool-style: 3rd goes to the higher-placed beaten semi-finalist)</span></span>
           </label>
-          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5 }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — seed from standings</button>
+
+          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5, alignSelf: 'flex-start' }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — race to {koRaceTo}{thirdPlace ? ' · +3rd place' : ''}</button>
         </div>
       </>}
 
@@ -391,7 +410,10 @@ export default function Tournament() {
                 </div>
               )
             })()}
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>race to {bracketMax}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}</span>
+            </div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
                 <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: 'space-around' }}>
