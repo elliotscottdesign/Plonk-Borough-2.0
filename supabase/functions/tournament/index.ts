@@ -51,6 +51,15 @@ const voucherEmail = (name: string, place: number, amount: number, code: string,
     <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
   </div>`;
 };
+const bookingEmail = (name: string, tournName: string, dateStr: string) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Pool</p>
+    <h1 style="font-size:24px;margin:0 0 8px">You're in, ${esc(name)}! 🎱</h1>
+    <p style="font-size:15px;line-height:1.6;color:#ddd">Your spot in <strong style="color:#fff">${esc(tournName)}</strong> on <strong style="color:#fff">${esc(dateStr)}</strong> is confirmed. Turn up, check in at the bar, and we'll seed you into the night.</p>
+    <p style="margin:22px 0"><a href="https://nodice.bar/pool" style="background:#A855F7;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">See the pool page</a></p>
+    <p style="font-size:13px;line-height:1.6;color:#aaa">Follow the season league at <a href="https://nodice.bar/league" style="color:#C4B5FD">nodice.bar/league</a> — the top 8 seed the grand final.</p>
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
 function shortCode(seed: string) {
   const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let h = 2166136261;
@@ -467,6 +476,30 @@ Deno.serve(async (req) => {
       let added = 0;
       for (const r of top8) { if (have.has(r.key)) continue; await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: r.name, source: "manual", seed: r.rank }); added++; }
       return json({ ok: true, added, top8 });
+    }
+
+    // Comp / test booking — add a paid entry for a night (no charge) and email a
+    // confirmation, so the founder can experience the customer side. The paid-count
+    // trigger runs on UPDATE, so we touch the row after inserting to sync the count.
+    if (action === "compBooking" && isAdmin()) {
+      const tournamentId = clean(b.tournamentId, 40);
+      const name = clean(b.name) || "Guest";
+      const email = clean(b.email, 120);
+      const { data: t } = await sb.from("tournaments").select("name,event_date").eq("id", tournamentId).maybeSingle();
+      if (!t) return json({ error: "Tournament not found." }, 404);
+      const { data: entry, error } = await sb.from("tournament_entries").insert({
+        tournament_id: tournamentId, team_name: name, captain_name: name,
+        captain_email: email || "", captain_phone: clean(b.phone, 30) || "",
+        status: "paid", paid_at: new Date().toISOString(), notes: "Comp / test entry (added from /ops)",
+      }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      await sb.from("tournament_entries").update({ notes: "Comp / test entry (added from /ops)" }).eq("id", entry.id);   // fire paid-count sync
+      let emailed = false;
+      if (email) {
+        const niceDate = new Date(t.event_date + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+        emailed = await sendMail(email, `You're in — ${t.name} 🎱`, bookingEmail(name, t.name, niceDate));
+      }
+      return json({ ok: true, entry, emailed });
     }
     // Undo the latest round (delete it + its matches).
     if (action === "deleteLastRound") {
