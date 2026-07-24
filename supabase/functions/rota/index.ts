@@ -659,14 +659,13 @@ Deno.serve(async (req) => {
         const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
         const cadence = String(b.cadence || "");
         if (!["opening", "service", "closing", "weekly", "prep"].includes(cadence)) return json({ error: "bad cadence" }, 400);
-        // Re-derive the caller's kitchen shift for this date server-side — you can only
-        // save a run for a day you're actually rostered on a kitchen shift (matches the
-        // tab gate; don't trust a client-supplied shiftId).
+        // Any kitchen-trained member can complete the sheets (founder's call — the kitchen
+        // area is theirs, not gated on being rostered). We still derive their kitchen shift
+        // server-side when there is one, so runs stay tied to the shift for the record.
         const { data: kShifts } = await sb.from("staff_shifts").select("id").eq("date", date).eq("ability", "kitchen");
         const kIds = (kShifts || []).map((s: any) => s.id);
         let myShiftId: string | null = null;
         if (kIds.length) { const { data: cl } = await sb.from("staff_shift_claims").select("shift_id").eq("staff_id", me.id).in("shift_id", kIds).maybeSingle(); myShiftId = cl?.shift_id || null; }
-        if (!myShiftId) return json({ error: "You're not on a kitchen shift for that day." }, 403);
         const submit = !!b.submit;
         const entries = (Array.isArray(b.entries) ? b.entries : []).slice(0, 200).map((e: any) => ({
           key: String(e?.key || "").slice(0, 80),

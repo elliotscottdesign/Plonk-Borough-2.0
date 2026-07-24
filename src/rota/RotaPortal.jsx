@@ -256,8 +256,9 @@ export default function RotaPortal() {
     )
   }
 
-  // Kitchen food-safety tab only for a kitchen-trained member on a kitchen shift today.
-  const showKitchen = !!(kitchen?.isKitchen && kitchen?.shiftId)
+  // Kitchen food-safety is its own clear tab for EVERY kitchen-trained member — not
+  // buried in the general Checklists tab, and not gated on being rostered today.
+  const showKitchen = !!kitchen?.isKitchen
   const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (

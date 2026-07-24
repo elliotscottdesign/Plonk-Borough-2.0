@@ -172,49 +172,6 @@ export const CHECKLISTS = {
     ],
   },
 
-  kitchen: {
-    key: 'kitchen', title: 'Kitchen', icon: '🌭',
-    blurb: 'Kitchen open, close & weekly.',
-    sections: [
-      {
-        title: 'Opening',
-        items: [
-          'Check the bookings to gauge how busy the shift will be & sausage levels',
-          'Complete the temp sheet (at least once per day)',
-          'Check all fridge items are covered, labelled & in date',
-          'Set up the bain marie, turn on the grill',
-          'Check sauce / topping / red onion / chilli levels — prep if needed',
-          'Defrost food if required',
-        ],
-      },
-      {
-        title: 'Closing',
-        items: [
-          'Pack & label toppings',
-          'Clean: wipe all surfaces, clean the grill & bain marie, sinks clean & empty',
-          'Wash the hot dog baskets',
-          'Take buns, sausages & sauces out of the freezer for next day',
-          'Prep for nachos — guac (fresh avocado), salsa (toms), chop red onion',
-          'Take the rubbish out & clean the bin',
-          'Pass on the group chat any ingredients we ran out of / are low',
-          'Switch off all kitchen equipment sockets',
-        ],
-      },
-      {
-        title: 'Weekly',
-        items: [
-          'Prep chilli / curry',
-          'Ordering (sausages, fruit, food, teas, bar snacks, nachos, sour cream, toms, avocado, cheese)',
-          'Organise & clean the big fridge, ready for deliveries',
-          'Organise & clean the big freezer, ready for deliveries',
-          'Sort the plastic containers — clean & remove old labels',
-          'Clean & organise all kitchen shelves',
-          'Clean the kitchen walls',
-        ],
-      },
-    ],
-  },
-
   weekly: {
     key: 'weekly', title: 'Weekly (managers)', icon: '📅',
     blurb: 'Manager weekly jobs — ordering, admin & checks.',
@@ -261,7 +218,7 @@ export const CHECKLISTS = {
 }
 
 const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
-export const CHECKLIST_ORDER = ['opening', 'during', 'closing', 'toilet', 'foh', 'deep-clean', 'kitchen', 'weekly']
+export const CHECKLIST_ORDER = ['opening', 'during', 'closing', 'toilet', 'foh', 'deep-clean', 'weekly']
 
 // Sections for a checklist on a given date — FOH's tasks change by weekday.
 export function checklistSections(key, dateStr) {
