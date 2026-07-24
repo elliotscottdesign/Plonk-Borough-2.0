@@ -1,0 +1,241 @@
+import React, { useEffect, useRef, useState } from 'react'
+import { KITCHEN_CADENCES, KITCHEN_TEMPLATES, templateItems, tempFails, targetLabel } from './templates.js'
+import { ALLERGENS, allergenLabel, STATUS_META, statusOf } from './allergens.js'
+import { DEFAULT_MATRIX } from './allergens.js'
+import { kitchenGetDay, kitchenSaveRun } from './api.js'
+
+const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BLUE = '#60A5FA'
+const CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
+
+// Merge saved allergen overrides (by dish) over the built-in defaults.
+function mergeMatrix(saved) {
+  const byDish = {}
+  for (const r of DEFAULT_MATRIX) byDish[r.dish] = { ...r }
+  for (const r of saved || []) byDish[r.dish] = { dish: r.dish, allergens: r.allergens || {}, notes: r.notes }
+  return Object.values(byDish)
+}
+
+// Kitchen food-safety checklists — shown in the staff portal to a kitchen-trained
+// member on a kitchen shift today. Each run is the shared sheet for (date, cadence).
+export default function KitchenChecklists({ token, kitchen }) {
+  const [day, setDay] = useState(null)     // { date, runs:{cadence:run}, matrix:[] }
+  const [openKey, setOpenKey] = useState(null)
+  const [local, setLocal] = useState({})   // key -> { done, issue, value, text, corrective }
+  const [busy, setBusy] = useState(false)
+  const [showMatrix, setShowMatrix] = useState(false)
+  const panelRef = useRef(null)
+
+  const date = kitchen?.date
+  const load = async () => { try { setDay(await kitchenGetDay(token, date)) } catch (e) { alert(e.message) } }
+  useEffect(() => { load() }, [])   // eslint-disable-line
+
+  // Hydrate local editing state from a saved run's entries.
+  const openCadence = (k) => {
+    const run = day?.runs?.[k]
+    const seed = {}
+    for (const e of run?.entries || []) {
+      seed[e.key] = {
+        done: e.type === undefined ? (e.checked && !e.is_fail) : (e.checked && !e.is_fail),
+        issue: !!e.is_fail && (e.value_numeric == null),   // a flagged check (not a temp)
+        value: e.value_numeric == null ? '' : String(e.value_numeric),
+        text: e.value_text || '',
+        corrective: e.corrective_action || '',
+      }
+    }
+    setLocal(seed)
+    setOpenKey(k)
+    setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
+  }
+
+  const set = (key, patch) => setLocal(s => ({ ...s, [key]: { ...(s[key] || {}), ...patch } }))
+
+  // Per-item state → fail? answered?
+  const itemFail = (item, e) => {
+    if (!e) return false
+    if (item.type === 'temp') return tempFails(item.target, e.value)
+    if (item.type === 'check') return !!e.issue
+    return false
+  }
+  const itemAnswered = (item, e) => {
+    if (item.type === 'text') return true
+    if (!e) return false
+    if (item.type === 'temp') return e.value !== '' && e.value != null && !Number.isNaN(Number(e.value))
+    return !!e.done || !!e.issue
+  }
+
+  const buildEntries = (cadence) => templateItems(cadence).map(item => {
+    const e = local[item.key] || {}
+    const is_fail = itemFail(item, e)
+    return {
+      key: item.key,
+      type: item.type,
+      checked: item.type === 'check' ? !!e.done : itemAnswered(item, e),
+      value_numeric: item.type === 'temp' && e.value !== '' && e.value != null ? Number(e.value) : null,
+      value_text: item.type === 'text' ? (e.text || null) : null,
+      is_fail,
+      corrective_action: is_fail ? (e.corrective || null) : null,
+    }
+  })
+
+  const save = async (cadence, submit) => {
+    const items = templateItems(cadence)
+    if (submit) {
+      const unanswered = items.filter(it => !itemAnswered(it, local[it.key]))
+      if (unanswered.length) { alert(`Answer every item first — ${unanswered.length} still to do.`); return }
+      const needsNote = items.filter(it => itemFail(it, local[it.key]) && !(local[it.key]?.corrective || '').trim())
+      if (needsNote.length) { alert(`Add a corrective-action note to each failed check (${needsNote.length}).`); return }
+    }
+    setBusy(true)
+    try {
+      await kitchenSaveRun(token, { date, cadence, entries: buildEntries(cadence), submit, shiftId: kitchen?.shiftId })
+      await load()
+      if (submit) setOpenKey(null)
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
+  if (!day) return <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, padding: '20px 0' }}>Loading kitchen checklists…</div>
+
+  const matrix = mergeMatrix(day.matrix)
+
+  return (
+    <div>
+      <div className="serif" style={{ fontSize: 18, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', margin: '3px 0 14px', lineHeight: 1.5 }}>
+        Safer Food, Better Business. Complete each sheet on shift — temperatures and critical checks are logged for the EHO, and a failed check pings the manager.
+      </div>
+
+      <button onClick={() => setShowMatrix(m => !m)} style={pill(showMatrix)}>🥜 Allergen matrix {showMatrix ? '▲' : '▼'}</button>
+      {showMatrix && <AllergenGrid matrix={matrix} />}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
+        {KITCHEN_CADENCES.map(k => {
+          const t = KITCHEN_TEMPLATES[k], run = day.runs?.[k]
+          const done = run?.status === 'completed'
+          const failed = !!run?.has_failure
+          const inProgress = run && !done
+          const status = done ? (failed ? { t: '⚠ Submitted — failure logged', c: RED } : { t: '✓ Submitted', c: GREEN })
+            : inProgress ? { t: 'In progress', c: AMBER } : { t: 'Not started', c: 'rgba(255,255,255,0.4)' }
+          return (
+            <div key={k}>
+              <button onClick={() => openKey === k ? setOpenKey(null) : openCadence(k)}
+                style={{ width: '100%', textAlign: 'left', background: CARD, border: `1px solid ${openKey === k ? BLUE : LINE}`, borderRadius: 12, padding: '13px 14px', cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}>
+                  <span style={{ fontSize: 18 }}>{t.icon}</span>
+                  <span>
+                    <span style={{ fontSize: 14.5, fontWeight: 700 }}>{t.title}</span>
+                    <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>{t.blurb}</span>
+                  </span>
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 700, color: status.c, whiteSpace: 'nowrap' }}>{status.t}</span>
+              </button>
+
+              {openKey === k && (
+                <div ref={panelRef} style={{ border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 14, marginTop: -4, background: 'rgba(255,255,255,0.02)' }}>
+                  {t.groups.map(g => (
+                    <div key={g.title} style={{ marginBottom: 14 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{g.title}</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                        {g.items.map(item => <KitchenItem key={item.key} item={item} e={local[item.key] || {}} set={p => set(item.key, p)} fail={itemFail(item, local[item.key])} />)}
+                      </div>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    <button onClick={() => save(k, false)} disabled={busy} style={btn('ghost')}>Save progress</button>
+                    <button onClick={() => save(k, true)} disabled={busy} style={btn('red')}>Submit checklist</button>
+                  </div>
+                  {done && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Already submitted — you can update it and submit again.</div>}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// One checklist item — check (✓/⚠), temp (°C + live fail), or text.
+function KitchenItem({ item, e, set, fail }) {
+  const critical = item.critical
+  return (
+    <div style={{ background: CARD, border: `1px solid ${fail ? RED : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ fontSize: 13, color: '#fff', lineHeight: 1.4 }}>
+          {item.label}
+          {critical && <span style={{ fontSize: 9.5, color: RED, fontWeight: 800, marginLeft: 6, verticalAlign: 'middle', letterSpacing: '0.04em' }}>CRITICAL</span>}
+          {item.type === 'temp' && <span style={{ display: 'block', fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Target {targetLabel(item.target)}</span>}
+        </div>
+
+        {item.type === 'check' && (
+          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+            <button onClick={() => set({ done: true, issue: false })} style={toggle(e.done, GREEN)}>✓</button>
+            <button onClick={() => set({ done: false, issue: true })} style={toggle(e.issue, RED)}>⚠</button>
+          </div>
+        )}
+        {item.type === 'temp' && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+            <input type="number" inputMode="decimal" value={e.value ?? ''} onChange={ev => set({ value: ev.target.value })}
+              placeholder="°C" style={{ width: 66, padding: '8px 8px', borderRadius: 8, border: `1px solid ${fail ? RED : LINE}`, background: '#000', color: fail ? RED : '#fff', fontSize: 15, fontWeight: 700, textAlign: 'center' }} />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>°C</span>
+          </div>
+        )}
+      </div>
+
+      {item.type === 'text' && (
+        <input type="text" value={e.text ?? ''} onChange={ev => set({ text: ev.target.value })}
+          placeholder="Type here…" style={{ width: '100%', marginTop: 8, padding: '8px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: '#000', color: '#fff', fontSize: 13 }} />
+      )}
+
+      {fail && (
+        <div style={{ marginTop: 9 }}>
+          <div style={{ fontSize: 11, fontWeight: 700, color: RED, marginBottom: 4 }}>⚠ Failed — what did you do about it? (required)</div>
+          <input type="text" value={e.corrective ?? ''} onChange={ev => set({ corrective: ev.target.value })}
+            placeholder="e.g. moved stock to fridge 2, called engineer, binned affected food…"
+            style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${RED}`, background: 'rgba(218,27,51,0.06)', color: '#fff', fontSize: 12.5 }} />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Read-only allergen grid for staff to check an allergy order against.
+function AllergenGrid({ matrix }) {
+  return (
+    <div style={{ overflowX: 'auto', marginTop: 10, border: `1px solid ${LINE}`, borderRadius: 12 }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 11.5, minWidth: 640 }}>
+        <thead>
+          <tr>
+            <th style={{ ...th, textAlign: 'left', position: 'sticky', left: 0, background: '#111' }}>Dish</th>
+            {ALLERGENS.map(a => <th key={a.key} style={th}>{a.label}</th>)}
+          </tr>
+        </thead>
+        <tbody>
+          {matrix.map(row => (
+            <tr key={row.dish}>
+              <td style={{ ...td, textAlign: 'left', fontWeight: 700, color: '#fff', position: 'sticky', left: 0, background: '#0d0d0d', whiteSpace: 'nowrap' }}>{row.dish}</td>
+              {ALLERGENS.map(a => {
+                const st = statusOf(row.allergens?.[a.key]); const m = STATUS_META[st]
+                return <td key={a.key} style={{ ...td, color: m.color, fontWeight: 800, fontSize: 14 }} title={`${allergenLabel(a.key)}: ${m.label}`}>{m.symbol}</td>
+              })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', padding: '8px 12px', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
+        <span><b style={{ color: RED }}>●</b> Contains</span>
+        <span><b style={{ color: AMBER }}>○</b> May contain / cross-contact</span>
+        <span><b style={{ color: BLUE }}>⧗</b> Checking</span>
+      </div>
+    </div>
+  )
+}
+
+const th = { padding: '8px 7px', textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontWeight: 700, borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap' }
+const td = { padding: '7px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }
+const pill = (on) => ({ padding: '8px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: on ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? BLUE : LINE}`, color: on ? '#fff' : 'rgba(255,255,255,0.8)' })
+const toggle = (on, color) => ({ width: 38, height: 38, borderRadius: 8, cursor: 'pointer', fontSize: 16, fontWeight: 800, background: on ? color : 'rgba(255,255,255,0.05)', border: `1px solid ${on ? color : LINE}`, color: on ? '#000' : 'rgba(255,255,255,0.6)' })
+const btn = (kind) => {
+  const base = { padding: '10px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: '1px solid transparent' }
+  if (kind === 'red') return { ...base, background: RED, color: '#fff' }
+  return { ...base, background: 'rgba(255,255,255,0.05)', color: '#fff', border: `1px solid ${LINE}` }
+}

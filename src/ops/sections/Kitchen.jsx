@@ -1,0 +1,213 @@
+import React, { useEffect, useState } from 'react'
+import { KITCHEN_TEMPLATES, templateItems } from '../../kitchen/templates.js'
+import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
+import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed } from '../../kitchen/api.js'
+
+const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
+const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
+const CADENCE_TITLE = { opening: 'Opening', service: 'During service', closing: 'Closing', weekly: 'Weekly deep clean', prep: 'Batch prep' }
+const labelOf = (key) => { for (const c of Object.keys(KITCHEN_TEMPLATES)) { const it = templateItems(c).find(i => i.key === key); if (it) return it.label } return key }
+
+function mergeMatrix(saved) {
+  const byDish = {}
+  for (const r of DEFAULT_MATRIX) byDish[r.dish] = { dish: r.dish, allergens: { ...r.allergens }, notes: r.notes || '' }
+  for (const r of saved || []) byDish[r.dish] = { dish: r.dish, allergens: r.allergens || {}, notes: r.notes || '' }
+  return Object.values(byDish)
+}
+
+// ─── /ops Kitchen — manager review of the food-safety hub ─────────────────────
+export default function Kitchen() {
+  const [sub, setSub] = useState('runs')   // 'runs' | 'matrix'
+  return (
+    <div style={{ maxWidth: 1000, margin: '0 auto' }}>
+      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
+        Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
+        {[['runs', '📋 Checklists'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+          <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
+        ))}
+      </div>
+      {sub === 'runs' ? <Runs /> : <Matrix />}
+    </div>
+  )
+}
+
+function Runs() {
+  const [runs, setRuns] = useState(null)
+  const [open, setOpen] = useState(null)
+  const [note, setNote] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sweep, setSweep] = useState('')
+  const load = async () => { try { const r = await kitchenRuns(30); setRuns(r.runs || []) } catch (e) { alert(e.message) } }
+  useEffect(() => { load() }, [])
+
+  const doReview = async (run) => { setBusy(true); try { await kitchenReview(run.id, note); setOpen(null); setNote(''); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const runSweep = async () => { setBusy(true); try { const r = await kitchenCheckMissed(); setSweep(!r.trading ? 'No kitchen shift today — nothing to check.' : r.missing?.length ? `Not yet done today: ${r.missing.join(', ')}. (Just a status peek — the automatic email alert only fires after close.)` : 'All of today’s required checks are in. ✓') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
+  if (!runs) return <Muted>Loading…</Muted>
+  const failures = runs.filter(r => r.has_failure)
+  const unreviewed = runs.filter(r => r.status === 'completed' && !r.reviewed_at)
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        <Stat n={failures.length} label="with a failure" color={failures.length ? RED : 'rgba(255,255,255,0.5)'} />
+        <Stat n={unreviewed.length} label="to countersign" color={unreviewed.length ? AMBER : 'rgba(255,255,255,0.5)'} />
+        <Stat n={runs.length} label="runs (30 days)" color={BLUE} />
+        <button onClick={runSweep} disabled={busy} style={{ ...tab(false), alignSelf: 'center' }}>↻ Check today for missed checks</button>
+      </div>
+      {sweep && <div style={{ fontSize: 12.5, color: BLUE }}>{sweep}</div>}
+
+      {runs.length === 0 && <Muted>No checklists submitted yet. They appear here as the kitchen crew complete them on shift.</Muted>}
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {runs.map(run => {
+          const isOpen = open === run.id
+          return (
+            <div key={run.id} style={{ background: CARD, border: `1px solid ${run.has_failure ? RED : LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+              <button onClick={() => { setOpen(isOpen ? null : run.id); setNote(run.review_note || '') }} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                  <span style={{ fontSize: 14, fontWeight: 700 }}>{run.run_date}</span>
+                  <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)' }}>{CADENCE_TITLE[run.cadence] || run.cadence}</span>
+                  {run.staff_name && <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>· {run.staff_name}</span>}
+                </span>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {run.has_failure && <span style={{ fontSize: 11, fontWeight: 800, color: RED }}>⚠ FAILURE</span>}
+                  {run.status !== 'completed' && <span style={{ fontSize: 11, color: AMBER }}>in progress</span>}
+                  {run.reviewed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ countersigned</span> : run.status === 'completed' ? <span style={{ fontSize: 11, color: AMBER }}>needs review</span> : null}
+                </span>
+              </button>
+              {isOpen && (
+                <div style={{ borderTop: `1px solid ${LINE}`, padding: 14 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {(run.entries || []).map((e, i) => {
+                      const answered = e.checked || e.value_numeric != null || e.value_text
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: e.is_fail ? RED : 'rgba(255,255,255,0.8)' }}>
+                          <span style={{ width: 16, flexShrink: 0 }}>{e.is_fail ? '⚠' : e.checked ? '✓' : answered ? '·' : '○'}</span>
+                          <span style={{ flex: 1 }}>
+                            {labelOf(e.key)}
+                            {e.value_numeric != null && <b style={{ color: e.is_fail ? RED : '#fff' }}> — {e.value_numeric} °C</b>}
+                            {e.value_text && <span style={{ color: 'rgba(255,255,255,0.6)' }}> — {e.value_text}</span>}
+                            {e.is_fail && e.corrective_action && <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>↳ Action: {e.corrective_action}</div>}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  {run.status === 'completed' ? (
+                    <div style={{ marginTop: 12, borderTop: `1px solid ${LINE}`, paddingTop: 12 }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, marginBottom: 6 }}>Manager countersign</div>
+                      <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Optional note — actions checked, follow-up needed…" rows={2}
+                        style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: '#000', color: '#fff', fontSize: 12.5, resize: 'vertical' }} />
+                      <button onClick={() => doReview(run)} disabled={busy} style={{ ...tab(true), marginTop: 8 }}>{run.reviewed_at ? 'Update countersign' : '✓ Countersign this run'}</button>
+                      {run.reviewed_at && <span style={{ fontSize: 11, color: GREEN, marginLeft: 10 }}>Signed {new Date(run.reviewed_at).toLocaleString('en-GB')}</span>}
+                    </div>
+                  ) : (
+                    <div style={{ marginTop: 12, borderTop: `1px solid ${LINE}`, paddingTop: 12, fontSize: 12, color: AMBER }}>Still in progress — countersign once the crew submits it.</div>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function Matrix() {
+  const [rows, setRows] = useState(null)
+  const [busy, setBusy] = useState(false)
+  const load = async () => { try { const r = await kitchenGetMatrix(); setRows(mergeMatrix(r.matrix)) } catch (e) { alert(e.message) } }
+  useEffect(() => { load() }, [])
+
+  const cycle = async (dish, key) => {
+    const row = rows.find(r => r.dish === dish); if (!row) return
+    const cur = statusOf(row.allergens[key])
+    const next = STATUS_ORDER[(STATUS_ORDER.indexOf(cur) + 1) % STATUS_ORDER.length]
+    const allergens = { ...row.allergens }
+    if (next === 'no') delete allergens[key]; else allergens[key] = next
+    setRows(rs => rs.map(r => r.dish === dish ? { ...r, allergens } : r))   // optimistic
+    setBusy(true)
+    try { await kitchenSaveMatrix(dish, allergens, row.notes || null) } catch (e) { alert(e.message); await load() } finally { setBusy(false) }
+  }
+
+  if (!rows) return <Muted>Loading…</Muted>
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a cell to cycle: blank → <b style={{ color: AMBER }}>○ may contain</b> → <b style={{ color: BLUE }}>⧗ checking</b> → <b style={{ color: RED }}>● contains</b>.</div>
+        <button onClick={() => printMatrix(rows)} style={tab(false)}>🖨 Print customer sheet (A4)</button>
+      </div>
+
+      <div style={{ overflowX: 'auto', border: `1px solid ${LINE}`, borderRadius: 12 }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 760 }}>
+          <thead>
+            <tr>
+              <th style={{ ...th, textAlign: 'left', position: 'sticky', left: 0, background: '#15130c' }}>Dish</th>
+              {ALLERGENS.map(a => <th key={a.key} style={th}>{a.label}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.dish}>
+                <td style={{ ...td, textAlign: 'left', fontWeight: 700, color: '#fff', position: 'sticky', left: 0, background: '#0e0d09', whiteSpace: 'nowrap' }}>{row.dish}</td>
+                {ALLERGENS.map(a => {
+                  const st = statusOf(row.allergens[a.key]); const m = STATUS_META[st]
+                  return <td key={a.key} onClick={() => !busy && cycle(row.dish, a.key)} title={`${row.dish} · ${allergenLabel(a.key)}: ${m.label} — tap to change`} style={{ ...td, cursor: 'pointer', color: m.color, fontWeight: 800, fontSize: 16 }}>{m.symbol || '·'}</td>
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginTop: 16 }}>
+        <Panel title="⧗ Still to confirm (before it's legally final)" color={BLUE}>
+          <ol style={{ margin: 0, paddingLeft: 18, fontSize: 12.5, color: 'rgba(255,255,255,0.75)', lineHeight: 1.6 }}>{PENDING.map((p, i) => <li key={i} style={{ marginBottom: 4 }}>{p}</li>)}</ol>
+        </Panel>
+        <Panel title="Why the grid looks like this" color={GOLD}>
+          <ul style={{ margin: 0, paddingLeft: 18, fontSize: 12, color: 'rgba(255,255,255,0.65)', lineHeight: 1.6 }}>{MATRIX_DRIVERS.map((d, i) => <li key={i} style={{ marginBottom: 4 }}>{d}</li>)}</ul>
+        </Panel>
+      </div>
+    </div>
+  )
+}
+
+// Printable A4 customer allergen sheet (opens a clean window).
+function printMatrix(rows) {
+  const cell = (st) => { const m = STATUS_META[statusOf(st)]; return `<td style="text-align:center;color:${m.color};font-weight:800;font-size:15px;border:1px solid #ccc;padding:5px">${m.symbol || ''}</td>` }
+  const head = ['Dish', ...ALLERGENS.map(a => a.label)].map(h => `<th style="border:1px solid #ccc;padding:6px 5px;font-size:11px;background:#f3f3f3">${h}</th>`).join('')
+  const body = rows.map(r => `<tr><td style="border:1px solid #ccc;padding:6px;font-weight:700;font-size:12px;white-space:nowrap">${r.dish}</td>${ALLERGENS.map(a => cell(r.allergens[a.key])).join('')}</tr>`).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>No Dice — Allergen guide</title></head>
+  <body style="font-family:Arial,Helvetica,sans-serif;color:#111;margin:20px">
+    <h1 style="font-size:22px;margin:0 0 2px">No Dice — Allergen guide</h1>
+    <div style="font-size:12px;color:#555;margin-bottom:12px">407 Mentmore Terrace, London Fields, E8 3PH · food truck</div>
+    <table style="border-collapse:collapse;width:100%"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
+    <div style="font-size:12px;margin-top:12px"><b style="color:#DA1B33">●</b> Contains &nbsp; <b style="color:#F59E0B">○</b> May contain / made in the same kitchen &nbsp; <b style="color:#2563eb">⧗</b> Checking with supplier</div>
+    <div style="font-size:11px;color:#666;margin-top:8px">Everything is fried in a shared fryer, so chips are not gluten-free and carry cross-contact. Please tell staff about any allergy before you order — we'll talk you through it.</div>
+  </body></html>`
+  const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to print the sheet.'); return }
+  w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300)
+}
+
+const Muted = ({ children }) => <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '18px 0' }}>{children}</div>
+const Stat = ({ n, label, color }) => (
+  <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '8px 14px', minWidth: 96 }}>
+    <div style={{ fontSize: 22, fontWeight: 800, color }}>{n}</div>
+    <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>{label}</div>
+  </div>
+)
+const Panel = ({ title, color, children }) => (
+  <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+    <div style={{ fontSize: 12.5, fontWeight: 700, color, marginBottom: 8 }}>{title}</div>
+    {children}
+  </div>
+)
+const th = { padding: '8px 6px', textAlign: 'center', color: 'rgba(255,255,255,0.65)', fontWeight: 700, borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap', fontSize: 11 }
+const td = { padding: '7px 6px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }
+const tab = (on) => ({ padding: '9px 16px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, background: on ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? GOLD : LINE}`, color: on ? GOLD : 'rgba(255,255,255,0.85)' })
