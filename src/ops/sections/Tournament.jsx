@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore,
-  tournStartRounds, tournNextRound, tournEnterScore, tournClearScore, tournDeleteLastRound,
+  tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../tournament/api.js'
 
@@ -28,8 +28,10 @@ export default function Tournament() {
   const [editing, setEditing] = useState(null)
   const [editVal, setEditVal] = useState('')
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
+  const [gameScores, setGameScores] = useState({})   // matchId -> [{p1,p2}...] for best-of-3 matches
   const [thirdPlace, setThirdPlace] = useState(false)   // knockout: play a 3rd-place match?
   const [koRaceTo, setKoRaceTo] = useState(8)           // knockout: race to how many frames?
+  const [finalBestOf3, setFinalBestOf3] = useState(true) // knockout: final + 3rd-place = best of 3?
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
@@ -57,7 +59,7 @@ export default function Tournament() {
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
-  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo))() }
+  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
@@ -80,6 +82,29 @@ export default function Tournament() {
     else next = { ...cur, [side]: WIN, [other]: (cur[other] === WIN || cur[other] == null || cur[other] === '') ? '' : cur[other] }
     return { ...s, [id]: next }
   })
+
+  // Best-of-3: one score input per game, same loser-picker auto-fill (pick the loser's
+  // frames → the winner jumps to WIN). `saveGames` sends the completed games; the engine
+  // tallies them (first to win 2) and finalises when the final is decided.
+  const setGame = (id, idx, side, raw, WIN, base) => setGameScores(s => {
+    // Seed from the persisted games (base = m.games) on the first edit after a save/reload —
+    // otherwise editing a partially-saved best-of-3 match would wipe the games already stored.
+    const arr = (s[id] ? s[id] : (base || [])).map(g => ({ ...g }))
+    while (arr.length <= idx) arr.push({ p1: '', p2: '' })
+    const cur = arr[idx], other = side === 'p1' ? 'p2' : 'p1'
+    const v = raw === '' ? '' : Number(raw)
+    if (v === '') cur[side] = ''
+    else if (v < WIN) { cur[side] = v; cur[other] = WIN }
+    else { cur[side] = WIN; cur[other] = (cur[other] === WIN || cur[other] == null || cur[other] === '') ? '' : cur[other] }
+    return { ...s, [id]: arr }
+  })
+  const saveGames = async (m) => {
+    const src = gameScores[m.id] ?? (m.games || [])
+    const games = src.filter(g => g && g.p1 !== '' && g.p2 !== '' && g.p1 != null && g.p2 != null).map(g => ({ p1: Number(g.p1), p2: Number(g.p2) }))
+    if (!games.length) { alert('Enter at least one game.'); return }
+    if (games.some(g => g.p1 === g.p2)) { alert('Each game needs a winner — no tied games.'); return }
+    await guard(async () => { await tournEnterGames(m.id, games); setGameScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
+  }
 
   // ── Season league table ─────────────────────────────────────────────────────
   if (leagueView) {
@@ -347,7 +372,13 @@ export default function Tournament() {
             <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong> <span style={{ color: 'rgba(255,255,255,0.45)' }}>(off = kickertool-style: 3rd goes to the higher-placed beaten semi-finalist)</span></span>
           </label>
 
-          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5, alignSelf: 'flex-start' }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — race to {koRaceTo}{thirdPlace ? ' · +3rd place' : ''}</button>
+          {/* Best-of-3 final + 3rd-place */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
+            <input type="checkbox" checked={finalBestOf3} onChange={e => setFinalBestOf3(e.target.checked)} style={{ marginTop: 2 }} />
+            <span><strong style={{ color: '#fff' }}>Best of 3</strong> for the <strong style={{ color: '#fff' }}>final</strong> {thirdPlace ? '& 3rd-place playoff ' : ''}<span style={{ color: 'rgba(255,255,255,0.45)' }}>(first to win 2 games — each game races to {koRaceTo}; every other match stays one game)</span></span>
+          </label>
+
+          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5, alignSelf: 'flex-start' }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — race to {koRaceTo}{thirdPlace ? ' · +3rd place' : ''}{finalBestOf3 ? ' · BO3 final' : ''}</button>
         </div>
       </>}
 
@@ -359,9 +390,62 @@ export default function Tournament() {
         const placings = run.placings
         const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
         const bracketMax = run.run?.settings?.raceTo || 8
+        const bo3On = !!run.run?.settings?.finalBestOf3
         const BracketMatch = ({ m }) => {
           if (m.is_bye) return <div style={{ ...bracketBox, color: 'rgba(255,255,255,0.6)' }}><div style={{ fontWeight: 700, color: '#fff' }}>{nameById[m.p1_id]}</div><div style={{ fontSize: 10.5, color: GREEN }}>bye →</div></div>
           const doneM = m.status === 'done'
+          const isFinalM = m.bracket_round === totalRounds && !m.is_third_place
+
+          // ── Best-of-3 (final / 3rd-place): enter each game, first to win 2 ──
+          if (bo3On && (m.is_third_place || isFinalM)) {
+            const perGame = bracketMax
+            const bothIn = m.p1_id && m.p2_id
+            const working = gameScores[m.id] ?? (m.games || [])
+            const complete = working.filter(g => g && g.p1 !== '' && g.p2 !== '' && g.p1 != null && g.p2 != null)
+            let w1 = 0, w2 = 0
+            for (const g of complete) { const a = Number(g.p1), b = Number(g.p2); if (a > b) w1++; else if (b > a) w2++; if (w1 >= 2 || w2 >= 2) break }
+            const decided = w1 >= 2 || w2 >= 2
+            const editing = bothIn && !doneM
+            const rows = (doneM || decided) ? Math.max(1, complete.length) : Math.min(3, complete.length + 1)
+            const tallyLine = (pid, wins, win) => (
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 26 }}>
+                <span style={{ fontSize: 13.5, fontWeight: win ? 800 : 600, color: !pid ? 'rgba(255,255,255,0.3)' : win ? GREEN : (doneM ? 'rgba(255,255,255,0.45)' : '#fff'), textDecoration: doneM && !win ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pid ? nameById[pid] : 'TBD'}</span>
+                <span style={{ fontSize: 16, fontWeight: 800, color: win ? GREEN : 'rgba(255,255,255,0.55)', minWidth: 18, textAlign: 'center' }}>{wins}</span>
+              </div>
+            )
+            return (
+              <div style={bracketBox}>
+                <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Best of 3 · race to {perGame}</div>
+                {tallyLine(m.p1_id, w1, decided && w1 >= 2)}
+                <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                {tallyLine(m.p2_id, w2, decided && w2 >= 2)}
+                {!bothIn && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 6 }}>waiting on the semis…</div>}
+                {bothIn && (
+                  <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                    {Array.from({ length: rows }).map((_, i) => {
+                      const g = working[i] || {}
+                      const gv1 = g.p1 ?? '', gv2 = g.p2 ?? ''
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', width: 20 }}>G{i + 1}</span>
+                          {editing
+                            ? <>
+                                <ScoreSelect value={gv1} onPick={x => setGame(m.id, i, 'p1', x, perGame, working)} disabled={busy} max={perGame} compact />
+                                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>–</span>
+                                <ScoreSelect value={gv2} onPick={x => setGame(m.id, i, 'p2', x, perGame, working)} disabled={busy} max={perGame} compact />
+                              </>
+                            : <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', fontVariantNumeric: 'tabular-nums' }}>{gv1 === '' ? '–' : gv1} – {gv2 === '' ? '–' : gv2}</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+                {editing && <button onClick={() => saveGames(m)} disabled={busy} style={{ ...btn('gold'), width: '100%', padding: '6px', fontSize: 11.5, marginTop: 8 }}>Save games</button>}
+                {doneM && <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={{ ...iconBtn, width: 24, height: 24, fontSize: 11, marginTop: 6, alignSelf: 'flex-end' }}>✎</button>}
+              </div>
+            )
+          }
+
           const playable = m.p1_id && m.p2_id && !doneM
           const e = scores[m.id] || {}, v1 = e.p1 ?? (m.p1_score ?? ''), v2 = e.p2 ?? (m.p2_score ?? '')
           // One line per player: their name on the left, THEIR score on the right —
@@ -386,7 +470,16 @@ export default function Tournament() {
         }
         return (
           <>
-            {placings && (() => {
+            {/* Final decided but the night isn't fully finished yet (a 3rd-place playoff is still
+                to play, or was left unplayed) — vouchers hold until it's settled. */}
+            {placings && status !== 'done' && (
+              <div style={{ background: 'rgba(245,158,11,0.10)', border: `1px solid ${AMBER}66`, borderRadius: 12, padding: 14, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: 13.5, fontWeight: 800, color: '#fff' }}>🏆 Final decided — {nameById[placings.first]} wins</div>
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>Play the <strong style={{ color: '#fff' }}>3rd-place playoff</strong> below to lock the standings, then the vouchers issue automatically. Not playing it? Finalise now — 3rd goes to the higher-placed beaten semi-finalist.</div>
+                <button onClick={resendVouchers} disabled={busy} style={{ ...btn('gold'), alignSelf: 'flex-start', padding: '7px 14px', fontSize: 12 }}>✓ Finalise the night & issue vouchers</button>
+              </div>
+            )}
+            {status === 'done' && placings && (() => {
               const vByPlace = Object.fromEntries((run.vouchers || []).map(v => [v.place, v]))
               return (
                 <div style={{ background: 'rgba(168,85,247,0.10)', border: `1px solid ${PURPLE}88`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -412,7 +505,7 @@ export default function Tournament() {
             })()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>race to {bracketMax}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>race to {bracketMax}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}{run.run?.settings?.finalBestOf3 ? ' · best-of-3 final' : ''}</span>
             </div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (

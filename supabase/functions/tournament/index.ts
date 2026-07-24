@@ -72,8 +72,31 @@ function shortCode(seed: string) {
 // Scoring settings (per tournament, in pool_tournaments.settings). Matches the
 // kickertool config the venue uses: race to 8 goals, no draws, 1 point per win
 // (so standings Pts = wins, then ranked on goal difference), byes not rated.
-const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: false };
+const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: false, finalBestOf3: false };
 const settingsOf = (run: any) => ({ ...DEFAULT_SETTINGS, ...(run?.settings || {}) });
+
+// Best-of-3 applies ONLY to the final and the 3rd-place playoff (founder's choice) —
+// both are end-of-line matches, so this never touches bracket advancement.
+// A match is the final if it's in the last bracket round and isn't the 3rd-place match.
+function isBestOf3Match(m: any, allBracket: any[], s: any): boolean {
+  if (!s.finalBestOf3 || m.bracket_round == null) return false;
+  if (m.is_third_place) return true;
+  const rounds = Math.max(...allBracket.map((x: any) => x.bracket_round));
+  return m.bracket_round === rounds && !m.is_third_place;
+}
+// Tally games won from a games array [{p1,p2},...]; a game counts only when it has a
+// clear winner. Returns {p1, p2} games won and whether the match is decided (first to 2).
+function tallyGames(games: any[]): { p1: number; p2: number; decided: boolean; winnerSide: 1 | 2 | null } {
+  let p1 = 0, p2 = 0;
+  for (const g of games || []) {
+    const a = Number(g?.p1), b = Number(g?.p2);
+    if (!Number.isFinite(a) || !Number.isFinite(b) || a === b) continue;
+    if (a > b) p1++; else p2++;
+    if (p1 >= 2 || p2 >= 2) break;   // first to 2 — ignore anything after it's decided
+  }
+  const decided = p1 >= 2 || p2 >= 2;
+  return { p1, p2, decided, winnerSide: p1 >= 2 ? 1 : p2 >= 2 ? 2 : null };
+}
 
 // Live standings from the ROUNDS matches only (bracket matches excluded). Ranked by
 // points → frame difference → frames for → Buchholz (sum of opponents' points) → name.
@@ -237,9 +260,43 @@ function computePlacings(matches: any[], standings: any[]) {
   return { first, second, third };
 }
 
+// Placings are only final when the final is decided AND (if a 3rd-place playoff exists) it's
+// also decided — so we don't issue/email the £10 to a fallback semi-finalist prematurely.
+function placingsComplete(matches: any[]): boolean {
+  const br = (matches || []).filter((m) => m.bracket_round != null);
+  if (!br.length) return false;
+  const rounds = Math.max(...br.map((m) => m.bracket_round));
+  const final = br.find((m) => m.bracket_round === rounds && !m.is_third_place);
+  if (!final || final.status !== "done" || !final.winner_id) return false;
+  const tpm = br.find((m) => m.is_third_place);
+  if (tpm && (tpm.status !== "done" || !tpm.winner_id)) return false;
+  return true;
+}
+// After any bracket result changes: finish + issue vouchers once placings are locked; reconcile
+// if a corrected result changed them; reopen a finished night that's no longer complete.
+async function settleRun(sb: any, runId: string) {
+  const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+  if (!run) return;
+  const { data: matches } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", runId).not("bracket_round", "is", null);
+  const complete = placingsComplete(matches || []);
+  if (complete) {
+    if (run.status !== "done") await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
+    const { data: dr } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+    if (dr) await finalizeTournament(sb, dr);
+  } else if (run.status === "done") {
+    await sb.from("pool_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", runId);
+  }
+}
+
 const VOUCHER_PENCE: Record<number, number> = { 1: 3000, 2: 2000, 3: 1000 };   // £30 / £20 / £10
-// Create the 1st/2nd/3rd voucher records + email ticket-holders. Idempotent (unique per
-// tournament+place); only emails an address we actually have, and only once.
+const emailForParticipant = async (sb: any, p: any): Promise<string | null> => {
+  if (!p?.entry_id) return null;
+  const { data: e } = await sb.from("tournament_entries").select("captain_email").eq("id", p.entry_id).maybeSingle();
+  return e?.captain_email || null;
+};
+// Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders. One voucher per
+// tournament+place; if a corrected result changes who placed, the voucher is repointed and its
+// emailed flag cleared so the right person is emailed. Only emails an address we have, once.
 async function finalizeTournament(sb: any, run: any) {
   const { participants, placings } = await loadRun(sb, run);
   if (!placings) return { error: "Not finished yet." };
@@ -253,10 +310,14 @@ async function finalizeTournament(sb: any, run: any) {
     const p = byId[pid];
     let { data: v } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).maybeSingle();
     if (!v) {
-      let email: string | null = null;
-      if (p?.entry_id) { const { data: e } = await sb.from("tournament_entries").select("captain_email").eq("id", p.entry_id).maybeSingle(); email = e?.captain_email || null; }
+      const email = await emailForParticipant(sb, p);
       const ins = await sb.from("pool_vouchers").insert({ pool_tournament_id: run.id, participant_id: pid, place, amount_pence: VOUCHER_PENCE[place], code: shortCode(run.id + place), display_name: p?.display_name || null, email }).select("*").single();
       v = ins.data;
+    } else if (v.participant_id !== pid) {
+      // A corrected result changed who placed here — repoint the voucher and re-email the right person.
+      const email = await emailForParticipant(sb, p);
+      const upd = await sb.from("pool_vouchers").update({ participant_id: pid, display_name: p?.display_name || null, email, emailed_at: null }).eq("id", v.id).select("*").single();
+      v = upd.data;
     }
     if (v && v.email && !v.emailed_at) {
       const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
@@ -393,11 +454,10 @@ Deno.serve(async (req) => {
       return json({ ok: true, round: gen.round });
     }
 
-    // Enter / correct a match score (rounds OR bracket). winner = higher score.
+    // Enter / correct a match score. Rounds + most bracket matches are one game (winner =
+    // higher score). The final + 3rd-place playoff can be best-of-3 (frontend sends `games`).
     if (action === "enterScore") {
       const matchId = clean(b.matchId, 40);
-      const p1 = Math.max(0, Math.min(99, parseInt(String(b.p1_score)) || 0));
-      const p2 = Math.max(0, Math.min(99, parseInt(String(b.p2_score)) || 0));
       const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m) return json({ error: "Match not found." }, 404);
       if (m.is_bye) return json({ error: "That's a bye — no score to enter." }, 400);
@@ -405,25 +465,49 @@ Deno.serve(async (req) => {
       if (isBracket && (!m.p1_id || !m.p2_id)) return json({ error: "This match is waiting on an earlier result." }, 400);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", m.pool_tournament_id).maybeSingle();
       const s = settingsOf(run);
+      const { data: allBr } = isBracket
+        ? await sb.from("pool_matches").select("*").eq("pool_tournament_id", m.pool_tournament_id).not("bracket_round", "is", null)
+        : { data: [] as any[] };
+      const rounds = (allBr && allBr.length) ? Math.max(...allBr.map((x: any) => x.bracket_round)) : 0;
+      const isFinal = isBracket && m.bracket_round === rounds && !m.is_third_place;
+
+      // ── Best-of-3 (final / 3rd-place only): games:[{p1,p2},...], first to win 2 ──
+      if (isBestOf3Match(m, allBr || [], s)) {
+        if (!Array.isArray(b.games)) return json({ error: "This match is best-of-3 — enter each game." }, 400);
+        const games = (b.games as any[]).slice(0, 3).map((g) => ({
+          p1: Math.max(0, Math.min(99, parseInt(String(g?.p1)) || 0)),
+          p2: Math.max(0, Math.min(99, parseInt(String(g?.p2)) || 0)),
+        }));
+        for (const g of games) if (g.p1 === g.p2) return json({ error: "Each game needs a winner — no tied games." }, 400);
+        const t = tallyGames(games);
+        const winner = t.winnerSide === 1 ? m.p1_id : t.winnerSide === 2 ? m.p2_id : null;
+        // Store games; p1_score/p2_score hold GAMES won (e.g. 2–1) for display — standings &
+        // league read round matches only, so this never affects frame difference.
+        const { error } = await sb.from("pool_matches").update({ games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" }).eq("id", matchId);
+        if (error) return json({ error: error.message }, 400);
+        await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
+        return json({ ok: true });
+      }
+
+      // ── Single game (rounds + regular bracket matches) ──
+      const p1 = Math.max(0, Math.min(99, parseInt(String(b.p1_score)) || 0));
+      const p2 = Math.max(0, Math.min(99, parseInt(String(b.p2_score)) || 0));
       if (p1 === p2 && (isBracket || !s.drawsAllowed)) return json({ error: "Needs a winner — a tie isn't allowed here. Adjust the score." }, 400);
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done" }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
-      // Bracket: push the winner into the next match, feed a 3rd-place match, finish on the final.
+      // Bracket: push the winner into the next match, then feed the 3rd-place match.
       if (isBracket && winner) {
         if (m.next_match_id && m.next_slot) await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: winner }).eq("id", m.next_match_id);
-        const { data: allBr } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", m.pool_tournament_id).not("bracket_round", "is", null);
-        const rounds = Math.max(...(allBr || []).map((x: any) => x.bracket_round));
         const tpm = (allBr || []).find((x: any) => x.is_third_place);
         if (tpm && m.bracket_round === rounds - 1) {
-          const semis = (allBr || []).filter((x: any) => x.bracket_round === rounds - 1 && !x.is_third_place && x.status === "done");
+          // allBr was read before this semi was marked done — patch in its fresh result so both
+          // semis are seen as complete and the 3rd-place match gets its two losers.
+          const semis = (allBr || []).map((x: any) => (x.id === m.id ? { ...x, status: "done", winner_id: winner } : x))
+            .filter((x: any) => x.bracket_round === rounds - 1 && !x.is_third_place && x.status === "done");
           if (semis.length === 2) await sb.from("pool_matches").update({ p1_id: semis[0].winner_id === semis[0].p1_id ? semis[0].p2_id : semis[0].p1_id, p2_id: semis[1].winner_id === semis[1].p1_id ? semis[1].p2_id : semis[1].p1_id }).eq("id", tpm.id);
         }
-        if (m.bracket_round === rounds && !m.is_third_place) {
-          await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", m.pool_tournament_id);
-          const { data: doneRun } = await sb.from("pool_tournaments").select("*").eq("id", m.pool_tournament_id).maybeSingle();
-          if (doneRun) await finalizeTournament(sb, doneRun);   // create + email the 1st/2nd/3rd vouchers
-        }
+        await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
       }
       return json({ ok: true });
     }
@@ -432,10 +516,12 @@ Deno.serve(async (req) => {
       const matchId = clean(b.matchId, 40);
       const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m || m.is_bye) return json({ ok: true });
-      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, winner_id: null, status: "pending" }).eq("id", matchId);
+      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending" }).eq("id", matchId);
       if (m.bracket_round != null && m.winner_id && m.next_match_id && m.next_slot) {
-        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, winner_id: null, status: "pending" }).eq("id", m.next_match_id);
+        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending" }).eq("id", m.next_match_id);
       }
+      // Clearing a bracket result may drop the night out of "complete" — reopen it if so.
+      if (m.bracket_round != null) await settleRun(sb, m.pool_tournament_id);
       return json({ ok: true });
     }
     // Start the knockout: seed the bracket from the final rounds standings.
@@ -450,20 +536,29 @@ Deno.serve(async (req) => {
       const thirdPlace = b.thirdPlace != null ? !!b.thirdPlace : !!s.thirdPlaceMatch;
       // Match length for the knockout (race to N frames). Clamp to a sane 3–15.
       const raceTo = b.raceTo != null ? Math.min(15, Math.max(3, Math.round(Number(b.raceTo) || s.raceTo))) : s.raceTo;
+      // Best-of-3 for the final + 3rd-place playoff (each game races to `raceTo`).
+      const finalBestOf3 = b.finalBestOf3 != null ? !!b.finalBestOf3 : !!s.finalBestOf3;
+      const nextSettings = { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo, finalBestOf3 };
       // Persist the chosen knockout options so the bracket score entry & standings
       // read the right race target, and re-opens show what was picked.
-      await sb.from("pool_tournaments").update({ settings: { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo } }).eq("id", runId);
-      const gen = await generateBracket(sb, { ...run, settings: { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo } }, standings, thirdPlace);
+      await sb.from("pool_tournaments").update({ settings: nextSettings }).eq("id", runId);
+      const gen = await generateBracket(sb, { ...run, settings: nextSettings }, standings, thirdPlace);
       if ((gen as any).error) return json({ error: (gen as any).error }, 400);
       return json({ ok: true, ...gen });
     }
 
-    // Re-run voucher creation / emails for a finished night (idempotent).
+    // Finish the night now / re-run voucher emails. This is the manual escape hatch: it works
+    // even if a 3rd-place playoff was enabled but skipped (3rd falls back to the beaten
+    // semi-finalist). Idempotent — re-running just reconciles + re-emails any missing vouchers.
     if (action === "finalize") {
       const runId = clean(b.runId, 40);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
-      const r = await finalizeTournament(sb, run);
+      const { placings } = await loadRun(sb, run);
+      if (!placings) return json({ error: "The final isn't finished yet." }, 400);
+      if (run.status !== "done") await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
+      const { data: dr } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      const r = await finalizeTournament(sb, dr || run);
       if ((r as any).error) return json({ error: (r as any).error }, 400);
       return json({ ok: true, ...r });
     }

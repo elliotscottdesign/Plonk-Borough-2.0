@@ -26,11 +26,12 @@ export const tournDeleteRun = (runId) => call({ action: 'deleteRun', runId })
 export const tournStartRounds = (runId) => call({ action: 'startRounds', runId })
 export const tournNextRound = (runId) => call({ action: 'generateNextRound', runId })
 export const tournEnterScore = (matchId, p1_score, p2_score) => call({ action: 'enterScore', matchId, p1_score, p2_score })
+export const tournEnterGames = (matchId, games) => call({ action: 'enterScore', matchId, games })   // best-of-3 final / 3rd-place
 export const tournClearScore = (matchId) => call({ action: 'clearScore', matchId })
 export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound', runId })
 
 // Slice 3 — knockout bracket.
-export const tournStartKnockout = (runId, thirdPlace, raceTo) => call({ action: 'startKnockout', runId, thirdPlace, raceTo })
+export const tournStartKnockout = (runId, thirdPlace, raceTo, finalBestOf3) => call({ action: 'startKnockout', runId, thirdPlace, raceTo, finalBestOf3 })
 
 // Slice 4 — vouchers + league + grand final.
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
