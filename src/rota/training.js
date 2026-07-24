@@ -20,6 +20,7 @@ export const MODULE_META = [
   { key: 'safeguarding', title: 'Safeguarding', category: 'Licensing & guests', icon: '🛡️' },
   { key: 'allergens', title: 'Allergen Awareness (Natasha’s Law)', category: 'Food & allergens', icon: '🥜' },
   { key: 'food-safety', title: 'Food Safety Awareness', category: 'Food & allergens', icon: '🍽️' },
+  { key: 'food-safety-l2', title: 'Food Safety & Hygiene — Level 2 (kitchen)', category: 'Food & allergens', icon: '🌡️' },
 ]
 
 // Filled from the training-rewrite workflow. Shape per key:
@@ -622,6 +623,60 @@ export const MODULE_CONTENT = {
       "Last orders is 15 minutes before close; the very last order is 1 minute before close, no exceptions. Last entry 23:45, 30-minute drinking-up time.",
       "Never reuse a glass, always scoop ice with a scoop/tongs (never a glass), and always ask single or double on spirits.",
       "Two staff are required to open the cellar hatch — one at the hatch upstairs, one below — and the person up top must not leave the hatch until it's shut."
+    ]
+  },
+  "food-safety-l2": {
+    "intro": "This is your shorthand study guide for the Level 2 Food Safety & Hygiene (Catering) certificate — the qualification a kitchen food handler is expected to hold. Read it right through: it covers everything an external examiner will test you on, mapped to how we actually run the No Dice food truck (London Fields). When you've read and understood it, mark it complete and your manager will book your Level 2 exam with an outside training firm. The daily/weekly checklists in the Kitchen tab are this training put into practice.",
+    "sections": [
+      {
+        "heading": "1. The law & who checks us",
+        "body": "Food safety is a legal duty, not a nice-to-have.\n• Main laws: the Food Safety Act 1990 and the Food Safety and Hygiene (England) Regulations 2013 (which bring in EU Regulation 852/2004). They say all food we serve must be safe and 'fit for human consumption'.\n• The EHO (Environmental Health Officer, from Hackney Council) can inspect us at any time, with no notice. They can issue an improvement notice, a hygiene emergency prohibition (shut us down), seize unsafe food, and prosecute — penalties run to unlimited fines and up to 2 years in prison.\n• Food Hygiene Rating: they score us 0–5. We want a 5.\n• Your duty as a food handler: keep yourself and your area clean, protect food from contamination, report illness, and follow the procedures.\n• 'Due diligence' is our legal defence — proving we took all reasonable care. That is exactly what our checklists, temperature records and this training are for: written proof."
+      },
+      {
+        "heading": "2. The four types of hazard",
+        "body": "A hazard is anything that could make food unsafe. There are four:\n• Microbiological — bacteria and viruses. The biggest cause of food poisoning and the main thing this course is about.\n• Physical — objects in food: glass, metal, hair, blue plaster, packaging, pests.\n• Chemical — cleaning chemicals, sanitiser, pest bait, machine oil.\n• Allergenic — the 14 allergens (see the Allergen Awareness module + our matrix).\nContamination = a hazard getting into food. Our job is to keep all four out."
+      },
+      {
+        "heading": "3. Bacteria & food poisoning",
+        "body": "Bacteria are tiny living things you can't see, smell or taste. One splits into two roughly every 10–20 minutes — so a few become millions in hours.\n• What bacteria need to grow (remember it): warmth, food, moisture and time. (The exam may call it FAT-TOM — Food, Acidity, Temperature, Time, Oxygen, Moisture.)\n• The DANGER ZONE is 8–63 °C — bacteria multiply fastest in it, quickest at body temperature (37 °C). Keep food OUT of it: hot or cold, not in between.\n• High-risk foods are ready-to-eat, moist and high in protein — they need the most care: cooked meat (our beef patties & mortadella), dairy/cheese, cooked rice, egg, shellfish, cooked spring rolls.\n• Bugs worth naming: Salmonella (poultry, egg), E. coli O157 (raw meat — dangerous, tiny dose), Campylobacter (raw chicken — the commonest), Listeria (grows even in the fridge, in chilled ready-to-eat food), Clostridium perfringens & Bacillus cereus (form spores that survive cooking — reheated food, rice), Staphylococcus aureus (from hands, nose, cuts).\n• Spores and toxins can survive cooking — so cooking alone isn't enough. Prevention = temperature control + time + hygiene.\n• Symptoms of food poisoning: diarrhoea, vomiting, stomach cramps, nausea — usually 1–72 hours after eating."
+      },
+      {
+        "heading": "4. Temperature control — learn these numbers",
+        "body": "This is the most-tested part of the exam. Learn the figures:\n• Cook / core temperature: 75 °C in the thickest part (or 70 °C held for 2 minutes). We cook beef patties to ≥75 °C.\n• Reheating: 75 °C, and only ONCE. We reheat mortadella to ≥75 °C — piping hot.\n• Hot holding: 63 °C or above. (We cook to order — no hot-holding — which avoids this risk.)\n• Chilling / fridge: keep at 5 °C or below (the legal maximum is 8 °C). Our fridges target 0–5 °C.\n• Freezing: −18 °C or below. Our freezer target is ≤ −18 °C — checked at open and close.\n• Cooling: cooked food you're chilling (e.g. batch onions) must be cooled within 90 minutes, then fridged.\n• Thawing: defrost frozen food fully, in the fridge, before cooking.\n• The probe thermometer: clean and sanitise it before and after each use, push it into the thickest part, and check it's accurate — 100 °C in boiling water, 0 °C in iced water."
+      },
+      {
+        "heading": "5. Deliveries, storage & date marks",
+        "body": "• Deliveries: check temperatures on arrival (chilled 5 °C or below, frozen −18 °C). Reject anything warm, damaged, out of date or with broken packaging.\n• Stock rotation — FIFO (First In, First Out): put new stock behind old so the oldest gets used first.\n• Date marks: 'use-by' is about SAFETY — never use food after its use-by, it's illegal. 'Best-before' is about quality only.\n• Label and date anything you decant, prep or open (our batch prep is labelled + dated).\n• Store raw meat BELOW ready-to-eat food in the fridge, so raw juices can't drip onto it. Keep all food covered."
+      },
+      {
+        "heading": "6. Personal hygiene & fitness to work",
+        "body": "You are the biggest risk to the food you touch.\n• Wash your hands — before you start, and after handling raw meat, using the toilet, touching the bin, breaks, blowing your nose or touching your phone. Soap and warm water at the dedicated hand-wash sink, 20 seconds. Sanitiser gel is NOT a substitute for washing.\n• Fitness to work: if you have diarrhoea or vomiting you must NOT handle food, and must stay off for 48 hours after your last symptom. Report it to your manager. Also report skin infections, bad colds and stomach upsets.\n• Cover every cut or graze with a blue detectable plaster (blue so it's easy to spot if it falls in food).\n• No watches, rings (a plain band aside), bracelets, false nails or nail varnish. Clean apron, hair tied back or covered.\n• Don't cough or sneeze over food. No eating, smoking or vaping in the kitchen."
+      },
+      {
+        "heading": "7. Cross-contamination — the number-one cause",
+        "body": "Cross-contamination is bacteria spreading from one place to another — usually from RAW food to READY-TO-EAT food. It causes most food poisoning, so keep the two apart at every stage:\n• Storage: raw below ready-to-eat.\n• Boards & knives: colour-code — RED = raw meat, GREEN = salad/veg, YELLOW = cooked meat. Never use a raw board for a bun or salad.\n• Hands & tongs: wash your hands and swap or sanitise boards and tongs between raw meat and buns/salad.\n• 'Vehicles' that carry bacteria across: your hands, cloths, equipment, packaging and pests. Watch all of them."
+      },
+      {
+        "heading": "8. Cleaning & disinfection",
+        "body": "• Cleaning removes dirt and grease. Disinfection reduces bacteria to a safe level. Food-contact surfaces need a sanitiser left on for its stated contact time — don't just wipe it straight off.\n• The 6 stages of cleaning: 1) pre-clean (scrape/remove debris) 2) main clean (hot water + detergent) 3) rinse 4) disinfect/sanitise 5) final rinse 6) dry.\n• Clean as you go — don't let it build up. Follow the cleaning schedule (our weekly deep-clean sheet).\n• COSHH: store chemicals safely and labelled, never in food or drink containers, and never mix chemicals (e.g. bleach + acid gives off toxic gas)."
+      },
+      {
+        "heading": "9. Pests, waste & premises",
+        "body": "• Signs of pests: droppings, gnaw or smear marks, nests, dead insects, an odd smell. Rodents, flies, cockroaches and birds all spread bacteria.\n• Prevent them: no gaps or open doors, no food or water left out, bins closed and emptied, deliveries checked. See a pest or a sign of one? Report it to your manager — don't try to deal with it yourself.\n• Waste: keep it in closed bins, out of the food area, and empty it regularly (our closing sheet covers this).\n• Premises: surfaces and equipment must be in good repair and easy to clean; report anything broken or dirty that you can't fix."
+      },
+      {
+        "heading": "10. Passing your Level 2 exam",
+        "body": "The external Level 2 exam is normally about 30 multiple-choice questions with a pass mark around 20/30 (about 66%). To pass, be solid on:\n• the temperature numbers (danger zone 8–63 °C; cook & reheat 75 °C; fridge ≤5 °C; freezer −18 °C)\n• the 48-hour fitness-to-work rule\n• high-risk foods and why they're risky\n• cross-contamination and how to prevent it\n• the four hazards and the six stages of cleaning.\nRead this guide until those stick. When you're confident, mark this module complete — your manager will then book you onto the certified Level 2 exam. Doing our daily checklists is the best revision there is."
+      }
+    ],
+    "keyPoints": [
+      "Danger zone 8–63 °C — keep food out of it. Cook and reheat to 75 °C (reheat once only); hot-hold ≥63 °C; fridge ≤5 °C (legal max 8 °C); freezer −18 °C.",
+      "Cool cooked food within 90 minutes; thaw fully in the fridge; probe into the thickest part, sanitised, and checked at 100 °C (boiling) / 0 °C (iced water).",
+      "Fitness to work: no handling food with diarrhoea/vomiting, and stay off for 48 hours after your last symptom. Cover cuts with a blue detectable plaster.",
+      "Cross-contamination is the #1 cause — keep raw and ready-to-eat apart: raw below RTE, colour boards (red raw / yellow cooked / green veg), wash hands + swap tongs.",
+      "High-risk foods = ready-to-eat, moist, high-protein (cooked meat, dairy, cooked rice, egg, shellfish). Use-by = safety (never use after); FIFO stock rotation.",
+      "The 4 hazards: microbiological, physical, chemical, allergenic. The 6 stages of cleaning: pre-clean, main clean, rinse, disinfect, final rinse, dry.",
+      "'Due diligence' is our legal defence — the checklists and temperature records prove we took all reasonable care. That's why we fill them in every shift."
     ]
   }
 }

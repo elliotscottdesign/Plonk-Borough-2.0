@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { KITCHEN_TEMPLATES, templateItems } from '../../kitchen/templates.js'
+import { KITCHEN_TEMPLATES, templateItems, targetLabel } from '../../kitchen/templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
 import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed } from '../../kitchen/api.js'
 
@@ -24,12 +24,12 @@ export default function Kitchen() {
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18 }}>
-        {[['runs', '📋 Checklists'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}
       </div>
-      {sub === 'runs' ? <Runs /> : <Matrix />}
+      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : <Matrix />}
     </div>
   )
 }
@@ -141,7 +141,7 @@ function Matrix() {
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a cell to cycle: blank → <b style={{ color: AMBER }}>○ may contain</b> → <b style={{ color: BLUE }}>⧗ checking</b> → <b style={{ color: RED }}>● contains</b>.</div>
-        <button onClick={() => printMatrix(rows)} style={tab(false)}>🖨 Print customer sheet (A4)</button>
+        <button onClick={() => printMatrix(rows)} style={tab(false)}>🖨 Print “On a Roll” allergen sheet (A4)</button>
       </div>
 
       <div style={{ overflowX: 'auto', border: `1px solid ${LINE}`, borderRadius: 12 }}>
@@ -178,21 +178,77 @@ function Matrix() {
   )
 }
 
-// Printable A4 customer allergen sheet (opens a clean window).
+// Printable, public-facing A4 allergen sheet — No Dice branded, for the "On a Roll"
+// food menu. Opens a clean print window.
 function printMatrix(rows) {
-  const cell = (st) => { const m = STATUS_META[statusOf(st)]; return `<td style="text-align:center;color:${m.color};font-weight:800;font-size:15px;border:1px solid #ccc;padding:5px">${m.symbol || ''}</td>` }
-  const head = ['Dish', ...ALLERGENS.map(a => a.label)].map(h => `<th style="border:1px solid #ccc;padding:6px 5px;font-size:11px;background:#f3f3f3">${h}</th>`).join('')
-  const body = rows.map(r => `<tr><td style="border:1px solid #ccc;padding:6px;font-weight:700;font-size:12px;white-space:nowrap">${r.dish}</td>${ALLERGENS.map(a => cell(r.allergens[a.key])).join('')}</tr>`).join('')
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>No Dice — Allergen guide</title></head>
-  <body style="font-family:Arial,Helvetica,sans-serif;color:#111;margin:20px">
-    <h1 style="font-size:22px;margin:0 0 2px">No Dice — Allergen guide</h1>
-    <div style="font-size:12px;color:#555;margin-bottom:12px">407 Mentmore Terrace, London Fields, E8 3PH · food truck</div>
+  const origin = window.location.origin
+  const cell = (st) => { const m = STATUS_META[statusOf(st)]; return `<td style="text-align:center;color:${m.color};font-weight:800;font-size:16px;border:1px solid #e6e2dd;padding:8px 4px">${m.symbol || ''}</td>` }
+  const head = ['Dish', ...ALLERGENS.map(a => a.label)].map((h, i) => `<th style="border:1px solid #e6e2dd;padding:9px 5px;font-size:10px;background:#f7f3ee;text-transform:uppercase;letter-spacing:.5px;color:#3a3a3a;${i === 0 ? 'text-align:left;padding-left:12px' : ''}">${h}</th>`).join('')
+  const body = rows.map((r, ri) => `<tr style="background:${ri % 2 ? '#fbfaf8' : '#fff'}"><td style="border:1px solid #e6e2dd;padding:9px 12px;font-weight:700;font-size:12.5px;white-space:nowrap">${r.dish}</td>${ALLERGENS.map(a => cell(r.allergens[a.key])).join('')}</tr>`).join('')
+  const html = `<!doctype html><html><head><meta charset="utf-8"><title>On a Roll — Allergen Guide</title></head>
+  <body style="font-family:Georgia,'Times New Roman',serif;color:#1a1a1a;background:#fff;margin:0;padding:36px 42px;-webkit-print-color-adjust:exact;print-color-adjust:exact">
+    <div style="text-align:center;margin-bottom:24px">
+      <img src="${origin}/nodice-wordmark.png" alt="No Dice" style="height:38px" onerror="this.style.display='none'"/>
+      <div style="font-size:10.5px;letter-spacing:3px;text-transform:uppercase;color:#8a8a8a;margin-top:9px">London Fields</div>
+      <div style="height:2px;width:52px;background:#DA1B33;margin:16px auto 14px"></div>
+      <div style="font-size:36px;font-weight:700;letter-spacing:.5px">On a Roll</div>
+      <div style="font-size:15px;color:#555;font-style:italic;margin-top:1px">Allergen Guide</div>
+    </div>
     <table style="border-collapse:collapse;width:100%"><thead><tr>${head}</tr></thead><tbody>${body}</tbody></table>
-    <div style="font-size:12px;margin-top:12px"><b style="color:#DA1B33">●</b> Contains &nbsp; <b style="color:#F59E0B">○</b> May contain / made in the same kitchen &nbsp; <b style="color:#2563eb">⧗</b> Checking with supplier</div>
-    <div style="font-size:11px;color:#666;margin-top:8px">Everything is fried in a shared fryer, so chips are not gluten-free and carry cross-contact. Please tell staff about any allergy before you order — we'll talk you through it.</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;font-size:12px;margin-top:18px;color:#333">
+      <span><b style="color:#DA1B33;font-size:15px">●</b> Contains</span>
+      <span><b style="color:#F59E0B;font-size:15px">○</b> May contain / made in the same kitchen</span>
+      <span><b style="color:#2563eb;font-size:15px">⧗</b> Checking with our supplier</span>
+    </div>
+    <div style="margin-top:16px;padding:13px 15px;background:#f7f3ee;border-left:3px solid #DA1B33;font-size:12px;line-height:1.6;color:#333">
+      <b>Please tell us about any allergy before you order</b> — we'll happily talk you through it. Everything is fried in a shared fryer, so our chips are not gluten-free and can carry cross-contact.
+    </div>
+    <div style="text-align:center;font-size:10px;color:#a0a0a0;margin-top:22px;letter-spacing:.3px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</div>
   </body></html>`
   const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to print the sheet.'); return }
-  w.document.write(html); w.document.close(); setTimeout(() => w.print(), 300)
+  w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400)
+}
+
+// The blank checklists themselves — every task staff are asked to do, read-only.
+function Templates() {
+  const [open, setOpen] = useState('opening')
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>Exactly what the kitchen crew work through on each sheet. <strong style={{ color: RED }}>Critical</strong> items and temperature targets are marked — a temp outside target auto-fails and needs a written fix.</div>
+      {Object.keys(KITCHEN_TEMPLATES).map(k => {
+        const t = KITCHEN_TEMPLATES[k], isOpen = open === k
+        const n = templateItems(k).length
+        return (
+          <div key={k} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+            <button onClick={() => setOpen(isOpen ? null : k)} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 9 }}><span style={{ fontSize: 18 }}>{t.icon}</span><span style={{ fontSize: 14, fontWeight: 700 }}>{t.title}</span></span>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>{n} items · {isOpen ? '▲' : '▼'}</span>
+            </button>
+            {isOpen && (
+              <div style={{ borderTop: `1px solid ${LINE}`, padding: 14 }}>
+                {t.groups.map(g => (
+                  <div key={g.title} style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{g.title}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                      {g.items.map(item => (
+                        <div key={item.key} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)' }}>
+                          <span style={{ color: 'rgba(255,255,255,0.3)' }}>{item.type === 'temp' ? '🌡️' : item.type === 'text' ? '✎' : '☐'}</span>
+                          <span style={{ flex: 1 }}>{item.label}
+                            {item.type === 'temp' && <span style={{ color: 'rgba(255,255,255,0.5)' }}> — target {targetLabel(item.target)}</span>}
+                            {item.critical && <span style={{ fontSize: 9.5, color: RED, fontWeight: 800, marginLeft: 6, letterSpacing: '0.04em' }}>CRITICAL</span>}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 const Muted = ({ children }) => <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: 13, padding: '18px 0' }}>{children}</div>

@@ -4,6 +4,7 @@ import { MODULE_META, MODULES, TRAINING_CATEGORIES, moduleByKey, cocktailKey } f
 import { SPECS } from '../data/cocktailSpecs.js'
 import TrainingDoc from '../../rota/TrainingDoc.jsx'
 import TrainingEditor from '../../rota/TrainingEditor.jsx'
+import { hasQuiz, quizCount, sampleQuestions } from '../../rota/quizzes.js'
 
 // ─── Training matrix (founder) ───────────────────────────────────────────────
 // Who's completed which training module + how many cocktails they're signed off
@@ -48,7 +49,7 @@ export default function TrainingMatrix({ staff = [] }) {
       </div>
 
       <div style={{ display: 'flex', gap: 6 }}>
-        {[['matrix', '✅ Progress'], ['docs', '📄 Documents']].map(([k, lbl]) => (
+        {[['matrix', '✅ Progress'], ['docs', '📄 Documents'], ['quiz', '🎯 Spot-check']].map(([k, lbl]) => (
           <button key={k} onClick={() => { setTab(k); setDocKey(null) }} style={{ padding: '7px 14px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: tab === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${tab === k ? RED : LINE}`, color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: tab === k ? 700 : 400 }}>{lbl}</button>
         ))}
       </div>
@@ -89,7 +90,9 @@ export default function TrainingMatrix({ staff = [] }) {
         <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.08)`, borderRadius: 8, padding: '12px 14px' }}>
           Hover a column icon for the module name. Staff mark their own training complete in the portal as they read each module and get signed off on cocktails.
         </div>
-      </>) : docKey ? (
+      </>) : tab === 'quiz' ? (
+        <SpotCheck />
+      ) : docKey ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
             <button onClick={() => { setDocKey(null); setEditingDoc(false) }} style={btn}>‹ All documents</button>
@@ -120,6 +123,46 @@ export default function TrainingMatrix({ staff = [] }) {
               </div>
             )
           })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// Founder spot-check — pull up a module's questions (with answers) to quiz staff on
+// shift and check they actually took in what they've marked as read.
+function SpotCheck() {
+  const [key, setKey] = useState(null)
+  const [nonce, setNonce] = useState(0)
+  const quizzed = MODULES.filter(m => hasQuiz(m.key))
+  const m = key ? moduleByKey(key) : null
+  const qs = key ? sampleQuestions(key, 4, nonce) : []
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>Quiz your team on the floor, not just in an exam. Pick a module and read a few out — the <strong style={{ color: '#34D399' }}>green answer</strong> is the correct one. Catches anyone who ticked "read" without reading.</div>
+      {quizzed.length === 0 && <div style={{ fontSize: 12.5, color: '#FCD34D' }}>Quiz questions are being generated — check back shortly.</div>}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        {quizzed.map(mod => (
+          <button key={mod.key} onClick={() => { setKey(mod.key); setNonce(n => n + 1) }} style={{ padding: '7px 12px', fontSize: 12.5, borderRadius: 8, cursor: 'pointer', background: key === mod.key ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${key === mod.key ? RED : LINE}`, color: '#fff' }}>{mod.icon} {mod.title}</button>
+        ))}
+      </div>
+      {m && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{m.icon} {m.title} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {quizCount(m.key)} in the bank</span></div>
+            <button onClick={() => setNonce(n => n + 1)} style={btn}>↻ Different questions</button>
+          </div>
+          {qs.map((q, i) => (
+            <div key={i} style={{ background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 10, padding: 12 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 6 }}>{i + 1}. {q.q}</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                {q.options.map((opt, oi) => (
+                  <div key={oi} style={{ fontSize: 12, color: oi === q.answer ? '#34D399' : 'rgba(255,255,255,0.65)', fontWeight: oi === q.answer ? 700 : 400 }}>{'ABCD'[oi]}. {opt} {oi === q.answer ? '✓' : ''}</div>
+                ))}
+              </div>
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 6 }}>{q.why}</div>
+            </div>
+          ))}
         </div>
       )}
     </div>

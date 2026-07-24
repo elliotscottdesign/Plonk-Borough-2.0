@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { rotaCompleteTraining, rotaUncompleteTraining } from './api.js'
+import ModuleQuiz from './ModuleQuiz.jsx'
 import { MODULES, MODULE_META, TRAINING_CATEGORIES, moduleByKey, cocktailKey } from './training.js'
 import { SPECS, SPEC_SECTIONS } from '../ops/data/cocktailSpecs.js'
 import TrainingDoc from './TrainingDoc.jsx'
@@ -81,6 +82,7 @@ export default function TrainingView({ token, training = [], onToggle }) {
           {on && <span style={{ fontSize: 11, color: GREEN, fontWeight: 700 }}>✓ Completed</span>}
         </div>
         <TrainingDoc moduleKey={m.key} />
+        <ModuleQuiz moduleKey={m.key} onPass={() => { if (!isDone(m.key)) toggle(m.key) }} />
         <button onClick={() => toggle(m.key)} style={{ ...btn(on ? 'ghost' : 'red'), padding: '13px', fontSize: 14, width: '100%' }}>
           {on ? '✓ Completed — tap to undo' : "I've read this — mark complete"}
         </button>
