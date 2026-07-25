@@ -80,8 +80,8 @@ export default function DJRules() {
 
       <Section tag="👤" title="Your profile">
         Keep it sharp — it'll go live on the No Dice site so guests can find you.
-        <Li>Everything's required except <B>SoundCloud / Spotify / YouTube</B>, plus a photo and at least <B>5 genres</B>.</Li>
-        <Li>You can <B>change your genres any time</B> — they're not fixed when you sign up.</Li>
+        <Li>Required: your name, photo, Instagram, how you play, phone and email. <B>SoundCloud / Spotify / YouTube and your genres are optional.</B></Li>
+        <Li>Add any <B>genres</B> that fit (or none) — you can <B>change them any time</B>, they're not fixed when you sign up.</Li>
         <Li>We'll add RA / DICE links and more later.</Li>
       </Section>
 

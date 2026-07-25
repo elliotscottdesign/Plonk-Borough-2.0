@@ -34,8 +34,8 @@ const SPECIAL_SESSION_DATES = new Set(["2026-08-30"]);
 const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
-// All fields required except SoundCloud/Spotify/YouTube, and at least 5 genres.
-const isComplete = (d: any) => !!(d && d.dj_name && genreCount(d.genres) >= 5 && d.instagram && d.format && d.phone && d.email && d.image_url);
+// All fields required except SoundCloud/Spotify/YouTube. Genres are optional.
+const isComplete = (d: any) => !!(d && d.dj_name && d.instagram && d.format && d.phone && d.email && d.image_url);
 const arr = (x: any) => Array.isArray(x) ? x : [];
 // Promo fields are NAMES only — reject anything that looks like a URL/link.
 const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.[a-z]{2,}\/|\b(soundcloud|youtu|spoti|bit\.ly|linktr|hearthis|mixcloud|bandcamp|tidal|deezer|audiomack|hypeddit|fanlink|toneden)\b)/i.test(s || "");

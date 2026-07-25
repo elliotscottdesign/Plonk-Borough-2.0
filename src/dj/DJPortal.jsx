@@ -180,7 +180,6 @@ export default function DJPortal() {
   const need = []
   if (!(sdj.dj_name || '').trim()) need.push('your name')
   if (!sdj.image_url) need.push('a photo')
-  if (genreCount(sdj.genres) < 5) need.push('5+ genres')
   if (!(sdj.instagram || '').trim()) need.push('Instagram')
   if (!(sdj.format || '').trim()) need.push('how you play')
   if (!(sdj.phone || '').trim()) need.push('phone')
@@ -380,12 +379,12 @@ export default function DJPortal() {
             </div>
             <div><div style={label}>DJ / artist name{req()}</div><input value={form.dj_name || ''} onChange={e => onField('dj_name', e.target.value)} style={reqInp(form.dj_name)} /></div>
             <div>
-              <div style={label}>Music you play{req()} <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— pick at least 5</span></div>
+              <div style={label}>Music you play <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>— optional, pick any that fit</span></div>
               <div style={{ marginTop: 8 }}>
                 <SubgenrePicker selected={(form.genres || '').split('/').map(x => x.trim()).filter(Boolean)} onChange={names => onField('genres', names.join(' / '))} />
               </div>
-              <div style={{ fontSize: 11, marginTop: 6, color: genreCount(form.genres) >= 5 ? '#34D399' : RED }}>
-                {genreCount(form.genres)}/5 minimum{genreCount(form.genres) >= 5 ? ' ✓' : ''} <span style={{ color: 'rgba(255,255,255,0.4)' }}>· you can change these any time</span>
+              <div style={{ fontSize: 11, marginTop: 6, color: 'rgba(255,255,255,0.4)' }}>
+                {genreCount(form.genres)} selected · you can change these any time
               </div>
             </div>
             <div><div style={label}>Instagram{req()}</div><input value={form.instagram || ''} onChange={e => onField('instagram', e.target.value)} placeholder="@yourhandle" style={reqInp(form.instagram)} /></div>
