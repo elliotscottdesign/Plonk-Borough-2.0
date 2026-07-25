@@ -707,6 +707,13 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Managers/Asst Managers: jump straight to the /ops team hub (or the DJ section). */}
+      {['Manager', 'Asst. Manager'].includes(staff.role) && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <a href="/ops" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', padding: '20px', borderRadius: 12, background: RED, color: '#fff', fontWeight: 800, fontSize: 18, letterSpacing: '0.02em', boxShadow: '0 4px 18px rgba(218,27,51,0.4)' }}>⚙️ Open the Operations hub →</a>
+          <a href="/ops?tab=djbookings" style={{ display: 'block', textAlign: 'center', textDecoration: 'none', padding: '14px', borderRadius: 10, background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontWeight: 700, fontSize: 14.5 }}>🎧 Straight to DJ bookings →</a>
+        </div>
+      )}
       <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
         <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Set by the manager</div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
