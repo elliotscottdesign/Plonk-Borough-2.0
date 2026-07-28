@@ -264,7 +264,18 @@ export default function DJPortal() {
             {editing && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.5)', borderRadius: 999, padding: '1px 7px', marginRight: 6 }}>Editing</span>}
             {fmtDate(date)} <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: session ? RED : '#F97316', border: `1px solid ${session ? 'rgba(218,27,51,0.5)' : 'rgba(249,115,22,0.5)'}`, borderRadius: 999, padding: '1px 7px', marginLeft: 6 }}>{session ? (sLabel ? `Session · ${sLabel}` : 'Session') : 'Open Decks'}</span>
           </div>
-          <button onClick={closePanel} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+          <button
+            onClick={closePanel}
+            aria-label="Close"
+            style={{
+              width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
+              color: 'rgba(255,255,255,0.75)', fontSize: 18, cursor: 'pointer',
+              borderRadius: '50%', flexShrink: 0,
+            }}
+          >
+            ✕
+          </button>
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
         {clash && <div style={{ fontSize: 12, color: '#F59E0B', lineHeight: 1.5, whiteSpace: 'pre-line', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px' }}>{clash}</div>}
@@ -314,7 +325,21 @@ export default function DJPortal() {
                 <input type="file" accept="image/*" onChange={onEventPhoto} style={{ display: 'none' }} />
               </label>
               <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4, lineHeight: 1.4 }}>{eventImg ? 'Used for this night.' : 'No event image — your profile photo will be used.'}</div>
-              {eventImg && <button type="button" onClick={() => removeEventPhoto(date)} disabled={busy} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 11, cursor: 'pointer', padding: 0, marginTop: 4 }}>Remove event image</button>}
+              {eventImg && (
+                <button
+                  type="button"
+                  onClick={() => removeEventPhoto(date)}
+                  disabled={busy}
+                  style={{
+                    marginTop: 6, minHeight: 36, padding: '7px 14px',
+                    background: 'transparent', border: '1.5px solid rgba(248,113,113,0.5)',
+                    color: '#F87171', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    borderRadius: 999, alignSelf: 'flex-start',
+                  }}
+                >
+                  Remove event image
+                </button>
+              )}
             </div>
           </div>
           {eventPhotoErr && <div style={{ fontSize: 11, color: '#F87171', marginTop: 6, lineHeight: 1.4 }}>{eventPhotoErr}</div>}
@@ -454,9 +479,36 @@ export default function DJPortal() {
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
                     <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: statusColor }}>{b.status === 'confirmed' ? 'Confirmed' : held ? 'Draft' : 'Requested'}</span>
                     {isPrimary ? (
-                      <div style={{ display: 'flex', gap: 12 }}>
-                        <button onClick={() => held ? resumeDraft(b) : startEdit(b)} style={{ background: 'none', border: 'none', color: RED, fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>{held ? 'continue' : 'edit'}</button>
-                        {(held || b.status === 'pending') && <button onClick={() => cancel(b.date, b.slot)} style={{ background: 'none', border: 'none', color: '#F87171', fontSize: 12, cursor: 'pointer' }}>{held ? 'release' : 'cancel'}</button>}
+                      // 2026-07-23 — buttons re-sized for phone use. DJs were
+                      // reporting frequent mis-taps on the tiny text-only
+                      // "edit"/"cancel" buttons; now they're proper pills
+                      // (~44px tall) with a visible outline so each control
+                      // has its own tap zone.
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        <button
+                          onClick={() => held ? resumeDraft(b) : startEdit(b)}
+                          style={{
+                            minHeight: 40, minWidth: 68, padding: '9px 16px',
+                            background: 'transparent', border: `1.5px solid ${RED}`,
+                            color: RED, fontSize: 13, fontWeight: 700, cursor: 'pointer',
+                            borderRadius: 999, letterSpacing: '0.04em',
+                          }}
+                        >
+                          {held ? 'Continue' : 'Edit'}
+                        </button>
+                        {(held || b.status === 'pending') && (
+                          <button
+                            onClick={() => cancel(b.date, b.slot)}
+                            style={{
+                              minHeight: 40, minWidth: 68, padding: '9px 16px',
+                              background: 'transparent', border: '1.5px solid rgba(248,113,113,0.55)',
+                              color: '#F87171', fontSize: 13, fontWeight: 600, cursor: 'pointer',
+                              borderRadius: 999, letterSpacing: '0.04em',
+                            }}
+                          >
+                            {held ? 'Release' : 'Cancel'}
+                          </button>
+                        )}
                       </div>
                     ) : (
                       <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'right', lineHeight: 1.4 }}>{b.partner || 'The lead DJ'}<br />manages this night</div>
@@ -559,7 +611,18 @@ export default function DJPortal() {
           <div style={{ marginTop: 14, background: CARD, border: '1px solid rgba(218,27,51,0.4)', borderRadius: 12, padding: 16 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
               <div style={{ fontWeight: 700 }}>{fmtDate(chooser.date)} — pick a session</div>
-              <button onClick={() => setChooser(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
+              <button
+                onClick={() => setChooser(null)}
+                aria-label="Close"
+                style={{
+                  width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`,
+                  color: 'rgba(255,255,255,0.75)', fontSize: 18, cursor: 'pointer',
+                  borderRadius: '50%', flexShrink: 0,
+                }}
+              >
+                ✕
+              </button>
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {chooser.slots.map(o => {
