@@ -338,7 +338,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "kitchenGetDay", "kitchenSaveRun"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "kitchenGetDay", "kitchenSaveRun", "kitchenAddWaste", "kitchenDeleteWaste"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -644,13 +644,39 @@ Deno.serve(async (req) => {
       if (action === "kitchenGetDay") {
         if (!(me.abilities || []).includes("kitchen")) return json({ error: "Kitchen access only." }, 403);
         const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
-        const [{ data: runs }, { data: matrix }] = await Promise.all([
+        const [{ data: runs }, { data: matrix }, { data: waste }] = await Promise.all([
           sb.from("kitchen_checklist_runs").select("*").eq("run_date", date),
           sb.from("kitchen_allergen_matrix").select("dish,allergens,notes,updated_at"),
+          sb.from("kitchen_waste_log").select("*").eq("log_date", date).order("created_at", { ascending: false }),
         ]);
         const byCadence: Record<string, any> = {};
         for (const r of runs || []) byCadence[r.cadence] = r;
-        return json({ ok: true, date, runs: byCadence, matrix: matrix || [] });
+        return json({ ok: true, date, runs: byCadence, matrix: matrix || [], waste: waste || [] });
+      }
+
+      // ── Kitchen wastage log: add / delete a thrown-out item (product + reason) ──
+      if (action === "kitchenAddWaste") {
+        if (!(me.abilities || []).includes("kitchen")) return json({ error: "Kitchen access only." }, 403);
+        const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+        const product = clean(b.product, 200);
+        if (!product) return json({ error: "What was thrown out?" }, 400);
+        const reason = clean(b.reason, 300) || null;
+        const quantity = clean(b.quantity, 60) || null;
+        // Tie it to the caller's kitchen shift for the day if they have one.
+        const { data: kShifts } = await sb.from("staff_shifts").select("id").eq("date", date).eq("ability", "kitchen");
+        const kIds = (kShifts || []).map((s: any) => s.id);
+        let shift_id: string | null = null;
+        if (kIds.length) { const { data: cl } = await sb.from("staff_shift_claims").select("shift_id").eq("staff_id", me.id).in("shift_id", kIds).maybeSingle(); shift_id = cl?.shift_id || null; }
+        const { data: row, error } = await sb.from("kitchen_waste_log").insert({ log_date: date, staff_id: me.id, shift_id, product, reason, quantity }).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, entry: row });
+      }
+      if (action === "kitchenDeleteWaste") {
+        if (!(me.abilities || []).includes("kitchen")) return json({ error: "Kitchen access only." }, 403);
+        const id = clean(b.id, 40);
+        if (!id) return json({ error: "no entry" }, 400);
+        await sb.from("kitchen_waste_log").delete().eq("id", id).eq("staff_id", me.id);   // own rows only
+        return json({ ok: true });
       }
 
       // ── Kitchen food-safety: save / submit a run. Fails need a corrective note. ──
@@ -708,6 +734,15 @@ Deno.serve(async (req) => {
       const { data: names } = ids.length ? await sb.from("staff").select("id,name").in("id", ids) : { data: [] };
       const nameOf: Record<string, string> = {}; for (const s of names || []) nameOf[s.id] = s.name;
       return json({ ok: true, runs: (runs || []).map((r: any) => ({ ...r, staff_name: r.staff_id ? nameOf[r.staff_id] || null : null })) });
+    }
+    if (action === "kitchenWasteLog") {   // manager view of thrown-out stock
+      const days = Math.max(1, Math.min(120, parseInt(String(b.days)) || 30));
+      const since = new Date(Date.now() - days * 86400000).toISOString().slice(0, 10);
+      const { data: waste } = await sb.from("kitchen_waste_log").select("*").gte("log_date", since).order("log_date", { ascending: false }).order("created_at", { ascending: false });
+      const ids = [...new Set((waste || []).map((r: any) => r.staff_id).filter(Boolean))];
+      const { data: names } = ids.length ? await sb.from("staff").select("id,name").in("id", ids) : { data: [] };
+      const nameOf: Record<string, string> = {}; for (const s of names || []) nameOf[s.id] = s.name;
+      return json({ ok: true, waste: (waste || []).map((r: any) => ({ ...r, staff_name: r.staff_id ? nameOf[r.staff_id] || null : null })) });
     }
     if (action === "kitchenReview") {   // manager countersign
       const id = String(b.runId || "");

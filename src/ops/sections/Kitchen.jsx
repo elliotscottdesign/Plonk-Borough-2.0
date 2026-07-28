@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { KITCHEN_TEMPLATES, templateItems, targetLabel } from '../../kitchen/templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
-import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed } from '../../kitchen/api.js'
+import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed, kitchenWasteLog } from '../../kitchen/api.js'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
 const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
@@ -25,11 +25,11 @@ export default function Kitchen() {
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}
       </div>
-      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : <Matrix />}
+      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : <Matrix />}
     </div>
   )
 }
@@ -207,6 +207,38 @@ function printMatrix(rows) {
   </body></html>`
   const w = window.open('', '_blank'); if (!w) { alert('Allow pop-ups to print the sheet.'); return }
   w.document.write(html); w.document.close(); setTimeout(() => w.print(), 400)
+}
+
+// Manager view of stock thrown out — product + reason, newest first, grouped by day.
+function WasteLog() {
+  const [rows, setRows] = useState(null)
+  useEffect(() => { (async () => { try { const r = await kitchenWasteLog(45); setRows(r.waste || []) } catch (e) { alert(e.message) } })() }, [])
+  if (!rows) return <Muted>Loading…</Muted>
+  if (!rows.length) return <Muted>No wastage logged yet. It appears here as the kitchen crew record thrown-out stock.</Muted>
+  const byDate = {}
+  for (const r of rows) (byDate[r.log_date] ||= []).push(r)
+  const fmt = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Everything the kitchen has binned (last 45 days) — for ordering, cost control & the EHO record.</div>
+      {Object.keys(byDate).map(date => (
+        <div key={date}>
+          <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, marginBottom: 6 }}>{fmt(date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>· {byDate[date].length} item{byDate[date].length === 1 ? '' : 's'}</span></div>
+          <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+            {byDate[date].map((w, i) => (
+              <div key={w.id} style={{ padding: '10px 14px', borderTop: i === 0 ? 'none' : '1px solid rgba(255,255,255,0.06)', display: 'flex', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{w.product}{w.quantity ? <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 400 }}> · {w.quantity}</span> : null}</div>
+                  {w.reason && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{w.reason}</div>}
+                </div>
+                {w.staff_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>{w.staff_name}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
 }
 
 // The blank checklists themselves — every task staff are asked to do, read-only.

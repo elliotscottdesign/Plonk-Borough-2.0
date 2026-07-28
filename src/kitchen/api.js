@@ -17,9 +17,13 @@ async function call(payload) {
 export const kitchenGetDay = (token, date) => call({ action: 'kitchenGetDay', token, date })
 export const kitchenSaveRun = (token, { date, cadence, entries, submit, shiftId }) =>
   call({ action: 'kitchenSaveRun', token, date, cadence, entries, submit, shiftId })
+export const kitchenAddWaste = (token, { date, product, reason, quantity }) =>
+  call({ action: 'kitchenAddWaste', token, date, product, reason, quantity })
+export const kitchenDeleteWaste = (token, id) => call({ action: 'kitchenDeleteWaste', token, id })
 
 // ── Manager (founder, SEND_SECRET-gated — /ops Kitchen) ──────────────────────
 export const kitchenRuns = (days) => call({ action: 'kitchenRuns', secret: SEND_SECRET, days })
+export const kitchenWasteLog = (days) => call({ action: 'kitchenWasteLog', secret: SEND_SECRET, days })
 export const kitchenReview = (runId, note) => call({ action: 'kitchenReview', secret: SEND_SECRET, runId, note })
 export const kitchenGetMatrix = () => call({ action: 'kitchenGetMatrix', secret: SEND_SECRET })
 export const kitchenSaveMatrix = (dish, allergens, notes) => call({ action: 'kitchenSaveMatrix', secret: SEND_SECRET, dish, allergens, notes })

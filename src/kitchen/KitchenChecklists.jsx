@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import { KITCHEN_CADENCES, KITCHEN_TEMPLATES, templateItems, tempFails, targetLabel } from './templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, statusOf } from './allergens.js'
 import { DEFAULT_MATRIX } from './allergens.js'
-import { kitchenGetDay, kitchenSaveRun } from './api.js'
+import { kitchenGetDay, kitchenSaveRun, kitchenAddWaste, kitchenDeleteWaste } from './api.js'
 
 const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BLUE = '#60A5FA'
 const CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
@@ -23,6 +23,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   const [local, setLocal] = useState({})   // key -> { done, issue, value, text, corrective }
   const [busy, setBusy] = useState(false)
   const [showMatrix, setShowMatrix] = useState(false)
+  const [waste, setWaste] = useState({ product: '', reason: '', quantity: '' })
   const panelRef = useRef(null)
 
   const date = kitchen?.date
@@ -93,6 +94,14 @@ export default function KitchenChecklists({ token, kitchen }) {
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
+  const addWaste = async () => {
+    const product = waste.product.trim(); if (!product) { alert('What was thrown out?'); return }
+    setBusy(true)
+    try { await kitchenAddWaste(token, { date, product, reason: waste.reason.trim(), quantity: waste.quantity.trim() }); setWaste({ product: '', reason: '', quantity: '' }); await load() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const delWaste = async (id) => { setBusy(true); try { await kitchenDeleteWaste(token, id); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
   if (!day) return <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, padding: '20px 0' }}>Loading kitchen checklists…</div>
 
   const matrix = mergeMatrix(day.matrix)
@@ -149,6 +158,34 @@ export default function KitchenChecklists({ token, kitchen }) {
             </div>
           )
         })}
+      </div>
+
+      {/* ── Stock wastage log — anything binned, with a reason ── */}
+      <div style={{ marginTop: 20 }}>
+        <div style={{ fontSize: 14.5, fontWeight: 800, color: '#fff' }}>🗑️ Stock wastage</div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', margin: '3px 0 10px', lineHeight: 1.5 }}>Log anything thrown out — what it was and why. Keeps a record for ordering & the EHO.</div>
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <input value={waste.product} onChange={e => setWaste(w => ({ ...w, product: e.target.value }))} placeholder="Product — what was thrown out?" style={wInp} />
+          <div style={{ display: 'flex', gap: 8 }}>
+            <input value={waste.quantity} onChange={e => setWaste(w => ({ ...w, quantity: e.target.value }))} placeholder="Qty (e.g. 2 kg, 5 buns)" style={{ ...wInp, flex: '0 0 40%' }} />
+            <input value={waste.reason} onChange={e => setWaste(w => ({ ...w, reason: e.target.value }))} placeholder="Reason (out of date, dropped, spoiled…)" style={{ ...wInp, flex: 1 }} />
+          </div>
+          <button onClick={addWaste} disabled={busy || !waste.product.trim()} style={{ ...btn('red'), opacity: waste.product.trim() ? 1 : 0.5 }}>+ Log wastage</button>
+        </div>
+        {(day.waste || []).length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 10 }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Today</div>
+            {day.waste.map(w => (
+              <div key={w.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{w.product}{w.quantity ? <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 400 }}> · {w.quantity}</span> : null}</div>
+                  {w.reason && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>{w.reason}</div>}
+                </div>
+                <button onClick={() => delWaste(w.id)} disabled={busy} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: 18, cursor: 'pointer', flexShrink: 0 }}>×</button>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -233,6 +270,7 @@ function AllergenGrid({ matrix }) {
 const th = { padding: '8px 7px', textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontWeight: 700, borderBottom: `1px solid ${LINE}`, whiteSpace: 'nowrap' }
 const td = { padding: '7px', textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,0.06)' }
 const pill = (on) => ({ padding: '8px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: on ? 'rgba(96,165,250,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${on ? BLUE : LINE}`, color: on ? '#fff' : 'rgba(255,255,255,0.8)' })
+const wInp = { width: '100%', boxSizing: 'border-box', padding: '10px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: '#000', color: '#fff', fontSize: 14, outline: 'none' }
 const toggle = (on, color) => ({ width: 38, height: 38, borderRadius: 8, cursor: 'pointer', fontSize: 16, fontWeight: 800, background: on ? color : 'rgba(255,255,255,0.05)', border: `1px solid ${on ? color : LINE}`, color: on ? '#000' : 'rgba(255,255,255,0.6)' })
 const btn = (kind) => {
   const base = { padding: '10px 16px', borderRadius: 9, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: '1px solid transparent' }
