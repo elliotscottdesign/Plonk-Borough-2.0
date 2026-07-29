@@ -27,14 +27,10 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const assignedCount = (day) => day.slots.filter(s => s.staffId).length
 
-  // Readiness: the engine fills from each person's expected hours + availability, so
-  // flag anyone missing those for THIS week (they'd otherwise be guessed at / treated
-  // as always-free). Availability is month-keyed; a week can span two months.
-  const weekMonths = [...new Set([weekStart.slice(0, 7), weekEnd.slice(0, 7)])]
-  const availMonths = {}   // staffId → Set(months with any availability marked)
-  for (const r of availability || []) { if (r?.data && Object.keys(r.data).length) (availMonths[r.staff_id] ||= new Set()).add(r.month) }
+  // Readiness: the engine fills from each person's expected hours, so flag anyone
+  // missing those for THIS week (they'd otherwise be guessed at). Availability no
+  // longer needs flagging — everyone's available by default and only marks days off.
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
-  const missingAvail = active.filter(s => !weekMonths.some(m => availMonths[s.id]?.has(m)))
 
   const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
@@ -104,16 +100,16 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
         <div style={{ paddingBottom: 14 }}><RotaRulesEditor rules={rules} onSaved={reload} /></div>
       </details>
 
-      {/* Readiness — the engine fills from expected hours + availability, so flag anyone missing them for this week */}
-      {(missingHours.length > 0 || missingAvail.length > 0) ? (
+      {/* Readiness — the engine fills from expected hours, so flag anyone missing them for this week */}
+      {missingHours.length > 0 ? (
         <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: AMBER }}>⚠️ Some rules aren't set for this week</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong> and <strong style={{ color: '#fff' }}>availability</strong>. It'll still generate, but it has to guess for these people:</div>
-          {missingHours.length > 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>}
-          {missingAvail.length > 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>📅 <strong>No availability for this week:</strong> {missingAvail.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— they set it in their portal, or add it in the Availability tab. Until then they're treated as always free.</span></div>}
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong>. It'll still generate, but it has to guess for these people:</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Everyone's treated as available unless they've marked days off in their portal or the Availability tab.</div>
         </div>
       ) : active.length > 0 ? (
-        <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours and availability set for this week — the AI has what it needs.</div>
+        <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours set — the AI has what it needs. It works around any days people marked off.</div>
       ) : null}
 
       {!days ? (
@@ -121,7 +117,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
           Pick a week and tap <strong style={{ color: '#fff' }}>✨ Generate</strong>. The AI fills every day with:
           a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open to 1h after close, the right headcount
           (Mon–Thu 2 · Fri 2→4 · Sat 3→4 · Sun 2), at least one <strong style={{ color: AMBER }}>kitchen</strong> person, and it
-          spreads hours fairly using who's marked themselves available. School-holiday weeks auto-switch to 12pm–12am.
+          spreads hours fairly while avoiding anyone who's marked themselves off. School-holiday weeks auto-switch to 12pm–12am.
         </div>
       ) : (
         <>

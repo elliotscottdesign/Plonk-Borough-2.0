@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react'
 import { rotaSetStaffAvailability } from '../../rota/api.js'
 
 // ─── Availability overview + editor (founder) ────────────────────────────────
-// Staff members down the side, every day of the month across the top. Each cell
-// is a toggle: tap to mark that person available / clear it. Saves per month, per
-// person (debounced) via the founder-gated setStaffAvailability. Staff still set
-// their own too — this is the founder's way to fill in or correct it.
+// Staff members down the side, every day of the month across the top. Everyone's
+// available by default; each cell is a toggle: tap to mark that person OFF
+// (unavailable) for the day / clear it. Saves per month, per person (debounced)
+// via the founder-gated setStaffAvailability. Staff mark their own days off too —
+// this is the founder's way to fill in or correct it.
 
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
@@ -42,19 +43,19 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const shiftMonth = (delta) => { let m = viewM + delta, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m) }
 
+  // Available by default; a day is 'unavailable' only if explicitly marked off.
   const statusOf = (staffId, date) => {
     const data = avData[`${staffId}|${date.slice(0, 7)}`]
-    if (!data || Object.keys(data).length === 0) return 'unset'
-    return data[date] ? 'available' : 'unavailable'
+    return data && data[date] && data[date].unavailable ? 'unavailable' : 'available'
   }
 
-  // Tap a cell → toggle that person's availability for the day, debounce-save the month.
+  // Tap a cell → toggle that person OFF / available for the day, debounce-save the month.
   const toggle = (staffId, date) => {
     const month = date.slice(0, 7), key = `${staffId}|${month}`
     setAvData(prev => {
       const cur = prev[key] || {}
       const next = { ...cur }
-      if (next[date]) delete next[date]; else next[date] = { available: true }
+      if (next[date] && next[date].unavailable) delete next[date]; else next[date] = { unavailable: true }
       const merged = { ...prev, [key]: next }
       avRef.current = merged
       return merged
@@ -72,7 +73,7 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#fff' }}>📅 Availability</div>
-        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Everyone's availability at a glance — <strong style={{ color: '#fff' }}>tap any cell to mark someone free or clear it</strong>. Staff can set their own too; this is your way to fill it in. Swipe across for the whole month.</div>
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Everyone's available by default — <strong style={{ color: '#fff' }}>tap any cell to mark someone OFF (can't work)</strong>, tap again to clear it. Staff mark their own days off too; this is your way to fill it in. Swipe across for the whole month.</div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -104,24 +105,23 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
 
           {rows.map((s, ri) => {
             const first = (s.name || 'Unnamed').split(' ')[0]
-            const availCount = days.reduce((a, d) => a + (statusOf(s.id, iso(viewY, viewM, d)) === 'available' ? 1 : 0), 0)
-            const anySet = days.some(d => statusOf(s.id, iso(viewY, viewM, d)) !== 'unset')
+            const offCount = days.reduce((a, d) => a + (statusOf(s.id, iso(viewY, viewM, d)) === 'unavailable' ? 1 : 0), 0)
             const saving = savingKeys[`${s.id}|${iso(viewY, viewM, 1).slice(0, 7)}`]
             return (
               <div key={s.id} style={{ display: 'flex', height: ROW_H, borderBottom: ri === rows.length - 1 ? 'none' : '1px solid rgba(255,255,255,0.06)' }}>
                 <div style={{ width: NAME_W, flexShrink: 0, position: 'sticky', left: 0, background: '#0A0A0A', borderRight: '1px solid rgba(255,255,255,0.14)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 4, padding: '0 8px', zIndex: 1 }}>
                   <span style={{ fontSize: 12, color: '#fff', fontWeight: 600, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{first}</span>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: saving ? ACCENT : (anySet ? GREEN : 'rgba(255,255,255,0.3)'), flexShrink: 0 }} title={saving ? 'Saving…' : (anySet ? `${availCount} days marked available` : 'Not set this month')}>{saving ? '⋯' : (anySet ? availCount : '—')}</span>
+                  <span style={{ fontSize: 10, fontWeight: 700, color: saving ? ACCENT : (offCount > 0 ? RED : 'rgba(255,255,255,0.3)'), flexShrink: 0 }} title={saving ? 'Saving…' : (offCount > 0 ? `${offCount} days off this month` : 'Available all month')}>{saving ? '⋯' : (offCount > 0 ? offCount : '—')}</span>
                 </div>
                 {days.map(d => {
                   const date = iso(viewY, viewM, d)
                   const st = statusOf(s.id, date)
+                  const off = st === 'unavailable'
                   const weekend = [0, 6].includes(new Date(viewY, viewM, d).getDay())
-                  const bg = st === 'available' ? 'rgba(52,211,153,0.30)' : st === 'unavailable' ? 'rgba(248,113,113,0.22)' : (weekend ? 'rgba(255,255,255,0.02)' : 'transparent')
-                  const mark = st === 'available' ? '✓' : st === 'unavailable' ? '✕' : ''
+                  const bg = off ? 'rgba(248,113,113,0.28)' : (weekend ? 'rgba(255,255,255,0.02)' : 'transparent')
                   return (
-                    <button key={d} type="button" onClick={() => toggle(s.id, date)} title={`${first} · ${date} · ${st === 'unset' ? 'not set' : st} — tap to ${st === 'available' ? 'clear' : 'mark free'}`}
-                      style={{ width: CELL_W, flexShrink: 0, height: '100%', borderRight: '1px solid rgba(255,255,255,0.05)', borderTop: 'none', borderBottom: 'none', borderLeft: 'none', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: st === 'available' ? GREEN : RED, cursor: 'pointer', padding: 0 }}>{mark}</button>
+                    <button key={d} type="button" onClick={() => toggle(s.id, date)} title={`${first} · ${date} · ${off ? 'off (unavailable)' : 'available'} — tap to ${off ? 'clear (available)' : 'mark off'}`}
+                      style={{ width: CELL_W, flexShrink: 0, height: '100%', borderRight: '1px solid rgba(255,255,255,0.05)', borderTop: 'none', borderBottom: 'none', borderLeft: 'none', background: bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, fontWeight: 700, color: RED, cursor: 'pointer', padding: 0 }}>{off ? '✕' : ''}</button>
                   )
                 })}
               </div>
@@ -131,10 +131,9 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
       </div>
 
       <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>
-        <span><span style={{ color: GREEN, fontWeight: 700 }}>✓</span> available</span>
-        <span><span style={{ color: RED, fontWeight: 700 }}>✕</span> unavailable</span>
-        <span><span style={{ color: 'rgba(255,255,255,0.3)' }}>▢</span> not set</span>
-        <span style={{ color: 'rgba(255,255,255,0.4)' }}>· tap a cell to toggle · the number by each name = days they're free this month</span>
+        <span><span style={{ color: RED, fontWeight: 700 }}>✕</span> off (can't work)</span>
+        <span><span style={{ color: 'rgba(255,255,255,0.3)' }}>▢</span> available (default)</span>
+        <span style={{ color: 'rgba(255,255,255,0.4)' }}>· tap a cell to toggle · the number by each name = days they're OFF this month</span>
       </div>
     </div>
   )

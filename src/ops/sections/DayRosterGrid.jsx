@@ -72,12 +72,14 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
   const trackRefs = useRef({})
 
   // Availability — the rota builder and each staffer's "Availability" tab now
-  // talk to each other: someone who marked themselves off this day is flagged
-  // red and can't have a shift dropped on them by accident. "Book anyway"
-  // (tap the flag) overrides it for the odd case where you've cleared it with them.
+  // talk to each other: everyone's available by default, and anyone who marked
+  // THIS day off is flagged red and can't have a shift dropped on them by
+  // accident. "Book anyway" (tap the flag) overrides it for the odd case where
+  // you've cleared it with them. Nothing here removes an existing shift — a day
+  // someone's already booked on still shows their shift, just with the flag.
   const avIdx = useMemo(() => availabilityIndex(availability), [availability])
   const [override, setOverride] = useState(() => new Set())
-  const avOf = (id) => availabilityStatus(avIdx, id, date)          // 'available' | 'unavailable' | 'unset'
+  const avOf = (id) => availabilityStatus(avIdx, id, date)          // 'available' | 'unavailable'
   const blockedFor = (id) => avOf(id) === 'unavailable' && !override.has(id)
   const toggleOverride = (id) => setOverride(o => { const n = new Set(o); n.has(id) ? n.delete(id) : n.add(id); return n })
 

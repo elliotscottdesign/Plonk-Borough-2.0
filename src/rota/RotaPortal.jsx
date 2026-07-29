@@ -4,7 +4,7 @@ import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboardin
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
 import StatementDoc from './StatementDoc.jsx'
-import { shiftsForDate, fmtMin, shiftTimeLabel, shiftHours, dayName, minToHHMM, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
+import { fmtMin, shiftTimeLabel, shiftHours, dayName, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { getFix, presenceBadge } from './geo.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
@@ -175,23 +175,31 @@ export default function RotaPortal() {
   for (const s of shifts) (shiftsByDate[s.date] ||= []).push(s)
   for (const arr of Object.values(shiftsByDate)) arr.sort((a, b) => (a.start_min || 0) - (b.start_min || 0))
   const monthAvail = availability[monthKey] || {}
-  const availOn = (ds) => !!(availability[ds.slice(0, 7)] || {})[ds]
+  const dayOff = (ds) => !!((availability[ds.slice(0, 7)] || {})[ds] || {}).unavailable
+  const availOn = (ds) => !dayOff(ds)   // available by default; only an explicit off-mark blocks
 
-  // ── Availability: toggle a day, persist the whole month map ─────────────────
+  // ── Availability: mark a day OFF / clear it, persist the whole month map ─────
+  // Everyone's available by default — a day only counts as "off" when its entry is
+  // { unavailable: true }. Marking off never touches a shift you're already on
+  // (availability and bookings are separate); we just warn so you tell your manager.
   const toggleAvail = async (ds) => {
     if (ds < todayStr) return
     const mk = ds.slice(0, 7)
     const monthMap = availability[mk] || {}
-    const wasOn = !!monthMap[ds], prevEntry = monthMap[ds]
-    const sh = shiftsForDate(ds)
-    const newEntry = wasOn ? undefined : (sh.length ? { from: minToHHMM(sh[0].start), to: minToHHMM(sh[sh.length - 1].end) } : { available: true })
+    const wasOff = !!(monthMap[ds] || {}).unavailable, prevEntry = monthMap[ds]
+    if (!wasOff) {
+      const booked = (shiftsByDate[ds] || []).some(s => s.mine)
+      if (booked && !window.confirm(`You're booked to work ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)}.\n\nMarking yourself off won't cancel that shift — it stays booked. Let your manager know if you need cover.\n\nMark the day off anyway?`)) return
+    }
+    const newEntry = wasOff ? undefined : { unavailable: true }
     // Apply/revert only THIS day on the freshest state, so a fast toggle of
-    // another day isn't clobbered if one save fails.
+    // another day isn't clobbered if one save fails. Revert restores the exact
+    // prior entry (never deletes anything the save didn't create).
     const setDay = (a, entry) => { const cur = { ...(a[mk] || {}) }; if (entry === undefined) delete cur[ds]; else cur[ds] = entry; return { ...a, [mk]: cur } }
     const posted = setDay(availability, newEntry)[mk]
     setAvailability(a => setDay(a, newEntry))   // optimistic
     try { await rotaSaveAvailability(token, mk, posted) }
-    catch (e) { setAvailability(a => setDay(a, wasOn ? prevEntry : undefined)); handleErr(e) }
+    catch (e) { setAvailability(a => setDay(a, prevEntry)); handleErr(e) }
   }
 
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
@@ -313,19 +321,21 @@ export default function RotaPortal() {
 
         {view === 'availability' && (
           <>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginTop: 0 }}>Tap the days you can work this month. <strong style={{ color: GREEN }}>Green = available.</strong> You can only pick shifts on days you've marked. Saved automatically.</p>
+            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginTop: 0 }}>You're available by default — just tap the days you <strong style={{ color: '#fff' }}>can't</strong> work this month. <strong style={{ color: RED }}>Red = off.</strong> Tap again to clear. Saved automatically.</p>
             <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
               clickable={(ds) => ds >= todayStr} onDay={toggleAvail} selected={null}
               renderDay={(ds, d) => {
-                const on = !!monthAvail[ds]
+                const off = dayOff(ds)
                 return (<>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{d}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: off ? RED : undefined }}>{d}</span>
                   <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
-                    {on && <span style={{ fontSize: 9, color: GREEN, fontWeight: 700 }}>✓ free</span>}
+                    {off && <span style={{ fontSize: 9, color: RED, fontWeight: 700 }}>✕ off</span>}
                   </div>
                 </>)
               }} />
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 10 }}>{Object.keys(monthAvail).length} day{Object.keys(monthAvail).length === 1 ? '' : 's'} marked available in {MONTHS[vm]}.</div>
+            {(() => { const n = Object.keys(monthAvail).filter(k => (monthAvail[k] || {}).unavailable).length; return (
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 10 }}>{n === 0 ? `Available all of ${MONTHS[vm]}.` : `${n} day${n === 1 ? '' : 's'} marked off in ${MONTHS[vm]}.`}</div>
+            ) })()}
           </>
         )}
 
@@ -335,11 +345,6 @@ export default function RotaPortal() {
 
         {view === 'shifts' && !calendarLocked(staff, docs) && (
           <>
-            {Object.keys(monthAvail).length === 0 && (
-              <div style={{ fontSize: 12.5, color: '#FCD34D', background: 'rgba(252,211,77,0.08)', border: '1px solid rgba(252,211,77,0.25)', borderRadius: 8, padding: '9px 12px', marginBottom: 12, lineHeight: 1.5 }}>
-                You haven't marked any availability for {MONTHS[vm]} yet — set it on the <strong style={{ color: '#fff' }}>Availability</strong> tab, then pick shifts here.
-              </div>
-            )}
             <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
               clickable={(ds) => (shiftsByDate[ds] || []).length > 0 && ds >= todayStr} onDay={setSelDate} selected={selDate}
               renderDay={(ds, d) => {
@@ -367,7 +372,7 @@ export default function RotaPortal() {
                     <div className="serif" style={{ fontSize: 17, color: '#fff' }}>{dayName(selDate)} {selDate.slice(8)} {MONTHS[+selDate.slice(5, 7) - 1]}</div>
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
-                  {!avail && <div style={{ fontSize: 12, color: '#FCD34D' }}>You're not marked available this day. Mark it on the Availability tab to grab a shift.</div>}
+                  {!avail && <div style={{ fontSize: 12, color: '#FCD34D' }}>You've marked yourself off this day. Clear it on the Availability tab to grab a shift.</div>}
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need

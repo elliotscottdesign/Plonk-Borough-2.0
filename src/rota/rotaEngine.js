@@ -104,20 +104,20 @@ export function daySlots(dateStr, rules) {
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
 const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
 
-// availByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked available.
-function buildAvail(availabilityRows) {
+// unavailByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked OFF.
+// Everyone's available by default; only an explicit `{ unavailable: true }` counts.
+function buildUnavail(availabilityRows) {
   const map = {}
   for (const r of availabilityRows || []) {
     const set = (map[r.staff_id] ||= new Set())
-    for (const d of Object.keys(r.data || {})) set.add(d)
+    for (const [d, v] of Object.entries(r.data || {})) if (v && v.unavailable === true) set.add(d)
   }
   return map
 }
-// A member "has availability" if they've marked ANY day at all — then we respect it
-// strictly. If they've never set availability, they're treated as open (available).
-function availState(availSet, everSet, date) {
-  if (!everSet) return 1              // never set availability → assume available (rank 1)
-  return availSet.has(date) ? 2 : 0  // set + marked this day = 2 (best); set but not this day = 0
+// Available by default; a day the member explicitly marked off ranks lowest so the
+// builder avoids them there (but can still fall back to them if no one else is free).
+function availState(unavailSet, date) {
+  return unavailSet.has(date) ? 0 : 2   // marked off = 0 (avoid); otherwise available = 2
 }
 
 // Generate a concept week. Returns { days: [{ date, hours, holiday, slots:[{...}] }], warnings }
@@ -125,8 +125,7 @@ function availState(availSet, everSet, date) {
 export function generateWeek(weekStart, staff, availabilityRows, rules) {
   const R = withDefaults(rules)
   const active = (staff || []).filter(s => s.active !== false)
-  const avail = buildAvail(availabilityRows)
-  const everSet = {}; for (const s of active) everSet[s.id] = !!(avail[s.id] && avail[s.id].size)
+  const unavail = buildUnavail(availabilityRows)
   const tally = {}   // staffId → minutes assigned this week (fairness)
   const dur = (a, b) => Math.max(0, b - a)
   const targetOf = (s) => { const t = Number(s.target_hours); return Number.isFinite(t) && t > 0 ? t * 60 : null }
@@ -147,7 +146,7 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
       // kitchen-manager (Elliot) would be picked to manage every single day.
       const needKitchen = R.requireKitchen && !kitchenCovered && slot.role !== 'manager'
-      const avOk = (s) => (availState(avail[s.id] || new Set(), everSet[s.id], date) >= 1 ? 1 : 0)
+      const avOk = (s) => (availState(unavail[s.id] || new Set(), date) >= 1 ? 1 : 0)
       pool.sort((a, b) => {
         // Kitchen cover is a hard service requirement — for the reserved kitchen slot it
         // outranks even availability (better an unavailable cook than no kitchen; flagged below).
@@ -167,12 +166,12 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
         warnings.push(`${date}: ${slot.role === 'manager' ? 'no manager available' : 'short-staffed'} for ${slot.label}`)
         continue
       }
-      const unavailable = availState(avail[pick.id] || new Set(), everSet[pick.id], date) === 0
+      const unavailable = availState(unavail[pick.id] || new Set(), date) === 0
       usedToday.add(pick.id)
       tally[pick.id] = (tally[pick.id] || 0) + dur(slot.start, slot.end)
       if (isKitchen(pick)) kitchenCovered = true
-      out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Not marked available' : '' })
-      if (unavailable) warnings.push(`${date}: ${pick.name} isn't marked available`)
+      out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Marked unavailable' : '' })
+      if (unavailable) warnings.push(`${date}: ${pick.name} marked themselves off`)
     }
     if (R.requireKitchen && !kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
     days.push({ date, open, close, holiday, slots: out })

@@ -487,36 +487,39 @@ Deno.serve(async (req) => {
         const month = String(b.month || "");
         if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: "bad month" }, 400);
         const raw = (b.data && typeof b.data === "object" && !Array.isArray(b.data)) ? b.data : {};
-        // Sanitise: keep only valid YYYY-MM-DD keys in this month, cap the count,
-        // coerce values — never store an unbounded/arbitrary blob.
+        // Model: everyone's available by default; we store ONLY the days a member
+        // marked OFF, as { unavailable: true }. Sanitise hard — keep only valid
+        // YYYY-MM-DD keys in this month whose entry is an explicit off-mark, cap the
+        // count, drop anything else. Critically this means a legacy { available:true }
+        // mark (or any stray value) the client might still send is DROPPED, never
+        // flipped into an off-day — so nothing meaningful is lost and no available
+        // day is silently turned unavailable.
         const data: Record<string, any> = {};
         let n = 0;
         for (const k of Object.keys(raw)) {
           if (n >= 40) break;
           if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !k.startsWith(month + "-")) continue;
           const v = raw[k];
-          data[k] = (v && typeof v === "object" && !Array.isArray(v))
-            ? { from: String(v.from || "").slice(0, 5), to: String(v.to || "").slice(0, 5) }
-            : { available: true };
-          n++;
+          if (v && typeof v === "object" && !Array.isArray(v) && v.unavailable === true) { data[k] = { unavailable: true }; n++; }
         }
-        // Previous availability for this month — so we alert the founder only on the
-        // "went from nothing → set it" transition, not on every autosaved tap.
+        // Days this member had previously marked off — so we alert the founder only on
+        // the "first day off this month" transition, not on every autosaved tap.
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
-        const prevDays = prevAv?.data ? Object.keys(prevAv.data).length : 0;
-        // Availability is just "days I can work" — purely an input the founder uses
-        // when building the rota. It is independent of who's rostered, so a member
-        // can freely mark/un-mark any day (no "you're on a shift" block).
+        const prevOff = prevAv?.data ? Object.values(prevAv.data).filter((v: any) => v && v.unavailable === true).length : 0;
+        // Availability is just "days I can't work" — purely an input the founder uses
+        // when building the rota. It is independent of who's rostered, so a member can
+        // freely mark/un-mark any day and it never adds or removes an actual shift.
         const { error } = await sb.from("staff_availability")
           .upsert({ staff_id: me.id, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
         if (error) return json({ error: error.message }, 400);
-        // Founder alert on the "just set their availability" transition (nothing → some),
+        // Founder alert on the "just marked their first day off" transition (none → some),
         // so the per-tap autosave doesn't spam but the founder is told once per month.
-        if (prevDays === 0 && Object.keys(data).length > 0) {
+        if (prevOff === 0 && Object.keys(data).length > 0) {
           const monthName = new Date(month + "-01T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
-          await sendMail(ADMIN_EMAIL, `${me.name} set their availability — ${monthName}`,
+          const nOff = Object.keys(data).length;
+          await sendMail(ADMIN_EMAIL, `${me.name} marked days off — ${monthName}`,
             emailShell(`${esc(me.name)} updated their availability`,
-              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> has marked availability in <strong style="color:#fff">${monthName}</strong>. You can release shifts for them now.</p>`,
+              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked <strong style="color:#fff">${nOff} day${nOff === 1 ? "" : "s"}</strong> off in <strong style="color:#fff">${monthName}</strong>. The rota builder will work around ${nOff === 1 ? "it" : "them"}.</p>`,
               { href: OPS_URL, label: "Open the rota" }));
         }
         return json({ ok: true });
@@ -536,9 +539,9 @@ Deno.serve(async (req) => {
         const needAb = shift.ability || "bar";
         if (!(me.abilities || []).includes(needAb)) return json({ error: `That shift needs ${needAb} training — ask the manager to add it to your profile.` }, 403);
         if (staffRank(me.role) < (shift.min_rank || 1)) return json({ error: "That shift is for a higher position — the manager can assign it to you if needed." }, 403);
-        // Must have marked availability on that day first.
+        // Available by default — block only if they've explicitly marked this day off.
         const { data: avRow } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", shift.date.slice(0, 7)).maybeSingle();
-        if (!avRow?.data?.[shift.date]) return json({ error: "Mark yourself available on that day first (Availability tab), then grab the shift." }, 409);
+        if (avRow?.data?.[shift.date]?.unavailable === true) return json({ error: "You've marked yourself off that day — clear it on the Availability tab first, then grab the shift." }, 409);
         // Capacity is enforced atomically by the enforce_shift_headcount trigger.
         const { error } = await sb.from("staff_shift_claims").insert({ shift_id: b.shiftId, staff_id: me.id, status: "claimed", source: "staff" });
         if (error) {
@@ -1014,16 +1017,16 @@ Deno.serve(async (req) => {
       if (!staffId) return json({ error: "no staff" }, 400);
       if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: "bad month" }, 400);
       const raw = (b.data && typeof b.data === "object" && !Array.isArray(b.data)) ? b.data : {};
+      // Same off-only model as saveAvailability: store ONLY explicit { unavailable:true }
+      // days; drop anything else (incl. legacy { available:true }) so an available day
+      // is never silently flipped off and nothing meaningful is deleted.
       const data: Record<string, any> = {};
       let n = 0;
       for (const k of Object.keys(raw)) {
         if (n >= 40) break;
         if (!/^\d{4}-\d{2}-\d{2}$/.test(k) || !k.startsWith(month + "-")) continue;
         const v = raw[k];
-        data[k] = (v && typeof v === "object" && !Array.isArray(v))
-          ? { from: String(v.from || "").slice(0, 5), to: String(v.to || "").slice(0, 5) }
-          : { available: true };
-        n++;
+        if (v && typeof v === "object" && !Array.isArray(v) && v.unavailable === true) { data[k] = { unavailable: true }; n++; }
       }
       const { error } = await sb.from("staff_availability")
         .upsert({ staff_id: staffId, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
