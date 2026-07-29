@@ -18,6 +18,9 @@ const SLOT_W = 26, ROW_H = 40, NAME_W = 134
 
 const ROLE_COLOR = { 'Manager': '#A855F7', 'Asst. Manager': '#3B82F6', 'Supervisor': '#22D3EE', 'Bar Staff': '#34D399', 'Kitchen / Barback': '#FB923C' }
 const roleColor = (role) => ROLE_COLOR[role] || '#9CA3AF'
+// Row order: Manager → Asst. Manager → Supervisor → Kitchen → Bar, alphabetical within each.
+const ROLE_RANK = { 'Manager': 0, 'Asst. Manager': 1, 'Supervisor': 2, 'Kitchen / Barback': 3, 'Bar Staff': 4 }
+const roleRank = (role) => (ROLE_RANK[role] != null ? ROLE_RANK[role] : 5)
 
 const minOfSlot = (slot) => WIN_START + slot * SLOT
 const xOfMin = (m) => ((m - WIN_START) / SLOT) * SLOT_W
@@ -49,6 +52,7 @@ function mergeBlocks(blocks) {
 
 export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSave, busy, availability = [] }) {
   const rows = staff.filter(s => s.active !== false)
+    .sort((a, b) => roleRank(a.role) - roleRank(b.role) || String(a.name || '').localeCompare(String(b.name || '')))
   const shiftById = {}
   for (const s of dayShifts) shiftById[s.id] = s
 
