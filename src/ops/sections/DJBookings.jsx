@@ -184,14 +184,28 @@ function Calendar({ data, reload, onJump }) {
   const pending = (slots || []).filter(s => s.status === 'pending' && up(s)).length
   const confirmed = (slots || []).filter(s => s.status === 'confirmed' && up(s)).length
 
+  // Self-serve "release next month": the month after the last one we've opened dates for.
+  const releasedMax = (slots || []).reduce((m, s) => (s.date > m ? s.date : m), '')
+  const base = releasedMax ? new Date(releasedMax + 'T00:00:00') : now
+  const nm = new Date(base.getFullYear(), base.getMonth() + 1, 1)
+  const nextMonthStr = `${nm.getFullYear()}-${String(nm.getMonth() + 1).padStart(2, '0')}`
+  const nextMonthLabel = nm.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const releaseNextMonth = () => {
+    if (!window.confirm(`Open all of ${nextMonthLabel} for DJs to book?\n\nSame layout as always — Mon–Wed open decks, Thu/Fri sessions, Sat & Sun two sessions. Existing bookings are never touched.`)) return
+    act('openMonth', { month: nextMonthStr })
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <div>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>📅 Booking calendar</div>
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 4, maxWidth: 760, lineHeight: 1.6 }}>
           Tap a date, then either <strong style={{ color: '#FFFFFF' }}>Open for DJs to claim</strong> (they fill it from their portal) or <strong style={{ color: '#FFFFFF' }}>🎛️ Build a night</strong> yourself — pick a DJ and set all the details. <strong style={{ color: '#FFFFFF' }}>Pending</strong> = pre-release · <strong style={{ color: '#FFFFFF' }}>Confirmed</strong> = main events calendar.
           Sessions: <em>Thu {timeLabel(SESSIONS[4])} · Fri {timeLabel(SESSIONS[5])} · Sat {timeLabel(SESSIONS[6])}</em>.
         </div>
+        </div>
+        <button onClick={releaseNextMonth} disabled={busy} title={`Open all of ${nextMonthLabel} for booking`} style={{ flexShrink: 0, background: '#DA1B33', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 18px', fontSize: 14, fontWeight: 700, cursor: 'pointer', boxShadow: '0 2px 12px rgba(218,27,51,0.35)' }}>📅 Release {nextMonthLabel} →</button>
       </div>
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
