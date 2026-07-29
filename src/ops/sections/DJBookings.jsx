@@ -581,8 +581,11 @@ function Dropdown({ value, onChange, options, placeholder = 'Select…', width =
   )
 }
 
+// 2026-07-23 — bumped padding + minHeight so every btn() call (used
+// dozens of times below for Edit / Sign off / Remove / Un-confirm etc.)
+// hits the 40px+ tap target size that matches the DJ portal fix.
 const btn = (kind) => {
-  const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
+  const base = { minHeight: 40, padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }
   if (kind === 'gold') return { ...base, background: '#DA1B33', color: '#FFFFFF' }
   if (kind === 'green') return { ...base, background: '#34D399', color: '#06281C' }
   if (kind === 'red') return { ...base, background: 'transparent', color: '#F87171', border: '1px solid rgba(248,113,113,0.4)' }

@@ -30,7 +30,7 @@ const todayISO = () => new Date().toISOString().slice(0, 10);
 const shift = (d: string, n: number) => { const dt = new Date(d + "T00:00:00Z"); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10); };
 const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 // One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
-const SPECIAL_SESSION_DATES = new Set(["2026-08-30"]);
+const SPECIAL_SESSION_DATES = new Set(["2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"]);
 const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;

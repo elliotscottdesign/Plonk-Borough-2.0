@@ -106,7 +106,7 @@ function Tile({ item }) {
         <span style={{ position: 'absolute', top: 6, left: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: '0.04em', textTransform: 'uppercase', color: '#fff', background: item.kind === 'profile' ? 'rgba(218,27,51,0.85)' : 'rgba(0,0,0,0.7)', padding: '2px 6px', borderRadius: 5 }} data-keep-color>{item.kind === 'profile' ? 'Profile' : item.dateLabel}</span>
         {dim && <span style={{ position: 'absolute', bottom: 6, right: 6, fontSize: 9.5, fontWeight: 600, color: '#fff', background: 'rgba(0,0,0,0.6)', padding: '2px 6px', borderRadius: 5 }} data-keep-color>{dim.w}×{dim.h}</span>}
       </div>
-      <button onClick={grab} disabled={busy} style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '8px 10px', fontSize: 12, fontWeight: 600, cursor: busy ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+      <button onClick={grab} disabled={busy} style={{ minHeight: 40, border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', padding: '10px 12px', fontSize: 12.5, fontWeight: 600, cursor: busy ? 'default' : 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
         {busy ? 'Saving…' : '⬇ Download'}
       </button>
     </div>
@@ -139,7 +139,7 @@ function DJGroup({ group }) {
           <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', marginLeft: 10 }}>{items.length} image{items.length === 1 ? '' : 's'}</span>
         </div>
         {items.length > 1 && (
-          <button onClick={grabAll} disabled={running} style={{ padding: '6px 12px', fontSize: 12, fontWeight: 600, borderRadius: 7, cursor: running ? 'default' : 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', whiteSpace: 'nowrap' }}>
+          <button onClick={grabAll} disabled={running} style={{ minHeight: 40, padding: '10px 14px', fontSize: 12.5, fontWeight: 600, borderRadius: 8, cursor: running ? 'default' : 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.18)', color: '#fff', whiteSpace: 'nowrap' }}>
             {running ? `Zipping ${prog}/${items.length}…` : `⬇ Download all ${items.length} (.zip)`}
           </button>
         )}
@@ -214,7 +214,7 @@ export default function DJMedia({ djs = [], slots = [] }) {
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{allItems.length} image{allItems.length === 1 ? '' : 's'} from {list.length} DJ{list.length === 1 ? '' : 's'}</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Downloads are the full original file — exactly as uploaded, no quality lost. Tap a DJ's handle to open their profile for tagging.</div>
         </div>
-        <button onClick={grabEverything} disabled={runningAll} style={{ padding: '9px 16px', fontSize: 13, fontWeight: 700, borderRadius: 8, cursor: runningAll ? 'default' : 'pointer', background: RED, color: '#fff', border: 'none', whiteSpace: 'nowrap' }} data-keep-color>
+        <button onClick={grabEverything} disabled={runningAll} style={{ minHeight: 44, padding: '11px 18px', fontSize: 13.5, fontWeight: 700, borderRadius: 8, cursor: runningAll ? 'default' : 'pointer', background: RED, color: '#fff', border: 'none', whiteSpace: 'nowrap' }} data-keep-color>
           {runningAll ? `Zipping ${progAll}/${allItems.length}…` : `⬇ Download everything (${allItems.length}) as .zip`}
         </button>
       </div>

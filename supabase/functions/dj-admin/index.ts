@@ -245,6 +245,11 @@ Deno.serve(async (req) => {
       // run as a two-session paid day like a Saturday). Keep in sync with api.js SPECIAL_DATES.
       const SPECIAL_DATES: Record<string, { slot: string; kind: string }[]> = {
         "2026-08-30": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
+        // September Sundays = two paid DJ sessions (2–6pm + 6–10pm). Keep in sync with api.js.
+        "2026-09-06": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
+        "2026-09-13": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
+        "2026-09-20": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
+        "2026-09-27": [{ slot: "sat_pm", kind: "session" }, { slot: "main", kind: "session" }],
       };
       const rows: Record<string, unknown>[] = [];
       for (let d = 1; d <= daysIn; d++) {

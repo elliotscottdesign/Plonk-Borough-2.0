@@ -116,6 +116,11 @@ export const SPECIAL_DATES = {
     { slot: 'sat_pm', day: 'Sunday', start: '16:00', end: '20:00', kind: 'session' },
     { slot: 'main', day: 'Sunday', start: '20:00', end: '00:00', kind: 'session' },
   ],
+  // September Sundays run as two paid DJ sessions — 2–6pm + 6–10pm.
+  ...Object.fromEntries(['2026-09-06', '2026-09-13', '2026-09-20', '2026-09-27'].map(d => [d, [
+    { slot: 'sat_pm', day: 'Sunday', start: '14:00', end: '18:00', kind: 'session' },
+    { slot: 'main', day: 'Sunday', start: '18:00', end: '22:00', kind: 'session' },
+  ]])),
 }
 const wdOf = (dateStr) => new Date(dateStr + 'T00:00:00').getDay()
 // All bookable slots for a date (main + extras), earliest start first.
