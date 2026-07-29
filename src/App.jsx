@@ -32,6 +32,7 @@ import DJPortal from './dj/DJPortal.jsx'
 import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
 import DailyHub from './rota/DailyHub.jsx'
+import LeisureWatcher from './leisure/LeisureWatcher.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
 import { RotaProvider } from './components/EditableRotaContext.jsx'
@@ -101,6 +102,13 @@ const isRotaPath = () =>
 const isTodayPath = () =>
   typeof window !== 'undefined' &&
   /^\/today(\/|$)/.test(window.location.pathname)
+
+// Leisure Watch — founder-only London Fields Lido slot watcher. /leisure.
+// Gated behind the 888999 founder code (the `plonk` flag), so it sits AFTER
+// the PasswordGate in the dispatch below (unlike the standalone portals above).
+const isLeisurePath = () =>
+  typeof window !== 'undefined' &&
+  /^\/leisure(\/|$)/.test(window.location.pathname)
 
 const isPrivacyPath = () =>
   typeof window !== 'undefined' &&
@@ -253,7 +261,7 @@ export default function App() {
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath() && !isTodayPath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath() && !isTodayPath() && !isLeisurePath())) {
     // This repo now lives at team.nodice.bar (the public customer site owns
     // nodice.bar). Root + any unrecognised path shows the branded team hub —
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.
@@ -330,6 +338,23 @@ export default function App() {
       )
     }
     return <MarketingApp />
+  }
+
+  // /leisure — founder-only London Fields Lido slot watcher. Requires the
+  // Plonk/founder tier (888999); anyone else unlocked gets a polite kick-back.
+  if (isLeisurePath()) {
+    if (!plonkAccess) {
+      return (
+        <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'var(--ink)', color:'var(--cream)', fontFamily:"'DM Sans',sans-serif", padding:24, textAlign:'center' }}>
+          <div className="serif" style={{ fontSize:28, color:'var(--gold)' }}>Restricted view</div>
+          <div style={{ fontSize:13, color:'var(--cream-dim)', maxWidth:360 }}>
+            Leisure Watch is founder-only. Sign in with the founder code to view.
+          </div>
+          <a href="/" style={{ fontSize:11, color:'var(--cream-dim)', letterSpacing:'0.14em', textDecoration:'none', marginTop:12 }}>← back to nodice.bar</a>
+        </div>
+      )
+    }
+    return <LeisureWatcher />
   }
 
   // /borough/december-sales — founder-only POS sales dashboard. Requires the
