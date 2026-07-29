@@ -725,6 +725,41 @@ Deno.serve(async (req) => {
     // ── Everything below is founder-only ───────────────────────────────────────
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
+    // ── Opportunities tracker: festivals, half-terms, fireworks, bank holidays… ──
+    if (action === "eventsList") {
+      const from = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);   // keep the last 2 weeks visible
+      const { data } = await sb.from("venue_events").select("*").or(`start_date.gte.${from},end_date.gte.${from}`).order("start_date");
+      return json({ ok: true, events: data || [] });
+    }
+    if (action === "eventAdd") {
+      const start_date = String(b.start_date || "");
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(start_date)) return json({ error: "Pick a date." }, 400);
+      const title = clean(b.title, 200);
+      if (!title) return json({ error: "Give it a name." }, 400);
+      const end_date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.end_date || "")) ? String(b.end_date) : null;
+      const { data, error } = await sb.from("venue_events").insert({ start_date, end_date, title, category: clean(b.category, 24) || "other", location: clean(b.location, 120) || null, angle: clean(b.angle, 500) || null, source: "manual" }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, event: data });
+    }
+    if (action === "eventUpdate") {
+      const id = clean(b.id, 40); if (!id) return json({ error: "no event" }, 400);
+      const patch: Record<string, unknown> = {};
+      if (b.start_date && /^\d{4}-\d{2}-\d{2}$/.test(String(b.start_date))) patch.start_date = String(b.start_date);
+      if ("end_date" in b) patch.end_date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.end_date || "")) ? String(b.end_date) : null;
+      if ("title" in b) patch.title = clean(b.title, 200);
+      if ("category" in b) patch.category = clean(b.category, 24) || "other";
+      if ("location" in b) patch.location = clean(b.location, 120) || null;
+      if ("angle" in b) patch.angle = clean(b.angle, 500) || null;
+      const { error } = await sb.from("venue_events").update(patch).eq("id", id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "eventDelete") {
+      const id = clean(b.id, 40); if (!id) return json({ error: "no event" }, 400);
+      await sb.from("venue_events").delete().eq("id", id);
+      return json({ ok: true });
+    }
+
     // ── Kitchen food-safety: manager review + allergen matrix ─────────────────
     if (action === "kitchenRuns") {
       const days = Math.max(1, Math.min(120, parseInt(String(b.days)) || 30));

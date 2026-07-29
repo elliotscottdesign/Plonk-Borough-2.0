@@ -1,5 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
+import { eventsList, eventsForDate, catMeta } from '../keydates/events.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
@@ -61,6 +62,9 @@ function WeekRow({ row }) {
 }
 
 export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], reload }) {
+  // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
+  const [keyEvents, setKeyEvents] = useState([])
+  useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
@@ -206,10 +210,14 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const rows = shiftsByDate[dateStr] || []
             const pattern = shiftsForDate(dateStr)
             const isSel = selDate === dateStr
+            const evs = eventsForDate(keyEvents, dateStr)
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
                 style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 3 }}>
-                <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
+                  {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
+                </span>
                 {(() => {
                   const people = rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length, 0)
                   const hrs = Math.round(rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length * shiftHours(sh), 0))
@@ -241,6 +249,20 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <div className="serif" style={{ fontSize: 18, color: '#fff' }}>{dayName(selDate)} {selDate.slice(8)} {MONTHS[+selDate.slice(5, 7) - 1]}</div>
             <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
           </div>
+
+          {eventsForDate(keyEvents, selDate).map(ev => {
+            const m = catMeta(ev.category)
+            return (
+              <div key={ev.id} style={{ background: `${m.color}18`, border: `1px solid ${m.color}66`, borderRadius: 10, padding: '9px 12px', display: 'flex', gap: 9, alignItems: 'flex-start' }}>
+                <span style={{ fontSize: 17 }}>{m.icon}</span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{ev.title}{ev.location ? <span style={{ color: 'rgba(255,255,255,0.6)', fontWeight: 400 }}> · 📍 {ev.location}</span> : null}</div>
+                  {ev.angle && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 2, lineHeight: 1.45 }}>{ev.angle}</div>}
+                  <div style={{ fontSize: 10.5, color: m.color, marginTop: 2 }}>Key date — staff up for the extra footfall</div>
+                </div>
+              </div>
+            )
+          })}
 
           {(() => {
             const dayClaims = claims.filter(c => selShifts.some(s => s.id === c.shift_id))

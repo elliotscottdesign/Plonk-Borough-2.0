@@ -4,6 +4,7 @@ import Messages from './DJMessages.jsx'
 import DJMedia from './DJMedia.jsx'
 import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
+import { eventsList, catMeta, eventDateLabel } from '../keydates/events.js'
 
 // ─── DJ Bookings — live Calendar + Roster (admin) ────────────────────────
 // Reads/writes Supabase via dj-admin. Two views:
@@ -116,6 +117,9 @@ function Calendar({ data, reload, onJump }) {
   const { djs, slots } = data
   const [buildKey, setBuildKey] = useState(null)   // which slot's build/edit form is open
   const [busy, setBusy] = useState(false)
+  // Key Dates (festivals etc.) so you book the right music for what's on that month.
+  const [keyEvents, setKeyEvents] = useState([])
+  useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
 
   const sessions = upcomingSessions(WEEKS_AHEAD)
   const byKey = {}
@@ -216,6 +220,22 @@ function Calendar({ data, reload, onJump }) {
           </button>
         ))}
       </div>
+
+      {(() => {
+        const ym = `${viewY}-${String(viewM + 1).padStart(2, '0')}`
+        const monthEvs = (keyEvents || []).filter(e => (e.start_date || '').slice(0, 7) === ym || (e.end_date || '').slice(0, 7) === ym || (e.start_date <= ym + '-01' && (e.end_date || e.start_date) >= ym + '-28'))
+        if (!monthEvs.length) return null
+        return (
+          <div style={{ background: 'rgba(201,168,76,0.07)', border: '1px solid rgba(201,168,76,0.28)', borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ fontSize: 11, fontWeight: 700, color: '#C9A84C', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>🔔 Key dates this month — book the right music</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {monthEvs.map(ev => { const m = catMeta(ev.category); return (
+                <span key={ev.id} title={ev.angle || ''} style={{ fontSize: 12, color: '#fff', background: `${m.color}1e`, border: `1px solid ${m.color}55`, borderRadius: 999, padding: '3px 10px' }}>{m.icon} {ev.title} <span style={{ color: 'rgba(255,255,255,0.55)' }}>· {eventDateLabel(ev)}</span></span>
+              ) })}
+            </div>
+          </div>
+        )
+      })()}
 
       <MonthCalendar year={viewY} month={viewM} onPrev={() => shiftMonth(-1)} onNext={() => shiftMonth(1)} canPrev={canPrevMonth}
         cellFor={calCell} onDay={(d) => { setSelDate(d); setBuildKey(null) }} selected={selDate} rich
