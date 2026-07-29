@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { djAdmin, inviteLink, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, fillTemplate, tplBody } from '../../dj/api.js'
+import { djAdmin, djBlastEmail, inviteLink, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, fillTemplate, tplBody } from '../../dj/api.js'
 import SubgenrePicker from '../../dj/SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from '../../dj/FormatPicker.jsx'
 
@@ -152,6 +152,22 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   const msgNewDates = (d, priority) => fillTemplate(tplBody(templates, (priority && releaseMode !== 'all_residents') ? 'release_first' : 'release_played'), tvars(d))
   const msg6h = (d) => fillTemplate(tplBody(templates, 'release_6h'), tvars(d))
 
+  // One-click EMAIL blast to every vetted DJ — their link + "the {month} dates are
+  // open". Month = the latest OPEN (bookable) month. Recipients are built server-side
+  // from the roster (the client only sends the month/subject/body), so the secret
+  // can't be abused to email arbitrary people.
+  const relMax = (slots || []).filter(s => s.status === 'open').reduce((m, s) => (s.date > m ? s.date : m), '')
+  const blastMonthLabel = (relMax ? new Date(relMax + 'T00:00:00') : _nm).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const emailAll = async () => {
+    const count = (djs || []).filter(d => d.status !== 'pending' && d.email && d.token)
+      .reduce((set, d) => set.add(String(d.email).trim().toLowerCase()), new Set()).size
+    if (!count) { alert('No DJs with an email address on file yet.'); return }
+    if (!window.confirm(`Email all ${count} DJs that the ${blastMonthLabel} dates are open, with their personal booking link?`)) return
+    setBusy(true)
+    try { const r = await djBlastEmail({ month: blastMonthLabel, subject: `The ${blastMonthLabel} dates are open at No Dice 🎧`, body: tplBody(templates, 'email_dates') }); alert(`✓ Emailed ${r.sent} DJ${r.sent === 1 ? '' : 's'}.`) }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
   // Release-window timing (messaging-order, not a hard lock).
   const startedAt = release?.started_at ? new Date(release.started_at).getTime() : null
   const openedAllAt = release?.opened_all_at ? new Date(release.opened_all_at).getTime() : null
@@ -285,6 +301,12 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
               </div>
             </div>
           )}
+
+          {/* One-click email blast — every DJ gets their personal link + "dates open". */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 10, padding: '10px 12px' }}>
+            <button onClick={emailAll} disabled={busy} style={btn('gold')}>📧 Email all DJs — {blastMonthLabel} dates open</button>
+            <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', flex: 1, minWidth: 180 }}>One click — every DJ with an email gets their personal booking link. Edit the wording in the <em>“Email blast · new dates open”</em> template. (WhatsApp, sent per-DJ, is below.)</span>
+          </div>
 
           {startedAt && (
             <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.78)', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px', lineHeight: 1.6 }}>

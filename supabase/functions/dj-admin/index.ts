@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body, subject } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -275,6 +275,32 @@ Deno.serve(async (req) => {
       if (!key) return json({ error: "missing template key" }, 400);
       await sb.from("dj_templates").upsert({ key, body: String(body ?? ""), updated_at: now() }, { onConflict: "key" });
       break;
+    case "blastEmail": {
+      // One-click "dates are open" email. Recipients are derived HERE from our own
+      // roster — never a client-supplied list — so the secret can't be used to spam
+      // arbitrary addresses. Client sends only the month, subject and message body.
+      const subj = String(subject || "New dates at No Dice").slice(0, 200);
+      const monthLbl = String(month || "").slice(0, 40);
+      const bodyTpl = String(body || "").slice(0, 4000);
+      if (!bodyTpl.trim()) return json({ error: "no message body" }, 400);
+      const { data: roster } = await sb.from("djs").select("dj_name, email, token, status").neq("status", "pending");
+      const fill = (t: string, v: Record<string, string>) => t.replace(/\{(\w+)\}/g, (m, k) => (v[k] != null ? v[k] : m));
+      const seen = new Set<string>();
+      let sent = 0;
+      for (const d of roster || []) {
+        const email = String(d?.email || "").trim();
+        if (!email || !/.+@.+\..+/.test(email) || !d?.token) continue;
+        const key = email.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        const link = `${PORTAL}?t=${encodeURIComponent(d.token)}`;
+        const text = fill(bodyTpl, { name: d.dj_name || "there", link, month: monthLbl });
+        const html = emailShell("The dates are open 🎧", `<p style="color:#ccc;line-height:1.6;white-space:pre-line">${esc(text)}</p>`);
+        await sendMail(email, subj, html);
+        if (++sent >= 400) break;
+      }
+      return json({ ok: true, sent });
+    }
     case "markNoteRead":
       await sb.from("dj_notes").update({ read_at: now() }).eq("id", id);
       break;

@@ -5,6 +5,7 @@ import SubgenrePicker from './SubgenrePicker.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
 import MonthCalendar from './MonthCalendar.jsx'
 import DJRules from './DJRules.jsx'
+import DJAddToHome from './DJAddToHome.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -383,6 +384,7 @@ export default function DJPortal() {
         {tab === 'rules' && <DJRules />}
 
         {tab === 'portal' && (<>
+        <div style={{ marginBottom: 14 }}><DJAddToHome /></div>
         {/* Profile */}
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 18 }}>

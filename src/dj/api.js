@@ -15,6 +15,10 @@ export async function djPortal(token, action, payload = {}) {
 }
 
 // Founder-facing calls — authed by SEND_SECRET (gated /ops admin).
+// One-click email blast — {month, subject, body}. The edge fn derives the DJ
+// recipients from the roster itself (never a client list) and fills the body per DJ.
+export const djBlastEmail = (payload) => djAdmin('blastEmail', payload)
+
 export async function djAdmin(action, payload = {}) {
   const res = await fetch(DJ_ADMIN_FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ secret: SEND_SECRET, action, ...payload }) })
   const data = await res.json().catch(() => ({}))
@@ -33,6 +37,7 @@ export const TEMPLATE_KEYS = [
   { key: 'release_first', label: 'New dates · first dibs', vars: ['name', 'link', 'month'], hint: 'First-dibs batch — sent on release day to whichever resident group goes first (set by the release order).' },
   { key: 'release_played', label: 'New dates · second batch', vars: ['name', 'link', 'month'], hint: 'Second batch — the other resident group (after the 24h head-start), and the copy used for “all residents at once”.' },
   { key: 'release_6h', label: '6-hour closing nudge', vars: ['name', 'link', 'month'], hint: 'Reminder to first-dibs residents in the final hours.' },
+  { key: 'email_dates', label: 'Email blast · new dates open', vars: ['name', 'link', 'month'], hint: 'The one-click email sent to every DJ when a month opens (from the Roster → Email all DJs button).' },
 ]
 export const DEFAULT_TEMPLATES = {
   invite: `Hey {name}, I hope you are well! I have nearly got the business back open and I wanna book the DJs and events in again.
@@ -64,6 +69,12 @@ Any Qs, shout. E`,
   release_6h: `Hey {name}, ⏳ ~6 hours left to grab your No Dice resident slot before it opens to everyone — book here:
 {link}
 E`,
+  email_dates: `Hi {name},
+
+The {month} dates at No Dice are now open — use your link to book a night before they go:
+{link}
+
+Any questions, just reply. E`,
 }
 // Replace {name}/{link}/{month} placeholders; leaves unknown {tokens} untouched.
 export const fillTemplate = (body, vars = {}) =>
