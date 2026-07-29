@@ -235,9 +235,19 @@ Deno.serve(async (req) => {
 
       const current = await scanWindow();
 
-      // Previous snapshot keyed by slot_key.
-      const { data: prevRows } = await sb.from("leisure_slots").select("slot_key, spaces_remaining");
-      const prev = new Map<string, number>((prevRows || []).map((r: any) => [r.slot_key, Number(r.spaces_remaining) || 0]));
+      // Previous snapshot keyed by slot_key. Page through ALL rows — PostgREST
+      // caps a plain select at 1000, and the window holds ~1700+ sessions, so a
+      // single select would drop the tail and re-flag those slots as "new" every
+      // run (a re-alert storm). Pagination is load-bearing here, not a nicety.
+      const prev = new Map<string, number>();
+      const PAGE = 1000;
+      for (let from = 0; ; from += PAGE) {
+        const { data: rows, error } = await sb.from("leisure_slots")
+          .select("slot_key, spaces_remaining").range(from, from + PAGE - 1);
+        if (error) throw error;
+        for (const r of rows || []) prev.set(r.slot_key as string, Number(r.spaces_remaining) || 0);
+        if (!rows || rows.length < PAGE) break;
+      }
       const seeded = prev.size > 0;   // first-ever run: seed only, don't blast alerts
 
       const openings: (Slot & { kind: string })[] = [];
