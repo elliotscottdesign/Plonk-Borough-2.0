@@ -23,6 +23,7 @@ const VENUE = "london-fields-lido";
 const VENUE_NAME = "London Fields Lido";
 const ACTIVITY = "lido";
 const DAYS_AHEAD = 14;                       // Better shows ~14 days for the Lido
+const COOLDOWN_MS = 6 * 3600 * 1000;         // don't re-alert the same slot within 6h
 const ALERT_TO = "elliot@nodice.bar";
 const DETAIL_CAP = 40;                        // cap the long list in a release flood
 const BOOK_LINK = (date: string) =>
@@ -239,34 +240,54 @@ Deno.serve(async (req) => {
       // caps a plain select at 1000, and the window holds ~1700+ sessions, so a
       // single select would drop the tail and re-flag those slots as "new" every
       // run (a re-alert storm). Pagination is load-bearing here, not a nicety.
-      const prev = new Map<string, number>();
+      const prev = new Map<string, { spaces: number; lastAlerted: number }>();
       const PAGE = 1000;
       for (let from = 0; ; from += PAGE) {
         const { data: rows, error } = await sb.from("leisure_slots")
-          .select("slot_key, spaces_remaining").range(from, from + PAGE - 1);
+          .select("slot_key, spaces_remaining, last_alerted_at").range(from, from + PAGE - 1);
         if (error) throw error;
-        for (const r of rows || []) prev.set(r.slot_key as string, Number(r.spaces_remaining) || 0);
+        for (const r of rows || []) prev.set(r.slot_key as string, {
+          spaces: Number(r.spaces_remaining) || 0,
+          lastAlerted: r.last_alerted_at ? new Date(r.last_alerted_at as string).getTime() : 0,
+        });
         if (!rows || rows.length < PAGE) break;
       }
       const seeded = prev.size > 0;   // first-ever run: seed only, don't blast alerts
 
+      // Decide which open slots are a genuinely NEW event worth an alert — and
+      // debounce: a popular session with 1 space flips full↔open as people book
+      // and cancel, so a raw "was 0, now >0" fires constantly. Only alert a slot
+      // if we haven't already alerted it in the last COOLDOWN_MS. `alertedNow`
+      // tracks the keys we alert this run so their timestamp gets stamped below.
+      const nowMs = Date.now();
       const openings: (Slot & { kind: string })[] = [];
+      const alertedNow = new Set<string>();
       if (seeded) {
         for (const cur of current) {
           if (cur.spaces <= 0) continue;
-          if (!prev.has(cur.slot_key)) openings.push({ ...cur, kind: "release" });        // brand-new bookable session
-          else if (prev.get(cur.slot_key) === 0) openings.push({ ...cur, kind: "cancellation" }); // was full → now free
-          // already-open (>0 last time) → not a new event, skip
+          const p = prev.get(cur.slot_key);
+          const isNew = !p ? "release" : p.spaces === 0 ? "cancellation" : null;
+          if (!isNew) continue;                                   // already open last run → not an event
+          if (p && nowMs - p.lastAlerted < COOLDOWN_MS) continue; // flip-flop within cooldown → stay quiet
+          openings.push({ ...cur, kind: isNew });
+          alertedNow.add(cur.slot_key);
         }
       }
 
-      // Persist the new snapshot (full replace of the current window).
-      const nowISO = new Date().toISOString();
-      const upsertRows = current.map((s) => ({
-        slot_key: s.slot_key, venue: VENUE, activity: ACTIVITY, name: s.name,
-        date: s.date, starts_at: s.starts_at, ends_at: s.ends_at,
-        spaces_remaining: s.spaces, updated_at: nowISO,
-      }));
+      // Persist the new snapshot (full replace of the current window). Carry the
+      // last-alerted timestamp forward, stamping it fresh for slots alerted now.
+      const nowISO = new Date(nowMs).toISOString();
+      const upsertRows = current.map((s) => {
+        const p = prev.get(s.slot_key);
+        const lastAlerted = alertedNow.has(s.slot_key)
+          ? nowISO
+          : (p?.lastAlerted ? new Date(p.lastAlerted).toISOString() : null);
+        return {
+          slot_key: s.slot_key, venue: VENUE, activity: ACTIVITY, name: s.name,
+          date: s.date, starts_at: s.starts_at, ends_at: s.ends_at,
+          spaces_remaining: s.spaces, last_alerted_at: lastAlerted, updated_at: nowISO,
+        };
+      });
       // Chunk upserts to stay well under payload limits.
       for (let i = 0; i < upsertRows.length; i += 200) {
         await sb.from("leisure_slots").upsert(upsertRows.slice(i, i + 200), { onConflict: "slot_key" });
