@@ -381,7 +381,11 @@ async function finalizeTournament(sb: any, run: any) {
 // get league credit for a partial-attendance run either (founder rule 2026-07-30).
 async function computeLeague(sb: any, discipline: string) {
   const { data: runs } = await sb.from("pool_tournaments").select("*, tournaments(name,event_date,tournament_type)").eq("status", "done");
-  const relevant = (runs || []).filter((r: any) => r.tournaments && r.tournaments.tournament_type === discipline && !/season final/i.test(r.tournaments.name || ""));
+  // discipline_override lets the founder re-classify a night mid-run (e.g. a
+  // doubles night played as singles because not enough teams showed up).
+  // When set, this night's points accrue to the OTHER league.
+  const effectiveType = (r: any) => r.discipline_override || (r.tournaments && r.tournaments.tournament_type);
+  const relevant = (runs || []).filter((r: any) => r.tournaments && effectiveType(r) === discipline && !/season final/i.test(r.tournaments.name || ""));
   relevant.sort((a: any, b: any) => String(a.tournaments.event_date).localeCompare(String(b.tournaments.event_date)));
   const table: Record<string, any> = {};
   for (const run of relevant) {
@@ -721,6 +725,23 @@ Deno.serve(async (req) => {
       const id = clean(b.participantId, 40);
       await sb.from("pool_participants").update({ active: true }).eq("id", id);
       return json({ ok: true });
+    }
+
+    // Flip THIS night's discipline (e.g. doubles → singles) so its points accrue
+    // to a different league than the parent tournament's tournament_type. Founder
+    // rule 2026-07-30: when a doubles night doesn't get enough teams and gets
+    // played as singles, the points still count — just for the singles league.
+    // Pass null to revert to the tournament's original type.
+    if (action === "setDiscipline") {
+      const runId = clean(b.runId, 40);
+      if (!runId) return json({ error: "no run" }, 400);
+      const raw = b.discipline;
+      const override = raw === "singles" || raw === "doubles" ? raw : null;
+      const { data, error } = await sb.from("pool_tournaments")
+        .update({ discipline_override: override, updated_at: new Date().toISOString() })
+        .eq("id", runId).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, run: data });
     }
 
     // Reset a run entirely (deletes the roster; the booking data is untouched).

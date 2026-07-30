@@ -40,3 +40,7 @@ export const tournStartKnockout = (runId, thirdPlace, raceTo, finalBestOf3) => c
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
 export const tournFinalize = (runId) => call({ action: 'finalize', runId })                  // re-run voucher emails
 export const tournSeedFromLeague = (runId) => call({ action: 'seedFromLeague', runId })       // grand final: add league top-8
+// Flip THIS night's discipline (e.g. doubles → singles) when not enough
+// teams show up. Points still accrue to the league — just the OTHER league.
+// Pass null to revert to the tournament's original type.
+export const tournSetDiscipline = (runId, discipline) => call({ action: 'setDiscipline', runId, discipline })

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
 } from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
@@ -558,7 +558,18 @@ export default function Tournament() {
         onSaveReplace={saveReplace}
         onUndoRound={undoRound}
         onRefresh={refresh}
-        onDeleteRun={() => { if (window.confirm('Restart tournament? Every round, score and match is deleted. The roster + paid entries stay.')) { guard(async () => { await tournDeleteRun(run.run.id); setView('list'); loadList() })() } }}
+        onDeleteRun={() => {
+          // Two-step gate per founder direction 2026-07-30 — the first confirm
+          // stops an accidental tap; the second (type-to-confirm) stops a
+          // reflex "OK" from wiping a live tournament.
+          if (!window.confirm('⚠ Restart tournament?\n\nThis DELETES every round, match and score for this night. The roster + paid entries stay.\n\nContinue to the final confirmation.')) return
+          const typed = window.prompt('One more safety check.\n\nType RESTART to confirm — anything else cancels.')
+          if ((typed || '').trim().toUpperCase() !== 'RESTART') { alert('Restart cancelled — nothing was deleted.'); return }
+          guard(async () => { await tournDeleteRun(run.run.id); setView('list'); loadList() })()
+        }}
+        origDiscipline={t.type}
+        effectiveDiscipline={run.run?.discipline_override || t.type}
+        onSetDiscipline={(disc) => guard(() => tournSetDiscipline(run.run.id, disc))()}
         koRaceTo={koRaceTo}
         setKoRaceTo={setKoRaceTo}
         thirdPlace={thirdPlace}
@@ -694,6 +705,7 @@ function MenuDrawer({
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
+  origDiscipline, effectiveDiscipline, onSetDiscipline,
 }) {
   if (!open) return null
   const isRounds = status === 'rounds'
@@ -713,6 +725,57 @@ function MenuDrawer({
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
+
+        {/* Format — flip the night's discipline if not enough teams show up.
+            Founder rule 2026-07-30: a doubles night played as singles still
+            counts, just in the singles league. Reversible: tap the same
+            button again to revert to the original type. */}
+        {(isRounds || isKO || status === 'setup') && origDiscipline && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(96,165,250,0.06)', border: `1px solid rgba(96,165,250,0.28)`, borderRadius: 12, padding: 12 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔀 Format for tonight</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>
+              This night is set to <strong style={{ color: '#fff' }}>{effectiveDiscipline === 'doubles' ? '👥 Doubles' : '👤 Singles'}</strong>
+              {effectiveDiscipline !== origDiscipline && <span style={{ color: '#FCD34D', fontWeight: 700 }}> · overridden (originally {origDiscipline})</span>}
+              . Points accrue to the <strong style={{ color: '#fff' }}>{effectiveDiscipline}</strong> league.
+            </div>
+            {origDiscipline === 'doubles' && effectiveDiscipline === 'doubles' && (
+              <button
+                onClick={() => {
+                  if (!window.confirm('Not enough teams? Flip this night to a SINGLES tournament.\n\nPoints will accrue to the SINGLES league instead of doubles. You can flip back.')) return
+                  closeAfter(() => onSetDiscipline('singles'))()
+                }}
+                disabled={busy}
+                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
+              >
+                🔀 Play tonight as SINGLES (not enough teams)
+              </button>
+            )}
+            {effectiveDiscipline !== origDiscipline && (
+              <button
+                onClick={() => {
+                  if (!window.confirm(`Revert this night back to a ${origDiscipline.toUpperCase()} tournament?\n\nPoints will accrue to the ${origDiscipline} league.`)) return
+                  closeAfter(() => onSetDiscipline(null))()
+                }}
+                disabled={busy}
+                style={{ ...btn('ghost'), textAlign: 'left' }}
+              >
+                ↩ Revert to {origDiscipline}
+              </button>
+            )}
+            {origDiscipline === 'singles' && effectiveDiscipline === 'singles' && (
+              <button
+                onClick={() => {
+                  if (!window.confirm('Flip this night to a DOUBLES tournament?\n\nPoints will accrue to the DOUBLES league instead of singles. You can flip back.')) return
+                  closeAfter(() => onSetDiscipline('doubles'))()
+                }}
+                disabled={busy}
+                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
+              >
+                🔀 Play tonight as DOUBLES
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Substitute a player — the highest-touch mid-tournament action */}
         {(isRounds || isKO) && (
