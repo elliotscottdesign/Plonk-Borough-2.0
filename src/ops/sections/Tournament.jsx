@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
-  tournList, tournOpen, tournAddManual, tournRename, tournRemove, tournRestore,
+  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../tournament/api.js'
@@ -29,9 +29,10 @@ export default function Tournament() {
   const [editVal, setEditVal] = useState('')
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
   const [gameScores, setGameScores] = useState({})   // matchId -> [{p1,p2}...] for best-of-3 matches
-  const [thirdPlace, setThirdPlace] = useState(false)   // knockout: play a 3rd-place match?
+  const [thirdPlace, setThirdPlace] = useState(true)    // knockout: play a 3rd-place match? (founder rule 2026-07-30: always on)
   const [koRaceTo, setKoRaceTo] = useState(8)           // knockout: race to how many frames?
   const [finalBestOf3, setFinalBestOf3] = useState(true) // knockout: final + 3rd-place = best of 3?
+  const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
@@ -55,6 +56,16 @@ export default function Tournament() {
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
   const remove = async (p) => { if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return; await guard(() => tournRemove(p.id))() }
   const restore = (id) => guard(() => tournRestore(id))()
+  // Mid-tournament substitution: cascades the new name across every match in this
+  // run AND nulls the ORIGINAL player's league points for the night — see edge
+  // fn `replacePlayer`. A confirmation dialog spells the trade-off out.
+  const saveReplace = async () => {
+    if (!replacing) return
+    const name = (replacing.newName || '').trim()
+    if (!name) { alert('Enter the replacement player\'s name.'); return }
+    if (!window.confirm(`Replace "${replacing.oldName}" with "${name}"?\n\n· All historic matches this tournament switch to the new name.\n· The ORIGINAL player earns ZERO league points for tonight.\n\nContinue?`)) return
+    await guard(async () => { await tournReplace(replacing.participantId, name); setReplacing(null) })()
+  }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
@@ -273,6 +284,19 @@ export default function Tournament() {
 
       {/* ══ ROUNDS: live standings + score entry ══ */}
       {status === 'rounds' && <>
+        {/* Mid-tournament player management — always visible during rounds &
+            knockout so the founder can swap in a substitute if someone leaves
+            or falls ill. Rename = friendly correction (no league impact).
+            Replace = someone else stepping in; nulls the ORIGINAL player's
+            league points for the night per founder rule. */}
+        <ReplacePanel
+          participants={run.participants || []}
+          replacing={replacing}
+          setReplacing={setReplacing}
+          onSave={saveReplace}
+          busy={busy}
+        />
+
         {/* Standings */}
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
           <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· points → frame difference → head-to-head strength</span></div>
@@ -324,6 +348,10 @@ export default function Tournament() {
                   const p1win = doneM && m.winner_id === m.p1_id, p2win = doneM && m.winner_id === m.p2_id
                   return (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 9px', flexWrap: 'wrap' }}>
+                      {/* Table badge — shows which physical pool table this pair is on.
+                          Populated by the edge fn's reassignTables helper; unassigned
+                          pending matches (waiting for a table to free up) show "—". */}
+                      <TableBadge n={m.table_number} pending={!doneM} />
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -341,11 +369,14 @@ export default function Tournament() {
         })}
 
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button onClick={nextRound} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5 }} title={curDone ? '' : 'Finish scoring this round first'}>+ Add another round</button>
+          {/* 2026-07-30 — founder direction: Add Round is always enabled. Pairings for
+              the new round are based on standings-so-far; unfinished matches from the
+              previous round simply haven't scored yet and don't contribute. */}
+          <button onClick={nextRound} disabled={busy} style={btn('gold')}>+ Add another round</button>
           <button onClick={undoRound} disabled={busy} style={btn('ghost')}>↩ Undo last round</button>
           <button onClick={refresh} disabled={busy} style={btn('ghost')}>↻ Refresh</button>
         </div>
-        {!curDone && <div style={{ fontSize: 11.5, color: AMBER }}>Finish scoring Round {curRound?.ordinal} before adding the next.</div>}
+        {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
 
         {/* ── Knockout options → then cut to the bracket ── */}
         <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(168,85,247,0.06)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, marginTop: 2 }}>
@@ -415,7 +446,10 @@ export default function Tournament() {
             )
             return (
               <div style={bracketBox}>
-                <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Best of 3 · race to {perGame}</div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · race to {perGame}</div>
+                  {editing && <TableBadge n={m.table_number} pending small />}
+                </div>
                 {tallyLine(m.p1_id, w1, decided && w1 >= 2)}
                 <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '4px 0' }} />
                 {tallyLine(m.p2_id, w2, decided && w2 >= 2)}
@@ -460,6 +494,9 @@ export default function Tournament() {
           )
           return (
             <div style={bracketBox}>
+              {/* Table badge — visible while the match is playable so staff know
+                  which of the two physical tables the pair should head to. */}
+              {playable && <div style={{ alignSelf: 'flex-start', marginBottom: 4 }}><TableBadge n={m.table_number} pending small /></div>}
               {row(m.p1_id, 'p1', v1, m.p1_score, doneM && m.winner_id === m.p1_id)}
               <div style={{ height: 1, background: 'rgba(255,255,255,0.1)', margin: '5px 0' }} />
               {row(m.p2_id, 'p2', v2, m.p2_score, doneM && m.winner_id === m.p2_id)}
@@ -548,6 +585,90 @@ function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
   )
 }
 const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
+
+// ── Table badge ─────────────────────────────────────────────────────────────
+// Shows which physical pool table (T1 / T2) an in-progress match is on. When
+// a match is pending but no table is assigned yet ("all tables busy"), it
+// renders a muted "table free soon" pill instead. Done matches show no badge
+// (the info is redundant once a result is in).
+function TableBadge({ n, pending, small }) {
+  const size = small ? { pad: '2px 7px', fs: 10 } : { pad: '3px 9px', fs: 11 }
+  if (n === 1 || n === 2) {
+    return (
+      <span style={{
+        display: 'inline-block', padding: size.pad, borderRadius: 999,
+        fontSize: size.fs, fontWeight: 800, letterSpacing: '0.06em',
+        background: n === 1 ? 'rgba(96,165,250,0.18)' : 'rgba(52,211,153,0.18)',
+        border: `1px solid ${n === 1 ? BLUE : GREEN}88`,
+        color: n === 1 ? BLUE : GREEN,
+        whiteSpace: 'nowrap',
+      }}>TABLE {n}</span>
+    )
+  }
+  if (pending) {
+    return (
+      <span style={{
+        display: 'inline-block', padding: size.pad, borderRadius: 999,
+        fontSize: size.fs, fontWeight: 700, letterSpacing: '0.04em',
+        background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.18)',
+        color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap',
+      }}>waiting for a table</span>
+    )
+  }
+  return null
+}
+
+// ── Replace-player panel ────────────────────────────────────────────────────
+// Compact mid-tournament substitution UI: pick a player from the dropdown,
+// type the replacement's name, hit Save. Cascades the new name to every match
+// in the current run AND nulls the original player's league points for the
+// night (edge fn action `replacePlayer` — see the `saveReplace` handler above
+// for the confirmation dialog spelling out the trade-off).
+function ReplacePanel({ participants, replacing, setReplacing, onSave, busy }) {
+  const active = (participants || []).filter(p => p.active)
+  if (!active.length) return null
+  const isOpen = !!replacing
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: PURPLE }}>🔁 Substitute a player</span>
+        <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>Player leaving? Someone new stepping in? Pick them from the list, type the replacement's name, save. Nulls the original's league points for tonight.</span>
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+        <select
+          value={replacing?.participantId || ''}
+          onChange={e => {
+            const id = e.target.value
+            if (!id) { setReplacing(null); return }
+            const p = active.find(x => x.id === id)
+            setReplacing({ participantId: id, oldName: p?.display_name || '', newName: '' })
+          }}
+          disabled={busy}
+          style={{ flex: '1 1 180px', minWidth: 140, padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
+        >
+          <option value="">Pick a player…</option>
+          {active.map(p => <option key={p.id} value={p.id}>{p.display_name}{p.league_null ? ' (already substituted)' : ''}</option>)}
+        </select>
+        {isOpen && (
+          <>
+            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13 }}>→</span>
+            <input
+              autoFocus
+              value={replacing.newName}
+              onChange={e => setReplacing({ ...replacing, newName: e.target.value })}
+              onKeyDown={e => { if (e.key === 'Enter') onSave(); if (e.key === 'Escape') setReplacing(null) }}
+              placeholder="Replacement's name"
+              disabled={busy}
+              style={{ flex: '1 1 160px', minWidth: 140, padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: `1px solid ${PURPLE}`, color: '#fff', outline: 'none' }}
+            />
+            <button onClick={onSave} disabled={busy || !replacing.newName?.trim()} style={{ ...btn('gold'), padding: '8px 14px', fontSize: 12 }}>Save substitution</button>
+            <button onClick={() => setReplacing(null)} disabled={busy} style={{ ...btn('ghost'), padding: '8px 12px', fontSize: 12 }}>Cancel</button>
+          </>
+        )}
+      </div>
+    </div>
+  )
+}
 const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? PURPLE : 'rgba(255,255,255,0.2)'}`, background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', color: '#fff' })
 const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.6)', background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
 const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }

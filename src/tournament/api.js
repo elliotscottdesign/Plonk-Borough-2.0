@@ -18,6 +18,9 @@ export const tournList = () => call({ action: 'list' })                         
 export const tournOpen = (tournamentId) => call({ action: 'open', tournamentId })          // create/sync a run → roster
 export const tournAddManual = (runId, name) => call({ action: 'addManual', runId, name })   // add a walk-in
 export const tournRename = (participantId, name) => call({ action: 'renameParticipant', participantId, name })
+// Mid-tournament substitution — cascades the new name across every historic
+// match AND flags the slot so the original player earns no league points.
+export const tournReplace = (participantId, name) => call({ action: 'replacePlayer', participantId, name })
 export const tournRemove = (participantId) => call({ action: 'removeParticipant', participantId })
 export const tournRestore = (participantId) => call({ action: 'restoreParticipant', participantId })
 export const tournDeleteRun = (runId) => call({ action: 'deleteRun', runId })

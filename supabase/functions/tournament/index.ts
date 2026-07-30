@@ -72,7 +72,10 @@ function shortCode(seed: string) {
 // Scoring settings (per tournament, in pool_tournaments.settings). Matches the
 // kickertool config the venue uses: race to 8 goals, no draws, 1 point per win
 // (so standings Pts = wins, then ranked on goal difference), byes not rated.
-const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: false, finalBestOf3: false };
+// 2026-07-30 — founder rule: final + 3rd-place playoff are ALWAYS best-of-3 of
+// race-to-8 games, and a 3rd-place playoff is ALWAYS on. Defaults reflect that
+// so a run created without any explicit settings still gets them.
+const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: true, finalBestOf3: true };
 const settingsOf = (run: any) => ({ ...DEFAULT_SETTINGS, ...(run?.settings || {}) });
 
 // Best-of-3 applies ONLY to the final and the 3rd-place playoff (founder's choice) —
@@ -171,9 +174,9 @@ async function generateRound(sb: any, run: any) {
   const active = participants.filter((p: any) => p.active);
   if (active.length < 2) return { error: "Need at least 2 entrants." };
   const lastRound = rounds[rounds.length - 1];
-  if (lastRound && matches.some((m: any) => m.round_id === lastRound.id && m.status !== "done")) {
-    return { error: "Finish scoring the current round first." };
-  }
+  // 2026-07-30 — founder direction: allow adding another round even when the
+  // current round has unfinished matches. Pairings for the new round are based
+  // on standings-so-far (unfinished matches simply don't contribute yet).
   const ordinal = (lastRound?.ordinal || 0) + 1;
   // Round 1 has no standings yet — pair by sign-up order; later rounds pair on standings.
   const order = ordinal === 1 ? active.map((p: any) => ({ id: p.id, name: p.display_name })) : standings;
@@ -183,7 +186,47 @@ async function generateRound(sb: any, run: any) {
   let slot = 1;
   for (const [a, bId] of pairs) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: a, p2_id: bId, status: "pending" });
   if (byeId) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: byeId, p2_id: null, is_bye: true, winner_id: byeId, status: "done", p1_score: 0, p2_score: 0 });
+  // Immediately assign the two physical tables (T1 / T2) to the earliest ready
+  // matches so staff know where to send each pair.
+  await reassignTables(sb, run.id);
   return { round };
+}
+
+// ── Physical table assignment ────────────────────────────────────────────────
+// The venue has TWO pool tables. Each match sits at exactly one of them while
+// it's being played; freeing the table (match done) lets the next pending
+// match with both players ready take that table.
+//
+// Called after every state change: new round, score entered, score cleared,
+// bracket generated. Idempotent — safe to call multiple times.
+async function reassignTables(sb: any, runId: string) {
+  const TABLES = [1, 2];
+  const { data: matches } = await sb.from("pool_matches")
+    .select("id, status, table_number, round_id, slot, bracket_round, is_bye, p1_id, p2_id")
+    .eq("pool_tournament_id", runId);
+  if (!matches) return;
+  // Occupied tables — held by any not-yet-done non-bye match with a table set.
+  const occupied = new Set<number>();
+  for (const m of matches as any[]) {
+    if (m.is_bye) continue;
+    if (m.status === "done") continue;
+    if (m.table_number != null) occupied.add(m.table_number);
+  }
+  const free = TABLES.filter((t) => !occupied.has(t));
+  if (!free.length) return;
+  // Candidates: matches that still need to be played AND have both players slotted
+  // (so a bracket match waiting on an earlier result doesn't hog a table).
+  // Order: rounds before bracket, then by round_id/bracket_round, then by slot.
+  const roundRank = (m: any) => m.round_id ? 0 : 1;
+  const stageRank = (m: any) => m.round_id ? m.round_id : (10000 + (m.bracket_round ?? 0));
+  const needy = (matches as any[])
+    .filter((m) => !m.is_bye && m.status !== "done" && m.table_number == null && m.p1_id && m.p2_id)
+    .sort((a, b) => (roundRank(a) - roundRank(b)) || (stageRank(a) - stageRank(b)) || ((a.slot ?? 0) - (b.slot ?? 0)));
+  for (const m of needy) {
+    const t = free.shift();
+    if (t == null) break;
+    await sb.from("pool_matches").update({ table_number: t }).eq("id", m.id);
+  }
 }
 
 // ── Knockout bracket (single elimination) ────────────────────────────────────
@@ -332,6 +375,10 @@ async function finalizeTournament(sb: any, run: any) {
 // The live league for a discipline: aggregate every finished night (excluding season
 // finals). Points: 1st 5 · 2nd 4 · 3rd 3 · show-up 1 · top of the rounds table +1.
 // Tiebreak on cumulative season goal/frame difference. Top 8 qualify for the grand final.
+//
+// Skips any participant whose slot was mid-tournament replaced (league_null=true) —
+// the original player earns nothing from that night, and the replacement doesn't
+// get league credit for a partial-attendance run either (founder rule 2026-07-30).
 async function computeLeague(sb: any, discipline: string) {
   const { data: runs } = await sb.from("pool_tournaments").select("*, tournaments(name,event_date,tournament_type)").eq("status", "done");
   const relevant = (runs || []).filter((r: any) => r.tournaments && r.tournaments.tournament_type === discipline && !/season final/i.test(r.tournaments.name || ""));
@@ -339,14 +386,15 @@ async function computeLeague(sb: any, discipline: string) {
   const table: Record<string, any> = {};
   for (const run of relevant) {
     const { participants, standings, placings } = await loadRun(sb, run);
+    const nulled = new Set((participants as any[]).filter((p) => p.league_null).map((p) => p.id));
     const nameById: Record<string, string> = {}; for (const p of participants) nameById[p.id] = p.display_name;
     const keyOf = (id: string) => (nameById[id] || "").trim().toLowerCase();
-    const ensure = (id: string) => { const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
-    for (const p of participants.filter((p: any) => p.active)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
-    for (const s of standings) { const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
-    if (standings[0]) { const e = table[keyOf(standings[0].id)]; if (e) e.pts += 1; }
+    const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
+    for (const p of participants.filter((p: any) => p.active && !p.league_null)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
+    for (const s of standings) { if (nulled.has(s.id)) continue; const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
+    if (standings[0] && !nulled.has(standings[0].id)) { const e = table[keyOf(standings[0].id)]; if (e) e.pts += 1; }
     if (placings) {
-      const add = (pid: string | null, pts: number, f: string) => { if (!pid) return; const e = table[keyOf(pid)]; if (e) { e.pts += pts; e[f]++; } };
+      const add = (pid: string | null, pts: number, f: string) => { if (!pid || nulled.has(pid)) return; const e = table[keyOf(pid)]; if (e) { e.pts += pts; e[f]++; } };
       add(placings.first, 5, "wins"); add(placings.second, 4, "seconds"); add(placings.third, 3, "thirds");
     }
   }
@@ -483,9 +531,13 @@ Deno.serve(async (req) => {
         const winner = t.winnerSide === 1 ? m.p1_id : t.winnerSide === 2 ? m.p2_id : null;
         // Store games; p1_score/p2_score hold GAMES won (e.g. 2–1) for display — standings &
         // league read round matches only, so this never affects frame difference.
-        const { error } = await sb.from("pool_matches").update({ games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" }).eq("id", matchId);
+        // Free the table when the match is decided so the next pending match can take it.
+        const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" };
+        if (t.decided) patch.table_number = null;
+        const { error } = await sb.from("pool_matches").update(patch).eq("id", matchId);
         if (error) return json({ error: error.message }, 400);
         await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
+        if (t.decided) await reassignTables(sb, m.pool_tournament_id);
         return json({ ok: true });
       }
 
@@ -494,7 +546,9 @@ Deno.serve(async (req) => {
       const p2 = Math.max(0, Math.min(99, parseInt(String(b.p2_score)) || 0));
       if (p1 === p2 && (isBracket || !s.drawsAllowed)) return json({ error: "Needs a winner — a tie isn't allowed here. Adjust the score." }, 400);
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
-      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done" }).eq("id", matchId);
+      // Free the table this match was on — reassignTables below will hand it
+      // to the next ready pending match.
+      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
       // Bracket: push the winner into the next match, then feed the 3rd-place match.
       if (isBracket && winner) {
@@ -509,6 +563,7 @@ Deno.serve(async (req) => {
         }
         await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
       }
+      await reassignTables(sb, m.pool_tournament_id);   // freed table flows to the next pending match
       return json({ ok: true });
     }
     // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
@@ -516,12 +571,14 @@ Deno.serve(async (req) => {
       const matchId = clean(b.matchId, 40);
       const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m || m.is_bye) return json({ ok: true });
-      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending" }).eq("id", matchId);
+      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", matchId);
       if (m.bracket_round != null && m.winner_id && m.next_match_id && m.next_slot) {
-        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending" }).eq("id", m.next_match_id);
+        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", m.next_match_id);
       }
       // Clearing a bracket result may drop the night out of "complete" — reopen it if so.
       if (m.bracket_round != null) await settleRun(sb, m.pool_tournament_id);
+      // Reopened match may pick up a free table.
+      await reassignTables(sb, m.pool_tournament_id);
       return json({ ok: true });
     }
     // Start the knockout: seed the bracket from the final rounds standings.
@@ -544,6 +601,8 @@ Deno.serve(async (req) => {
       await sb.from("pool_tournaments").update({ settings: nextSettings }).eq("id", runId);
       const gen = await generateBracket(sb, { ...run, settings: nextSettings }, standings, thirdPlace);
       if ((gen as any).error) return json({ error: (gen as any).error }, 400);
+      // Assign T1 / T2 to the first playable bracket matches.
+      await reassignTables(sb, runId);
       return json({ ok: true, ...gen });
     }
 
@@ -627,6 +686,23 @@ Deno.serve(async (req) => {
       const name = clean(b.name);
       if (!id || !name) return json({ error: "Enter a name." }, 400);
       const { data, error } = await sb.from("pool_participants").update({ display_name: name }).eq("id", id).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, participant: data });
+    }
+
+    // Mid-tournament substitution: the player at this slot has left, someone
+    // new is stepping in. Rename the slot to the replacement's name (cascades
+    // to every match in the tournament via participant id) and flag the slot
+    // as league_null so the ORIGINAL player earns no league points for the
+    // night — per founder rule 2026-07-30. Any bar-tab voucher won by that
+    // slot still goes out (this only nullifies league, not vouchers).
+    if (action === "replacePlayer") {
+      const id = clean(b.participantId, 40);
+      const name = clean(b.name);
+      if (!id || !name) return json({ error: "Enter the replacement's name." }, 400);
+      const { data, error } = await sb.from("pool_participants")
+        .update({ display_name: name, league_null: true, replaced_at: new Date().toISOString() })
+        .eq("id", id).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, participant: data });
     }
