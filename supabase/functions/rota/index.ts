@@ -502,24 +502,37 @@ Deno.serve(async (req) => {
           const v = raw[k];
           if (v && typeof v === "object" && !Array.isArray(v) && v.unavailable === true) { data[k] = { unavailable: true }; n++; }
         }
-        // Days this member had previously marked off — so we alert the founder only on
-        // the "first day off this month" transition, not on every autosaved tap.
+        // What this member had marked off BEFORE this save — so we can tell the founder
+        // exactly which NEW day(s) they've just taken off (and only email about those).
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
-        const prevOff = prevAv?.data ? Object.values(prevAv.data).filter((v: any) => v && v.unavailable === true).length : 0;
+        const prevData = (prevAv?.data || {}) as Record<string, any>;
+        const prevOffSet = new Set(Object.keys(prevData).filter((k) => prevData[k]?.unavailable === true));
         // Availability is just "days I can't work" — purely an input the founder uses
         // when building the rota. It is independent of who's rostered, so a member can
         // freely mark/un-mark any day and it never adds or removes an actual shift.
         const { error } = await sb.from("staff_availability")
           .upsert({ staff_id: me.id, month, data, updated_at: new Date().toISOString() }, { onConflict: "staff_id,month" });
         if (error) return json({ error: error.message }, 400);
-        // Founder alert on the "just marked their first day off" transition (none → some),
-        // so the per-tap autosave doesn't spam but the founder is told once per month.
-        if (prevOff === 0 && Object.keys(data).length > 0) {
-          const monthName = new Date(month + "-01T00:00:00Z").toLocaleDateString("en-GB", { month: "long", year: "numeric", timeZone: "UTC" });
-          const nOff = Object.keys(data).length;
-          await sendMail(ADMIN_EMAIL, `${me.name} marked days off — ${monthName}`,
+        // Founder alert — fires for each NEW day off, naming the exact date and flagging
+        // anything happening that day from the Key Dates tracker, so the founder sees the
+        // clash at a glance. (Clearing a day, or re-saving with nothing new, sends nothing.)
+        const newOff = Object.keys(data).filter((k) => !prevOffSet.has(k)).sort();
+        if (newOff.length > 0 && RESEND) {
+          const monthEnd = month + "-31";
+          const { data: evs } = await sb.from("venue_events").select("start_date,end_date,title,location,category").lte("start_date", monthEnd).order("start_date");
+          const eventsOn = (d: string) => (evs || []).filter((e: any) => e.start_date <= d && (e.end_date ? e.end_date >= d : e.start_date === d));
+          const fmtDay = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+          const li = newOff.map((d) => {
+            const es = eventsOn(d);
+            const ev = es.length
+              ? `<br><span style="color:#F59E0B;font-size:13px">⚠️ On this day: ${es.map((e: any) => esc(e.title) + (e.location ? ` — ${esc(e.location)}` : "")).join(" · ")}</span>`
+              : `<br><span style="color:#888;font-size:12px">Nothing flagged in the Key Dates tracker.</span>`;
+            return `<li style="margin:8px 0"><strong style="color:#fff">${esc(fmtDay(d))}</strong>${ev}</li>`;
+          }).join("");
+          const subject = newOff.length === 1 ? `${me.name} is off ${fmtDay(newOff[0])}` : `${me.name} marked ${newOff.length} days off`;
+          await sendMail(ADMIN_EMAIL, subject,
             emailShell(`${esc(me.name)} updated their availability`,
-              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked <strong style="color:#fff">${nOff} day${nOff === 1 ? "" : "s"}</strong> off in <strong style="color:#fff">${monthName}</strong>. The rota builder will work around ${nOff === 1 ? "it" : "them"}.</p>`,
+              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked ${newOff.length === 1 ? "this day" : "these days"} off — the rota builder will work around ${newOff.length === 1 ? "it" : "them"}:</p><ul style="color:#ccc;padding-left:18px;line-height:1.5">${li}</ul>`,
               { href: OPS_URL, label: "Open the rota" }));
         }
         return json({ ok: true });
