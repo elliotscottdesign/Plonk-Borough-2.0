@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { KITCHEN_CADENCES, KITCHEN_TEMPLATES, templateItems, tempFails, targetLabel } from './templates.js'
+import { KITCHEN_CADENCES, KITCHEN_TEMPLATES, templateItems, tempFails, targetLabel, tempOptions } from './templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, statusOf } from './allergens.js'
 import { DEFAULT_MATRIX } from './allergens.js'
 import { kitchenGetDay, kitchenSaveRun, kitchenAddWaste, kitchenDeleteWaste } from './api.js'
+import useIsMobile from '../lib/useIsMobile.js'
 
 const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BLUE = '#60A5FA'
 const CARD = '#0A0A0A', LINE = 'rgba(255,255,255,0.12)'
@@ -25,6 +26,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   const [showMatrix, setShowMatrix] = useState(false)
   const [waste, setWaste] = useState({ product: '', reason: '', quantity: '' })
   const panelRef = useRef(null)
+  const isMobile = useIsMobile()
 
   const date = kitchen?.date
   const load = async () => { try { setDay(await kitchenGetDay(token, date)) } catch (e) { alert(e.message) } }
@@ -114,7 +116,7 @@ export default function KitchenChecklists({ token, kitchen }) {
       </div>
 
       <button onClick={() => setShowMatrix(m => !m)} style={pill(showMatrix)}>🥜 Allergen matrix {showMatrix ? '▲' : '▼'}</button>
-      {showMatrix && <AllergenGrid matrix={matrix} />}
+      {showMatrix && (isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />)}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
         {KITCHEN_CADENCES.map(k => {
@@ -210,11 +212,7 @@ function KitchenItem({ item, e, set, fail }) {
           </div>
         )}
         {item.type === 'temp' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-            <input type="number" inputMode="decimal" value={e.value ?? ''} onChange={ev => set({ value: ev.target.value })}
-              placeholder="°C" style={{ width: 66, padding: '8px 8px', borderRadius: 8, border: `1px solid ${fail ? RED : LINE}`, background: '#000', color: fail ? RED : '#fff', fontSize: 15, fontWeight: 700, textAlign: 'center' }} />
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>°C</span>
-          </div>
+          <TempField target={item.target} value={e.value} onChange={v => set({ value: v })} fail={fail} />
         )}
       </div>
 
@@ -233,6 +231,50 @@ function KitchenItem({ item, e, set, fail }) {
       )}
     </div>
   )
+}
+
+// Temperature entry — a native <select> "scroller" of sensible preset °C values
+// (incl. NEGATIVES, which a phone number-pad can't type — the old typed input made
+// the freezer impossible to log and instantly flagged a false fail), PLUS a
+// "Type it…" escape that opens a free box accepting a minus for any odd reading.
+function TempField({ target, value, onChange, fail }) {
+  const opts = tempOptions(target)
+  const v = value == null ? '' : String(value)
+  const isPreset = v === '' || opts.some(t => String(t) === v)
+  const [typing, setTyping] = useState(!isPreset)   // start typing if a saved value isn't a preset
+  const box = { padding: '8px 8px', borderRadius: 8, border: `1px solid ${fail ? RED : LINE}`, background: '#000', color: fail ? RED : '#fff', fontSize: 15, fontWeight: 700 }
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+      {typing ? (
+        <>
+          <input type="text" inputMode="text" value={v} placeholder="e.g. -18" autoFocus
+            onChange={ev => onChange(sanitizeTempInput(ev.target.value))}
+            style={{ ...box, width: 72, textAlign: 'center' }} />
+          {opts.length > 0 && (
+            <button type="button" onClick={() => { setTyping(false); onChange('') }} title="Back to the picker"
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: 15, padding: 0 }}>↺</button>
+          )}
+        </>
+      ) : (
+        <select value={v} onChange={ev => { if (ev.target.value === '__type__') { setTyping(true); onChange('') } else onChange(ev.target.value) }}
+          style={{ ...box, width: 98 }}>
+          <option value="">— °C —</option>
+          {opts.map(t => <option key={t} value={t}>{t} °C</option>)}
+          <option value="__type__">⌨︎ Type it…</option>
+        </select>
+      )}
+      <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>°C</span>
+    </div>
+  )
+}
+// Keep only a leading minus, digits, and one decimal point while typing a temp.
+function sanitizeTempInput(s) {
+  let out = String(s).replace(/[^0-9.\-]/g, '')
+  const neg = out.startsWith('-')
+  out = out.replace(/-/g, '')
+  const parts = out.split('.')
+  out = parts.shift() + (parts.length ? '.' + parts.join('') : '')
+  return (neg ? '-' : '') + out
 }
 
 // Read-only allergen grid for staff to check an allergy order against.
@@ -263,6 +305,38 @@ function AllergenGrid({ matrix }) {
         <span><b style={{ color: AMBER }}>○</b> May contain / cross-contact</span>
         <span><b style={{ color: BLUE }}>⧗</b> Checking</span>
       </div>
+    </div>
+  )
+}
+
+// Phone-friendly allergen view — one card per dish listing ONLY the allergens that
+// apply, so nothing runs off the side of the screen (the full grid needs horizontal
+// scroll on a phone). Grouped Contains ● / May contain ○ / Checking ⧗.
+function AllergenList({ matrix }) {
+  const group = (row, status) => ALLERGENS.filter(a => statusOf(row.allergens?.[a.key]) === status).map(a => a.label)
+  return (
+    <div style={{ marginTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {matrix.map(row => {
+        const contains = group(row, 'contains'), trace = group(row, 'trace'), pending = group(row, 'pending')
+        const none = !contains.length && !trace.length && !pending.length
+        return (
+          <div key={row.dish} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+            <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff', marginBottom: none ? 0 : 6 }}>{row.dish}</div>
+            {contains.length > 0 && <AllergenRow color={RED} sym="●" label="Contains" items={contains} />}
+            {trace.length > 0 && <AllergenRow color={AMBER} sym="○" label="May contain" items={trace} />}
+            {pending.length > 0 && <AllergenRow color={BLUE} sym="⧗" label="Checking" items={pending} />}
+            {none && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No listed allergens.</div>}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+function AllergenRow({ color, sym, label, items }) {
+  return (
+    <div style={{ display: 'flex', gap: 6, fontSize: 12, lineHeight: 1.5, marginTop: 2 }}>
+      <span style={{ color, fontWeight: 800, flexShrink: 0 }}>{sym}</span>
+      <span style={{ color: 'rgba(255,255,255,0.85)' }}><strong style={{ color }}>{label}:</strong> {items.join(', ')}</span>
     </div>
   )
 }

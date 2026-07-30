@@ -189,6 +189,23 @@ export function tempFails(target, value) {
   return false
 }
 
+// Preset °C options for the temperature picker (the "scroller of options"), a sensible
+// band bracketing the pass/fail boundary so staff can just pick a value — crucially
+// including NEGATIVES for the freezer/probe, which a phone number-pad can't type.
+// Listed warmest → coldest so the wheel reads like a thermometer.
+export function tempOptions(target) {
+  if (!target) return []
+  const { min, max } = target
+  let lo, hi
+  if (min != null && max != null) { lo = min - 3; hi = max + 3 }   // range (probe): −5…5
+  else if (max != null) { lo = max - 8; hi = max + 6 }             // fail-if-warm (fridge/freezer)
+  else if (min != null) { lo = min - 8; hi = min + 20 }            // fail-if-cool (cook/reheat)
+  else return []
+  const out = []
+  for (let t = hi; t >= lo; t--) out.push(t)
+  return out
+}
+
 // Human target label, e.g. "0–5 °C", "≤ −18 °C", "≥ 75 °C".
 export function targetLabel(target) {
   if (!target) return ''

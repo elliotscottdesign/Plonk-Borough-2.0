@@ -51,9 +51,9 @@ export const DEFAULT_MATRIX = [
 export const MATRIX_DRIVERS = [
   'Ketchup contains celery (Heinz — spice/herb extract). It’s in the cheeseburger & sauces.',
   'Balsamic (sulphites) is in the caramelised onions → cheeseburger + halloumi burger carry sulphites; the onions also contain butter (milk).',
-  'The spring-roll sauce is MUSHROOM "oyster" sauce (vegetarian — NOT real oyster/mollusc), so the spring rolls contain mushroom and there are NO molluscs anywhere on the menu.',
+  'The spring-roll sauce is OYSTER-MUSHROOM sauce — made from oyster mushrooms (a mushroom), NOT oysters/shellfish. So the spring rolls contain mushroom and there are NO molluscs anywhere on the menu.',
   'Shared fryer (chips + spring rolls) → chips are NOT gluten-free and carry soya/celery/mushroom as cross-contact; every "& chips" dish inherits this.',
-  'Confirmed contains: burger sauce = mustard + egg; Hellmann’s mayo = egg (label says gluten-free); Dijon = mustard; halloumi/cheese/butter = milk; brioche buns = gluten + egg (milk/soya to confirm); spring rolls = celery (fresh) + gluten (flour) + soya (soy sauce) + mushroom (mushroom oyster sauce).',
+  'Confirmed contains: burger sauce = mustard + egg; Hellmann’s mayo = egg (label says gluten-free); Dijon = mustard; halloumi/cheese/butter = milk; brioche buns = gluten + egg (milk/soya to confirm); spring rolls = celery (fresh) + gluten (flour) + soya (soy sauce) + mushroom (oyster-mushroom sauce, made from oyster mushrooms — not shellfish).',
   'Confirmed no allergens: Opies gherkins, Le Phare harissa, corn oil, olive oil, Maldon/Himalayan salt, sugar, sweet chilli (recipe clean; label "may contain sesame/peanut/nut").',
 ]
 
