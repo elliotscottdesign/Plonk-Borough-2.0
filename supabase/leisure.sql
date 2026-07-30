@@ -15,6 +15,7 @@ create table if not exists leisure_slots (
   starts_at        text,
   ends_at          text,
   spaces_remaining int  not null default 0,
+  last_alerted_at  timestamptz,               -- last time we EMAILED about this slot (6h cooldown)
   updated_at       timestamptz not null default now()
 );
 create index if not exists leisure_slots_date_idx on leisure_slots (date);

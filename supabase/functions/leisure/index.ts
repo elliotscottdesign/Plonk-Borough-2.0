@@ -262,7 +262,10 @@ Deno.serve(async (req) => {
       const nowMs = Date.now();
       const openings: (Slot & { kind: string })[] = [];
       const alertedNow = new Set<string>();
-      if (seeded) {
+      // Only hunt for openings while the watcher is ON. While off, we still keep
+      // the snapshot fresh (below) but raise nothing — so flipping it back on
+      // won't dump a backlog, and cooldown timestamps only ever mark real emails.
+      if (seeded && enabled) {
         for (const cur of current) {
           if (cur.spaces <= 0) continue;
           const p = prev.get(cur.slot_key);
