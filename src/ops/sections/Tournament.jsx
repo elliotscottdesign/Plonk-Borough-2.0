@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import {
-  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore,
+  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../tournament/api.js'
@@ -33,6 +33,7 @@ export default function Tournament() {
   const [koRaceTo, setKoRaceTo] = useState(8)           // knockout: race to how many frames?
   const [finalBestOf3, setFinalBestOf3] = useState(true) // knockout: final + 3rd-place = best of 3?
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
+  const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
@@ -235,9 +236,25 @@ export default function Tournament() {
             {status !== 'setup' && <span style={{ color: GREEN, fontWeight: 700 }}>· {status === 'rounds' ? `Round ${curRound?.ordinal || 1}` : status}</span>}
           </div>
         </div>
-        <div style={{ textAlign: 'right' }}>
-          <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}<span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
-          <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ textAlign: 'right' }}>
+            <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}<span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
+          </div>
+          {/* Hamburger opens a slide-out drawer with every tournament option
+              (substitute a player, undo round, restart, start knockout, resend
+              vouchers…). Keeps the main view focused on rounds + standings. */}
+          {status !== 'setup' && (
+            <button onClick={() => setMenuOpen(true)} title="Tournament options" aria-label="Open tournament options" style={{
+              width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexDirection: 'column', gap: 4, background: CARD, border: `1px solid ${LINE}`, borderRadius: 10,
+              cursor: 'pointer', padding: 0,
+            }}>
+              <span style={{ display: 'block', width: 18, height: 2, background: '#fff', borderRadius: 1 }} />
+              <span style={{ display: 'block', width: 18, height: 2, background: '#fff', borderRadius: 1 }} />
+              <span style={{ display: 'block', width: 18, height: 2, background: '#fff', borderRadius: 1 }} />
+            </button>
+          )}
         </div>
       </div>
 
@@ -282,55 +299,17 @@ export default function Tournament() {
         <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
       </>}
 
-      {/* ══ ROUNDS: live standings + score entry ══ */}
+      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (oldest at top, new
+          rounds append at the bottom), standings on the RIGHT. Every "option"
+          (substitute player, undo, start knockout, restart…) lives in the ☰
+          drawer so the founder can find them in one predictable place. ══ */}
       {status === 'rounds' && <>
-        {/* Mid-tournament player management — always visible during rounds &
-            knockout so the founder can swap in a substitute if someone leaves
-            or falls ill. Rename = friendly correction (no league impact).
-            Replace = someone else stepping in; nulls the ORIGINAL player's
-            league points for the night per founder rule. */}
-        <ReplacePanel
-          participants={run.participants || []}
-          replacing={replacing}
-          setReplacing={setReplacing}
-          onSave={saveReplace}
-          busy={busy}
-        />
-
-        {/* Standings */}
-        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
-          <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· points → frame difference → head-to-head strength</span></div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
-              <thead>
-                <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                  <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
-                  <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
-                  {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Frames won'], ['A', 'Frames lost'], ['+/−', 'Frame difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
-                </tr>
-              </thead>
-              <tbody>
-                {standings.map(s => (
-                  <tr key={s.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
-                    <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 700, color: s.rank === 1 ? '#FCD34D' : 'rgba(255,255,255,0.5)' }}>{s.rank === 1 ? '🏆' : s.rank}</td>
-                    <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 600 }}>{s.name}{s.byes > 0 ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}> · bye</span> : null}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.7)' }}>{s.played}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', color: GREEN }}>{s.won}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.6)' }}>{s.lost}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.for}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.against}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 700, color: s.diff > 0 ? GREEN : s.diff < 0 ? '#F87171' : 'rgba(255,255,255,0.6)' }}>{s.diff > 0 ? '+' : ''}{s.diff}</td>
-                    <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 800, color: '#fff', fontSize: 14 }}>{s.pts}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.5 }}>P played · W won · L lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>F</strong> frames won · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>A</strong> frames lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>+/−</strong> frame difference (the tiebreaker when level on points) · Pts points</div>
-        </div>
-
-        {/* Rounds — latest first */}
-        {[...rounds].reverse().map(rnd => {
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
+          {/* LEFT — rounds (oldest first, "+ Add another round" at the bottom) */}
+          <div style={{ flex: '2 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Rounds — oldest at top, newest at the bottom so the page reads like
+            a match log written down the page (founder direction 2026-07-30). */}
+        {rounds.map(rnd => {
           const rms = matches.filter(m => m.round_id === rnd.id).sort((a, b) => (a.slot || 0) - (b.slot || 0))
           const done = rms.filter(m => m.status === 'done').length
           return (
@@ -368,49 +347,50 @@ export default function Tournament() {
           )
         })}
 
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {/* 2026-07-30 — founder direction: Add Round is always enabled. Pairings for
-              the new round are based on standings-so-far; unfinished matches from the
-              previous round simply haven't scored yet and don't contribute. */}
-          <button onClick={nextRound} disabled={busy} style={btn('gold')}>+ Add another round</button>
-          <button onClick={undoRound} disabled={busy} style={btn('ghost')}>↩ Undo last round</button>
-          <button onClick={refresh} disabled={busy} style={btn('ghost')}>↻ Refresh</button>
+        {/* "+ Add another round" sits at the BOTTOM of the rounds column so
+            the next round appears immediately below when clicked — matches
+            the "reads down the page" founder direction. Always enabled;
+            pairings use standings-so-far if the current round isn't finished. */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
         </div>
         {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
-
-        {/* ── Knockout options → then cut to the bracket ── */}
-        <div style={{ borderTop: `1px dashed ${LINE}`, paddingTop: 14, display: 'flex', flexDirection: 'column', gap: 12, background: 'rgba(168,85,247,0.06)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, marginTop: 2 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: '#fff' }}>🏆 Knockout options</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: -6, lineHeight: 1.5 }}>Set these before you cut over — they apply to every knockout match. When you've played enough rounds, hit start and the top players seed into the bracket from the standings.</div>
-
-          {/* Match length — race to N frames */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.85)', fontWeight: 600 }}>Match length</span>
-            <div style={{ display: 'flex', gap: 6 }}>
-              {[5, 6, 7, 8, 9].map(n => {
-                const on = koRaceTo === n
-                return (
-                  <button key={n} onClick={() => setKoRaceTo(n)} style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: `1px solid ${on ? PURPLE : 'rgba(168,85,247,0.3)'}`, background: on ? PURPLE : 'rgba(168,85,247,0.10)', color: '#fff' }}>{n}</button>
-                )
-              })}
-            </div>
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)' }}>race to <strong style={{ color: '#fff' }}>{koRaceTo}</strong> frames — first to {koRaceTo} wins the match</span>
           </div>
 
-          {/* 3rd-place match */}
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={thirdPlace} onChange={e => setThirdPlace(e.target.checked)} style={{ marginTop: 2 }} />
-            <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong> <span style={{ color: 'rgba(255,255,255,0.45)' }}>(off = kickertool-style: 3rd goes to the higher-placed beaten semi-finalist)</span></span>
-          </label>
-
-          {/* Best-of-3 final + 3rd-place */}
-          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.7)', cursor: 'pointer' }}>
-            <input type="checkbox" checked={finalBestOf3} onChange={e => setFinalBestOf3(e.target.checked)} style={{ marginTop: 2 }} />
-            <span><strong style={{ color: '#fff' }}>Best of 3</strong> for the <strong style={{ color: '#fff' }}>final</strong> {thirdPlace ? '& 3rd-place playoff ' : ''}<span style={{ color: 'rgba(255,255,255,0.45)' }}>(first to win 2 games — each game races to {koRaceTo}; every other match stays one game)</span></span>
-          </label>
-
-          <button onClick={startKnockout} disabled={busy || !curDone} style={{ ...btn('gold'), opacity: curDone ? 1 : 0.5, alignSelf: 'flex-start' }} title={curDone ? '' : 'Finish the current round first'}>▶ Start knockout — race to {koRaceTo}{thirdPlace ? ' · +3rd place' : ''}{finalBestOf3 ? ' · BO3 final' : ''}</button>
+          {/* RIGHT — live standings (reference column) */}
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
+                <thead>
+                  <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
+                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                    {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Frames won'], ['A', 'Frames lost'], ['+/−', 'Frame difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
+                  </tr>
+                </thead>
+                <tbody>
+                  {standings.map(s => (
+                    <tr key={s.id} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff' }}>
+                      <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 700, color: s.rank === 1 ? '#FCD34D' : 'rgba(255,255,255,0.5)' }}>{s.rank === 1 ? '🏆' : s.rank}</td>
+                      <td style={{ textAlign: 'left', padding: '7px 8px 7px 0', fontWeight: 600 }}>{s.name}{s.byes > 0 ? <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}> · bye</span> : null}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.7)' }}>{s.played}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', color: GREEN }}>{s.won}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.6)' }}>{s.lost}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.for}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', color: 'rgba(255,255,255,0.55)' }}>{s.against}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 700, color: s.diff > 0 ? GREEN : s.diff < 0 ? '#F87171' : 'rgba(255,255,255,0.6)' }}>{s.diff > 0 ? '+' : ''}{s.diff}</td>
+                      <td style={{ textAlign: 'right', padding: '7px 7px', fontWeight: 800, color: '#fff', fontSize: 14 }}>{s.pts}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.5 }}>P · W · L · F frames won · A frames lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>+/−</strong> frame difference · Pts</div>
+          </div>
         </div>
+        {/* Options for substitute-player / knockout / undo / refresh / restart
+            all live inside the ☰ drawer at the top of the page. */}
       </>}
 
       {/* ══ KNOCKOUT: single-elim bracket ══ */}
@@ -562,6 +542,34 @@ export default function Tournament() {
           </>
         )
       })()}
+
+      {/* Slide-out options drawer — every "action" (substitute, undo, restart,
+          start knockout, resend vouchers, refresh) lives here so the main view
+          stays focused on rounds + standings. */}
+      <MenuDrawer
+        open={menuOpen}
+        onClose={() => setMenuOpen(false)}
+        status={status}
+        curDone={curDone}
+        busy={busy}
+        participants={run.participants || []}
+        replacing={replacing}
+        setReplacing={setReplacing}
+        onSaveReplace={saveReplace}
+        onUndoRound={undoRound}
+        onRefresh={refresh}
+        onDeleteRun={() => { if (window.confirm('Restart tournament? Every round, score and match is deleted. The roster + paid entries stay.')) { guard(async () => { await tournDeleteRun(run.run.id); setView('list'); loadList() })() } }}
+        koRaceTo={koRaceTo}
+        setKoRaceTo={setKoRaceTo}
+        thirdPlace={thirdPlace}
+        setThirdPlace={setThirdPlace}
+        finalBestOf3={finalBestOf3}
+        setFinalBestOf3={setFinalBestOf3}
+        onStartKnockout={startKnockout}
+        onResendVouchers={resendVouchers}
+        onSeedGrandFinal={seedGrandFinal}
+        tournamentName={t.name || ''}
+      />
     </div>
   )
 }
@@ -670,6 +678,120 @@ function ReplacePanel({ participants, replacing, setReplacing, onSave, busy }) {
   )
 }
 const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.5, fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', border: `1px solid ${active ? PURPLE : 'rgba(255,255,255,0.2)'}`, background: active ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', color: '#fff' })
+
+// ── Slide-out options drawer ────────────────────────────────────────────────
+// Every tournament "action" (substitute a player, undo last round, restart the
+// whole run, launch the knockout with its options, resend vouchers, seed the
+// grand final) is grouped here. Founder rule 2026-07-30: keep the main view
+// focused on rounds + standings; every management action opens from the ☰.
+//
+// Renders as a right-side sheet ~360px wide with a click-to-close backdrop.
+// Sections show or hide based on `status` so only the relevant actions
+// surface at each stage.
+function MenuDrawer({
+  open, onClose, status, curDone, busy,
+  participants, replacing, setReplacing, onSaveReplace,
+  onUndoRound, onRefresh, onDeleteRun,
+  koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
+  onResendVouchers, onSeedGrandFinal, tournamentName,
+}) {
+  if (!open) return null
+  const isRounds = status === 'rounds'
+  const isKO = status === 'knockout' || status === 'done'
+  const isGrandFinal = /season final|grand final/i.test(tournamentName || '')
+  const closeAfter = (fn) => async (...a) => { onClose(); await fn?.(...a) }
+  return (
+    <>
+      <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.55)', zIndex: 100 }} />
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: 'min(360px, 92vw)',
+        background: '#0b0713', borderLeft: `1px solid ${LINE}`, zIndex: 101,
+        overflowY: 'auto', boxShadow: '-8px 0 30px rgba(0,0,0,0.5)',
+        display: 'flex', flexDirection: 'column', gap: 16, padding: 18,
+      }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
+          <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
+        </div>
+
+        {/* Substitute a player — the highest-touch mid-tournament action */}
+        {(isRounds || isKO) && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔁 Change team names / substitute</div>
+            <ReplacePanel
+              participants={participants}
+              replacing={replacing}
+              setReplacing={setReplacing}
+              onSave={onSaveReplace}
+              busy={busy}
+            />
+          </div>
+        )}
+
+        {/* Round management — only during Swiss rounds */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Rounds</div>
+            <button onClick={closeAfter(onUndoRound)} disabled={busy} style={{ ...btn('ghost'), textAlign: 'left' }}>↩ Undo the last round</button>
+            <button onClick={closeAfter(onRefresh)} disabled={busy} style={{ ...btn('ghost'), textAlign: 'left' }}>↻ Refresh</button>
+          </div>
+        )}
+
+        {/* Start knockout — options grouped together, ONE cutover button */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, background: 'rgba(168,85,247,0.06)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>🏆 Start the knockout</div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Cuts to a single-elimination bracket. Top players seed from the current standings.</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Match length — race to</span>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                {[5, 6, 7, 8, 9].map(n => {
+                  const on = koRaceTo === n
+                  return (
+                    <button key={n} onClick={() => setKoRaceTo(n)} style={{ padding: '7px 13px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: `1px solid ${on ? PURPLE : 'rgba(168,85,247,0.3)'}`, background: on ? PURPLE : 'rgba(168,85,247,0.10)', color: '#fff' }}>{n}</button>
+                  )
+                })}
+              </div>
+            </div>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={thirdPlace} onChange={e => setThirdPlace(e.target.checked)} style={{ marginTop: 2 }} />
+              <span>Play a <strong style={{ color: '#fff' }}>3rd-place match</strong></span>
+            </label>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 12.5, color: 'rgba(255,255,255,0.85)', cursor: 'pointer' }}>
+              <input type="checkbox" checked={finalBestOf3} onChange={e => setFinalBestOf3(e.target.checked)} style={{ marginTop: 2 }} />
+              <span><strong style={{ color: '#fff' }}>Best of 3</strong> for the final{thirdPlace ? ' & 3rd-place playoff' : ''}</span>
+            </label>
+            <button onClick={closeAfter(onStartKnockout)} disabled={busy} style={{ ...btn('gold'), padding: '12px', fontSize: 13, marginTop: 4 }}>▶ Start knockout</button>
+          </div>
+        )}
+
+        {/* Knockout stage — resend voucher emails / refresh */}
+        {isKO && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Knockout</div>
+            <button onClick={closeAfter(onResendVouchers)} disabled={busy} style={{ ...btn('ghost'), textAlign: 'left' }}>✉ Finalise / resend vouchers</button>
+            <button onClick={closeAfter(onRefresh)} disabled={busy} style={{ ...btn('ghost'), textAlign: 'left' }}>↻ Refresh</button>
+          </div>
+        )}
+
+        {/* Grand-final seeding — only makes sense on the season final's setup */}
+        {status === 'setup' && isGrandFinal && (
+          <button onClick={closeAfter(onSeedGrandFinal)} disabled={busy} style={{ ...pill(true), textAlign: 'left' }}>✦ Seed the top 8 from the league</button>
+        )}
+
+        {/* Danger zone at the bottom — destructive, wants distance */}
+        <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px dashed rgba(248,113,113,0.3)', paddingTop: 12 }}>
+          <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(248,113,113,0.7)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Danger zone</div>
+          <button onClick={closeAfter(onDeleteRun)} disabled={busy} style={{
+            padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+            background: 'transparent', border: '1px solid rgba(248,113,113,0.45)', color: '#F87171', textAlign: 'left',
+          }}>♻ Restart the tournament from scratch</button>
+          <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', lineHeight: 1.5 }}>Deletes every round, match and score. The roster and paid entries are kept.</div>
+        </div>
+      </div>
+    </>
+  )
+}
 const infoBox = { fontSize: 11.5, color: 'rgba(255,255,255,0.6)', background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.2)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.5 }
 const errBox = { fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }
 const sectLbl = { fontSize: 11, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }
