@@ -5,10 +5,39 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Working-style rules (founder-set, treat as load-bearing)
 
 - **Apps Script changes: always send the FULL file.** The founder is not a coder and will not hunt for line numbers, find-and-replace blocks, or count braces. Whenever an `infra/*.gs` file needs to change, deliver the complete new file as one paste-and-replace block ("select all → delete → paste → save → deploy new version"). Never ship diffs, snippets, or "find this block and change it" instructions for Apps Script.
-- **Commit + push to main after every change.** "Commit" on this project means commit + push direct to main; the founder is non-technical and wants shipping to be one step ([memory: feedback_commit_push.md]).
+- **"Commit" = ship in ONE step — via your section branch (see "## Parallel sessions" below).** The founder is non-technical and wants shipping to be one instruction. When they say "commit" / "ship it" / "go live", YOU do the whole git dance without making them think about branches: stage & commit to your section branch → `git fetch origin` → merge `origin/main` into your branch (resolve any conflict) → merge your branch into `main` → `git push origin main` → then deploy only the edge function(s) your lane owns. If the push is rejected (another session pushed first), re-fetch/merge and retry. Never leave finished work sitting only on a branch when they've said commit/ship. (Solo exception: if you are demonstrably the only session and already on `main`, a direct commit+push is fine.) ([memory: feedback_commit_push.md])
 - **The "No Dice" site is Hackney, not Borough.** Going forward, every new mention of "No Dice" as a site / venue / location / brand must reference **Hackney (London Fields, 407 Mentmore Terrace, E8 3PH)** — not Borough Market. This applies to: page titles, hero kickers, footer addresses, marketing copy, new public-facing pages, council / licensing references (Hackney Council, not Southwark), and any structured data. **Legal entity for the Hackney venue is `No Dice Hackney Ltd`** (the operating company, a wholly-owned subsidiary of No Dice Bars Ltd, trading from London Fields, E8) — use it for any new legal / financial / contract reference to the Hackney site. The legal entity "No Dice Borough Ltd" is unchanged where it already appears in legal / financial / Borough-investor-deck context (the gated `/borough` deck, the Borough 2025 till-sales tab, legal templates, i18n translations of that copy) — those surfaces specifically reflect the original Borough entity and should stay. Default ALL new copy to Hackney unless the founder says otherwise.
 - **Workbook links: always send a fresh URL** when mentioning a workbook (don't assume a previous link is still in context).
 - **Be specific in deploy steps.** "Save → Deploy → Manage deployments → ✏️ pencil → Version: New version → Deploy" — never assume the founder remembers the path.
+
+## Parallel sessions — stay in your lane (READ FIRST, every session)
+
+The founder runs **several Claude sessions at once**, one per area of the app. To stop sessions corrupting each other, each works in its **own git worktree + branch** and **only touches the files its lane owns**. Worktrees live in `../team-sessions/<section>` (siblings of this repo) on branch `section/<section>`. The plain-English "which folder is which" guide for the founder is [SESSIONS.md](SESSIONS.md).
+
+**On startup, know your lane.** Run `git branch --show-current`. If it's `section/<x>`, you are the **<x>** session — work only within that lane's files below. If you're on `main` (the integration checkout) treat yourself as the integration/solo session: fine for cross-cutting infra, but if the founder names a section ("work on the DJs"), move to that section's worktree/branch first rather than editing section files on `main`.
+
+**Ownership map** — each lane owns these; do **not** edit another lane's files without the founder explicitly reassigning you:
+
+| Lane (`section/…`) | Frontend it owns | Back-end (`supabase/functions/…`) it owns |
+|---|---|---|
+| `dj` | `src/dj/**`, `src/ops/sections/DJRoster.jsx`, `DJBookings.jsx`, `DJMedia.jsx`, `DJMessages.jsx` | `dj-portal`, `dj-admin`, `dj-caption`, `dj-holds-cron` |
+| `rota` | `src/rota/**`, `src/ops/sections/StaffRota.jsx`, `AiRota.jsx`, `AvailabilityOverview.jsx`, `DayRosterGrid.jsx`, `RotaCalendar.jsx`, `RotaRulesEditor.jsx`, `TrainingMatrix.jsx`, `VenueClockSettings.jsx` | `rota` ⚠️ **shared** (see below) |
+| `tournament` | `src/tournament/**`, `src/ops/sections/Tournament.jsx` | `tournament` |
+| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out` |
+| `marketing` | `src/marketing/**`, `src/slides/**`, `src/borough/**` | `send-campaign`, `send-newsletter`, `confirm-optin`, `unsubscribe`, `import-subscribers` |
+| `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | kitchen actions currently **inside `rota`** ⚠️ |
+| `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**` | *(none yet)* |
+
+**Shared files — no single lane owns these; coordinate before editing** (announce in [COORDINATION.md](COORDINATION.md) first, keep the edit minimal, and `git fetch && merge origin/main` right before): `src/App.jsx`, `src/main.jsx`, `src/ops/OpsApp.jsx` (the tab registry — adding a tab touches it), `src/index.css`, `src/data.js`, `src/marketing/data/backend.js` (API URL + secret — effectively frozen), `index.html`, `vite.config.js`, `tailwind.config.js`, `.github/workflows/**`, `package.json`, `CLAUDE.md`, `SESSIONS.md`, `COORDINATION.md`.
+
+**⚠️ The `rota` edge function is shared by `rota` + `kitchen` + key-dates (`ops`).** Until it's split, it is owned by the **rota** lane; `kitchen`/`ops` sessions must NOT edit `supabase/functions/rota/index.ts` — coordinate through COORDINATION.md. **Recommended first parallel task: split it into separate `rota`, `kitchen`, `keydates` functions** so those lanes stop sharing a file; re-point `src/kitchen/api.js` and `src/ops/keydates/events.js` accordingly.
+
+**Per-session protocol:**
+1. **Sync first:** `git fetch origin && git merge origin/main` into your branch before starting, so you build on everyone's latest.
+2. **Work only in your lane's files.** Need a shared file? Claim it in COORDINATION.md, sync, edit minimally, then clear the claim.
+3. **Ship in one step when the founder says commit/ship** (see the working-style rule above): commit to your branch → sync `origin/main` → merge to `main` → push → deploy only YOUR edge function(s).
+4. **Deploys & DB are global** (one Supabase project `rntcujcpsozvuxvmlejv`): only deploy the function(s) your lane owns, from the latest merged `main`; coordinate any schema DDL in COORDINATION.md; never run destructive/test writes on real data ([memory: feedback_no_live_data_test_writes.md]).
+5. **Build before you ship:** `npm run build` must pass.
 
 ## Project
 
