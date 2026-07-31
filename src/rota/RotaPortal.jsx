@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
@@ -83,6 +83,9 @@ export default function RotaPortal() {
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [kitchen, setKitchen] = useState(null)            // { isKitchen, shiftId, date } — food-safety gate
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
+  const availRef = useRef(availability)                   // freshest availability for debounced saves
+  const saveTimers = useRef({})                           // 'YYYY-MM' -> debounce timeout id
+  const saveChains = useRef({})                            // 'YYYY-MM' -> tail promise (serialises that month's saves)
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [err, setErr] = useState('')
@@ -120,6 +123,29 @@ export default function RotaPortal() {
     loadState(token)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // Keep the ref mirroring availability from ANY source (toggles, reloads), so a
+  // debounced flush always posts the freshest month map.
+  useEffect(() => { availRef.current = availability }, [availability])
+
+  // Never lose a pending availability save: flush it when the tab is hidden/closed
+  // or when this component unmounts (logout / navigation).
+  useEffect(() => {
+    const onHide = () => { if (document.visibilityState === 'hidden') flushAllSaves() }
+    const onPageHide = () => flushAllSaves()
+    document.addEventListener('visibilitychange', onHide)
+    window.addEventListener('pagehide', onPageHide)
+    return () => {
+      document.removeEventListener('visibilitychange', onHide)
+      window.removeEventListener('pagehide', onPageHide)
+      flushAllSaves()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
+
+  // Leaving the Availability tab persists any pending marks immediately.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { flushAllSaves() }, [view])
 
   const loadState = async (t) => {
     try {
@@ -178,32 +204,57 @@ export default function RotaPortal() {
   const dayOff = (ds) => !!((availability[ds.slice(0, 7)] || {})[ds] || {}).unavailable
   const availOn = (ds) => !dayOff(ds)   // available by default; only an explicit off-mark blocks
 
-  // ── Availability: mark a day OFF / clear it, persist the whole month map ─────
+  // ── Availability: mark a day OFF / clear it ─────────────────────────────────
   // Everyone's available by default — a day only counts as "off" when its entry is
   // { unavailable: true }. Marking off never touches a shift you're already on
   // (availability and bookings are separate); we just warn so you tell your manager.
-  const toggleAvail = async (ds) => {
+  //
+  // Saves are DEBOUNCED per month (~1.1s): ticking several days in one go coalesces
+  // into a SINGLE save, so the founder gets ONE summary email listing all the dates
+  // (not one per day). The optimistic UI updates instantly; pending saves are flushed
+  // on tab-hide, on leaving the tab, and before grabbing a shift, so nothing is lost.
+  // Enqueue a save of `map` for month mk, SERIALISED after any prior save for that
+  // month (a promise chain). This guarantees a slow older POST can never land after —
+  // and clobber — a newer one, on ANY path (timer, claim, tab-hide, logout). The map
+  // is captured at enqueue time, so a later reset of `availability` (logout / error-
+  // resync) can't turn a pending save into an empty one. keepalive (api.js) lets the
+  // request survive the tab closing.
+  const enqueueSave = (mk, map) => {
+    const prev = saveChains.current[mk] || Promise.resolve()
+    const p = prev.catch(() => {}).then(() => rotaSaveAvailability(token, mk, map))
+      // On failure resync to the server's truth — but only if no newer save is already
+      // queued for this month, so we don't blank the UI while a fresher save is pending.
+      .catch((e) => { handleErr(e); if (saveChains.current[mk] === p) loadState(token) })
+    saveChains.current[mk] = p
+    return p
+  }
+  const flushAllSaves = async () => {
+    const snap = availRef.current   // capture BEFORE awaiting so a later reset can't clobber pending months
+    const mks = Object.keys(saveTimers.current)
+    for (const mk of mks) { clearTimeout(saveTimers.current[mk]); delete saveTimers.current[mk] }
+    await Promise.all(mks.map((mk) => enqueueSave(mk, snap[mk] || {})))
+  }
+  const scheduleSave = (mk) => {
+    if (saveTimers.current[mk]) clearTimeout(saveTimers.current[mk])
+    saveTimers.current[mk] = setTimeout(() => { delete saveTimers.current[mk]; enqueueSave(mk, availRef.current[mk] || {}) }, 1100)
+  }
+
+  const toggleAvail = (ds) => {
     if (ds < todayStr) return
     const mk = ds.slice(0, 7)
-    const monthMap = availability[mk] || {}
-    const wasOff = !!(monthMap[ds] || {}).unavailable, prevEntry = monthMap[ds]
+    const wasOff = !!((availability[mk] || {})[ds] || {}).unavailable
     if (!wasOff) {
       const booked = (shiftsByDate[ds] || []).some(s => s.mine)
       if (booked && !window.confirm(`You're booked to work ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)}.\n\nMarking yourself off won't cancel that shift — it stays booked. Let your manager know if you need cover.\n\nMark the day off anyway?`)) return
     }
     const newEntry = wasOff ? undefined : { unavailable: true }
-    // Apply/revert only THIS day on the freshest state, so a fast toggle of
-    // another day isn't clobbered if one save fails. Revert restores the exact
-    // prior entry (never deletes anything the save didn't create).
-    const setDay = (a, entry) => { const cur = { ...(a[mk] || {}) }; if (entry === undefined) delete cur[ds]; else cur[ds] = entry; return { ...a, [mk]: cur } }
-    const posted = setDay(availability, newEntry)[mk]
-    setAvailability(a => setDay(a, newEntry))   // optimistic
-    try { await rotaSaveAvailability(token, mk, posted) }
-    catch (e) { setAvailability(a => setDay(a, prevEntry)); handleErr(e) }
+    const setDay = (a) => { const cur = { ...(a[mk] || {}) }; if (newEntry === undefined) delete cur[ds]; else cur[ds] = newEntry; return { ...a, [mk]: cur } }
+    setAvailability(a => { const next = setDay(a); availRef.current = next; return next })   // optimistic + keep the ref fresh
+    scheduleSave(mk)
   }
 
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
-  const claim = (id) => act(() => rotaClaimShift(token, id))
+  const claim = (id) => act(async () => { await flushAllSaves(); await rotaClaimShift(token, id) })
   const release = (id) => act(() => rotaReleaseShift(token, id))
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const doClockIn = async () => {

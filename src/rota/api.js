@@ -5,9 +5,13 @@ import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
 export const ROTA_FN_URL = `${SUPABASE_URL}/functions/v1/rota`
 
-async function call(payload) {
+async function call(payload, opts = {}) {
   const res = await fetch(ROTA_FN_URL, {
     method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+    // keepalive lets a small request survive the page being backgrounded/closed
+    // (used for availability saves so a mark isn't lost on unload). Only for tiny
+    // payloads — the browser caps total keepalive body size (~64 KB).
+    ...(opts.keepalive ? { keepalive: true } : {}),
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `Error ${res.status}`)
@@ -68,7 +72,7 @@ export const rotaSignup = (name, email, password, code) => call({ action: 'signu
 export const rotaMe = (token) => call({ action: 'me', token })
 export const rotaMyState = (token) => call({ action: 'myState', token })
 export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })
-export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data })
+export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data }, { keepalive: true })
 export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
 export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift', token, shiftId })
 export const rotaGetChecklist = (token, date, key) => call({ action: 'getChecklist', token, date, key })
