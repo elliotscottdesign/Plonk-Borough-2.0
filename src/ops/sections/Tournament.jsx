@@ -16,6 +16,19 @@ const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7',
 const CARD = '#160e24', LINE = 'rgba(168,85,247,0.25)'
 const fmtDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
 const typeBadge = (t) => t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
+// Calendar helpers (Mon-first, UK). monthMatrix → array of weeks, each 7 cells of { day, iso } | null.
+const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+const monthMatrix = (year, month0) => {
+  const startDow = (new Date(Date.UTC(year, month0, 1)).getUTCDay() + 6) % 7   // Mon = 0
+  const days = new Date(Date.UTC(year, month0 + 1, 0)).getUTCDate()
+  const cells = Array.from({ length: startDow }, () => null)
+  for (let d = 1; d <= days; d++) cells.push({ day: d, iso: `${year}-${String(month0 + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}` })
+  while (cells.length % 7) cells.push(null)
+  const weeks = []
+  for (let i = 0; i < cells.length; i += 7) weeks.push(cells.slice(i, i + 7))
+  return weeks
+}
 
 export default function Tournament() {
   const [view, setView] = useState('list')     // 'list' | 'run'
@@ -37,6 +50,7 @@ export default function Tournament() {
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
+  const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
 
   const loadList = async () => {
     setLoading(true)
@@ -160,49 +174,116 @@ export default function Tournament() {
     )
   }
 
-  // ── List of pool nights ─────────────────────────────────────────────────────
+  // ── Calendar of pool nights ─────────────────────────────────────────────────
   if (view === 'list') {
     const todayISO = new Date().toISOString().slice(0, 10)
-    const upcoming = tourns.filter(t => (t.event_date || '') >= todayISO)
-    const past = tourns.filter(t => (t.event_date || '') < todayISO).reverse()
-    const card = (t) => {
+    const thisMonthKey = todayISO.slice(0, 7)
+    const dated = tourns.filter(t => t.event_date)
+    // Next coming up = the soonest event today-or-later (gets the green highlight ring).
+    const nextT = dated.filter(t => t.event_date >= todayISO).sort((a, b) => a.event_date.localeCompare(b.event_date))[0]
+    const nextISO = nextT ? nextT.event_date : null
+    // Map each date → its event(s), and the months that actually contain events.
+    const byDate = {}
+    dated.forEach(t => { (byDate[t.event_date] = byDate[t.event_date] || []).push(t) })
+    const monthKeys = [...new Set(dated.map(t => t.event_date.slice(0, 7)))].sort()
+    const futureMonths = monthKeys.filter(mk => mk >= thisMonthKey)
+    const pastMonths = monthKeys.filter(mk => mk < thisMonthKey)
+
+    // One day cell in the month grid.
+    const dayCell = (cell, i) => {
+      if (!cell) return <div key={i} />
+      const evs = byDate[cell.iso] || []
+      const isToday = cell.iso === todayISO
+      const isPast = cell.iso < todayISO
+      if (evs.length === 0) {
+        return (
+          <div key={i} style={{ minHeight: 46, display: 'flex', alignItems: 'flex-start', justifyContent: 'flex-end', padding: '4px 6px', fontSize: 11, borderRadius: 8, color: isPast ? 'rgba(255,255,255,0.18)' : 'rgba(255,255,255,0.4)', background: isToday ? 'rgba(255,255,255,0.05)' : 'transparent', border: isToday ? '1px solid rgba(255,255,255,0.18)' : '1px solid transparent' }}>{cell.day}</div>
+        )
+      }
+      const t = evs[0]
       const tb = typeBadge(t.type)
       const full = t.paid >= t.cap
+      const isNext = cell.iso === nextISO
       return (
-        <button key={t.id} onClick={() => open(t.id)} disabled={busy} style={{ textAlign: 'left', background: CARD, border: `1px solid ${t.run ? 'rgba(52,211,153,0.4)' : LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{t.name}</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span>{fmtDate(t.event_date)}</span>
-              <span style={{ color: tb.c, fontWeight: 700 }}>{tb.txt}</span>
-              {t.run && <span style={{ color: GREEN, fontWeight: 700 }}>· {t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
-            </div>
-          </div>
-          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ fontSize: 16, fontWeight: 800, color: full ? RED : '#fff' }}>{t.paid}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
-            <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? 'Full' : 'booked'}</div>
-          </div>
+        <button key={i} onClick={() => open(t.id)} disabled={busy} title={`${t.name} · ${t.paid}/${t.cap} booked${t.run ? ` · ${t.run.status === 'setup' ? 'set up' : t.run.status}` : ''}`} style={{
+          minHeight: 46, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 1, cursor: 'pointer', position: 'relative',
+          borderRadius: 10, padding: '2px', color: '#fff', opacity: isPast ? 0.55 : 1,
+          background: isPast ? 'rgba(255,255,255,0.04)' : `${tb.c}22`,
+          border: isNext ? `2px solid ${GREEN}` : `1px solid ${tb.c}55`,
+          boxShadow: isNext ? `0 0 0 3px ${GREEN}26` : 'none',
+        }}>
+          <span style={{ position: 'absolute', top: 3, right: 5, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{cell.day}</span>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>{t.type === 'doubles' ? '👥' : t.type === 'singles' ? '👤' : '🎱'}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.paid}/{t.cap}</span>
+          {t.run && <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: GREEN, lineHeight: 1 }}>{t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
+          {evs.length > 1 && <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>+{evs.length - 1}</span>}
         </button>
       )
     }
+
+    const monthGrid = (mk) => {
+      const [y, m] = mk.split('-').map(Number)
+      const weeks = monthMatrix(y, m - 1)
+      return (
+        <div key={mk} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 12 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: '#fff', marginBottom: 8 }}>{MONTH_NAMES[m - 1]} {y}</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {WEEKDAYS.map((w, i) => <div key={`h${i}`} style={{ textAlign: 'center', fontSize: 9.5, fontWeight: 700, letterSpacing: '0.03em', color: 'rgba(255,255,255,0.35)', paddingBottom: 2 }}>{w[0]}</div>)}
+            {weeks.flat().map((cell, i) => dayCell(cell, i))}
+          </div>
+        </div>
+      )
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
             <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap one to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
           </div>
           <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
         </div>
         {err && <div style={errBox}>{err}</div>}
-        {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : (
+        {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No pool nights booked yet.</div> : (
           <>
-            <div style={sectLbl}>Upcoming</div>
-            {upcoming.length === 0 ? <div style={muted}>No upcoming pool nights.</div> : <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>{upcoming.map(card)}</div>}
-            {past.length > 0 && <>
-              <div style={{ ...sectLbl, marginTop: 6 }}>Past</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, opacity: 0.75 }}>{past.slice(0, 12).map(card)}</div>
-            </>}
+            {/* Next coming up — the highlighted date, pulled out so it's tap-first on phone. */}
+            {nextT && (() => {
+              const tb = typeBadge(nextT.type); const full = nextT.paid >= nextT.cap
+              return (
+                <button onClick={() => open(nextT.id)} disabled={busy} style={{ textAlign: 'left', width: '100%', cursor: 'pointer', background: CARD, border: `2px solid ${GREEN}`, boxShadow: `0 0 0 4px ${GREEN}1f`, borderRadius: 14, padding: '13px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase', color: GREEN }}>Next coming up</div>
+                    <div style={{ fontSize: 16, fontWeight: 800, color: '#fff', marginTop: 3 }}>{nextT.name}</div>
+                    <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 2, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span>{fmtDate(nextT.event_date)}</span>
+                      <span style={{ color: tb.c, fontWeight: 700 }}>{tb.txt}</span>
+                      {nextT.run && <span style={{ color: GREEN, fontWeight: 700 }}>· {nextT.run.status === 'setup' ? 'set up' : nextT.run.status}</span>}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: full ? RED : '#fff' }}>{nextT.paid}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {nextT.cap}</span></div>
+                    <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: full ? RED : 'rgba(255,255,255,0.4)' }}>{full ? 'Full' : 'booked'}</div>
+                  </div>
+                </button>
+              )
+            })()}
+
+            {/* Legend */}
+            <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${BLUE}22`, border: `1px solid ${BLUE}55` }} />👤 Singles</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${PURPLE}22`, border: `1px solid ${PURPLE}55` }} />👥 Doubles</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'transparent', border: `2px solid ${GREEN}` }} />Next up</span>
+            </div>
+
+            {futureMonths.map(monthGrid)}
+
+            {pastMonths.length > 0 && (
+              <>
+                <button onClick={() => setShowPast(v => !v)} style={{ ...pill(false), alignSelf: 'flex-start' }}>{showPast ? 'Hide past nights' : `Show past nights (${pastMonths.length} ${pastMonths.length === 1 ? 'month' : 'months'})`}</button>
+                {showPast && <div style={{ display: 'flex', flexDirection: 'column', gap: 12, opacity: 0.8 }}>{pastMonths.slice().reverse().map(monthGrid)}</div>}
+              </>
+            )}
           </>
         )}
       </div>
