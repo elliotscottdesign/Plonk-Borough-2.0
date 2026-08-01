@@ -21,16 +21,16 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 | Lane (`section/…`) | Frontend it owns | Back-end (`supabase/functions/…`) it owns |
 |---|---|---|
 | `dj` | `src/dj/**`, `src/ops/sections/DJRoster.jsx`, `DJBookings.jsx`, `DJMedia.jsx`, `DJMessages.jsx` | `dj-portal`, `dj-admin`, `dj-caption`, `dj-holds-cron` |
-| `rota` | `src/rota/**`, `src/ops/sections/StaffRota.jsx`, `AiRota.jsx`, `AvailabilityOverview.jsx`, `DayRosterGrid.jsx`, `RotaCalendar.jsx`, `RotaRulesEditor.jsx`, `TrainingMatrix.jsx`, `VenueClockSettings.jsx` | `rota` ⚠️ **shared** (see below) |
+| `rota` | `src/rota/**`, `src/ops/sections/StaffRota.jsx`, `AiRota.jsx`, `AvailabilityOverview.jsx`, `DayRosterGrid.jsx`, `RotaCalendar.jsx`, `RotaRulesEditor.jsx`, `TrainingMatrix.jsx`, `VenueClockSettings.jsx` | `rota` |
 | `tournament` | `src/tournament/**`, `src/ops/sections/Tournament.jsx` | `tournament` |
-| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out` |
+| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out`, `keydates` |
 | `marketing` | `src/marketing/**`, `src/slides/**`, `src/borough/**` | `send-campaign`, `send-newsletter`, `confirm-optin`, `unsubscribe`, `import-subscribers` |
-| `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | kitchen actions currently **inside `rota`** ⚠️ |
+| `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | `kitchen` |
 | `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**` | *(none yet)* |
 
 **Shared files — no single lane owns these; coordinate before editing** (announce in [COORDINATION.md](COORDINATION.md) first, keep the edit minimal, and `git fetch && merge origin/main` right before): `src/App.jsx`, `src/main.jsx`, `src/ops/OpsApp.jsx` (the tab registry — adding a tab touches it), `src/index.css`, `src/data.js`, `src/marketing/data/backend.js` (API URL + secret — effectively frozen), `index.html`, `vite.config.js`, `tailwind.config.js`, `.github/workflows/**`, `package.json`, `CLAUDE.md`, `SESSIONS.md`, `COORDINATION.md`.
 
-**⚠️ The `rota` edge function is shared by `rota` + `kitchen` + key-dates (`ops`).** Until it's split, it is owned by the **rota** lane; `kitchen`/`ops` sessions must NOT edit `supabase/functions/rota/index.ts` — coordinate through COORDINATION.md. **Recommended first parallel task: split it into separate `rota`, `kitchen`, `keydates` functions** so those lanes stop sharing a file; re-point `src/kitchen/api.js` and `src/ops/keydates/events.js` accordingly.
+**✅ The `rota` edge function was split (31 Jul 2026) into `rota` / `kitchen` / `keydates`** — each lane now owns its own back-end file (`supabase/functions/{rota,kitchen,keydates}/index.ts`) and they no longer share one. `src/kitchen/api.js` → `kitchen`; `src/ops/keydates/events.js` → `keydates`; the nightly missed-checklist cron → `kitchen`. All three read the same tables as before (no schema change). Deploy any edge function with `--no-verify-jwt` (the clients send no auth header) — see [[reference_supabase_deploy]].
 
 **Per-session protocol:**
 1. **Sync first:** `git fetch origin && git merge origin/main` into your branch before starting, so you build on everyone's latest.

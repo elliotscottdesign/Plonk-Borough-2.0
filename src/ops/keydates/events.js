@@ -1,9 +1,10 @@
 // Opportunities tracker ("Key Dates") — external moments that drive footfall/sales.
-// Founder-gated CRUD on the shared `rota` edge function. The same list feeds the
-// Key Dates page, the Staff Rota builder and the DJ calendar (alarm markers).
+// Founder-gated CRUD on the dedicated `keydates` edge function (split out of `rota`
+// on 2026-07-31; same `venue_events` table). The same list feeds the Key Dates page,
+// the Staff Rota builder and the DJ calendar (alarm markers).
 import { SUPABASE_URL, SEND_SECRET } from '../../marketing/data/backend.js'
 
-const FN_URL = `${SUPABASE_URL}/functions/v1/rota`
+const FN_URL = `${SUPABASE_URL}/functions/v1/keydates`
 async function call(payload) {
   const res = await fetch(FN_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...payload, secret: SEND_SECRET }) })
   const data = await res.json().catch(() => ({}))

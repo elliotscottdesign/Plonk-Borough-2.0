@@ -1,8 +1,10 @@
-// No Dice — Kitchen food-safety API. Rides the existing `rota` edge function
-// (reuses its staff-token auth + SEND_SECRET admin gate + Resend mailer).
+// No Dice — Kitchen food-safety API. Talks to the dedicated `kitchen` edge function
+// (split out of `rota` on 2026-07-31; same staff-token auth + SEND_SECRET admin gate
+// + Resend mailer, same tables — just its own deployable so the kitchen lane is
+// independent of rota).
 import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
-const FN_URL = `${SUPABASE_URL}/functions/v1/rota`
+const FN_URL = `${SUPABASE_URL}/functions/v1/kitchen`
 
 async function call(payload) {
   const res = await fetch(FN_URL, {

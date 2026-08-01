@@ -6,9 +6,11 @@
 -- The /ops "Check today" button calls the same action WITHOUT notify (read-only peek).
 --
 -- Replace <SEND_SECRET> with the value from src/marketing/data/backend.js before running.
+-- Points at the dedicated `kitchen` edge function (split out of `rota` on 2026-07-31).
+-- cron.schedule with the same job name REPLACES the existing job, so re-running is safe.
 select cron.schedule('kitchen-missed-check-daily', '0 4 * * *', $job$
   select net.http_post(
-    url:='https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/rota',
+    url:='https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/kitchen',
     headers:='{"Content-Type":"application/json"}'::jsonb,
     body:='{"action":"kitchenCheckMissed","notify":true,"secret":"<SEND_SECRET>"}',
     timeout_milliseconds:=5000

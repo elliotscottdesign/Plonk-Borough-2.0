@@ -17,8 +17,9 @@ enforced by anything — it works because every session reads it after
 `src/App.jsx` · `src/main.jsx` · `src/ops/OpsApp.jsx` (tab registry) · `src/index.css` ·
 `src/data.js` · `src/marketing/data/backend.js` (frozen — API URL + secret) · `index.html` ·
 `vite.config.js` · `tailwind.config.js` · `.github/workflows/**` · `package.json` ·
-`CLAUDE.md` · `SESSIONS.md` · this file ·
-`supabase/functions/rota/index.ts` (⚠️ shared by rota + kitchen + key-dates until it is split).
+`CLAUDE.md` · `SESSIONS.md` · this file.
+
+_(The `rota` edge function was split into `rota` / `kitchen` / `keydates` on 31 Jul 2026 — each lane owns its own back-end file now, so it's no longer a shared file.)_
 
 ## Active claims
 _(none — add a row when you start editing a shared file, remove it when you've shipped)_
