@@ -366,14 +366,19 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
           const done = complete(d)
           const ig = igHref(d.instagram)
           const isEdit = editing === d.id
+          // Self-signups from the public "Become a No Dice DJ" form land here as
+          // pending·website — flag them GREEN so the founder knows to review + approve.
+          const isNewReview = statusOf(d) === 'pending' && d.source === 'website'
           return (
-            <div key={d.id} ref={isEdit ? editRef : null} style={{ background: '#0A0A0A', border: `1px solid ${isEdit ? '#DA1B33' : done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 12, padding: 14 }}>
+            <div key={d.id} ref={isEdit ? editRef : null} style={{ background: '#0A0A0A', border: `${isNewReview && !isEdit ? '2px' : '1px'} solid ${isEdit ? '#DA1B33' : isNewReview ? '#34D399' : done ? 'rgba(52,211,153,0.3)' : 'rgba(255,255,255,0.10)'}`, boxShadow: isNewReview && !isEdit ? '0 0 0 3px rgba(52,211,153,0.15)' : 'none', borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
                 <Avatar d={d} />
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                     {d.dj_name || 'Unnamed'}
-                    {statusOf(d) === 'pending' && d.source && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.4)', borderRadius: 999, padding: '1px 7px' }}>{d.source}</span>}
+                    {isNewReview
+                      ? <span style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#04240f', background: '#34D399', borderRadius: 999, padding: '2px 9px' }}>New DJ in review</span>
+                      : statusOf(d) === 'pending' && d.source && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#FCD34D', border: '1px solid rgba(252,211,77,0.4)', borderRadius: 999, padding: '1px 7px' }}>{d.source}</span>}
                   </div>
                   {d.real_name && d.real_name !== d.dj_name && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)' }}>{d.real_name}</div>}
                   <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginTop: 6 }}>

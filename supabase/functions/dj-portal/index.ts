@@ -8,6 +8,11 @@
 // rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
+//   signup {profile,dataUrl?,joinCode}  PUBLIC self-signup ("Become a No Dice
+//          DJ") — NO token. Gated by joinCode (DJ_JOIN_CODE env, default 6699) to
+//          block bots. Creates a PENDING dj (source='website'), emails a thank-you
+//          (no booking link) + admin heads-up, returns { ok:true }. Booking opens
+//          only after the team approves them in the roster.
 //   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...], schedule:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
@@ -40,6 +45,8 @@ const arr = (x: any) => Array.isArray(x) ? x : [];
 // Promo fields are NAMES only — reject anything that looks like a URL/link.
 const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.[a-z]{2,}\/|\b(soundcloud|youtu|spoti|bit\.ly|linktr|hearthis|mixcloud|bandcamp|tidal|deezer|audiomack|hypeddit|fanlink|toneden)\b)/i.test(s || "");
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
+const validEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || "");
+const clip = (s: any, n: number) => String(s ?? "").trim().slice(0, n);
 
 // ── Email notifications (Resend) ──────────────────────────────────────────
 // Best-effort: emails never block or fail a booking action. Admin notices go to
@@ -97,6 +104,79 @@ async function maybeSignup(sb: any, before: any, merged: any) {
        </ul>`,
       { text: "Open DJ Admin", link: OPS })),
   ]);
+}
+
+// Public self-signup from the "Become a No Dice DJ" website form. No token —
+// this is how a brand-new DJ gets ON the roster without the founder adding them
+// by hand. Creates a PENDING dj (can't book until approved), optionally attaches
+// a photo, and emails a thank-you (no portal link → no calendar, "the booking
+// team will be in touch") plus an admin heads-up. Booking opens only on approval.
+async function signup(sb: any, profile: any, dataUrl: string | undefined, joinCode: string | undefined) {
+  // Shared access code — the anti-bot/spam gate. Set DJ_JOIN_CODE to rotate it
+  // without a redeploy; defaults to the code the founder hands out (6699).
+  const CODE = Deno.env.get("DJ_JOIN_CODE") || "6699";
+  if (clip(joinCode, 20) !== CODE) return json({ error: "Wrong access code — ask No Dice for the DJ sign-up code." }, 403);
+  const f = profile || {};
+  const dj_name = clip(f.dj_name, 120);
+  const email = clip(f.email, 200).toLowerCase();
+  const instagram = clip(f.instagram, 120);
+  // Minimum viable application: a name, a contactable email, an Instagram to hear.
+  if (!dj_name) return json({ error: "Please add your DJ name." }, 400);
+  if (!validEmail(email)) return json({ error: "Please add a valid email so we can reach you." }, 400);
+  if (!instagram) return json({ error: "Please add your Instagram so we can hear your sound." }, 400);
+
+  // De-dupe by email — never spawn a second row for someone already on the list.
+  // Same friendly thank-you either way (no account enumeration); admin still hears.
+  const { data: dupes } = await sb.from("djs").select("id,status").ilike("email", email).limit(1);
+  const existing = (dupes || [])[0];
+  if (existing) {
+    await sendMail(ADMIN_EMAIL, `DJ re-applied via website: ${dj_name}`, emailShell(
+      "No Dice · DJ Admin", `${esc(dj_name)} applied again`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(dj_name)} (${esc(instagram)} · ${esc(email)}) submitted the “Become a No Dice DJ” form, but that email is already on the roster${existing.status === "pending" ? " (still pending approval)" : ""}.</p>`,
+      { text: "Open DJ Roster", link: OPS }));
+    return json({ ok: true });
+  }
+
+  const src = (typeof f.source === "string" && f.source.trim() && f.source.length < 40) ? f.source.trim() : "website";
+  const { data: created, error } = await sb.from("djs").insert({
+    dj_name, real_name: clip(f.real_name, 120) || null, genres: clip(f.genres, 300) || null,
+    instagram, format: clip(f.format, 200) || null, phone: clip(f.phone, 60) || null, email,
+    soundcloud: clip(f.soundcloud, 300) || null, spotify: clip(f.spotify, 300) || null, youtube: clip(f.youtube, 300) || null,
+    status: "pending", source: src, signed_up_at: new Date().toISOString(),
+  }).select("id").maybeSingle();
+  if (error) return json({ error: error.message }, 500);
+
+  // Optional profile photo sent with the application (a bad image never fails it).
+  if (created?.id && dataUrl) {
+    const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl);
+    if (m) try {
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      const ext = m[1].includes("png") ? "png" : "jpg";
+      const up = await sb.storage.from("dj-photos").upload(`${created.id}.${ext}`, bytes, { contentType: m[1], upsert: true });
+      if (!up.error) {
+        const { data: p } = sb.storage.from("dj-photos").getPublicUrl(`${created.id}.${ext}`);
+        await sb.from("djs").update({ image_url: `${p.publicUrl}?v=${Date.now()}` }).eq("id", created.id);
+      }
+    } catch (_) { /* ignore a broken photo — the application still stands */ }
+  }
+
+  await Promise.allSettled([
+    sendMail(email, "Thanks for applying to the No Dice DJ roster 🎧", emailShell(
+      "No Dice · DJs", `Thanks, ${esc(dj_name)}`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">Thanks for putting yourself forward to play at No Dice, London Fields — we've got your details.</p>
+       <p style="font-size:14px;line-height:1.6;color:#bbb">Our booking team will have a listen and be in touch. Nothing else to do for now.</p>`)),
+    sendMail(ADMIN_EMAIL, `New DJ application: ${dj_name}`, emailShell(
+      "No Dice · DJ Admin", `${esc(dj_name)} applied via the website`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(dj_name)} signed up through “Become a No Dice DJ”. They're on the roster as <strong style="color:#fff">pending</strong> — approve them to open booking.</p>
+       <ul style="font-size:14px;color:#bbb;line-height:1.7">
+         <li>Instagram: ${esc(instagram)}</li>
+         <li>Genres: ${esc(clip(f.genres, 300) || "—")}</li>
+         <li>Format: ${esc(clip(f.format, 200) || "—")}</li>
+         <li>Email: ${esc(email)} · Phone: ${esc(clip(f.phone, 60) || "—")}</li>
+       </ul>`,
+      { text: "Review in DJ Roster", link: OPS })),
+  ]);
+  return json({ ok: true });
 }
 
 // Fire the "date requested" emails when a DJ submits a booking for sign-off.
@@ -192,11 +272,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
-  if (!token) return json({ error: "missing token" }, 400);
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Public "Become a No Dice DJ" self-signup — NO token (they don't have one yet).
+  // Handled before the token gate; creates a pending DJ and returns { ok: true }.
+  if (action === "signup") return signup(sb, profile, dataUrl, joinCode);
+
+  if (!token) return json({ error: "missing token" }, 400);
   const { data: dj } = await sb.from("djs").select("*").eq("token", token).maybeSingle();
   if (!dj) return json({ error: "invalid link" }, 401);
   // Un-vetted (pending) DJs may load/set up their profile, but can't book until approved.

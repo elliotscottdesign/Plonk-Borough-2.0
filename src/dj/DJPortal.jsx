@@ -6,6 +6,7 @@ import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
 import MonthCalendar from './MonthCalendar.jsx'
 import DJRules from './DJRules.jsx'
 import DJAddToHome from './DJAddToHome.jsx'
+import DJJoin from './DJJoin.jsx'
 
 // DJ portal — the DJ-facing page at /dj?t=<token>. DJ-only: no team/investor access.
 // Step 1: fill profile + upload a photo.  Step 2: profile complete unlocks open dates.
@@ -56,7 +57,7 @@ export default function DJPortal() {
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
     document.title = 'No Dice — DJ Portal'
-    if (!token) { setErr('This link is missing its code — ask No Dice for your personal link.'); setLoading(false); return }
+    if (!token) { setLoading(false); return }   // no token → public "Become a DJ" signup (rendered below)
     djPortal(token, 'load').then(d => { setSt(d); setForm(d.dj) }).catch(e => setErr(e.message)).finally(() => setLoading(false))
   }, [])
 
@@ -171,6 +172,9 @@ export default function DJPortal() {
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
 
+  // No personal token → a brand-new DJ landed on /dj (or /dj/join): show the
+  // public "Become a No Dice DJ" application instead of the token-gated portal.
+  if (!token) return <DJJoin />
   if (loading) return <Center>Loading…</Center>
   if (err) return <Center><div><img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 200, marginBottom: 24 }} /><div style={{ color: 'rgba(255,255,255,0.8)' }}>{err}</div></div></Center>
 
