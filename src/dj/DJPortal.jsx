@@ -361,7 +361,7 @@ export default function DJPortal() {
           </>
         )}
         {editing && mine?.status === 'confirmed' && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>This night is already confirmed — your changes go live straight away.</div>}
-        {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>🔒 already booked the night before/after — same genre is fine, just not the same sub-genre. One paid session per month.</div>}
+        {session && <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>Play whatever suits your set — no genre restrictions right now. One paid session per month.</div>}
       </div>
     )
   }

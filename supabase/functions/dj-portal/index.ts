@@ -37,6 +37,11 @@ const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 // One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
 const SPECIAL_SESSION_DATES = new Set(["2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"]);
 const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
+// Genre adjacency rule — a sub-genre booked the night before/after can't be
+// played again. PAUSED 2026-08-01 so DJs can play what they want; the rule's
+// logic below is kept intact, just gated on this flag. Set DJ_ADJACENCY_RULE=on
+// (or flip the default to true) and redeploy to reinstate it.
+const ADJACENCY_RULE = (Deno.env.get("DJ_ADJACENCY_RULE") || "off").toLowerCase() === "on";
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
 // All fields required except SoundCloud/Spotify/YouTube. Genres are optional.
@@ -227,7 +232,7 @@ async function state(sb: any, id: string) {
   const map: Record<string, string[]> = {};
   for (const s of booked || []) map[s.date] = [...(map[s.date] || []), ...arr(s.subgenres)];
   // Sub-genres locked for a session date because they're booked the night before/after.
-  const neighBlocked = (d: string) => isSession(d) ? [...new Set([...(map[shift(d, -1)] || []), ...(map[shift(d, 1)] || [])])] : [];
+  const neighBlocked = (d: string) => (ADJACENCY_RULE && isSession(d)) ? [...new Set([...(map[shift(d, -1)] || []), ...(map[shift(d, 1)] || [])])] : [];
   const { data: openRows } = await sb.from("dj_slots").select("date, slot, kind").eq("status", "open").gte("date", today).order("date");
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, slot: s.slot || "main", kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
@@ -413,12 +418,14 @@ Deno.serve(async (req) => {
       const { start, next } = monthRange(date);
       const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Sun–Wed) are unlimited." }, 409);
-      // adjacency: sub-genre booked the day before/after
-      const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
-      const blocked = new Set<string>();
-      for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
-      const clash = subs.filter((s: string) => blocked.has(s));
-      if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres or another date.`, conflicts: clash }, 409);
+      // adjacency: sub-genre booked the day before/after (paused unless the rule is on)
+      if (ADJACENCY_RULE) {
+        const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
+        const blocked = new Set<string>();
+        for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
+        const clash = subs.filter((s: string) => blocked.has(s));
+        if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres or another date.`, conflicts: clash }, 409);
+      }
       upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / "); upd.set_type = null;
     } else {
       // Open Decks — no genre rules, no limit
@@ -458,12 +465,14 @@ Deno.serve(async (req) => {
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
       if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
-      // adjacency: a sub-genre booked the day before/after (excludes this date)
-      const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
-      const blocked = new Set<string>();
-      for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
-      const clash = subs.filter((s: string) => blocked.has(s));
-      if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres.`, conflicts: clash }, 409);
+      // adjacency: a sub-genre booked the day before/after (paused unless the rule is on)
+      if (ADJACENCY_RULE) {
+        const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
+        const blocked = new Set<string>();
+        for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
+        const clash = subs.filter((s: string) => blocked.has(s));
+        if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres.`, conflicts: clash }, 409);
+      }
       upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / "); upd.set_type = null;
     } else {
       upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
