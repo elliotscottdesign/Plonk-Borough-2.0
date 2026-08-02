@@ -3,7 +3,8 @@
 // Deploy --no-verify-jwt. Called from the gated /ops DJ Bookings admin.
 //
 // POST { secret, action, ...payload }
-//   load                 → { djs:[...], slots:[...] }   (slots include the joined DJ)
+//   load                 → { djs:[...], slots:[...], receipts:[...] }  (slots include the joined DJ)
+//   deleteReceipt {id}   → remove a DJ's logged expense receipt (Payments view)
 //   open    {date}       → open a date for booking
 //   close   {date}       → close an empty (unbooked) open date
 //   signoff {date}       → confirm a pending booking (→ main events calendar)
@@ -58,7 +59,10 @@ async function snapshot(sb: any) {
   // the tables haven't been created yet (frontend falls back to default copy).
   const { data: templates } = await sb.from("dj_templates").select("*");
   const { data: notes } = await sb.from("dj_notes").select("*, dj:djs(id,dj_name,image_url,instagram,phone)").order("created_at", { ascending: false }).limit(300);
-  return json({ djs: djs || [], slots: slots || [], release: release || null, templates: templates || [], notes: notes || [] });
+  // Expense receipts DJs have logged (for the admin Payments view). Degrades to
+  // [] if the dj_receipts table isn't created yet.
+  const { data: receipts } = await sb.from("dj_receipts").select("id,dj_id,receipt_date,category,amount,note,image_url,created_at").order("receipt_date", { ascending: false }).limit(1000);
+  return json({ djs: djs || [], slots: slots || [], release: release || null, templates: templates || [], notes: notes || [], receipts: receipts || [] });
 }
 
 Deno.serve(async (req) => {
@@ -309,6 +313,10 @@ Deno.serve(async (req) => {
       break;
     case "deleteNote":
       await sb.from("dj_notes").delete().eq("id", id);
+      break;
+    case "deleteReceipt":
+      // Remove a DJ's logged expense receipt (e.g. a mistaken/duplicate one).
+      await sb.from("dj_receipts").delete().eq("id", id);
       break;
     case "bulkAdd": {
       // Drop a list of contacts in as PENDING (e.g. Instagram handles, a new sheet).
