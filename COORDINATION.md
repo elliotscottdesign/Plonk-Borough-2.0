@@ -34,6 +34,7 @@ never run destructive or "today"-dated test writes on real data.
 
 | Lane | Table / change | Status | Date |
 |------|----------------|--------|------|
+| dj | `dj_receipts` (NEW table) — DJ expense receipts (taxi/drinks/other) for the portal Payments section. Additive only, no impact to other lanes. SQL in `supabase/dj_receipts.sql`. | applied 2026-08-02 | 2026-08-02 |
 
 ## Global deploy notes
 Edge-function deploys are global (last deploy wins). Only deploy the function(s)

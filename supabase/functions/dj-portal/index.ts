@@ -23,6 +23,11 @@
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (held → pending)
 //   edit   {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (existing booking)
 //   cancel {date}            release a held draft or pending request
+//   addReceipt {receiptDate,category,amount,note,dataUrl}  log an expense receipt
+//            (image required; category taxi|drinks|other — taxi = vinyl DJs only)
+//   removeReceipt {id}       delete one of the DJ's own receipts
+//   load also returns `payments` → { rate, vinyl, drinksMax, jobsPast[], jobsUpcoming[],
+//            earnedTotal, upcomingTotal, receipts[], receiptsTotal }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -42,6 +47,11 @@ const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].inclu
 // logic below is kept intact, just gated on this flag. Set DJ_ADJACENCY_RULE=on
 // (or flip the default to true) and redeploy to reinstate it.
 const ADJACENCY_RULE = (Deno.env.get("DJ_ADJACENCY_RULE") || "off").toLowerCase() === "on";
+// ── Payments & expenses (DJ-facing "Payments" section) ──────────────────────
+const SESSION_FEE = 100;                       // £ per CONFIRMED paid session (Thu/Fri/Sat + specials); Open Decks are unpaid
+const DRINKS_MAX = 6;                          // drinks covered per night (policy shown to DJs)
+const RECEIPT_CATS = ["taxi", "drinks", "other"];
+const playsVinyl = (d: any) => /vinyl/i.test(String(d?.format || ""));   // taxis are covered for vinyl DJs only (they're hauling records)
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
 // All fields required except SoundCloud/Spotify/YouTube. Genres are optional.
@@ -270,14 +280,32 @@ async function state(sb: any, id: string) {
   const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
   // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map(withPartner), schedule, notes: myNotes || [], roster: roster || [] });
+  const pastBookings = (past || []).map(withPartner);
+
+  // ── Payments: fees from CONFIRMED paid sessions (£SESSION_FEE each) + expense
+  // receipts the DJ has logged. Open Decks are unpaid so never counted. Degrades
+  // to empty receipts if the dj_receipts table isn't created yet.
+  const isPaidSession = (b: any) => (b.kind || (isSession(b.date) ? "session" : "opendecks")) === "session";
+  const jobRow = (b: any) => ({ date: b.date, slot: b.slot || "main", night_name: b.night_name || null, b2b: !!b.b2b, partner: b.partner || null, fee: SESSION_FEE });
+  const jobsPast = pastBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);           // done → earned
+  const jobsUpcoming = myBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);        // booked ahead
+  const { data: rcpts } = await sb.from("dj_receipts").select("id,receipt_date,category,amount,note,image_url,created_at").eq("dj_id", id).order("receipt_date", { ascending: false }).limit(100);
+  const receipts = (rcpts || []).map((r: any) => ({ id: r.id, receipt_date: r.receipt_date, category: r.category || "other", amount: Number(r.amount) || 0, note: r.note || null, image_url: r.image_url, created_at: r.created_at }));
+  const receiptsTotal = receipts.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+  const payments = {
+    rate: SESSION_FEE, vinyl: playsVinyl(me), drinksMax: DRINKS_MAX,
+    jobsPast, jobsUpcoming,
+    earnedTotal: jobsPast.length * SESSION_FEE, upcomingTotal: jobsUpcoming.length * SESSION_FEE,
+    receipts, receiptsTotal,
+  };
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2, id, receiptDate, category, amount, note } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -488,6 +516,39 @@ Deno.serve(async (req) => {
     // Release a held draft OR a pending request back to the open marketplace.
     await sb.from("dj_slots").update({ dj_id: null, dj_id2: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_artist: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["held", "pending"]);
+    return state(sb, dj.id);
+  }
+
+  if (action === "addReceipt") {
+    // Log an expense receipt (image + date + category + £amount). Covered
+    // categories: taxi (VINYL DJs only — they haul records) + drinks (up to
+    // DRINKS_MAX a night) + other. Allowed for any DJ (not a booking action).
+    const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl || "");
+    if (!m) return json({ error: "Attach a photo of the receipt." }, 400);
+    const cat = RECEIPT_CATS.includes(category) ? category : "other";
+    if (cat === "taxi" && !playsVinyl(dj)) return json({ error: "Taxis are only covered for vinyl DJs (you're carrying records). Pick another category." }, 400);
+    const amt = Math.max(0, Math.min(100000, Math.round((Number(amount) || 0) * 100) / 100));
+    const rid = crypto.randomUUID();
+    const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+    const ext = m[1].includes("png") ? "png" : "jpg";
+    const key = `receipts/${dj.id}/${rid}.${ext}`;
+    const up = await sb.storage.from("dj-photos").upload(key, bytes, { contentType: m[1], upsert: true });
+    if (up.error) return json({ error: up.error.message }, 500);
+    const { data: p } = sb.storage.from("dj-photos").getPublicUrl(key);
+    const { error } = await sb.from("dj_receipts").insert({
+      id: rid, dj_id: dj.id,
+      receipt_date: (typeof receiptDate === "string" && receiptDate) ? receiptDate : todayISO(),
+      category: cat, amount: amt, note: note ? String(note).slice(0, 300) : null,
+      image_url: `${p.publicUrl}?v=${Date.now()}`,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return state(sb, dj.id);
+  }
+
+  if (action === "removeReceipt") {
+    // Delete one of the DJ's own receipts (scoped to dj_id so they can't touch others').
+    if (!id) return json({ error: "missing id" }, 400);
+    await sb.from("dj_receipts").delete().eq("id", id).eq("dj_id", dj.id);
     return state(sb, dj.id);
   }
 

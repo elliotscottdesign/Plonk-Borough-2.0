@@ -53,6 +53,11 @@ export default function DJPortal() {
   const [chooser, setChooser] = useState(null)       // { date, slots } when a day has >1 open session
   const [note, setNote] = useState('')               // "Message No Dice" compose box
   const [b2bId, setB2bId] = useState('')             // optional back-to-back partner for the night being booked
+  const [rcCat, setRcCat] = useState('drinks')       // receipt category being added (taxi | drinks | other)
+  const [rcDate, setRcDate] = useState(() => new Date().toISOString().slice(0, 10))
+  const [rcAmount, setRcAmount] = useState('')       // £ amount on the receipt
+  const [rcNote, setRcNote] = useState('')
+  const [rcErr, setRcErr] = useState('')
 
   useEffect(() => {
     document.body.style.background = INK; document.body.style.color = '#fff'
@@ -107,6 +112,26 @@ export default function DJPortal() {
     setBusy(true); setEventPhotoErr('')
     try { refresh(await djPortal(token, 'removeEventPhoto', { date, slot: claimSlot })); setEventImg(''); flash('Event image removed.') }
     catch (e) { setEventPhotoErr(e.message) } finally { setBusy(false) }
+  }
+  // Attach an expense receipt: the photo IS the trigger — the DJ fills in
+  // category/date/amount first, then picks a photo, and it uploads with those.
+  const addReceipt = async (e) => {
+    const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
+    setRcErr('')
+    const amt = Number(rcAmount)
+    if (!(amt > 0)) { setRcErr('Enter the amount on the receipt first (£).'); return }
+    setBusy(true); setMsg('Saving receipt…')
+    try {
+      const dataUrl = await resizeImage(file, PHOTO_MAX_PX, PHOTO_QUALITY)
+      refresh(await djPortal(token, 'addReceipt', { receiptDate: rcDate, category: rcCat, amount: amt, note: rcNote.trim(), dataUrl }))
+      setRcAmount(''); setRcNote(''); flash('Receipt added ✓')
+    } catch (er) { setRcErr(er.message || 'Upload failed — try a JPG or PNG.') } finally { setBusy(false) }
+  }
+  const removeReceipt = async (id) => {
+    if (!window.confirm('Remove this receipt?')) return
+    setBusy(true)
+    try { refresh(await djPortal(token, 'removeReceipt', { id })); flash('Receipt removed.') }
+    catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
   const resetPanel = () => { setNight(''); setSubs([]); setPromoTrack(''); setPromoArtist(''); setPromoOk(false); setSetType('dj_set'); setEventImg(''); setEventPhotoErr(''); setB2bId('') }
@@ -374,7 +399,7 @@ export default function DJPortal() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-          {[['portal', 'My nights'], ['rules', 'How it works']].map(([k, lbl]) => (
+          {[['portal', 'My nights'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
             <button key={k} onClick={() => setTab(k)} style={{
               flex: 1, padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
               background: tab === k ? RED : 'transparent', color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)',
@@ -386,6 +411,119 @@ export default function DJPortal() {
         {msg && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{msg}</div>}
 
         {tab === 'rules' && <DJRules />}
+
+        {tab === 'payments' && (() => {
+          const pay = st.payments || { rate: 100, vinyl: false, drinksMax: 6, jobsPast: [], jobsUpcoming: [], receipts: [], earnedTotal: 0, upcomingTotal: 0, receiptsTotal: 0 }
+          const catLabel = { taxi: '🚕 Taxi', drinks: '🍺 Drinks', other: '🧾 Other' }
+          const cats = [['drinks', catLabel.drinks], ...(pay.vinyl ? [['taxi', catLabel.taxi]] : []), ['other', catLabel.other]]
+          const money = (n) => '£' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-GB', { maximumFractionDigits: 2 })
+          const invoiceTotal = (pay.earnedTotal || 0) + (pay.receiptsTotal || 0)
+          const liDot = { display: 'flex', gap: 8, fontSize: 13.5, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, marginBottom: 8 }
+          const bullet = <span style={{ color: RED, fontWeight: 700, flexShrink: 0 }}>·</span>
+          return (<>
+            {/* How to get paid */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 12 }}>Getting paid</div>
+              <div style={liDot}>{bullet}<span>You're paid <strong style={{ color: '#fff' }}>{money(pay.rate)} per session</strong> (Thu/Fri/Sat &amp; special paid nights). Open Decks are unpaid.</span></div>
+              <div style={liDot}>{bullet}<span>We also cover {pay.vinyl ? <><strong style={{ color: '#fff' }}>a taxi home</strong> (you play vinyl) and </> : ''}<strong style={{ color: '#fff' }}>up to {pay.drinksMax} drinks</strong> on the night — log the receipts below.{!pay.vinyl && <span style={{ color: 'rgba(255,255,255,0.5)' }}> Taxis are covered for vinyl DJs only.</span>}</span></div>
+              <div style={liDot}>{bullet}<span>Send us an invoice for your fees + logged expenses, with your name, the dates you played, and <strong style={{ color: '#fff' }}>your bank details</strong>.</span></div>
+              <div style={{ background: 'rgba(218,27,51,0.07)', border: '1px solid rgba(218,27,51,0.25)', borderRadius: 10, padding: '12px 14px', margin: '10px 0 12px' }}>
+                <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 6 }}>Send invoices to</div>
+                <div style={{ fontSize: 14, color: '#fff', lineHeight: 1.6 }}>No Dice Hackney Ltd<br />15 Mentmore Terrace, Hackney, E8 3PN</div>
+                <a href="mailto:elliot@nodice.bar?subject=DJ%20invoice" style={{ display: 'inline-block', marginTop: 8, fontSize: 14, color: RED, textDecoration: 'none', borderBottom: `1px solid ${RED}` }}>elliot@nodice.bar</a>
+              </div>
+              <div style={liDot}>{bullet}<span>We pay invoices on <strong style={{ color: '#fff' }}>the Friday of the following week</strong>.</span></div>
+            </div>
+
+            {/* Earnings — past confirmed paid sessions */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div className="serif" style={{ fontSize: 20, color: '#fff' }}>Your earnings</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#34D399' }}>{money(pay.earnedTotal)}</div>
+              </div>
+              {(pay.jobsPast || []).length === 0 ? (
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>No paid sessions played yet — your fees will show here after each confirmed Thu/Fri/Sat night.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {pay.jobsPast.map((j, i) => {
+                    const s = sessionForSlot(j.date, j.slot); const sLab = slotLabel(j.date, j.slot)
+                    return (
+                      <div key={j.date + '-' + (j.slot || 'main') + i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(j.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day}{sLab ? ` · ${sLab}` : ''}</span></div>
+                          {j.night_name && <div style={{ fontSize: 11, color: RED }}>"{j.night_name}"</div>}
+                          {j.b2b && j.partner && <div style={{ fontSize: 11, color: RED }}>🔁 b2b {j.partner}</div>}
+                        </div>
+                        <div style={{ fontWeight: 700, color: '#34D399' }}>{money(j.fee)}</div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+              {(pay.jobsUpcoming || []).length > 0 && (
+                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 1.5 }}>📅 Booked ahead: <strong style={{ color: '#fff' }}>{pay.jobsUpcoming.length}</strong> confirmed session{pay.jobsUpcoming.length === 1 ? '' : 's'} · {money(pay.upcomingTotal)} — paid after you play.</div>
+              )}
+            </div>
+
+            {/* Receipts & expenses */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 4 }}>
+                <div className="serif" style={{ fontSize: 20, color: '#fff' }}>Receipts &amp; expenses</div>
+                <div style={{ fontSize: 20, fontWeight: 700, color: '#FCD34D' }}>{money(pay.receiptsTotal)}</div>
+              </div>
+              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 14 }}>Snap a photo of covered expenses — {pay.vinyl ? 'taxi home + ' : ''}up to {pay.drinksMax} drinks. We reimburse these on top of your fee.</div>
+
+              {/* Add a receipt */}
+              <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: 14, marginBottom: 14 }}>
+                <div style={{ ...label, marginBottom: 6 }}>Add a receipt</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 10 }}>
+                  {cats.map(([k, lbl]) => (
+                    <button key={k} type="button" onClick={() => setRcCat(k)} style={{ padding: '7px 12px', borderRadius: 999, fontSize: 12, cursor: 'pointer', background: rcCat === k ? RED : 'transparent', color: rcCat === k ? '#fff' : 'rgba(255,255,255,0.82)', border: `1px solid ${rcCat === k ? RED : LINE}`, fontWeight: rcCat === k ? 700 : 400 }}>{lbl}</button>
+                  ))}
+                </div>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <div style={{ flex: 1 }}><div style={label}>Date</div><input type="date" value={rcDate} onChange={e => setRcDate(e.target.value)} style={inp} /></div>
+                  <div style={{ flex: 1 }}><div style={label}>Amount (£)</div><input inputMode="decimal" value={rcAmount} onChange={e => setRcAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" style={inp} /></div>
+                </div>
+                <input value={rcNote} onChange={e => setRcNote(e.target.value)} placeholder="Note (optional) — e.g. taxi from Dalston" style={{ ...inp, marginTop: 10 }} />
+                {rcErr && <div style={{ fontSize: 12, color: '#F87171', marginTop: 8, lineHeight: 1.4 }}>{rcErr}</div>}
+                <label style={{ display: 'block', marginTop: 12, textAlign: 'center', padding: '12px', fontSize: 13, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', background: RED, color: '#fff', borderRadius: 8, cursor: busy ? 'default' : 'pointer', opacity: busy ? 0.6 : 1 }}>
+                  {busy ? 'Saving…' : '📷 Attach receipt photo'}
+                  <input type="file" accept="image/*" onChange={addReceipt} disabled={busy} style={{ display: 'none' }} />
+                </label>
+                <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 6, textAlign: 'center' }}>Set the amount first, then pick the photo — it saves automatically.</div>
+              </div>
+
+              {/* List of receipts */}
+              {(pay.receipts || []).length === 0 ? (
+                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>No receipts yet.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {pay.receipts.map(r => (
+                    <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '8px 10px' }}>
+                      {r.image_url && <a href={r.image_url} target="_blank" rel="noreferrer" style={{ flexShrink: 0 }}><img src={r.image_url} alt="" style={{ width: 42, height: 42, borderRadius: 7, objectFit: 'cover', background: '#1a1a1a', border: `1px solid ${LINE}` }} /></a>}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600 }}>{catLabel[r.category] || r.category} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {fmtDate((r.receipt_date || '').slice(0, 10))}</span></div>
+                        {r.note && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.note}</div>}
+                      </div>
+                      <div style={{ fontWeight: 700, color: '#FCD34D' }}>{money(r.amount)}</div>
+                      <button onClick={() => removeReceipt(r.id)} disabled={busy} aria-label="Remove receipt" style={{ width: 32, height: 32, flexShrink: 0, background: 'transparent', border: '1px solid rgba(248,113,113,0.5)', color: '#F87171', borderRadius: 8, cursor: 'pointer', fontSize: 14 }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Total to invoice */}
+            <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 14, padding: '16px 20px', marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+              <div>
+                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Total to invoice now</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Fees {money(pay.earnedTotal)} + expenses {money(pay.receiptsTotal)}</div>
+              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: '#34D399' }}>{money(invoiceTotal)}</div>
+            </div>
+          </>)
+        })()}
 
         {tab === 'portal' && (<>
         <div style={{ marginBottom: 14 }}><DJAddToHome /></div>
