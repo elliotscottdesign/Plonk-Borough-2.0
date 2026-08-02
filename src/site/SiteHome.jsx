@@ -271,6 +271,17 @@ function Events() {
   return (
     <section id="events" style={sectionWrap()}>
       <SectionHeading kicker="Line-up" title="What's on" />
+
+      {/* Open call — top of the section so any DJ can put themselves forward for a
+          night (no back-end admin needed; they land straight on the form at /dj/join). */}
+      <div style={{ marginBottom: 20, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, background: 'rgba(218,27,51,0.06)', border: '1px solid rgba(218,27,51,0.25)', borderRadius: 12, padding: '18px 20px' }}>
+        <div style={{ flex: 1, minWidth: 200 }}>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>Want to play at No Dice?</div>
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)' }}>Set up a DJ profile and our booking team will be in touch — no need to know anyone.</div>
+        </div>
+        <a href="/dj/join" style={primaryCtaStyle()}>Become a No Dice DJ</a>
+      </div>
+
       {events === null ? (
         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, padding: '8px 0' }}>Loading the line-up…</div>
       ) : events.length === 0 ? (
@@ -282,16 +293,6 @@ function Events() {
           {events.map((e, i) => <EventRow key={(e.date || '') + '-' + i} e={e} />)}
         </div>
       )}
-
-      {/* Open call — any DJ can put themselves forward for a night (no back-end
-          admin needed; they land straight on the profile form at /dj/join). */}
-      <div style={{ marginTop: 20, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 14, background: 'rgba(218,27,51,0.06)', border: '1px solid rgba(218,27,51,0.25)', borderRadius: 12, padding: '18px 20px' }}>
-        <div style={{ flex: 1, minWidth: 200 }}>
-          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 2 }}>Want to play at No Dice?</div>
-          <div style={{ fontSize: 13, lineHeight: 1.5, color: 'rgba(255,255,255,0.7)' }}>Set up a DJ profile and our booking team will be in touch — no need to know anyone.</div>
-        </div>
-        <a href="/dj/join" style={primaryCtaStyle()}>Become a No Dice DJ</a>
-      </div>
     </section>
   )
 }
