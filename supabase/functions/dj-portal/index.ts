@@ -135,10 +135,12 @@ async function signup(sb: any, profile: any, dataUrl: string | undefined, joinCo
   const dj_name = clip(f.dj_name, 120);
   const email = clip(f.email, 200).toLowerCase();
   const instagram = clip(f.instagram, 120);
-  // Minimum viable application: a name, a contactable email, an Instagram to hear.
+  const phone = clip(f.phone, 60);
+  // Minimum viable application: a name, a contactable email + phone, an Instagram to hear.
   if (!dj_name) return json({ error: "Please add your DJ name." }, 400);
   if (!validEmail(email)) return json({ error: "Please add a valid email so we can reach you." }, 400);
   if (!instagram) return json({ error: "Please add your Instagram so we can hear your sound." }, 400);
+  if (!phone) return json({ error: "Please add a phone number so we can reach you." }, 400);
 
   // De-dupe by email — never spawn a second row for someone already on the list.
   // Same friendly thank-you either way (no account enumeration); admin still hears.
@@ -155,7 +157,7 @@ async function signup(sb: any, profile: any, dataUrl: string | undefined, joinCo
   const src = (typeof f.source === "string" && f.source.trim() && f.source.length < 40) ? f.source.trim() : "website";
   const { data: created, error } = await sb.from("djs").insert({
     dj_name, real_name: clip(f.real_name, 120) || null, genres: clip(f.genres, 300) || null,
-    instagram, format: clip(f.format, 200) || null, phone: clip(f.phone, 60) || null, email,
+    instagram, format: clip(f.format, 200) || null, phone, email,
     soundcloud: clip(f.soundcloud, 300) || null, spotify: clip(f.spotify, 300) || null, youtube: clip(f.youtube, 300) || null,
     status: "pending", source: src, signed_up_at: new Date().toISOString(),
   }).select("id").maybeSingle();

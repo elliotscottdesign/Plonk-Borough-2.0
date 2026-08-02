@@ -43,12 +43,13 @@ export default function DJJoin() {
     catch (er) { setPhotoErr(er.message || 'Photo upload failed — try a JPG or PNG.') }
   }
 
-  const ready = !!f.dj_name.trim() && isEmail(f.email) && !!f.instagram.trim()
+  const ready = !!f.dj_name.trim() && isEmail(f.email) && !!f.instagram.trim() && !!f.phone.trim()
   const submit = async () => {
     setErr('')
     if (!f.dj_name.trim()) return setErr('Please add your DJ / artist name.')
     if (!f.instagram.trim()) return setErr('Please add your Instagram so we can hear your sound.')
     if (!isEmail(f.email)) return setErr('Please add a valid email so we can reach you.')
+    if (!f.phone.trim()) return setErr('Please add a phone number so we can reach you.')
     setBusy(true)
     try {
       await djSignup({ ...f, source: 'website' }, photo || undefined, code.trim())
@@ -157,7 +158,7 @@ export default function DJJoin() {
             <div style={{ marginTop: 8 }}><FormatPicker selected={parseFormats(f.format)} onChange={a => set('format', joinFormats(a))} /></div>
           </div>
           <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ flex: 1 }}><div style={label}>Phone <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.4)' }}>(optional)</span></div><input value={f.phone} onChange={e => set('phone', e.target.value)} style={inp} /></div>
+            <div style={{ flex: 1 }}><div style={label}>Phone{req()}</div><input value={f.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" style={reqInp(f.phone)} /></div>
             <div style={{ flex: 1 }}><div style={label}>Email{req()}</div><input value={f.email} onChange={e => set('email', e.target.value)} placeholder="you@email.com" style={reqInp(f.email, f.email.trim() ? isEmail(f.email) : false)} /></div>
           </div>
           <div><div style={label}>SoundCloud <span style={{ textTransform: 'none', letterSpacing: 0, color: 'rgba(255,255,255,0.35)' }}>(optional)</span></div><input value={f.soundcloud} onChange={e => set('soundcloud', e.target.value)} placeholder="soundcloud.com/you" style={inp} /></div>
