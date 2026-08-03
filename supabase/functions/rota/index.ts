@@ -944,10 +944,14 @@ Use ONLY staff ids from the provided list; map names case-insensitively (first n
         const toolUse = (data?.content || []).find((c: any) => c?.type === "tool_use" && c?.name === "set_directives");
         const out = toolUse?.input || {};
         const compiled = (out.directives && typeof out.directives === "object" && !Array.isArray(out.directives)) ? out.directives : {};
-        // Every typed rule must get a note — backfill any the model skipped.
+        // Every typed rule must get a note — match by position first (the model gets
+        // the rules numbered, so order is reliable), then by normalised text. Exact
+        // text matching broke on typos/whitespace and left rules "not reported on".
         const notesIn: any[] = Array.isArray(out.notes) ? out.notes : [];
-        const compiledNotes = houseRules.map((r: string) => {
-          const n = notesIn.find((x: any) => x && typeof x.rule === "string" && x.rule.trim() === r);
+        const norm = (s: unknown) => String(s || "").replace(/\s+/g, " ").trim().toLowerCase();
+        const compiledNotes = houseRules.map((r: string, i: number) => {
+          const n = (notesIn.length === houseRules.length ? notesIn[i] : null)
+            || notesIn.find((x: any) => x && norm(x.rule) === norm(r));
           return n ? { rule: r, understood: String(n.understood || ""), status: n.status === "applied" ? "applied" : "reminder" }
                    : { rule: r, understood: "The AI didn't report on this rule — treated as a reminder.", status: "reminder" };
         });

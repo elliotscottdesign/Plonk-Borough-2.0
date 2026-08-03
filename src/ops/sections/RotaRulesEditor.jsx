@@ -81,32 +81,27 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {(draft.houseRules || []).length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No house rules yet — add your first below.</div>}
-          {(draft.houseRules || []).map((r, i) => (
-            <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-              <span style={{ color: RED, fontSize: 15, lineHeight: '30px' }}>•</span>
-              <textarea value={r} onChange={e => setRule(i, e.target.value)} rows={1} placeholder="e.g. On weekdays, one person opens and one closes rather than two full shifts" style={{ ...txt, flex: 1, minWidth: 0, resize: 'vertical', lineHeight: 1.4 }} />
-              <button onClick={() => removeRule(i)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 13, padding: '6px 2px' }}>✕</button>
-            </div>
-          ))}
+          {(draft.houseRules || []).map((r, i) => {
+            // Each rule row carries its own receipt (how the AI read it last save).
+            // Edited text no longer matches a saved receipt → show the "re-save" hint.
+            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase()
+            const note = (draft.compiledNotes || []).find(n => n && norm(n.rule) === norm(r)) || null
+            return (
+              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                  <span style={{ fontSize: 13, lineHeight: '30px', flexShrink: 0 }} title={note ? (note.status === 'applied' ? 'Applied — the builder does this automatically' : 'Reminder — check it by hand when you review a week') : 'Not read yet — Save rules'}>{note ? (note.status === 'applied' ? '✅' : '⚠️') : '📝'}</span>
+                  <textarea value={r} onChange={e => setRule(i, e.target.value)} rows={1} placeholder="e.g. On weekdays, one person opens and one closes rather than two full shifts" style={{ ...txt, flex: 1, minWidth: 0, resize: 'vertical', lineHeight: 1.4 }} />
+                  <button onClick={() => removeRule(i)} title="Delete this rule — then Save rules to make it stick" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.35)', color: '#F87171', fontSize: 11.5, fontWeight: 700 }}>🗑 Delete</button>
+                </div>
+                {note
+                  ? <div style={{ fontSize: 11.5, color: note.status === 'applied' ? GREEN : AMBER, lineHeight: 1.45, marginTop: 5, paddingLeft: 29 }}>{note.understood}</div>
+                  : <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 5, paddingLeft: 29 }}>New or edited — tap <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Save rules</strong> below and the AI will read it.</div>}
+              </div>
+            )
+          })}
         </div>
         <button onClick={addRule} style={{ ...btn('ghost'), marginTop: 8 }}>+ Add a rule</button>
         {notice && <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '9px 12px', marginTop: 10, lineHeight: 1.5 }}>{notice}</div>}
-        {(draft.compiledNotes || []).length > 0 && (
-          <div style={{ marginTop: 10, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '10px 12px' }}>
-            <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 7 }}>How the AI read your rules</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
-              {draft.compiledNotes.map((n, i) => (
-                <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                  <span style={{ fontSize: 12, flexShrink: 0 }}>{n.status === 'applied' ? '✅' : '⚠️'}</span>
-                  <div style={{ minWidth: 0 }}>
-                    <div style={{ fontSize: 12, color: '#fff', fontWeight: 600, lineHeight: 1.4 }}>{n.rule}</div>
-                    <div style={{ fontSize: 11.5, color: n.status === 'applied' ? GREEN : AMBER, lineHeight: 1.45, marginTop: 1 }}>{n.understood}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
       {/* Per-day hours + staffing */}
