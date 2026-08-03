@@ -413,18 +413,17 @@ export default function DJPortal() {
         {tab === 'rules' && <DJRules />}
 
         {tab === 'payments' && (() => {
-          const pay = st.payments || { rate: 100, vinyl: false, drinksMax: 6, jobsPast: [], jobsUpcoming: [], receipts: [], earnedTotal: 0, upcomingTotal: 0, receiptsTotal: 0 }
+          const pay = st.payments || { vinyl: false, drinksMax: 6, receipts: [], receiptsTotal: 0 }
           const catLabel = { taxi: '🚕 Taxi', drinks: '🍺 Drinks', other: '🧾 Other' }
           const cats = [['drinks', catLabel.drinks], ...(pay.vinyl ? [['taxi', catLabel.taxi]] : []), ['other', catLabel.other]]
           const money = (n) => '£' + (Math.round((Number(n) || 0) * 100) / 100).toLocaleString('en-GB', { maximumFractionDigits: 2 })
-          const invoiceTotal = (pay.earnedTotal || 0) + (pay.receiptsTotal || 0)
           const liDot = { display: 'flex', gap: 8, fontSize: 13.5, color: 'rgba(255,255,255,0.82)', lineHeight: 1.55, marginBottom: 8 }
           const bullet = <span style={{ color: RED, fontWeight: 700, flexShrink: 0 }}>·</span>
           return (<>
             {/* How to get paid */}
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
               <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 12 }}>Getting paid</div>
-              <div style={liDot}>{bullet}<span>You're paid <strong style={{ color: '#fff' }}>{money(pay.rate)} per session</strong> (Thu/Fri/Sat &amp; special paid nights). Open Decks are unpaid.</span></div>
+              <div style={liDot}>{bullet}<span>You're paid your <strong style={{ color: '#fff' }}>agreed fee</strong> for each paid session (Thu/Fri/Sat &amp; special nights). Open Decks are unpaid.</span></div>
               <div style={liDot}>{bullet}<span>We also cover {pay.vinyl ? <><strong style={{ color: '#fff' }}>a taxi home</strong> (you play vinyl) and </> : ''}<strong style={{ color: '#fff' }}>up to {pay.drinksMax} drinks</strong> on the night — log the receipts below.{!pay.vinyl && <span style={{ color: 'rgba(255,255,255,0.5)' }}> Taxis are covered for vinyl DJs only.</span>}</span></div>
               <div style={liDot}>{bullet}<span>Send us an invoice for your fees + logged expenses, with your name, the dates you played, and <strong style={{ color: '#fff' }}>your bank details</strong>.</span></div>
               <div style={{ background: 'rgba(218,27,51,0.07)', border: '1px solid rgba(218,27,51,0.25)', borderRadius: 10, padding: '12px 14px', margin: '10px 0 12px' }}>
@@ -433,36 +432,6 @@ export default function DJPortal() {
                 <a href="mailto:elliot@nodice.bar?subject=DJ%20invoice" style={{ display: 'inline-block', marginTop: 8, fontSize: 14, color: RED, textDecoration: 'none', borderBottom: `1px solid ${RED}` }}>elliot@nodice.bar</a>
               </div>
               <div style={liDot}>{bullet}<span>We pay invoices on <strong style={{ color: '#fff' }}>the Friday of the following week</strong>.</span></div>
-            </div>
-
-            {/* Earnings — past confirmed paid sessions */}
-            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div className="serif" style={{ fontSize: 20, color: '#fff' }}>Your earnings</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: '#34D399' }}>{money(pay.earnedTotal)}</div>
-              </div>
-              {(pay.jobsPast || []).length === 0 ? (
-                <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6 }}>No paid sessions played yet — your fees will show here after each confirmed Thu/Fri/Sat night.</div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {pay.jobsPast.map((j, i) => {
-                    const s = sessionForSlot(j.date, j.slot); const sLab = slotLabel(j.date, j.slot)
-                    return (
-                      <div key={j.date + '-' + (j.slot || 'main') + i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 9, padding: '10px 12px' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(j.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day}{sLab ? ` · ${sLab}` : ''}</span></div>
-                          {j.night_name && <div style={{ fontSize: 11, color: RED }}>"{j.night_name}"</div>}
-                          {j.b2b && j.partner && <div style={{ fontSize: 11, color: RED }}>🔁 b2b {j.partner}</div>}
-                        </div>
-                        <div style={{ fontWeight: 700, color: '#34D399' }}>{money(j.fee)}</div>
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
-              {(pay.jobsUpcoming || []).length > 0 && (
-                <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', marginTop: 12, lineHeight: 1.5 }}>📅 Booked ahead: <strong style={{ color: '#fff' }}>{pay.jobsUpcoming.length}</strong> confirmed session{pay.jobsUpcoming.length === 1 ? '' : 's'} · {money(pay.upcomingTotal)} — paid after you play.</div>
-              )}
             </div>
 
             {/* Receipts & expenses */}
@@ -512,15 +481,6 @@ export default function DJPortal() {
                   ))}
                 </div>
               )}
-            </div>
-
-            {/* Total to invoice */}
-            <div style={{ background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.35)', borderRadius: 14, padding: '16px 20px', marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-              <div>
-                <div style={{ fontSize: 12, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.6)' }}>Total to invoice now</div>
-                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2 }}>Fees {money(pay.earnedTotal)} + expenses {money(pay.receiptsTotal)}</div>
-              </div>
-              <div style={{ fontSize: 26, fontWeight: 800, color: '#34D399' }}>{money(invoiceTotal)}</div>
             </div>
           </>)
         })()}

@@ -83,7 +83,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     const h = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
     const url = (p) => `${SUPABASE_URL}/rest/v1/${p}`
     Promise.allSettled([
-      fetch(url(`bar_reservations?select=reservation_date,party_size&status=eq.confirmed&reservation_date=gte.${from}&reservation_date=lte.${to}`), { headers: h }).then(r => r.json()),
+      fetch(url(`bar_reservations?select=reservation_date,party_size&status=in.(confirmed,paid)&reservation_date=gte.${from}&reservation_date=lte.${to}`), { headers: h }).then(r => r.json()),
       fetch(url(`tournament_entries?select=team_name,captain_name,tournaments!inner(event_date)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}`), { headers: h }).then(r => r.json()),
     ]).then(([barR, tournR]) => {
       if (cancelled) return
@@ -320,6 +320,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             )
           })}
 
+          {/* Customer bookings & tournament entries for this day — headline numbers, tap for the full list */}
+          <DayBookings date={selDate} />
+
           {(() => {
             const dayClaims = claims.filter(c => selShifts.some(s => s.id === c.shift_id))
             // Remount (re-sync from the DB) whenever the day's claims change — e.g. after a
@@ -479,6 +482,70 @@ const btn = (kind) => {
 }
 const weekNav = { width: 30, height: 28, borderRadius: 7, cursor: 'pointer', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', fontSize: 12, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }
 // Week-overview date helpers (UTC, Monday-start — matches the rest of the app).
+// ─── Bookings & reservations for one day (day panel) ─────────────────────────
+// Customer bookings from nodice.bar (tables + pool, `bar_reservations`) and paid
+// tournament sign-ups, read straight from the shared Supabase. Headline numbers
+// on the summary row; open the dropdown for the full booking list. Cancelled
+// bookings are excluded. Refetches whenever the selected day changes.
+function DayBookings({ date }) {
+  const [data, setData] = useState(null)   // null = loading · { resv, tourn }
+  useEffect(() => {
+    let cancelled = false
+    setData(null)
+    const h = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    const url = (p) => `${SUPABASE_URL}/rest/v1/${p}`
+    Promise.allSettled([
+      fetch(url(`bar_reservations?select=id,kind,start_time,duration_minutes,party_size,resource_count,name,notes,status&reservation_date=eq.${date}&status=in.(confirmed,paid)&order=start_time`), { headers: h }).then(r => r.json()),
+      fetch(url(`tournament_entries?select=id,team_name,captain_name,tournaments!inner(event_date)&status=eq.paid&tournaments.event_date=eq.${date}`), { headers: h }).then(r => r.json()),
+    ]).then(([a, t]) => {
+      if (cancelled) return
+      setData({
+        resv: a.status === 'fulfilled' && Array.isArray(a.value) ? a.value : [],
+        tourn: t.status === 'fulfilled' && Array.isArray(t.value) ? t.value : [],
+      })
+    })
+    return () => { cancelled = true }
+  }, [date])
+
+  if (!data) return <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>Checking bookings…</div>
+  const { resv, tourn } = data
+  if (resv.length === 0 && tourn.length === 0) return null   // nothing booked — keep the panel clean
+  const covers = resv.reduce((a, r) => a + (r.party_size || 0), 0)
+  const big = resv.filter(r => (r.party_size || 0) >= 8).length
+  const tTime = (t) => (t || '').slice(0, 5)
+  const endOf = (r) => { if (!r.start_time) return ''; const [hh, mm] = r.start_time.split(':').map(Number); const e = hh * 60 + mm + (r.duration_minutes || 60); return `${String(Math.floor(e / 60) % 24).padStart(2, '0')}:${String(e % 60).padStart(2, '0')}` }
+  return (
+    <details style={{ background: 'rgba(96,165,250,0.05)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '0 12px' }}>
+      <summary style={{ cursor: 'pointer', padding: '10px 0', fontSize: 13, color: '#fff', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700 }}>📖 Bookings</span>
+        <span style={{ fontSize: 12.5, color: '#60A5FA', fontWeight: 700 }}>{resv.length} booking{resv.length === 1 ? '' : 's'} · {covers} covers</span>
+        {big > 0 && <span style={{ fontSize: 11.5, color: AMBER, fontWeight: 700 }}>🔥 {big} big group{big === 1 ? '' : 's'} (8+)</span>}
+        {tourn.length > 0 && <span style={{ fontSize: 11.5, color: PURPLE, fontWeight: 700 }}>🎱 {tourn.length} tournament entr{tourn.length === 1 ? 'y' : 'ies'}</span>}
+        <span style={{ marginLeft: 'auto', fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>details ▾</span>
+      </summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 12 }}>
+        {resv.map(r => (
+          <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '7px 10px', fontSize: 12 }}>
+            <span style={{ fontWeight: 700, color: '#fff', minWidth: 86 }}>{tTime(r.start_time)}–{endOf(r)}</span>
+            <span style={{ color: 'rgba(255,255,255,0.75)' }}>{r.kind === 'pool' ? `🎱 Pool${(r.resource_count || 1) > 1 ? ` ×${r.resource_count}` : ''}` : '🍽️ Table'}</span>
+            <span style={{ color: '#fff', fontWeight: 600 }}>{r.name || '—'}</span>
+            <span style={{ color: (r.party_size || 0) >= 8 ? AMBER : 'rgba(255,255,255,0.7)', fontWeight: 700 }}>👥 {r.party_size || '?'}</span>
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: r.status === 'paid' ? GREEN : '#60A5FA' }}>{r.status}</span>
+            {r.notes && <div style={{ width: '100%', fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.4 }}>“{r.notes}”</div>}
+          </div>
+        ))}
+        {tourn.map(t => (
+          <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: 'rgba(168,85,247,0.06)', border: '1px solid rgba(168,85,247,0.3)', borderRadius: 8, padding: '7px 10px', fontSize: 12 }}>
+            <span>🎱</span><span style={{ color: '#fff', fontWeight: 600 }}>{t.team_name || t.captain_name || 'Entry'}</span>
+            {t.team_name && t.captain_name && t.team_name !== t.captain_name && <span style={{ color: 'rgba(255,255,255,0.6)' }}>capt. {t.captain_name}</span>}
+            <span style={{ marginLeft: 'auto', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', color: PURPLE }}>Tournament</span>
+          </div>
+        ))}
+      </div>
+    </details>
+  )
+}
+
 const addDaysISO = (d, n) => { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
 const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
 const fmtDay = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', timeZone: 'UTC' })
