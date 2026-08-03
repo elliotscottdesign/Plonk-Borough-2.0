@@ -151,6 +151,12 @@ export function daySlots(dateStr, rules) {
   // Kitchen cover per day: an AI day-rule (kitchen: true/false on the weekday or the
   // specific date) overrides the global "always a kitchen-trained person" option.
   const kitchenReq = d.kitchen != null ? d.kitchen === true : R.requireKitchen !== false
+  // Dedicated kitchen shift times (e.g. "kitchen 5pm–11pm"): when set, the kitchen
+  // person gets their own slot with exactly these times — they replace one of the
+  // floor bodies (same total headcount) and only kitchen-trained staff can fill it.
+  const kStart = Number.isFinite(+d.kitchenStart) ? +d.kitchenStart : null
+  const kEnd = Number.isFinite(+d.kitchenEnd) ? +d.kitchenEnd : null
+  const kitchenSlot = kitchenReq && kStart != null && kEnd != null && kEnd > kStart
   // Headcount + evening bump come from the weekday; holidays change only the HOURS.
   const base = Math.max(0, d.base ?? 2)
   const eveAt = d.eveAt ?? null
@@ -162,7 +168,11 @@ export function daySlots(dateStr, rules) {
   const floorClose = Math.max(open + 60, close - cut)
   const slots = []
   if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
-  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0))
+  // Dedicated kitchen slot right after the manager, so the kitchen-trained person
+  // is claimed before the floor slots swallow them. Exact times as the rule states —
+  // never trimmed by the quiet-day cut.
+  if (kitchenSlot) slots.push({ start: kStart, end: kEnd, role: 'kitchen', label: 'Kitchen' })
+  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0) - (kitchenSlot ? 1 : 0))
   const floor = []
   for (let i = 0; i < floorN; i++) floor.push({ start: open, end: floorClose, role: 'any', label: 'Floor' })
   // Stagger: instead of two people both open→close, one OPENS (leaves `staggerGap`
@@ -185,7 +195,7 @@ export function daySlots(dateStr, rules) {
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
-const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
+export const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
 
 // unavailByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked OFF.
 // Everyone's available by default; only an explicit `{ unavailable: true }` counts.
@@ -244,9 +254,13 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
     let kitchenCovered = false
     const out = []
     const w = wd(date)
+    // A dedicated kitchen slot (exact times) makes the generic "steer a floor body
+    // toward kitchen" behaviour unnecessary for this day.
+    const hasKitchenSlot = slots.some(s => s.role === 'kitchen')
     for (const slot of slots) {
       let pool = active.filter(s => !usedToday.has(s.id))
       if (slot.role === 'manager') pool = pool.filter(isManager)
+      if (slot.role === 'kitchen') pool = pool.filter(isKitchen)
       // Keep-apart pairs (AI rule): drop anyone paired with someone already on today —
       // unless that empties the pool, in which case staffing the day wins (flagged below).
       const apart = pool.filter(s => !badPair[s.id] || ![...usedToday].some(u => badPair[s.id].has(u)))
@@ -255,7 +269,7 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
       // (4) fewest hours so far (fair spread), (5) name for stability.
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
       // kitchen-manager (Elliot) would be picked to manage every single day.
-      const needKitchen = kitchenReq && !kitchenCovered && slot.role !== 'manager'
+      const needKitchen = kitchenReq && !hasKitchenSlot && !kitchenCovered && slot.role !== 'manager'
       const avOk = (s) => (availState(unavail[s.id] || new Set(), date) >= 1 ? 1 : 0)
       // Enough rest since their last shift? (1 = fine / no rule, 0 = too soon.)
       const restOk = (s) => (restMin == null || lastEnd[s.id] == null || (i * 1440 + slot.start) - lastEnd[s.id] >= restMin) ? 1 : 0
@@ -278,8 +292,8 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
       })
       const pick = pool[0]
       if (!pick) {
-        out.push({ ...slot, staffId: null, name: null, kitchen: false, warn: slot.role === 'manager' ? 'No manager free' : 'No one free' })
-        warnings.push(`${date}: ${slot.role === 'manager' ? 'no manager available' : 'short-staffed'} for ${slot.label}`)
+        out.push({ ...slot, staffId: null, name: null, kitchen: false, warn: slot.role === 'manager' ? 'No manager free' : slot.role === 'kitchen' ? 'No kitchen-trained member free' : 'No one free' })
+        warnings.push(`${date}: ${slot.role === 'manager' ? 'no manager available' : slot.role === 'kitchen' ? 'no kitchen-trained member available' : 'short-staffed'} for ${slot.label}`)
         continue
       }
       const unavailable = availState(unavail[pick.id] || new Set(), date) === 0
