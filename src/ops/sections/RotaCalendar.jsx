@@ -5,6 +5,7 @@ import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTim
 import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
 import useIsMobile from '../../lib/useIsMobile.js'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 
 // ─── Rota calendar (founder) ─────────────────────────────────────────────────
 // A month grid of days; tapping a day opens the drag-to-build roster (DayRosterGrid)
@@ -66,9 +67,44 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
   const [keyEvents, setKeyEvents] = useState([])
   useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
+  // Booking overlay — nodice.bar customer bookings + paid tournament sign-ups
+  // pulled straight from the shared Supabase so each day tile shows how many
+  // covers are already committed (with a 🔥 flag when any booking is 8+).
+  // Refetches when the month changes so the visible grid is always accurate.
+  const [bookingsByDate, setBookingsByDate] = useState({})
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
+  useEffect(() => {
+    let cancelled = false
+    const from = iso(viewY, viewM, 1)
+    const lastDay = new Date(viewY, viewM + 1, 0).getDate()
+    const to = iso(viewY, viewM, lastDay)
+    const h = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    const url = (p) => `${SUPABASE_URL}/rest/v1/${p}`
+    Promise.allSettled([
+      fetch(url(`bar_reservations?select=reservation_date,party_size&status=eq.confirmed&reservation_date=gte.${from}&reservation_date=lte.${to}`), { headers: h }).then(r => r.json()),
+      fetch(url(`tournament_entries?select=team_name,captain_name,tournaments!inner(event_date)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}`), { headers: h }).then(r => r.json()),
+    ]).then(([barR, tournR]) => {
+      if (cancelled) return
+      const map = {}
+      const bar = barR.status === 'fulfilled' && Array.isArray(barR.value) ? barR.value : []
+      const tourn = tournR.status === 'fulfilled' && Array.isArray(tournR.value) ? tournR.value : []
+      for (const r of bar) {
+        const d = r.reservation_date; if (!d) continue
+        const bucket = (map[d] ||= { count: 0, covers: 0, big: 0 })
+        bucket.count++; bucket.covers += r.party_size || 0
+        if ((r.party_size || 0) >= 8) bucket.big++
+      }
+      for (const t of tourn) {
+        const d = t.tournaments?.event_date; if (!d || d < from || d > to) continue
+        const bucket = (map[d] ||= { count: 0, covers: 0, big: 0 })
+        bucket.count++; bucket.covers += (t.team_name && t.team_name !== t.captain_name) ? 2 : 1
+      }
+      setBookingsByDate(map)
+    }).catch(() => {})
+    return () => { cancelled = true }
+  }, [viewY, viewM])
   const [selDate, setSelDate] = useState(null)
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
@@ -218,7 +254,24 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
-                  {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
+                  <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
+                    {/* Bookings overlay — customer bookings from nodice.bar. Only
+                        renders when the day has bookings so the tile stays clean
+                        on empty days. Amber ✱ flag = at least one 8+ booking. */}
+                    {(() => {
+                      const b = bookingsByDate[dateStr]
+                      if (!b || !b.count) return null
+                      return (
+                        <span
+                          title={`${b.count} booking${b.count === 1 ? '' : 's'} · ${b.covers} cover${b.covers === 1 ? '' : 's'}${b.big ? ` · ${b.big} big part${b.big === 1 ? 'y' : 'ies'} (8+)` : ''}`}
+                          style={{ fontSize: 9, fontWeight: 700, color: b.big ? AMBER : PURPLE, background: `${b.big ? AMBER : PURPLE}22`, border: `1px solid ${b.big ? AMBER : PURPLE}55`, borderRadius: 4, padding: '1px 4px', whiteSpace: 'nowrap', lineHeight: 1 }}
+                        >
+                          {b.big ? '✱ ' : ''}{b.covers}
+                        </span>
+                      )
+                    })()}
+                    {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
+                  </span>
                 </span>
                 {(() => {
                   const people = rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length, 0)

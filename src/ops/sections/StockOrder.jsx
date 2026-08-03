@@ -1,8 +1,9 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   PINT_LITRES, WASTAGE, AVG_WEEK_REVENUE, DOW_SHARE, WEEKEND_SHARE,
   DRAUGHT, SPIRITS, COCKTAIL_BASES, SOFTS, FRESH, PRESETS,
 } from '../data/stockBaseline.js'
+import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 
 // ─── Stock Order calculator ──────────────────────────────────────────────
 // Scales the February baseline by a single "how busy" multiplier and prints
@@ -31,10 +32,51 @@ function Panel({ title, sub, accent, children }) {
 const cell = { padding: '8px 6px', fontSize: 13, color: 'var(--cream)', fontVariantNumeric: 'tabular-nums' }
 const head = { padding: '6px', fontSize: 10, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'var(--cream-dim)', textAlign: 'right', fontWeight: 600 }
 
+// Baseline for the "load from bookings" heuristic. Roughly what a February
+// week nets in bar-side bookings — a 100% multiplier corresponds to about
+// this many booked covers over Mon–Sun. Adjust once we have 3 months of live
+// booking data to compare against actual weekly takings.
+const BASELINE_WEEK_COVERS = 100
+
 export default function StockOrder() {
   const [mult, setMult] = useState(1.0)
   const [copied, setCopied] = useState(false)
   const weekRev = AVG_WEEK_REVENUE * mult
+
+  // Live "how much is already booked for this Mon-Sun" pulled straight from
+  // the shared Supabase so staff can dial the multiplier honestly instead of
+  // guessing. Non-blocking: renders as null until it arrives, so the page is
+  // instantly usable even without a Supabase connection.
+  const [weekBookings, setWeekBookings] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    const today = new Date()
+    // Monday of this week (JS Sunday=0, adjust so Mon=0)
+    const day = (today.getDay() + 6) % 7
+    const mon = new Date(today); mon.setDate(today.getDate() - day)
+    const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+    const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const from = iso(mon), to = iso(sun)
+    const h = { apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` }
+    Promise.allSettled([
+      fetch(`${SUPABASE_URL}/rest/v1/bar_reservations?select=party_size&status=eq.confirmed&reservation_date=gte.${from}&reservation_date=lte.${to}`, { headers: h }).then(r => r.json()),
+      fetch(`${SUPABASE_URL}/rest/v1/tournament_entries?select=team_name,captain_name,tournaments!inner(event_date)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}`, { headers: h }).then(r => r.json()),
+    ]).then(([barR, tournR]) => {
+      if (cancelled) return
+      const bar = barR.status === 'fulfilled' && Array.isArray(barR.value) ? barR.value : []
+      const tourn = tournR.status === 'fulfilled' && Array.isArray(tournR.value) ? tournR.value : []
+      let covers = 0, count = 0, big = 0
+      for (const r of bar) { covers += r.party_size || 0; count++; if ((r.party_size || 0) >= 8) big++ }
+      for (const t of tourn) { covers += (t.team_name && t.team_name !== t.captain_name) ? 2 : 1; count++ }
+      setWeekBookings({ covers, count, big, from, to })
+    }).catch(() => setWeekBookings({ covers: 0, count: 0, big: 0, from, to }))
+    return () => { cancelled = true }
+  }, [])
+  // Turn booked covers into a suggested multiplier, clamped to the dial's
+  // 50–200% range. Rounded to the nearest 5% so it snaps cleanly.
+  const suggestedMult = weekBookings
+    ? Math.max(0.5, Math.min(2.0, Math.round((weekBookings.covers / BASELINE_WEEK_COVERS) * 20) / 20))
+    : null
 
   // Draught: pints → litres (+wastage) → kegs (weekly)
   const draught = DRAUGHT.map(d => {
@@ -168,6 +210,29 @@ export default function StockOrder() {
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--cream-dim)', marginTop: 4 }}>
           <span>50% (very quiet)</span><span>100% (Feb avg)</span><span>200% (peak summer)</span>
         </div>
+
+        {/* Booked-this-week reference — pulled live from nodice.bar's booking
+            tables. Shows what's already committed so staff can dial the
+            multiplier honestly instead of guessing. "Use this" snaps the dial
+            to a suggested multiplier (booked covers ÷ Feb baseline). */}
+        {weekBookings && (
+          <div style={{ marginTop: 14, background: 'rgba(96,165,250,0.08)', border: '1px solid rgba(96,165,250,0.28)', borderRadius: 8, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+            <span style={{ fontSize: 12, color: '#93C5FD', fontWeight: 700, whiteSpace: 'nowrap' }}>📇 Booked this week ({weekBookings.from.slice(5)} → {weekBookings.to.slice(5)}):</span>
+            <span style={{ fontSize: 13, color: 'var(--cream)' }}>
+              <strong>{weekBookings.covers}</strong> cover{weekBookings.covers === 1 ? '' : 's'} across <strong>{weekBookings.count}</strong> booking{weekBookings.count === 1 ? '' : 's'}
+              {weekBookings.big > 0 && <span style={{ color: '#F59E0B', fontWeight: 700 }}> · {weekBookings.big} big part{weekBookings.big === 1 ? 'y' : 'ies'} (8+)</span>}
+            </span>
+            {suggestedMult != null && Math.abs(suggestedMult - mult) > 0.02 && (
+              <button
+                onClick={() => setMult(suggestedMult)}
+                style={{ marginLeft: 'auto', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 700, background: 'rgba(96,165,250,0.18)', border: '1px solid #60A5FA', color: '#93C5FD' }}
+                title={`Snap the dial to ${Math.round(suggestedMult * 100)}% based on ${weekBookings.covers} booked covers vs a ${BASELINE_WEEK_COVERS}-cover baseline week`}
+              >
+                Use {Math.round(suggestedMult * 100)}%
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Headline tiles */}
