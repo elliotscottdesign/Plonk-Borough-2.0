@@ -89,7 +89,7 @@ export function withDefaults(rules) {
 const asObj = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}
 export function applyCompiled(R) {
   const c = R.compiled
-  const base = { ...R, neverTogether: [], preferDays: {}, avoidDays: {}, maxShiftsWeek: {}, dateRules: {} }
+  const base = { ...R, neverTogether: [], preferDays: {}, avoidDays: {}, maxShiftsWeek: {}, dateRules: {}, minRestHours: null }
   if (!c) return base
   const days = { ...R.days }
   const cDays = asObj(c.days)
@@ -109,7 +109,10 @@ export function applyCompiled(R) {
     preferDays: asObj(c.preferDays),     // staffId → [weekday…] lean toward
     avoidDays: asObj(c.avoidDays),       // staffId → [weekday…] lean away
     maxShiftsWeek: asObj(c.maxShiftsWeek), // staffId → max shifts per week
-    dateRules: asObj(c.dateRules),       // 'YYYY-MM-DD' → { closed?, open?, close?, base?, eveAt?, eveAdd?, quiet? }
+    dateRules: asObj(c.dateRules),       // 'YYYY-MM-DD' → { closed?, open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen? }
+    // Minimum hours of rest between one shift's end and the next shift's start
+    // (e.g. "12 hours between shifts" → 12). null = no rule.
+    minRestHours: (c.minRestHours != null && Number.isFinite(+c.minRestHours) && +c.minRestHours > 0) ? +c.minRestHours : null,
   }
 }
 
@@ -143,8 +146,11 @@ export function daySlots(dateStr, rules) {
   // Specific-date AI rule (e.g. "closed on the 25th", "3 staff on the 14th") wins
   // over the weekday pattern for that one date.
   const dr = R.dateRules[dateStr] || null
-  if (dr && dr.closed === true) return { slots: [], open, close, holiday: holidayName(dateStr, R), closed: true }
+  if (dr && dr.closed === true) return { slots: [], open, close, holiday: holidayName(dateStr, R), closed: true, kitchen: false }
   const d = { ...(R.days[wd(dateStr)] || {}), ...(dr || {}) }
+  // Kitchen cover per day: an AI day-rule (kitchen: true/false on the weekday or the
+  // specific date) overrides the global "always a kitchen-trained person" option.
+  const kitchenReq = d.kitchen != null ? d.kitchen === true : R.requireKitchen !== false
   // Headcount + evening bump come from the weekday; holidays change only the HOURS.
   const base = Math.max(0, d.base ?? 2)
   const eveAt = d.eveAt ?? null
@@ -175,7 +181,7 @@ export function daySlots(dateStr, rules) {
     const eveEnd = Math.max(eveAt + 60, floorClose)
     for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' })
   }
-  return { slots, open, close, holiday: holidayName(dateStr, R) }
+  return { slots, open, close, holiday: holidayName(dateStr, R), kitchen: kitchenReq }
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
@@ -217,6 +223,12 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
   for (const [x, y] of R.neverTogether) { (badPair[x] ||= new Set()).add(y); (badPair[y] ||= new Set()).add(x) }
   const nameOf = (id) => (active.find(s => s.id === id) || {}).name || 'someone'
   const maxOf = (s) => { const m = +(R.maxShiftsWeek[s.id]); return Number.isFinite(m) && m > 0 ? m : null }
+  // Minimum rest between shifts ("12 hours between shifts"). Track each person's
+  // latest shift end in absolute week-minutes (dayIndex*1440 + end); someone whose
+  // gap before this slot would be too short sinks to the bottom of the pool (picked
+  // only if literally no one else is free — flagged in warnings).
+  const restMin = R.minRestHours != null ? R.minRestHours * 60 : null
+  const lastEnd = {}   // staffId → absolute minutes their latest assigned shift ends
   const dayBias = (s, w) => {
     const av = Array.isArray(R.avoidDays[s.id]) && R.avoidDays[s.id].map(Number).includes(w)
     const pf = Array.isArray(R.preferDays[s.id]) && R.preferDays[s.id].map(Number).includes(w)
@@ -227,7 +239,7 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
   const warnings = []
   for (let i = 0; i < 7; i++) {
     const date = addDaysISO(weekStart, i)
-    const { slots, open, close, holiday } = daySlots(date, R)
+    const { slots, open, close, holiday, kitchen: kitchenReq } = daySlots(date, R)
     const usedToday = new Set()
     let kitchenCovered = false
     const out = []
@@ -243,13 +255,16 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
       // (4) fewest hours so far (fair spread), (5) name for stability.
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
       // kitchen-manager (Elliot) would be picked to manage every single day.
-      const needKitchen = R.requireKitchen && !kitchenCovered && slot.role !== 'manager'
+      const needKitchen = kitchenReq && !kitchenCovered && slot.role !== 'manager'
       const avOk = (s) => (availState(unavail[s.id] || new Set(), date) >= 1 ? 1 : 0)
+      // Enough rest since their last shift? (1 = fine / no rule, 0 = too soon.)
+      const restOk = (s) => (restMin == null || lastEnd[s.id] == null || (i * 1440 + slot.start) - lastEnd[s.id] >= restMin) ? 1 : 0
       pool.sort((a, b) => {
         // Kitchen cover is a hard service requirement — for the reserved kitchen slot it
         // outranks even availability (better an unavailable cook than no kitchen; flagged below).
         if (needKitchen) { const k = (isKitchen(b) ? 1 : 0) - (isKitchen(a) ? 1 : 0); if (k) return k }
         const ao = avOk(a), bo = avOk(b); if (ao !== bo) return bo - ao   // marked-unavailable sinks
+        const rea = restOk(a), reb = restOk(b); if (rea !== reb) return reb - rea   // too little rest sinks
         const ta = targetOf(a), tb = targetOf(b)
         const ma = maxOf(a), mb = maxOf(b)
         const oa = (ta != null && (tally[a.id] || 0) >= ta) || (ma != null && (shiftCount[a.id] || 0) >= ma) ? 1 : 0
@@ -270,14 +285,20 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
       const unavailable = availState(unavail[pick.id] || new Set(), date) === 0
       // If short staffing forced a keep-apart pair onto the same day, say so.
       if (badPair[pick.id]) for (const u of usedToday) if (badPair[pick.id].has(u)) warnings.push(`${date}: ${pick.name} and ${nameOf(u)} are both on — your rule says keep them apart, but no one else was free`)
+      // Same if the rest rule had to bend: flag exactly how short the gap is.
+      if (!restOk(pick)) {
+        const gapH = Math.round(((i * 1440 + slot.start) - lastEnd[pick.id]) / 6) / 10
+        warnings.push(`${date}: ${pick.name} gets only ${gapH}h rest before this shift (your rule says ${R.minRestHours}h) — no one else was free`)
+      }
       usedToday.add(pick.id)
       tally[pick.id] = (tally[pick.id] || 0) + dur(slot.start, slot.end)
       shiftCount[pick.id] = (shiftCount[pick.id] || 0) + 1
+      lastEnd[pick.id] = Math.max(lastEnd[pick.id] ?? -Infinity, i * 1440 + slot.end)
       if (isKitchen(pick)) kitchenCovered = true
       out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Marked unavailable' : '' })
       if (unavailable) warnings.push(`${date}: ${pick.name} marked themselves off`)
     }
-    if (R.requireKitchen && !kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
+    if (kitchenReq && !kitchenCovered && out.some(o => o.staffId)) warnings.push(`${date}: no kitchen-trained member on`)
     days.push({ date, open, close, holiday, slots: out })
   }
   return { days, warnings }

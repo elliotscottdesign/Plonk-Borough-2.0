@@ -890,7 +890,8 @@ Deno.serve(async (req) => {
       const SYSTEM = `You compile a bar founder's plain-English rota rules into strict JSON directives for a deterministic rota engine. Encode ONLY what a rule clearly states — never guess or invent. Any rule (or part of one) the engine vocabulary can't express precisely, mark status "reminder" and leave it out of the directives; the founder sees it as a checklist item instead. Be honest: "applied" means the directives fully capture the rule.
 
 ENGINE VOCABULARY (all optional; emit only what the rules state):
-- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early.
+- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early. kitchen:false = no kitchen-trained person needed that day; kitchen:true = one required (day-level on/off ONLY — a time-of-day kitchen rule like "kitchen from 3pm" can only be encoded as day-level; say so honestly in the note).
+- minRestHours: minimum hours between one shift's end and the person's next shift start (e.g. "12 hours between shifts" → 12). The builder avoids too-short gaps and warns when short-staffing forces one.
 - stagger (bool) + staggerGap (min): one person opens & one closes instead of two full shifts.
 - earlyCutMin: minutes to send the floor home early on quiet days.
 - managerMargin (min), requireKitchen (bool), requireManager (bool).
