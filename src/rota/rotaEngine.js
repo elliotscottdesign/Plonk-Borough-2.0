@@ -40,6 +40,13 @@ export const DEFAULT_RULES = {
   managerMargin: 60,       // manager on from open-margin to close+margin
   requireManager: true,    // reserve a manager/asst-manager slot
   requireKitchen: true,    // steer one body toward kitchen cover + warn if none
+  // ── Founder's manual rules (editable in the AI Rota tab, no code change) ──────
+  houseRules: [],          // free-text reminders shown on every generated week
+  strength: {},            // staffId → 1..5 priority/strength (default 3); higher = picked first
+  stagger: false,          // one opener + one closer instead of two full floor shifts
+  staggerGap: 90,          // minutes the opener leaves early / the closer starts late
+  earlyCutMin: 30,         // on a "quiet" day, send the floor home this many min early
+  // (per-weekday `quiet: true` lives inside days[w], added via withDefaults below)
 }
 
 // Legacy exports (kept so anything importing them still resolves) — derived from defaults.
@@ -52,7 +59,7 @@ export const SCHOOL_HOLIDAYS = DEFAULT_RULES.holidayDates
 export function withDefaults(rules) {
   const src = (rules && typeof rules === 'object' && !Array.isArray(rules)) ? rules : {}
   const days = {}
-  for (let w = 0; w <= 6; w++) days[w] = { ...DEFAULT_RULES.days[w], ...(src.days?.[w] || {}) }
+  for (let w = 0; w <= 6; w++) days[w] = { quiet: false, ...DEFAULT_RULES.days[w], ...(src.days?.[w] || {}) }
   return {
     days,
     holiday: { ...DEFAULT_RULES.holiday, ...(src.holiday || {}) },
@@ -60,6 +67,49 @@ export function withDefaults(rules) {
     managerMargin: Number.isFinite(+src.managerMargin) ? +src.managerMargin : DEFAULT_RULES.managerMargin,
     requireManager: src.requireManager !== false,
     requireKitchen: src.requireKitchen !== false,
+    houseRules: Array.isArray(src.houseRules) ? src.houseRules.filter(x => typeof x === 'string') : [],
+    strength: (src.strength && typeof src.strength === 'object' && !Array.isArray(src.strength)) ? { ...src.strength } : {},
+    stagger: src.stagger === true,
+    staggerGap: Number.isFinite(+src.staggerGap) ? Math.max(0, +src.staggerGap) : DEFAULT_RULES.staggerGap,
+    earlyCutMin: Number.isFinite(+src.earlyCutMin) ? Math.max(0, +src.earlyCutMin) : DEFAULT_RULES.earlyCutMin,
+    // AI-compiled directives from the founder's typed house rules (see applyCompiled)
+    // + the per-rule "how I read it" notes. Passed through untouched so a manual-rules
+    // save never wipes what the AI compiled.
+    compiled: (src.compiled && typeof src.compiled === 'object' && !Array.isArray(src.compiled)) ? src.compiled : null,
+    compiledNotes: Array.isArray(src.compiledNotes) ? src.compiledNotes : [],
+  }
+}
+
+// ── AI-compiled directives ────────────────────────────────────────────────────
+// The founder types house rules in plain English; the rota edge function has
+// Claude compile them into this structured object (rules.compiled). Here we layer
+// it over the manual settings: manual UI values are the base, compiled directives
+// win where they speak (they encode the founder's latest typed intent). Every
+// field is validated defensively — a bad compile can never crash the engine.
+const asObj = (v) => (v && typeof v === 'object' && !Array.isArray(v)) ? v : {}
+export function applyCompiled(R) {
+  const c = R.compiled
+  const base = { ...R, neverTogether: [], preferDays: {}, avoidDays: {}, maxShiftsWeek: {}, dateRules: {} }
+  if (!c) return base
+  const days = { ...R.days }
+  const cDays = asObj(c.days)
+  for (let w = 0; w <= 6; w++) if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...days[w], ...cDays[w] }
+  const num = (v, fb) => Number.isFinite(+v) ? Math.max(0, +v) : fb
+  return {
+    ...base,
+    days,
+    stagger: typeof c.stagger === 'boolean' ? c.stagger : R.stagger,
+    staggerGap: c.staggerGap != null ? num(c.staggerGap, R.staggerGap) : R.staggerGap,
+    earlyCutMin: c.earlyCutMin != null ? num(c.earlyCutMin, R.earlyCutMin) : R.earlyCutMin,
+    managerMargin: c.managerMargin != null ? num(c.managerMargin, R.managerMargin) : R.managerMargin,
+    requireKitchen: typeof c.requireKitchen === 'boolean' ? c.requireKitchen : R.requireKitchen,
+    requireManager: typeof c.requireManager === 'boolean' ? c.requireManager : R.requireManager,
+    strength: { ...R.strength, ...asObj(c.strength) },
+    neverTogether: Array.isArray(c.neverTogether) ? c.neverTogether.filter(p => Array.isArray(p) && p.length === 2) : [],
+    preferDays: asObj(c.preferDays),     // staffId → [weekday…] lean toward
+    avoidDays: asObj(c.avoidDays),       // staffId → [weekday…] lean away
+    maxShiftsWeek: asObj(c.maxShiftsWeek), // staffId → max shifts per week
+    dateRules: asObj(c.dateRules),       // 'YYYY-MM-DD' → { closed?, open?, close?, base?, eveAt?, eveAdd?, quiet? }
   }
 }
 
@@ -73,31 +123,58 @@ export const holidayName = (dateStr, rules) => {
   return null
 }
 
-// Opening hours for a date (holiday override → the holiday's hours).
+// Opening hours for a date (specific-date AI rule → holiday override → weekday).
 export function hoursFor(dateStr, rules) {
-  const R = withDefaults(rules)
-  if (holidayName(dateStr, R)) return { open: R.holiday.open, close: R.holiday.close }
+  const R = applyCompiled(withDefaults(rules))
+  const dr = R.dateRules[dateStr]
   const d = R.days[wd(dateStr)] || R.days[0]
-  return { open: d.open, close: d.close }
+  let open = d.open, close = d.close
+  if (holidayName(dateStr, R)) { open = R.holiday.open; close = R.holiday.close }
+  if (dr && Number.isFinite(+dr.open)) open = +dr.open
+  if (dr && Number.isFinite(+dr.close)) close = +dr.close
+  return { open, close }
 }
 
 // The shift SLOTS a day needs, before assigning people. The manager slot spans
 // managerMargin before open → after close (opener + closer + coverage). One slot per body.
 export function daySlots(dateStr, rules) {
-  const R = withDefaults(rules)
-  const { open, close } = hoursFor(dateStr, R)   // holiday-aware hours
-  const d = R.days[wd(dateStr)] || {}
+  const R = applyCompiled(withDefaults(rules))
+  const { open, close } = hoursFor(dateStr, R)   // date-rule/holiday-aware hours
+  // Specific-date AI rule (e.g. "closed on the 25th", "3 staff on the 14th") wins
+  // over the weekday pattern for that one date.
+  const dr = R.dateRules[dateStr] || null
+  if (dr && dr.closed === true) return { slots: [], open, close, holiday: holidayName(dateStr, R), closed: true }
+  const d = { ...(R.days[wd(dateStr)] || {}), ...(dr || {}) }
   // Headcount + evening bump come from the weekday; holidays change only the HOURS.
   const base = Math.max(0, d.base ?? 2)
   const eveAt = d.eveAt ?? null
   const eveAdd = Math.max(0, d.eveAdd ?? 0)
   const margin = R.managerMargin ?? 60
+  // "Quiet" day → send the floor home `earlyCutMin` before close (the manager still
+  // covers the close via their margin). Off = no trim.
+  const cut = (d.quiet === true) ? Math.max(0, R.earlyCutMin ?? 0) : 0
+  const floorClose = Math.max(open + 60, close - cut)
   const slots = []
   if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
   const floorN = Math.max(0, base - (R.requireManager ? 1 : 0))
-  for (let i = 0; i < floorN; i++) slots.push({ start: open, end: close, role: 'any', label: 'Floor' })
-  // Evening bump: extra bodies from eveAt to close (only if eveAt sits inside opening hours).
-  if (eveAt != null && eveAdd > 0 && eveAt > open && eveAt < close) for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: close, role: 'any', label: 'Evening' })
+  const floor = []
+  for (let i = 0; i < floorN; i++) floor.push({ start: open, end: floorClose, role: 'any', label: 'Floor' })
+  // Stagger: instead of two people both open→close, one OPENS (leaves `staggerGap`
+  // early) and one CLOSES (starts `staggerGap` late) — saves the dead hour at each
+  // end while they still overlap through the busy middle. Manager covers open & close.
+  if (R.stagger && floor.length >= 2) {
+    const gap = Math.max(0, R.staggerGap ?? 0)
+    const last = floor.length - 1
+    floor[0] = { ...floor[0], end: Math.max(floor[0].start + 60, floorClose - gap), label: 'Opener' }
+    floor[last] = { ...floor[last], start: Math.min(floorClose - 60, open + gap), label: 'Closer' }
+  }
+  slots.push(...floor)
+  // Evening bump: extra bodies from eveAt to close (only if eveAt sits inside opening
+  // hours). On a quiet day they leave with the floor (floorClose), not at full close.
+  if (eveAt != null && eveAdd > 0 && eveAt > open && eveAt < close) {
+    const eveEnd = Math.max(eveAt + 60, floorClose)
+    for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' })
+  }
   return { slots, open, close, holiday: holidayName(dateStr, R) }
 }
 
@@ -123,12 +200,28 @@ function availState(unavailSet, date) {
 // Generate a concept week. Returns { days: [{ date, hours, holiday, slots:[{...}] }], warnings }
 // Each slot: { start, end, label, role, staffId|null, name|null, kitchen, warn }
 export function generateWeek(weekStart, staff, availabilityRows, rules) {
-  const R = withDefaults(rules)
+  const R = applyCompiled(withDefaults(rules))
   const active = (staff || []).filter(s => s.active !== false)
   const unavail = buildUnavail(availabilityRows)
   const tally = {}   // staffId → minutes assigned this week (fairness)
+  const shiftCount = {}   // staffId → shifts this week (for AI max-shift rules)
   const dur = (a, b) => Math.max(0, b - a)
   const targetOf = (s) => { const t = Number(s.target_hours); return Number.isFinite(t) && t > 0 ? t * 60 : null }
+  // Founder's per-person strength / priority (1..5, default 3). Higher = a head-start
+  // so stronger / this-week's-priority people get picked more — a weighting, not an
+  // override, so hours still spread. 2h of "credit" per level above/below the middle.
+  const strengthOf = (s) => { const v = +(R.strength?.[s.id]); return Number.isFinite(v) && v >= 1 && v <= 5 ? v : 3 }
+  const effHours = (s) => (tally[s.id] || 0) - (strengthOf(s) - 3) * 120
+  // AI people-rules: pairs to keep apart, days each person prefers/avoids, weekly shift caps.
+  const badPair = {}   // staffId → Set(staffIds not to roster the same day)
+  for (const [x, y] of R.neverTogether) { (badPair[x] ||= new Set()).add(y); (badPair[y] ||= new Set()).add(x) }
+  const nameOf = (id) => (active.find(s => s.id === id) || {}).name || 'someone'
+  const maxOf = (s) => { const m = +(R.maxShiftsWeek[s.id]); return Number.isFinite(m) && m > 0 ? m : null }
+  const dayBias = (s, w) => {
+    const av = Array.isArray(R.avoidDays[s.id]) && R.avoidDays[s.id].map(Number).includes(w)
+    const pf = Array.isArray(R.preferDays[s.id]) && R.preferDays[s.id].map(Number).includes(w)
+    return av ? 1 : pf ? -1 : 0
+  }
 
   const days = []
   const warnings = []
@@ -138,9 +231,14 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
     const usedToday = new Set()
     let kitchenCovered = false
     const out = []
+    const w = wd(date)
     for (const slot of slots) {
       let pool = active.filter(s => !usedToday.has(s.id))
       if (slot.role === 'manager') pool = pool.filter(isManager)
+      // Keep-apart pairs (AI rule): drop anyone paired with someone already on today —
+      // unless that empties the pool, in which case staffing the day wins (flagged below).
+      const apart = pool.filter(s => !badPair[s.id] || ![...usedToday].some(u => badPair[s.id].has(u)))
+      if (apart.length > 0) pool = apart
       // Rank: (1) availability, (2) cover kitchen if not yet covered, (3) stay under target,
       // (4) fewest hours so far (fair spread), (5) name for stability.
       // Only steer BODY slots toward kitchen cover — never the manager slot, or the
@@ -153,11 +251,14 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
         if (needKitchen) { const k = (isKitchen(b) ? 1 : 0) - (isKitchen(a) ? 1 : 0); if (k) return k }
         const ao = avOk(a), bo = avOk(b); if (ao !== bo) return bo - ao   // marked-unavailable sinks
         const ta = targetOf(a), tb = targetOf(b)
-        const oa = ta != null && (tally[a.id] || 0) >= ta ? 1 : 0
-        const ob = tb != null && (tally[b.id] || 0) >= tb ? 1 : 0
-        if (oa !== ob) return oa - ob   // someone already at target sinks
-        const hd = (tally[a.id] || 0) - (tally[b.id] || 0)
-        if (hd) return hd               // fewest hours first — spreads & rotates managers
+        const ma = maxOf(a), mb = maxOf(b)
+        const oa = (ta != null && (tally[a.id] || 0) >= ta) || (ma != null && (shiftCount[a.id] || 0) >= ma) ? 1 : 0
+        const ob = (tb != null && (tally[b.id] || 0) >= tb) || (mb != null && (shiftCount[b.id] || 0) >= mb) ? 1 : 0
+        if (oa !== ob) return oa - ob   // someone already at target / their weekly shift cap sinks
+        const ba = dayBias(a, w), bb = dayBias(b, w)
+        if (ba !== bb) return ba - bb   // AI rule: prefers-this-day rises, avoids-this-day sinks
+        const hd = effHours(a) - effHours(b)
+        if (hd) return hd               // fewest (strength-adjusted) hours first — spreads, rotates, favours priority
         return (a.name || '').localeCompare(b.name || '')
       })
       const pick = pool[0]
@@ -167,8 +268,11 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
         continue
       }
       const unavailable = availState(unavail[pick.id] || new Set(), date) === 0
+      // If short staffing forced a keep-apart pair onto the same day, say so.
+      if (badPair[pick.id]) for (const u of usedToday) if (badPair[pick.id].has(u)) warnings.push(`${date}: ${pick.name} and ${nameOf(u)} are both on — your rule says keep them apart, but no one else was free`)
       usedToday.add(pick.id)
       tally[pick.id] = (tally[pick.id] || 0) + dur(slot.start, slot.end)
+      shiftCount[pick.id] = (shiftCount[pick.id] || 0) + 1
       if (isKitchen(pick)) kitchenCovered = true
       out.push({ ...slot, staffId: pick.id, name: pick.name, kitchen: isKitchen(pick), warn: unavailable ? 'Marked unavailable' : '' })
       if (unavailable) warnings.push(`${date}: ${pick.name} marked themselves off`)

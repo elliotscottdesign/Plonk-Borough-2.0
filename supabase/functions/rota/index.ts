@@ -851,6 +851,113 @@ Deno.serve(async (req) => {
       return json({ ok: true, rules });
     }
 
+    // ── AI rule compile (founder, secret-gated) ────────────────────────────────
+    // The founder's typed house rules (plain English) → Claude turns them into the
+    // structured `compiled` directives the deterministic rota engine obeys, plus a
+    // per-rule note saying HOW each was understood (applied vs reminder-only).
+    // Saves the WHOLE rules object (manual settings + houseRules + compiled) in one
+    // write, so nothing existing is ever lost. ~1p per save; admin-only.
+    if (action === "compileRules" && isAdmin()) {
+      const rulesIn = (b.rules && typeof b.rules === "object" && !Array.isArray(b.rules)) ? b.rules : {};
+      const houseRules: string[] = Array.isArray(rulesIn.houseRules)
+        ? rulesIn.houseRules.map((r: unknown) => String(r || "").trim()).filter(Boolean) : [];
+
+      const saveRules = async (data: Record<string, unknown>) => {
+        const { data: saved, error } = await sb.from("rota_rules")
+          .upsert({ id: 1, data, updated_at: new Date().toISOString() }, { onConflict: "id" }).select("data").single();
+        if (error) throw new Error("Couldn't save the rules — have you run the setup SQL? (" + error.message + ")");
+        return saved?.data && Object.keys(saved.data).length ? saved.data : null;
+      };
+
+      // No typed rules left → save with the compiled layer cleared (rule deleted = rule un-applied).
+      if (houseRules.length === 0) {
+        const rules = await saveRules({ ...rulesIn, houseRules: [], compiled: null, compiledNotes: [] });
+        return json({ ok: true, rules });
+      }
+
+      const apiKey = Deno.env.get("ANTHROPIC_API_KEY");
+      if (!apiKey) {
+        // Still save everything (rules become reminders) — never lose the founder's typing.
+        const rules = await saveRules({ ...rulesIn, houseRules, compiled: null, compiledNotes: houseRules.map((r: string) => ({ rule: r, understood: "Saved as a reminder — the AI isn't switched on yet.", status: "reminder" })) });
+        return json({ ok: true, rules, setup: true, error: "Rules saved as reminders — to have the AI apply them automatically, an Anthropic API key needs adding as a Supabase secret (ANTHROPIC_API_KEY), same as the DJ captions." });
+      }
+
+      const { data: staffRows } = await sb.from("staff").select("id,name,role,abilities").eq("active", true);
+      const staffList = (staffRows || []).map((s: any) => `${s.id} · ${s.name || "Unnamed"} · ${s.role || "?"}${(s.abilities || []).includes("kitchen") ? " · kitchen-trained" : ""}`).join("\n");
+      const manualCtx = { days: rulesIn.days, stagger: rulesIn.stagger, staggerGap: rulesIn.staggerGap, earlyCutMin: rulesIn.earlyCutMin, managerMargin: rulesIn.managerMargin, requireKitchen: rulesIn.requireKitchen, requireManager: rulesIn.requireManager, strength: rulesIn.strength };
+      const today = new Date().toISOString().slice(0, 10);
+
+      const SYSTEM = `You compile a bar founder's plain-English rota rules into strict JSON directives for a deterministic rota engine. Encode ONLY what a rule clearly states — never guess or invent. Any rule (or part of one) the engine vocabulary can't express precisely, mark status "reminder" and leave it out of the directives; the founder sees it as a checklist item instead. Be honest: "applied" means the directives fully capture the rule.
+
+ENGINE VOCABULARY (all optional; emit only what the rules state):
+- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early.
+- stagger (bool) + staggerGap (min): one person opens & one closes instead of two full shifts.
+- earlyCutMin: minutes to send the floor home early on quiet days.
+- managerMargin (min), requireKitchen (bool), requireManager (bool).
+- strength: {staffId: 1..5} — 5 = pick first/most (prioritise), 1 = pick least. Default 3.
+- neverTogether: [[staffId, staffId], …] — never roster the pair on the same day.
+- preferDays / avoidDays: {staffId: [weekday…]} — lean toward/away from those days.
+- maxShiftsWeek: {staffId: n} — cap someone's shifts per week.
+- dateRules: {"YYYY-MM-DD": {closed?: true, open?, close?, base?, eveAt?, eveAdd?, quiet?}} — one-off dates.
+
+Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.`;
+
+      const userMsg = `STAFF (id · name · role):\n${staffList || "(none)"}\n\nTODAY: ${today}\n\nCURRENT MANUAL SETTINGS (context so relative rules make sense):\n${JSON.stringify(manualCtx)}\n\nFOUNDER'S TYPED RULES:\n${houseRules.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}`;
+
+      try {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "x-api-key": apiKey, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-5",
+            max_tokens: 3000,
+            system: SYSTEM,
+            messages: [{ role: "user", content: userMsg }],
+            tools: [{
+              name: "set_directives",
+              description: "Record the compiled rota directives and the per-rule notes.",
+              input_schema: {
+                type: "object",
+                properties: {
+                  directives: { type: "object", description: "Only the engine-vocabulary fields the rules clearly state." },
+                  notes: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        rule: { type: "string", description: "The founder's rule, verbatim" },
+                        understood: { type: "string", description: "Plain-English: what the engine will now do (or why it's reminder-only)" },
+                        status: { type: "string", enum: ["applied", "reminder"] },
+                      },
+                      required: ["rule", "understood", "status"],
+                    },
+                  },
+                },
+                required: ["directives", "notes"],
+              },
+            }],
+            tool_choice: { type: "tool", name: "set_directives" },
+          }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok) return json({ error: data?.error?.message || `AI error ${resp.status} — your rules were NOT saved; try again.` }, 502);
+        const toolUse = (data?.content || []).find((c: any) => c?.type === "tool_use" && c?.name === "set_directives");
+        const out = toolUse?.input || {};
+        const compiled = (out.directives && typeof out.directives === "object" && !Array.isArray(out.directives)) ? out.directives : {};
+        // Every typed rule must get a note — backfill any the model skipped.
+        const notesIn: any[] = Array.isArray(out.notes) ? out.notes : [];
+        const compiledNotes = houseRules.map((r: string) => {
+          const n = notesIn.find((x: any) => x && typeof x.rule === "string" && x.rule.trim() === r);
+          return n ? { rule: r, understood: String(n.understood || ""), status: n.status === "applied" ? "applied" : "reminder" }
+                   : { rule: r, understood: "The AI didn't report on this rule — treated as a reminder.", status: "reminder" };
+        });
+        const rules = await saveRules({ ...rulesIn, houseRules, compiled, compiledNotes });
+        return json({ ok: true, rules });
+      } catch (err) {
+        return json({ error: (err as Error).message || "AI compile failed — your rules were NOT saved; try again." }, 502);
+      }
+    }
+
     // ── Founder edits a staffer's availability (secret-gated) ──────────────────
     // Same shape/sanitising as the staff-side saveAvailability, but keyed to any
     // staffId. The founder can fill in / correct anyone's "days I can work".
