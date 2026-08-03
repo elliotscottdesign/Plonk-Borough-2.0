@@ -14,6 +14,12 @@ export async function djPortal(token, action, payload = {}) {
   return data
 }
 
+// Public "Become a No Dice DJ" self-signup — NO token (a brand-new DJ doesn't
+// have one). Gated by the shared access code (joinCode) to keep bots out; the
+// edge fn re-checks it server-side. Creates a pending roster entry; returns
+// { ok:true }. Approval happens in the back end, so this NEVER returns a link.
+export const djSignup = (profile, dataUrl, joinCode) => djPortal('', 'signup', { profile, dataUrl, joinCode })
+
 // Founder-facing calls — authed by SEND_SECRET (gated /ops admin).
 // One-click email blast — {month, subject, body}. The edge fn derives the DJ
 // recipients from the roster itself (never a client list) and fills the body per DJ.

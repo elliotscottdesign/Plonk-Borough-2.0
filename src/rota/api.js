@@ -64,6 +64,7 @@ export const rotaTestPresence = (fix) => call({ action: 'testPresence', secret: 
 // ── AI-rota rules (founder, secret-gated) — editable hours / staffing / holidays ─
 export const rotaGetRotaRules = () => call({ action: 'getRotaRules', secret: SEND_SECRET })
 export const rotaSetRotaRules = (rules) => call({ action: 'setRotaRules', secret: SEND_SECRET, rules })   // full rules object, or {} to reset to defaults
+export const rotaCompileRules = (rules) => call({ action: 'compileRules', secret: SEND_SECRET, rules })   // AI reads houseRules → compiled directives, then saves the whole object
 export const rotaSetStaffAvailability = (staffId, month, data) => call({ action: 'setStaffAvailability', secret: SEND_SECRET, staffId, month, data })   // founder edits a staffer's availability
 
 // ── Staff portal (token-authed — login issues the token) ─────────────────────

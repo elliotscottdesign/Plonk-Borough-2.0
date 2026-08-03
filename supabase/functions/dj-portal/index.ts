@@ -8,6 +8,11 @@
 // rights tick are required for EVERY night — it drives the Instagram post.
 //
 // POST { token, action, ... }
+//   signup {profile,dataUrl?,joinCode}  PUBLIC self-signup ("Become a No Dice
+//          DJ") — NO token. Gated by joinCode (DJ_JOIN_CODE env, default 6699) to
+//          block bots. Creates a PENDING dj (source='website'), emails a thank-you
+//          (no booking link) + admin heads-up, returns { ok:true }. Booking opens
+//          only after the team approves them in the roster.
 //   load   → { dj, complete, openSlots:[{date,kind,blocked}], myBookings:[{...,blocked}], pastBookings:[...], schedule:[...] }
 //   save   {profile}
 //   photo  {dataUrl}
@@ -18,6 +23,11 @@
 //   claim  {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (held → pending)
 //   edit   {date, nightName, genres, subgenres, promoTrack, promoOk, setType}  (existing booking)
 //   cancel {date}            release a held draft or pending request
+//   addReceipt {receiptDate,category,amount,note,dataUrl}  log an expense receipt
+//            (image required; category taxi|drinks|other — taxi = vinyl DJs only)
+//   removeReceipt {id}       delete one of the DJ's own receipts
+//   load also returns `payments` → { rate, vinyl, drinksMax, jobsPast[], jobsUpcoming[],
+//            earnedTotal, upcomingTotal, receipts[], receiptsTotal }
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -32,6 +42,16 @@ const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 // One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
 const SPECIAL_SESSION_DATES = new Set(["2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"]);
 const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
+// Genre adjacency rule — a sub-genre booked the night before/after can't be
+// played again. PAUSED 2026-08-01 so DJs can play what they want; the rule's
+// logic below is kept intact, just gated on this flag. Set DJ_ADJACENCY_RULE=on
+// (or flip the default to true) and redeploy to reinstate it.
+const ADJACENCY_RULE = (Deno.env.get("DJ_ADJACENCY_RULE") || "off").toLowerCase() === "on";
+// ── Payments & expenses (DJ-facing "Payments" section) ──────────────────────
+const SESSION_FEE = 100;                       // £ per CONFIRMED paid session (Thu/Fri/Sat + specials); Open Decks are unpaid
+const DRINKS_MAX = 6;                          // drinks covered per night (policy shown to DJs)
+const RECEIPT_CATS = ["taxi", "drinks", "other"];
+const playsVinyl = (d: any) => /vinyl/i.test(String(d?.format || ""));   // taxis are covered for vinyl DJs only (they're hauling records)
 const monthRange = (d: string) => { const dt = new Date(d + "T00:00:00Z"); return { start: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth(), 1)).toISOString().slice(0, 10), next: new Date(Date.UTC(dt.getUTCFullYear(), dt.getUTCMonth() + 1, 1)).toISOString().slice(0, 10) }; };
 const genreCount = (g: any) => String(g || "").split("/").map((x: string) => x.trim()).filter(Boolean).length;
 // All fields required except SoundCloud/Spotify/YouTube. Genres are optional.
@@ -40,6 +60,8 @@ const arr = (x: any) => Array.isArray(x) ? x : [];
 // Promo fields are NAMES only — reject anything that looks like a URL/link.
 const looksLikeLink = (s: string) => /(https?:\/\/|www\.|[\w-]+\.[a-z]{2,}\/|\b(soundcloud|youtu|spoti|bit\.ly|linktr|hearthis|mixcloud|bandcamp|tidal|deezer|audiomack|hypeddit|fanlink|toneden)\b)/i.test(s || "");
 const pub = (d: any) => ({ id: d.id, dj_name: d.dj_name, real_name: d.real_name, genres: d.genres, instagram: d.instagram, format: d.format, phone: d.phone, email: d.email, image_url: d.image_url, soundcloud: d.soundcloud, spotify: d.spotify, youtube: d.youtube });
+const validEmail = (s: string) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s || "");
+const clip = (s: any, n: number) => String(s ?? "").trim().slice(0, n);
 
 // ── Email notifications (Resend) ──────────────────────────────────────────
 // Best-effort: emails never block or fail a booking action. Admin notices go to
@@ -99,6 +121,81 @@ async function maybeSignup(sb: any, before: any, merged: any) {
   ]);
 }
 
+// Public self-signup from the "Become a No Dice DJ" website form. No token —
+// this is how a brand-new DJ gets ON the roster without the founder adding them
+// by hand. Creates a PENDING dj (can't book until approved), optionally attaches
+// a photo, and emails a thank-you (no portal link → no calendar, "the booking
+// team will be in touch") plus an admin heads-up. Booking opens only on approval.
+async function signup(sb: any, profile: any, dataUrl: string | undefined, joinCode: string | undefined) {
+  // Shared access code — the anti-bot/spam gate. Set DJ_JOIN_CODE to rotate it
+  // without a redeploy; defaults to the code the founder hands out (6699).
+  const CODE = Deno.env.get("DJ_JOIN_CODE") || "6699";
+  if (clip(joinCode, 20) !== CODE) return json({ error: "Wrong access code — ask No Dice for the DJ sign-up code." }, 403);
+  const f = profile || {};
+  const dj_name = clip(f.dj_name, 120);
+  const email = clip(f.email, 200).toLowerCase();
+  const instagram = clip(f.instagram, 120);
+  const phone = clip(f.phone, 60);
+  // Minimum viable application: a name, a contactable email + phone, an Instagram to hear.
+  if (!dj_name) return json({ error: "Please add your DJ name." }, 400);
+  if (!validEmail(email)) return json({ error: "Please add a valid email so we can reach you." }, 400);
+  if (!instagram) return json({ error: "Please add your Instagram so we can hear your sound." }, 400);
+  if (!phone) return json({ error: "Please add a phone number so we can reach you." }, 400);
+
+  // De-dupe by email — never spawn a second row for someone already on the list.
+  // Same friendly thank-you either way (no account enumeration); admin still hears.
+  const { data: dupes } = await sb.from("djs").select("id,status").ilike("email", email).limit(1);
+  const existing = (dupes || [])[0];
+  if (existing) {
+    await sendMail(ADMIN_EMAIL, `DJ re-applied via website: ${dj_name}`, emailShell(
+      "No Dice · DJ Admin", `${esc(dj_name)} applied again`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(dj_name)} (${esc(instagram)} · ${esc(email)}) submitted the “Become a No Dice DJ” form, but that email is already on the roster${existing.status === "pending" ? " (still pending approval)" : ""}.</p>`,
+      { text: "Open DJ Roster", link: OPS }));
+    return json({ ok: true });
+  }
+
+  const src = (typeof f.source === "string" && f.source.trim() && f.source.length < 40) ? f.source.trim() : "website";
+  const { data: created, error } = await sb.from("djs").insert({
+    dj_name, real_name: clip(f.real_name, 120) || null, genres: clip(f.genres, 300) || null,
+    instagram, format: clip(f.format, 200) || null, phone, email,
+    soundcloud: clip(f.soundcloud, 300) || null, spotify: clip(f.spotify, 300) || null, youtube: clip(f.youtube, 300) || null,
+    status: "pending", source: src, signed_up_at: new Date().toISOString(),
+  }).select("id").maybeSingle();
+  if (error) return json({ error: error.message }, 500);
+
+  // Optional profile photo sent with the application (a bad image never fails it).
+  if (created?.id && dataUrl) {
+    const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl);
+    if (m) try {
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      const ext = m[1].includes("png") ? "png" : "jpg";
+      const up = await sb.storage.from("dj-photos").upload(`${created.id}.${ext}`, bytes, { contentType: m[1], upsert: true });
+      if (!up.error) {
+        const { data: p } = sb.storage.from("dj-photos").getPublicUrl(`${created.id}.${ext}`);
+        await sb.from("djs").update({ image_url: `${p.publicUrl}?v=${Date.now()}` }).eq("id", created.id);
+      }
+    } catch (_) { /* ignore a broken photo — the application still stands */ }
+  }
+
+  await Promise.allSettled([
+    sendMail(email, "Thanks for applying to the No Dice DJ roster 🎧", emailShell(
+      "No Dice · DJs", `Thanks, ${esc(dj_name)}`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">Thanks for putting yourself forward to play at No Dice, London Fields — we've got your details.</p>
+       <p style="font-size:14px;line-height:1.6;color:#bbb">Our booking team will have a listen and be in touch. Nothing else to do for now.</p>`)),
+    sendMail(ADMIN_EMAIL, `New DJ application: ${dj_name}`, emailShell(
+      "No Dice · DJ Admin", `${esc(dj_name)} applied via the website`,
+      `<p style="font-size:15px;line-height:1.6;color:#ddd">${esc(dj_name)} signed up through “Become a No Dice DJ”. They're on the roster as <strong style="color:#fff">pending</strong> — approve them to open booking.</p>
+       <ul style="font-size:14px;color:#bbb;line-height:1.7">
+         <li>Instagram: ${esc(instagram)}</li>
+         <li>Genres: ${esc(clip(f.genres, 300) || "—")}</li>
+         <li>Format: ${esc(clip(f.format, 200) || "—")}</li>
+         <li>Email: ${esc(email)} · Phone: ${esc(clip(f.phone, 60) || "—")}</li>
+       </ul>`,
+      { text: "Review in DJ Roster", link: OPS })),
+  ]);
+  return json({ ok: true });
+}
+
 // Fire the "date requested" emails when a DJ submits a booking for sign-off.
 async function notifyRequest(dj: any, date: string, info: { session: boolean; nightName?: string; subgenres?: any; setType?: string; promoTrack?: string; promoArtist?: string }) {
   const name = dj.dj_name || "A DJ", ig = dj.instagram || "no IG", dStr = niceDate(date);
@@ -147,7 +244,7 @@ async function state(sb: any, id: string) {
   const map: Record<string, string[]> = {};
   for (const s of booked || []) map[s.date] = [...(map[s.date] || []), ...arr(s.subgenres)];
   // Sub-genres locked for a session date because they're booked the night before/after.
-  const neighBlocked = (d: string) => isSession(d) ? [...new Set([...(map[shift(d, -1)] || []), ...(map[shift(d, 1)] || [])])] : [];
+  const neighBlocked = (d: string) => (ADJACENCY_RULE && isSession(d)) ? [...new Set([...(map[shift(d, -1)] || []), ...(map[shift(d, 1)] || [])])] : [];
   const { data: openRows } = await sb.from("dj_slots").select("date, slot, kind").eq("status", "open").gte("date", today).order("date");
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, slot: s.slot || "main", kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
@@ -185,18 +282,41 @@ async function state(sb: any, id: string) {
   const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
   // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings: (past || []).map(withPartner), schedule, notes: myNotes || [], roster: roster || [] });
+  const pastBookings = (past || []).map(withPartner);
+
+  // ── Payments: fees from CONFIRMED paid sessions (£SESSION_FEE each) + expense
+  // receipts the DJ has logged. Open Decks are unpaid so never counted. Degrades
+  // to empty receipts if the dj_receipts table isn't created yet.
+  const isPaidSession = (b: any) => (b.kind || (isSession(b.date) ? "session" : "opendecks")) === "session";
+  const jobRow = (b: any) => ({ date: b.date, slot: b.slot || "main", night_name: b.night_name || null, b2b: !!b.b2b, partner: b.partner || null, fee: SESSION_FEE });
+  const jobsPast = pastBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);           // done → earned
+  const jobsUpcoming = myBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);        // booked ahead
+  const { data: rcpts } = await sb.from("dj_receipts").select("id,receipt_date,category,amount,note,image_url,created_at").eq("dj_id", id).order("receipt_date", { ascending: false }).limit(100);
+  const receipts = (rcpts || []).map((r: any) => ({ id: r.id, receipt_date: r.receipt_date, category: r.category || "other", amount: Number(r.amount) || 0, note: r.note || null, image_url: r.image_url, created_at: r.created_at }));
+  const receiptsTotal = receipts.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+  const payments = {
+    rate: SESSION_FEE, vinyl: playsVinyl(me), drinksMax: DRINKS_MAX,
+    jobsPast, jobsUpcoming,
+    earnedTotal: jobsPast.length * SESSION_FEE, upcomingTotal: jobsUpcoming.length * SESSION_FEE,
+    receipts, receiptsTotal,
+  };
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2 } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2, id, receiptDate, category, amount, note } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
-  if (!token) return json({ error: "missing token" }, 400);
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
+
+  // Public "Become a No Dice DJ" self-signup — NO token (they don't have one yet).
+  // Handled before the token gate; creates a pending DJ and returns { ok: true }.
+  if (action === "signup") return signup(sb, profile, dataUrl, joinCode);
+
+  if (!token) return json({ error: "missing token" }, 400);
   const { data: dj } = await sb.from("djs").select("*").eq("token", token).maybeSingle();
   if (!dj) return json({ error: "invalid link" }, 401);
   // Un-vetted (pending) DJs may load/set up their profile, but can't book until approved.
@@ -328,12 +448,14 @@ Deno.serve(async (req) => {
       const { start, next } = monthRange(date);
       const { data: existing } = await sb.from("dj_slots").select("date").or(`dj_id.eq.${dj.id},dj_id2.eq.${dj.id}`).eq("kind", "session").in("status", ["held", "pending", "confirmed"]).neq("date", date).gte("date", start).lt("date", next);
       if (existing && existing.length) return json({ error: "You've already got a Thu/Fri/Sat session this month — only one paid session per month. Open Decks (Sun–Wed) are unlimited." }, 409);
-      // adjacency: sub-genre booked the day before/after
-      const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
-      const blocked = new Set<string>();
-      for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
-      const clash = subs.filter((s: string) => blocked.has(s));
-      if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres or another date.`, conflicts: clash }, 409);
+      // adjacency: sub-genre booked the day before/after (paused unless the rule is on)
+      if (ADJACENCY_RULE) {
+        const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
+        const blocked = new Set<string>();
+        for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
+        const clash = subs.filter((s: string) => blocked.has(s));
+        if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres or another date.`, conflicts: clash }, 409);
+      }
       upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / "); upd.set_type = null;
     } else {
       // Open Decks — no genre rules, no limit
@@ -373,12 +495,14 @@ Deno.serve(async (req) => {
       const subs = arr(subgenres);
       if (!subs.length) return json({ error: "Pick at least one sub-genre you'll play." }, 400);
       if (subs.length > 4) return json({ error: "Up to 4 sub-genres per night." }, 400);
-      // adjacency: a sub-genre booked the day before/after (excludes this date)
-      const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
-      const blocked = new Set<string>();
-      for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
-      const clash = subs.filter((s: string) => blocked.has(s));
-      if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres.`, conflicts: clash }, 409);
+      // adjacency: a sub-genre booked the day before/after (paused unless the rule is on)
+      if (ADJACENCY_RULE) {
+        const { data: nb } = await sb.from("dj_slots").select("subgenres").in("date", [shift(date, -1), shift(date, 1)]).not("dj_id", "is", null);
+        const blocked = new Set<string>();
+        for (const r of nb || []) for (const s of arr(r.subgenres)) blocked.add(s);
+        const clash = subs.filter((s: string) => blocked.has(s));
+        if (clash.length) return json({ error: `Already booked the night before/after: ${clash.join(", ")}. Pick different sub-genres.`, conflicts: clash }, 409);
+      }
       upd.genres = arr(genres); upd.subgenres = subs; upd.genre = subs.join(" / "); upd.set_type = null;
     } else {
       upd.genres = []; upd.subgenres = []; upd.genre = null; upd.set_type = setType || "dj_set";
@@ -394,6 +518,39 @@ Deno.serve(async (req) => {
     // Release a held draft OR a pending request back to the open marketplace.
     await sb.from("dj_slots").update({ dj_id: null, dj_id2: null, status: "open", night_name: null, genre: null, genres: [], subgenres: [], promo_track: null, promo_artist: null, promo_ok: false, set_type: null, held_at: null, reminder_sent: false, event_image_url: null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id).in("status", ["held", "pending"]);
+    return state(sb, dj.id);
+  }
+
+  if (action === "addReceipt") {
+    // Log an expense receipt (image + date + category + £amount). Covered
+    // categories: taxi (VINYL DJs only — they haul records) + drinks (up to
+    // DRINKS_MAX a night) + other. Allowed for any DJ (not a booking action).
+    const m = /^data:(.+?);base64,(.+)$/.exec(dataUrl || "");
+    if (!m) return json({ error: "Attach a photo of the receipt." }, 400);
+    const cat = RECEIPT_CATS.includes(category) ? category : "other";
+    if (cat === "taxi" && !playsVinyl(dj)) return json({ error: "Taxis are only covered for vinyl DJs (you're carrying records). Pick another category." }, 400);
+    const amt = Math.max(0, Math.min(100000, Math.round((Number(amount) || 0) * 100) / 100));
+    const rid = crypto.randomUUID();
+    const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+    const ext = m[1].includes("png") ? "png" : "jpg";
+    const key = `receipts/${dj.id}/${rid}.${ext}`;
+    const up = await sb.storage.from("dj-photos").upload(key, bytes, { contentType: m[1], upsert: true });
+    if (up.error) return json({ error: up.error.message }, 500);
+    const { data: p } = sb.storage.from("dj-photos").getPublicUrl(key);
+    const { error } = await sb.from("dj_receipts").insert({
+      id: rid, dj_id: dj.id,
+      receipt_date: (typeof receiptDate === "string" && receiptDate) ? receiptDate : todayISO(),
+      category: cat, amount: amt, note: note ? String(note).slice(0, 300) : null,
+      image_url: `${p.publicUrl}?v=${Date.now()}`,
+    });
+    if (error) return json({ error: error.message }, 500);
+    return state(sb, dj.id);
+  }
+
+  if (action === "removeReceipt") {
+    // Delete one of the DJ's own receipts (scoped to dj_id so they can't touch others').
+    if (!id) return json({ error: "missing id" }, 400);
+    await sb.from("dj_receipts").delete().eq("id", id).eq("dj_id", dj.id);
     return state(sb, dj.id);
   }
 

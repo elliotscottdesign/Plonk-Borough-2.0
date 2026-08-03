@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { generateWeek, holidayName, addDaysISO, hoursFor } from '../../rota/rotaEngine.js'
+import { generateWeek, holidayName, addDaysISO, hoursFor, withDefaults } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
 import { rotaSaveDayRoster } from '../../rota/api.js'
 import RotaRulesEditor from './RotaRulesEditor.jsx'
@@ -23,6 +23,8 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
 
   const active = staff.filter(s => s.active !== false)
   const nameById = Object.fromEntries(active.map(s => [s.id, s.name]))
+  const { houseRules, compiledNotes } = withDefaults(rules)   // the founder's typed rules + how the AI read them
+  const noteFor = (r) => (compiledNotes || []).find(n => n && n.rule === r) || null
   const weekEnd = addDaysISO(weekStart, 6)
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const assignedCount = (day) => day.slots.filter(s => s.staffId).length
@@ -33,6 +35,9 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
 
   const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
+  // Engine warnings are strings prefixed "YYYY-MM-DD: …" — split them per day so each
+  // one sits on the day card it's about (plus the header pill for the total).
+  const warnsFor = (date) => warnings.filter(w => w.startsWith(date + ':')).map(w => w.slice(date.length + 1).trim())
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
 
   const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
@@ -87,6 +92,9 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>A concept built from your rules. Review &amp; tweak below, then Apply — nothing changes until you do.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {days && warnings.length > 0 && (
+            <span title={warnings.join('\n')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 999, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.45)', color: AMBER, fontSize: 11.5, fontWeight: 700, cursor: 'default' }}>⚠️ {warnings.length} thing{warnings.length === 1 ? '' : 's'} to check</span>
+          )}
           <button onClick={() => stepWeek(-1)} style={nav}>◀</button>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{dayLabel(weekStart)} – {dayLabel(weekEnd)}</div>
           <button onClick={() => stepWeek(1)} style={nav}>▶</button>
@@ -94,10 +102,27 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
         </div>
       </div>
 
-      {/* Editable rules the AI builds from — hours, staffing, holidays */}
+      {/* The founder's plain-English house rules — always visible as the review checklist */}
+      {houseRules.length > 0 && (
+        <div style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '12px 14px' }}>
+          <div style={{ fontSize: 12.5, fontWeight: 700, color: BLUE, marginBottom: 8 }}>📌 Your house rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>· ✅ = the builder does it automatically · ⚠️ = check by hand as you review</span></div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {houseRules.map((r, i) => {
+              const n = noteFor(r)
+              return (
+                <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
+                  <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Editable rules the AI builds from — house rules, hours, staffing, priority, holidays */}
       <details style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0 14px' }}>
-        <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '13px 0' }}>⚙️ Rota rules — opening hours, staffing &amp; holidays <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>· what the AI uses (edit &amp; save)</span></summary>
-        <div style={{ paddingBottom: 14 }}><RotaRulesEditor rules={rules} onSaved={reload} /></div>
+        <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '13px 0' }}>⚙️ Rota rules — house rules, hours, staff priority &amp; holidays <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>· what the builder uses (edit &amp; save)</span></summary>
+        <div style={{ paddingBottom: 14 }}><RotaRulesEditor rules={rules} staff={staff} onSaved={reload} /></div>
       </details>
 
       {/* Readiness — the engine fills from expected hours, so flag anyone missing them for this week */}
@@ -121,11 +146,6 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
         </div>
       ) : (
         <>
-          {warnings.length > 0 && (
-            <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
-              ⚠️ {warnings.length} thing{warnings.length === 1 ? '' : 's'} to check: {warnings.slice(0, 6).join(' · ')}{warnings.length > 6 ? ' …' : ''}
-            </div>
-          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button onClick={applyWeek} disabled={busy} style={btn('gold')}>Apply whole week →</button>
           </div>
@@ -137,6 +157,11 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{fmtMin(day.open)}–{fmtMin(day.close)}</div>
                 </div>
                 {day.holiday && <div style={{ fontSize: 10.5, color: BLUE, marginBottom: 8 }}>🏖️ {day.holiday} · 12–12</div>}
+                {(() => { const ws = warnsFor(day.date); return ws.length > 0 ? (
+                  <div style={{ fontSize: 10.5, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 7, padding: '6px 9px', marginBottom: 8, lineHeight: 1.55 }}>
+                    {ws.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+                  </div>
+                ) : null })()}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {day.slots.map((s, si) => {
                     const tag = slotTag(s)
@@ -174,7 +199,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
             ))}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-            Change anyone with the dropdowns, <strong style={{ color: '#fff' }}>shorten or lengthen a shift</strong> with the −/+ buttons (30-min steps), or remove a slot with ✕. <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — with the exact times you set — and you can still fine-tune in the Rota grid afterwards. Holiday dates and staffing rules are set in <code>src/rota/rotaEngine.js</code>.
+            Change anyone with the dropdowns, <strong style={{ color: '#fff' }}>shorten or lengthen a shift</strong> with the −/+ buttons (30-min steps), or remove a slot with ✕. <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — with the exact times you set — and you can still fine-tune in the Rota grid afterwards. All the rules — house rules, hours, staff priority, opener/closer, quiet-day early cut and holidays — are yours to edit in <strong style={{ color: '#fff' }}>⚙️ Rota rules</strong> above.
           </div>
         </>
       )}

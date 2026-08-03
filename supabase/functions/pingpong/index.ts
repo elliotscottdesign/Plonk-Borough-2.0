@@ -1,13 +1,20 @@
-// Supabase Edge Function: tournament
-// No Dice pool-tournament tool (kickertool replacement). One function, `action`-routed,
-// ALL actions founder-gated by SEND_SECRET (the /ops "Tournament" screen).
+// Supabase Edge Function: pingpong
+// No Dice ping-pong-tournament tool (kickertool replacement). A byte-for-byte copy of the
+// `tournament` (pool) function, differing ONLY in that a game is first-to-11 (raceTo 11)
+// and it writes to its own pingpong_* tables. One function, `action`-routed, ALL actions
+// founder-gated by SEND_SECRET (the /ops "Ping Pong" screen).
 //
-// It READS the existing booking tables (tournaments, tournament_entries) — which the
-// separate nodice.bar booking site fills via Stripe — and writes ONLY to its own
-// pool_* tables. Never mutates a customer's booking.
+// It READS the same booking tables (tournaments, tournament_entries) the pool tool uses —
+// which the separate nodice.bar booking site fills via Stripe — and writes ONLY to its own
+// pingpong_* tables. Never mutates a customer's booking.
 //
-// Slice 1: entrants. A "run" (pool_tournaments) links a booked pool night to its
-// roster (pool_participants), auto-synced from the paid entries; the founder can add
+// Ping pong nights are SUNDAYS from 6pm, always TEAMS (founder rule 3 Aug 2026):
+// rows in `tournaments` with tournament_type='teams'. This function lists ONLY those
+// (pool's `tournament` function excludes them), and the league is a single team league —
+// no singles/doubles split anywhere.
+//
+// Slice 1: entrants. A "run" (pingpong_tournaments) links a booked night to its
+// roster (pingpong_participants), auto-synced from the paid entries; the founder can add
 // walk-ins, rename, or remove. Rounds + knockout land in later slices on this function.
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
@@ -39,7 +46,7 @@ const voucherEmail = (name: string, place: number, amount: number, code: string,
   const ord = place === 1 ? "1st" : place === 2 ? "2nd" : "3rd";
   const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
   return `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
-    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Pool</p>
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Ping Pong</p>
     <h1 style="font-size:24px;margin:0 0 6px">${medal} ${ord} place — nice one, ${esc(name)}!</h1>
     <p style="font-size:15px;line-height:1.6;color:#ddd">You finished <strong style="color:#fff">${ord}</strong> at <strong style="color:#fff">${esc(tournName)}</strong>. Here's your <strong style="color:#A855F7">${gbp(amount)} bar tab</strong> — on us.</p>
     <div style="margin:20px 0;padding:16px;border:1px dashed #A855F7;border-radius:12px;text-align:center;background:#160e24">
@@ -53,10 +60,10 @@ const voucherEmail = (name: string, place: number, amount: number, code: string,
 };
 const bookingEmail = (name: string, tournName: string, dateStr: string) =>
   `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
-    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Pool</p>
-    <h1 style="font-size:24px;margin:0 0 8px">You're in, ${esc(name)}! 🎱</h1>
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice · Ping Pong</p>
+    <h1 style="font-size:24px;margin:0 0 8px">You're in, ${esc(name)}! 🏓</h1>
     <p style="font-size:15px;line-height:1.6;color:#ddd">Your spot in <strong style="color:#fff">${esc(tournName)}</strong> on <strong style="color:#fff">${esc(dateStr)}</strong> is confirmed. Turn up, check in at the bar, and we'll seed you into the night.</p>
-    <p style="margin:22px 0"><a href="https://nodice.bar/pool" style="background:#A855F7;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">See the pool page</a></p>
+    <p style="margin:22px 0"><a href="https://nodice.bar/pingpong" style="background:#A855F7;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">See the ping pong page</a></p>
     <p style="font-size:13px;line-height:1.6;color:#aaa">Follow the season league at <a href="https://nodice.bar/league" style="color:#C4B5FD">nodice.bar/league</a> — the top 8 seed the grand final.</p>
     <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
   </div>`;
@@ -69,13 +76,13 @@ function shortCode(seed: string) {
   return "ND-" + out;
 }
 
-// Scoring settings (per tournament, in pool_tournaments.settings). Matches the
-// kickertool config the venue uses: race to 8 goals, no draws, 1 point per win
-// (so standings Pts = wins, then ranked on goal difference), byes not rated.
+// Scoring settings (per tournament, in pingpong_tournaments.settings). Ping pong:
+// FIRST TO 11 for the win (raceTo 11), no draws, 1 point per win (so standings Pts =
+// wins, then ranked on points difference), byes not rated.
 // 2026-07-30 — founder rule: final + 3rd-place playoff are ALWAYS best-of-3 of
-// race-to-8 games, and a 3rd-place playoff is ALWAYS on. Defaults reflect that
+// first-to-11 games, and a 3rd-place playoff is ALWAYS on. Defaults reflect that
 // so a run created without any explicit settings still gets them.
-const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 8, thirdPlaceMatch: true, finalBestOf3: true };
+const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 11, thirdPlaceMatch: true, finalBestOf3: true };
 const settingsOf = (run: any) => ({ ...DEFAULT_SETTINGS, ...(run?.settings || {}) });
 
 // Best-of-3 applies ONLY to the final and the 3rd-place playoff (founder's choice) —
@@ -159,9 +166,9 @@ function pairSwiss(standings: any[], matches: any[]) {
 // Load a run's roster + rounds + matches + live standings in one go.
 async function loadRun(sb: any, run: any) {
   const [{ data: participants }, { data: rounds }, { data: matches }] = await Promise.all([
-    sb.from("pool_participants").select("*").eq("pool_tournament_id", run.id).order("created_at"),
-    sb.from("pool_rounds").select("*").eq("pool_tournament_id", run.id).order("ordinal"),
-    sb.from("pool_matches").select("*").eq("pool_tournament_id", run.id).order("created_at"),
+    sb.from("pingpong_participants").select("*").eq("pingpong_tournament_id", run.id).order("created_at"),
+    sb.from("pingpong_rounds").select("*").eq("pingpong_tournament_id", run.id).order("ordinal"),
+    sb.from("pingpong_matches").select("*").eq("pingpong_tournament_id", run.id).order("created_at"),
   ]);
   const standings = computeStandings(participants || [], matches || [], settingsOf(run));
   const placings = computePlacings(matches || [], standings);
@@ -181,11 +188,11 @@ async function generateRound(sb: any, run: any) {
   // Round 1 has no standings yet — pair by sign-up order; later rounds pair on standings.
   const order = ordinal === 1 ? active.map((p: any) => ({ id: p.id, name: p.display_name })) : standings;
   const { pairs, byeId } = pairSwiss(order, matches);
-  const { data: round, error: rErr } = await sb.from("pool_rounds").insert({ pool_tournament_id: run.id, ordinal, status: "active" }).select("*").single();
+  const { data: round, error: rErr } = await sb.from("pingpong_rounds").insert({ pingpong_tournament_id: run.id, ordinal, status: "active" }).select("*").single();
   if (rErr) return { error: rErr.message };
   let slot = 1;
-  for (const [a, bId] of pairs) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: a, p2_id: bId, status: "pending" });
-  if (byeId) await sb.from("pool_matches").insert({ pool_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: byeId, p2_id: null, is_bye: true, winner_id: byeId, status: "done", p1_score: 0, p2_score: 0 });
+  for (const [a, bId] of pairs) await sb.from("pingpong_matches").insert({ pingpong_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: a, p2_id: bId, status: "pending" });
+  if (byeId) await sb.from("pingpong_matches").insert({ pingpong_tournament_id: run.id, round_id: round.id, slot: slot++, p1_id: byeId, p2_id: null, is_bye: true, winner_id: byeId, status: "done", p1_score: 0, p2_score: 0 });
   // Immediately assign the two physical tables (T1 / T2) to the earliest ready
   // matches so staff know where to send each pair.
   await reassignTables(sb, run.id);
@@ -201,9 +208,9 @@ async function generateRound(sb: any, run: any) {
 // bracket generated. Idempotent — safe to call multiple times.
 async function reassignTables(sb: any, runId: string) {
   const TABLES = [1, 2];
-  const { data: matches } = await sb.from("pool_matches")
+  const { data: matches } = await sb.from("pingpong_matches")
     .select("id, status, table_number, round_id, slot, bracket_round, is_bye, p1_id, p2_id")
-    .eq("pool_tournament_id", runId);
+    .eq("pingpong_tournament_id", runId);
   if (!matches) return;
   // Occupied tables — held by any not-yet-done non-bye match with a table set.
   const occupied = new Set<number>();
@@ -225,7 +232,7 @@ async function reassignTables(sb: any, runId: string) {
   for (const m of needy) {
     const t = free.shift();
     if (t == null) break;
-    await sb.from("pool_matches").update({ table_number: t }).eq("id", m.id);
+    await sb.from("pingpong_matches").update({ table_number: t }).eq("id", m.id);
   }
 }
 
@@ -264,23 +271,23 @@ async function generateBracket(sb: any, run: any, standings: any[], thirdPlace: 
         if (p1 && !p2) { isBye = true; winner = p1; status = "done"; }
         else if (!p1 && p2) { p1 = p2; p2 = null; isBye = true; winner = p1; status = "done"; }
       }
-      const { data: m } = await sb.from("pool_matches").insert({
-        pool_tournament_id: run.id, bracket_round: r, bracket_slot: slot,
+      const { data: m } = await sb.from("pingpong_matches").insert({
+        pingpong_tournament_id: run.id, bracket_round: r, bracket_slot: slot,
         p1_id: p1, p2_id: p2, is_bye: isBye, winner_id: winner, status, next_match_id, next_slot,
       }).select("id").single();
       idByRS[`${r}:${slot}`] = m!.id;
     }
   }
   // Cascade round-1 bye winners forward into their next match's slot.
-  const { data: r1 } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", run.id).eq("bracket_round", 1);
+  const { data: r1 } = await sb.from("pingpong_matches").select("*").eq("pingpong_tournament_id", run.id).eq("bracket_round", 1);
   for (const m of r1 || []) if (m.status === "done" && m.winner_id && m.next_match_id) {
-    await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: m.winner_id }).eq("id", m.next_match_id);
+    await sb.from("pingpong_matches").update({ [`p${m.next_slot}_id`]: m.winner_id }).eq("id", m.next_match_id);
   }
   // Optional 3rd-place match (fed by the two semi-final losers when they're known).
   if (thirdPlace && rounds >= 2) {
-    await sb.from("pool_matches").insert({ pool_tournament_id: run.id, bracket_round: rounds, bracket_slot: 1, is_third_place: true, status: "pending" });
+    await sb.from("pingpong_matches").insert({ pingpong_tournament_id: run.id, bracket_round: rounds, bracket_slot: 1, is_third_place: true, status: "pending" });
   }
-  await sb.from("pool_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", run.id);
+  await sb.from("pingpong_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", run.id);
   return { size, rounds };
 }
 
@@ -318,16 +325,16 @@ function placingsComplete(matches: any[]): boolean {
 // After any bracket result changes: finish + issue vouchers once placings are locked; reconcile
 // if a corrected result changed them; reopen a finished night that's no longer complete.
 async function settleRun(sb: any, runId: string) {
-  const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+  const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
   if (!run) return;
-  const { data: matches } = await sb.from("pool_matches").select("*").eq("pool_tournament_id", runId).not("bracket_round", "is", null);
+  const { data: matches } = await sb.from("pingpong_matches").select("*").eq("pingpong_tournament_id", runId).not("bracket_round", "is", null);
   const complete = placingsComplete(matches || []);
   if (complete) {
-    if (run.status !== "done") await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
-    const { data: dr } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+    if (run.status !== "done") await sb.from("pingpong_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
+    const { data: dr } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
     if (dr) await finalizeTournament(sb, dr);
   } else if (run.status === "done") {
-    await sb.from("pool_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", runId);
+    await sb.from("pingpong_tournaments").update({ status: "knockout", updated_at: new Date().toISOString() }).eq("id", runId);
   }
 }
 
@@ -344,28 +351,28 @@ async function finalizeTournament(sb: any, run: any) {
   const { participants, placings } = await loadRun(sb, run);
   if (!placings) return { error: "Not finished yet." };
   const { data: t } = await sb.from("tournaments").select("name").eq("id", run.tournament_id).maybeSingle();
-  const tournName = t?.name || "the No Dice pool tournament";
+  const tournName = t?.name || "the No Dice ping pong tournament";
   const byId: Record<string, any> = {}; for (const p of participants) byId[p.id] = p;
   const vouchers: any[] = [];
   for (const place of [1, 2, 3]) {
     const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third;
     if (!pid) continue;
     const p = byId[pid];
-    let { data: v } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).maybeSingle();
+    let { data: v } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).eq("place", place).maybeSingle();
     if (!v) {
       const email = await emailForParticipant(sb, p);
-      const ins = await sb.from("pool_vouchers").insert({ pool_tournament_id: run.id, participant_id: pid, place, amount_pence: VOUCHER_PENCE[place], code: shortCode(run.id + place), display_name: p?.display_name || null, email }).select("*").single();
+      const ins = await sb.from("pingpong_vouchers").insert({ pingpong_tournament_id: run.id, participant_id: pid, place, amount_pence: VOUCHER_PENCE[place], code: shortCode(run.id + place), display_name: p?.display_name || null, email }).select("*").single();
       v = ins.data;
     } else if (v.participant_id !== pid) {
       // A corrected result changed who placed here — repoint the voucher and re-email the right person.
       const email = await emailForParticipant(sb, p);
-      const upd = await sb.from("pool_vouchers").update({ participant_id: pid, display_name: p?.display_name || null, email, emailed_at: null }).eq("id", v.id).select("*").single();
+      const upd = await sb.from("pingpong_vouchers").update({ participant_id: pid, display_name: p?.display_name || null, email, emailed_at: null }).eq("id", v.id).select("*").single();
       v = upd.data;
     }
     if (v && v.email && !v.emailed_at) {
       const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
-      const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
-      if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+      const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice ping pong!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
+      if (sent) { await sb.from("pingpong_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
     }
     vouchers.push(v);
   }
@@ -380,7 +387,7 @@ async function finalizeTournament(sb: any, run: any) {
 // the original player earns nothing from that night, and the replacement doesn't
 // get league credit for a partial-attendance run either (founder rule 2026-07-30).
 async function computeLeague(sb: any, discipline: string) {
-  const { data: runs } = await sb.from("pool_tournaments").select("*, tournaments(name,event_date,tournament_type)").eq("status", "done");
+  const { data: runs } = await sb.from("pingpong_tournaments").select("*, tournaments(name,event_date,tournament_type)").eq("status", "done");
   // discipline_override lets the founder re-classify a night mid-run (e.g. a
   // doubles night played as singles because not enough teams showed up).
   // When set, this night's points accrue to the OTHER league.
@@ -417,22 +424,22 @@ Deno.serve(async (req) => {
   // ── Public reads (no secret — the nodice.bar site + bar-TV pages call these) ──
   try {
     if (action === "getLeague") {
-      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
-      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+      // Ping pong has ONE league: teams. The discipline param is ignored (kept for
+      // backward-compat with older frontends that still send singles/doubles).
+      return json({ ok: true, ...(await computeLeague(sb, "teams")) });
     }
   } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 
   if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
   try {
-    // The pool nights to run: booked tournaments + their paid count, cap, and run status.
-    // Excludes tournament_type='teams' — those are the Sunday ping pong nights, which
-    // live in the separate `pingpong` function/tab (3 Aug 2026).
+    // The ping pong nights to run: Sunday team nights only (tournament_type='teams') +
+    // their paid count, cap, and run status. Pool's singles/doubles nights are excluded.
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
-        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
+        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").eq("tournament_type", "teams").order("event_date", { ascending: true }),
         sb.from("tournament_entries").select("tournament_id").eq("status", "paid"),
-        sb.from("pool_tournaments").select("id,tournament_id,status"),
+        sb.from("pingpong_tournaments").select("id,tournament_id,status"),
       ]);
       const paidCount: Record<string, number> = {};
       for (const e of paid || []) paidCount[e.tournament_id] = (paidCount[e.tournament_id] || 0) + 1;
@@ -457,25 +464,25 @@ Deno.serve(async (req) => {
       const { data: t } = await sb.from("tournaments").select("*").eq("id", tournamentId).maybeSingle();
       if (!t) return json({ error: "Tournament not found" }, 404);
 
-      let { data: run } = await sb.from("pool_tournaments").select("*").eq("tournament_id", tournamentId).maybeSingle();
+      let { data: run } = await sb.from("pingpong_tournaments").select("*").eq("tournament_id", tournamentId).maybeSingle();
       if (!run) {
-        const ins = await sb.from("pool_tournaments").insert({ tournament_id: tournamentId }).select("*").single();
+        const ins = await sb.from("pingpong_tournaments").insert({ tournament_id: tournamentId }).select("*").single();
         if (ins.error) return json({ error: ins.error.message }, 400);
         run = ins.data;
       }
 
       // Sync: add each PAID entry that isn't already a participant (by entry_id).
       const { data: entries } = await sb.from("tournament_entries").select("id,team_name,captain_name").eq("tournament_id", tournamentId).eq("status", "paid").order("paid_at");
-      const { data: existing } = await sb.from("pool_participants").select("*").eq("pool_tournament_id", run.id);
+      const { data: existing } = await sb.from("pingpong_participants").select("*").eq("pingpong_tournament_id", run.id);
       const haveEntryIds = new Set((existing || []).filter((p: any) => p.entry_id).map((p: any) => p.entry_id));
       const toAdd = (entries || [])
         .filter((e: any) => !haveEntryIds.has(e.id))
-        .map((e: any) => ({ pool_tournament_id: run.id, entry_id: e.id, display_name: clean(e.team_name) || clean(e.captain_name) || "Player", source: "ticket" }));
+        .map((e: any) => ({ pingpong_tournament_id: run.id, entry_id: e.id, display_name: clean(e.team_name) || clean(e.captain_name) || "Player", source: "ticket" }));
       // Only sync new paid entries while still setting up — once rounds start the field is locked.
-      if (run.status === "setup") for (const row of toAdd) { await sb.from("pool_participants").insert(row); }
+      if (run.status === "setup") for (const row of toAdd) { await sb.from("pingpong_participants").insert(row); }
 
       const data = await loadRun(sb, run);
-      const { data: vouchers } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).order("place");
+      const { data: vouchers } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).order("place");
       return json({
         ok: true,
         tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 12 },
@@ -486,13 +493,13 @@ Deno.serve(async (req) => {
     // Start the rounds phase: locks the field and generates round 1. Needs ≥ 2 players.
     if (action === "startRounds") {
       const runId = clean(b.runId, 40);
-      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { participants, rounds } = await loadRun(sb, run);
       const active = participants.filter((p: any) => p.active);
       if (active.length < 2) return json({ error: "Need at least 2 entrants to start." }, 400);
       if (rounds.length > 0) return json({ error: "Rounds already started." }, 400);
-      await sb.from("pool_tournaments").update({ status: "rounds", updated_at: new Date().toISOString() }).eq("id", runId);
+      await sb.from("pingpong_tournaments").update({ status: "rounds", updated_at: new Date().toISOString() }).eq("id", runId);
       const gen = await generateRound(sb, { ...run, status: "rounds" });
       if (gen.error) return json({ error: gen.error }, 400);
       return json({ ok: true, round: gen.round });
@@ -501,7 +508,7 @@ Deno.serve(async (req) => {
     // Generate the next round (Swiss). Requires the current round to be fully scored.
     if (action === "generateNextRound") {
       const runId = clean(b.runId, 40);
-      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const gen = await generateRound(sb, run);
       if (gen.error) return json({ error: gen.error }, 400);
@@ -512,15 +519,15 @@ Deno.serve(async (req) => {
     // higher score). The final + 3rd-place playoff can be best-of-3 (frontend sends `games`).
     if (action === "enterScore") {
       const matchId = clean(b.matchId, 40);
-      const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
+      const { data: m } = await sb.from("pingpong_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m) return json({ error: "Match not found." }, 404);
       if (m.is_bye) return json({ error: "That's a bye — no score to enter." }, 400);
       const isBracket = m.bracket_round != null;
       if (isBracket && (!m.p1_id || !m.p2_id)) return json({ error: "This match is waiting on an earlier result." }, 400);
-      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", m.pool_tournament_id).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", m.pingpong_tournament_id).maybeSingle();
       const s = settingsOf(run);
       const { data: allBr } = isBracket
-        ? await sb.from("pool_matches").select("*").eq("pool_tournament_id", m.pool_tournament_id).not("bracket_round", "is", null)
+        ? await sb.from("pingpong_matches").select("*").eq("pingpong_tournament_id", m.pingpong_tournament_id).not("bracket_round", "is", null)
         : { data: [] as any[] };
       const rounds = (allBr && allBr.length) ? Math.max(...allBr.map((x: any) => x.bracket_round)) : 0;
       const isFinal = isBracket && m.bracket_round === rounds && !m.is_third_place;
@@ -540,10 +547,10 @@ Deno.serve(async (req) => {
         // Free the table when the match is decided so the next pending match can take it.
         const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" };
         if (t.decided) patch.table_number = null;
-        const { error } = await sb.from("pool_matches").update(patch).eq("id", matchId);
+        const { error } = await sb.from("pingpong_matches").update(patch).eq("id", matchId);
         if (error) return json({ error: error.message }, 400);
-        await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
-        if (t.decided) await reassignTables(sb, m.pool_tournament_id);
+        await settleRun(sb, m.pingpong_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
+        if (t.decided) await reassignTables(sb, m.pingpong_tournament_id);
         return json({ ok: true });
       }
 
@@ -554,57 +561,57 @@ Deno.serve(async (req) => {
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       // Free the table this match was on — reassignTables below will hand it
       // to the next ready pending match.
-      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null }).eq("id", matchId);
+      const { error } = await sb.from("pingpong_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
       // Bracket: push the winner into the next match, then feed the 3rd-place match.
       if (isBracket && winner) {
-        if (m.next_match_id && m.next_slot) await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: winner }).eq("id", m.next_match_id);
+        if (m.next_match_id && m.next_slot) await sb.from("pingpong_matches").update({ [`p${m.next_slot}_id`]: winner }).eq("id", m.next_match_id);
         const tpm = (allBr || []).find((x: any) => x.is_third_place);
         if (tpm && m.bracket_round === rounds - 1) {
           // allBr was read before this semi was marked done — patch in its fresh result so both
           // semis are seen as complete and the 3rd-place match gets its two losers.
           const semis = (allBr || []).map((x: any) => (x.id === m.id ? { ...x, status: "done", winner_id: winner } : x))
             .filter((x: any) => x.bracket_round === rounds - 1 && !x.is_third_place && x.status === "done");
-          if (semis.length === 2) await sb.from("pool_matches").update({ p1_id: semis[0].winner_id === semis[0].p1_id ? semis[0].p2_id : semis[0].p1_id, p2_id: semis[1].winner_id === semis[1].p1_id ? semis[1].p2_id : semis[1].p1_id }).eq("id", tpm.id);
+          if (semis.length === 2) await sb.from("pingpong_matches").update({ p1_id: semis[0].winner_id === semis[0].p1_id ? semis[0].p2_id : semis[0].p1_id, p2_id: semis[1].winner_id === semis[1].p1_id ? semis[1].p2_id : semis[1].p1_id }).eq("id", tpm.id);
         }
-        await settleRun(sb, m.pool_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
+        await settleRun(sb, m.pingpong_tournament_id);   // finish + vouchers once the final AND (any) 3rd-place are decided
       }
-      await reassignTables(sb, m.pool_tournament_id);   // freed table flows to the next pending match
+      await reassignTables(sb, m.pingpong_tournament_id);   // freed table flows to the next pending match
       return json({ ok: true });
     }
     // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
     if (action === "clearScore") {
       const matchId = clean(b.matchId, 40);
-      const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
+      const { data: m } = await sb.from("pingpong_matches").select("*").eq("id", matchId).maybeSingle();
       if (!m || m.is_bye) return json({ ok: true });
-      await sb.from("pool_matches").update({ p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", matchId);
+      await sb.from("pingpong_matches").update({ p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", matchId);
       if (m.bracket_round != null && m.winner_id && m.next_match_id && m.next_slot) {
-        await sb.from("pool_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", m.next_match_id);
+        await sb.from("pingpong_matches").update({ [`p${m.next_slot}_id`]: null, p1_score: null, p2_score: null, games: null, winner_id: null, status: "pending", table_number: null }).eq("id", m.next_match_id);
       }
       // Clearing a bracket result may drop the night out of "complete" — reopen it if so.
-      if (m.bracket_round != null) await settleRun(sb, m.pool_tournament_id);
+      if (m.bracket_round != null) await settleRun(sb, m.pingpong_tournament_id);
       // Reopened match may pick up a free table.
-      await reassignTables(sb, m.pool_tournament_id);
+      await reassignTables(sb, m.pingpong_tournament_id);
       return json({ ok: true });
     }
     // Start the knockout: seed the bracket from the final rounds standings.
     if (action === "startKnockout") {
       const runId = clean(b.runId, 40);
-      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       if (run.status === "knockout" || run.status === "done") return json({ error: "Knockout already started." }, 400);
       const { standings, matches } = await loadRun(sb, run);
       if (matches.some((m: any) => m.round_id && m.status !== "done")) return json({ error: "Finish scoring the current round first." }, 400);
       const s = settingsOf(run);
       const thirdPlace = b.thirdPlace != null ? !!b.thirdPlace : !!s.thirdPlaceMatch;
-      // Match length for the knockout (race to N frames). Clamp to a sane 3–15.
-      const raceTo = b.raceTo != null ? Math.min(15, Math.max(3, Math.round(Number(b.raceTo) || s.raceTo))) : s.raceTo;
+      // Match length for the knockout (race to N points, first to N wins). Clamp 3–21.
+      const raceTo = b.raceTo != null ? Math.min(21, Math.max(3, Math.round(Number(b.raceTo) || s.raceTo))) : s.raceTo;
       // Best-of-3 for the final + 3rd-place playoff (each game races to `raceTo`).
       const finalBestOf3 = b.finalBestOf3 != null ? !!b.finalBestOf3 : !!s.finalBestOf3;
       const nextSettings = { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo, finalBestOf3 };
       // Persist the chosen knockout options so the bracket score entry & standings
       // read the right race target, and re-opens show what was picked.
-      await sb.from("pool_tournaments").update({ settings: nextSettings }).eq("id", runId);
+      await sb.from("pingpong_tournaments").update({ settings: nextSettings }).eq("id", runId);
       const gen = await generateBracket(sb, { ...run, settings: nextSettings }, standings, thirdPlace);
       if ((gen as any).error) return json({ error: (gen as any).error }, 400);
       // Assign T1 / T2 to the first playable bracket matches.
@@ -617,12 +624,12 @@ Deno.serve(async (req) => {
     // semi-finalist). Idempotent — re-running just reconciles + re-emails any missing vouchers.
     if (action === "finalize") {
       const runId = clean(b.runId, 40);
-      const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { placings } = await loadRun(sb, run);
       if (!placings) return json({ error: "The final isn't finished yet." }, 400);
-      if (run.status !== "done") await sb.from("pool_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
-      const { data: dr } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
+      if (run.status !== "done") await sb.from("pingpong_tournaments").update({ status: "done", updated_at: new Date().toISOString() }).eq("id", runId);
+      const { data: dr } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       const r = await finalizeTournament(sb, dr || run);
       if ((r as any).error) return json({ error: (r as any).error }, 400);
       return json({ ok: true, ...r });
@@ -630,16 +637,15 @@ Deno.serve(async (req) => {
     // Seed a season final (grand final) from the league's top 8.
     if (action === "seedFromLeague") {
       const runId = clean(b.runId, 40);
-      const { data: run } = await sb.from("pool_tournaments").select("*, tournaments(tournament_type)").eq("id", runId).maybeSingle();
+      const { data: run } = await sb.from("pingpong_tournaments").select("*, tournaments(tournament_type)").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       if (run.status !== "setup") return json({ error: "Seed the grand final before it starts." }, 400);
-      const discipline = (run as any).tournaments?.tournament_type === "doubles" ? "doubles" : "singles";
-      const league = await computeLeague(sb, discipline);
+      const league = await computeLeague(sb, "teams");   // ping pong: one team league
       const top8 = league.table.slice(0, 8);
-      const { data: existing } = await sb.from("pool_participants").select("display_name").eq("pool_tournament_id", runId);
+      const { data: existing } = await sb.from("pingpong_participants").select("display_name").eq("pingpong_tournament_id", runId);
       const have = new Set((existing || []).map((p: any) => (p.display_name || "").trim().toLowerCase()));
       let added = 0;
-      for (const r of top8) { if (have.has(r.key)) continue; await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: r.name, source: "manual", seed: r.rank }); added++; }
+      for (const r of top8) { if (have.has(r.key)) continue; await sb.from("pingpong_participants").insert({ pingpong_tournament_id: runId, display_name: r.name, source: "manual", seed: r.rank }); added++; }
       return json({ ok: true, added, top8 });
     }
 
@@ -662,18 +668,18 @@ Deno.serve(async (req) => {
       let emailed = false;
       if (email) {
         const niceDate = new Date(t.event_date + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
-        emailed = await sendMail(email, `You're in — ${t.name} 🎱`, bookingEmail(name, t.name, niceDate));
+        emailed = await sendMail(email, `You're in — ${t.name} 🏓`, bookingEmail(name, t.name, niceDate));
       }
       return json({ ok: true, entry, emailed });
     }
     // Undo the latest round (delete it + its matches).
     if (action === "deleteLastRound") {
       const runId = clean(b.runId, 40);
-      const { data: rounds } = await sb.from("pool_rounds").select("*").eq("pool_tournament_id", runId).order("ordinal", { ascending: false }).limit(1);
+      const { data: rounds } = await sb.from("pingpong_rounds").select("*").eq("pingpong_tournament_id", runId).order("ordinal", { ascending: false }).limit(1);
       const last = (rounds || [])[0];
       if (!last) return json({ error: "No rounds to undo." }, 400);
-      await sb.from("pool_rounds").delete().eq("id", last.id);   // cascades its matches
-      if (last.ordinal === 1) await sb.from("pool_tournaments").update({ status: "setup" }).eq("id", runId);   // back to setup
+      await sb.from("pingpong_rounds").delete().eq("id", last.id);   // cascades its matches
+      if (last.ordinal === 1) await sb.from("pingpong_tournaments").update({ status: "setup" }).eq("id", runId);   // back to setup
       return json({ ok: true });
     }
 
@@ -682,7 +688,7 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name);
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
-      const { data, error } = await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: name, source: "manual" }).select("*").single();
+      const { data, error } = await sb.from("pingpong_participants").insert({ pingpong_tournament_id: runId, display_name: name, source: "manual" }).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, participant: data });
     }
@@ -691,7 +697,7 @@ Deno.serve(async (req) => {
       const id = clean(b.participantId, 40);
       const name = clean(b.name);
       if (!id || !name) return json({ error: "Enter a name." }, 400);
-      const { data, error } = await sb.from("pool_participants").update({ display_name: name }).eq("id", id).select("*").single();
+      const { data, error } = await sb.from("pingpong_participants").update({ display_name: name }).eq("id", id).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, participant: data });
     }
@@ -706,7 +712,7 @@ Deno.serve(async (req) => {
       const id = clean(b.participantId, 40);
       const name = clean(b.name);
       if (!id || !name) return json({ error: "Enter the replacement's name." }, 400);
-      const { data, error } = await sb.from("pool_participants")
+      const { data, error } = await sb.from("pingpong_participants")
         .update({ display_name: name, league_null: true, replaced_at: new Date().toISOString() })
         .eq("id", id).select("*").single();
       if (error) return json({ error: error.message }, 400);
@@ -717,15 +723,15 @@ Deno.serve(async (req) => {
     // re-sync can't silently re-add them — and it can be undone).
     if (action === "removeParticipant") {
       const id = clean(b.participantId, 40);
-      const { data: p } = await sb.from("pool_participants").select("*").eq("id", id).maybeSingle();
+      const { data: p } = await sb.from("pingpong_participants").select("*").eq("id", id).maybeSingle();
       if (!p) return json({ error: "Not found." }, 404);
-      if (p.source === "manual") await sb.from("pool_participants").delete().eq("id", id);
-      else await sb.from("pool_participants").update({ active: false }).eq("id", id);
+      if (p.source === "manual") await sb.from("pingpong_participants").delete().eq("id", id);
+      else await sb.from("pingpong_participants").update({ active: false }).eq("id", id);
       return json({ ok: true });
     }
     if (action === "restoreParticipant") {
       const id = clean(b.participantId, 40);
-      await sb.from("pool_participants").update({ active: true }).eq("id", id);
+      await sb.from("pingpong_participants").update({ active: true }).eq("id", id);
       return json({ ok: true });
     }
 
@@ -739,7 +745,7 @@ Deno.serve(async (req) => {
       if (!runId) return json({ error: "no run" }, 400);
       const raw = b.discipline;
       const override = raw === "singles" || raw === "doubles" ? raw : null;
-      const { data, error } = await sb.from("pool_tournaments")
+      const { data, error } = await sb.from("pingpong_tournaments")
         .update({ discipline_override: override, updated_at: new Date().toISOString() })
         .eq("id", runId).select("*").single();
       if (error) return json({ error: error.message }, 400);
@@ -750,7 +756,7 @@ Deno.serve(async (req) => {
     if (action === "deleteRun") {
       const runId = clean(b.runId, 40);
       if (!runId) return json({ error: "no run" }, 400);
-      await sb.from("pool_tournaments").delete().eq("id", runId);
+      await sb.from("pingpong_tournaments").delete().eq("id", runId);
       return json({ ok: true });
     }
 

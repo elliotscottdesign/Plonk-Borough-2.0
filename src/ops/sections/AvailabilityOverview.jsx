@@ -32,8 +32,16 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
   const timers = useRef({})
   const [savingKeys, setSavingKeys] = useState({})
 
-  // Re-seed from the server whenever the loaded availability changes (e.g. after reload).
-  useEffect(() => { const m = buildMap(availability); setAvData(m); avRef.current = m }, [availability])
+  // Re-seed from the server whenever the loaded availability changes (e.g. after
+  // reload, incl. the 20s background refresh). Two guards so a background pull is
+  // safe: skip while one of our own toggles is still saving (never revert a tap
+  // mid-flight), and skip no-op re-seeds so identical data doesn't clobber optimistic edits.
+  useEffect(() => {
+    if (Object.values(savingKeys).some(Boolean)) return
+    const m = buildMap(availability)
+    if (JSON.stringify(m) === JSON.stringify(avRef.current)) return
+    setAvData(m); avRef.current = m
+  }, [availability])   // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { avRef.current = avData }, [avData])
   useEffect(() => () => { Object.values(timers.current).forEach(clearTimeout) }, [])
 

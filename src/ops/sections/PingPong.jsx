@@ -2,20 +2,23 @@ import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
-} from '../../tournament/api.js'
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
+} from '../../pingpong/api.js'
 
-// ─── Pool tournaments (founder) ──────────────────────────────────────────────
-// Slice 1: pick a booked pool night, see the paid entrants auto-pulled in, tidy the
-// roster. Slice 2: run the Swiss rounds — draw a round, punch in scores, live standings
-// (points → frame difference → Buchholz). Knockout + league land in later slices.
-// Reads the live booking data; writes only to the pool_* tables.
+// ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
+// Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
+// one team league, a game is first-to-11. Pick a Sunday night, see the paid teams
+// auto-pulled in, tidy the roster, run the Swiss rounds (points → point difference →
+// Buchholz), cut to the knockout. Reads the live booking data (tournament_type='teams'
+// rows only); writes only to the pingpong_* tables.
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7', BLUE = '#60A5FA'
 // Purple league branding across the whole tournament section (cards, borders, buttons).
 const CARD = '#160e24', LINE = 'rgba(168,85,247,0.25)'
 const fmtDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
-const typeBadge = (t) => t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
+// Ping pong nights are ALWAYS teams (Sunday 6pm) — singles/doubles kept only as a
+// fallback in case an old row slips through.
+const typeBadge = (t) => t === 'teams' ? { txt: '👥 Teams', c: PURPLE } : t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
 // Calendar helpers (Mon-first, UK). monthMatrix → array of weeks, each 7 cells of { day, iso } | null.
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -30,7 +33,7 @@ const monthMatrix = (year, month0) => {
   return weeks
 }
 
-export default function Tournament() {
+export default function PingPong() {
   const [view, setView] = useState('list')     // 'list' | 'run'
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
@@ -43,13 +46,12 @@ export default function Tournament() {
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
   const [gameScores, setGameScores] = useState({})   // matchId -> [{p1,p2}...] for best-of-3 matches
   const [thirdPlace, setThirdPlace] = useState(true)    // knockout: play a 3rd-place match? (founder rule 2026-07-30: always on)
-  const [koRaceTo, setKoRaceTo] = useState(8)           // knockout: race to how many frames?
+  const [koRaceTo, setKoRaceTo] = useState(11)          // knockout: race to how many points?
   const [finalBestOf3, setFinalBestOf3] = useState(true) // knockout: final + 3rd-place = best of 3?
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
-  const [league, setLeague] = useState(null)
-  const [leagueDisc, setLeagueDisc] = useState('singles')
+  const [league, setLeague] = useState(null)            // ping pong has ONE league: teams (no singles/doubles)
   const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
 
   const loadList = async () => {
@@ -85,9 +87,9 @@ export default function Tournament() {
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
-  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
-  const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} points${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
+  const loadLeague = async () => { setBusy(true); try { setLeague(await tournGetLeague('teams')) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const openLeague = async () => { setLeagueView(true); await loadLeague() }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
   const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
@@ -96,10 +98,10 @@ export default function Tournament() {
     if (p1 === '' || p2 === '') { alert('Enter both scores.'); return }
     await guard(async () => { await tournEnterScore(m.id, p1, p2); setScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
   }
-  // Race to WIN (8). Pick the loser's frames (0–7) and the winner auto-jumps to 8;
-  // pick 8 for a side and it's the winner (the other side clears so you set the loser).
+  // First to WIN (11). Pick the loser's points (0–10) and the winner auto-jumps to 11;
+  // pick 11 for a side and it's the winner (the other side clears so you set the loser).
   const setScore = (id, side, raw) => setScores(s => {
-    const WIN = run?.run?.settings?.raceTo || 8
+    const WIN = run?.run?.settings?.raceTo || 11
     const cur = s[id] || {}, other = side === 'p1' ? 'p2' : 'p1'
     const v = raw === '' ? '' : Number(raw)
     let next
@@ -110,7 +112,7 @@ export default function Tournament() {
   })
 
   // Best-of-3: one score input per game, same loser-picker auto-fill (pick the loser's
-  // frames → the winner jumps to WIN). `saveGames` sends the completed games; the engine
+  // points → the winner jumps to WIN). `saveGames` sends the completed games; the engine
   // tallies them (first to win 2) and finalises when the final is decided.
   const setGame = (id, idx, side, raw, WIN, base) => setGameScores(s => {
     // Seed from the persisted games (base = m.games) on the first edit after a save/reload —
@@ -137,19 +139,16 @@ export default function Tournament() {
     const rows = league?.table || []
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Pool nights</button>
+        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Ping pong nights</button>
         <div>
-          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 League table</div>
-          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season frame difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
+          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 Team league</div>
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished Sunday night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season point difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['singles', 'doubles'].map(d => <button key={d} onClick={() => loadLeague(d)} style={{ ...pill(leagueDisc === d), textTransform: 'capitalize' }}>{d}</button>)}
-        </div>
-        {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished {leagueDisc} nights yet — the league fills in as tournaments complete.</div> : (
+        {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished nights yet — the league fills in as tournaments complete.</div> : (
           <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
               <thead><tr style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th><th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th><th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Team</th>
                 {['Nights', '🥇', '🥈', '🥉', '+/−', 'Pts'].map(h => <th key={h} style={{ padding: '0 8px 6px', textAlign: 'right' }}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -174,7 +173,7 @@ export default function Tournament() {
     )
   }
 
-  // ── Calendar of pool nights ─────────────────────────────────────────────────
+  // ── Calendar of ping pong nights ─────────────────────────────────────────────────
   if (view === 'list') {
     const todayISO = new Date().toISOString().slice(0, 10)
     const thisMonthKey = todayISO.slice(0, 7)
@@ -213,7 +212,7 @@ export default function Tournament() {
           boxShadow: isNext ? `0 0 0 3px ${GREEN}26` : 'none',
         }}>
           <span style={{ position: 'absolute', top: 3, right: 5, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{cell.day}</span>
-          <span style={{ fontSize: 15, lineHeight: 1 }}>{t.type === 'doubles' ? '👥' : t.type === 'singles' ? '👤' : '🎱'}</span>
+          <span style={{ fontSize: 15, lineHeight: 1 }}>{t.type === 'doubles' ? '👥' : t.type === 'singles' ? '👤' : '🏓'}</span>
           <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.paid}/{t.cap}</span>
           {t.run && <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: GREEN, lineHeight: 1 }}>{t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
           {evs.length > 1 && <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>+{evs.length - 1}</span>}
@@ -239,13 +238,13 @@ export default function Tournament() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
           <div>
-            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
-            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
+            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏓 Ping Pong tournaments</div>
+            <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked ping pong nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
           </div>
           <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
         </div>
         {err && <div style={errBox}>{err}</div>}
-        {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No pool nights booked yet.</div> : (
+        {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No ping pong nights booked yet.</div> : (
           <>
             {/* Next coming up — the highlighted date, pulled out so it's tap-first on phone. */}
             {nextT && (() => {
@@ -269,10 +268,9 @@ export default function Tournament() {
               )
             })()}
 
-            {/* Legend */}
+            {/* Legend — every ping pong night is a Sunday-6pm TEAM night */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${BLUE}22`, border: `1px solid ${BLUE}55` }} />👤 Singles</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${PURPLE}22`, border: `1px solid ${PURPLE}55` }} />👥 Doubles</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${PURPLE}22`, border: `1px solid ${PURPLE}55` }} />👥 Team night · Sundays 6pm</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'transparent', border: `2px solid ${GREEN}` }} />Next up</span>
             </div>
 
@@ -307,7 +305,7 @@ export default function Tournament() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← All pool nights</button>
+      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← All ping pong nights</button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
@@ -341,7 +339,7 @@ export default function Tournament() {
 
       {/* ══ SETUP: roster editing + start ══ */}
       {status === 'setup' && <>
-        <div style={infoBox}>{run.paidCount} paid online → auto-entered. {t.type === 'doubles' ? 'Doubles show by team name. ' : ''}Add a cash walk-in, rename or remove anyone, then start the rounds.</div>
+        <div style={infoBox}>{run.paidCount} paid online → auto-entered. Teams enter under their team name. Add a cash walk-in team, rename or remove anyone, then start the rounds.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {activeParts.map((p, i) => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: '9px 11px' }}>
@@ -408,14 +406,14 @@ export default function Tournament() {
                   const p1win = doneM && m.winner_id === m.p1_id, p2win = doneM && m.winner_id === m.p2_id
                   return (
                     <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 9px', flexWrap: 'wrap' }}>
-                      {/* Table badge — shows which physical pool table this pair is on.
+                      {/* Table badge — shows which physical table this pair is on.
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
-                      <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
+                      <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 11} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
-                      <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
+                      <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 11} />
                       <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
                       {doneM
                         ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
@@ -440,14 +438,14 @@ export default function Tournament() {
 
           {/* RIGHT — live standings (reference column) */}
           <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → point diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
                 <thead>
                   <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
-                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
-                    {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Frames won'], ['A', 'Frames lost'], ['+/−', 'Frame difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
+                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Team</th>
+                    {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Points won'], ['A', 'Points lost'], ['+/−', 'Point difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
                   </tr>
                 </thead>
                 <tbody>
@@ -467,7 +465,7 @@ export default function Tournament() {
                 </tbody>
               </table>
             </div>
-            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.5 }}>P · W · L · F frames won · A frames lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>+/−</strong> frame difference · Pts</div>
+            <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.5 }}>P · W · L · F points won · A points lost · <strong style={{ color: 'rgba(255,255,255,0.65)' }}>+/−</strong> point difference · Pts</div>
           </div>
         </div>
         {/* Options for substitute-player / knockout / undo / refresh / restart
@@ -481,7 +479,7 @@ export default function Tournament() {
         const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
         const placings = run.placings
         const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
-        const bracketMax = run.run?.settings?.raceTo || 8
+        const bracketMax = run.run?.settings?.raceTo || 11
         const bo3On = !!run.run?.settings?.finalBestOf3
         const BracketMatch = ({ m }) => {
           if (m.is_bye) return <div style={{ ...bracketBox, color: 'rgba(255,255,255,0.6)' }}><div style={{ fontWeight: 700, color: '#fff' }}>{nameById[m.p1_id]}</div><div style={{ fontSize: 10.5, color: GREEN }}>bye →</div></div>
@@ -648,9 +646,6 @@ export default function Tournament() {
           if ((typed || '').trim().toUpperCase() !== 'RESTART') { alert('Restart cancelled — nothing was deleted.'); return }
           guard(async () => { await tournDeleteRun(run.run.id); setView('list'); loadList() })()
         }}
-        origDiscipline={t.type}
-        effectiveDiscipline={run.run?.discipline_override || t.type}
-        onSetDiscipline={(disc) => guard(() => tournSetDiscipline(run.run.id, disc))()}
         koRaceTo={koRaceTo}
         setKoRaceTo={setKoRaceTo}
         thirdPlace={thirdPlace}
@@ -673,7 +668,7 @@ const btn = (kind) => {
 }
 const iconBtn = { width: 30, height: 30, borderRadius: 7, background: 'rgba(168,85,247,0.10)', border: '1px solid rgba(168,85,247,0.3)', color: '#fff', fontSize: 13, cursor: 'pointer', flexShrink: 0, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: 0 }
 const scoreInp = { width: 40, padding: '7px 0', fontSize: 15, fontWeight: 700, textAlign: 'center', borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }
-// A 0–8 frames dropdown (opens the list of numbers). compact = bracket size.
+// A 0–11 points dropdown (opens the list of numbers). compact = bracket size.
 function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
   const v = value === '' || value == null ? '' : String(value)
   return (
@@ -687,7 +682,7 @@ function ScoreSelect({ value, onPick, disabled, max = 8, compact }) {
 const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', display: 'flex', flexDirection: 'column' }
 
 // ── Table badge ─────────────────────────────────────────────────────────────
-// Shows which physical pool table (T1 / T2) an in-progress match is on. When
+// Shows which physical table (T1 / T2) an in-progress match is on. When
 // a match is pending but no table is assigned yet ("all tables busy"), it
 // renders a muted "table free soon" pill instead. Done matches show no badge
 // (the info is redundant once a result is in).
@@ -786,7 +781,6 @@ function MenuDrawer({
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
-  origDiscipline, effectiveDiscipline, onSetDiscipline,
 }) {
   if (!open) return null
   const isRounds = status === 'rounds'
@@ -807,56 +801,8 @@ function MenuDrawer({
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
 
-        {/* Format — flip the night's discipline if not enough teams show up.
-            Founder rule 2026-07-30: a doubles night played as singles still
-            counts, just in the singles league. Reversible: tap the same
-            button again to revert to the original type. */}
-        {(isRounds || isKO || status === 'setup') && origDiscipline && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(96,165,250,0.06)', border: `1px solid rgba(96,165,250,0.28)`, borderRadius: 12, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔀 Format for tonight</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>
-              This night is set to <strong style={{ color: '#fff' }}>{effectiveDiscipline === 'doubles' ? '👥 Doubles' : '👤 Singles'}</strong>
-              {effectiveDiscipline !== origDiscipline && <span style={{ color: '#FCD34D', fontWeight: 700 }}> · overridden (originally {origDiscipline})</span>}
-              . Points accrue to the <strong style={{ color: '#fff' }}>{effectiveDiscipline}</strong> league.
-            </div>
-            {origDiscipline === 'doubles' && effectiveDiscipline === 'doubles' && (
-              <button
-                onClick={() => {
-                  if (!window.confirm('Not enough teams? Flip this night to a SINGLES tournament.\n\nPoints will accrue to the SINGLES league instead of doubles. You can flip back.')) return
-                  closeAfter(() => onSetDiscipline('singles'))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
-              >
-                🔀 Play tonight as SINGLES (not enough teams)
-              </button>
-            )}
-            {effectiveDiscipline !== origDiscipline && (
-              <button
-                onClick={() => {
-                  if (!window.confirm(`Revert this night back to a ${origDiscipline.toUpperCase()} tournament?\n\nPoints will accrue to the ${origDiscipline} league.`)) return
-                  closeAfter(() => onSetDiscipline(null))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left' }}
-              >
-                ↩ Revert to {origDiscipline}
-              </button>
-            )}
-            {origDiscipline === 'singles' && effectiveDiscipline === 'singles' && (
-              <button
-                onClick={() => {
-                  if (!window.confirm('Flip this night to a DOUBLES tournament?\n\nPoints will accrue to the DOUBLES league instead of singles. You can flip back.')) return
-                  closeAfter(() => onSetDiscipline('doubles'))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
-              >
-                🔀 Play tonight as DOUBLES
-              </button>
-            )}
-          </div>
-        )}
+        {/* No format section here (pool has a singles/doubles flip) — every ping
+            pong night is a TEAM night, founder rule 3 Aug 2026. */}
 
         {/* Substitute a player — the highest-touch mid-tournament action */}
         {(isRounds || isKO) && (
@@ -889,7 +835,7 @@ function MenuDrawer({
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
               <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Match length — race to</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {[5, 6, 7, 8, 9].map(n => {
+                {[7, 9, 11, 15, 21].map(n => {
                   const on = koRaceTo === n
                   return (
                     <button key={n} onClick={() => setKoRaceTo(n)} style={{ padding: '7px 13px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: `1px solid ${on ? PURPLE : 'rgba(168,85,247,0.3)'}`, background: on ? PURPLE : 'rgba(168,85,247,0.10)', color: '#fff' }}>{n}</button>

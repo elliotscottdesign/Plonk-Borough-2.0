@@ -48,6 +48,8 @@ function Avatar({ name, size = 46 }) {
 // A profile is "ready" for the portal once it can log in (email + password) and
 // has a role — that's the minimum to appear on the rota.
 const ready = (s) => !!(s && s.name && s.email && s.has_password && s.role)
+// Human "when did we last refresh" label for the Live badge.
+const syncLabel = (ts) => { const s = Math.round((Date.now() - ts) / 1000); if (s < 15) return 'just now'; if (s < 60) return `${s}s ago`; const m = Math.round(s / 60); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago` }
 const missing = (s) => {
   const m = []
   if (!s?.email) m.push('email')
@@ -76,19 +78,39 @@ export default function StaffRota() {
   const [form, setForm] = useState({})
   const [busy, setBusy] = useState(false)
   const [q, setQ] = useState('')
+  const [lastSync, setLastSync] = useState(null)   // when we last pulled fresh data (for the live badge)
   const editRef = useRef(null)
 
-  const load = async () => {
-    setLoading(true); setErr('')
+  // `silent` = a background refresh (polling / tab refocus): no loading spinner,
+  // no error banner, so it never disrupts what the founder is looking at.
+  const load = async ({ silent = false } = {}) => {
+    if (!silent) { setLoading(true); setErr('') }
     try {
       const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || []); setRotaRules(r.rotaRules || null)
       const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
       const dm = {}; for (const d of r.docs || []) (dm[d.staff_id] ||= {})[d.kind] = true; setDocsBy(dm)
+      setLastSync(Date.now())
     }
-    catch (e) { setErr(e.message || 'Could not load the team.') }
-    finally { setLoading(false) }
+    catch (e) { if (!silent) setErr(e.message || 'Could not load the team.') }
+    finally { if (!silent) setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  // Keep the manager's view live. A staffer can change their availability (or a
+  // clock-in / roster claim can land) at any moment — so quietly re-pull every 20s
+  // and the instant this tab regains focus, without a manual refresh. We skip while
+  // a save of our own is in flight (busyRef) so a background pull never fights an
+  // edit, and the child views only re-seed when the data actually changed.
+  const busyRef = useRef(false)
+  useEffect(() => { busyRef.current = busy }, [busy])
+  useEffect(() => {
+    const tick = () => { if (!document.hidden && !busyRef.current) load({ silent: true }) }
+    const id = setInterval(tick, 20000)
+    const onFocus = () => { if (!document.hidden) tick() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
+  }, [])
   useEffect(() => { if (editing) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [editing])
 
   const startEdit = (s) => { setEditing(s.id); setForm({ ...s, password: '' }); setViewSoi(false) }
@@ -136,7 +158,18 @@ export default function StaffRota() {
   }
 
   const filtered = staff.filter(s => `${s.name} ${s.role || ''} ${s.email || ''} ${(s.skills || []).join(' ')}`.toLowerCase().includes(q.toLowerCase()))
-  const readyN = staff.filter(ready).length
+  // Current team vs Past Staff — past (active === false) are already excluded from
+  // rosters, the AI builder, availability, training and logins; here we also keep
+  // them out of the main Team grid, in their own section at the bottom.
+  const current = filtered.filter(s => s.active !== false)
+  const pastStaff = filtered.filter(s => s.active === false)
+  const readyN = staff.filter(s => s.active !== false && ready(s)).length
+  const nActive = staff.filter(s => s.active !== false).length
+  // One-tap "bring back" from the Past Staff section (full editing lives on the current card).
+  const reactivate = async (s) => {
+    if (!window.confirm(`Bring ${s.name || 'this person'} back to the current team? They'll appear on staff lists and can log in again.`)) return
+    setBusy(true); try { await rotaSaveStaff(s.id, { active: true }); await load() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -151,10 +184,14 @@ export default function StaffRota() {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
+        <button onClick={() => load()} disabled={loading} title="These pages refresh themselves automatically — tap to pull the very latest right now" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', fontSize: 11.5, borderRadius: 999, cursor: 'pointer', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.4)', color: '#34D399', fontWeight: 600 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 0 3px rgba(52,211,153,0.18)' }} />
+          {loading ? 'Updating…' : `Live${lastSync ? ' · ' + syncLabel(lastSync) : ''}`}
+        </button>
       </div>
 
       {view === 'rota' ? (
@@ -176,7 +213,7 @@ export default function StaffRota() {
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>👥 The team</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
-            {staff.length} team member{staff.length === 1 ? '' : 's'} · <span style={{ color: '#34D399' }}>{readyN} ready to log in</span>{staff.length - readyN > 0 && <> · <span style={{ color: '#FCD34D' }}>{staff.length - readyN} incomplete</span></>}
+            {nActive} team member{nActive === 1 ? '' : 's'} · <span style={{ color: '#34D399' }}>{readyN} ready to log in</span>{nActive - readyN > 0 && <> · <span style={{ color: '#FCD34D' }}>{nActive - readyN} incomplete</span></>}{pastStaff.length > 0 && <> · <span style={{ color: 'rgba(255,255,255,0.45)' }}>{pastStaff.length} past</span></>}
           </div>
         </div>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
@@ -192,7 +229,7 @@ export default function StaffRota() {
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', padding: '24px 0', textAlign: 'center' }}>Loading team…</div>
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 12 }}>
-          {filtered.map(s => {
+          {current.map(s => {
             const isEdit = editing === s.id
             const done = ready(s)
             return (
@@ -274,10 +311,10 @@ export default function StaffRota() {
                         {TRAINING.map(t => <option key={t} value={t}>{t}</option>)}
                       </select>
                     </Field>
-                    <Field label="Active on the rota?">
+                    <Field label="Status">
                       <select value={form.active === false ? 'no' : 'yes'} onChange={e => onField('active', e.target.value === 'yes')} style={inp('100%')}>
-                        <option value="yes">Yes — can log in &amp; book</option>
-                        <option value="no">No — inactive</option>
+                        <option value="yes">Current staff — on lists, can log in</option>
+                        <option value="no">Past staff — off all lists &amp; rosters, can't log in</option>
                       </select>
                     </Field>
                     <Field label="Training progress notes" wide><textarea value={form.training_notes || ''} onChange={e => onField('training_notes', e.target.value)} rows={2} style={{ ...inp('100%'), resize: 'vertical' }} /></Field>
@@ -338,10 +375,38 @@ export default function StaffRota() {
         </div>
       )}
 
-      {!loading && filtered.length === 0 && !err && (
+      {!loading && current.length === 0 && !err && (
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '24px 16px', lineHeight: 1.6 }}>
           {q ? `No team members match "${q}".` : <>No team yet. Tap <strong style={{ color: '#fff' }}>+ Add team member</strong> to create their profile — name, contact, next of kin, role, skills, and a login password.</>}
         </div>
+      )}
+
+      {/* Past Staff — left the team. Kept off every list/roster/login; profile & history retained. */}
+      {!loading && pastStaff.length > 0 && (
+        <details style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 12, padding: '0 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: 'rgba(255,255,255,0.75)', padding: '13px 0' }}>
+            🗄️ Past staff ({pastStaff.length}) <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.45)', fontSize: 12 }}>· not on staff lists, rosters or the AI builder · can't log in · profile kept</span>
+          </summary>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10, paddingBottom: 14 }}>
+            {pastStaff.map(s => (
+              <div key={s.id} style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: 12, opacity: 0.85 }}>
+                <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <Avatar name={s.name} size={38} />
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 14, fontWeight: 600, color: '#fff', display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                      {s.name || 'Unnamed'}
+                      {s.role && <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, padding: '1px 7px' }}>{s.role}</span>}
+                    </div>
+                    {s.email && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.email}</div>}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, marginTop: 10 }}>
+                  <button onClick={() => reactivate(s)} disabled={busy} style={btn('ghost')}>↩︎ Bring back to team</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </details>
       )}
 
       <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.6)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>

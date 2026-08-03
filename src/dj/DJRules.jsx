@@ -46,14 +46,24 @@ export default function DJRules() {
         <Li>These go out on the flyer and the listings, so choose what really represents the set.</Li>
       </Section>
 
-      <Section tag="🔀" title="The adjacent-night rule">
-        So two nights in a row don't sound the same, a <B>sub-genre</B> can't be booked on the day
-        <B> before or after</B> one that's already taken.
-        <Li><B>Same day is fine</B> — two DJs can share a night with the same sub-genre.</Li>
-        <Li><B>Same broad genre is fine</B> back-to-back — e.g. House one night, House the next.</Li>
-        <Li>It's only the exact <B>sub-genre</B> on <B>consecutive</B> days that's blocked.</Li>
-        <Li>If something's locked when you pick a date, you'll see it crossed out — just choose another sub-genre or another night.</Li>
+      {/* Genre-variety ("adjacent-night") rule — PAUSED 2026-08-01 so DJs can play
+          what they want. To reinstate: set DJ_ADJACENCY_RULE=on in the dj-portal
+          edge fn AND swap the note below back for the original Section (kept here). */}
+      <Section tag="🎶" title="Play what you want">
+        Right now there are <B>no genre restrictions</B> from one night to the next — play whatever suits your set.
+        <Li>Pick <B>up to 4 sub-genres</B> for the flyer and listings.</Li>
+        <Li>We may bring back a variety rule later; if we do, any locked sub-genres will show crossed out when you pick a date.</Li>
       </Section>
+      {/* PAUSED — original adjacent-night rule, restore when DJ_ADJACENCY_RULE goes back on:
+      <Section tag="🔀" title="The adjacent-night rule">
+        So two nights in a row don't sound the same, a sub-genre can't be booked on the day
+        before or after one that's already taken.
+        · Same day is fine — two DJs can share a night with the same sub-genre.
+        · Same broad genre is fine back-to-back — e.g. House one night, House the next.
+        · It's only the exact sub-genre on consecutive days that's blocked.
+        · If something's locked when you pick a date, you'll see it crossed out — just choose another sub-genre or another night.
+      </Section>
+      */}
 
       <Section tag="⏳" title="Picking a date holds it for 24 hours" accent="#FCD34D">
         The moment you tap a date, it's <B>yours</B> — it comes off the marketplace so no one
