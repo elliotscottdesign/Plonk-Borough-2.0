@@ -128,10 +128,12 @@ export default function KitchenChecklists({ token, kitchen }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
         {cadences.map(k => {
           const t = KITCHEN_TEMPLATES[k], run = day.runs?.[k]
+          const isGuidance = !!t.guidance
           const done = run?.status === 'completed'
           const failed = !!run?.has_failure
           const inProgress = run && !done
-          const status = done ? (failed ? { t: '⚠ Submitted — failure logged', c: RED } : { t: '✓ Submitted', c: GREEN })
+          const status = isGuidance ? { t: 'Guidance', c: BLUE }
+            : done ? (failed ? { t: '⚠ Submitted — failure logged', c: RED } : { t: '✓ Submitted', c: GREEN })
             : inProgress ? { t: 'In progress', c: AMBER } : { t: 'Not started', c: 'rgba(255,255,255,0.4)' }
           return (
             <div key={k}>
@@ -152,16 +154,28 @@ export default function KitchenChecklists({ token, kitchen }) {
                   {t.groups.map(g => (
                     <div key={g.title} style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{g.title}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
-                        {g.items.map(item => <KitchenItem key={item.key} item={item} e={local[item.key] || {}} set={p => set(item.key, p)} fail={itemFail(item, local[item.key])} />)}
-                      </div>
+                      {isGuidance ? (
+                        <ul style={{ margin: 0, paddingLeft: 18, display: 'flex', flexDirection: 'column', gap: 7 }}>
+                          {g.items.map(item => (
+                            <li key={item.key} style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.82)', lineHeight: 1.5 }}>
+                              {item.label}{item.type === 'temp' && item.target ? ` — ${targetLabel(item.target)}` : ''}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 9 }}>
+                          {g.items.map(item => <KitchenItem key={item.key} item={item} e={local[item.key] || {}} set={p => set(item.key, p)} fail={itemFail(item, local[item.key])} />)}
+                        </div>
+                      )}
                     </div>
                   ))}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
-                    <button onClick={() => save(k, false)} disabled={busy} style={btn('ghost')}>Save progress</button>
-                    <button onClick={() => save(k, true)} disabled={busy} style={btn('red')}>Submit checklist</button>
-                  </div>
-                  {done && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Already submitted — you can update it and submit again.</div>}
+                  {!isGuidance && (
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                      <button onClick={() => save(k, false)} disabled={busy} style={btn('ghost')}>Save progress</button>
+                      <button onClick={() => save(k, true)} disabled={busy} style={btn('red')}>Submit checklist</button>
+                    </div>
+                  )}
+                  {!isGuidance && done && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Already submitted — you can update it and submit again.</div>}
                 </div>
               )}
             </div>
