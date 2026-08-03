@@ -6,8 +6,12 @@
 //
 // It READS the same booking tables (tournaments, tournament_entries) the pool tool uses —
 // which the separate nodice.bar booking site fills via Stripe — and writes ONLY to its own
-// pingpong_* tables. Never mutates a customer's booking. (Trial wiring: it shares the pool
-// tool's booked nights + paid entrants until ping pong gets its own booking nights.)
+// pingpong_* tables. Never mutates a customer's booking.
+//
+// Ping pong nights are SUNDAYS from 6pm, always TEAMS (founder rule 3 Aug 2026):
+// rows in `tournaments` with tournament_type='teams'. This function lists ONLY those
+// (pool's `tournament` function excludes them), and the league is a single team league —
+// no singles/doubles split anywhere.
 //
 // Slice 1: entrants. A "run" (pingpong_tournaments) links a booked night to its
 // roster (pingpong_participants), auto-synced from the paid entries; the founder can add
@@ -420,18 +424,20 @@ Deno.serve(async (req) => {
   // ── Public reads (no secret — the nodice.bar site + bar-TV pages call these) ──
   try {
     if (action === "getLeague") {
-      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
-      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+      // Ping pong has ONE league: teams. The discipline param is ignored (kept for
+      // backward-compat with older frontends that still send singles/doubles).
+      return json({ ok: true, ...(await computeLeague(sb, "teams")) });
     }
   } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 
   if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
   try {
-    // The pool nights to run: booked tournaments + their paid count, cap, and run status.
+    // The ping pong nights to run: Sunday team nights only (tournament_type='teams') +
+    // their paid count, cap, and run status. Pool's singles/doubles nights are excluded.
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
-        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").order("event_date", { ascending: true }),
+        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").eq("tournament_type", "teams").order("event_date", { ascending: true }),
         sb.from("tournament_entries").select("tournament_id").eq("status", "paid"),
         sb.from("pingpong_tournaments").select("id,tournament_id,status"),
       ]);
@@ -634,8 +640,7 @@ Deno.serve(async (req) => {
       const { data: run } = await sb.from("pingpong_tournaments").select("*, tournaments(tournament_type)").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       if (run.status !== "setup") return json({ error: "Seed the grand final before it starts." }, 400);
-      const discipline = (run as any).tournaments?.tournament_type === "doubles" ? "doubles" : "singles";
-      const league = await computeLeague(sb, discipline);
+      const league = await computeLeague(sb, "teams");   // ping pong: one team league
       const top8 = league.table.slice(0, 8);
       const { data: existing } = await sb.from("pingpong_participants").select("display_name").eq("pingpong_tournament_id", runId);
       const have = new Set((existing || []).map((p: any) => (p.display_name || "").trim().toLowerCase()));

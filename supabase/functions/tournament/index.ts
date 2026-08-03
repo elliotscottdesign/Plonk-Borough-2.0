@@ -426,9 +426,11 @@ Deno.serve(async (req) => {
 
   try {
     // The pool nights to run: booked tournaments + their paid count, cap, and run status.
+    // Excludes tournament_type='teams' — those are the Sunday ping pong nights, which
+    // live in the separate `pingpong` function/tab (3 Aug 2026).
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
-        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").order("event_date", { ascending: true }),
+        sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
         sb.from("tournament_entries").select("tournament_id").eq("status", "paid"),
         sb.from("pool_tournaments").select("id,tournament_id,status"),
       ]);

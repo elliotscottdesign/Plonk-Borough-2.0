@@ -2,20 +2,23 @@ import React, { useEffect, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
-// Slice 1: pick a booked ping pong night, see the paid entrants auto-pulled in, tidy the
-// roster. Slice 2: run the Swiss rounds — draw a round, punch in scores, live standings
-// (points → point difference → Buchholz). Knockout + league land in later slices.
-// Reads the live booking data; writes only to the pingpong_* tables.
+// Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
+// one team league, a game is first-to-11. Pick a Sunday night, see the paid teams
+// auto-pulled in, tidy the roster, run the Swiss rounds (points → point difference →
+// Buchholz), cut to the knockout. Reads the live booking data (tournament_type='teams'
+// rows only); writes only to the pingpong_* tables.
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7', BLUE = '#60A5FA'
 // Purple league branding across the whole tournament section (cards, borders, buttons).
 const CARD = '#160e24', LINE = 'rgba(168,85,247,0.25)'
 const fmtDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
-const typeBadge = (t) => t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
+// Ping pong nights are ALWAYS teams (Sunday 6pm) — singles/doubles kept only as a
+// fallback in case an old row slips through.
+const typeBadge = (t) => t === 'teams' ? { txt: '👥 Teams', c: PURPLE } : t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
 // Calendar helpers (Mon-first, UK). monthMatrix → array of weeks, each 7 cells of { day, iso } | null.
 const MONTH_NAMES = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -48,8 +51,7 @@ export default function PingPong() {
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
-  const [league, setLeague] = useState(null)
-  const [leagueDisc, setLeagueDisc] = useState('singles')
+  const [league, setLeague] = useState(null)            // ping pong has ONE league: teams (no singles/doubles)
   const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
 
   const loadList = async () => {
@@ -86,8 +88,8 @@ export default function PingPong() {
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} points${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
-  const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  const loadLeague = async () => { setBusy(true); try { setLeague(await tournGetLeague('teams')) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const openLeague = async () => { setLeagueView(true); await loadLeague() }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
   const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
@@ -139,17 +141,14 @@ export default function PingPong() {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
         <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Ping pong nights</button>
         <div>
-          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 League table</div>
-          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season point difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
+          <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 Team league</div>
+          <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished Sunday night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season point difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {['singles', 'doubles'].map(d => <button key={d} onClick={() => loadLeague(d)} style={{ ...pill(leagueDisc === d), textTransform: 'capitalize' }}>{d}</button>)}
-        </div>
-        {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished {leagueDisc} nights yet — the league fills in as tournaments complete.</div> : (
+        {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished nights yet — the league fills in as tournaments complete.</div> : (
           <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, whiteSpace: 'nowrap' }}>
               <thead><tr style={{ color: 'rgba(255,255,255,0.45)', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-                <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th><th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th><th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Team</th>
                 {['Nights', '🥇', '🥈', '🥉', '+/−', 'Pts'].map(h => <th key={h} style={{ padding: '0 8px 6px', textAlign: 'right' }}>{h}</th>)}
               </tr></thead>
               <tbody>
@@ -269,10 +268,9 @@ export default function PingPong() {
               )
             })()}
 
-            {/* Legend */}
+            {/* Legend — every ping pong night is a Sunday-6pm TEAM night */}
             <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', fontSize: 11, color: 'rgba(255,255,255,0.55)' }}>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${BLUE}22`, border: `1px solid ${BLUE}55` }} />👤 Singles</span>
-              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${PURPLE}22`, border: `1px solid ${PURPLE}55` }} />👥 Doubles</span>
+              <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: `${PURPLE}22`, border: `1px solid ${PURPLE}55` }} />👥 Team night · Sundays 6pm</span>
               <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}><span style={{ width: 11, height: 11, borderRadius: 3, background: 'transparent', border: `2px solid ${GREEN}` }} />Next up</span>
             </div>
 
@@ -341,7 +339,7 @@ export default function PingPong() {
 
       {/* ══ SETUP: roster editing + start ══ */}
       {status === 'setup' && <>
-        <div style={infoBox}>{run.paidCount} paid online → auto-entered. {t.type === 'doubles' ? 'Doubles show by team name. ' : ''}Add a cash walk-in, rename or remove anyone, then start the rounds.</div>
+        <div style={infoBox}>{run.paidCount} paid online → auto-entered. Teams enter under their team name. Add a cash walk-in team, rename or remove anyone, then start the rounds.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
           {activeParts.map((p, i) => (
             <div key={p.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: CARD, border: `1px solid ${LINE}`, borderRadius: 9, padding: '9px 11px' }}>
@@ -446,7 +444,7 @@ export default function PingPong() {
                 <thead>
                   <tr style={{ color: 'rgba(255,255,255,0.45)', textAlign: 'right', fontSize: 10.5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                     <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>#</th>
-                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Player</th>
+                    <th style={{ textAlign: 'left', padding: '0 8px 6px 0' }}>Team</th>
                     {[['P', 'Played'], ['W', 'Won'], ['L', 'Lost'], ['F', 'Points won'], ['A', 'Points lost'], ['+/−', 'Point difference — the tiebreaker when level on points'], ['Pts', 'Points']].map(([h, tip]) => <th key={h} title={tip} style={{ padding: '0 7px 6px', cursor: 'help' }}>{h}</th>)}
                   </tr>
                 </thead>
@@ -648,9 +646,6 @@ export default function PingPong() {
           if ((typed || '').trim().toUpperCase() !== 'RESTART') { alert('Restart cancelled — nothing was deleted.'); return }
           guard(async () => { await tournDeleteRun(run.run.id); setView('list'); loadList() })()
         }}
-        origDiscipline={t.type}
-        effectiveDiscipline={run.run?.discipline_override || t.type}
-        onSetDiscipline={(disc) => guard(() => tournSetDiscipline(run.run.id, disc))()}
         koRaceTo={koRaceTo}
         setKoRaceTo={setKoRaceTo}
         thirdPlace={thirdPlace}
@@ -786,7 +781,6 @@ function MenuDrawer({
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
-  origDiscipline, effectiveDiscipline, onSetDiscipline,
 }) {
   if (!open) return null
   const isRounds = status === 'rounds'
@@ -807,56 +801,8 @@ function MenuDrawer({
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
 
-        {/* Format — flip the night's discipline if not enough teams show up.
-            Founder rule 2026-07-30: a doubles night played as singles still
-            counts, just in the singles league. Reversible: tap the same
-            button again to revert to the original type. */}
-        {(isRounds || isKO || status === 'setup') && origDiscipline && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(96,165,250,0.06)', border: `1px solid rgba(96,165,250,0.28)`, borderRadius: 12, padding: 12 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔀 Format for tonight</div>
-            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>
-              This night is set to <strong style={{ color: '#fff' }}>{effectiveDiscipline === 'doubles' ? '👥 Doubles' : '👤 Singles'}</strong>
-              {effectiveDiscipline !== origDiscipline && <span style={{ color: '#FCD34D', fontWeight: 700 }}> · overridden (originally {origDiscipline})</span>}
-              . Points accrue to the <strong style={{ color: '#fff' }}>{effectiveDiscipline}</strong> league.
-            </div>
-            {origDiscipline === 'doubles' && effectiveDiscipline === 'doubles' && (
-              <button
-                onClick={() => {
-                  if (!window.confirm('Not enough teams? Flip this night to a SINGLES tournament.\n\nPoints will accrue to the SINGLES league instead of doubles. You can flip back.')) return
-                  closeAfter(() => onSetDiscipline('singles'))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
-              >
-                🔀 Play tonight as SINGLES (not enough teams)
-              </button>
-            )}
-            {effectiveDiscipline !== origDiscipline && (
-              <button
-                onClick={() => {
-                  if (!window.confirm(`Revert this night back to a ${origDiscipline.toUpperCase()} tournament?\n\nPoints will accrue to the ${origDiscipline} league.`)) return
-                  closeAfter(() => onSetDiscipline(null))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left' }}
-              >
-                ↩ Revert to {origDiscipline}
-              </button>
-            )}
-            {origDiscipline === 'singles' && effectiveDiscipline === 'singles' && (
-              <button
-                onClick={() => {
-                  if (!window.confirm('Flip this night to a DOUBLES tournament?\n\nPoints will accrue to the DOUBLES league instead of singles. You can flip back.')) return
-                  closeAfter(() => onSetDiscipline('doubles'))()
-                }}
-                disabled={busy}
-                style={{ ...btn('ghost'), textAlign: 'left', borderColor: 'rgba(96,165,250,0.5)', color: '#93C5FD' }}
-              >
-                🔀 Play tonight as DOUBLES
-              </button>
-            )}
-          </div>
-        )}
+        {/* No format section here (pool has a singles/doubles flip) — every ping
+            pong night is a TEAM night, founder rule 3 Aug 2026. */}
 
         {/* Substitute a player — the highest-touch mid-tournament action */}
         {(isRounds || isKO) && (
