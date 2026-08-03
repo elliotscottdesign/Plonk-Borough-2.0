@@ -52,6 +52,7 @@ export const KITCHEN_TEMPLATES = {
           { key: 'open.griddle', label: 'Griddle clean & heating', type: 'check' },
           { key: 'open.sanitiser', label: 'Sanitiser spray + blue roll on prep surfaces', type: 'check' },
           { key: 'open.firstaid', label: 'First-aid kit & fire extinguisher present', type: 'check' },
+          { key: 'open.water_garden', label: 'Water the garden', type: 'check' },
         ],
       },
     ],
@@ -145,7 +146,7 @@ export const KITCHEN_TEMPLATES = {
         items: [
           { key: 'wk.defrost_freezer', label: 'Defrost & clean freezer', type: 'check' },
           { key: 'wk.deep_fridges', label: 'Deep clean inside fridges incl. door seals', type: 'check' },
-          { key: 'wk.fryer_oil', label: 'Full fryer oil change + clean fryer tank', type: 'check' },
+          { key: 'wk.fryer_oil', label: 'Full fryer oil change — filter the used oil through a J Cloth + funnel into the two 10 L clear jerry cans; clean fryer tank', type: 'check' },
           { key: 'wk.salamander', label: 'Descale / clean salamander grill & extraction fan + filters', type: 'check' },
           { key: 'wk.washup', label: 'Deep clean wash-up sinks, taps & drains', type: 'check' },
           { key: 'wk.glasswasher', label: 'Descale glasswasher / dishwasher, clean filter', type: 'check' },
