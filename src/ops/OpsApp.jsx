@@ -9,6 +9,7 @@ import StaffRota from './sections/StaffRota.jsx'
 import Tournament from './sections/Tournament.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import Reservations from './sections/Reservations.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -16,6 +17,11 @@ import useIsMobile from '../lib/useIsMobile.js'
 // collapses into a ☰ menu so the links don't crash into each other / the page.
 const TABS = [
   { key: 'operations',    label: 'Operations',    Component: Operations },
+  // Reservations sits high in the list because it's the shift-primary view —
+  // staff open it first thing to see what's booked in for the day. Reads live
+  // from Supabase (bar_reservations / tournament_entries / bookings) which
+  // the nodice.bar customer site writes to.
+  { key: 'reservations',  label: 'Reservations',  Component: Reservations },
   { key: 'rota',          label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
   { key: 'tournament',    label: 'Tournament',    Component: Tournament, founderOnly: true },
   { key: 'kitchen',       label: 'Kitchen',       Component: Kitchen, founderOnly: true },
