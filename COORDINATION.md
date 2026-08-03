@@ -26,11 +26,6 @@ _(none — add a row when you start editing a shared file, remove it when you've
 
 | Lane | Shared file | What / why | Since |
 |------|-------------|-----------|-------|
-| bar | `public/sw.js` | Add generic web-push `push` + `notificationclick` handlers (for toilet-hygiene reminders; reusable). Additive only. | 3 Aug 2026 |
-| bar | `src/App.jsx` | Add `/toilets` route (staff toilet-check page). One import + one flag + one dispatch line. | 3 Aug 2026 |
-| bar | `src/ops/OpsApp.jsx` | Add founder "Toilet Checks" tab (compliance log). One import + one TABS row. | 3 Aug 2026 |
-| bar | `CLAUDE.md` | Bar lane now owns `src/toilets/**`, `ToiletLog.jsx` + first back-end fn `toilet-check`. | 3 Aug 2026 |
-| bar | `src/rota/checklists.js` (rota-owned) | Founder-asked cross-lane edit: +1 opening item "Water the garden…" in the "Venue & garden" section. One line, additive, no fn/data change. Kitchen auto-tick deferred. | 3 Aug 2026 |
 
 ## Schema (DDL) changes — announce here
 One Supabase project (`rntcujcpsozvuxvmlejv`) is shared by every lane. Any
@@ -42,7 +37,7 @@ never run destructive or "today"-dated test writes on real data.
 | dj | `dj_receipts` (NEW table) — DJ expense receipts (taxi/drinks/other) for the portal Payments section. Additive only, no impact to other lanes. SQL in `supabase/dj_receipts.sql`. | applied 2026-08-02 | 2026-08-02 |
 | tournament | Added `pingpong_{tournaments,participants,rounds,matches,vouchers}` (new — mirror of `pool_*`, ping-pong trial). No change to existing tables. | ✅ done | 3 Aug 2026 |
 | tournament | `tournaments.tournament_type` CHECK widened to allow `'teams'` (was singles/doubles/special — additive, existing rows untouched). +10 new rows: "Team Ping Pong Tournament", Sundays 18:00 (9 Aug – 11 Oct), `bookable=false`/`registration_open=false` so they stay OFF the public pool booking flow. Ping pong fn lists ONLY teams rows; pool fn now excludes them. | ✅ done | 3 Aug 2026 |
-| bar | `push_subscriptions` + `toilet_checks` (NEW tables) — web-push opt-ins + 2-hourly toilet-hygiene check log. Additive only, no impact to other lanes. SQL in `supabase/toilet_hygiene.sql`; cron in `supabase/toilet_cron.sql`. New `toilet-check` edge fn + VAPID_* secrets. | pending ship | 3 Aug 2026 |
+| bar | `push_subscriptions` + `toilet_checks` (NEW tables) — web-push opt-ins + 2-hourly toilet-hygiene check log. Additive only, no impact to other lanes. SQL in `supabase/toilet_hygiene.sql`; cron `toilet-hygiene-poll` `*/30 * * * *`. New `toilet-check` edge fn (deployed `--no-verify-jwt`) + VAPID_* secrets. | ✅ applied + deployed | 3 Aug 2026 |
 
 ## Global deploy notes
 Edge-function deploys are global (last deploy wins). Only deploy the function(s)
