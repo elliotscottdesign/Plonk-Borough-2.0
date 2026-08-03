@@ -40,7 +40,8 @@ import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
 import useIsMobile from './lib/useIsMobile.js'
-import { applyAccessSession } from './lib/access.js'
+import { applyAccessSession, ACCESS_CODES } from './lib/access.js'
+import { rotaMe } from './rota/api.js'
 
 // Path-based deck dispatch.
 //   /                     → public Landing page (marketing, no gate)
@@ -190,6 +191,48 @@ export default function App() {
   const [opsAccess, setOpsAccess] = useState(() => sessionStorage.getItem('ndb_ops_access') === '1')
   const [marketingAccess, setMarketingAccess] = useState(() => sessionStorage.getItem('ndb_marketing_access') === '1')
   const [boroughAccess, setBoroughAccess] = useState(() => sessionStorage.getItem('ndb_borough_access') === '1')
+
+  // ── Single sign-in: bridge a clocked-in manager's staff token into hub access ─
+  // If you're already signed in for your shift (nd_rota_token in localStorage) and
+  // you're management, the team hubs unlock without a separate code — /ops and
+  // /marketing (the DJ admin lives inside /ops, so it's covered too). Server-verified
+  // via the rota `me` action. The FOUNDER (Elliot) gets the full founder tier; other
+  // management (Manager / Asst. Manager) get the team tier — ops+marketing only, never
+  // the investor decks/IP. Everyone else / any error / timeout → the normal code gate.
+  // Only runs on a gated hub path when not already unlocked, so public pages pay nothing.
+  const alreadyUnlocked = () => sessionStorage.getItem('ndb_unlocked') === '1' && !!sessionStorage.getItem('ndb_access_code')
+  const rotaToken = () => { try { return localStorage.getItem('nd_rota_token') } catch { return null } }
+  const needsBridge = () => (isOpsPath() || isMarketingPath()) && !alreadyUnlocked() && !!rotaToken()
+  const [bridging, setBridging] = useState(() => needsBridge())
+  useEffect(() => {
+    if (!bridging) return
+    let cancelled = false
+    // Never let a slow/hung `me` call pin the loader — time out → fall to the code gate.
+    const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))])
+    ;(async () => {
+      try {
+        const r = await withTimeout(rotaMe(rotaToken()), 7000)
+        // Must be an ACTIVE staff member (a deactivated manager's old token must not elevate).
+        const s = (r?.ok && r?.staff?.active !== false) ? r.staff : null
+        // Founder tier (investor decks + Plonk IP + founder edit) is tied to the FOUNDER
+        // specifically, NOT the shared rota role — so promoting another "Manager" for
+        // scheduling never leaks the decks. Management gets the team tier (ops+marketing).
+        const isFounder = s && String(s.email || '').trim().toLowerCase() === 'elliot@nodice.bar'
+        const isMgmt = s && ['Manager', 'Asst. Manager'].includes(s.role)
+        const access = isFounder ? ACCESS_CODES['888999'] : isMgmt ? ACCESS_CODES['NDTEAM'] : null
+        const code = isFounder ? '888999' : isMgmt ? 'NDTEAM' : null
+        if (access && !cancelled) {
+          applyAccessSession(access, code)
+          setPlonkAccess(!!access.plonk); setHackneyAccess(!!access.hackney); setBoroughAccess(!!access.borough)
+          setOpsAccess(!!access.ops); setMarketingAccess(!!access.marketing); setUnlocked(true)
+        }
+      } catch { /* fall through to the code gate */ }
+      finally { if (!cancelled) setBridging(false) }
+    })()
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const [topTab, setTopTab] = useState('investorDeck')
   const [slideIdx, setSlideIdx] = useState(0)
   const go = (i) => setSlideIdx(Math.max(0, Math.min(SLIDE_DEFS.length - 1, i)))
@@ -267,6 +310,17 @@ export default function App() {
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.
     // (Landing.jsx, the old public "coming soon" page, is retired here.)
     return <TeamLanding />
+  }
+
+  // While verifying a clocked-in manager's token (single sign-in), hold the screen
+  // so it doesn't flash the code prompt before auto-unlocking.
+  if (bridging) {
+    return (
+      <div style={{ height:'100vh', display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', gap:16, background:'#000', color:'rgba(255,255,255,0.7)', fontFamily:"'DM Sans',sans-serif" }}>
+        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width:'min(220px,60vw)', height:'auto', opacity:0.9 }} />
+        <div style={{ fontSize:12, letterSpacing:'0.14em', textTransform:'uppercase' }}>Signing you in…</div>
+      </div>
+    )
   }
 
   if (!unlocked) {

@@ -312,6 +312,9 @@ Deno.serve(async (req) => {
       const { data } = await sb.from("staff").select("*").eq("token", token).limit(1);
       const s = (data || [])[0];
       if (!s) return json({ error: "not found" }, 404);
+      // Server-authoritative active gate (a deactivated account's token must not resolve —
+      // clients rely on `me` for the single-sign-on hub bridge, so enforce it here too).
+      if (s.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
       return json({ ok: true, staff: publicStaff(s) });
     }
 
