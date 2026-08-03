@@ -12,6 +12,7 @@ import useIsMobile from '../../lib/useIsMobile.js'
 // vs target + wage spend. Own calendar grid (not the DJ MonthCalendar).
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', GREY = 'rgba(255,255,255,0.28)', PURPLE = '#A855F7'
+const TODAY = '#60A5FA'                          // "today" ring — blue, never clashes with the status colours
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -210,12 +211,13 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const rows = shiftsByDate[dateStr] || []
             const pattern = shiftsForDate(dateStr)
             const isSel = selDate === dateStr
+            const isToday = dateStr === todayStr
             const evs = eventsForDate(keyEvents, dateStr)
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
+                  <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
                   {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
                 </span>
                 {(() => {
@@ -239,6 +241,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: AMBER }}>■</span> part-filled</span>
           <span><span style={{ color: RED }}>■</span> open, empty</span>
           <span><span style={{ color: GREY }}>▢</span> not released yet</span>
+          <span><span style={{ color: TODAY }}>▣</span> today</span>
         </div>
       </div>
 
