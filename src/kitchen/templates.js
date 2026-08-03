@@ -59,8 +59,8 @@ export const KITCHEN_TEMPLATES = {
   },
 
   service: {
-    id: 'service', title: 'During service', cadence: 'daily', icon: '🔄',
-    blurb: 'Keep on top of these through service.',
+    id: 'service', title: 'Guidance on service', cadence: 'daily', guidance: true, icon: '📖',
+    blurb: 'Read before & during service — nothing to submit.',
     groups: [
       {
         title: 'During service',
