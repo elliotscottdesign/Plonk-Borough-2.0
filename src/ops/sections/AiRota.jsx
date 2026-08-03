@@ -35,6 +35,9 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
 
   const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
+  // Engine warnings are strings prefixed "YYYY-MM-DD: …" — split them per day so each
+  // one sits on the day card it's about (plus the header pill for the total).
+  const warnsFor = (date) => warnings.filter(w => w.startsWith(date + ':')).map(w => w.slice(date.length + 1).trim())
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
 
   const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
@@ -89,6 +92,9 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>A concept built from your rules. Review &amp; tweak below, then Apply — nothing changes until you do.</div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          {days && warnings.length > 0 && (
+            <span title={warnings.join('\n')} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 999, background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.45)', color: AMBER, fontSize: 11.5, fontWeight: 700, cursor: 'default' }}>⚠️ {warnings.length} thing{warnings.length === 1 ? '' : 's'} to check</span>
+          )}
           <button onClick={() => stepWeek(-1)} style={nav}>◀</button>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{dayLabel(weekStart)} – {dayLabel(weekEnd)}</div>
           <button onClick={() => stepWeek(1)} style={nav}>▶</button>
@@ -140,11 +146,6 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
         </div>
       ) : (
         <>
-          {warnings.length > 0 && (
-            <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '10px 12px', lineHeight: 1.6 }}>
-              ⚠️ {warnings.length} thing{warnings.length === 1 ? '' : 's'} to check: {warnings.slice(0, 6).join(' · ')}{warnings.length > 6 ? ' …' : ''}
-            </div>
-          )}
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
             <button onClick={applyWeek} disabled={busy} style={btn('gold')}>Apply whole week →</button>
           </div>
@@ -156,6 +157,11 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{fmtMin(day.open)}–{fmtMin(day.close)}</div>
                 </div>
                 {day.holiday && <div style={{ fontSize: 10.5, color: BLUE, marginBottom: 8 }}>🏖️ {day.holiday} · 12–12</div>}
+                {(() => { const ws = warnsFor(day.date); return ws.length > 0 ? (
+                  <div style={{ fontSize: 10.5, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 7, padding: '6px 9px', marginBottom: 8, lineHeight: 1.55 }}>
+                    {ws.map((w, i) => <div key={i}>⚠️ {w}</div>)}
+                  </div>
+                ) : null })()}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {day.slots.map((s, si) => {
                     const tag = slotTag(s)
