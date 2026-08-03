@@ -36,8 +36,8 @@ export const KITCHEN_TEMPLATES = {
       {
         title: 'Temperatures (record the number)',
         items: [
-          { key: 'open.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
-          { key: 'open.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
+          { key: 'open.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
+          { key: 'open.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
           { key: 'open.freezer_temp', label: 'Freezer temperature', type: 'temp', critical: true, target: { max: -18, unit: 'C' } },
           { key: 'open.probe_ok', label: 'Probe thermometer working & wiped with a sanitising probe wipe', type: 'check' },
         ],
@@ -84,8 +84,8 @@ export const KITCHEN_TEMPLATES = {
       {
         title: 'Temperatures (record the number)',
         items: [
-          { key: 'close.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
-          { key: 'close.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
+          { key: 'close.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
+          { key: 'close.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
           { key: 'close.freezer_temp', label: 'Freezer temperature', type: 'temp', critical: true, target: { max: -18, unit: 'C' } },
         ],
       },
