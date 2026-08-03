@@ -12,6 +12,7 @@ import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
 import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
+import Finances from './sections/Finances.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -30,6 +31,7 @@ const TABS = [
   { key: 'kitchen',       label: 'Kitchen',       Component: Kitchen, founderOnly: true },
   { key: 'toilets',       label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
   { key: 'keydates',      label: 'Key Dates',     Component: KeyDates, founderOnly: true },
+  { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
   { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },
   { key: 'reports',       label: 'Reports',       Component: Reports },

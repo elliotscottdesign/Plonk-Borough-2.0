@@ -19,6 +19,7 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **Marketing** | `Sites/nodice/team-sessions/marketing` |
 | **Kitchen** | `Sites/nodice/team-sessions/kitchen` |
 | **Bar** (stock, cocktails, till) | `Sites/nodice/team-sessions/bar` |
+| **Finances** (wages, takings, costs — founder-only) | `Sites/nodice/team-sessions/finance` |
 
 The original folder — `Sites/nodice/Plonk-Borough-2.0` — is the **integration** copy
 (this is `main`, what's live). Use it for cross-cutting/admin work, or just leave it.
