@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { generateWeek, holidayName, addDaysISO, hoursFor, withDefaults } from '../../rota/rotaEngine.js'
+import { generateWeek, holidayName, addDaysISO, hoursFor, withDefaults, isKitchen } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
 import { rotaSaveDayRoster } from '../../rota/api.js'
 import RotaRulesEditor from './RotaRulesEditor.jsx'
@@ -80,7 +80,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
 
   const slotTag = (s) => {
     if (s.role === 'manager') return { txt: '👔 Manager', color: PURPLE }
-    if (s.kitchen) return { txt: '🍳 Kitchen', color: AMBER }
+    if (s.role === 'kitchen' || s.kitchen) return { txt: '🍳 Kitchen', color: AMBER }
     return { txt: s.label, color: 'rgba(255,255,255,0.5)' }
   }
 
@@ -165,7 +165,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                   {day.slots.map((s, si) => {
                     const tag = slotTag(s)
-                    const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : active
+                    const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : s.role === 'kitchen' ? active.filter(isKitchen) : active
                     return (
                       <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.warn ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
