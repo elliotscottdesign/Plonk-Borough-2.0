@@ -26,7 +26,7 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 | `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out`, `keydates` |
 | `marketing` | `src/marketing/**`, `src/slides/**`, `src/borough/**` | `send-campaign`, `send-newsletter`, `confirm-optin`, `unsubscribe`, `import-subscribers` |
 | `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | `kitchen` |
-| `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**` | *(none yet)* |
+| `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**`, `src/toilets/**`, `src/ops/sections/ToiletLog.jsx` | `toilet-check` |
 
 **Shared files — no single lane owns these; coordinate before editing** (announce in [COORDINATION.md](COORDINATION.md) first, keep the edit minimal, and `git fetch && merge origin/main` right before): `src/App.jsx`, `src/main.jsx`, `src/ops/OpsApp.jsx` (the tab registry — adding a tab touches it), `src/index.css`, `src/data.js`, `src/marketing/data/backend.js` (API URL + secret — effectively frozen), `index.html`, `vite.config.js`, `tailwind.config.js`, `.github/workflows/**`, `package.json`, `CLAUDE.md`, `SESSIONS.md`, `COORDINATION.md`.
 
