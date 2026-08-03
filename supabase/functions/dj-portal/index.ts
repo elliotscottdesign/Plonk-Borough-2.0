@@ -26,8 +26,8 @@
 //   addReceipt {receiptDate,category,amount,note,dataUrl}  log an expense receipt
 //            (image required; category taxi|drinks|other — taxi = vinyl DJs only)
 //   removeReceipt {id}       delete one of the DJ's own receipts
-//   load also returns `payments` → { rate, vinyl, drinksMax, jobsPast[], jobsUpcoming[],
-//            earnedTotal, upcomingTotal, receipts[], receiptsTotal }
+//   load also returns `payments` → { vinyl, drinksMax, receipts[], receiptsTotal }
+//            (no session-fee value — fees are agreed per DJ off-system)
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const cors = {
@@ -48,7 +48,8 @@ const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].inclu
 // (or flip the default to true) and redeploy to reinstate it.
 const ADJACENCY_RULE = (Deno.env.get("DJ_ADJACENCY_RULE") || "off").toLowerCase() === "on";
 // ── Payments & expenses (DJ-facing "Payments" section) ──────────────────────
-const SESSION_FEE = 100;                       // £ per CONFIRMED paid session (Thu/Fri/Sat + specials); Open Decks are unpaid
+// Session fees are agreed per-DJ off-system (they vary), so NO £ session value
+// is stored or returned here — only expense receipts carry amounts.
 const DRINKS_MAX = 6;                          // drinks covered per night (policy shown to DJs)
 const RECEIPT_CATS = ["taxi", "drinks", "other"];
 const playsVinyl = (d: any) => /vinyl/i.test(String(d?.format || ""));   // taxis are covered for vinyl DJs only (they're hauling records)
@@ -284,22 +285,13 @@ async function state(sb: any, id: string) {
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
   const pastBookings = (past || []).map(withPartner);
 
-  // ── Payments: fees from CONFIRMED paid sessions (£SESSION_FEE each) + expense
-  // receipts the DJ has logged. Open Decks are unpaid so never counted. Degrades
-  // to empty receipts if the dj_receipts table isn't created yet.
-  const isPaidSession = (b: any) => (b.kind || (isSession(b.date) ? "session" : "opendecks")) === "session";
-  const jobRow = (b: any) => ({ date: b.date, slot: b.slot || "main", night_name: b.night_name || null, b2b: !!b.b2b, partner: b.partner || null, fee: SESSION_FEE });
-  const jobsPast = pastBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);           // done → earned
-  const jobsUpcoming = myBookings.filter((b: any) => b.status === "confirmed" && isPaidSession(b)).map(jobRow);        // booked ahead
+  // ── Payments: expense receipts the DJ has logged. Session fees vary per DJ and
+  // are handled off-system, so no fee value is computed or returned here.
+  // Degrades to empty if the dj_receipts table isn't created yet.
   const { data: rcpts } = await sb.from("dj_receipts").select("id,receipt_date,category,amount,note,image_url,created_at").eq("dj_id", id).order("receipt_date", { ascending: false }).limit(100);
   const receipts = (rcpts || []).map((r: any) => ({ id: r.id, receipt_date: r.receipt_date, category: r.category || "other", amount: Number(r.amount) || 0, note: r.note || null, image_url: r.image_url, created_at: r.created_at }));
   const receiptsTotal = receipts.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
-  const payments = {
-    rate: SESSION_FEE, vinyl: playsVinyl(me), drinksMax: DRINKS_MAX,
-    jobsPast, jobsUpcoming,
-    earnedTotal: jobsPast.length * SESSION_FEE, upcomingTotal: jobsUpcoming.length * SESSION_FEE,
-    receipts, receiptsTotal,
-  };
+  const payments = { vinyl: playsVinyl(me), drinksMax: DRINKS_MAX, receipts, receiptsTotal };
   return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments });
 }
 
