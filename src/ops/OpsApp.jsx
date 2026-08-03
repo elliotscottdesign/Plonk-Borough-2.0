@@ -10,6 +10,7 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
@@ -27,6 +28,7 @@ const TABS = [
   { key: 'tournament',    label: 'Tournament',    Component: Tournament, founderOnly: true },
   { key: 'pingpong',      label: 'Ping Pong',     Component: PingPong, founderOnly: true },
   { key: 'kitchen',       label: 'Kitchen',       Component: Kitchen, founderOnly: true },
+  { key: 'toilets',       label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
   { key: 'keydates',      label: 'Key Dates',     Component: KeyDates, founderOnly: true },
   { key: 'helpout',       label: 'Help Out',      Component: HelpOut },
   { key: 'djbookings',    label: 'DJ Bookings',   Component: DJBookings },

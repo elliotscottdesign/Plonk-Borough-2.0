@@ -33,6 +33,7 @@ export const CHECKLISTS = {
           'Golf: sweep the course & front of gate, set up course, chairs, wipe tables',
           'Golf: check for broken / damaged parts — report any',
           'Golf: check supplies (balls, clubs, pencils, scorecards), top up',
+          'Water the garden — give all the plants a water',
         ],
       },
       {

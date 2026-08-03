@@ -32,6 +32,7 @@ import DJPortal from './dj/DJPortal.jsx'
 import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
 import DailyHub from './rota/DailyHub.jsx'
+import ToiletChecks from './toilets/ToiletChecks.jsx'
 import LeisureWatcher from './leisure/LeisureWatcher.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
@@ -103,6 +104,12 @@ const isRotaPath = () =>
 const isTodayPath = () =>
   typeof window !== 'undefined' &&
   /^\/today(\/|$)/.test(window.location.pathname)
+
+// Toilet-hygiene reminders — staff opt-in + tick-off, deep-linked from the push
+// notification. Uses the rota token (nd_rota_token) for identity, so no gate here.
+const isToiletsPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/toilets(\/|$)/.test(window.location.pathname)
 
 // Leisure Watch — founder-only London Fields Lido slot watcher. /leisure.
 // Gated behind the 888999 founder code (the `plonk` flag), so it sits AFTER
@@ -297,6 +304,9 @@ export default function App() {
 
   // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
   if (isTodayPath()) return <DailyHub />
+
+  // Toilet-hygiene reminders — staff tick-off + opt-in. /toilets.
+  if (isToiletsPath()) return <ToiletChecks />
 
   // Public landing page — served at the root. No password gate.
   // The investor deck moved to /borough; Hackney remains at /hackney.

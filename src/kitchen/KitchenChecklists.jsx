@@ -107,6 +107,13 @@ export default function KitchenChecklists({ token, kitchen }) {
   if (!day) return <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, padding: '20px 0' }}>Loading kitchen checklists…</div>
 
   const matrix = mergeMatrix(day.matrix)
+  // A cadence with a `weekday` (Monday deep clean = 1) only shows on that day — but stays
+  // visible if a run already exists for it that day (mid-shift resume / back-fill).
+  const dow = date ? new Date(date + 'T12:00:00').getDay() : null   // 0 Sun … 1 Mon … 6 Sat
+  const cadences = KITCHEN_CADENCES.filter(k => {
+    const wd = KITCHEN_TEMPLATES[k].weekday
+    return wd == null || dow === wd || !!day.runs?.[k]
+  })
 
   return (
     <div>
@@ -119,7 +126,7 @@ export default function KitchenChecklists({ token, kitchen }) {
       {showMatrix && (isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />)}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
-        {KITCHEN_CADENCES.map(k => {
+        {cadences.map(k => {
           const t = KITCHEN_TEMPLATES[k], run = day.runs?.[k]
           const done = run?.status === 'completed'
           const failed = !!run?.has_failure

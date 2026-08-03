@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { KITCHEN_TEMPLATES, templateItems, targetLabel } from '../../kitchen/templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
 import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed, kitchenWasteLog } from '../../kitchen/api.js'
+import useIsMobile from '../../lib/useIsMobile.js'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
 const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
@@ -121,6 +122,7 @@ function Runs() {
 function Matrix() {
   const [rows, setRows] = useState(null)
   const [busy, setBusy] = useState(false)
+  const isMobile = useIsMobile()
   const load = async () => { try { const r = await kitchenGetMatrix(); setRows(mergeMatrix(r.matrix)) } catch (e) { alert(e.message) } }
   useEffect(() => { load() }, [])
 
@@ -140,10 +142,11 @@ function Matrix() {
   return (
     <div>
       <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginBottom: 10 }}>
-        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a cell to cycle: blank → <b style={{ color: AMBER }}>○ may contain</b> → <b style={{ color: BLUE }}>⧗ checking</b> → <b style={{ color: RED }}>● contains</b>.</div>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap to cycle: blank → <b style={{ color: AMBER }}>○ may contain</b> → <b style={{ color: BLUE }}>⧗ checking</b> → <b style={{ color: RED }}>● contains</b>.</div>
         <button onClick={() => printMatrix(rows)} style={tab(false)}>🖨 Print “On a Roll” allergen sheet (A4)</button>
       </div>
 
+      {isMobile ? <MatrixCards rows={rows} cycle={cycle} busy={busy} /> : (
       <div style={{ overflowX: 'auto', border: `1px solid ${LINE}`, borderRadius: 12 }}>
         <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 760 }}>
           <thead>
@@ -165,6 +168,7 @@ function Matrix() {
           </tbody>
         </table>
       </div>
+      )}
 
       <div style={{ display: 'grid', gap: 14, gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', marginTop: 16 }}>
         <Panel title="⧗ Still to confirm (before it's legally final)" color={BLUE}>
@@ -175,6 +179,56 @@ function Matrix() {
         </Panel>
       </div>
     </div>
+  )
+}
+
+// Phone-friendly matrix editor — one card per dish, each allergen a tappable pill that
+// cycles status (blank → may-contain → checking → contains). Vertical only, so nothing
+// runs off the side of the screen the way the full grid does.
+function MatrixCards({ rows, cycle, busy }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      {rows.map(row => {
+        const flagged = ALLERGENS.filter(a => statusOf(row.allergens[a.key]) !== 'no').length
+        return (
+          <div key={row.dish} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 13px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8, marginBottom: 9 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{row.dish}</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', whiteSpace: 'nowrap' }}>{flagged} flagged</div>
+            </div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+              {ALLERGENS.map(a => {
+                const st = statusOf(row.allergens[a.key])
+                return <AllergenChip key={a.key} label={a.label} status={st} busy={busy} onTap={() => !busy && cycle(row.dish, a.key)} />
+              })}
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// A single tappable allergen pill. "No" recedes (muted outline) but stays tappable so a
+// manager can add it; flagged statuses show their colour + symbol.
+function AllergenChip({ label, status, onTap, busy }) {
+  const m = STATUS_META[status]
+  const active = status !== 'no'
+  const tint = { trace: 'rgba(245,158,11,0.15)', pending: 'rgba(96,165,250,0.15)', contains: 'rgba(218,27,51,0.16)' }[status]
+  return (
+    <button onClick={onTap} disabled={busy} title={`${label}: ${m.label} — tap to change`}
+      style={{
+        display: 'inline-flex', alignItems: 'center', gap: 5, lineHeight: 1,
+        padding: '7px 11px', borderRadius: 999, fontSize: 12.5,
+        border: `1px solid ${active ? m.color : 'rgba(255,255,255,0.14)'}`,
+        background: active ? tint : 'transparent',
+        color: active ? m.color : 'rgba(255,255,255,0.42)',
+        fontWeight: active ? 700 : 500,
+        cursor: busy ? 'default' : 'pointer',
+      }}>
+      {m.symbol && <span style={{ fontSize: 13 }}>{m.symbol}</span>}
+      {label}
+    </button>
   )
 }
 

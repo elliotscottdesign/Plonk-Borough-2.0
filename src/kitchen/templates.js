@@ -36,8 +36,8 @@ export const KITCHEN_TEMPLATES = {
       {
         title: 'Temperatures (record the number)',
         items: [
-          { key: 'open.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
-          { key: 'open.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
+          { key: 'open.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
+          { key: 'open.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
           { key: 'open.freezer_temp', label: 'Freezer temperature', type: 'temp', critical: true, target: { max: -18, unit: 'C' } },
           { key: 'open.probe_ok', label: 'Probe thermometer working & wiped with a sanitising probe wipe', type: 'check' },
         ],
@@ -52,6 +52,7 @@ export const KITCHEN_TEMPLATES = {
           { key: 'open.griddle', label: 'Griddle clean & heating', type: 'check' },
           { key: 'open.sanitiser', label: 'Sanitiser spray + blue roll on prep surfaces', type: 'check' },
           { key: 'open.firstaid', label: 'First-aid kit & fire extinguisher present', type: 'check' },
+          { key: 'open.water_garden', label: 'Water the garden', type: 'check' },
         ],
       },
     ],
@@ -83,8 +84,8 @@ export const KITCHEN_TEMPLATES = {
       {
         title: 'Temperatures (record the number)',
         items: [
-          { key: 'close.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
-          { key: 'close.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 5, unit: 'C' } },
+          { key: 'close.fridge1_temp', label: 'Fridge 1 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
+          { key: 'close.fridge2_temp', label: 'Fridge 2 temperature', type: 'temp', critical: true, target: { max: 8, unit: 'C' } },
           { key: 'close.freezer_temp', label: 'Freezer temperature', type: 'temp', critical: true, target: { max: -18, unit: 'C' } },
         ],
       },
@@ -137,19 +138,23 @@ export const KITCHEN_TEMPLATES = {
   },
 
   weekly: {
-    id: 'weekly', title: 'Weekly deep clean', cadence: 'weekly', icon: '🧽',
-    blurb: 'Once a week (rota which day).',
+    id: 'weekly', title: 'Monday deep clean', cadence: 'weekly', weekday: 1, icon: '🧽',
+    blurb: 'Every Monday — pull everything out and deep clean.',
     groups: [
       {
         title: 'Deep clean',
         items: [
+          { key: 'wk.pull_kit', label: 'Pull out all kit & equipment — clean behind and underneath', type: 'check' },
           { key: 'wk.defrost_freezer', label: 'Defrost & clean freezer', type: 'check' },
-          { key: 'wk.deep_fridges', label: 'Deep clean inside fridges incl. door seals', type: 'check' },
-          { key: 'wk.fryer_oil', label: 'Full fryer oil change + clean fryer tank', type: 'check' },
+          { key: 'wk.deep_fridges', label: 'Clean down fridges & freezers — inside, door seals & outside', type: 'check' },
+          { key: 'wk.behind_bins', label: 'Clean behind & underneath the bins', type: 'check' },
+          { key: 'wk.shelves', label: 'Clean all shelves, storage racks & lidded containers down', type: 'check' },
+          { key: 'wk.trailer_exterior', label: 'Clean the outside of the trailer — front & back', type: 'check' },
+          { key: 'wk.concrete_floor', label: 'Clean the concrete floor around the trailer', type: 'check' },
+          { key: 'wk.fryer_oil', label: 'Full fryer oil change — filter the used oil through a J Cloth + funnel into the two 10 L clear jerry cans; clean fryer tank', type: 'check' },
           { key: 'wk.salamander', label: 'Descale / clean salamander grill & extraction fan + filters', type: 'check' },
           { key: 'wk.washup', label: 'Deep clean wash-up sinks, taps & drains', type: 'check' },
           { key: 'wk.glasswasher', label: 'Descale glasswasher / dishwasher, clean filter', type: 'check' },
-          { key: 'wk.shelves', label: 'Clean shelves, storage racks & all lidded containers', type: 'check' },
           { key: 'wk.tanks', label: 'Empty, clean & sanitise both water tanks (fresh + waste)', type: 'check' },
           { key: 'wk.probe_accuracy', label: 'Check probe accuracy (iced water ≈ 0 °C)', type: 'temp', target: { min: -2, max: 2, unit: 'C' } },
           { key: 'wk.pest', label: 'Pest check — any droppings / signs?', type: 'check' },
