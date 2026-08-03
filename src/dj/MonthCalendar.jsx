@@ -14,6 +14,8 @@ import React from 'react'
 //       events: [{ image, title, time, sub, status }] — matches the public
 //       events viewer at /events. Off by default (DJ portal keeps plain cells).
 const RED = '#DA1B33', ORANGE = '#F97316', LINE = 'rgba(255,255,255,0.12)'   // ORANGE = Open Decks (distinct from confirmed-green)
+const TODAY = '#60A5FA'                          // "today" ring — blue, unused by any status colour so it never clashes
+const TODAY_RING = `0 0 0 2px ${TODAY}`
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -38,6 +40,8 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
   for (let i = 0; i < startDow; i++) cells.push(null)
   for (let d = 1; d <= daysInMonth; d++) cells.push(d)
   while (cells.length % 7) cells.push(null)
+  const nowD = new Date()
+  const todayStr = iso(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())   // live day, in this grid's date format
 
   return (
     <div style={{ background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
@@ -55,6 +59,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
           const dateStr = iso(year, month, d)
           const info = cellFor(dateStr)
           const isSel = selected === dateStr
+          const isToday = dateStr === todayStr
           const clickable = info && !info.disabled
           // An "open for DJs" day is coloured by kind: Open Decks → orange, paid session → red.
           const toneKey = info ? (info.tone === 'open' && info.kind === 'opendecks' ? 'open-decks' : info.tone) : null
@@ -69,7 +74,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
             const bg = (st) => st === 'confirmed' ? 'rgba(52,211,153,0.10)' : st === 'pending' ? 'rgba(252,211,77,0.10)' : st === 'held' ? 'rgba(245,158,11,0.10)' : st === 'open' ? 'rgba(218,27,51,0.10)' : 'transparent'
             return (
               <button key={i} type="button" className="cal-rich-cell" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
-                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', display: 'flex', flexDirection: 'column' }}>
+                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? TODAY_RING : undefined, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px' }}>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
                   <span style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>2 sessions</span>
@@ -108,6 +113,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                   borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left',
                   background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default',
                   border: isSel ? `2px solid ${RED}` : `1px solid ${statusColor}`,
+                  boxShadow: isToday ? TODAY_RING : undefined,
                   display: 'flex', flexDirection: 'column', position: 'relative',
                 }}>
                 <div style={{ position: 'relative', width: '100%', height: 70, background: '#0A0A0A', flexShrink: 0 }}>
@@ -137,8 +143,9 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
               style={{
                 aspectRatio: rich ? 'auto' : '1 / 1', borderRadius: 8, fontSize: 13, fontWeight: info ? 700 : 400,
                 background: isSel ? RED : (t.background || 'transparent'),
-                color: isSel ? '#fff' : (info ? (t.color || '#fff') : 'rgba(255,255,255,0.22)'),
+                color: isSel ? '#fff' : (isToday ? TODAY : (info ? (t.color || '#fff') : 'rgba(255,255,255,0.22)')),
                 border: isSel ? `1px solid ${RED}` : (t.border || '1px solid transparent'),
+                boxShadow: isToday ? TODAY_RING : undefined,
                 cursor: clickable ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: 0, position: 'relative',
               }}>
               <span>{d}</span>

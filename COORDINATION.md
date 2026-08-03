@@ -34,6 +34,7 @@ never run destructive or "today"-dated test writes on real data.
 
 | Lane | Table / change | Status | Date |
 |------|----------------|--------|------|
+| dj | `dj_receipts` (NEW table) — DJ expense receipts (taxi/drinks/other) for the portal Payments section. Additive only, no impact to other lanes. SQL in `supabase/dj_receipts.sql`. | applied 2026-08-02 | 2026-08-02 |
 | tournament | Added `pingpong_{tournaments,participants,rounds,matches,vouchers}` (new — mirror of `pool_*`, ping-pong trial). No change to existing tables. | ✅ done | 3 Aug 2026 |
 
 ## Global deploy notes

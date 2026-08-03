@@ -48,6 +48,8 @@ function Avatar({ name, size = 46 }) {
 // A profile is "ready" for the portal once it can log in (email + password) and
 // has a role — that's the minimum to appear on the rota.
 const ready = (s) => !!(s && s.name && s.email && s.has_password && s.role)
+// Human "when did we last refresh" label for the Live badge.
+const syncLabel = (ts) => { const s = Math.round((Date.now() - ts) / 1000); if (s < 15) return 'just now'; if (s < 60) return `${s}s ago`; const m = Math.round(s / 60); return m < 60 ? `${m}m ago` : `${Math.round(m / 60)}h ago` }
 const missing = (s) => {
   const m = []
   if (!s?.email) m.push('email')
@@ -76,19 +78,39 @@ export default function StaffRota() {
   const [form, setForm] = useState({})
   const [busy, setBusy] = useState(false)
   const [q, setQ] = useState('')
+  const [lastSync, setLastSync] = useState(null)   // when we last pulled fresh data (for the live badge)
   const editRef = useRef(null)
 
-  const load = async () => {
-    setLoading(true); setErr('')
+  // `silent` = a background refresh (polling / tab refocus): no loading spinner,
+  // no error banner, so it never disrupts what the founder is looking at.
+  const load = async ({ silent = false } = {}) => {
+    if (!silent) { setLoading(true); setErr('') }
     try {
       const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || []); setRotaRules(r.rotaRules || null)
       const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
       const dm = {}; for (const d of r.docs || []) (dm[d.staff_id] ||= {})[d.kind] = true; setDocsBy(dm)
+      setLastSync(Date.now())
     }
-    catch (e) { setErr(e.message || 'Could not load the team.') }
-    finally { setLoading(false) }
+    catch (e) { if (!silent) setErr(e.message || 'Could not load the team.') }
+    finally { if (!silent) setLoading(false) }
   }
   useEffect(() => { load() }, [])
+
+  // Keep the manager's view live. A staffer can change their availability (or a
+  // clock-in / roster claim can land) at any moment — so quietly re-pull every 20s
+  // and the instant this tab regains focus, without a manual refresh. We skip while
+  // a save of our own is in flight (busyRef) so a background pull never fights an
+  // edit, and the child views only re-seed when the data actually changed.
+  const busyRef = useRef(false)
+  useEffect(() => { busyRef.current = busy }, [busy])
+  useEffect(() => {
+    const tick = () => { if (!document.hidden && !busyRef.current) load({ silent: true }) }
+    const id = setInterval(tick, 20000)
+    const onFocus = () => { if (!document.hidden) tick() }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+    return () => { clearInterval(id); window.removeEventListener('focus', onFocus); document.removeEventListener('visibilitychange', onFocus) }
+  }, [])
   useEffect(() => { if (editing) editRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' }) }, [editing])
 
   const startEdit = (s) => { setEditing(s.id); setForm({ ...s, password: '' }); setViewSoi(false) }
@@ -151,10 +173,14 @@ export default function StaffRota() {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
         {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
+        <button onClick={() => load()} disabled={loading} title="These pages refresh themselves automatically — tap to pull the very latest right now" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', fontSize: 11.5, borderRadius: 999, cursor: 'pointer', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.4)', color: '#34D399', fontWeight: 600 }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#34D399', boxShadow: '0 0 0 3px rgba(52,211,153,0.18)' }} />
+          {loading ? 'Updating…' : `Live${lastSync ? ' · ' + syncLabel(lastSync) : ''}`}
+        </button>
       </div>
 
       {view === 'rota' ? (
