@@ -901,7 +901,9 @@ ENGINE VOCABULARY (all optional; emit only what the rules state):
 - maxShiftsWeek: {staffId: n} — cap someone's shifts per week.
 - dateRules: {"YYYY-MM-DD": {closed?: true, open?, close?, base?, eveAt?, eveAdd?, quiet?}} — one-off dates.
 
-Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.`;
+Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.
+
+CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to Sat"), the days object MUST contain an entry for EVERY weekday in that range — list them out and double-check none is skipped before answering (Mon–Fri = keys "1","2","3","4","5").`;
 
       const userMsg = `STAFF (id · name · role):\n${staffList || "(none)"}\n\nTODAY: ${today}\n\nCURRENT MANUAL SETTINGS (context so relative rules make sense):\n${JSON.stringify(manualCtx)}\n\nFOUNDER'S TYPED RULES:\n${houseRules.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}`;
 
