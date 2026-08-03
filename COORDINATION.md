@@ -34,8 +34,11 @@ never run destructive or "today"-dated test writes on real data.
 
 | Lane | Table / change | Status | Date |
 |------|----------------|--------|------|
+| tournament | Added `pingpong_{tournaments,participants,rounds,matches,vouchers}` (new — mirror of `pool_*`, ping-pong trial). No change to existing tables. | ✅ done | 3 Aug 2026 |
 
 ## Global deploy notes
 Edge-function deploys are global (last deploy wins). Only deploy the function(s)
 your lane owns, and always from the latest merged `main`. If you deploy, jot it here
 so others know the live backend moved.
+
+- **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
