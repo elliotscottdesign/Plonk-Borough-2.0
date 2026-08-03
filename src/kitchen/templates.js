@@ -138,19 +138,23 @@ export const KITCHEN_TEMPLATES = {
   },
 
   weekly: {
-    id: 'weekly', title: 'Weekly deep clean', cadence: 'weekly', icon: '🧽',
-    blurb: 'Once a week (rota which day).',
+    id: 'weekly', title: 'Monday deep clean', cadence: 'weekly', weekday: 1, icon: '🧽',
+    blurb: 'Every Monday — pull everything out and deep clean.',
     groups: [
       {
         title: 'Deep clean',
         items: [
+          { key: 'wk.pull_kit', label: 'Pull out all kit & equipment — clean behind and underneath', type: 'check' },
           { key: 'wk.defrost_freezer', label: 'Defrost & clean freezer', type: 'check' },
-          { key: 'wk.deep_fridges', label: 'Deep clean inside fridges incl. door seals', type: 'check' },
+          { key: 'wk.deep_fridges', label: 'Clean down fridges & freezers — inside, door seals & outside', type: 'check' },
+          { key: 'wk.behind_bins', label: 'Clean behind & underneath the bins', type: 'check' },
+          { key: 'wk.shelves', label: 'Clean all shelves, storage racks & lidded containers down', type: 'check' },
+          { key: 'wk.trailer_exterior', label: 'Clean the outside of the trailer — front & back', type: 'check' },
+          { key: 'wk.concrete_floor', label: 'Clean the concrete floor around the trailer', type: 'check' },
           { key: 'wk.fryer_oil', label: 'Full fryer oil change — filter the used oil through a J Cloth + funnel into the two 10 L clear jerry cans; clean fryer tank', type: 'check' },
           { key: 'wk.salamander', label: 'Descale / clean salamander grill & extraction fan + filters', type: 'check' },
           { key: 'wk.washup', label: 'Deep clean wash-up sinks, taps & drains', type: 'check' },
           { key: 'wk.glasswasher', label: 'Descale glasswasher / dishwasher, clean filter', type: 'check' },
-          { key: 'wk.shelves', label: 'Clean shelves, storage racks & all lidded containers', type: 'check' },
           { key: 'wk.tanks', label: 'Empty, clean & sanitise both water tanks (fresh + waste)', type: 'check' },
           { key: 'wk.probe_accuracy', label: 'Check probe accuracy (iced water ≈ 0 °C)', type: 'temp', target: { min: -2, max: 2, unit: 'C' } },
           { key: 'wk.pest', label: 'Pest check — any droppings / signs?', type: 'check' },
