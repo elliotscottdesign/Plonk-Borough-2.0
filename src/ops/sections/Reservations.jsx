@@ -183,29 +183,64 @@ export default function Reservations() {
     return m
   }, [rows])
 
+  // Print sheet — strip the ops chrome and render a clean paper handout
+  // (title + date + row list). @media print rules hide everything outside
+  // .rs-print-root and swap the dark theme for paper-friendly black-on-white.
+  const printHeader = range === 'today' ? fmtDay(todayIso()) : `${fmtDay(from)} → ${fmtDay(to)}`
+  const totalCovers = counts.covers
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, color: 'var(--cream)' }}>
-      {/* Header — range picker + live indicator */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+    <div className="rs-print-root" style={{ display: 'flex', flexDirection: 'column', gap: 18, color: 'var(--cream)' }}>
+      <style>{`
+        @media print {
+          @page { margin: 14mm; size: A4; }
+          html, body { background: #fff !important; color: #000 !important; }
+          /* Hide everything on the page EXCEPT this section's rows */
+          body > * { visibility: hidden !important; }
+          .rs-print-root, .rs-print-root * { visibility: visible !important; }
+          .rs-print-root { position: absolute; inset: 0; padding: 0 !important; }
+          .rs-no-print { display: none !important; }
+          .rs-print-only { display: block !important; }
+          /* Force readable colours on the print sheet */
+          .rs-print-root, .rs-print-root * {
+            color: #000 !important; background: #fff !important;
+            border-color: #999 !important; box-shadow: none !important;
+          }
+          .rs-print-root h1, .rs-print-root h2 { color: #000 !important; }
+          .rs-row { break-inside: avoid; page-break-inside: avoid; }
+        }
+        .rs-print-only { display: none; }
+      `}</style>
+
+      {/* Print-only header — appears when the sheet is rendered on paper */}
+      <div className="rs-print-only" style={{ marginBottom: 14 }}>
+        <h1 style={{ fontFamily: "'DM Serif Display', Georgia, serif", fontSize: 26, margin: 0 }}>Reservations — {printHeader}</h1>
+        <div style={{ fontSize: 13, marginTop: 4 }}>{counts.total} booking{counts.total === 1 ? '' : 's'} · {totalCovers} cover{totalCovers === 1 ? '' : 's'}{counts.big ? ` · ${counts.big} big part${counts.big === 1 ? 'y' : 'ies'} (${BIG_PARTY_THRESHOLD}+)` : ''}</div>
+        <div style={{ fontSize: 11, marginTop: 2 }}>Printed {new Date().toLocaleString('en-GB')}</div>
+      </div>
+
+      {/* Header — range picker + live indicator (screen only) */}
+      <div className="rs-no-print" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="serif" style={{ fontSize: 22, color: 'var(--gold)' }}>📇 Reservations</div>
           <div style={{ fontSize: 12.5, color: 'var(--cream-dim)', marginTop: 3 }}>Every table, pool, golf and tournament booking — live from the site. Auto-refreshes every 15 seconds.</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
           <button onClick={() => setRange('today')} style={rangeBtn(range === 'today')}>Today</button>
           <button onClick={() => setRange('week')} style={rangeBtn(range === 'week')}>Next 7 days</button>
           <button onClick={reload} style={{ ...rangeBtn(false), marginLeft: 6 }} title="Force reload">↻</button>
+          <button onClick={() => window.print()} style={{ ...rangeBtn(false), marginLeft: 6 }} title="Print a paper handout for the door / kitchen">🖨 Print sheet</button>
         </div>
       </div>
 
       {/* Live indicator */}
-      <div style={{ fontSize: 11, color: lastRefresh ? GREEN : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="rs-no-print" style={{ fontSize: 11, color: lastRefresh ? GREEN : 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 6 }}>
         <span style={{ display: 'inline-block', width: 8, height: 8, borderRadius: '50%', background: lastRefresh ? GREEN : 'rgba(255,255,255,0.25)', boxShadow: lastRefresh ? `0 0 6px ${GREEN}` : 'none' }} />
         {lastRefresh ? `Live · last check ${lastRefresh.toLocaleTimeString('en-GB')}` : 'Connecting…'}
       </div>
 
       {/* Summary pills */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div className="rs-no-print" style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
         <SummaryPill label="Bookings" value={counts.total} color={GOLD} />
         <SummaryPill label="Covers" value={counts.covers} color={GREEN} />
         {counts.big > 0 && <SummaryPill label={`Big parties (${BIG_PARTY_THRESHOLD}+)`} value={counts.big} color={AMBER} />}
@@ -234,7 +269,7 @@ export default function Reservations() {
               </span>
             </div>
           )}
-          {byDate[date].map(r => <ReservationRow key={r.kind + ':' + r.id} r={r} />)}
+          {byDate[date].map(r => <ReservationRow key={r.kind + ':' + r.id} r={r} className="rs-row" />)}
         </div>
       ))}
     </div>
@@ -242,11 +277,11 @@ export default function Reservations() {
 }
 
 // ── Row ────────────────────────────────────────────────────────────────────
-function ReservationRow({ r }) {
+function ReservationRow({ r, className }) {
   const meta = KIND_META[r.kind] || { emoji: '·', label: r.kind, color: 'rgba(255,255,255,0.5)' }
   const big = r.party >= BIG_PARTY_THRESHOLD
   return (
-    <div style={{
+    <div className={className} style={{
       display: 'grid', gridTemplateColumns: 'auto 60px minmax(140px, 1fr) auto',
       gap: 12, alignItems: 'center', padding: '10px 14px',
       background: CARD, border: `1px solid ${LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10,
