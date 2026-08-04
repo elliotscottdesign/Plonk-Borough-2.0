@@ -48,7 +48,9 @@ const GROUPS = [
     ],
   },
   {
-    key: 'office', label: 'Office',
+    // The WHOLE Office group is founder-only (founder's call, Aug 2026): reports,
+    // paperwork and money are senior-management — team-tier logins never see the door.
+    key: 'office', label: 'Office', founderOnly: true,
     tabs: [
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
@@ -62,8 +64,9 @@ export default function OpsApp() {
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
   // Visible groups, each with its visible tabs; a group with nothing visible vanishes.
+  // A group-level founderOnly (Office) hides the WHOLE group from team-tier logins.
   const visGroups = GROUPS
-    .map(g => ({ ...g, tabs: g.tabs.filter(t => !t.founderOnly || isFounder) }))
+    .map(g => ({ ...g, tabs: (g.founderOnly && !isFounder) ? [] : g.tabs.filter(t => !t.founderOnly || isFounder) }))
     .filter(g => g.tabs.length > 0)
   const allTabs = visGroups.flatMap(g => g.tabs)
   const groupOf = (tabKey) => visGroups.find(g => g.tabs.some(t => t.key === tabKey)) || visGroups[0]
