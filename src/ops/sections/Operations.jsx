@@ -23,7 +23,7 @@ const OPS_TOOLS = [
   { key: 'suppliers', label: 'Suppliers', icon: '📇', live: true, blurb: 'Directory of every supplier — addresses, contacts, 1-click trade portal launcher.' },
   { key: 'cocktailspecs', label: 'Cocktail Specs', icon: '🍸', live: true, blurb: 'Every house cocktail recipe — pours, glassware, build rules. Printable.' },
   { key: 'till', label: 'Till', icon: '🧾', live: true, blurb: 'How to add new products to the Lightspeed till so they ring up correctly.' },
-  { key: 'pool',  label: 'Pool Tournament Nights', icon: '🎱', live: false, blurb: 'Run the internal pool competition — brackets, live scores, leaderboard, winners.' },
+  // (Pool tournaments graduated to the Events group's Tournament tab — card removed.)
   { key: 'crm',   label: 'Community / CRM', icon: '🤝', live: false, blurb: 'Build the regulars list from Insta, Google, in-bar and events data.' },
   { key: 'help',  label: 'Daily Team Help', icon: '💬', live: false, blurb: 'Ad-hoc day-to-day help for you and the team.' },
 ]

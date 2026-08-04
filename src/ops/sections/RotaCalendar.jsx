@@ -237,10 +237,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <div style={{ fontWeight: 700, fontSize: 15, color: '#fff' }}>{MONTHS[viewM]} {viewY}</div>
           <button onClick={() => shiftMonth(1)} style={{ background: 'transparent', border: 'none', color: RED, fontSize: 16, cursor: 'pointer', padding: '4px 12px' }}>▶</button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, marginBottom: 5 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,minmax(0,1fr))', gap: 4, marginBottom: 5 }}>
           {DOW.map(d => <div key={d} style={{ textAlign: 'center', fontSize: 10, color: 'rgba(255,255,255,0.4)', fontWeight: 600 }}>{d}</div>)}
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7,minmax(0,1fr))', gap: 4 }}>
           {cells.map((d, i) => {
             if (!d) return <div key={i} />
             const dateStr = iso(viewY, viewM, d)
@@ -251,7 +251,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const evs = eventsForDate(keyEvents, dateStr)
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: 1, border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -276,13 +276,15 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 {(() => {
                   const people = rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length, 0)
                   const hrs = Math.round(rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length * shiftHours(sh), 0))
+                  // Pills wrap instead of forcing the cell wide — on a phone the 7-col
+                  // month must FIT the screen (it used to overflow and clip Fri–Sun).
                   if (people > 0) return (
-                    <div style={{ fontSize: 9, color: '#fff', border: `1px solid ${GREEN}`, background: `${GREEN}22`, borderRadius: 4, padding: '2px 4px', display: 'flex', justifyContent: 'space-between', gap: 3, whiteSpace: 'nowrap' }}>
-                      <span>👥 {people}</span><span style={{ fontWeight: 700, color: GREEN }}>{hrs}h</span>
+                    <div style={{ fontSize: 9, color: '#fff', border: `1px solid ${GREEN}`, background: `${GREEN}22`, borderRadius: 4, padding: '2px 4px', display: 'flex', justifyContent: 'space-between', gap: 3, flexWrap: 'wrap', minWidth: 0 }}>
+                      <span style={{ whiteSpace: 'nowrap' }}>👥{people}</span><span style={{ fontWeight: 700, color: GREEN, whiteSpace: 'nowrap' }}>{hrs}h</span>
                     </div>
                   )
                   return pattern.map((p, j) => (
-                    <div key={j} style={{ fontSize: 8, color: GREY, border: `1px dashed ${GREY}`, borderRadius: 4, padding: '1px 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.label} {fmtMin(p.start)}</div>
+                    <div key={j} style={{ fontSize: 8, color: GREY, border: `1px dashed ${GREY}`, borderRadius: 4, padding: '1px 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }} title={`${p.label} ${fmtMin(p.start)}`}>{fmtMin(p.start)} {p.label}</div>
                   ))
                 })()}
               </button>

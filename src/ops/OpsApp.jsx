@@ -27,7 +27,9 @@ const GROUPS = [
   {
     key: 'operations', label: 'Operations',
     tabs: [
-      { key: 'operations', label: 'Operations',    Component: Operations },
+      // "Bar" = the stock/margin toolkit (stock take, perishables, costing…).
+      // key stays 'operations' so old ?tab=/?tool= deep links keep working.
+      { key: 'operations', label: 'Bar',           Component: Operations },
       { key: 'rota',       label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
