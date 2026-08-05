@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
@@ -65,7 +65,17 @@ export default function Tournament() {
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
-  const guard = (fn) => async (...a) => { setBusy(true); try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // In-flight lock via ref, not just state: two taps in the same frame both see
+  // busy=false (setState is async), so a fast double-tap on "+ Add another round"
+  // could fire twice and generate TWO rounds (happened live 5 Aug 2026). The ref
+  // flips synchronously, so the second tap is swallowed.
+  const inFlight = useRef(false)
+  const guard = (fn) => async (...a) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
+  }
 
   const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
@@ -438,8 +448,11 @@ export default function Tournament() {
         {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
           </div>
 
-          {/* RIGHT — live standings (reference column) */}
-          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          {/* RIGHT — live standings (reference column). Sticky (founder rule
+              4 Aug 2026): the table pins to the top of the window while the
+              rounds column scrolls, so scores stay in view. On phones the
+              columns stack and the stickiness naturally does nothing. */}
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -637,6 +650,7 @@ export default function Tournament() {
         replacing={replacing}
         setReplacing={setReplacing}
         onSaveReplace={saveReplace}
+        onAddLate={(name) => guard(() => tournAddManual(run.run.id, name))()}
         onUndoRound={undoRound}
         onRefresh={refresh}
         onDeleteRun={() => {
@@ -718,6 +732,30 @@ function TableBadge({ n, pending, small }) {
   return null
 }
 
+// ── Add-late-player panel ───────────────────────────────────────────────────
+// Small self-contained input + button used in the ☰ drawer while the rounds
+// run, so a late arrival can be added without leaving the tournament view.
+function AddLatePanel({ busy, onAdd, label, hint }) {
+  const [name, setName] = useState('')
+  const submit = async () => { const n = name.trim(); if (!n || busy) return; await onAdd(n); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{hint}</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder={label}
+          disabled={busy}
+          style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
+        />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
+      </div>
+    </div>
+  )
+}
+
 // ── Replace-player panel ────────────────────────────────────────────────────
 // Compact mid-tournament substitution UI: pick a player from the dropdown,
 // type the replacement's name, hit Save. Cascades the new name to every match
@@ -782,7 +820,7 @@ const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.
 // surface at each stage.
 function MenuDrawer({
   open, onClose, status, curDone, busy,
-  participants, replacing, setReplacing, onSaveReplace,
+  participants, replacing, setReplacing, onSaveReplace, onAddLate,
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
@@ -806,6 +844,17 @@ function MenuDrawer({
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
+
+        {/* Add a late player — founder rule 4 Aug 2026: joining mid-tournament is
+            allowed while the Swiss rounds run. They start on 0 points and get
+            drawn into the NEXT round (the engine already handles odd numbers
+            with a bye). Not shown in the knockout — the bracket is fixed. */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Add a late player</div>
+            <AddLatePanel busy={busy} onAdd={onAddLate} label="Player / team name…" hint="Turned up after the start? Add them here — they join the standings on 0 points and get drawn into the next round." />
+          </div>
+        )}
 
         {/* Format — flip the night's discipline if not enough teams show up.
             Founder rule 2026-07-30: a doubles night played as singles still

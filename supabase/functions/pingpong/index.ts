@@ -76,13 +76,25 @@ function shortCode(seed: string) {
   return "ND-" + out;
 }
 
-// Scoring settings (per tournament, in pingpong_tournaments.settings). Ping pong:
-// FIRST TO 11 for the win (raceTo 11), no draws, 1 point per win (so standings Pts =
-// wins, then ranked on points difference), byes not rated.
-// 2026-07-30 — founder rule: final + 3rd-place playoff are ALWAYS best-of-3 of
-// first-to-11 games, and a 3rd-place playoff is ALWAYS on. Defaults reflect that
-// so a run created without any explicit settings still gets them.
-const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 11, thirdPlaceMatch: true, finalBestOf3: true };
+// Scoring settings (per tournament, in pingpong_tournaments.settings). Ping pong,
+// founder rules 3 Aug 2026:
+//   • Rounds: a game is FIRST TO 11 — but you must be 2 points clear. At 10–10 it's
+//     deuce and the game runs on past 11 (12–10, 15–13, …).
+//   • Knockout: first to 21, same 2-clear deuce rule (23–21, …).
+//   • Final + 3rd-place playoff: ALWAYS best of 3 (each game first to 21), and a
+//     3rd-place playoff is ALWAYS on.
+// No draws, 1 point per win (standings Pts = wins, then points difference), byes not rated.
+const DEFAULT_SETTINGS = { winPts: 1, drawPts: 1, lossPts: 0, drawsAllowed: false, rateByes: false, raceTo: 11, koRaceTo: 21, thirdPlaceMatch: true, finalBestOf3: true };
+
+// Validate a finished ping pong game score against the deuce rule. Returns an error
+// string, or null if the score is a legal final score for a first-to-`WIN` game.
+function badGameScore(a: number, b: number, WIN: number): string | null {
+  const hi = Math.max(a, b), lo = Math.min(a, b);
+  if (hi < WIN) return `A game is first to ${WIN} — the winner needs at least ${WIN} points.`;
+  if ((hi === WIN && lo > WIN - 2) || (hi > WIN && hi - lo !== 2))
+    return `From ${WIN - 1}–${WIN - 1} it's deuce — the winner must finish exactly 2 points clear (e.g. ${WIN + 4}–${WIN + 2}).`;
+  return null;
+}
 const settingsOf = (run: any) => ({ ...DEFAULT_SETTINGS, ...(run?.settings || {}) });
 
 // Best-of-3 applies ONLY to the final and the 3rd-place playoff (founder's choice) —
@@ -532,14 +544,20 @@ Deno.serve(async (req) => {
       const rounds = (allBr && allBr.length) ? Math.max(...allBr.map((x: any) => x.bracket_round)) : 0;
       const isFinal = isBracket && m.bracket_round === rounds && !m.is_third_place;
 
-      // ── Best-of-3 (final / 3rd-place only): games:[{p1,p2},...], first to win 2 ──
+      // ── Best-of-3 (final / 3rd-place only): games:[{p1,p2},...], first to win 2.
+      //    Each game is first to koRaceTo (21) with the deuce rule. ──
       if (isBestOf3Match(m, allBr || [], s)) {
         if (!Array.isArray(b.games)) return json({ error: "This match is best-of-3 — enter each game." }, 400);
         const games = (b.games as any[]).slice(0, 3).map((g) => ({
           p1: Math.max(0, Math.min(99, parseInt(String(g?.p1)) || 0)),
           p2: Math.max(0, Math.min(99, parseInt(String(g?.p2)) || 0)),
         }));
-        for (const g of games) if (g.p1 === g.p2) return json({ error: "Each game needs a winner — no tied games." }, 400);
+        const KO = s.koRaceTo || 21;
+        for (const g of games) {
+          if (g.p1 === g.p2) return json({ error: "Each game needs a winner — no tied games." }, 400);
+          const bad = badGameScore(g.p1, g.p2, KO);
+          if (bad) return json({ error: bad }, 400);
+        }
         const t = tallyGames(games);
         const winner = t.winnerSide === 1 ? m.p1_id : t.winnerSide === 2 ? m.p2_id : null;
         // Store games; p1_score/p2_score hold GAMES won (e.g. 2–1) for display — standings &
@@ -555,9 +573,14 @@ Deno.serve(async (req) => {
       }
 
       // ── Single game (rounds + regular bracket matches) ──
+      // Rounds are first to 11, bracket matches first to 21 — both with the deuce rule
+      // (win by 2 past WIN−1 apiece), so scores above the target are legal (15–13).
       const p1 = Math.max(0, Math.min(99, parseInt(String(b.p1_score)) || 0));
       const p2 = Math.max(0, Math.min(99, parseInt(String(b.p2_score)) || 0));
       if (p1 === p2 && (isBracket || !s.drawsAllowed)) return json({ error: "Needs a winner — a tie isn't allowed here. Adjust the score." }, 400);
+      const WIN = isBracket ? (s.koRaceTo || 21) : (s.raceTo || 11);
+      const bad = badGameScore(p1, p2, WIN);
+      if (bad) return json({ error: bad }, 400);
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       // Free the table this match was on — reassignTables below will hand it
       // to the next ready pending match.
@@ -604,11 +627,12 @@ Deno.serve(async (req) => {
       if (matches.some((m: any) => m.round_id && m.status !== "done")) return json({ error: "Finish scoring the current round first." }, 400);
       const s = settingsOf(run);
       const thirdPlace = b.thirdPlace != null ? !!b.thirdPlace : !!s.thirdPlaceMatch;
-      // Match length for the knockout (race to N points, first to N wins). Clamp 3–21.
-      const raceTo = b.raceTo != null ? Math.min(21, Math.max(3, Math.round(Number(b.raceTo) || s.raceTo))) : s.raceTo;
-      // Best-of-3 for the final + 3rd-place playoff (each game races to `raceTo`).
+      // Knockout match length (first to N, deuce past N−1 apiece). Default 21 — founder
+      // rule 3 Aug 2026. Stored as koRaceTo so the rounds' first-to-11 stays untouched.
+      const koRaceTo = b.raceTo != null ? Math.min(31, Math.max(5, Math.round(Number(b.raceTo) || s.koRaceTo))) : s.koRaceTo;
+      // Best-of-3 for the final + 3rd-place playoff (each game first to `koRaceTo`).
       const finalBestOf3 = b.finalBestOf3 != null ? !!b.finalBestOf3 : !!s.finalBestOf3;
-      const nextSettings = { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, raceTo, finalBestOf3 };
+      const nextSettings = { ...(run.settings || {}), thirdPlaceMatch: thirdPlace, koRaceTo, finalBestOf3 };
       // Persist the chosen knockout options so the bracket score entry & standings
       // read the right race target, and re-opens show what was picked.
       await sb.from("pingpong_tournaments").update({ settings: nextSettings }).eq("id", runId);

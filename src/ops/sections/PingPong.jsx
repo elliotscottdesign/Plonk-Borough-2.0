@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
@@ -46,7 +46,7 @@ export default function PingPong() {
   const [scores, setScores] = useState({})      // matchId -> { p1, p2 } in-progress score inputs
   const [gameScores, setGameScores] = useState({})   // matchId -> [{p1,p2}...] for best-of-3 matches
   const [thirdPlace, setThirdPlace] = useState(true)    // knockout: play a 3rd-place match? (founder rule 2026-07-30: always on)
-  const [koRaceTo, setKoRaceTo] = useState(11)          // knockout: race to how many points?
+  const [koRaceTo, setKoRaceTo] = useState(21)          // knockout: first to how many points? (founder: 21)
   const [finalBestOf3, setFinalBestOf3] = useState(true) // knockout: final + 3rd-place = best of 3?
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
@@ -67,7 +67,17 @@ export default function PingPong() {
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
-  const guard = (fn) => async (...a) => { setBusy(true); try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // In-flight lock via ref, not just state: two taps in the same frame both see
+  // busy=false (setState is async), so a fast double-tap on "+ Add another round"
+  // could fire twice and generate TWO rounds (happened live 5 Aug 2026). The ref
+  // flips synchronously, so the second tap is swallowed.
+  const inFlight = useRef(false)
+  const guard = (fn) => async (...a) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
+  }
 
   const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
@@ -87,7 +97,7 @@ export default function PingPong() {
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
-  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} points${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
+  const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top teams seed into a single-elimination bracket from the standings.\n\nMatches: first to ${koRaceTo} points, win by 2${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async () => { setBusy(true); try { setLeague(await tournGetLeague('teams')) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openLeague = async () => { setLeagueView(true); await loadLeague() }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
@@ -98,22 +108,32 @@ export default function PingPong() {
     if (p1 === '' || p2 === '') { alert('Enter both scores.'); return }
     await guard(async () => { await tournEnterScore(m.id, p1, p2); setScores(s => { const n = { ...s }; delete n[m.id]; return n }) })()
   }
-  // First to WIN (11). Pick the loser's points (0–10) and the winner auto-jumps to 11;
-  // pick 11 for a side and it's the winner (the other side clears so you set the loser).
+  // Ping pong scoring with the DEUCE rule (founder 3 Aug 2026): first to WIN but you
+  // must be 2 points clear, so games can run past WIN (12–10, 15–13…). Rounds WIN = 11,
+  // knockout WIN = 21 (looked up per match via bracket_round).
+  //
+  // Entry model: pick the LOSER's score and the winner auto-fills — loser ≤ WIN−2 →
+  // winner = WIN; deuce (loser ≥ WIN−1) → winner = loser + 2. Picking exactly WIN marks
+  // that side the winner (then pick the loser on the other side).
+  const winFor = (id) => {
+    const m = (run?.matches || []).find(x => x.id === id)
+    return m && m.bracket_round != null ? (run?.run?.settings?.koRaceTo || 21) : (run?.run?.settings?.raceTo || 11)
+  }
+  const winOver = (loser, WIN) => loser <= WIN - 2 ? WIN : loser + 2
   const setScore = (id, side, raw) => setScores(s => {
-    const WIN = run?.run?.settings?.raceTo || 11
+    const WIN = winFor(id)
     const cur = s[id] || {}, other = side === 'p1' ? 'p2' : 'p1'
     const v = raw === '' ? '' : Number(raw)
     let next
     if (v === '') next = { ...cur, [side]: '' }
-    else if (v < WIN) next = { ...cur, [side]: v, [other]: WIN }
-    else next = { ...cur, [side]: WIN, [other]: (cur[other] === WIN || cur[other] == null || cur[other] === '') ? '' : cur[other] }
+    else if (v === WIN) next = { ...cur, [side]: WIN, [other]: (cur[other] !== '' && cur[other] != null && Number(cur[other]) <= WIN - 2) ? cur[other] : '' }
+    else next = { ...cur, [side]: v, [other]: winOver(v, WIN) }
     return { ...s, [id]: next }
   })
 
   // Best-of-3: one score input per game, same loser-picker auto-fill (pick the loser's
-  // points → the winner jumps to WIN). `saveGames` sends the completed games; the engine
-  // tallies them (first to win 2) and finalises when the final is decided.
+  // points → the winner fills in; deuce → loser + 2). `saveGames` sends the completed
+  // games; the engine tallies them (first to win 2) and finalises when the final is decided.
   const setGame = (id, idx, side, raw, WIN, base) => setGameScores(s => {
     // Seed from the persisted games (base = m.games) on the first edit after a save/reload —
     // otherwise editing a partially-saved best-of-3 match would wipe the games already stored.
@@ -122,8 +142,8 @@ export default function PingPong() {
     const cur = arr[idx], other = side === 'p1' ? 'p2' : 'p1'
     const v = raw === '' ? '' : Number(raw)
     if (v === '') cur[side] = ''
-    else if (v < WIN) { cur[side] = v; cur[other] = WIN }
-    else { cur[side] = WIN; cur[other] = (cur[other] === WIN || cur[other] == null || cur[other] === '') ? '' : cur[other] }
+    else if (v === WIN) { cur[side] = WIN; if (!(cur[other] !== '' && cur[other] != null && Number(cur[other]) <= WIN - 2)) cur[other] = '' }
+    else { cur[side] = v; cur[other] = winOver(v, WIN) }
     return { ...s, [id]: arr }
   })
   const saveGames = async (m) => {
@@ -386,6 +406,8 @@ export default function PingPong() {
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
           {/* LEFT — rounds (oldest first, "+ Add another round" at the bottom) */}
           <div style={{ flex: '2 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
+        {/* Score entry hint — deuce rule (founder 3 Aug 2026): first to 11, win by 2. */}
+        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Games are <strong style={{ color: 'rgba(255,255,255,0.75)' }}>first to 11, win by 2</strong>. Pick the <strong style={{ color: 'rgba(255,255,255,0.75)' }}>loser's</strong> score and the winner fills itself in — deuce included (pick 10 → 12–10, pick 13 → 15–13).</div>
         {/* Rounds — oldest at top, newest at the bottom so the page reads like
             a match log written down the page (founder direction 2026-07-30). */}
         {rounds.map(rnd => {
@@ -411,9 +433,9 @@ export default function PingPong() {
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
-                      <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 11} />
+                      <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
-                      <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 11} />
+                      <ScoreSelect value={v2} onPick={val => setScore(m.id, 'p2', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
                       {doneM
                         ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
@@ -436,8 +458,11 @@ export default function PingPong() {
         {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
           </div>
 
-          {/* RIGHT — live standings (reference column) */}
-          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          {/* RIGHT — live standings (reference column). Sticky (founder rule
+              4 Aug 2026): the table pins to the top of the window while the
+              rounds column scrolls, so scores stay in view. On phones the
+              columns stack and the stickiness naturally does nothing. */}
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → point diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -479,7 +504,10 @@ export default function PingPong() {
         const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
         const placings = run.placings
         const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
-        const bracketMax = run.run?.settings?.raceTo || 11
+        // Knockout target: first to 21 (deuce past 20–20). The dropdown ceiling sits 10
+        // above so deuce finishes (23–21…) can be entered.
+        const koWin = run.run?.settings?.koRaceTo || 21
+        const selMax = koWin + 10
         const bo3On = !!run.run?.settings?.finalBestOf3
         const BracketMatch = ({ m }) => {
           if (m.is_bye) return <div style={{ ...bracketBox, color: 'rgba(255,255,255,0.6)' }}><div style={{ fontWeight: 700, color: '#fff' }}>{nameById[m.p1_id]}</div><div style={{ fontSize: 10.5, color: GREEN }}>bye →</div></div>
@@ -488,7 +516,7 @@ export default function PingPong() {
 
           // ── Best-of-3 (final / 3rd-place): enter each game, first to win 2 ──
           if (bo3On && (m.is_third_place || isFinalM)) {
-            const perGame = bracketMax
+            const perGame = koWin
             const bothIn = m.p1_id && m.p2_id
             const working = gameScores[m.id] ?? (m.games || [])
             const complete = working.filter(g => g && g.p1 !== '' && g.p2 !== '' && g.p1 != null && g.p2 != null)
@@ -506,7 +534,7 @@ export default function PingPong() {
             return (
               <div style={bracketBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · race to {perGame}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · first to {perGame}</div>
                   {editing && <TableBadge n={m.table_number} pending small />}
                 </div>
                 {tallyLine(m.p1_id, w1, decided && w1 >= 2)}
@@ -523,9 +551,9 @@ export default function PingPong() {
                           <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.5)', width: 20 }}>G{i + 1}</span>
                           {editing
                             ? <>
-                                <ScoreSelect value={gv1} onPick={x => setGame(m.id, i, 'p1', x, perGame, working)} disabled={busy} max={perGame} compact />
+                                <ScoreSelect value={gv1} onPick={x => setGame(m.id, i, 'p1', x, perGame, working)} disabled={busy} max={selMax} compact />
                                 <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12 }}>–</span>
-                                <ScoreSelect value={gv2} onPick={x => setGame(m.id, i, 'p2', x, perGame, working)} disabled={busy} max={perGame} compact />
+                                <ScoreSelect value={gv2} onPick={x => setGame(m.id, i, 'p2', x, perGame, working)} disabled={busy} max={selMax} compact />
                               </>
                             : <span style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.7)', fontVariantNumeric: 'tabular-nums' }}>{gv1 === '' ? '–' : gv1} – {gv2 === '' ? '–' : gv2}</span>}
                         </div>
@@ -547,7 +575,7 @@ export default function PingPong() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, minHeight: 34 }}>
               <span style={{ fontSize: 13.5, fontWeight: win ? 800 : 600, color: !pid ? 'rgba(255,255,255,0.3)' : win ? GREEN : doneM ? 'rgba(255,255,255,0.45)' : '#fff', textDecoration: doneM && !win ? 'line-through' : 'none', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{pid ? nameById[pid] : 'TBD'}</span>
               {playable && pid
-                ? <ScoreSelect value={val} onPick={x => setScore(m.id, side, x)} disabled={busy} max={bracketMax} compact />
+                ? <ScoreSelect value={val} onPick={x => setScore(m.id, side, x)} disabled={busy} max={selMax} compact />
                 : (doneM ? <span style={{ fontSize: 16, fontWeight: 800, color: win ? GREEN : 'rgba(255,255,255,0.45)', minWidth: 20, textAlign: 'center' }}>{sc}</span> : null)}
             </div>
           )
@@ -601,7 +629,7 @@ export default function PingPong() {
             })()}
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
-              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>race to {bracketMax}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}{run.run?.settings?.finalBestOf3 ? ' · best-of-3 final' : ''}</span>
+              <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>first to {koWin} · deuce past {koWin - 1}–{koWin - 1}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}{run.run?.settings?.finalBestOf3 ? ' · best-of-3 final' : ''}</span>
             </div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
@@ -635,6 +663,7 @@ export default function PingPong() {
         replacing={replacing}
         setReplacing={setReplacing}
         onSaveReplace={saveReplace}
+        onAddLate={(name) => guard(() => tournAddManual(run.run.id, name))()}
         onUndoRound={undoRound}
         onRefresh={refresh}
         onDeleteRun={() => {
@@ -713,6 +742,30 @@ function TableBadge({ n, pending, small }) {
   return null
 }
 
+// ── Add-late-team panel ─────────────────────────────────────────────────────
+// Small self-contained input + button used in the ☰ drawer while the rounds
+// run, so a late-arriving team can be added without leaving the tournament view.
+function AddLatePanel({ busy, onAdd, label, hint }) {
+  const [name, setName] = useState('')
+  const submit = async () => { const n = name.trim(); if (!n || busy) return; await onAdd(n); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{hint}</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder={label}
+          disabled={busy}
+          style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
+        />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
+      </div>
+    </div>
+  )
+}
+
 // ── Replace-player panel ────────────────────────────────────────────────────
 // Compact mid-tournament substitution UI: pick a player from the dropdown,
 // type the replacement's name, hit Save. Cascades the new name to every match
@@ -777,7 +830,7 @@ const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.
 // surface at each stage.
 function MenuDrawer({
   open, onClose, status, curDone, busy,
-  participants, replacing, setReplacing, onSaveReplace,
+  participants, replacing, setReplacing, onSaveReplace, onAddLate,
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
@@ -803,6 +856,16 @@ function MenuDrawer({
 
         {/* No format section here (pool has a singles/doubles flip) — every ping
             pong night is a TEAM night, founder rule 3 Aug 2026. */}
+
+        {/* Add a late team — founder rule 4 Aug 2026: joining mid-tournament is
+            allowed while the Swiss rounds run. They start on 0 points and get
+            drawn into the NEXT round. Not shown in the knockout — bracket is fixed. */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Add a late team</div>
+            <AddLatePanel busy={busy} onAdd={onAddLate} label="Team name…" hint="Turned up after the start? Add them here — they join the standings on 0 points and get drawn into the next round." />
+          </div>
+        )}
 
         {/* Substitute a player — the highest-touch mid-tournament action */}
         {(isRounds || isKO) && (
@@ -833,9 +896,9 @@ function MenuDrawer({
             <div style={{ fontSize: 13, fontWeight: 800, color: '#fff' }}>🏆 Start the knockout</div>
             <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Cuts to a single-elimination bracket. Top players seed from the current standings.</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Match length — race to</span>
+              <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.7)', fontWeight: 600 }}>Match length — first to</span>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {[7, 9, 11, 15, 21].map(n => {
+                {[11, 15, 21].map(n => {
                   const on = koRaceTo === n
                   return (
                     <button key={n} onClick={() => setKoRaceTo(n)} style={{ padding: '7px 13px', borderRadius: 8, cursor: 'pointer', fontSize: 13, fontWeight: 700, border: `1px solid ${on ? PURPLE : 'rgba(168,85,247,0.3)'}`, background: on ? PURPLE : 'rgba(168,85,247,0.10)', color: '#fff' }}>{n}</button>
