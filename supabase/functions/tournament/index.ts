@@ -127,33 +127,55 @@ function computeStandings(participants: any[], matches: any[], settings: any) {
   return arr.map((s, i) => ({ ...s, rank: i + 1 }));
 }
 
-// Swiss (Monrad) pairing for the next round: walk the standings top-to-bottom,
-// pair each unpaired player with the next they HAVEN'T met; odd field → a bye to the
-// lowest-ranked player who hasn't had one. Returns { pairs:[[a,b]...], byeId }.
+// Swiss (Monrad) pairing with a NO-REMATCH guarantee (founder rule 5 Aug 2026):
+// never pair two players who have already met if ANY rematch-free pairing of the
+// whole field exists — so 8 teams over 7 rounds is a full round-robin with no
+// duplicated games. The old greedy top-down walk could corner itself (pair the
+// top two, leaving two at the bottom who had already met) even when a clean
+// pairing existed. This version BACKTRACKS over the whole field, trying
+// nearest-ranked partners first so pairings stay Swiss-flavoured, and only if
+// no rematch-free pairing exists at all (more rounds than opponents) does it
+// fall back to the fewest possible rematches. Odd field -> bye to the
+// lowest-ranked player who hasn't had one, but if that bye choice forces a
+// rematch it walks up the table for a bye that doesn't.
 function pairSwiss(standings: any[], matches: any[]) {
   const played = new Set<string>();
   for (const m of matches) { if (m.round_id && m.p1_id && m.p2_id) { played.add(m.p1_id + "|" + m.p2_id); played.add(m.p2_id + "|" + m.p1_id); } }
-  const hadBye = new Set(matches.filter((m) => m.is_bye).map((m) => m.p1_id));
-  const pool = standings.map((s) => s.id);
-  let byeId: string | null = null;
-  if (pool.length % 2 === 1) {
-    let idx = -1;
-    for (let i = pool.length - 1; i >= 0; i--) { if (!hadBye.has(pool[i])) { idx = i; break; } }
-    if (idx === -1) idx = pool.length - 1;   // everyone's had a bye already
-    byeId = pool.splice(idx, 1)[0];
+  const hadBye = new Set(matches.filter((m: any) => m.is_bye).map((m: any) => m.p1_id));
+  const all = standings.map((s: any) => s.id);
+
+  // Perfect-match `ids` (standings order) using at most `allow` rematches,
+  // backtracking; nearest-ranked partners tried first.
+  function matchUp(ids: string[], allow: number): [string, string][] | null {
+    if (!ids.length) return [];
+    const a = ids[0], rest = ids.slice(1);
+    for (let j = 0; j < rest.length; j++) {
+      const b = rest[j];
+      const cost = played.has(a + "|" + b) ? 1 : 0;
+      if (cost > allow) continue;
+      const sub = matchUp(rest.filter((_, k) => k !== j), allow - cost);
+      if (sub) return [[a, b], ...sub];
+    }
+    return null;
   }
-  const pairs: [string, string][] = [];
-  const used = new Set<string>();
-  for (let i = 0; i < pool.length; i++) {
-    if (used.has(pool[i])) continue;
-    let partner = -1;
-    for (let j = i + 1; j < pool.length; j++) { if (!used.has(pool[j]) && !played.has(pool[i] + "|" + pool[j])) { partner = j; break; } }
-    if (partner === -1) for (let j = i + 1; j < pool.length; j++) { if (!used.has(pool[j])) { partner = j; break; } }   // forced rematch (small field)
-    if (partner === -1) continue;
-    used.add(pool[i]); used.add(pool[partner]);
-    pairs.push([pool[i], pool[partner]]);
+
+  // Bye candidates: bottom-up among those without a bye, then (if everyone has
+  // had one) bottom-up regardless. Even field -> single "no bye" candidate.
+  const byeCandidates: (string | null)[] = [];
+  if (all.length % 2 === 1) {
+    for (let i = all.length - 1; i >= 0; i--) if (!hadBye.has(all[i])) byeCandidates.push(all[i]);
+    for (let i = all.length - 1; i >= 0; i--) if (hadBye.has(all[i])) byeCandidates.push(all[i]);
+  } else byeCandidates.push(null);
+
+  // Escalate the rematch budget from 0 so a clean pairing always wins.
+  for (let allow = 0; allow <= Math.ceil(all.length / 2); allow++) {
+    for (const byeId of byeCandidates) {
+      const pool = byeId ? all.filter((x: string) => x !== byeId) : all;
+      const pairs = matchUp(pool, allow);
+      if (pairs) return { pairs, byeId: byeId ?? null };
+    }
   }
-  return { pairs, byeId };
+  return { pairs: [] as [string, string][], byeId: null };   // unreachable with >= 2 players
 }
 
 // Load a run's roster + rounds + matches + live standings in one go.
@@ -195,37 +217,65 @@ async function generateRound(sb: any, run: any) {
 // ── Physical table assignment ────────────────────────────────────────────────
 // The venue has TWO pool tables. Each match sits at exactly one of them while
 // it's being played; freeing the table (match done) lets the next pending
-// match with both players ready take that table.
+// match take it — but a PLAYER can only be at one table at a time (live-night
+// fix 5 Aug 2026: with several rounds open at once, the same pair was being
+// offered a second table for their next-round match while still mid-game).
+//
+// Two passes, both in stage order (earliest Swiss round → bracket, by ordinal —
+// the old code compared a round's uuid against a number, so the order among
+// open rounds was luck):
+//   1. Audit current holders — a match keeps its table only if the table isn't
+//      double-booked and neither of its players is already at an earlier table;
+//      conflicting later matches release theirs.
+//   2. Hand free tables to the earliest ready match whose players are BOTH free.
 //
 // Called after every state change: new round, score entered, score cleared,
 // bracket generated. Idempotent — safe to call multiple times.
 async function reassignTables(sb: any, runId: string) {
   const TABLES = [1, 2];
-  const { data: matches } = await sb.from("pool_matches")
-    .select("id, status, table_number, round_id, slot, bracket_round, is_bye, p1_id, p2_id")
-    .eq("pool_tournament_id", runId);
+  const [{ data: matches }, { data: rounds }] = await Promise.all([
+    sb.from("pool_matches")
+      .select("id, status, table_number, round_id, slot, bracket_round, is_bye, p1_id, p2_id")
+      .eq("pool_tournament_id", runId),
+    sb.from("pool_rounds").select("id, ordinal").eq("pool_tournament_id", runId),
+  ]);
   if (!matches) return;
-  // Occupied tables — held by any not-yet-done non-bye match with a table set.
-  const occupied = new Set<number>();
-  for (const m of matches as any[]) {
-    if (m.is_bye) continue;
-    if (m.status === "done") continue;
-    if (m.table_number != null) occupied.add(m.table_number);
+  const ordinalOf: Record<string, number> = {};
+  for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
+  const stageRank = (m: any) => m.round_id != null ? (ordinalOf[m.round_id] ?? 0) : 10000 + (m.bracket_round ?? 0);
+  const cmp = (a: any, b: any) => (stageRank(a) - stageRank(b)) || ((a.slot ?? 0) - (b.slot ?? 0));
+  const live = (matches as any[]).filter((m) => !m.is_bye && m.status !== "done");
+
+  // Pass 1 — audit who's holding tables, earliest stage first.
+  const busy = new Set<string>();      // players currently mid-game at a table
+  const occupied = new Set<number>();  // tables in use
+  for (const m of live.filter((x) => x.table_number != null).sort(cmp)) {
+    const clash = occupied.has(m.table_number) ||
+      (m.p1_id && busy.has(m.p1_id)) || (m.p2_id && busy.has(m.p2_id));
+    if (clash) {
+      await sb.from("pool_matches").update({ table_number: null }).eq("id", m.id);
+      m.table_number = null;
+    } else {
+      occupied.add(m.table_number);
+      if (m.p1_id) busy.add(m.p1_id);
+      if (m.p2_id) busy.add(m.p2_id);
+    }
   }
+
+  // Pass 2 — free tables go to the earliest playable match whose players are free.
   const free = TABLES.filter((t) => !occupied.has(t));
   if (!free.length) return;
-  // Candidates: matches that still need to be played AND have both players slotted
-  // (so a bracket match waiting on an earlier result doesn't hog a table).
-  // Order: rounds before bracket, then by round_id/bracket_round, then by slot.
-  const roundRank = (m: any) => m.round_id ? 0 : 1;
-  const stageRank = (m: any) => m.round_id ? m.round_id : (10000 + (m.bracket_round ?? 0));
-  const needy = (matches as any[])
-    .filter((m) => !m.is_bye && m.status !== "done" && m.table_number == null && m.p1_id && m.p2_id)
-    .sort((a, b) => (roundRank(a) - roundRank(b)) || (stageRank(a) - stageRank(b)) || ((a.slot ?? 0) - (b.slot ?? 0)));
+  const needy = live
+    .filter((m) => m.table_number == null && m.p1_id && m.p2_id)
+    .sort(cmp);
   for (const m of needy) {
-    const t = free.shift();
-    if (t == null) break;
+    if (!free.length) break;
+    if (busy.has(m.p1_id) || busy.has(m.p2_id)) continue;   // player already mid-game
+    const t = free.shift()!;
     await sb.from("pool_matches").update({ table_number: t }).eq("id", m.id);
+    occupied.add(t);
+    busy.add(m.p1_id);
+    busy.add(m.p2_id);
   }
 }
 
