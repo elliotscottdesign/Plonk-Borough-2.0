@@ -17,6 +17,7 @@ async function call(payload) {
 export const tournList = () => call({ action: 'list' })                                   // pool nights + paid counts + run status
 export const tournOpen = (tournamentId) => call({ action: 'open', tournamentId })          // create/sync a run → roster
 export const tournAddManual = (runId, name) => call({ action: 'addManual', runId, name })   // add a walk-in
+export const tournAddWalkup = (runId, d) => call({ action: 'addWalkup', runId, name: d.name, email: d.email, phone: d.phone, partnerName: d.partnerName, partnerEmail: d.partnerEmail })   // full sign-up + emailed Stripe pay link
 export const tournRename = (participantId, name) => call({ action: 'renameParticipant', participantId, name })
 // Mid-tournament substitution — cascades the new name across every historic
 // match AND flags the slot so the original player earns no league points.

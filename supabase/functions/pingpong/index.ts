@@ -76,6 +76,16 @@ function shortCode(seed: string) {
   return "ND-" + out;
 }
 
+const payLinkEmail = (name: string, tournName: string, pence: number, url: string) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice</p>
+    <h1 style="font-size:24px;margin:0 0 8px">You're in, ${esc(name)}!</h1>
+    <p style="font-size:15px;line-height:1.6;color:#ddd">You've been added to <strong style="color:#fff">${esc(tournName)}</strong>. To confirm your entry, pay <strong style="color:#fff">${gbp(pence)}</strong> with the button below — takes under a minute.</p>
+    <p style="margin:22px 0"><a href="${url}" style="background:#A855F7;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">Pay ${gbp(pence)} to confirm</a></p>
+    <p style="font-size:13px;line-height:1.6;color:#aaa">Card, Apple Pay or Google Pay — handled securely by Stripe.</p>
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+
 // Scoring settings (per tournament, in pingpong_tournaments.settings). Ping pong,
 // founder rules 3 Aug 2026:
 //   • Rounds: a game is FIRST TO 11 — but you must be 2 points clear. At 10–10 it's
@@ -485,7 +495,18 @@ async function computeLeague(sb: any, discipline: string) {
     const { participants, standings, placings } = await loadRun(sb, run);
     const nulled = new Set((participants as any[]).filter((p) => p.league_null).map((p) => p.id));
     const nameById: Record<string, string> = {}; for (const p of participants) nameById[p.id] = p.display_name;
-    const keyOf = (id: string) => (nameById[id] || "").trim().toLowerCase();
+    // League identity = the BOOKING EMAIL when we have one (founder rule 6 Aug
+    // 2026): email centralises comms + data and survives renames and typos, so
+    // the same person always accrues to one league row. Only email-less
+    // walk-ins fall back to their (lowercased) display name.
+    const entryIds = (participants as any[]).filter((p) => p.entry_id).map((p) => p.entry_id);
+    const emailByEntry: Record<string, string> = {};
+    if (entryIds.length) {
+      const { data: ents } = await sb.from("tournament_entries").select("id, captain_email").in("id", entryIds);
+      for (const e of ents || []) if (e.captain_email) emailByEntry[e.id] = String(e.captain_email).trim().toLowerCase();
+    }
+    const entryByPid: Record<string, string> = {}; for (const p of participants as any[]) if (p.entry_id) entryByPid[p.id] = p.entry_id;
+    const keyOf = (id: string) => (emailByEntry[entryByPid[id] || ""] || (nameById[id] || "").trim().toLowerCase());
     const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
     for (const p of participants.filter((p: any) => p.active && !p.league_null)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
     for (const s of standings) { if (nulled.has(s.id)) continue; const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
@@ -779,6 +800,74 @@ Deno.serve(async (req) => {
       await sb.from("pingpong_rounds").delete().eq("id", last.id);   // cascades its matches
       if (last.ordinal === 1) await sb.from("pingpong_tournaments").update({ status: "setup" }).eq("id", runId);   // back to setup
       return json({ ok: true });
+    }
+
+
+    // Walk-up sign-up (founder rule 6 Aug 2026): add a mid-tournament arrival with
+    // their FULL details, exactly as if they'd booked online — creates a real
+    // tournament_entries row (pending payment), drops them straight into the run,
+    // and emails them a Stripe Checkout link to pay. The existing stripe-webhook
+    // marks the entry paid on checkout.session.completed (found by session id),
+    // which also fires the normal booking-confirmation email.
+    if (action === "addWalkup") {
+      const runId = clean(b.runId, 40);
+      const name = clean(b.name, 80);
+      const email = clean(b.email, 120).toLowerCase();
+      const phone = clean(b.phone, 30);
+      const partnerName = clean(b.partnerName, 80);
+      const partnerEmail = clean(b.partnerEmail, 120).toLowerCase();
+      if (!runId || !name) return json({ error: "Enter a name." }, 400);
+      if (!email || !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email — the payment link goes there." }, 400);
+      const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      const { data: t } = await sb.from("tournaments").select("*").eq("id", run.tournament_id).maybeSingle();
+      if (!t) return json({ error: "Tournament not found." }, 404);
+      const { data: entry, error: eErr } = await sb.from("tournament_entries").insert({
+        tournament_id: t.id, team_name: name, captain_name: name,
+        captain_email: email, captain_phone: phone || "",
+        partner_name: partnerName || null, partner_email: partnerEmail || null,
+        status: "pending_payment", notes: "Walk-up — signed up mid-tournament from /ops",
+      }).select("*").single();
+      if (eErr) return json({ error: eErr.message }, 400);
+      // Hosted Stripe Checkout link — pays the night's entry fee.
+      let payUrl: string | null = null;
+      const SK = Deno.env.get("STRIPE_SECRET_KEY");
+      const fee = t.entry_fee_pence ?? 1200;
+      if (SK && fee > 0) {
+        const form = new URLSearchParams({
+          mode: "payment",
+          "line_items[0][price_data][currency]": "gbp",
+          "line_items[0][price_data][unit_amount]": String(fee),
+          "line_items[0][price_data][product_data][name]": `${t.name} — walk-up entry (${name})`,
+          "line_items[0][quantity]": "1",
+          customer_email: email,
+          success_url: "https://nodice.bar/pool/?paid=1",
+          cancel_url: "https://nodice.bar/pool/",
+          "metadata[kind]": "tournament_entry",
+          "metadata[entry_id]": entry.id,
+          "payment_intent_data[metadata][kind]": "tournament_entry",
+          "payment_intent_data[metadata][entry_id]": entry.id,
+        });
+        try {
+          const resp = await fetch("https://api.stripe.com/v1/checkout/sessions", {
+            method: "POST", headers: { Authorization: `Bearer ${SK}`, "Content-Type": "application/x-www-form-urlencoded" },
+            body: form,
+          });
+          const sess = await resp.json();
+          if (resp.ok && sess?.id && sess?.url) {
+            payUrl = sess.url;
+            await sb.from("tournament_entries").update({ stripe_session_id: sess.id }).eq("id", entry.id);
+          }
+        } catch (_) { /* no link — founder collects cash instead */ }
+      }
+      // They join the tournament NOW — the next round draws them in on 0 points.
+      const { data: participant, error: pErr } = await sb.from("pingpong_participants").insert({
+        pingpong_tournament_id: runId, entry_id: entry.id, display_name: name, source: "manual",
+      }).select("*").single();
+      if (pErr) return json({ error: pErr.message }, 400);
+      let emailed = false;
+      if (payUrl) emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
+      return json({ ok: true, entry, participant, payUrl, emailed });
     }
 
     // Add a walk-in (cash at the bar). Flagged source=manual so the books reconcile.

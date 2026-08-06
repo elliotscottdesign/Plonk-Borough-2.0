@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import {
-  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
+  tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
 } from '../../pingpong/api.js'
@@ -83,6 +83,15 @@ export default function PingPong() {
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
   const remove = async (p) => { if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return; await guard(() => tournRemove(p.id))() }
   const restore = (id) => guard(() => tournRestore(id))()
+  // Walk-up sign-up: full booking-style details + emailed Stripe pay link
+  // (founder rule 6 Aug 2026). Returns the fn result so the panel can show
+  // whether the email fired.
+  const addWalkupSubmit = async (d) => {
+    let out = null
+    await guard(async () => { out = await tournAddWalkup(run.run.id, d) })()
+    return out
+  }
+  const renameFromDrawer = (pid, name) => guard(() => tournRename(pid, name))()
   // Mid-tournament substitution: cascades the new name across every match in this
   // run AND nulls the ORIGINAL player's league points for the night — see edge
   // fn `replacePlayer`. A confirmation dialog spells the trade-off out.
@@ -676,6 +685,10 @@ export default function PingPong() {
         setReplacing={setReplacing}
         onSaveReplace={saveReplace}
         onAddLate={(name) => guard(() => tournAddManual(run.run.id, name))()}
+        onAddWalkup={addWalkupSubmit}
+        onRenameParticipant={renameFromDrawer}
+        walkupNameLabel={'Team name…'}
+        walkupPartner={true}
         onUndoRound={undoRound}
         onRefresh={refresh}
         onDeleteRun={() => {
@@ -778,6 +791,72 @@ function AddLatePanel({ busy, onAdd, label, hint }) {
   )
 }
 
+
+// ── Walk-up sign-up panel ───────────────────────────────────────────────────
+// Full mid-tournament sign-up, exactly like booking online (founder rule
+// 6 Aug 2026): creates a real booking entry (pending payment), drops them
+// into the run NOW, and emails them a secure Stripe link to pay the entry
+// fee. The webhook marks them paid + fires the normal confirmation when the
+// link is used. Cash payers can use quick-add instead.
+function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [p2name, setP2name] = useState('')
+  const [p2email, setP2email] = useState('')
+  const [note, setNote] = useState('')
+  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim())
+  const inp = { padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none', minWidth: 0 }
+  const submit = async () => {
+    if (!valid || busy) return
+    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), partnerName: p2name.trim(), partnerEmail: p2email.trim() })
+    if (r && r.ok) {
+      setNote(r.emailed ? `✓ ${name.trim()} is in — payment link emailed` : `✓ ${name.trim()} is in — pay-link email failed, take cash instead`)
+      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email('')
+    }
+  }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Signs them up like an online booking: they join the tournament straight away and get an email with a secure Stripe link to pay the entry fee.</span>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder={nameLabel} disabled={busy} style={inp} />
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
+      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (optional)…" type="tel" disabled={busy} style={inp} />
+      {showPartner && <>
+        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
+        <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
+      </>}
+      <button onClick={submit} disabled={busy || !valid} style={{ ...btn('gold'), padding: '10px', opacity: (busy || !valid) ? 0.5 : 1 }}>🚶 Sign up & email the pay link</button>
+      {note && <span style={{ fontSize: 11.5, color: GREEN }}>{note}</span>}
+    </div>
+  )
+}
+
+// ── Rename panel ────────────────────────────────────────────────────────────
+// Fix a name / team name mid-tournament — cascades everywhere instantly and
+// KEEPS league points (substitution is the one that nulls the night). League
+// identity follows the booking email, so a rename never splits a player's
+// season record.
+function RenamePanel({ participants, busy, onRename }) {
+  const [pid, setPid] = useState('')
+  const [name, setName] = useState('')
+  const active = (participants || []).filter(p => p.active)
+  if (!active.length) return null
+  const submit = async () => { const n = name.trim(); if (!pid || !n || busy) return; await onRename(pid, n); setPid(''); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Fix a spelling or change a team name — applies everywhere at once and keeps their league points. (A DIFFERENT person stepping in? Use Substitute below instead.)</span>
+      <select value={pid} onChange={e => setPid(e.target.value)} disabled={busy} style={{ padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}>
+        <option value="">Pick who to rename…</option>
+        {active.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+      </select>
+      {pid && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="New name…" disabled={busy} style={{ flex: '1 1 150px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>Save</button>
+      </div>}
+    </div>
+  )
+}
+
 // ── Replace-player panel ────────────────────────────────────────────────────
 // Compact mid-tournament substitution UI: pick a player from the dropdown,
 // type the replacement's name, hit Save. Cascades the new name to every match
@@ -843,6 +922,7 @@ const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.
 function MenuDrawer({
   open, onClose, status, curDone, busy,
   participants, replacing, setReplacing, onSaveReplace, onAddLate,
+  onAddWalkup, onRenameParticipant, walkupNameLabel, walkupPartner,
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
@@ -874,8 +954,10 @@ function MenuDrawer({
             drawn into the NEXT round. Not shown in the knockout — bracket is fixed. */}
         {isRounds && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Add a late team</div>
-            <AddLatePanel busy={busy} onAdd={onAddLate} label="Team name…" hint="Turned up after the start? Add them here — they join the standings on 0 points and get drawn into the next round." />
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🚶 Walk-up sign-up — emails a pay link</div>
+            <WalkupPanel busy={busy} onAdd={onAddWalkup} nameLabel={walkupNameLabel} showPartner={walkupPartner} />
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Quick add (cash at the bar)</div>
+            <AddLatePanel busy={busy} onAdd={onAddLate} label="Team name…" hint="No email, no link — just drops them straight into the next round. Take cash at the bar." />
           </div>
         )}
 
@@ -883,6 +965,7 @@ function MenuDrawer({
         {(isRounds || isKO) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔁 Change team names / substitute</div>
+            <RenamePanel participants={participants} busy={busy} onRename={onRenameParticipant} />
             <ReplacePanel
               participants={participants}
               replacing={replacing}
