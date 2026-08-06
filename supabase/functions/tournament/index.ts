@@ -381,43 +381,67 @@ async function settleRun(sb: any, runId: string) {
   }
 }
 
-const VOUCHER_PENCE: Record<number, number> = { 1: 3000, 2: 2000, 3: 1000 };   // £30 / £20 / £10
-const emailForParticipant = async (sb: any, p: any): Promise<string | null> => {
-  if (!p?.entry_id) return null;
-  const { data: e } = await sb.from("tournament_entries").select("captain_email").eq("id", p.entry_id).maybeSingle();
-  return e?.captain_email || null;
+const VOUCHER_PENCE: Record<number, number> = { 1: 3000, 2: 2000, 3: 1000 };   // £30 / £20 / £10 per placing
+// Both booking emails for a participant — captain + partner (doubles collect two,
+// founder rule 6 Aug 2026). Walk-ins have neither.
+const emailsForParticipant = async (sb: any, p: any): Promise<{ captain: string | null; partner: string | null }> => {
+  if (!p?.entry_id) return { captain: null, partner: null };
+  const { data: e } = await sb.from("tournament_entries").select("captain_email, partner_email").eq("id", p.entry_id).maybeSingle();
+  return { captain: e?.captain_email || null, partner: e?.partner_email || null };
 };
-// Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders. One voucher per
-// tournament+place; if a corrected result changes who placed, the voucher is repointed and its
-// emailed flag cleared so the right person is emailed. Only emails an address we have, once.
+// Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders.
+//
+// SINGLES: one voucher per place, full amount, to the booking email.
+// DOUBLES (founder rule 6 Aug 2026): the tab SPLITS — two vouchers per place at
+// half the amount each (recipient 1 → captain's email, recipient 2 → partner's),
+// so each player gets their own prize email and can spend it separately. Teams
+// entered as walk-ins split too — both halves handed out at the bar.
+//
+// Legacy guard: vouchers issued before the split rule keep their full amount —
+// re-running finalize never rewrites an existing voucher's value or bolts a
+// second half onto a legacy full one. A corrected result still repoints the
+// voucher(s) and clears the emailed flag so the right winners get emailed.
 async function finalizeTournament(sb: any, run: any) {
   const { participants, placings } = await loadRun(sb, run);
   if (!placings) return { error: "Not finished yet." };
-  const { data: t } = await sb.from("tournaments").select("name").eq("id", run.tournament_id).maybeSingle();
+  const { data: t } = await sb.from("tournaments").select("name, tournament_type").eq("id", run.tournament_id).maybeSingle();
   const tournName = t?.name || "the No Dice pool tournament";
+  const effType = run.discipline_override || t?.tournament_type;
+  const split = effType === "doubles" || effType === "teams";
   const byId: Record<string, any> = {}; for (const p of participants) byId[p.id] = p;
   const vouchers: any[] = [];
   for (const place of [1, 2, 3]) {
     const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third;
     if (!pid) continue;
     const p = byId[pid];
-    let { data: v } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).maybeSingle();
-    if (!v) {
-      const email = await emailForParticipant(sb, p);
-      const ins = await sb.from("pool_vouchers").insert({ pool_tournament_id: run.id, participant_id: pid, place, amount_pence: VOUCHER_PENCE[place], code: shortCode(run.id + place), display_name: p?.display_name || null, email }).select("*").single();
-      v = ins.data;
-    } else if (v.participant_id !== pid) {
-      // A corrected result changed who placed here — repoint the voucher and re-email the right person.
-      const email = await emailForParticipant(sb, p);
-      const upd = await sb.from("pool_vouchers").update({ participant_id: pid, display_name: p?.display_name || null, email, emailed_at: null }).eq("id", v.id).select("*").single();
-      v = upd.data;
+    const emails = await emailsForParticipant(sb, p);
+    const { data: existing } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).order("recipient");
+    const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
+    const shares = (split && !legacyFull)
+      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain },
+         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner }]
+      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain }];
+    for (const sh of shares) {
+      let v = (existing || []).find((x: any) => (x.recipient ?? 1) === sh.recipient) || null;
+      if (!v) {
+        const ins = await sb.from("pool_vouchers").insert({
+          pool_tournament_id: run.id, participant_id: pid, place, recipient: sh.recipient,
+          amount_pence: sh.amount, code: shortCode(run.id + place + ":" + sh.recipient),
+          display_name: p?.display_name || null, email: sh.email,
+        }).select("*").single();
+        v = ins.data;
+      } else if (v.participant_id !== pid) {
+        // A corrected result changed who placed here — repoint and re-email the right person.
+        const upd = await sb.from("pool_vouchers").update({ participant_id: pid, display_name: p?.display_name || null, email: sh.email, emailed_at: null }).eq("id", v.id).select("*").single();
+        v = upd.data;
+      }
+      if (v && v.email && !v.emailed_at) {
+        const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+        const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
+        if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+      }
+      if (v) vouchers.push(v);
     }
-    if (v && v.email && !v.emailed_at) {
-      const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
-      const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
-      if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
-    }
-    vouchers.push(v);
   }
   return { vouchers };
 }

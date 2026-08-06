@@ -591,7 +591,11 @@ export default function Tournament() {
               </div>
             )}
             {status === 'done' && placings && (() => {
-              const vByPlace = Object.fromEntries((run.vouchers || []).map(v => [v.place, v]))
+              // Doubles split (founder rule 6 Aug 2026): a place can carry TWO
+              // half-vouchers — one per player, each with its own code + email
+              // status. Singles (and legacy full vouchers) show one line.
+              const vsByPlace = {}
+              ;(run.vouchers || []).forEach(v => { (vsByPlace[v.place] = vsByPlace[v.place] || []).push(v) })
               return (
                 <div style={{ background: 'rgba(168,85,247,0.10)', border: `1px solid ${PURPLE}88`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
@@ -599,15 +603,23 @@ export default function Tournament() {
                     {[1, 2, 3].map(place => {
                       const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third
                       if (!pid) return null
-                      const v = vByPlace[place], medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉', amt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
-                      return (
+                      const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
+                      const fallbackAmt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
+                      const vs = (vsByPlace[place] || []).slice().sort((a, b) => (a.recipient || 1) - (b.recipient || 1))
+                      if (!vs.length) return (
                         <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
                           <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}</span>
-                          <span style={{ color: PURPLE, fontWeight: 800 }}>{amt} tab</span>
-                          {v?.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
-                          {v?.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v?.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>{fallbackAmt} tab</span>
                         </div>
                       )
+                      return vs.map(v => (
+                        <div key={`${place}-${v.recipient || 1}`} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                          <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}{vs.length > 1 ? <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}> · player {v.recipient || 1}</span> : null}</span>
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)} tab</span>
+                          {v.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
+                          {v.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                        </div>
+                      ))
                     })}
                   </div>
                   <button onClick={resendVouchers} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start', padding: '6px 12px', fontSize: 11.5 }}>↻ Re-issue / email vouchers</button>
