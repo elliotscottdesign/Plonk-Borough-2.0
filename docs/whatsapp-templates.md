@@ -64,6 +64,21 @@ these templates are for **business-initiated** messages.
 > Redeem at the bar.
 *Trigger: tournament finalised (1st/2nd/3rd) — alongside the existing voucher email.*
 
+**tournament_up_next** — UTILITY — vars: 1=name, 2=table, 3=opponent
+> 🎱 {{1}} — get ready, you're up NEXT at No Dice! Come to **table {{2}}** — you're
+> playing **{{3}}**. Good luck! 🍀
+*Trigger: the tournament engine assigns the match a physical table
+(`reassignTables` in the `tournament`/`pingpong` edge fns) — the exact moment the
+founder currently runs around the venue rounding people up. Sent to the captain's
+`captain_phone` from the booking (walk-up sign-ups capture phone too); one message
+per side of the match. Works for pool AND ping pong (var 2 is just the table number).*
+
+**tournament_on_deck** — UTILITY — vars: 1=name, 2=opponent
+> 🎱 {{1}}, heads up — your game at No Dice is next in the queue. You're playing
+> {{2}}. Stay close to the tables!
+*Trigger (optional, phase 2): a match becomes first in line for the next free
+table — the "finish your pint" warning before the table-ready message.*
+
 **event_promo** — MARKETING — vars: 1=headline, 2=details, 3=link
 > {{1}} at No Dice, London Fields 🎉
 > {{2}}
