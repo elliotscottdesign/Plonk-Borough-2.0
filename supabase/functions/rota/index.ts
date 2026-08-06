@@ -890,7 +890,7 @@ Deno.serve(async (req) => {
       const SYSTEM = `You compile a bar founder's plain-English rota rules into strict JSON directives for a deterministic rota engine. Encode ONLY what a rule clearly states — never guess or invent. Any rule (or part of one) the engine vocabulary can't express precisely, mark status "reminder" and leave it out of the directives; the founder sees it as a checklist item instead. Be honest: "applied" means the directives fully capture the rule.
 
 ENGINE VOCABULARY (all optional; emit only what the rules state):
-- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early. kitchen:false = no kitchen-trained person needed that day; kitchen:true = one required (day-level on/off ONLY — a time-of-day kitchen rule like "kitchen from 3pm" can only be encoded as day-level; say so honestly in the note).
+- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen?, kitchenStart?, kitchenEnd?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early. kitchen:false = no kitchen-trained person needed that day; kitchen:true = one required. kitchenStart+kitchenEnd (with kitchen:true) = a DEDICATED kitchen shift with exactly those times, fillable only by kitchen-trained staff, replacing one floor body — e.g. "kitchen staff 5pm–11pm" → kitchen:true, kitchenStart:1020, kitchenEnd:1380. Use these for any rule giving kitchen shift times.
 - minRestHours: minimum hours between one shift's end and the person's next shift start (e.g. "12 hours between shifts" → 12). The builder avoids too-short gaps and warns when short-staffing forces one.
 - stagger (bool) + staggerGap (min): one person opens & one closes instead of two full shifts.
 - earlyCutMin: minutes to send the floor home early on quiet days.
@@ -901,7 +901,9 @@ ENGINE VOCABULARY (all optional; emit only what the rules state):
 - maxShiftsWeek: {staffId: n} — cap someone's shifts per week.
 - dateRules: {"YYYY-MM-DD": {closed?: true, open?, close?, base?, eveAt?, eveAdd?, quiet?}} — one-off dates.
 
-Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.`;
+Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.
+
+CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to Sat"), the days object MUST contain an entry for EVERY weekday in that range — list them out and double-check none is skipped before answering (Mon–Fri = keys "1","2","3","4","5").`;
 
       const userMsg = `STAFF (id · name · role):\n${staffList || "(none)"}\n\nTODAY: ${today}\n\nCURRENT MANUAL SETTINGS (context so relative rules make sense):\n${JSON.stringify(manualCtx)}\n\nFOUNDER'S TYPED RULES:\n${houseRules.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}`;
 

@@ -364,6 +364,32 @@ export default function RotaPortal() {
           )
         })()}
 
+        {/* Management doors — the three /ops sections, right below the shift banner.
+            The FOUNDER sees all three (Office is founder-only across the app);
+            other management (Manager / Asst. Manager) see Operations + Events.
+            Signing in here carries through — the hub opens with no extra code. */}
+        {(() => {
+          const isFounderStaff = String(staff?.email || '').trim().toLowerCase() === 'elliot@nodice.bar'
+          const isMgmt = ['Manager', 'Asst. Manager'].includes(staff?.role)
+          if (!isFounderStaff && !isMgmt) return null
+          const doors = [
+            ['⚙️', 'Operations', '/ops', 'Rota · kitchen · checks'],
+            ['🎪', 'Events', '/ops?tab=reservations', 'Bookings · DJs · pool'],
+            ...(isFounderStaff ? [['💷', 'Office', '/ops?tab=reports', 'Reports · docs · money']] : []),
+          ]
+          return (
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {doors.map(([ic, lbl, href, sub]) => (
+                <a key={lbl} href={href} style={{ flex: 1, minWidth: 0, textDecoration: 'none', textAlign: 'center', padding: '13px 6px', borderRadius: 11, background: 'rgba(218,27,51,0.10)', border: '1.5px solid rgba(218,27,51,0.5)', color: '#fff' }}>
+                  <span style={{ display: 'block', fontSize: 21, lineHeight: 1.2 }}>{ic}</span>
+                  <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, letterSpacing: '0.02em', marginTop: 2 }}>{lbl}</span>
+                  <span style={{ display: 'block', fontSize: 9.5, color: 'rgba(255,255,255,0.6)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
+                </a>
+              ))}
+            </div>
+          )
+        })()}
+
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
           {TABS.map(([k, ic, lbl]) => (
             <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ flex: '1 1 28%', minWidth: 92, padding: '10px 4px', fontSize: 12, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{ic} {lbl}</button>

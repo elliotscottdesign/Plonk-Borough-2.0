@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
+import useIsMobile from '../../lib/useIsMobile.js'
 
 // ─── Reservations — customer bookings + tournament sign-ups (near-live) ────
 // 2026-08-02 — bridges the two-site split. nodice.bar writes bookings to the
@@ -277,9 +278,44 @@ export default function Reservations() {
 }
 
 // ── Row ────────────────────────────────────────────────────────────────────
+// Desktop: one grid line (kind · time · details · party). Phone: STACKED — the
+// old fixed grid made the kind label and time print over each other at 375px.
 function ReservationRow({ r, className }) {
   const meta = KIND_META[r.kind] || { emoji: '·', label: r.kind, color: 'rgba(255,255,255,0.5)' }
   const big = r.party >= BIG_PARTY_THRESHOLD
+  const isMobile = useIsMobile()
+
+  const details = (
+    <>
+      {r.notes && <div style={{ fontSize: 11.5, color: AMBER, marginTop: 3, lineHeight: 1.4 }}>📝 {r.notes}</div>}
+      {(r.phone || r.email) && (
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          {r.phone && <span style={{ whiteSpace: 'nowrap' }}>📞 {r.phone}</span>}
+          {r.email && <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: isMobile ? '100%' : 220 }}>✉ {r.email}</span>}
+        </div>
+      )}
+    </>
+  )
+
+  if (isMobile) {
+    return (
+      <div className={className} style={{ padding: '10px 12px', background: CARD, border: `1px solid ${LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
+          <span style={{ fontSize: 15, flexShrink: 0 }}>{meta.emoji}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cream)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmtTime(r.time)}</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cream)', flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{r.name}</span>
+          <span style={{ fontSize: 18, fontWeight: 800, color: big ? AMBER : 'var(--cream)', flexShrink: 0 }}>{r.party || '—'}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+          <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{meta.label}</span>
+          {big && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.12)', border: `1px solid ${AMBER}55`, borderRadius: 999, padding: '1px 7px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Big · {r.party}</span>}
+          {r.extra && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{r.extra}</span>}
+        </div>
+        {details}
+      </div>
+    )
+  }
+
   return (
     <div className={className} style={{
       display: 'grid', gridTemplateColumns: 'auto 60px minmax(140px, 1fr) auto',
@@ -297,13 +333,7 @@ function ReservationRow({ r, className }) {
           {big && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.12)', border: `1px solid ${AMBER}55`, borderRadius: 999, padding: '2px 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Big · {r.party}</span>}
           {r.extra && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{r.extra}</span>}
         </div>
-        {r.notes && <div style={{ fontSize: 11.5, color: AMBER, marginTop: 3, lineHeight: 1.4 }}>📝 {r.notes}</div>}
-        {(r.phone || r.email) && (
-          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 2, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            {r.phone && <span>📞 {r.phone}</span>}
-            {r.email && <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 220 }}>✉ {r.email}</span>}
-          </div>
-        )}
+        {details}
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, color: big ? AMBER : 'var(--cream)', minWidth: 32, textAlign: 'right' }}>{r.party || '—'}</div>
     </div>

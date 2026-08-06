@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
-  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
+  tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
 } from '../../tournament/api.js'
@@ -65,12 +65,31 @@ export default function Tournament() {
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
-  const guard = (fn) => async (...a) => { setBusy(true); try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // In-flight lock via ref, not just state: two taps in the same frame both see
+  // busy=false (setState is async), so a fast double-tap on "+ Add another round"
+  // could fire twice and generate TWO rounds (happened live 5 Aug 2026). The ref
+  // flips synchronously, so the second tap is swallowed.
+  const inFlight = useRef(false)
+  const guard = (fn) => async (...a) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
+  }
 
   const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
   const remove = async (p) => { if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return; await guard(() => tournRemove(p.id))() }
   const restore = (id) => guard(() => tournRestore(id))()
+  // Walk-up sign-up: full booking-style details + emailed Stripe pay link
+  // (founder rule 6 Aug 2026). Returns the fn result so the panel can show
+  // whether the email fired.
+  const addWalkupSubmit = async (d) => {
+    let out = null
+    await guard(async () => { out = await tournAddWalkup(run.run.id, d) })()
+    return out
+  }
+  const renameFromDrawer = (pid, name) => guard(() => tournRename(pid, name))()
   // Mid-tournament substitution: cascades the new name across every match in this
   // run AND nulls the ORIGINAL player's league points for the night — see edge
   // fn `replacePlayer`. A confirmation dialog spells the trade-off out.
@@ -438,8 +457,11 @@ export default function Tournament() {
         {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
           </div>
 
-          {/* RIGHT — live standings (reference column) */}
-          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          {/* RIGHT — live standings (reference column). Sticky (founder rule
+              4 Aug 2026): the table pins to the top of the window while the
+              rounds column scrolls, so scores stay in view. On phones the
+              columns stack and the stickiness naturally does nothing. */}
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -578,7 +600,11 @@ export default function Tournament() {
               </div>
             )}
             {status === 'done' && placings && (() => {
-              const vByPlace = Object.fromEntries((run.vouchers || []).map(v => [v.place, v]))
+              // Doubles split (founder rule 6 Aug 2026): a place can carry TWO
+              // half-vouchers — one per player, each with its own code + email
+              // status. Singles (and legacy full vouchers) show one line.
+              const vsByPlace = {}
+              ;(run.vouchers || []).forEach(v => { (vsByPlace[v.place] = vsByPlace[v.place] || []).push(v) })
               return (
                 <div style={{ background: 'rgba(168,85,247,0.10)', border: `1px solid ${PURPLE}88`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
@@ -586,15 +612,23 @@ export default function Tournament() {
                     {[1, 2, 3].map(place => {
                       const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third
                       if (!pid) return null
-                      const v = vByPlace[place], medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉', amt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
-                      return (
+                      const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
+                      const fallbackAmt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
+                      const vs = (vsByPlace[place] || []).slice().sort((a, b) => (a.recipient || 1) - (b.recipient || 1))
+                      if (!vs.length) return (
                         <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
                           <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}</span>
-                          <span style={{ color: PURPLE, fontWeight: 800 }}>{amt} tab</span>
-                          {v?.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
-                          {v?.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v?.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>{fallbackAmt} tab</span>
                         </div>
                       )
+                      return vs.map(v => (
+                        <div key={`${place}-${v.recipient || 1}`} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                          <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}{vs.length > 1 ? <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}> · player {v.recipient || 1}</span> : null}</span>
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)} tab</span>
+                          {v.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
+                          {v.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                        </div>
+                      ))
                     })}
                   </div>
                   <button onClick={resendVouchers} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start', padding: '6px 12px', fontSize: 11.5 }}>↻ Re-issue / email vouchers</button>
@@ -637,6 +671,11 @@ export default function Tournament() {
         replacing={replacing}
         setReplacing={setReplacing}
         onSaveReplace={saveReplace}
+        onAddLate={(name) => guard(() => tournAddManual(run.run.id, name))()}
+        onAddWalkup={addWalkupSubmit}
+        onRenameParticipant={renameFromDrawer}
+        walkupNameLabel={t.type === 'singles' ? 'Player name…' : 'Team name…'}
+        walkupPartner={t.type !== 'singles'}
         onUndoRound={undoRound}
         onRefresh={refresh}
         onDeleteRun={() => {
@@ -718,6 +757,96 @@ function TableBadge({ n, pending, small }) {
   return null
 }
 
+// ── Add-late-player panel ───────────────────────────────────────────────────
+// Small self-contained input + button used in the ☰ drawer while the rounds
+// run, so a late arrival can be added without leaving the tournament view.
+function AddLatePanel({ busy, onAdd, label, hint }) {
+  const [name, setName] = useState('')
+  const submit = async () => { const n = name.trim(); if (!n || busy) return; await onAdd(n); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{hint}</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder={label}
+          disabled={busy}
+          style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
+        />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
+      </div>
+    </div>
+  )
+}
+
+
+// ── Walk-up sign-up panel ───────────────────────────────────────────────────
+// Full mid-tournament sign-up, exactly like booking online (founder rule
+// 6 Aug 2026): creates a real booking entry (pending payment), drops them
+// into the run NOW, and emails them a secure Stripe link to pay the entry
+// fee. The webhook marks them paid + fires the normal confirmation when the
+// link is used. Cash payers can use quick-add instead.
+function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [p2name, setP2name] = useState('')
+  const [p2email, setP2email] = useState('')
+  const [note, setNote] = useState('')
+  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim())
+  const inp = { padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none', minWidth: 0 }
+  const submit = async () => {
+    if (!valid || busy) return
+    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), partnerName: p2name.trim(), partnerEmail: p2email.trim() })
+    if (r && r.ok) {
+      setNote(r.emailed ? `✓ ${name.trim()} is in — payment link emailed` : `✓ ${name.trim()} is in — pay-link email failed, take cash instead`)
+      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email('')
+    }
+  }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Signs them up like an online booking: they join the tournament straight away and get an email with a secure Stripe link to pay the entry fee.</span>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder={nameLabel} disabled={busy} style={inp} />
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
+      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (optional)…" type="tel" disabled={busy} style={inp} />
+      {showPartner && <>
+        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
+        <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
+      </>}
+      <button onClick={submit} disabled={busy || !valid} style={{ ...btn('gold'), padding: '10px', opacity: (busy || !valid) ? 0.5 : 1 }}>🚶 Sign up & email the pay link</button>
+      {note && <span style={{ fontSize: 11.5, color: GREEN }}>{note}</span>}
+    </div>
+  )
+}
+
+// ── Rename panel ────────────────────────────────────────────────────────────
+// Fix a name / team name mid-tournament — cascades everywhere instantly and
+// KEEPS league points (substitution is the one that nulls the night). League
+// identity follows the booking email, so a rename never splits a player's
+// season record.
+function RenamePanel({ participants, busy, onRename }) {
+  const [pid, setPid] = useState('')
+  const [name, setName] = useState('')
+  const active = (participants || []).filter(p => p.active)
+  if (!active.length) return null
+  const submit = async () => { const n = name.trim(); if (!pid || !n || busy) return; await onRename(pid, n); setPid(''); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Fix a spelling or change a team name — applies everywhere at once and keeps their league points. (A DIFFERENT person stepping in? Use Substitute below instead.)</span>
+      <select value={pid} onChange={e => setPid(e.target.value)} disabled={busy} style={{ padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}>
+        <option value="">Pick who to rename…</option>
+        {active.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+      </select>
+      {pid && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="New name…" disabled={busy} style={{ flex: '1 1 150px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>Save</button>
+      </div>}
+    </div>
+  )
+}
+
 // ── Replace-player panel ────────────────────────────────────────────────────
 // Compact mid-tournament substitution UI: pick a player from the dropdown,
 // type the replacement's name, hit Save. Cascades the new name to every match
@@ -782,7 +911,8 @@ const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.
 // surface at each stage.
 function MenuDrawer({
   open, onClose, status, curDone, busy,
-  participants, replacing, setReplacing, onSaveReplace,
+  participants, replacing, setReplacing, onSaveReplace, onAddLate,
+  onAddWalkup, onRenameParticipant, walkupNameLabel, walkupPartner,
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
@@ -806,6 +936,19 @@ function MenuDrawer({
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
+
+        {/* Add a late player — founder rule 4 Aug 2026: joining mid-tournament is
+            allowed while the Swiss rounds run. They start on 0 points and get
+            drawn into the NEXT round (the engine already handles odd numbers
+            with a bye). Not shown in the knockout — the bracket is fixed. */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🚶 Walk-up sign-up — emails a pay link</div>
+            <WalkupPanel busy={busy} onAdd={onAddWalkup} nameLabel={walkupNameLabel} showPartner={walkupPartner} />
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Quick add (cash at the bar)</div>
+            <AddLatePanel busy={busy} onAdd={onAddLate} label="Player / team name…" hint="No email, no link — just drops them straight into the next round. Take cash at the bar." />
+          </div>
+        )}
 
         {/* Format — flip the night's discipline if not enough teams show up.
             Founder rule 2026-07-30: a doubles night played as singles still
@@ -862,6 +1005,7 @@ function MenuDrawer({
         {(isRounds || isKO) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔁 Change team names / substitute</div>
+            <RenamePanel participants={participants} busy={busy} onRename={onRenameParticipant} />
             <ReplacePanel
               participants={participants}
               replacing={replacing}
