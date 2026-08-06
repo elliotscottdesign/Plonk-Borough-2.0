@@ -3,6 +3,7 @@ import { KITCHEN_TEMPLATES, templateItems, targetLabel } from '../../kitchen/tem
 import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
 import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed, kitchenWasteLog } from '../../kitchen/api.js'
 import useIsMobile from '../../lib/useIsMobile.js'
+import KitchenStock from '../../kitchen/KitchenStock.jsx'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
 const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
@@ -26,11 +27,11 @@ export default function Kitchen() {
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
-        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}
       </div>
-      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : <Matrix />}
+      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : sub === 'stock' ? <KitchenStock /> : <Matrix />}
     </div>
   )
 }
