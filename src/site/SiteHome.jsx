@@ -286,7 +286,7 @@ function Events() {
         <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 14, padding: '8px 0' }}>Loading the line-up…</div>
       ) : events.length === 0 ? (
         <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '24px 20px', fontSize: 14, lineHeight: 1.6, color: 'rgba(255,255,255,0.7)' }}>
-          Next line-up dropping soon. Follow <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noopener noreferrer" style={textLinkStyle()}>@nodicelondon</a> for the latest, or <a href={`mailto:${BOOKINGS_EMAIL}?subject=What's on at No Dice`} style={textLinkStyle()}>drop us a line</a>.
+          Next line-up dropping soon. Follow <a href="https://www.instagram.com/nodice.bar/" target="_blank" rel="noopener noreferrer" style={textLinkStyle()}>@nodice.bar</a> for the latest, or <a href={`mailto:${BOOKINGS_EMAIL}?subject=What's on at No Dice`} style={textLinkStyle()}>drop us a line</a>.
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 8 }}>
@@ -479,8 +479,8 @@ function Visit() {
             <a href={`mailto:${BOOKINGS_EMAIL}`} style={textLinkStyle()}>{BOOKINGS_EMAIL}</a>
           </div>
           <div style={{ fontSize: 14, lineHeight: 1.7 }}>
-            <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noopener noreferrer" style={textLinkStyle()}>
-              @nodicelondon
+            <a href="https://www.instagram.com/nodice.bar/" target="_blank" rel="noopener noreferrer" style={textLinkStyle()}>
+              @nodice.bar
             </a>
           </div>
         </div>
