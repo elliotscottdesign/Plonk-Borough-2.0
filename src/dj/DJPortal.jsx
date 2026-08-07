@@ -398,10 +398,10 @@ export default function DJPortal() {
         <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 18 }}>DJ Portal</div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 6, marginBottom: 18 }}>
-          {[['portal', 'My nights'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
+          {[['portal', 'My nights'], ['venue', 'Venue'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
             <button key={k} onClick={() => setTab(k)} style={{
-              flex: 1, padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
+              flex: 1, whiteSpace: 'nowrap', padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
               background: tab === k ? RED : 'transparent', color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)',
               border: `1px solid ${tab === k ? RED : LINE}`, fontWeight: tab === k ? 700 : 500,
             }}>{lbl}</button>
@@ -481,6 +481,49 @@ export default function DJPortal() {
                   ))}
                 </div>
               )}
+            </div>
+          </>)
+        })()}
+
+        {tab === 'venue' && (() => {
+          const row = (lbl, val) => (
+            <div style={{ display: 'flex', gap: 12, padding: '9px 0', borderTop: `1px solid rgba(255,255,255,0.06)` }}>
+              <div style={{ width: 92, flexShrink: 0, fontSize: 11, letterSpacing: '0.08em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)', paddingTop: 2 }}>{lbl}</div>
+              <div style={{ flex: 1, fontSize: 14, color: '#fff', lineHeight: 1.5 }}>{val}</div>
+            </div>
+          )
+          const kitHead = { fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: RED, margin: '14px 0 8px' }
+          const li = { display: 'flex', gap: 8, fontSize: 14, color: 'rgba(255,255,255,0.88)', lineHeight: 1.5, marginBottom: 7 }
+          const dot = <span style={{ color: RED, fontWeight: 700, flexShrink: 0 }}>·</span>
+          const link = { color: RED, textDecoration: 'none', borderBottom: `1px solid ${RED}` }
+          return (<>
+            {/* Equipment / the kit */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>The kit</div>
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>What's in the booth — turn up and plug in.</div>
+              <div style={kitHead}>Decks &amp; mixer</div>
+              <div style={li}>{dot}<span>2 × <strong style={{ color: '#fff' }}>Technics SL-1200 MK7</strong> turntables (vinyl)</span></div>
+              <div style={li}>{dot}<span><strong style={{ color: '#fff' }}>Omnitronic TRM-422</strong> rotary mixer</span></div>
+              <div style={li}>{dot}<span>2 × <strong style={{ color: '#fff' }}>Pioneer CDJ-900 Nexus</strong></span></div>
+              <div style={kitHead}>Sound</div>
+              <div style={li}>{dot}<span><strong style={{ color: '#fff' }}>Martin Audio</strong> speakers (main room)</span></div>
+              <div style={li}>{dot}<span>2 × <strong style={{ color: '#fff' }}>iLoud</strong> monitors (booth)</span></div>
+            </div>
+
+            {/* The venue */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 8 }}>The venue</div>
+              {row('Address', <>No Dice, 407 Mentmore Terrace,<br />London Fields, London E8 3PH</>)}
+              {row('Website', <a href="https://nodice.bar" target="_blank" rel="noreferrer" style={link}>nodice.bar</a>)}
+              {row('Instagram', <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noreferrer" style={link}>@nodicelondon</a>)}
+            </div>
+
+            {/* Contact */}
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+              <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 2 }}>Contact</div>
+              <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', marginBottom: 8 }}>Elliot — anything you need on the night or before.</div>
+              {row('Phone', <a href="tel:+447800547985" style={link}>07800 547 985</a>)}
+              {row('Email', <a href="mailto:elliot@nodice.bar" style={link}>elliot@nodice.bar</a>)}
             </div>
           </>)
         })()}
