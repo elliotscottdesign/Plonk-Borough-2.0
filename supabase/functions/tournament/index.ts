@@ -224,6 +224,76 @@ async function generateRound(sb: any, run: any) {
   return { round };
 }
 
+
+// ── WhatsApp "you're up next" (founder brief 6 Aug 2026) ─────────────────────
+// Fires the moment a match is handed a physical table — the exact moment the
+// founder used to run around the venue rounding players up. DORMANT until the
+// Twilio secrets are set (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN /
+// TWILIO_WA_FROM): with them set but no approved template yet it sends a
+// plain-text body (works in Twilio's sandbox for the trial); once Meta
+// approves the tournament_up_next template, set TWILIO_CONTENT_SID_UP_NEXT
+// and it switches to the template automatically. Failures never break the
+// tournament — messaging is best-effort by design.
+const TW_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TW_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TW_FROM = Deno.env.get("TWILIO_WA_FROM");
+const TW_CONTENT_UP_NEXT = Deno.env.get("TWILIO_CONTENT_SID_UP_NEXT");
+
+// Normalise a UK-entered phone to E.164; returns null (= skip, never misfire)
+// when the number can't be normalised confidently.
+function e164(ukPhone: string | null | undefined): string | null {
+  if (!ukPhone) return null;
+  const d = String(ukPhone).replace(/[^0-9+]/g, "");
+  if (d.startsWith("+")) return d.length > 8 ? d : null;
+  if (d.startsWith("07") && d.length === 11) return "+44" + d.slice(1);
+  if (d.startsWith("447") && d.length === 12) return "+" + d;
+  if (d.startsWith("00")) return "+" + d.slice(2);
+  return null;
+}
+
+async function sendWhatsApp(to: string, vars: { name: string; table: number; opponent: string }): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN || !TW_FROM) return false;
+  const body = new URLSearchParams({ From: TW_FROM, To: `whatsapp:${to}` });
+  if (TW_CONTENT_UP_NEXT) {
+    body.set("ContentSid", TW_CONTENT_UP_NEXT);
+    body.set("ContentVariables", JSON.stringify({ "1": vars.name, "2": String(vars.table), "3": vars.opponent }));
+  } else {
+    body.set("Body", `🎱 ${vars.name} — get ready, you're up NEXT at No Dice! Come to table ${vars.table} — you're playing ${vars.opponent}. Good luck! 🍀`);
+  }
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
+
+// Message both sides of a match that just got a table. Phones come from the
+// booking (captain_phone via entry_id) — walk-ins without a booking are
+// skipped silently (the founder calls them the old way).
+async function notifyMatchReady(sb: any, m: any, table: number) {
+  try {
+    if (!TW_SID || !TW_TOKEN || !TW_FROM) return;
+    const { data: ps } = await sb.from("pool_participants").select("id, display_name, entry_id").in("id", [m.p1_id, m.p2_id]);
+    const byId: Record<string, any> = {};
+    for (const p of ps || []) byId[p.id] = p;
+    const p1 = byId[m.p1_id], p2 = byId[m.p2_id];
+    if (!p1 || !p2) return;
+    const entryIds = [p1.entry_id, p2.entry_id].filter(Boolean);
+    const phoneByEntry: Record<string, string | null> = {};
+    if (entryIds.length) {
+      const { data: es } = await sb.from("tournament_entries").select("id, captain_phone").in("id", entryIds);
+      for (const e of es || []) phoneByEntry[e.id] = e.captain_phone;
+    }
+    for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
+      const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
+      if (to) await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+    }
+  } catch (_) { /* notifications must never break the tournament */ }
+}
+
 // ── Physical table assignment ────────────────────────────────────────────────
 // The venue has TWO pool tables. Each match sits at exactly one of them while
 // it's being played; freeing the table (match done) lets the next pending
@@ -286,6 +356,7 @@ async function reassignTables(sb: any, runId: string) {
     occupied.add(t);
     busy.add(m.p1_id);
     busy.add(m.p2_id);
+    await notifyMatchReady(sb, m, t);   // WhatsApp both sides — table's ready
   }
 }
 
