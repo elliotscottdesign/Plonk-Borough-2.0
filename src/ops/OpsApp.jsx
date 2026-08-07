@@ -45,7 +45,10 @@ const GROUPS = [
       { key: 'djbookings',   label: 'DJ Bookings',  Component: DJBookings },
       { key: 'tournament',   label: 'Tournament',   Component: Tournament, founderOnly: true },
       { key: 'pingpong',     label: 'Ping Pong',    Component: PingPong, founderOnly: true },
-      { key: 'worldcup',     label: 'World Cup',    Component: WorldCup },
+      // World Cup hidden 7 Aug 2026 (tournament's over on the customer site
+      // too — /worldcup redirects to /book there). Component + import kept;
+      // uncomment this line to bring the tab back for the next tournament.
+      // { key: 'worldcup',     label: 'World Cup',    Component: WorldCup },
       { key: 'keydates',     label: 'Key Dates',    Component: KeyDates, founderOnly: true },
     ],
   },
