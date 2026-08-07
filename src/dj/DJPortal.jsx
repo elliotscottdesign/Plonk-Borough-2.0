@@ -515,7 +515,7 @@ export default function DJPortal() {
               <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 8 }}>The venue</div>
               {row('Address', <>No Dice, 407 Mentmore Terrace,<br />London Fields, London E8 3PH</>)}
               {row('Website', <a href="https://nodice.bar" target="_blank" rel="noreferrer" style={link}>nodice.bar</a>)}
-              {row('Instagram', <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noreferrer" style={link}>@nodicelondon</a>)}
+              {row('Instagram', <><a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noreferrer" style={link}>@nodicelondon</a> · <a href="https://www.instagram.com/nodice.bar/" target="_blank" rel="noreferrer" style={link}>@nodice.bar</a></>)}
             </div>
 
             {/* Contact */}
