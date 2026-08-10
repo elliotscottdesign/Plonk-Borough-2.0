@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { rotaLoad } from '../../rota/api.js'
 import { workedMins, hoursLabel } from '../../rota/shifts.js'
-import { ASOF, PNL, INCOME_CHANNELS, SPEND_CATEGORIES, TILL, VAT } from '../../finance/overviewData.js'
+import { ASOF, PNL, INCOME_CHANNELS, SPEND_CATEGORIES, TILL, VAT, OWED } from '../../finance/overviewData.js'
 
 // ─── Finances (FOUNDER ONLY — registered founderOnly:true in OpsApp) ─────────
 // Senior-management money view, hidden from team-tier (NDTEAM) logins.
@@ -31,6 +31,7 @@ const SECTIONS = [
   { id: 'overview', label: 'Top-Line Actuals', icon: '📊' },
   { id: 'income',   label: 'Money In',         icon: '💰' },
   { id: 'spends',   label: 'Spend by Category', icon: '💸' },
+  { id: 'owed',     label: 'Bills to Pay',     icon: '💳' },
   { id: 'till',     label: 'Till Sales',       icon: '🍺' },
   { id: 'vat',      label: 'VAT Tracker',      icon: '🧾' },
   { id: 'wages',    label: 'Wage Bill (live)', icon: '👥' },
@@ -140,6 +141,7 @@ function TopLineCards() {
     { label: 'Stock & staff (CoS)', value: PNL.costOfSales, colour: '#E67E22' },
     { label: 'Overheads', value: PNL.overheads, colour: '#F87171' },
     { label: 'Net position', value: PNL.netPosition, colour: '#10B981', sub: 'before PAYE, pensions & director pay' },
+    { label: 'Bills to pay (est.)', value: OWED.confirmedTotal, colour: '#F87171', sub: `confirmed · plus ~£${Math.round(OWED.possibleTotal/100)/10}k likely — see Bills to Pay` },
     { label: 'Till gross (to 6 Aug)', value: TILL.total, colour: '#A78BFA', sub: `${TILL.tradingDays} trading days` },
   ]
   return (
@@ -188,6 +190,54 @@ function VatTracker() {
             <div style={{ fontSize: 12, color: DIM, marginTop: 5, lineHeight: 1.5 }}>{b}</div>
           </div>
         ))}
+      </div>
+    </div>
+  )
+}
+
+// ─── Bills to pay (email-trawl evidence; Xero drafts unapproved) ──────────
+function OwedSection() {
+  const Row = ({ r, tone }) => (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', fontSize: 12.5 }}>
+      <div style={{ minWidth: 0 }}>
+        <div style={{ color: CREAM, fontWeight: 600 }}>{r.name}{r.due ? <span style={{ color: DIM, fontWeight: 400 }}> · {r.due}</span> : null}</div>
+        {r.note && <div style={{ color: DIM, fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }}>{r.note}</div>}
+      </div>
+      <div style={{ textAlign: 'right', color: tone, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{gbp0(r.amount)}</div>
+    </div>
+  )
+  const trueLow = PNL.netPosition - OWED.confirmedTotal - OWED.possibleTotal
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10 }}>
+        {[
+          ['Confirmed owed', OWED.confirmedTotal, '#F87171', 'statements & reminders in hand'],
+          ['Likely owed', OWED.possibleTotal, '#FBBF24', 'invoices with no payment evidence'],
+          ['True position (worst case)', trueLow, trueLow > 0 ? '#10B981' : '#F87171', 'net position minus all of the above'],
+        ].map(([l, v, c, sub]) => (
+          <div key={l} style={{ ...CARD, padding: 14 }}>
+            <div style={{ fontSize: 10, color: DIM, textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 6 }}>{l}</div>
+            <div className="serif" style={{ fontSize: 'clamp(1.2rem, 2.2vw, 1.6rem)', color: c, lineHeight: 1 }}>{gbp0(v)}</div>
+            <div style={{ fontSize: 10, color: DIM, marginTop: 6 }}>{sub}</div>
+          </div>
+        ))}
+      </div>
+      <div style={{ ...CARD }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#F87171', marginBottom: 6 }}>Confirmed — statements / reminders in hand ({OWED.asOf})</div>
+        {OWED.confirmed.map(r => <Row key={r.name} r={r} tone="#F87171" />)}
+      </div>
+      <div style={{ ...CARD }}>
+        <div style={{ fontSize: 13, fontWeight: 700, color: '#FBBF24', marginBottom: 6 }}>Likely — invoices with no payment evidence either way</div>
+        {OWED.possible.map(r => <Row key={r.name} r={r} tone="#FBBF24" />)}
+        <div style={{ fontSize: 11.5, color: DIM, marginTop: 10, lineHeight: 1.5 }}>
+          Amounts unknown (inside PDF attachments): {OWED.unknownAmounts.join(' · ')}.
+        </div>
+      </div>
+      <div style={{ ...CARD }}>
+        <div style={{ fontSize: 12.5, color: CREAM, lineHeight: 1.7 }}>
+          <strong>⚠️ 15 August:</strong> Five Points' direct debit may auto-collect the full £3,688.50 even though an instalment plan was agreed — confirm with them before the 15th or risk a double hit.<br />
+          <strong>Make this automatic:</strong> in Xero → Business → Bills to pay → Drafts, approve the emailed-in bills — then Xero's aged-payables becomes the live version of this page.
+        </div>
       </div>
     </div>
   )
@@ -411,6 +461,12 @@ export default function Finances() {
                   “General expenses” is the accountant-review bucket (storage, till tests, staff food, one-offs) — it shrinks as categories get their own homes. Fit-out spend under Repairs may be moved to the balance sheet by the accountant. Wages here = hourly staff only.
                 </div>
               </div>
+            </>
+          )}
+          {section === 'owed' && (
+            <>
+              <STitle>Bills to Pay — what we still owe</STitle>
+              <OwedSection />
             </>
           )}
           {section === 'till' && (

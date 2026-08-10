@@ -74,6 +74,31 @@ export const TILL = {
   keyedSalesNote: true,
 }
 
+// Bills still to pay — compiled from a Gmail statement trawl, 10 Aug 2026.
+// Xero's aged-payables shows £0 because forwarded bills sit as unapproved
+// drafts; until they're approved (Business → Bills to pay → Draft) this
+// email-evidence list is the best view of what's owed.
+export const OWED = {
+  asOf: '10 Aug 2026',
+  confirmed: [
+    { name: 'Five Points Brewing — July statement', amount: 3688.50, due: 'DD 15 Aug', note: 'Instalment plan agreed but unconfirmed — double-collection risk on the 15 Aug direct debit' },
+    { name: 'Fine Cider Company', amount: 498.94, due: '12 & 26 Aug', note: 'Two invoices on statement' },
+    { name: 'BCS Supplies', amount: 295.91, due: 'OVERDUE since Jun/Jul', note: 'Reminders sent 21 & 28 Jul' },
+    { name: 'BOC gas', amount: 199.48, due: 'Queried', note: 'Founder disputed 9 Aug — unresolved, not paid' },
+    { name: 'Trilogy Print (PLONK GOLF debt)', amount: 888.00, due: '—', note: 'Old-entity debt — founder to decide if Hackney pays it' },
+  ],
+  possible: [
+    { name: 'The Drinks Club — new orders', amount: 1558.51, note: 'Delivering 11 Aug, invoice to follow (prior £2,541.91 paid 10 Aug)' },
+    { name: 'Five Points — Aug invoice IV-75402', amount: 1376.50, note: 'Due 15 Sep, not overdue' },
+    { name: 'Man & Van — up to 3 invoices', amount: 3425.00, note: 'INV2059 £1,765 + INV2067 £380 + INV2038 £1,280; no “paid” notices seen' },
+    { name: 'Friendly Waste', amount: 1486.02, note: 'Billed to “No Dice Bars Ltd”; ~£420 possibly part-paid' },
+    { name: 'Kartel / Damian Thomas (DJ)', amount: 250.00, note: '£250 “sent” 13 Jul, never confirmed; + a 16 Jul gig invoice (amount in PDF)' },
+  ],
+  unknownAmounts: ['Kartel — 16 Jul gig invoice', 'Krzysztof (Diffriend) — 28 Feb gig invoice', 'Umbrella Brewing — invoice 12565 + old Plonk-era debt'],
+  confirmedTotal: 5570.83,
+  possibleTotal: 8096.03,
+}
+
 // VAT registration tracker (£90k rolling 12-month gross taxable turnover)
 export const VAT = {
   threshold: 90000,
