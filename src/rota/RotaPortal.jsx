@@ -606,7 +606,19 @@ function ChecklistView({ token }) {
   const [busy, setBusy] = useState(false)
   const [savedAt, setSavedAt] = useState(false)
 
-  useEffect(() => { loadAll() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // The sheet is SHARED per day — everyone ticking the same list. Beyond loading
+  // fresh on open, poll every 20s so a phone left on this tab sees teammates'
+  // ticks appear live. A poll requested before our own latest tick is discarded
+  // (same stale-snapshot guard as the reservations view) so it can never briefly
+  // un-tick what you just tapped. The typed note is never overwritten by a poll.
+  const lastMutation = useRef(0)
+  const openKeyRef = useRef(null)
+  useEffect(() => { openKeyRef.current = openKey }, [openKey])
+  useEffect(() => {
+    loadAll()
+    const id = setInterval(() => { if (!document.hidden) refresh() }, 20000)
+    return () => clearInterval(id)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => {
     const t = dateNow(); setToday(t); setLoading(true)
     try {
@@ -615,14 +627,27 @@ function ChecklistView({ token }) {
       setSubs(m)
     } catch (e) { /* leave empty; portal-level handleErr covers auth */ } finally { setLoading(false) }
   }
+  const refresh = async () => {
+    const startedAt = Date.now()
+    const t = dateNow()
+    try {
+      const res = await Promise.all(CHECKLIST_ORDER.map(k => rotaGetChecklist(token, t, k)))
+      if (startedAt < lastMutation.current) return   // stale — our own tick is newer
+      const m = {}; CHECKLIST_ORDER.forEach((k, i) => { m[k] = res[i].submission })
+      setSubs(m); setToday(t)
+      const ok = openKeyRef.current
+      if (ok && m[ok]) setItems(m[ok].items || {})   // live-merge ticks into the open list (note untouched)
+    } catch (e) { /* silent — next poll tries again */ }
+  }
   const open = (k) => { const s = subs[k]; setItems(s?.items || {}); setNote(s?.note || ''); setOpenKey(k); setSavedAt(false) }
   // Each task toggle is an atomic per-item save (two phones can tick at once).
   const toggle = (text) => {
     const on = !items[text]
     const next = { ...items }; if (on) next[text] = true; else delete next[text]
+    lastMutation.current = Date.now()
     setItems(next)
     setSubs(s => ({ ...s, [openKey]: { ...(s[openKey] || {}), items: next } }))
-    rotaToggleChecklist(token, today, openKey, text, on).then(() => setSavedAt(true))
+    rotaToggleChecklist(token, today, openKey, text, on).then(() => { lastMutation.current = Date.now(); setSavedAt(true) })
       .catch(e => { setItems(p => { const r = { ...p }; if (on) delete r[text]; else r[text] = true; return r }); alert(e.message) })
   }
   // Note + submit (submit is sticky on the server).
