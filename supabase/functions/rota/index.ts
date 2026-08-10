@@ -503,6 +503,13 @@ Deno.serve(async (req) => {
         const { data, error } = await sb.from("shift_notes")
           .insert({ date, staff_id: me.id, author_name: me.name, body, kind: "handover" }).select("*").single();
         if (error) return json({ error: error.message }, 400);
+        // Every staff note lands in the founder's inbox too (founder's ask, 10 Aug
+        // 2026) — best-effort, never blocks the save.
+        await sendMail(ADMIN_EMAIL, `📝 ${me.name} left a note — ${niceDate(date)}`,
+          emailShell(`${esc(me.name)} left a shift note`,
+            `<p style="color:#999;font-size:12px;margin:0 0 10px">For <strong style="color:#fff">${esc(niceDate(date))}</strong></p>
+             <div style="background:#141414;border:1px solid #333;border-radius:10px;padding:14px 16px;color:#eee;line-height:1.6;white-space:pre-wrap">${esc(body)}</div>`,
+            { href: OPS_URL, label: "Open the rota" }));
         return json({ ok: true, note: data });
       }
       // Staff may delete their OWN note only.
