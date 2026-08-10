@@ -203,7 +203,7 @@ function OwedSection() {
         <div style={{ color: CREAM, fontWeight: 600 }}>{r.name}{r.due ? <span style={{ color: DIM, fontWeight: 400 }}> · {r.due}</span> : null}</div>
         {r.note && <div style={{ color: DIM, fontSize: 11.5, marginTop: 2, lineHeight: 1.4 }}>{r.note}</div>}
       </div>
-      <div style={{ textAlign: 'right', color: tone, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{gbp0(r.amount)}</div>
+      <div style={{ textAlign: 'right', color: tone, fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{r.amount ? gbp0(r.amount) : '£?'}</div>
     </div>
   )
   const trueLow = PNL.netPosition - OWED.confirmedTotal - OWED.possibleTotal
