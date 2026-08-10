@@ -80,6 +80,13 @@ export const rotaGetChecklist = (token, date, key) => call({ action: 'getCheckli
 export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })
 export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ action: 'saveChecklist', token, date, key, note, submit })
 
+// The day's reservations (all staff) + the shared "they've arrived" tick.
+// The /ops founder screen calls the same actions with the secret instead of a
+// token, so a tick made anywhere shows everywhere.
+export const rotaReservationsToday = (token, date) => call({ action: 'reservationsToday', token, date })
+export const rotaReservationArrive = (token, kind, refId, date, on) => call({ action: 'reservationArrive', token, kind, refId, date, on })
+export const opsReservationArrive = (kind, refId, date, on) => call({ action: 'reservationArrive', secret: SEND_SECRET, kind, refId, date, on })
+
 export const rotaCompleteTraining = (token, itemKey) => call({ action: 'completeTraining', token, itemKey })
 export const rotaUncompleteTraining = (token, itemKey) => call({ action: 'uncompleteTraining', token, itemKey })
 

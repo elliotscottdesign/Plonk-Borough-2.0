@@ -13,6 +13,7 @@ import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
 import KitchenChecklists from '../kitchen/KitchenChecklists.jsx'
+import PortalReservations from './PortalReservations.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -91,7 +92,7 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
+    return ['shifts', 'reservations', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -318,7 +319,7 @@ export default function RotaPortal() {
   // Kitchen food-safety is its own clear tab for EVERY kitchen-trained member — not
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -512,6 +513,8 @@ export default function RotaPortal() {
             })()}
           </>
         )}
+
+        {view === 'reservations' && <PortalReservations token={token} />}
 
         {view === 'checklists' && <ChecklistView token={token} />}
 
