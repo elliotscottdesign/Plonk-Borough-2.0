@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { eventsList, eventAdd, eventUpdate, eventDelete, EVENT_CATEGORIES, CATEGORY_ORDER, catMeta, eventDateLabel } from '../keydates/events.js'
+import DateField from '../../lib/DateField.jsx'
 
 const GOLD = '#C9A84C', LINE = 'rgba(201,168,76,0.22)', CARD = 'rgba(255,255,255,0.03)'
 const todayISO = () => new Date().toISOString().slice(0, 10)
@@ -52,8 +53,8 @@ export default function KeyDates() {
           <div style={{ fontSize: 13, fontWeight: 800, color: GOLD }}>{form.id ? 'Edit event' : 'New event'}</div>
           <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="What's on? (e.g. Broadway Market craft fair)" style={inp} />
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            <label style={lbl}>Start<input type="date" value={form.start_date} onChange={e => setForm(f => ({ ...f, start_date: e.target.value }))} style={{ ...inp, colorScheme: 'dark' }} /></label>
-            <label style={lbl}>End <span style={{ color: 'rgba(255,255,255,0.4)' }}>(optional)</span><input type="date" value={form.end_date || ''} onChange={e => setForm(f => ({ ...f, end_date: e.target.value }))} style={{ ...inp, colorScheme: 'dark' }} /></label>
+            <label style={lbl}>Start<DateField value={form.start_date} onChange={v => setForm(f => ({ ...f, start_date: v }))} style={inp} /></label>
+            <label style={lbl}>End <span style={{ color: 'rgba(255,255,255,0.4)' }}>(optional)</span><DateField value={form.end_date || ''} onChange={v => setForm(f => ({ ...f, end_date: v }))} style={inp} /></label>
             <label style={lbl}>Type<select value={form.category} onChange={e => setForm(f => ({ ...f, category: e.target.value }))} style={{ ...inp, colorScheme: 'dark' }}>{CATEGORY_ORDER.map(c => <option key={c} value={c}>{EVENT_CATEGORIES[c].icon} {EVENT_CATEGORIES[c].label}</option>)}</select></label>
           </div>
           <input value={form.location} onChange={e => setForm(f => ({ ...f, location: e.target.value }))} placeholder="Where? (e.g. Victoria Park) — optional" style={inp} />

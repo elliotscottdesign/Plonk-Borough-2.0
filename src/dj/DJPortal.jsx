@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
+import DateField from '../lib/DateField.jsx'
 import FormatPicker, { parseFormats, joinFormats } from './FormatPicker.jsx'
 import MonthCalendar from './MonthCalendar.jsx'
 import DJRules from './DJRules.jsx'
@@ -451,7 +452,7 @@ export default function DJPortal() {
                   ))}
                 </div>
                 <div style={{ display: 'flex', gap: 10 }}>
-                  <div style={{ flex: 1 }}><div style={label}>Date</div><input type="date" value={rcDate} onChange={e => setRcDate(e.target.value)} style={inp} /></div>
+                  <div style={{ flex: 1 }}><div style={label}>Date</div><DateField value={rcDate} onChange={setRcDate} style={inp} yearMin={new Date().getFullYear() - 1} yearMax={new Date().getFullYear()} /></div>
                   <div style={{ flex: 1 }}><div style={label}>Amount (£)</div><input inputMode="decimal" value={rcAmount} onChange={e => setRcAmount(e.target.value.replace(/[^0-9.]/g, ''))} placeholder="0.00" style={inp} /></div>
                 </div>
                 <input value={rcNote} onChange={e => setRcNote(e.target.value)} placeholder="Note (optional) — e.g. taxi from Dalston" style={{ ...inp, marginTop: 10 }} />

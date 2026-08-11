@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { rotaSetRotaRules, rotaCompileRules } from '../../rota/api.js'
 import { withDefaults } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
+import DateField from '../../lib/DateField.jsx'
 
 // ─── Rota rules editor (founder) ─────────────────────────────────────────────
 // The rules the AI rota builder uses — opening hours, how many people each day,
@@ -143,8 +144,8 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
           {draft.holidayDates.map((row, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '7px 10px' }}>
               <input value={row[2]} onChange={e => setHolidayCell(i, 2, e.target.value)} placeholder="Name" style={{ ...txt, minWidth: 150, flex: 1 }} />
-              <label style={lbl}>from</label><input type="date" value={row[0]} onChange={e => setHolidayCell(i, 0, e.target.value)} style={txt} />
-              <label style={lbl}>to</label><input type="date" value={row[1]} onChange={e => setHolidayCell(i, 1, e.target.value)} style={txt} />
+              <label style={lbl}>from</label><DateField value={row[0]} onChange={v => setHolidayCell(i, 0, v)} style={txt} />
+              <label style={lbl}>to</label><DateField value={row[1]} onChange={v => setHolidayCell(i, 1, v)} style={txt} />
               <button onClick={() => removeHoliday(i)} title="Remove" style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: 13, padding: 0 }}>✕</button>
             </div>
           ))}

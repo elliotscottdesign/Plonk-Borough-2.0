@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaRemindStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
 import { ABILITIES } from '../../rota/roles.js'
+import DateField from '../../lib/DateField.jsx'
 import { onboardingComplete, requiresOnboarding, onboardingMissing, SOI_VERSION } from '../../rota/statement.js'
 import { openDataUrl } from '../../rota/menuFile.js'
 import StatementDoc from '../../rota/StatementDoc.jsx'
@@ -321,7 +322,7 @@ export default function StaffRota() {
                     <Field label="Feedback notes" wide><textarea value={form.feedback_notes || ''} onChange={e => onField('feedback_notes', e.target.value)} rows={2} style={{ ...inp('100%'), resize: 'vertical' }} /></Field>
 
                     <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Payroll &amp; right to work</div>
-                    <Field label="Date of birth"><input type="date" value={form.dob || ''} onChange={e => onField('dob', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="Date of birth"><DateField value={form.dob || ''} onChange={v => onField('dob', v)} style={inp('100%')} yearMin={1930} yearMax={new Date().getFullYear() - 14} /></Field>
                     <Field label="National Insurance no."><input value={form.ni_number || ''} onChange={e => onField('ni_number', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Bank — account name"><input value={form.bank_name || ''} onChange={e => onField('bank_name', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Sort code"><input value={form.bank_sort || ''} onChange={e => onField('bank_sort', e.target.value)} style={inp('100%')} /></Field>

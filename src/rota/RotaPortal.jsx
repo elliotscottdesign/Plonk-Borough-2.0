@@ -14,6 +14,7 @@ import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
 import KitchenChecklists from '../kitchen/KitchenChecklists.jsx'
 import PortalReservations from './PortalReservations.jsx'
+import DateField from '../lib/DateField.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -796,6 +797,12 @@ function Onboarding({ token, staff, docs, reload, goProfile }) {
   )
 }
 
+// Date of birth as a TYPED field (house rule: dates are typed, never scrollers) —
+// the shared DateField with a DOB year range.
+function DobInput({ value, onChange, style }) {
+  return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
+}
+
 function ProfileView({ staff, onSave, busy, token, docs, reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
@@ -850,7 +857,7 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         <L label="Relationship" wide><input value={f.emergency_relation} onChange={e => on('emergency_relation', e.target.value)} style={inp} /></L>
 
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', borderTop: `1px dashed ${LINE}`, paddingTop: 10 }}>Payroll &amp; right to work</div>
-        <L label="Date of birth"><input type="date" value={f.dob} onChange={e => on('dob', e.target.value)} style={inp} /></L>
+        <L label="Date of birth"><DobInput value={f.dob} onChange={v => on('dob', v)} style={inp} /></L>
         <L label="National Insurance no."><input value={f.ni_number} onChange={e => on('ni_number', e.target.value)} placeholder="QQ 12 34 56 C" style={inp} /></L>
         <L label="Bank — account name" wide><input value={f.bank_name} onChange={e => on('bank_name', e.target.value)} style={inp} /></L>
         <L label="Sort code"><input value={f.bank_sort} onChange={e => on('bank_sort', e.target.value)} placeholder="00-00-00" style={inp} /></L>
