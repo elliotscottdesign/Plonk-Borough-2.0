@@ -129,6 +129,13 @@ export const EXTRA_SLOTS = {
 // One-off special days that override the normal weekday pattern — e.g. a bank-
 // holiday Sunday run as a two-session PAID day like a Saturday (4–8pm + 8pm–12am).
 export const SPECIAL_DATES = {
+  // Sat 29 Aug 2026 — PRIVATE HIRE (Kevin Antara wedding). Same two sessions as a
+  // normal Saturday, just retimed earlier: afternoon 2–6pm (Aaliah) + evening
+  // 6pm–midnight (Charlie). Existing bookings unchanged — only the times shift.
+  '2026-08-29': [
+    { slot: 'sat_pm', day: 'Saturday', start: '14:00', end: '18:00', kind: 'session' },
+    { slot: 'main', day: 'Saturday', start: '18:00', end: '00:00', kind: 'session' },
+  ],
   '2026-08-30': [   // August bank-holiday Sunday weekender
     { slot: 'sat_pm', day: 'Sunday', start: '16:00', end: '20:00', kind: 'session' },
     { slot: 'main', day: 'Sunday', start: '20:00', end: '00:00', kind: 'session' },
