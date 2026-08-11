@@ -10,6 +10,7 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import HowItWorks from './sections/HowItWorks.jsx'
 import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
@@ -34,6 +35,9 @@ const GROUPS = [
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
       { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
+      // The founder's system map — how every service fits together. Founder-only
+      // (mentions costs + internals); open it to team-tier if the founder asks.
+      { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
     ],
   },
   {
