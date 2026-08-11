@@ -14,6 +14,8 @@ import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
 import KitchenChecklists from '../kitchen/KitchenChecklists.jsx'
+import PortalReservations from './PortalReservations.jsx'
+import DateField from '../lib/DateField.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -92,7 +94,7 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
+    return ['shifts', 'reservations', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -319,7 +321,7 @@ export default function RotaPortal() {
   // Kitchen food-safety is its own clear tab for EVERY kitchen-trained member — not
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -514,6 +516,8 @@ export default function RotaPortal() {
           </>
         )}
 
+        {view === 'reservations' && <PortalReservations token={token} />}
+
         {view === 'checklists' && <ChecklistView token={token} />}
 
         {view === 'kitchen' && showKitchen && <KitchenChecklists token={token} kitchen={kitchen} />}
@@ -604,7 +608,19 @@ function ChecklistView({ token }) {
   const [busy, setBusy] = useState(false)
   const [savedAt, setSavedAt] = useState(false)
 
-  useEffect(() => { loadAll() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // The sheet is SHARED per day — everyone ticking the same list. Beyond loading
+  // fresh on open, poll every 20s so a phone left on this tab sees teammates'
+  // ticks appear live. A poll requested before our own latest tick is discarded
+  // (same stale-snapshot guard as the reservations view) so it can never briefly
+  // un-tick what you just tapped. The typed note is never overwritten by a poll.
+  const lastMutation = useRef(0)
+  const openKeyRef = useRef(null)
+  useEffect(() => { openKeyRef.current = openKey }, [openKey])
+  useEffect(() => {
+    loadAll()
+    const id = setInterval(() => { if (!document.hidden) refresh() }, 20000)
+    return () => clearInterval(id)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => {
     const t = dateNow(); setToday(t); setLoading(true)
     try {
@@ -613,14 +629,27 @@ function ChecklistView({ token }) {
       setSubs(m)
     } catch (e) { /* leave empty; portal-level handleErr covers auth */ } finally { setLoading(false) }
   }
+  const refresh = async () => {
+    const startedAt = Date.now()
+    const t = dateNow()
+    try {
+      const res = await Promise.all(CHECKLIST_ORDER.map(k => rotaGetChecklist(token, t, k)))
+      if (startedAt < lastMutation.current) return   // stale — our own tick is newer
+      const m = {}; CHECKLIST_ORDER.forEach((k, i) => { m[k] = res[i].submission })
+      setSubs(m); setToday(t)
+      const ok = openKeyRef.current
+      if (ok && m[ok]) setItems(m[ok].items || {})   // live-merge ticks into the open list (note untouched)
+    } catch (e) { /* silent — next poll tries again */ }
+  }
   const open = (k) => { const s = subs[k]; setItems(s?.items || {}); setNote(s?.note || ''); setOpenKey(k); setSavedAt(false) }
   // Each task toggle is an atomic per-item save (two phones can tick at once).
   const toggle = (text) => {
     const on = !items[text]
     const next = { ...items }; if (on) next[text] = true; else delete next[text]
+    lastMutation.current = Date.now()
     setItems(next)
     setSubs(s => ({ ...s, [openKey]: { ...(s[openKey] || {}), items: next } }))
-    rotaToggleChecklist(token, today, openKey, text, on).then(() => setSavedAt(true))
+    rotaToggleChecklist(token, today, openKey, text, on).then(() => { lastMutation.current = Date.now(); setSavedAt(true) })
       .catch(e => { setItems(p => { const r = { ...p }; if (on) delete r[text]; else r[text] = true; return r }); alert(e.message) })
   }
   // Note + submit (submit is sticky on the server).
@@ -769,6 +798,12 @@ function Onboarding({ token, staff, docs, reload, goProfile }) {
   )
 }
 
+// Date of birth as a TYPED field (house rule: dates are typed, never scrollers) —
+// the shared DateField with a DOB year range.
+function DobInput({ value, onChange, style }) {
+  return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
+}
+
 function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
@@ -826,7 +861,7 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
         <L label="Relationship" wide><input value={f.emergency_relation} onChange={e => on('emergency_relation', e.target.value)} style={inp} /></L>
 
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', borderTop: `1px dashed ${LINE}`, paddingTop: 10 }}>Payroll &amp; right to work</div>
-        <L label="Date of birth"><input type="date" value={f.dob} onChange={e => on('dob', e.target.value)} style={inp} /></L>
+        <L label="Date of birth"><DobInput value={f.dob} onChange={v => on('dob', v)} style={inp} /></L>
         <L label="National Insurance no."><input value={f.ni_number} onChange={e => on('ni_number', e.target.value)} placeholder="QQ 12 34 56 C" style={inp} /></L>
         <L label="Bank — account name" wide><input value={f.bank_name} onChange={e => on('bank_name', e.target.value)} style={inp} /></L>
         <L label="Sort code"><input value={f.bank_sort} onChange={e => on('bank_sort', e.target.value)} placeholder="00-00-00" style={inp} /></L>

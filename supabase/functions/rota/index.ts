@@ -340,6 +340,80 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...data });
     }
 
+    // ── Reservations for the team: the day's bookings + shared arrival tick-off ──
+    // Every ACTIVE staff member (token) can view + tick "they've arrived"; the
+    // founder's /ops screen uses the SEND_SECRET for the same actions, so it's ONE
+    // shared state everywhere. Reads the same tables the nodice.bar customer site
+    // writes (bar_reservations / tournament_entries / bookings — NEVER modified);
+    // ticks live in reservation_arrivals keyed (kind, ref_id); un-tick deletes.
+    if (action === "reservationsToday" || action === "reservationArrive") {
+      let who = "";
+      if (isAdmin()) who = "Manager";
+      else {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+        who = me.name || "Staff";
+      }
+
+      if (action === "reservationArrive") {
+        const kind = String(b.kind || "");
+        if (!["table", "pool", "golf", "tournament"].includes(kind)) return json({ error: "bad kind" }, 400);
+        const refId = String(b.refId || "").slice(0, 60);
+        if (!refId) return json({ error: "no booking" }, 400);
+        if (b.on) {
+          // The tick must point at a REAL booking — verify against the source table
+          // and take the booking's own date (never trust the client's), so junk rows
+          // can't accumulate in the anon-readable arrivals table.
+          let resDate: string | null = null;
+          if (kind === "table" || kind === "pool") {
+            const { data } = await sb.from("bar_reservations").select("reservation_date").eq("id", refId).maybeSingle();
+            resDate = data?.reservation_date || null;
+          } else if (kind === "tournament") {
+            const { data } = await sb.from("tournament_entries").select("tournaments!inner(event_date)").eq("id", refId).maybeSingle();
+            resDate = (data as any)?.tournaments?.event_date || null;
+          } else {
+            const { data } = await sb.from("bookings").select("booking_slots(slot_date)").eq("id", refId).maybeSingle();
+            const slots = ((data as any)?.booking_slots || []).map((s: any) => s.slot_date).sort();
+            resDate = slots[0] || null;
+          }
+          if (!resDate) return json({ error: "That booking doesn't exist — refresh." }, 404);
+          const arrived_at = new Date().toISOString();
+          const { error } = await sb.from("reservation_arrivals").upsert(
+            { kind, ref_id: refId, res_date: resDate, staff_name: who, arrived_at },
+            { onConflict: "kind,ref_id" });
+          if (error) return json({ error: error.message }, 400);
+          return json({ ok: true, arrived: { staff_name: who, arrived_at } });
+        }
+        const { error } = await sb.from("reservation_arrivals").delete().eq("kind", kind).eq("ref_id", refId);
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, arrived: null });
+      }
+
+      // reservationsToday — one operating day (8am-anchored, so after midnight the
+      // night-in-progress still shows). Normalisation mirrors /ops Reservations.
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+      const [barQ, tournQ, golfQ, arrQ] = await Promise.all([
+        sb.from("bar_reservations").select("id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes").eq("status", "confirmed").eq("reservation_date", date),
+        sb.from("tournament_entries").select("id,team_name,captain_name,captain_email,captain_phone,notes,tournaments!inner(name,event_date,start_time)").eq("status", "paid").eq("tournaments.event_date", date),
+        sb.from("bookings").select("id,reference,customer_name,customer_email,customer_phone,party_size,booking_slots!inner(slot_date,slot_time)").eq("status", "confirmed").eq("booking_slots.slot_date", date),
+        sb.from("reservation_arrivals").select("kind,ref_id,staff_name,arrived_at").eq("res_date", date),
+      ]);
+      const rows: any[] = [];
+      for (const r of barQ.data || []) rows.push({ id: String(r.id), kind: r.kind === "pool" ? "pool" : "table", time: r.start_time, party: r.party_size || 0, name: r.name || "Guest", notes: r.notes || "", email: r.email || "", phone: r.phone || "", extra: (r.kind === "pool" && r.resource_count > 1) ? `${r.resource_count} tables` : (r.duration_minutes ? `${r.duration_minutes} min` : "") });
+      for (const t of tournQ.data || []) rows.push({ id: String(t.id), kind: "tournament", time: t.tournaments?.start_time || null, party: (t.team_name && t.team_name !== t.captain_name) ? 2 : 1, name: t.team_name || t.captain_name || "Player", notes: t.notes || "", email: t.captain_email || "", phone: t.captain_phone || "", extra: t.tournaments?.name || "" });
+      for (const g of golfQ.data || []) {
+        const slots = (g.booking_slots || []).slice().sort((a: any, z: any) => `${a.slot_date}T${a.slot_time}`.localeCompare(`${z.slot_date}T${z.slot_time}`));
+        const first = slots[0];
+        if (!first) continue;
+        rows.push({ id: String(g.id), kind: "golf", time: first.slot_time, party: g.party_size || 0, name: g.customer_name || "Guest", notes: g.reference ? `Ref ${g.reference}` : "", email: g.customer_email || "", phone: g.customer_phone || "", extra: slots.length > 1 ? `${slots.length} slots` : "" });
+      }
+      rows.sort((a, z) => String(a.time || "").localeCompare(String(z.time || "")));
+      const arr: Record<string, any> = {};
+      for (const a of arrQ.data || []) arr[`${a.kind}:${a.ref_id}`] = { staff_name: a.staff_name, arrived_at: a.arrived_at };
+      return json({ ok: true, date, rows: rows.map((r) => ({ ...r, arrived: arr[`${r.kind}:${r.id}`] || null })) });
+    }
+
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
     if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut"].includes(action)) {
       const me = await staffByToken(sb, b.token);
@@ -429,6 +503,13 @@ Deno.serve(async (req) => {
         const { data, error } = await sb.from("shift_notes")
           .insert({ date, staff_id: me.id, author_name: me.name, body, kind: "handover" }).select("*").single();
         if (error) return json({ error: error.message }, 400);
+        // Every staff note lands in the founder's inbox too (founder's ask, 10 Aug
+        // 2026) — best-effort, never blocks the save.
+        await sendMail(ADMIN_EMAIL, `📝 ${me.name} left a note — ${niceDate(date)}`,
+          emailShell(`${esc(me.name)} left a shift note`,
+            `<p style="color:#999;font-size:12px;margin:0 0 10px">For <strong style="color:#fff">${esc(niceDate(date))}</strong></p>
+             <div style="background:#141414;border:1px solid #333;border-radius:10px;padding:14px 16px;color:#eee;line-height:1.6;white-space:pre-wrap">${esc(body)}</div>`,
+            { href: OPS_URL, label: "Open the rota" }));
         return json({ ok: true, note: data });
       }
       // Staff may delete their OWN note only.

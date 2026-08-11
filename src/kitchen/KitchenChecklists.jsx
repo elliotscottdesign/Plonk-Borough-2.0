@@ -30,11 +30,35 @@ export default function KitchenChecklists({ token, kitchen }) {
 
   const date = kitchen?.date
   const load = async () => { try { setDay(await kitchenGetDay(token, date)) } catch (e) { alert(e.message) } }
-  useEffect(() => { load() }, [])   // eslint-disable-line
+
+  // ── Live refresh (20s) — the sheet is SHARED per day, so statuses/ticks from a
+  // teammate's phone should appear without leave-and-return. Safety rules:
+  //   • a poll requested before your own latest save is discarded (stale guard)
+  //   • an open sheet you've STARTED EDITING is never touched (kitchen fields
+  //     save on Save/Submit, so a refresh mid-entry would wipe half-typed temps);
+  //     an open sheet you're only LOOKING at does live-update.
+  const dirtyRef = useRef(false)         // edited since opening the sheet?
+  const openKeyRef = useRef(null)
+  const lastMutation = useRef(0)
+  useEffect(() => { openKeyRef.current = openKey }, [openKey])
+  const refresh = async () => {
+    const startedAt = Date.now()
+    try {
+      const d = await kitchenGetDay(token, date)
+      if (startedAt < lastMutation.current) return   // our own save is newer — discard
+      setDay(d)
+      const ok = openKeyRef.current
+      if (ok && !dirtyRef.current) setLocal(seedFromRun(d?.runs?.[ok]))   // viewer only — live-merge
+    } catch { /* silent — next poll tries again */ }
+  }
+  useEffect(() => {
+    load()
+    const id = setInterval(() => { if (!document.hidden) refresh() }, 20000)
+    return () => clearInterval(id)
+  }, [])   // eslint-disable-line
 
   // Hydrate local editing state from a saved run's entries.
-  const openCadence = (k) => {
-    const run = day?.runs?.[k]
+  const seedFromRun = (run) => {
     const seed = {}
     for (const e of run?.entries || []) {
       seed[e.key] = {
@@ -45,12 +69,16 @@ export default function KitchenChecklists({ token, kitchen }) {
         corrective: e.corrective_action || '',
       }
     }
-    setLocal(seed)
+    return seed
+  }
+  const openCadence = (k) => {
+    setLocal(seedFromRun(day?.runs?.[k]))
+    dirtyRef.current = false
     setOpenKey(k)
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
 
-  const set = (key, patch) => setLocal(s => ({ ...s, [key]: { ...(s[key] || {}), ...patch } }))
+  const set = (key, patch) => { dirtyRef.current = true; setLocal(s => ({ ...s, [key]: { ...(s[key] || {}), ...patch } })) }
 
   // Per-item state → fail? answered?
   const itemFail = (item, e) => {
@@ -89,8 +117,11 @@ export default function KitchenChecklists({ token, kitchen }) {
       if (needsNote.length) { alert(`Add a corrective-action note to each failed check (${needsNote.length}).`); return }
     }
     setBusy(true)
+    lastMutation.current = Date.now()
     try {
       await kitchenSaveRun(token, { date, cadence, entries: buildEntries(cadence), submit, shiftId: kitchen?.shiftId })
+      lastMutation.current = Date.now()   // saved — polls requested before this are stale
+      dirtyRef.current = false            // local sheet now matches the server
       await load()
       if (submit) setOpenKey(null)
     } catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -99,10 +130,11 @@ export default function KitchenChecklists({ token, kitchen }) {
   const addWaste = async () => {
     const product = waste.product.trim(); if (!product) { alert('What was thrown out?'); return }
     setBusy(true)
-    try { await kitchenAddWaste(token, { date, product, reason: waste.reason.trim(), quantity: waste.quantity.trim() }); setWaste({ product: '', reason: '', quantity: '' }); await load() }
+    lastMutation.current = Date.now()
+    try { await kitchenAddWaste(token, { date, product, reason: waste.reason.trim(), quantity: waste.quantity.trim() }); lastMutation.current = Date.now(); setWaste({ product: '', reason: '', quantity: '' }); await load() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
-  const delWaste = async (id) => { setBusy(true); try { await kitchenDeleteWaste(token, id); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const delWaste = async (id) => { setBusy(true); lastMutation.current = Date.now(); try { await kitchenDeleteWaste(token, id); lastMutation.current = Date.now(); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
 
   if (!day) return <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, padding: '20px 0' }}>Loading kitchen checklists…</div>
 
