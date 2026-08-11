@@ -15,14 +15,16 @@ export const TIPS_META = {
   updated: '11 Aug 2026',
   coverageFrom: '19 Jun 2026',
   coverageTo: '10 Aug 2026',
-  unattributed: { '2026-07': 7.42, '2026-08': 4.30 },
+  // Founder ruling 11 Aug: unattributed tips and the "Jonny B" login's tips
+  // are folded into Elliot's numbers below.
+  unattributed: {},
 }
 
 // month (YYYY-MM) → first-name → £
 const TIPS_BY_MONTH = {
-  '2026-06': { elliot: 136.00, jonny: 17.48, rhys: 13.54, skye: 8.46 },
-  '2026-07': { skye: 179.38, theo: 146.45, elliot: 84.33, rhys: 39.88 },
-  '2026-08': { theo: 47.92, skye: 61.61, elliot: 24.56, rhys: 2.13 },
+  '2026-06': { elliot: 153.48, rhys: 13.54, skye: 8.46 },              // elliot incl. Jonny B £17.48
+  '2026-07': { skye: 179.38, theo: 146.45, elliot: 91.75, rhys: 39.88 }, // elliot incl. unattributed £7.42
+  '2026-08': { theo: 47.92, skye: 61.61, elliot: 28.86, rhys: 2.13 },    // elliot incl. unattributed £4.30
 }
 
 const MONTH_LABELS = { '2026-06': 'June 2026 (from 19th)', '2026-07': 'July 2026', '2026-08': 'August 2026' }
