@@ -2,8 +2,8 @@
 // Source: Lightspeed Payments export (Order reports → Payments, "Gratuity
 // amount" column), attributed via till login → person mapping set by the
 // founder on 11 Aug 2026: Trial→Theo, Ruby→Skye, Rhys→Rhys, Elliot S→Elliot.
-// Data currently covers 1–10 Aug 2026 only — the Payments export returned
-// nothing earlier (tipping likely enabled on the terminal from 1 Aug).
+// Covers 19 Jun – 10 Aug 2026 (full-history export received 11 Aug; earlier
+// exports were range-capped). Login "Jonny B" → Jonny (Brooks).
 // Refresh: founder exports a new payments CSV → Claude (finance lane) updates
 // these numbers. Unattributed = tips on payments with no till login recorded;
 // they get folded into the pool at payout time at the founder's discretion.
@@ -13,17 +13,19 @@
 
 export const TIPS_META = {
   updated: '11 Aug 2026',
-  coverageFrom: '1 Aug 2026',
+  coverageFrom: '19 Jun 2026',
   coverageTo: '10 Aug 2026',
-  unattributed: { '2026-08': 4.30 },
+  unattributed: { '2026-07': 7.42, '2026-08': 4.30 },
 }
 
 // month (YYYY-MM) → first-name → £
 const TIPS_BY_MONTH = {
+  '2026-06': { elliot: 136.00, jonny: 17.48, rhys: 13.54, skye: 8.46 },
+  '2026-07': { skye: 179.38, theo: 146.45, elliot: 84.33, rhys: 39.88 },
   '2026-08': { theo: 47.92, skye: 61.61, elliot: 24.56, rhys: 2.13 },
 }
 
-const MONTH_LABELS = { '2026-08': 'August 2026' }
+const MONTH_LABELS = { '2026-06': 'June 2026 (from 19th)', '2026-07': 'July 2026', '2026-08': 'August 2026' }
 
 const firstNameKey = (name) => String(name || '').trim().split(/\s+/)[0].toLowerCase()
 
