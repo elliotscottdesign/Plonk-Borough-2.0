@@ -40,6 +40,9 @@ export const tournStartKnockout = (runId, thirdPlace, raceTo, finalBestOf3) => c
 // Slice 4 — vouchers + league + grand final.
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
 export const tournFinalize = (runId) => call({ action: 'finalize', runId })                  // re-run voucher emails
+export const tournListVouchers = () => call({ action: 'listVouchers' })                        // all prize vouchers + redemption state
+export const tournRedeemVoucher = (voucherId, by) => call({ action: 'redeemVoucher', voucherId, by })   // one-shot: locks the code
+export const tournUnredeemVoucher = (voucherId) => call({ action: 'unredeemVoucher', voucherId })       // undo a mis-tap
 export const tournSeedFromLeague = (runId) => call({ action: 'seedFromLeague', runId })       // grand final: add league top-8
 // Flip THIS night's discipline (e.g. doubles → singles) when not enough
 // teams show up. Points still accrue to the league — just the OTHER league.
