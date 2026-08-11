@@ -3,9 +3,7 @@ import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
 import LoanNotes from './tabs/LoanNotes.jsx'
-import LeonieAgreement from './tabs/LeonieAgreement.jsx'
-import LeeAgreement from './tabs/LeeAgreement.jsx'
-import MikeAgreement from './tabs/MikeAgreement.jsx'
+import Agreements from './tabs/Agreements.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
@@ -57,9 +55,10 @@ const TOP_TABS = [
   { key:'businessExplorer',  label:'Business Explorer' },
   { key:'venueInfo',         label:'Venue Info' },
   { key:'loanNotes',         label:'Loan Notes' },
-  { key:'leonieAgreement',   label:"Your Agreement", roleOnly:'leonie' },
-  { key:'leeAgreement',      label:"Your Agreement", roleOnly:'lee'    },
-  { key:'mikeAgreement',     label:"Your Agreement", roleOnly:'mike'   },
+  // ONE Agreements page holding every Round-1 agreement as drop-down sections
+  // (was three separate "Your Agreement" tabs). rolesAny: an investor role sees
+  // the tab (their own agreement inside); the founder always sees it (all three).
+  { key:'agreements',        label:'Agreements', rolesAny:['leonie','lee','mike'] },
   { key:'plonk',             label:'Plonk' },
 ]
 
@@ -75,9 +74,7 @@ function deriveActivePage(topTab, slideId) {
   if (topTab === 'businessExplorer')  return { id: 'explorer', label: 'Business Explorer' }
   if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
   if (topTab === 'loanNotes')         return { id: 'loanNotes', label: 'Loan Notes' }
-  if (topTab === 'leonieAgreement')   return { id: 'leonieAgreement', label: 'Your Agreement' }
-  if (topTab === 'leeAgreement')      return { id: 'leeAgreement',    label: 'Your Agreement' }
-  if (topTab === 'mikeAgreement')     return { id: 'mikeAgreement',   label: 'Your Agreement' }
+  if (topTab === 'agreements')        return { id: 'agreements', label: 'Agreements' }
   if (topTab === 'notes')             return null   // master view
   return null
 }
@@ -157,6 +154,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
   const visibleTabs = TOP_TABS.filter(t => {
     if (t.founderOnly && !isFounder) return false
     if (t.roleOnly && role !== t.roleOnly && !isFounder) return false
+    if (t.rolesAny && !t.rolesAny.includes(role) && !isFounder) return false
     return true
   })
   const activeLabel = topTab === 'notes' ? 'Main Notes' : (visibleTabs.find(t => t.key === topTab)?.label || 'Menu')
@@ -248,9 +246,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
         {topTab === 'businessExplorer' && <div style={{ flex:1, overflowY:'auto' }}><BusinessExplorer /></div>}
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
         {topTab === 'loanNotes' && <div style={{ flex:1, overflowY:'auto' }}><LoanNotes /></div>}
-        {topTab === 'leonieAgreement' && <div style={{ flex:1, overflowY:'auto' }}><LeonieAgreement /></div>}
-        {topTab === 'leeAgreement'    && <div style={{ flex:1, overflowY:'auto' }}><LeeAgreement    /></div>}
-        {topTab === 'mikeAgreement'   && <div style={{ flex:1, overflowY:'auto' }}><MikeAgreement   /></div>}
+        {topTab === 'agreements' && <div style={{ flex:1, overflowY:'auto' }}><Agreements role={role} isFounder={isFounder} /></div>}
         {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
       <NotesPanel />
