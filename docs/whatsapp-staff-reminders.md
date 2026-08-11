@@ -1,5 +1,18 @@
 # HANDOVER — WhatsApp shift reminders for staff (rota lane)
 
+> **STATUS (actioned 11 Aug 2026, integration session): CODE COMPLETE — waiting on two
+> founder tokens to go live.** Everything below §1 is built and committed:
+> `sendShiftReminders` action in the rota fn (CRON_SECRET-gated, London-time 2h window,
+> insert-first idempotence, e164, template send w/ mentions digest); `@`-mention parsing
+> in `addShiftNote` (+ "@ mentions you" badge and composer tip in the portal Notes tab);
+> DDL + cron staged in `supabase/staff_shift_reminders.sql`. Parser + window maths
+> unit-tested. **Blocked on:** (1) fresh Supabase PAT (all revoked 11 Aug — needed for
+> secrets/DDL/deploy), (2) the NEW Twilio auth token (§2). Once both arrive:
+> set `TWILIO_AUTH_TOKEN` + new `CRON_SECRET` → apply the SQL → deploy `rota` (+
+> `tournament`/`pingpong` to revive their pings) → create + approve the
+> `staff_shift_reminder` template (§6) → set `TWILIO_CONTENT_SID_SHIFT_REMINDER` →
+> install the cron → live test on the founder's phone.
+
 **Founder brief (11 Aug 2026):** every staff member gets a WhatsApp **2 hours before
 their shift starts** reminding them, and the message must include any **@-mentions
 addressed to them** in that day's shift notes. This doc gives the rota lane everything

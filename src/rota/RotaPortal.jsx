@@ -576,14 +576,18 @@ function NotesView({ token, notes, staffId, reload }) {
             (the main reason it felt fiddly); drag the corner to make it taller. */}
         <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Leave a handover note for the next shift… e.g. glasswasher needs salt, low on tonic" style={{ width: '100%', minHeight: 120, padding: '13px 14px', fontSize: 16, lineHeight: 1.5, borderRadius: 10, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
         <button onClick={add} disabled={busy || !body.trim()} style={{ ...btn('red'), width: '100%', padding: '13px', fontSize: 15, opacity: body.trim() ? 1 : 0.5 }}>{busy ? 'Posting…' : 'Post note'}</button>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>💡 Address someone with <strong style={{ color: '#FCD34D' }}>@</strong> and their name — e.g. <strong style={{ color: '#fff' }}>@Rhys don't cash up before the delivery</strong>. They'll see it flagged here and it's included in their shift reminder.</div>
       </div>
       {notes.length === 0 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', padding: '18px 0', textAlign: 'center' }}>No notes yet. Management briefings and shift handovers show up here.</div>}
       {notes.map(n => {
         const mgr = n.kind === 'manager'
+        // @-mention badge: this note names YOU (mentions come from the server's
+        // @-parsing; also included in your 2h WhatsApp shift reminder).
+        const forMe = Array.isArray(n.mentions) && staffId && n.mentions.includes(staffId)
         return (
-          <div key={n.id} style={{ background: mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${mgr ? 'rgba(218,27,51,0.35)' : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+          <div key={n.id} style={{ background: forMe ? 'rgba(252,211,77,0.08)' : mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${forMe ? 'rgba(252,211,77,0.5)' : mgr ? 'rgba(218,27,51,0.35)' : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 3 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}{forMe && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: '#FCD34D', background: 'rgba(252,211,77,0.14)', border: '1px solid rgba(252,211,77,0.45)', borderRadius: 999, padding: '1px 7px' }}>@ mentions you</span>}</span>
               <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)' }}>{fmtWhen(n.date, n.created_at)}</span>
             </div>
             <div style={{ fontSize: 14, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
