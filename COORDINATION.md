@@ -46,3 +46,11 @@ your lane owns, and always from the latest merged `main`. If you deploy, jot it 
 so others know the live backend moved.
 
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
+
+## 11 Aug 2026 — finance lane touched src/rota/RotaPortal.jsx (founder-directed)
+Founder asked the finance session to add two cards to the staff-portal Profile view:
+**💷 Tips** (per-month card tips from `src/finance/tipsData.js` — finance owns that data file)
+and **🧾 Invoicing** (auto-built monthly invoice from clocked hours × rate + tips, copy button).
+Changes: ProfileView gains a `clocks` prop (passed from portal state), two new components
+TipsCard/InvoiceCard at the bottom of RotaPortal.jsx. No changes to rota logic, api, or shifts.
+Rota lane: shout if this steps on anything you're mid-flight on.

@@ -6,6 +6,7 @@ import { resizeImage } from '../dj/api.js'
 import StatementDoc from './StatementDoc.jsx'
 import { fmtMin, shiftTimeLabel, shiftHours, dayName, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { getFix, presenceBadge } from './geo.js'
+import { tipsForStaff, tipsForStaffMonth, TIPS_META } from '../finance/tipsData.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -526,7 +527,7 @@ export default function RotaPortal() {
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} reload={() => loadState(token)} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} reload={() => loadState(token)} />
         )}
       </div>
 
@@ -768,7 +769,7 @@ function Onboarding({ token, staff, docs, reload, goProfile }) {
   )
 }
 
-function ProfileView({ staff, onSave, busy, token, docs, reload }) {
+function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
@@ -809,6 +810,9 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         {staff.feedback_notes && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Feedback:</strong> {staff.feedback_notes}</div>}
         {staff.work_rules && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Notes:</strong> {staff.work_rules}</div>}
       </div>
+
+      <TipsCard staff={staff} />
+      <InvoiceCard staff={staff} clocks={clocks} />
 
       <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Your details — keep these up to date</div>
@@ -872,6 +876,101 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
           <StatementDoc signature={staff.soi_signature} signedAt={staff.soi_signed_at} version={staff.soi_version} name={staff.name} />
         </div>
       )}
+    </div>
+  )
+}
+
+
+// ─── Tips (finance lane feeds src/finance/tipsData.js) ──────────────────────
+function TipsCard({ staff }) {
+  const rows = tipsForStaff(staff.name)
+  const total = rows.reduce((a, r) => a + r.amount, 0)
+  return (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>💷 Your card tips</div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>No card tips recorded for you yet — tips tracking started {TIPS_META.coverageFrom}.</div>
+      ) : (
+        <>
+          {rows.map(r => (
+            <div key={r.month} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
+              <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
+              <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0 0', fontSize: 13.5 }}>
+            <span style={{ color: '#fff', fontWeight: 700 }}>Total recorded</span>
+            <span style={{ color: GREEN, fontWeight: 800 }}>£{total.toFixed(2)}</span>
+          </div>
+        </>
+      )}
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 1.5 }}>
+        Tips customers add on the card machine while you're on the till, tracked {TIPS_META.coverageFrom} – {TIPS_META.coverageTo}. 100% is passed on to you — no deductions except tax — paid with the month after they're earned. Add them to your invoice below.
+      </div>
+    </div>
+  )
+}
+
+// ─── Invoicing — build a ready-to-send invoice from clocked hours + tips ────
+function InvoiceCard({ staff, clocks }) {
+  const months = {}
+  for (const c of clocks) {
+    if (!c.date || !c.clock_in || !c.clock_out) continue
+    const m = c.date.slice(0, 7)
+    months[m] = (months[m] || 0) + (workedMins(c.clock_in, c.clock_out) || 0)
+  }
+  const monthKeys = Object.keys(months).sort().reverse().slice(0, 3)
+  const [month, setMonth] = useState(monthKeys[0] || '')
+  const [copied, setCopied] = useState(false)
+  if (!monthKeys.length) return null
+  const mins = months[month] || 0
+  const hours = Math.round((mins / 60) * 100) / 100
+  const rate = Number(staff.hourly_rate)
+  const rated = Number.isFinite(rate) && rate > 0
+  const pay = rated ? Math.round(hours * rate * 100) / 100 : 0
+  const tips = tipsForStaffMonth(staff.name, month)
+  const totalDue = Math.round((pay + tips) * 100) / 100
+  const label = new Date(month + '-15T12:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const today = new Date().toLocaleDateString('en-GB')
+  const invNo = `NDH-${month.replace('-', '')}-${String(staff.name || '').trim().split(/\s+/)[0].toUpperCase()}`
+  const text = [
+    'INVOICE  ' + invNo,
+    'Date: ' + today,
+    '',
+    'From: ' + (staff.name || ''),
+    (staff.address ? staff.address : '(add your address in Profile)'),
+    '',
+    'To: No Dice Hackney Ltd',
+    '407 Mentmore Terrace, London Fields, London E8 3PH',
+    '',
+    'Period: ' + label,
+    '',
+    'Bar work — ' + hoursLabel(mins) + (rated ? ' @ £' + rate.toFixed(2) + '/h:  £' + pay.toFixed(2) : ':  £____ (rate not set — ask the manager)'),
+    ...(tips > 0 ? ['Card tips (100% passed on):  £' + tips.toFixed(2)] : []),
+    'TOTAL DUE:  £' + (rated ? totalDue.toFixed(2) : '____'),
+    '',
+    'Pay to: ' + (staff.bank_name || '(account name)') + ' · ' + (staff.bank_sort || '(sort code)') + ' · ' + (staff.bank_account || '(account no.)'),
+  ].join('\n')
+  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {} }
+  return (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>🧾 Invoicing</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {monthKeys.map(m => (
+            <button key={m} onClick={() => setMonth(m)} style={{ ...btn(m === month ? 'red' : 'ghost'), padding: '5px 10px', fontSize: 11 }}>
+              {new Date(m + '-15T12:00:00Z').toLocaleDateString('en-GB', { month: 'short' })}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 10 }}>
+        Built from your clocked hours{tips > 0 ? ' and your card tips' : ''} for {label}. Check it, copy it, send it to elliot@nodice.bar.
+      </div>
+      <textarea readOnly value={text} style={{ ...inp, fontFamily: 'ui-monospace, monospace', fontSize: 11.5, minHeight: 210, lineHeight: 1.5, resize: 'vertical' }} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <button onClick={copy} style={btn('red')}>{copied ? '✓ Copied' : 'Copy invoice'}</button>
+      </div>
     </div>
   )
 }
