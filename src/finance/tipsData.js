@@ -20,6 +20,8 @@
 // and a £49.36 tip — under a flat "any food" rule the chef would have taken the
 // whole tip on someone else's drinks night.
 // If no kitchen-role staff clocked in that day, the kitchen share goes to Elliot.
+// Natthasiri left (inactive on the rota) — founder ruling 12 Aug: her kitchen
+// share goes to Elliot too. Any future export must apply the same redirect.
 // Kitchen team = staff with role "Kitchen / Barback" who clocked in that day.
 // Method: payments export joined to line transactions on (order total, time)
 // to see which orders had food; rota clock-ins give the chef. Days before the
@@ -64,7 +66,7 @@ export const TIPS_META = {
 // month (YYYY-MM) → first-name → £
 const TIPS_BY_MONTH = {
   '2026-06': { elliot: 153.48, rhys: 13.54, skye: 8.46 },
-  '2026-07': { skye: 168.29, theo: 139.33, elliot: 100.55, rhys: 36.18, natthasiri: 13.47, leonie: 0.34 },
+  '2026-07': { skye: 168.29, theo: 139.33, elliot: 114.02, rhys: 36.18, leonie: 0.34 },  // elliot incl. Natthasiri's £13.47 (founder 12 Aug — she has left)
   '2026-08': { skye: 61.11, theo: 44.32, elliot: 28.91, jude: 4.10, rhys: 1.38 },
 }
 
