@@ -905,7 +905,7 @@ function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
       <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Signs them up like an online booking: they join the tournament straight away and get an email with a secure Stripe link to pay the entry fee.</span>
       <input value={name} onChange={e => setName(e.target.value)} placeholder={nameLabel} disabled={busy} style={inp} />
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
-      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (optional)…" type="tel" disabled={busy} style={inp} />
+      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile — for their &quot;you're up next&quot; text…" type="tel" disabled={busy} style={inp} />
       {showPartner && <>
         <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
         <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
