@@ -64,6 +64,31 @@ const normalizeShiftTimes = (sv: unknown, ev: unknown): { start: number; end: nu
   return { start, end };
 };
 const cleanShiftLabel = (v: unknown, start: number, end: number) => (String(v || "").replace(/\s+/g, " ").trim().slice(0, 60)) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;
+
+// -- Manager goodwill vouchers: same ND- code + email design as tournament prizes --
+function voucherCode(seed: string) {
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  let out = "";
+  for (let i = 0; i < 6; i++) { out += A[h % 32]; h = (Math.floor(h / 32) ^ Math.imul(h, 2246822519)) >>> 0; }
+  return "ND-" + out;
+}
+const gbpV = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
+const goodwillEmail = (name: string, amount: number, code: string, reason: string | null) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice</p>
+    <h1 style="font-size:24px;margin:0 0 6px">A little something for you, ${esc(name)}</h1>
+    <p style="font-size:15px;line-height:1.6;color:#ddd">Here is a <strong style="color:#A855F7">${gbpV(amount)} bar tab</strong> from the team at No Dice${reason ? ` &mdash; ${esc(reason)}` : ""}.</p>
+    <div style="margin:20px 0;padding:16px;border:1px dashed #A855F7;border-radius:12px;text-align:center;background:#160e24">
+      <div style="font-size:12px;color:#b79ae0;text-transform:uppercase;letter-spacing:.1em">Your voucher</div>
+      <div style="font-size:30px;font-weight:800;color:#fff;margin:4px 0">${gbpV(amount)}</div>
+      <div style="font-size:18px;font-weight:700;letter-spacing:.14em;color:#A855F7">${code}</div>
+    </div>
+    <p style="font-size:13px;line-height:1.6;color:#aaa">Show this email at the bar to redeem. Valid on your next visit.</p>
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice &middot; 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+
 async function sendMail(to: string, subject: string, html: string) {
   if (!RESEND || !to) return;
   try {
@@ -637,6 +662,9 @@ Deno.serve(async (req) => {
         pool: { t: "pool_vouchers", nest: "pool_tournaments" },
         pingpong: { t: "pingpong_vouchers", nest: "pingpong_tournaments" },
       };
+      // Manager-issued goodwill vouchers have no tournament run behind them, but
+      // share the ND- code, the email design, and this redemption flow.
+      const MANAGER_T = "manager_vouchers";
       const MANAGER_RANK = 3;   // Asst. Manager and up
       if (action === "listPrizeVouchers") {
         if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
@@ -649,18 +677,40 @@ Deno.serve(async (req) => {
             out.push({ ...rest, sport, night_name: t.name || "", night_date: t.event_date || "" });
           }
         }
+        const { data: mvs } = await sb.from(MANAGER_T).select("*").order("created_at", { ascending: false }).limit(150);
+        for (const v of (mvs || []) as any[]) {
+          out.push({ ...v, sport: "manager", night_name: v.reason || "Manager voucher", night_date: String(v.created_at || "").slice(0, 10) });
+        }
         out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
         return json({ ok: true, vouchers: out });
       }
+      if (action === "sendCustomerVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const name = String(b.name ?? "").trim().slice(0, 60);
+        const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
+        const reason = String(b.reason ?? "").trim().slice(0, 120) || null;
+        const pence = Math.round(Number(b.amountPence));
+        if (!name) return json({ error: "Customer name required." }, 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Valid email required." }, 400);
+        // £1-£250: covers any goodwill gesture, small enough to stop a fat-finger.
+        if (!Number.isFinite(pence) || pence < 100 || pence > 25000) return json({ error: "Amount must be between £1 and £250." }, 400);
+        const code = voucherCode(crypto.randomUUID());
+        const { data: v, error } = await sb.from(MANAGER_T)
+          .insert({ code, display_name: name, email, amount_pence: pence, reason, issued_by: me.name })
+          .select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        await sendMail(email, `A ${gbpV(pence)} voucher from No Dice`, goodwillEmail(name, pence, code, reason));
+        return json({ ok: true, voucher: { ...v, sport: "manager", night_name: reason || "Manager voucher", night_date: String(v.created_at || "").slice(0, 10) } });
+      }
       if (action === "redeemPrizeVoucher") {
         if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
-        const cfg = VOUCHER_TABLES[String(b.sport)];
+        const table = String(b.sport) === "manager" ? MANAGER_T : VOUCHER_TABLES[String(b.sport)]?.t;
         const vid = clean(b.voucherId, 40);
-        if (!cfg || !vid) return json({ error: "Bad request." }, 400);
-        const { data: v } = await sb.from(cfg.t).select("*").eq("id", vid).maybeSingle();
+        if (!table || !vid) return json({ error: "Bad request." }, 400);
+        const { data: v } = await sb.from(table).select("*").eq("id", vid).maybeSingle();
         if (!v) return json({ error: "Voucher not found." }, 404);
         if (v.redeemed_at) return json({ error: `Already redeemed on ${String(v.redeemed_at).slice(0, 10)}${v.redeemed_by ? " by " + v.redeemed_by : ""}.` }, 409);
-        const { data, error } = await sb.from(cfg.t)
+        const { data, error } = await sb.from(table)
           .update({ redeemed_at: new Date().toISOString(), redeemed_by: me.name })
           .eq("id", vid).is("redeemed_at", null).select("*").single();
         if (error) return json({ error: error.message }, 400);
@@ -668,10 +718,10 @@ Deno.serve(async (req) => {
       }
       if (action === "unredeemPrizeVoucher") {
         if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
-        const cfg = VOUCHER_TABLES[String(b.sport)];
+        const table = String(b.sport) === "manager" ? MANAGER_T : VOUCHER_TABLES[String(b.sport)]?.t;
         const vid = clean(b.voucherId, 40);
-        if (!cfg || !vid) return json({ error: "Bad request." }, 400);
-        const { data, error } = await sb.from(cfg.t).update({ redeemed_at: null, redeemed_by: null }).eq("id", vid).select("*").single();
+        if (!table || !vid) return json({ error: "Bad request." }, 400);
+        const { data, error } = await sb.from(table).update({ redeemed_at: null, redeemed_by: null }).eq("id", vid).select("*").single();
         if (error) return json({ error: error.message }, 400);
         return json({ ok: true, voucher: data });
       }

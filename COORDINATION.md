@@ -41,6 +41,7 @@ never run destructive or "today"-dated test writes on real data.
 | bar | `push_subscriptions` + `toilet_checks` (NEW tables) — web-push opt-ins + 2-hourly toilet-hygiene check log. Additive only, no impact to other lanes. SQL in `supabase/toilet_hygiene.sql`; cron `toilet-hygiene-poll` `*/30 * * * *`. New `toilet-check` edge fn (deployed `--no-verify-jwt`) + VAPID_* secrets. | ✅ applied + deployed | 3 Aug 2026 |
 | tournament | Doubles prize split: `tournament_entries` + `partner_name`/`partner_email` (additive); `pool_vouchers` + `pingpong_vouchers` + `recipient` col, unique(run,place) → unique(run,place,recipient). Legacy full-amount vouchers untouched. SQL in `supabase/doubles_split.sql`. | ✅ applied | 6 Aug 2026 |
 | tournament | `pool_vouchers` + `pingpong_vouchers`: `redeemed_at timestamptz` + `redeemed_by text` (additive — voucher redemption tracking). SQL in `supabase/voucher_redemption.sql`. | ✅ applied | 12 Aug 2026 |
+| tournament | NEW table `manager_vouchers` (goodwill vouchers managers send to customers from the staff portal 🎟 Prizes tab — same ND- code + email design + redemption flow as tournament prizes). Additive; RLS on, no policies (service-role only). SQL in `supabase/manager_vouchers.sql`. | ✅ applied | 12 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
 ## Known architecture debt (all lanes — don't make it worse)
@@ -66,7 +67,8 @@ staff-portal login ("Managers need to be able to do this from their profiles - V
 Changes: (1) `supabase/functions/rota/index.ts` — three new **staff-token** actions
 `listPrizeVouchers` / `redeemPrizeVoucher` / `unredeemPrizeVoucher`, gated `staffRank >= 3`
 (Asst. Manager+), reading/writing the tournament lane's `pool_vouchers` + `pingpong_vouchers`
-tables (redeemed_by auto-set to the manager's name); (2) `src/rota/api.js` — three matching
+tables (redeemed_by auto-set to the manager's name), plus `sendCustomerVoucher` (goodwill
+vouchers → NEW `manager_vouchers` table, emailed via the rota fn's existing Resend helper); (2) `src/rota/api.js` — three matching
 call wrappers; (3) `src/rota/RotaPortal.jsx` — a 🎟 **Prizes** tab (after Reservations, shown
 only to Asst. Manager/Manager) + `PrizesView` component at the bottom of the file. No changes
 to shifts/clock/notes logic. **The `rota` edge fn was redeployed by the tournament lane for

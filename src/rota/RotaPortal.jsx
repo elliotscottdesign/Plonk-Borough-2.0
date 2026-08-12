@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -1045,7 +1045,22 @@ function PrizesView({ token }) {
   const [vouchers, setVouchers] = useState(null)
   const [q, setQ] = useState('')
   const [busy, setBusy] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [send, setSend] = useState({ name: '', email: '', amount: '', reason: '' })
   const load = async () => { try { const r = await rotaListPrizeVouchers(token); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) } }
+  const doSend = async () => {
+    const pounds = Number(send.amount)
+    if (!send.name.trim()) return alert('Customer name needed.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(send.email.trim())) return alert('Valid email needed \u2014 the voucher is sent there.')
+    if (!Number.isFinite(pounds) || pounds < 1 || pounds > 250) return alert('Amount must be between \u00a31 and \u00a3250.')
+    if (!window.confirm(`Send a \u00a3${pounds} voucher to ${send.name.trim()} (${send.email.trim()})?\n\nThey get the code by email straight away, logged under your name.`)) return
+    setBusy(true)
+    try {
+      await rotaSendCustomerVoucher(token, { name: send.name.trim(), email: send.email.trim(), amountPence: Math.round(pounds * 100), reason: send.reason.trim() })
+      setSend({ name: '', email: '', amount: '', reason: '' }); setSendOpen(false)
+      alert('Sent \u2014 the voucher is in their inbox.')
+    } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
   useEffect(() => { load() }, [])
   const doRedeem = async (v) => {
     if (!window.confirm(`Redeem ${v.code} — ${v.display_name || 'winner'}, £${Math.round((v.amount_pence || 0) / 100)} tab?\n\nThis uses the code up (recorded under your name).`)) return
@@ -1077,17 +1092,28 @@ function PrizesView({ token }) {
         </div>
       </div>
       <input value={q} onChange={e => setQ(e.target.value)} placeholder="Code from their email (e.g. JAVLKT) or name…" style={{ padding: '11px 12px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+      <button onClick={() => setSendOpen(o => !o)} style={{ background: sendOpen ? 'rgba(255,255,255,0.08)' : 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 9, padding: '10px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>🎁 Send a voucher to a customer {sendOpen ? '▴' : '▾'}</button>
+      {sendOpen && (
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>For goodwill — an apology, a thank-you, a regular you want to look after. The customer gets the code by email straight away, and it lands in this list to redeem like any prize.</div>
+          <input value={send.name} onChange={e => setSend(s => ({ ...s, name: e.target.value }))} placeholder="Customer name" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.email} onChange={e => setSend(s => ({ ...s, email: e.target.value }))} placeholder="Customer email" type="email" inputMode="email" autoCapitalize="none" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.amount} onChange={e => setSend(s => ({ ...s, amount: e.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Amount in £ (e.g. 10)" inputMode="decimal" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.reason} onChange={e => setSend(s => ({ ...s, reason: e.target.value }))} placeholder="Reason — optional, the customer sees it" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <button onClick={doSend} disabled={busy} style={{ background: GREEN, border: 'none', color: '#000', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{busy ? 'Sending…' : '🎁 Send voucher'}</button>
+        </div>
+      )}
       {vouchers === null ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>Loading…</div>
         : rows.length === 0 ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>{q ? 'No match — check the code letter by letter.' : 'No vouchers yet — they appear when tournaments finish.'}</div>
         : rows.map(v => {
-          const medal = v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+          const medal = v.sport === 'manager' ? '' : v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
           const redeemed = !!v.redeemed_at
           return (
             <div key={`${v.sport}-${v.id}`} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', opacity: redeemed ? 0.6 : 1 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                 <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{v.sport === 'pingpong' ? '🏓' : '🎱'} {medal} {v.display_name || '—'} <span style={{ color: AMBER, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)}</span></div>
-                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${v.night_date}` : ''}</div>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{v.sport === 'manager' ? '🎁' : v.sport === 'pingpong' ? '🏓' : '🎱'} {medal ? medal + ' ' : ''}{v.display_name || '—'} <span style={{ color: AMBER, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)}</span></div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${v.night_date}` : ''}{v.issued_by ? ` · sent by ${v.issued_by}` : ''}</div>
                 </div>
                 <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'ui-monospace, monospace', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
               </div>
