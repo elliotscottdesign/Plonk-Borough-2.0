@@ -2,7 +2,8 @@ import React, { useEffect, useRef, useState } from 'react'
 import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournSetDiscipline,
 } from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
@@ -48,6 +49,9 @@ export default function Tournament() {
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
+  const [voucherView, setVoucherView] = useState(false)  // 🎟 redemption panel
+  const [vouchers, setVouchers] = useState(null)
+  const [vSearch, setVSearch] = useState('')
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
   const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
@@ -107,6 +111,23 @@ export default function Tournament() {
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  // 🎟 Voucher redemption (founder brief 12 Aug 2026) — codes lock on redeem.
+  const openVouchers = async () => {
+    setVoucherView(true); setVouchers(null); setVSearch('')
+    try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) }
+  }
+  const reloadVouchers = async () => { try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (_) { /* keep stale list */ } }
+  const doRedeem = async (v) => {
+    const by = window.prompt(`Mark ${v.code} (${v.display_name || 'winner'}) as redeemed?\n\nYour name/initials (optional — just OK is fine):`)
+    if (by === null) return   // cancelled
+    setBusy(true)
+    try { await tournRedeemVoucher(v.id, by.trim()); await reloadVouchers() } catch (e) { alert(e.message); await reloadVouchers() } finally { setBusy(false) }
+  }
+  const doUnredeem = async (v) => {
+    if (!window.confirm(`Un-redeem ${v.code}? Use this only to fix a mis-tap.`)) return
+    setBusy(true)
+    try { await tournUnredeemVoucher(v.id); await reloadVouchers() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
   const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
@@ -152,6 +173,65 @@ export default function Tournament() {
   }
 
   // ── Season league table ─────────────────────────────────────────────────────
+
+  // ── Prize vouchers — look up a code, mark it redeemed (once), undo mistakes ──
+  if (voucherView) {
+    const q = vSearch.trim().toLowerCase().replace(/^nd-?/, '')
+    const rows = (vouchers || []).filter(v => {
+      if (!q) return true
+      const code = String(v.code || '').toLowerCase().replace(/^nd-?/, '')
+      return code.includes(q) || String(v.display_name || '').toLowerCase().includes(vSearch.trim().toLowerCase())
+    })
+    const outstanding = (vouchers || []).filter(v => !v.redeemed_at).reduce((t, v) => t + (v.amount_pence || 0), 0)
+    const gbpFmt = (p) => '£' + (p % 100 ? (p / 100).toFixed(2) : String(p / 100))
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <button onClick={() => setVoucherView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Back</button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎟 Prize vouchers</div>
+            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, maxWidth: 520, lineHeight: 1.5 }}>When a winner claims their bar tab, find their code (it's in their prize email), check the amount, and mark it redeemed — each code works exactly once.</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FCD34D' }}>{gbpFmt(outstanding)}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>outstanding tabs</div>
+          </div>
+        </div>
+        <input
+          value={vSearch}
+          onChange={e => setVSearch(e.target.value)}
+          placeholder="Type the code from their email (e.g. JAVLKT) or a name…"
+          style={{ padding: '11px 13px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }}
+        />
+        {vouchers === null ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>{vSearch ? 'No voucher matches that — check the code letter by letter.' : 'No vouchers yet — they appear when a tournament finishes.'}</div> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rows.map(v => {
+              const medal = v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+              const redeemed = !!v.redeemed_at
+              return (
+                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: CARD, border: `1px solid ${redeemed ? 'rgba(255,255,255,0.10)' : LINE}`, borderRadius: 11, padding: '11px 13px', opacity: redeemed ? 0.65 : 1 }}>
+                  <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{medal} {v.display_name || '—'} <span style={{ color: PURPLE, fontWeight: 800 }}>{gbpFmt(v.amount_pence || 0)}</span>{v.recipient === 2 ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}> · player 2</span> : null}</div>
+                    <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${fmtDate(v.night_date)}` : ''}{v.emailed_at ? ' · emailed ✓' : ' · not emailed'}</div>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.1em', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', fontFamily: 'ui-monospace, monospace', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
+                  {redeemed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>✓ redeemed {String(v.redeemed_at).slice(0, 10)}{v.redeemed_by ? ` · ${v.redeemed_by}` : ''}</span>
+                      <button onClick={() => doUnredeem(v)} disabled={busy} style={{ ...btn('ghost'), padding: '5px 10px', fontSize: 11 }}>Undo</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => doRedeem(v)} disabled={busy} style={{ ...btn('gold'), padding: '8px 14px', fontSize: 12.5 }}>✓ Mark redeemed</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (leagueView) {
     const rows = league?.table || []
     return (
@@ -261,7 +341,7 @@ export default function Tournament() {
             <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
           </div>
-          <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button onClick={openVouchers} style={pill(false)}>🎟 Vouchers</button><button onClick={openLeague} style={pill(false)}>🏆 League table</button></div>
         </div>
         {err && <div style={errBox}>{err}</div>}
         {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No pool nights booked yet.</div> : (

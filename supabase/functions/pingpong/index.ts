@@ -941,6 +941,43 @@ Deno.serve(async (req) => {
       return json({ ok: true, entry, participant, payUrl, emailed });
     }
 
+
+    // ── Vouchers: list / redeem / un-redeem (founder brief 12 Aug 2026) ──────
+    // The bar honours a prize by its code: staff look the code up, see who won
+    // what, and mark it redeemed — a voucher redeems ONCE (guarded at the DB
+    // update with .is("redeemed_at", null)); Undo exists for mis-taps.
+    if (action === "listVouchers") {
+      const { data: vs, error } = await sb.from("pingpong_vouchers")
+        .select("*, pingpong_tournaments(tournaments(name, event_date))")
+        .order("created_at", { ascending: false }).limit(200);
+      if (error) return json({ error: error.message }, 400);
+      const vouchers = (vs || []).map((v: any) => {
+        const t = v.pingpong_tournaments?.tournaments || {};
+        const { pingpong_tournaments: _drop, ...rest } = v;
+        return { ...rest, night_name: t.name || "", night_date: t.event_date || "" };
+      });
+      return json({ ok: true, vouchers });
+    }
+    if (action === "redeemVoucher") {
+      const id = clean(b.voucherId, 40);
+      const by = clean(b.by, 60);
+      const { data: v } = await sb.from("pingpong_vouchers").select("*").eq("id", id).maybeSingle();
+      if (!v) return json({ error: "Voucher not found." }, 404);
+      if (v.redeemed_at) return json({ error: `Already redeemed on ${String(v.redeemed_at).slice(0, 10)}${v.redeemed_by ? " by " + v.redeemed_by : ""}.` }, 409);
+      const { data, error } = await sb.from("pingpong_vouchers")
+        .update({ redeemed_at: new Date().toISOString(), redeemed_by: by || null })
+        .eq("id", id).is("redeemed_at", null).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, voucher: data });
+    }
+    if (action === "unredeemVoucher") {
+      const id = clean(b.voucherId, 40);
+      const { data, error } = await sb.from("pingpong_vouchers")
+        .update({ redeemed_at: null, redeemed_by: null }).eq("id", id).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, voucher: data });
+    }
+
     // Add a walk-in (cash at the bar). Flagged source=manual so the books reconcile.
     if (action === "addManual") {
       const runId = clean(b.runId, 40);
