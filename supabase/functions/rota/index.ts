@@ -545,7 +545,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -626,6 +626,56 @@ Deno.serve(async (req) => {
       }
 
       // Staff leave a handover note on a day's shift (the next team reads it).
+
+      // ── 🎟 Prize vouchers (managers only — founder brief 12 Aug 2026) ──────
+      // Managers redeem winners' bar-tab codes from their own portal, mid-shift.
+      // The redeeming manager's name is recorded automatically from their login;
+      // a code redeems ONCE (guarded update); Undo exists for mis-taps. Reads and
+      // writes the tournament engines' voucher tables directly (cross-lane by
+      // founder direction — see COORDINATION.md 12 Aug 2026).
+      const VOUCHER_TABLES: Record<string, { t: string; nest: string }> = {
+        pool: { t: "pool_vouchers", nest: "pool_tournaments" },
+        pingpong: { t: "pingpong_vouchers", nest: "pingpong_tournaments" },
+      };
+      const MANAGER_RANK = 3;   // Asst. Manager and up
+      if (action === "listPrizeVouchers") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const out: any[] = [];
+        for (const [sport, cfg] of Object.entries(VOUCHER_TABLES)) {
+          const { data } = await sb.from(cfg.t).select(`*, ${cfg.nest}(tournaments(name, event_date))`).order("created_at", { ascending: false }).limit(150);
+          for (const v of (data || []) as any[]) {
+            const t = v[cfg.nest]?.tournaments || {};
+            const rest = { ...v }; delete rest[cfg.nest];
+            out.push({ ...rest, sport, night_name: t.name || "", night_date: t.event_date || "" });
+          }
+        }
+        out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        return json({ ok: true, vouchers: out });
+      }
+      if (action === "redeemPrizeVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const cfg = VOUCHER_TABLES[String(b.sport)];
+        const vid = clean(b.voucherId, 40);
+        if (!cfg || !vid) return json({ error: "Bad request." }, 400);
+        const { data: v } = await sb.from(cfg.t).select("*").eq("id", vid).maybeSingle();
+        if (!v) return json({ error: "Voucher not found." }, 404);
+        if (v.redeemed_at) return json({ error: `Already redeemed on ${String(v.redeemed_at).slice(0, 10)}${v.redeemed_by ? " by " + v.redeemed_by : ""}.` }, 409);
+        const { data, error } = await sb.from(cfg.t)
+          .update({ redeemed_at: new Date().toISOString(), redeemed_by: me.name })
+          .eq("id", vid).is("redeemed_at", null).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, voucher: data });
+      }
+      if (action === "unredeemPrizeVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const cfg = VOUCHER_TABLES[String(b.sport)];
+        const vid = clean(b.voucherId, 40);
+        if (!cfg || !vid) return json({ error: "Bad request." }, 400);
+        const { data, error } = await sb.from(cfg.t).update({ redeemed_at: null, redeemed_by: null }).eq("id", vid).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, voucher: data });
+      }
+
       if (action === "addShiftNote") {
         const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : todayISO();
         const body = String(b.body || "").trim().slice(0, 1000);

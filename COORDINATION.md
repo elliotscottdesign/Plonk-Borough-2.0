@@ -60,6 +60,20 @@ so others know the live backend moved.
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
 - **`tournament` + `pingpong`** redeployed with WhatsApp up-next wiring — 11 Aug 2026, tournament lane. New project secrets: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WA_FROM` (sandbox sender for the trial) / `TWILIO_CONTENT_SID_UP_NEXT`. Messaging stays dormant-safe: send failures never affect tournament flow.
 
+## 12 Aug 2026 — tournament lane touched rota files (founder-directed)
+Founder asked the tournament session to give managers voucher redemption from their own
+staff-portal login ("Managers need to be able to do this from their profiles - Vouchers tab").
+Changes: (1) `supabase/functions/rota/index.ts` — three new **staff-token** actions
+`listPrizeVouchers` / `redeemPrizeVoucher` / `unredeemPrizeVoucher`, gated `staffRank >= 3`
+(Asst. Manager+), reading/writing the tournament lane's `pool_vouchers` + `pingpong_vouchers`
+tables (redeemed_by auto-set to the manager's name); (2) `src/rota/api.js` — three matching
+call wrappers; (3) `src/rota/RotaPortal.jsx` — a 🎟 **Prizes** tab (after Reservations, shown
+only to Asst. Manager/Manager) + `PrizesView` component at the bottom of the file. No changes
+to shifts/clock/notes logic. **The `rota` edge fn was redeployed by the tournament lane for
+this** — the deploy also shipped whatever was on main, including the staged CRON_SECRET-gated
+staff-reminder action (inert until its secret + cron exist). Rota lane: shout if this steps on
+anything mid-flight.
+
 ## 11 Aug 2026 — finance lane touched src/rota/RotaPortal.jsx (founder-directed)
 Founder asked the finance session to add two cards to the staff-portal Profile view:
 **💷 Tips** (per-month card tips from `src/finance/tipsData.js` — finance owns that data file)

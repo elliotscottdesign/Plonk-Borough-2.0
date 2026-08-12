@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -321,7 +321,8 @@ export default function RotaPortal() {
   // Kitchen food-safety is its own clear tab for EVERY kitchen-trained member — not
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const managerTier = ['Asst. Manager', 'Manager'].includes(staff?.role)
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -528,6 +529,7 @@ export default function RotaPortal() {
 
         {view === 'cocktails' && <CocktailSpecs embedded />}
 
+        {view === 'prizes' && managerTier && <PrizesView token={token} />}
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
@@ -1032,3 +1034,74 @@ const btn = (kind) => {
 }
 const inp = { width: '100%', minWidth: 0, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', boxSizing: 'border-box' }
 const linkBtn = { background: 'none', border: 'none', padding: 0, color: RED, fontWeight: 700, fontSize: 'inherit', cursor: 'pointer', textDecoration: 'underline' }
+
+
+// ── 🎟 Prizes (managers only) — redeem tournament bar-tab vouchers ──────────
+// Founder brief 12 Aug 2026: managers redeem winners' codes from their own
+// portal, mid-shift. Who redeemed is recorded automatically (their login);
+// codes lock after one use; Undo fixes mis-taps. Rank is enforced server-side
+// — hiding the tab is UX, not security.
+function PrizesView({ token }) {
+  const [vouchers, setVouchers] = useState(null)
+  const [q, setQ] = useState('')
+  const [busy, setBusy] = useState(false)
+  const load = async () => { try { const r = await rotaListPrizeVouchers(token); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) } }
+  useEffect(() => { load() }, [])
+  const doRedeem = async (v) => {
+    if (!window.confirm(`Redeem ${v.code} — ${v.display_name || 'winner'}, £${Math.round((v.amount_pence || 0) / 100)} tab?\n\nThis uses the code up (recorded under your name).`)) return
+    setBusy(true)
+    try { await rotaRedeemPrizeVoucher(token, v.sport, v.id) } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
+  const doUndo = async (v) => {
+    if (!window.confirm(`Un-redeem ${v.code}? Only to fix a mis-tap.`)) return
+    setBusy(true)
+    try { await rotaUnredeemPrizeVoucher(token, v.sport, v.id) } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
+  const norm = q.trim().toLowerCase().replace(/^nd-?/, '')
+  const rows = (vouchers || []).filter(v => {
+    if (!norm) return true
+    const code = String(v.code || '').toLowerCase().replace(/^nd-?/, '')
+    return code.includes(norm) || String(v.display_name || '').toLowerCase().includes(q.trim().toLowerCase())
+  })
+  const outstanding = (vouchers || []).filter(v => !v.redeemed_at).reduce((t, v) => t + (v.amount_pence || 0), 0)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>🎟 Prize vouchers</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 3, lineHeight: 1.5 }}>Winner shows their prize email → find the code → check the amount → mark it redeemed. Each code works once, logged under your name.</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: AMBER }}>£{Math.round(outstanding / 100)}</div>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>outstanding</div>
+        </div>
+      </div>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Code from their email (e.g. JAVLKT) or name…" style={{ padding: '11px 12px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+      {vouchers === null ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>Loading…</div>
+        : rows.length === 0 ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>{q ? 'No match — check the code letter by letter.' : 'No vouchers yet — they appear when tournaments finish.'}</div>
+        : rows.map(v => {
+          const medal = v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+          const redeemed = !!v.redeemed_at
+          return (
+            <div key={`${v.sport}-${v.id}`} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', opacity: redeemed ? 0.6 : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{v.sport === 'pingpong' ? '🏓' : '🎱'} {medal} {v.display_name || '—'} <span style={{ color: AMBER, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)}</span></div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${v.night_date}` : ''}</div>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'ui-monospace, monospace', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {redeemed
+                  ? <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>✓ redeemed {String(v.redeemed_at).slice(0, 10)}{v.redeemed_by ? ` by ${v.redeemed_by}` : ''}</span>
+                      <button onClick={() => doUndo(v)} disabled={busy} style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.7)', borderRadius: 7, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>Undo</button>
+                    </div>
+                  : <button onClick={() => doRedeem(v)} disabled={busy} style={{ background: RED, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 14px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', width: '100%' }}>✓ Mark redeemed</button>}
+              </div>
+            </div>
+          )
+        })}
+    </div>
+  )
+}
