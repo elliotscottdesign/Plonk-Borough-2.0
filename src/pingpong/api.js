@@ -32,6 +32,10 @@ export const tournNextRound = (runId) => call({ action: 'generateNextRound', run
 export const tournEnterScore = (matchId, p1_score, p2_score) => call({ action: 'enterScore', matchId, p1_score, p2_score })
 export const tournEnterGames = (matchId, games) => call({ action: 'enterScore', matchId, games })   // best-of-3 final / 3rd-place
 export const tournClearScore = (matchId) => call({ action: 'clearScore', matchId })
+// 📣 Manual call-up — text both players of a match (or a whole round) on demand.
+// Returns who was texted / who has no number / who failed, so the screen can say so.
+export const tournCallPlayers = (matchId) => call({ action: 'callPlayers', matchId })
+export const tournCallRound = (roundId) => call({ action: 'callPlayers', roundId })
 export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound', runId })
 
 // Slice 3 — knockout bracket.

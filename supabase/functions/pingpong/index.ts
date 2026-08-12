@@ -796,6 +796,50 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
+    // ── 📣 Manual "call players" — the founder presses this ─────────────────
+    // The auto-ping fires when a table is assigned, but on a busy night the
+    // founder needs to call a pair over on demand (they wandered off, the text
+    // never landed, a walk-up joined late). Takes a match OR a whole round, and
+    // REPORTS BACK who was texted, who has no number on file, and who failed —
+    // so the screen tells the truth instead of failing silently.
+    if (action === "callPlayers") {
+      const matchId = clean(b.matchId, 40);
+      const roundId = clean(b.roundId, 40);
+      if (!matchId && !roundId) return json({ error: "Nothing to call." }, 400);
+      let q = sb.from("pingpong_matches").select("*");
+      q = matchId ? q.eq("id", matchId) : q.eq("round_id", roundId);
+      const { data: ms } = await q;
+      const live = (ms || []).filter((m: any) => !m.is_bye && m.p1_id && m.p2_id && m.status !== "done");
+      if (!live.length) return json({ ok: true, sent: [], noPhone: [], failed: [], note: "Nothing to call — those matches are done." });
+      const ids = [...new Set(live.flatMap((m: any) => [m.p1_id, m.p2_id]))];
+      const { data: ps } = await sb.from("pingpong_participants").select("id, display_name, entry_id").in("id", ids);
+      const byId: Record<string, any> = {};
+      for (const p of ps || []) byId[p.id] = p;
+      const entryIds = (ps || []).map((p: any) => p.entry_id).filter(Boolean);
+      const phoneByEntry: Record<string, string | null> = {};
+      if (entryIds.length) {
+        const { data: es } = await sb.from("tournament_entries").select("id, captain_phone").in("id", entryIds);
+        for (const e of es || []) phoneByEntry[e.id] = e.captain_phone;
+      }
+      const sent: string[] = [], noPhone: string[] = [], failed: string[] = [];
+      for (const m of live) {
+        const p1 = byId[m.p1_id], p2 = byId[m.p2_id];
+        if (!p1 || !p2) continue;
+        const table = m.table_number;
+        for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
+          const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
+          if (!to) { noPhone.push(me.display_name); continue; }
+          const where = table ? `table ${table}` : "the tables";
+          const text = `🏓 ${me.display_name} — you're up NEXT at No Dice! Come to ${where}, playing ${opp.display_name}. Good luck! 🍀`;
+          let ok = false;
+          if (!PREFER_SMS && TW_FROM && table) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+          if (!ok) ok = await sendSMS(to, text);
+          (ok ? sent : failed).push(me.display_name);
+        }
+      }
+      return json({ ok: true, sent, noPhone, failed });
+    }
+
     if (action === "clearScore") {
       const matchId = clean(b.matchId, 40);
       const { data: m } = await sb.from("pingpong_matches").select("*").eq("id", matchId).maybeSingle();

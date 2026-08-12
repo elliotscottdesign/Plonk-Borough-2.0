@@ -3,8 +3,7 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher,
-} from '../../pingpong/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound } from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
 // Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
@@ -108,6 +107,23 @@ export default function PingPong() {
   }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  // 📣 Call players over — texts both sides on demand and SAYS what happened
+  // (founder direction, tournament night 12 Aug 2026: the automatic ping was
+  // invisible, so there was no way to tell a silent failure from a sent text).
+  const [callMsg, setCallMsg] = useState(null)
+  const callPlayers = async (matchId, roundId) => {
+    if (busy) return
+    setBusy(true); setCallMsg(null)
+    try {
+      const r = matchId ? await tournCallPlayers(matchId) : await tournCallRound(roundId)
+      const bits = []
+      if (r.sent?.length) bits.push(`📣 Texted ${r.sent.length}: ${r.sent.join(', ')}`)
+      if (r.noPhone?.length) bits.push(`📵 No number on file — call these over yourself: ${r.noPhone.join(', ')}`)
+      if (r.failed?.length) bits.push(`⚠️ Text failed for ${r.failed.join(', ')} — shout for them`)
+      if (r.note) bits.push(r.note)
+      setCallMsg(bits.length ? bits.join('  ·  ') : 'Nobody to call.')
+    } catch (e) { setCallMsg('⚠️ ' + e.message) } finally { setBusy(false) }
+  }
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top teams seed into a single-elimination bracket from the standings.\n\nMatches: first to ${koRaceTo} points, win by 2${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
@@ -513,7 +529,10 @@ export default function PingPong() {
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Round {rnd.ordinal}</div>
-                <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {ri === 0 && done < rms.length && <button onClick={() => callPlayers(null, rnd.id)} disabled={busy} title="Text everyone still to play in this round" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>📣 Call players</button>}
+                  <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {rms.map(m => {
@@ -528,6 +547,7 @@ export default function PingPong() {
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
+                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2 }}>📣</button>}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -550,6 +570,9 @@ export default function PingPong() {
                   <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
                 </div>
                 {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+                {callMsg && (
+                  <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
+                )}
                 {orderedRounds.length > 1 && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 700 }}>Earlier rounds ↓</div>}
               </div>
             )}
