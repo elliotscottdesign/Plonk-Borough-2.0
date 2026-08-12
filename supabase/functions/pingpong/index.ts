@@ -654,7 +654,7 @@ Deno.serve(async (req) => {
         ok: true,
         tournaments: (tourns || []).map((t: any) => ({
           id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time,
-          type: t.tournament_type, cap: t.max_teams || 12, paid: paidCount[t.id] || 0,
+          type: t.tournament_type, cap: t.max_teams || 999, paid: paidCount[t.id] || 0,
           bookable: t.bookable, registration_open: t.registration_open,
           run: runByT[t.id] ? { id: runByT[t.id].id, status: runByT[t.id].status } : null,
         })),
@@ -690,7 +690,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 12 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
@@ -963,9 +963,14 @@ Deno.serve(async (req) => {
         pingpong_tournament_id: runId, entry_id: entry.id, display_name: name, source: "manual",
       }).select("*").single();
       if (pErr) return json({ error: pErr.message }, 400);
-      let emailed = false;
-      if (payUrl) emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
-      return json({ ok: true, entry, participant, payUrl, emailed });
+      let emailed = false, texted = false;
+      if (payUrl) {
+        emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
+        // Also TEXT the link — a walk-up at the bar reads a text, not an inbox.
+        const sms = e164(phone);
+        if (sms) texted = await sendSMS(sms, `🏓 You're in, ${name}! Pay ${gbp(fee)} to confirm your ${t.name} entry: ${payUrl}`);
+      }
+      return json({ ok: true, entry, participant, payUrl, emailed, texted });
     }
 
 

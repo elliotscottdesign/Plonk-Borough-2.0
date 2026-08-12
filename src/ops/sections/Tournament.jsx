@@ -313,7 +313,7 @@ export default function Tournament() {
         }}>
           <span style={{ position: 'absolute', top: 3, right: 5, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{cell.day}</span>
           <span style={{ fontSize: 15, lineHeight: 1 }}>{t.type === 'doubles' ? '👥' : t.type === 'singles' ? '👤' : '🎱'}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.paid}/{t.cap}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.cap >= 999 ? t.paid : `${t.paid}/${t.cap}`}</span>
           {t.run && <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: GREEN, lineHeight: 1 }}>{t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
           {evs.length > 1 && <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>+{evs.length - 1}</span>}
         </button>
@@ -361,7 +361,7 @@ export default function Tournament() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: full ? RED : '#fff' }}>{nextT.paid}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {nextT.cap}</span></div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: full ? RED : '#fff' }}>{nextT.paid}{nextT.cap < 999 && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {nextT.cap}</span>}</div>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: full ? RED : 'rgba(255,255,255,0.4)' }}>{full ? 'Full' : 'booked'}</div>
                   </div>
                 </button>
@@ -423,7 +423,7 @@ export default function Tournament() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}<span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}{t.cap < 999 && <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span>}</div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
           </div>
           {/* Hamburger opens a slide-out drawer with every tournament option
