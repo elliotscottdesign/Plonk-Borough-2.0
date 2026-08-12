@@ -84,3 +84,15 @@ Changes: ProfileView gains a `clocks` prop (passed from portal state), two new c
 TipsCard/InvoiceCard at the bottom of RotaPortal.jsx. No changes to rota logic, api, or shifts.
 Rota lane: shout if this steps on anything you're mid-flight on.
 
+
+## 12 Aug 2026 — integration session touched tournament + pingpong fns (founder-directed, urgent)
+Founder's WhatsApp templates were still PENDING with Meta on tournament night, so the
+"you're up next" auto-ping had no working channel. Added an **SMS fallback** to
+`supabase/functions/{tournament,pingpong}/index.ts`: new `sendSMS()` using a UK
+**alphanumeric sender** (`TWILIO_SMS_FROM`, default "NoDice" — no phone number to buy,
+no Meta approval, one-way) and `notifyMatchReady` now sends WhatsApp when its template
+is live, else SMS (and SMS on any WhatsApp failure). New project secret
+`NOTIFY_PREFER_SMS=1` forces SMS — **unset it when the WhatsApp template approves** and
+WhatsApp resumes automatically with SMS as the fallback. Guard relaxed (SMS doesn't need
+TW_FROM). Both fns redeployed. Delivery proven live (alphanumeric SMS → founder's phone,
+status=delivered). Tournament lane: this is your file — shout if it conflicts.

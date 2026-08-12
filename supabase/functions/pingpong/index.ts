@@ -41,6 +41,28 @@ async function sendMail(to: string, subject: string, html: string) {
     return true;
   } catch (_) { return false; }
 }
+
+// ── SMS fallback (works TONIGHT — no Meta template approval needed) ──────────
+// WhatsApp business-initiated messages need an approved template; ours were
+// still pending with Meta on 12 Aug. UK alphanumeric sender IDs need no number
+// and no approval, so the "you're up next" call-up goes out as a text from
+// "NoDice" (one-way — players can't reply, which is what we want).
+// NOTIFY_PREFER_SMS=1 forces SMS; unset it once the WhatsApp template approves
+// and WhatsApp is used again automatically (SMS stays the fallback).
+const TW_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM") || "NoDice";
+const PREFER_SMS = Deno.env.get("NOTIFY_PREFER_SMS") === "1";
+
+async function sendSMS(to: string, body: string): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN) return false;
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body }),
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
 const gbp = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
 const voucherEmail = (name: string, place: number, amount: number, code: string, tournName: string) => {
   const ord = place === 1 ? "1st" : place === 2 ? "2nd" : "3rd";
@@ -294,7 +316,7 @@ async function sendWhatsApp(to: string, vars: { name: string; table: number; opp
 // skipped silently (the founder calls them the old way).
 async function notifyMatchReady(sb: any, m: any, table: number) {
   try {
-    if (!TW_SID || !TW_TOKEN || !TW_FROM) return;
+    if (!TW_SID || !TW_TOKEN) return;   // SMS needs no WhatsApp sender
     const { data: ps } = await sb.from("pingpong_participants").select("id, display_name, entry_id").in("id", [m.p1_id, m.p2_id]);
     const byId: Record<string, any> = {};
     for (const p of ps || []) byId[p.id] = p;
@@ -308,7 +330,12 @@ async function notifyMatchReady(sb: any, m: any, table: number) {
     }
     for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
       const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
-      if (to) await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+      if (!to) continue;
+      const text = `🏓 ${me.display_name} — you're up NEXT at No Dice! Table ${table}, playing ${opp.display_name}. Good luck! 🍀`;
+      // WhatsApp when its template is live; otherwise (and on any failure) SMS.
+      let ok = false;
+      if (!PREFER_SMS && TW_FROM) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+      if (!ok) await sendSMS(to, text);
     }
   } catch (_) { /* notifications must never break the tournament */ }
 }
