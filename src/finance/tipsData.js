@@ -11,14 +11,20 @@
 // Payout rules (Employment (Allocation of Tips) Act 2023): 100% passed on,
 // no deductions except tax, paid by end of the month after they were earned.
 //
-// KITCHEN FOOD-TIP RULE (founder, 12 Aug 2026): if an order contained ANY food
-// (accounting group Food or Bar Food) then the WHOLE tip on that order goes to
-// the kitchen team who worked that shift, split equally if more than one chef.
+// KITCHEN FOOD-TIP RULE (founder, 12 Aug 2026, revised same day):
+//   * order is FOOD-LED (food >= 50% of the order value) -> the WHOLE tip goes
+//     to the kitchen team on that shift, split equally between them;
+//   * order is mostly drinks with food on the side -> the kitchen gets the
+//     food's proportion of the tip, the bar keeps the rest.
+// The revision exists because a £493.64 party tab on 18 Jul carried £27 of food
+// and a £49.36 tip — under a flat "any food" rule the chef would have taken the
+// whole tip on someone else's drinks night.
+// If no kitchen-role staff clocked in that day, the kitchen share goes to Elliot.
 // Kitchen team = staff with role "Kitchen / Barback" who clocked in that day.
 // Method: payments export joined to line transactions on (order total, time)
 // to see which orders had food; rota clock-ins give the chef. Days before the
-// rota went live (8 Jul 2026) have no chef on record — those food tips stay
-// with the bar staff until the founder confirms who cooked.
+// rota went live (8 Jul 2026) have no chef on record — that kitchen share goes
+// to Elliot (founder ruling 12 Aug).
 
 // Per-day food sales, food-order tips and the chef(s) on shift — 19 Jun to
 // 31 Jul 2026. "—" days had no kitchen-role staff clocked in.
@@ -42,7 +48,9 @@ export const FOOD_TIP_DAYS = [
 ]
 // Food sales on days with no tips are omitted above; full-period food sales
 // 19 Jun–31 Jul = £3,525.33, of which £95.71 of tips arrived on food orders.
-export const FOOD_TIP_TOTALS = { foodSales: 3525.33, foodTips: 95.71, assignedToChefs: 65.28, awaitingChefName: 30.43 }
+// Kitchen pot under the food-led rule: Jun £3.79 · Jul £24.58 · Aug (to 10th) £6.05.
+// Total tips are unchanged at £773.46 — this rule only moves money between people.
+export const FOOD_TIP_TOTALS = { foodSales: 3525.33, foodTipsRaw: 95.71, kitchenShare: 28.37, period: '19 Jun - 31 Jul 2026' }
 
 export const TIPS_META = {
   updated: '11 Aug 2026',
@@ -55,12 +63,9 @@ export const TIPS_META = {
 
 // month (YYYY-MM) → first-name → £
 const TIPS_BY_MONTH = {
-  '2026-06': { elliot: 153.48, rhys: 13.54, skye: 8.46 },              // elliot incl. Jonny B £17.48
-  // July after the KITCHEN FOOD-TIP RULE (see FOOD_TIP_RULE below): £65.28 of
-  // tips on orders containing food moved from the bar logins to the chefs on
-  // that shift. £20.15 stays with the bar (June/early-July days have no rota).
-  '2026-07': { skye: 120.47, theo: 143.40, elliot: 89.93, rhys: 38.38, natthasiri: 64.24, leonie: 1.04 },
-  '2026-08': { theo: 47.92, skye: 61.61, elliot: 28.86, rhys: 2.13 },    // elliot incl. unattributed £4.30
+  '2026-06': { elliot: 153.48, rhys: 13.54, skye: 8.46 },
+  '2026-07': { skye: 168.29, theo: 139.33, elliot: 100.55, rhys: 36.18, natthasiri: 13.47, leonie: 0.34 },
+  '2026-08': { skye: 61.11, theo: 44.32, elliot: 28.91, jude: 4.10, rhys: 1.38 },
 }
 
 const MONTH_LABELS = { '2026-06': 'June 2026 (from 19th)', '2026-07': 'July 2026', '2026-08': 'August 2026' }
