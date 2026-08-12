@@ -401,6 +401,11 @@ export default function Tournament() {
   const matches = run.matches || []
   const standings = run.standings || []
   const nameById = Object.fromEntries(parts.map(p => [p.id, p.display_name]))
+  // Display order for the rounds column: NEWEST first (founder direction
+  // 12 Aug 2026) so the round being played sits at the top, level with the
+  // standings, and finished rounds stack underneath. `rounds` itself stays in
+  // DB order — curRound and every id lookup depend on it.
+  const orderedRounds = [...rounds].sort((a, b) => (b.ordinal || 0) - (a.ordinal || 0))
   const curRound = rounds[rounds.length - 1]
   const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
 
@@ -479,21 +484,23 @@ export default function Tournament() {
         <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
       </>}
 
-      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (oldest at top, new
-          rounds append at the bottom), standings on the RIGHT. Every "option"
+      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (NEWEST at top, older
+          rounds stack below), standings on the RIGHT. Every "option"
           (substitute player, undo, start knockout, restart…) lives in the ☰
           drawer so the founder can find them in one predictable place. ══ */}
       {status === 'rounds' && <>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
-          {/* LEFT — rounds (oldest first, "+ Add another round" at the bottom) */}
+          {/* LEFT — rounds (newest first, "+ Add another round" under the current one) */}
           <div style={{ flex: '2 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Rounds — oldest at top, newest at the bottom so the page reads like
-            a match log written down the page (founder direction 2026-07-30). */}
-        {rounds.map(rnd => {
+        {/* Rounds — newest at top so the round in play is always the first thing
+            you see, next to the standings; older rounds read down the page as
+            history (founder direction 12 Aug 2026, replacing the 30 Jul order). */}
+        {orderedRounds.map((rnd, ri) => {
           const rms = matches.filter(m => m.round_id === rnd.id).sort((a, b) => (a.slot || 0) - (b.slot || 0))
           const done = rms.filter(m => m.status === 'done').length
           return (
-            <div key={rnd.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <React.Fragment key={rnd.id}>
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Round {rnd.ordinal}</div>
                 <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
@@ -524,17 +531,25 @@ export default function Tournament() {
                 })}
               </div>
             </div>
+            {/* "+ Add another round" sits directly UNDER the current round, so a
+                new draw appears immediately above it and the older rounds below
+                stay out of the way. Always enabled; pairings use standings so far. */}
+            {ri === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, marginBottom: 4 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
+                </div>
+                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+                {orderedRounds.length > 1 && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 700 }}>Earlier rounds ↓</div>}
+              </div>
+            )}
+            </React.Fragment>
           )
         })}
 
-        {/* "+ Add another round" sits at the BOTTOM of the rounds column so
-            the next round appears immediately below when clicked — matches
-            the "reads down the page" founder direction. Always enabled;
-            pairings use standings-so-far if the current round isn't finished. */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+        {orderedRounds.length === 0 && (
           <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
-        </div>
-        {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+        )}
           </div>
 
           {/* RIGHT — live standings (reference column). Sticky (founder rule
