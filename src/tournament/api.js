@@ -43,7 +43,11 @@ export const tournStartKnockout = (runId, thirdPlace, raceTo, finalBestOf3) => c
 
 // Slice 4 — vouchers + league + grand final.
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
-export const tournFinalize = (runId) => call({ action: 'finalize', runId })                  // re-run voucher emails
+export const tournFinalize = (runId) => call({ action: 'finalize', runId })
+// 🔗 League merges — reconnect a returning walk-in's earlier points to the
+// identity they play under now. Read-time only; undo restores the split.
+export const tournMergeLeague = (discipline, fromKey, toKey) => call({ action: 'mergeLeague', discipline, fromKey, toKey })
+export const tournUnmergeLeague = (discipline, fromKey) => call({ action: 'unmergeLeague', discipline, fromKey })                  // re-run voucher emails
 export const tournListVouchers = () => call({ action: 'listVouchers' })                        // all prize vouchers + redemption state
 export const tournRedeemVoucher = (voucherId, by) => call({ action: 'redeemVoucher', voucherId, by })   // one-shot: locks the code
 export const tournUnredeemVoucher = (voucherId) => call({ action: 'unredeemVoucher', voucherId })       // undo a mis-tap
