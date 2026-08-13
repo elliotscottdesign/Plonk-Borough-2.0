@@ -68,6 +68,38 @@ export default function Tournament() {
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
+
+  // ── Live auto-refresh (20s) ─────────────────────────────────────────────
+  // Keeps the screen current without a manual reload: a walk-up paying their
+  // texted Stripe link flips to 🎟️ paid, online sales appear, and a second
+  // device's changes show up. Deliberately conservative on a LIVE tournament
+  // night — it skips entirely while you're mid-action (saving, renaming,
+  // substituting) or the tab is in the background, and a response that was
+  // requested before your latest action is discarded. Typed scores live in
+  // separate state (`scores` / `gameScores`), so a refresh never wipes them.
+  const liveRef = useRef({})
+  const lastMutation = useRef(0)
+  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing } })
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const s = liveRef.current
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (s.busy || inFlight.current || s.editing || s.replacing) return
+      const startedAt = Date.now()
+      try {
+        if (s.view === 'run' && s.tid) {
+          const r = await tournOpen(s.tid)
+          if (startedAt < lastMutation.current) return   // our own change is newer
+          setRun(r)
+        } else if (s.view === 'list') {
+          const r = await tournList()
+          if (startedAt < lastMutation.current) return
+          setTourns(r.tournaments || [])
+        }
+      } catch (_) { /* silent — next tick tries again */ }
+    }, 20000)
+    return () => clearInterval(id)
+  }, [])
   // In-flight lock via ref, not just state: two taps in the same frame both see
   // busy=false (setState is async), so a fast double-tap on "+ Add another round"
   // could fire twice and generate TWO rounds (happened live 5 Aug 2026). The ref
@@ -77,7 +109,8 @@ export default function Tournament() {
     if (inFlight.current) return
     inFlight.current = true
     setBusy(true)
-    try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
+    lastMutation.current = Date.now()
+    try { await fn(...a); await refresh(); lastMutation.current = Date.now() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
   }
 
   const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
