@@ -10,6 +10,7 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import HowItWorks from './sections/HowItWorks.jsx'
 import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
@@ -34,6 +35,9 @@ const GROUPS = [
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
       { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
+      // The founder's system map — how every service fits together. Founder-only
+      // (mentions costs + internals); open it to team-tier if the founder asks.
+      { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
     ],
   },
   {
@@ -45,7 +49,10 @@ const GROUPS = [
       { key: 'djbookings',   label: 'DJ Bookings',  Component: DJBookings },
       { key: 'tournament',   label: 'Tournament',   Component: Tournament, founderOnly: true },
       { key: 'pingpong',     label: 'Ping Pong',    Component: PingPong, founderOnly: true },
-      { key: 'worldcup',     label: 'World Cup',    Component: WorldCup },
+      // World Cup hidden 7 Aug 2026 (tournament's over on the customer site
+      // too — /worldcup redirects to /book there). Component + import kept;
+      // uncomment this line to bring the tab back for the next tournament.
+      // { key: 'worldcup',     label: 'World Cup',    Component: WorldCup },
       { key: 'keydates',     label: 'Key Dates',    Component: KeyDates, founderOnly: true },
     ],
   },

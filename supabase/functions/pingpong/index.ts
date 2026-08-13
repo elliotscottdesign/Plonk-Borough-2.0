@@ -41,6 +41,28 @@ async function sendMail(to: string, subject: string, html: string) {
     return true;
   } catch (_) { return false; }
 }
+
+// ── SMS fallback (works TONIGHT — no Meta template approval needed) ──────────
+// WhatsApp business-initiated messages need an approved template; ours were
+// still pending with Meta on 12 Aug. UK alphanumeric sender IDs need no number
+// and no approval, so the "you're up next" call-up goes out as a text from
+// "NoDice" (one-way — players can't reply, which is what we want).
+// NOTIFY_PREFER_SMS=1 forces SMS; unset it once the WhatsApp template approves
+// and WhatsApp is used again automatically (SMS stays the fallback).
+const TW_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM") || "NoDice";
+const PREFER_SMS = Deno.env.get("NOTIFY_PREFER_SMS") === "1";
+
+async function sendSMS(to: string, body: string): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN) return false;
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body }),
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
 const gbp = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
 const voucherEmail = (name: string, place: number, amount: number, code: string, tournName: string) => {
   const ord = place === 1 ? "1st" : place === 2 ? "2nd" : "3rd";
@@ -243,6 +265,81 @@ async function generateRound(sb: any, run: any) {
   return { round };
 }
 
+
+// ── WhatsApp "you're up next" (founder brief 6 Aug 2026) ─────────────────────
+// Fires the moment a match is handed a physical table — the exact moment the
+// founder used to run around the venue rounding players up. DORMANT until the
+// Twilio secrets are set (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN /
+// TWILIO_WA_FROM): with them set but no approved template yet it sends a
+// plain-text body (works in Twilio's sandbox for the trial); once Meta
+// approves the tournament_up_next template, set TWILIO_CONTENT_SID_UP_NEXT
+// and it switches to the template automatically. Failures never break the
+// tournament — messaging is best-effort by design.
+const TW_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TW_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TW_FROM = Deno.env.get("TWILIO_WA_FROM");
+const TW_CONTENT_UP_NEXT = Deno.env.get("TWILIO_CONTENT_SID_UP_NEXT");
+
+// Normalise a UK-entered phone to E.164; returns null (= skip, never misfire)
+// when the number can't be normalised confidently.
+function e164(ukPhone: string | null | undefined): string | null {
+  if (!ukPhone) return null;
+  const d = String(ukPhone).replace(/[^0-9+]/g, "");
+  if (d.startsWith("+")) return d.length > 8 ? d : null;
+  if (d.startsWith("07") && d.length === 11) return "+44" + d.slice(1);
+  if (d.startsWith("447") && d.length === 12) return "+" + d;
+  if (d.startsWith("00")) return "+" + d.slice(2);
+  return null;
+}
+
+async function sendWhatsApp(to: string, vars: { name: string; table: number; opponent: string }): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN || !TW_FROM) return false;
+  const body = new URLSearchParams({ From: TW_FROM, To: `whatsapp:${to}` });
+  if (TW_CONTENT_UP_NEXT) {
+    body.set("ContentSid", TW_CONTENT_UP_NEXT);
+    body.set("ContentVariables", JSON.stringify({ "1": vars.name, "2": String(vars.table), "3": vars.opponent }));
+  } else {
+    body.set("Body", `🏓 ${vars.name} — get ready, you're up NEXT at No Dice! Come to table ${vars.table} — you're playing ${vars.opponent}. Good luck! 🍀`);
+  }
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
+
+// Message both sides of a match that just got a table. Phones come from the
+// booking (captain_phone via entry_id) — walk-ins without a booking are
+// skipped silently (the founder calls them the old way).
+async function notifyMatchReady(sb: any, m: any, table: number) {
+  try {
+    if (!TW_SID || !TW_TOKEN) return;   // SMS needs no WhatsApp sender
+    const { data: ps } = await sb.from("pingpong_participants").select("id, display_name, entry_id").in("id", [m.p1_id, m.p2_id]);
+    const byId: Record<string, any> = {};
+    for (const p of ps || []) byId[p.id] = p;
+    const p1 = byId[m.p1_id], p2 = byId[m.p2_id];
+    if (!p1 || !p2) return;
+    const entryIds = [p1.entry_id, p2.entry_id].filter(Boolean);
+    const phoneByEntry: Record<string, string | null> = {};
+    if (entryIds.length) {
+      const { data: es } = await sb.from("tournament_entries").select("id, captain_phone").in("id", entryIds);
+      for (const e of es || []) phoneByEntry[e.id] = e.captain_phone;
+    }
+    for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
+      const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
+      if (!to) continue;
+      const text = `🏓 ${me.display_name} — you're up NEXT at No Dice! Table ${table}, playing ${opp.display_name}. Good luck! 🍀`;
+      // WhatsApp when its template is live; otherwise (and on any failure) SMS.
+      let ok = false;
+      if (!PREFER_SMS && TW_FROM) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+      if (!ok) await sendSMS(to, text);
+    }
+  } catch (_) { /* notifications must never break the tournament */ }
+}
+
 // ── Physical table assignment ────────────────────────────────────────────────
 // The venue has TWO tables. Each match sits at exactly one of them while
 // it's being played; freeing the table (match done) lets the next pending
@@ -305,6 +402,7 @@ async function reassignTables(sb: any, runId: string) {
     occupied.add(t);
     busy.add(m.p1_id);
     busy.add(m.p2_id);
+    await notifyMatchReady(sb, m, t);   // WhatsApp both sides — table's ready
   }
 }
 
@@ -556,7 +654,7 @@ Deno.serve(async (req) => {
         ok: true,
         tournaments: (tourns || []).map((t: any) => ({
           id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time,
-          type: t.tournament_type, cap: t.max_teams || 12, paid: paidCount[t.id] || 0,
+          type: t.tournament_type, cap: t.max_teams || 999, paid: paidCount[t.id] || 0,
           bookable: t.bookable, registration_open: t.registration_open,
           run: runByT[t.id] ? { id: runByT[t.id].id, status: runByT[t.id].status } : null,
         })),
@@ -592,7 +690,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 12 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
@@ -698,6 +796,50 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
+    // ── 📣 Manual "call players" — the founder presses this ─────────────────
+    // The auto-ping fires when a table is assigned, but on a busy night the
+    // founder needs to call a pair over on demand (they wandered off, the text
+    // never landed, a walk-up joined late). Takes a match OR a whole round, and
+    // REPORTS BACK who was texted, who has no number on file, and who failed —
+    // so the screen tells the truth instead of failing silently.
+    if (action === "callPlayers") {
+      const matchId = clean(b.matchId, 40);
+      const roundId = clean(b.roundId, 40);
+      if (!matchId && !roundId) return json({ error: "Nothing to call." }, 400);
+      let q = sb.from("pingpong_matches").select("*");
+      q = matchId ? q.eq("id", matchId) : q.eq("round_id", roundId);
+      const { data: ms } = await q;
+      const live = (ms || []).filter((m: any) => !m.is_bye && m.p1_id && m.p2_id && m.status !== "done");
+      if (!live.length) return json({ ok: true, sent: [], noPhone: [], failed: [], note: "Nothing to call — those matches are done." });
+      const ids = [...new Set(live.flatMap((m: any) => [m.p1_id, m.p2_id]))];
+      const { data: ps } = await sb.from("pingpong_participants").select("id, display_name, entry_id").in("id", ids);
+      const byId: Record<string, any> = {};
+      for (const p of ps || []) byId[p.id] = p;
+      const entryIds = (ps || []).map((p: any) => p.entry_id).filter(Boolean);
+      const phoneByEntry: Record<string, string | null> = {};
+      if (entryIds.length) {
+        const { data: es } = await sb.from("tournament_entries").select("id, captain_phone").in("id", entryIds);
+        for (const e of es || []) phoneByEntry[e.id] = e.captain_phone;
+      }
+      const sent: string[] = [], noPhone: string[] = [], failed: string[] = [];
+      for (const m of live) {
+        const p1 = byId[m.p1_id], p2 = byId[m.p2_id];
+        if (!p1 || !p2) continue;
+        const table = m.table_number;
+        for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
+          const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
+          if (!to) { noPhone.push(me.display_name); continue; }
+          const where = table ? `table ${table}` : "the tables";
+          const text = `🏓 ${me.display_name} — you're up NEXT at No Dice! Come to ${where}, playing ${opp.display_name}. Good luck! 🍀`;
+          let ok = false;
+          if (!PREFER_SMS && TW_FROM && table) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+          if (!ok) ok = await sendSMS(to, text);
+          (ok ? sent : failed).push(me.display_name);
+        }
+      }
+      return json({ ok: true, sent, noPhone, failed });
+    }
+
     if (action === "clearScore") {
       const matchId = clean(b.matchId, 40);
       const { data: m } = await sb.from("pingpong_matches").select("*").eq("id", matchId).maybeSingle();
@@ -865,9 +1007,51 @@ Deno.serve(async (req) => {
         pingpong_tournament_id: runId, entry_id: entry.id, display_name: name, source: "manual",
       }).select("*").single();
       if (pErr) return json({ error: pErr.message }, 400);
-      let emailed = false;
-      if (payUrl) emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
-      return json({ ok: true, entry, participant, payUrl, emailed });
+      let emailed = false, texted = false;
+      if (payUrl) {
+        emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
+        // Also TEXT the link — a walk-up at the bar reads a text, not an inbox.
+        const sms = e164(phone);
+        if (sms) texted = await sendSMS(sms, `🏓 You're in, ${name}! Pay ${gbp(fee)} to confirm your ${t.name} entry: ${payUrl}`);
+      }
+      return json({ ok: true, entry, participant, payUrl, emailed, texted });
+    }
+
+
+    // ── Vouchers: list / redeem / un-redeem (founder brief 12 Aug 2026) ──────
+    // The bar honours a prize by its code: staff look the code up, see who won
+    // what, and mark it redeemed — a voucher redeems ONCE (guarded at the DB
+    // update with .is("redeemed_at", null)); Undo exists for mis-taps.
+    if (action === "listVouchers") {
+      const { data: vs, error } = await sb.from("pingpong_vouchers")
+        .select("*, pingpong_tournaments(tournaments(name, event_date))")
+        .order("created_at", { ascending: false }).limit(200);
+      if (error) return json({ error: error.message }, 400);
+      const vouchers = (vs || []).map((v: any) => {
+        const t = v.pingpong_tournaments?.tournaments || {};
+        const { pingpong_tournaments: _drop, ...rest } = v;
+        return { ...rest, night_name: t.name || "", night_date: t.event_date || "" };
+      });
+      return json({ ok: true, vouchers });
+    }
+    if (action === "redeemVoucher") {
+      const id = clean(b.voucherId, 40);
+      const by = clean(b.by, 60);
+      const { data: v } = await sb.from("pingpong_vouchers").select("*").eq("id", id).maybeSingle();
+      if (!v) return json({ error: "Voucher not found." }, 404);
+      if (v.redeemed_at) return json({ error: `Already redeemed on ${String(v.redeemed_at).slice(0, 10)}${v.redeemed_by ? " by " + v.redeemed_by : ""}.` }, 409);
+      const { data, error } = await sb.from("pingpong_vouchers")
+        .update({ redeemed_at: new Date().toISOString(), redeemed_by: by || null })
+        .eq("id", id).is("redeemed_at", null).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, voucher: data });
+    }
+    if (action === "unredeemVoucher") {
+      const id = clean(b.voucherId, 40);
+      const { data, error } = await sb.from("pingpong_vouchers")
+        .update({ redeemed_at: null, redeemed_by: null }).eq("id", id).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, voucher: data });
     }
 
     // Add a walk-in (cash at the bar). Flagged source=manual so the books reconcile.

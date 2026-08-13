@@ -89,7 +89,7 @@ export default function DJJoin() {
         <div style={{ fontSize: 15, lineHeight: 1.6, color: 'rgba(255,255,255,0.8)', marginBottom: 8 }}>We've got your details. Our booking team will have a listen and be in touch.</div>
         <div style={{ fontSize: 13, lineHeight: 1.6, color: 'rgba(255,255,255,0.5)' }}>Nothing else to do for now. Keep an eye on your email — that's where your personal booking link will land once you're approved.</div>
         <div style={{ marginTop: 24, display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noopener noreferrer" style={{ padding: '11px 22px', fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, color: '#fff', background: RED, borderRadius: 8, textDecoration: 'none' }}>Follow @nodicelondon</a>
+          <a href="https://www.instagram.com/nodice.bar/" target="_blank" rel="noopener noreferrer" style={{ padding: '11px 22px', fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 700, color: '#fff', background: RED, borderRadius: 8, textDecoration: 'none' }}>Follow @nodice.bar</a>
           <a href="/" style={{ padding: '11px 22px', fontSize: 12, letterSpacing: '0.14em', textTransform: 'uppercase', fontWeight: 600, color: '#fff', background: 'transparent', border: `1px solid ${LINE}`, borderRadius: 8, textDecoration: 'none' }}>Back to nodice.bar</a>
         </div>
       </div>
@@ -112,7 +112,7 @@ export default function DJJoin() {
         />
         {gateErr && <div style={{ fontSize: 13, color: '#F87171', marginTop: 10, lineHeight: 1.5 }}>{gateErr}</div>}
         <button onClick={enterGate} disabled={!code.trim()} style={{ marginTop: 14, width: '100%', padding: '14px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: code.trim() ? 'pointer' : 'default', opacity: code.trim() ? 1 : 0.5 }}>Continue</button>
-        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 12 }}>Don't have the code? Ask us on <a href="https://www.instagram.com/nodicelondon/" target="_blank" rel="noopener noreferrer" style={{ color: RED, textDecoration: 'none' }}>@nodicelondon</a>.</div>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', textAlign: 'center', lineHeight: 1.5, marginTop: 12 }}>Don't have the code? Ask us on <a href="https://www.instagram.com/nodice.bar/" target="_blank" rel="noopener noreferrer" style={{ color: RED, textDecoration: 'none' }}>@nodice.bar</a>.</div>
       </div>
     </>
   )

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState, useCallback, useRef } from 'react'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 import useIsMobile from '../../lib/useIsMobile.js'
+import { opsReservationArrive } from '../../rota/api.js'
 
 // ─── Reservations — customer bookings + tournament sign-ups (near-live) ────
 // 2026-08-02 — bridges the two-site split. nodice.bar writes bookings to the
@@ -44,7 +45,16 @@ async function pgGet(path) {
 
 // ── Date helpers ────────────────────────────────────────────────────────────
 const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-const todayIso = () => iso(new Date())
+// "Today" is the 8am-anchored OPERATING day (London), matching the staff portal +
+// clocking: until 8am, the night in progress still counts as yesterday — so the
+// door list doesn't flip to tomorrow's bookings at midnight mid-service.
+const todayIso = () => {
+  const parts = {}
+  for (const p of new Intl.DateTimeFormat('en-GB', { timeZone: 'Europe/London', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', hour12: false }).formatToParts(new Date())) parts[p.type] = p.value
+  const day = `${parts.year}-${parts.month}-${parts.day}`
+  if ((parseInt(parts.hour, 10) || 0) % 24 < 8) { const d = new Date(day + 'T12:00:00Z'); d.setUTCDate(d.getUTCDate() - 1); return d.toISOString().slice(0, 10) }
+  return day
+}
 const plusDays = (base, n) => { const d = new Date(base + 'T00:00:00'); d.setDate(d.getDate() + n); return iso(d) }
 const fmtDay = (isoDate) => new Date(isoDate + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
 const fmtTime = (hhmmss) => hhmmss ? hhmmss.slice(0, 5) : '—'
@@ -63,6 +73,28 @@ export default function Reservations() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [lastRefresh, setLastRefresh] = useState(null)
+  const [arrivals, setArrivals] = useState({})      // `${kind}:${id}` → { staff_name, arrived_at } — shared tick state
+  // A poll response requested BEFORE the latest tick must not clobber it (it would
+  // silently un-tick the row for up to 15s). Toggles bump this; reload only applies
+  // its arrivals snapshot if no toggle happened after the fetch started.
+  const lastMutation = useRef(0)
+
+  // Tick / untick "they've arrived" — same shared state the staff portals write.
+  const toggleArrive = useCallback(async (r) => {
+    const key = `${r.kind}:${r.id}`
+    const prev = arrivals[key]                       // exact value to restore on failure
+    const on = !prev
+    lastMutation.current = Date.now()
+    setArrivals(a => { const n = { ...a }; if (on) n[key] = { staff_name: 'Manager', arrived_at: new Date().toISOString() }; else delete n[key]; return n })   // optimistic
+    try {
+      const resp = await opsReservationArrive(r.kind, String(r.id), r.date, on)
+      lastMutation.current = Date.now()
+      setArrivals(a => { const n = { ...a }; if (resp.arrived) n[key] = resp.arrived; else delete n[key]; return n })
+    } catch (e) {
+      setArrivals(a => { const n = { ...a }; if (prev) n[key] = prev; else delete n[key]; return n })   // restore what was there
+      alert(e.message || 'Could not save the tick — try again.')
+    }
+  }, [arrivals])
 
   // Date window for the query
   const { from, to } = useMemo(() => {
@@ -72,10 +104,11 @@ export default function Reservations() {
 
   const reload = useCallback(async () => {
     setErr('')
+    const startedAt = Date.now()   // for the stale-snapshot guard on arrivals
     try {
       // Fire the three source queries in parallel — one bad table shouldn't
       // block the good ones (Promise.allSettled), then normalise into one list.
-      const [barRes, tournRes, golfRes] = await Promise.allSettled([
+      const [barRes, tournRes, golfRes, arrRes] = await Promise.allSettled([
         pgGet(`bar_reservations?select=id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes,status,heard_from&status=eq.confirmed&reservation_date=gte.${from}&reservation_date=lte.${to}&order=reservation_date,start_time`),
         // tournament_entries joined to tournaments for event date/name. Filter
         // the join column via PostgREST's foreign-table syntax.
@@ -83,10 +116,16 @@ export default function Reservations() {
         // Golf catalogue bookings — likely empty until plonkgolf.co.uk relaunch
         // sends volume through here. Included so the pattern is in place.
         pgGet(`bookings?select=id,reference,customer_name,customer_email,customer_phone,party_size,total_pence,status,created_at,booking_slots(slot_date,slot_time)&status=eq.confirmed&order=created_at.desc&limit=100`),
+        // Arrival ticks (shared with every staff portal) — anon key is read-only
+        // on this table; ticking goes through the rota edge fn.
+        pgGet(`reservation_arrivals?select=kind,ref_id,staff_name,arrived_at&res_date=gte.${from}&res_date=lte.${to}`),
       ])
       const bar = barRes.status === 'fulfilled' ? barRes.value : []
       const tourn = tournRes.status === 'fulfilled' ? tournRes.value : []
       const golf = golfRes.status === 'fulfilled' ? golfRes.value : []
+      const arrMap = {}
+      if (arrRes.status === 'fulfilled') for (const a of arrRes.value) arrMap[`${a.kind}:${a.ref_id}`] = { staff_name: a.staff_name, arrived_at: a.arrived_at }
+      if (startedAt >= lastMutation.current) setArrivals(arrMap)   // discard pre-tick snapshots
 
       const out = []
       for (const r of bar) {
@@ -122,8 +161,10 @@ export default function Reservations() {
       }
       for (const g of golf) {
         const slots = (g.booking_slots || []).slice().sort((a, b) => `${a.slot_date}T${a.slot_time}`.localeCompare(`${b.slot_date}T${b.slot_time}`))
-        const first = slots[0]
-        if (!first || first.slot_date < from || first.slot_date > to) continue
+        // Multi-day bookings: show the first slot INSIDE the window (an earlier slot
+        // on a previous day must not hide the whole booking from this view).
+        const first = slots.find(s => s.slot_date >= from && s.slot_date <= to)
+        if (!first) continue
         out.push({
           id: g.id,
           kind: 'golf',
@@ -208,7 +249,7 @@ export default function Reservations() {
             border-color: #999 !important; box-shadow: none !important;
           }
           .rs-print-root h1, .rs-print-root h2 { color: #000 !important; }
-          .rs-row { break-inside: avoid; page-break-inside: avoid; }
+          .rs-row { break-inside: avoid; page-break-inside: avoid; opacity: 1 !important; }
         }
         .rs-print-only { display: none; }
       `}</style>
@@ -270,7 +311,7 @@ export default function Reservations() {
               </span>
             </div>
           )}
-          {byDate[date].map(r => <ReservationRow key={r.kind + ':' + r.id} r={r} className="rs-row" />)}
+          {byDate[date].map(r => <ReservationRow key={r.kind + ':' + r.id} r={r} className="rs-row" arrived={arrivals[`${r.kind}:${r.id}`]} onToggle={() => toggleArrive(r)} />)}
         </div>
       ))}
     </div>
@@ -280,10 +321,20 @@ export default function Reservations() {
 // ── Row ────────────────────────────────────────────────────────────────────
 // Desktop: one grid line (kind · time · details · party). Phone: STACKED — the
 // old fixed grid made the kind label and time print over each other at 375px.
-function ReservationRow({ r, className }) {
+function ReservationRow({ r, className, arrived, onToggle }) {
   const meta = KIND_META[r.kind] || { emoji: '·', label: r.kind, color: 'rgba(255,255,255,0.5)' }
   const big = r.party >= BIG_PARTY_THRESHOLD
   const isMobile = useIsMobile()
+
+  // Shared "they've arrived" tick — the same state every staff portal writes.
+  const tick = (
+    <button className="rs-no-print" onClick={onToggle} title={arrived ? `Arrived${arrived.staff_name ? ` — ticked by ${arrived.staff_name}` : ''} · click to undo` : 'Tick when they walk in'} style={{
+      padding: isMobile ? '8px 10px' : '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 800, whiteSpace: 'nowrap',
+      background: arrived ? 'rgba(52,211,153,0.15)' : 'rgba(255,255,255,0.05)',
+      border: `1.5px solid ${arrived ? GREEN : 'rgba(255,255,255,0.2)'}`,
+      color: arrived ? GREEN : 'var(--cream-dim)', width: isMobile ? '100%' : 'auto', marginTop: isMobile ? 8 : 0,
+    }}>{arrived ? '✓ Arrived' : '✓ Arrived?'}</button>
+  )
 
   const details = (
     <>
@@ -312,15 +363,16 @@ function ReservationRow({ r, className }) {
           {r.extra && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{r.extra}</span>}
         </div>
         {details}
+        {tick}
       </div>
     )
   }
 
   return (
     <div className={className} style={{
-      display: 'grid', gridTemplateColumns: 'auto 60px minmax(140px, 1fr) auto',
+      display: 'grid', gridTemplateColumns: 'auto 60px minmax(140px, 1fr) auto auto',
       gap: 12, alignItems: 'center', padding: '10px 14px',
-      background: CARD, border: `1px solid ${LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10,
+      background: CARD, border: `1px solid ${arrived ? 'rgba(52,211,153,0.4)' : LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10, opacity: arrived ? 0.85 : 1,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <span style={{ fontSize: 18 }}>{meta.emoji}</span>
@@ -336,6 +388,7 @@ function ReservationRow({ r, className }) {
         {details}
       </div>
       <div style={{ fontSize: 20, fontWeight: 800, color: big ? AMBER : 'var(--cream)', minWidth: 32, textAlign: 'right' }}>{r.party || '—'}</div>
+      {tick}
     </div>
   )
 }

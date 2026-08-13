@@ -3,7 +3,7 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-} from '../../pingpong/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound } from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
 // Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
@@ -51,6 +51,9 @@ export default function PingPong() {
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
+  const [voucherView, setVoucherView] = useState(false)  // 🎟 redemption panel
+  const [vouchers, setVouchers] = useState(null)
+  const [vSearch, setVSearch] = useState('')
   const [league, setLeague] = useState(null)            // ping pong has ONE league: teams (no singles/doubles)
   const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
 
@@ -104,11 +107,45 @@ export default function PingPong() {
   }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  // 📣 Call players over — texts both sides on demand and SAYS what happened
+  // (founder direction, tournament night 12 Aug 2026: the automatic ping was
+  // invisible, so there was no way to tell a silent failure from a sent text).
+  const [callMsg, setCallMsg] = useState(null)
+  const callPlayers = async (matchId, roundId) => {
+    if (busy) return
+    setBusy(true); setCallMsg(null)
+    try {
+      const r = matchId ? await tournCallPlayers(matchId) : await tournCallRound(roundId)
+      const bits = []
+      if (r.sent?.length) bits.push(`📣 Texted ${r.sent.length}: ${r.sent.join(', ')}`)
+      if (r.noPhone?.length) bits.push(`📵 No number on file — call these over yourself: ${r.noPhone.join(', ')}`)
+      if (r.failed?.length) bits.push(`⚠️ Text failed for ${r.failed.join(', ')} — shout for them`)
+      if (r.note) bits.push(r.note)
+      setCallMsg(bits.length ? bits.join('  ·  ') : 'Nobody to call.')
+    } catch (e) { setCallMsg('⚠️ ' + e.message) } finally { setBusy(false) }
+  }
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top teams seed into a single-elimination bracket from the standings.\n\nMatches: first to ${koRaceTo} points, win by 2${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async () => { setBusy(true); try { setLeague(await tournGetLeague('teams')) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openLeague = async () => { setLeagueView(true); await loadLeague() }
+  // 🎟 Voucher redemption (founder brief 12 Aug 2026) — codes lock on redeem.
+  const openVouchers = async () => {
+    setVoucherView(true); setVouchers(null); setVSearch('')
+    try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) }
+  }
+  const reloadVouchers = async () => { try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (_) { /* keep stale list */ } }
+  const doRedeem = async (v) => {
+    const by = window.prompt(`Mark ${v.code} (${v.display_name || 'winner'}) as redeemed?\n\nYour name/initials (optional — just OK is fine):`)
+    if (by === null) return   // cancelled
+    setBusy(true)
+    try { await tournRedeemVoucher(v.id, by.trim()); await reloadVouchers() } catch (e) { alert(e.message); await reloadVouchers() } finally { setBusy(false) }
+  }
+  const doUnredeem = async (v) => {
+    if (!window.confirm(`Un-redeem ${v.code}? Use this only to fix a mis-tap.`)) return
+    setBusy(true)
+    try { await tournUnredeemVoucher(v.id); await reloadVouchers() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
   const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
@@ -164,6 +201,65 @@ export default function PingPong() {
   }
 
   // ── Season league table ─────────────────────────────────────────────────────
+
+  // ── Prize vouchers — look up a code, mark it redeemed (once), undo mistakes ──
+  if (voucherView) {
+    const q = vSearch.trim().toLowerCase().replace(/^nd-?/, '')
+    const rows = (vouchers || []).filter(v => {
+      if (!q) return true
+      const code = String(v.code || '').toLowerCase().replace(/^nd-?/, '')
+      return code.includes(q) || String(v.display_name || '').toLowerCase().includes(vSearch.trim().toLowerCase())
+    })
+    const outstanding = (vouchers || []).filter(v => !v.redeemed_at).reduce((t, v) => t + (v.amount_pence || 0), 0)
+    const gbpFmt = (p) => '£' + (p % 100 ? (p / 100).toFixed(2) : String(p / 100))
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <button onClick={() => setVoucherView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Back</button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎟 Prize vouchers</div>
+            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, maxWidth: 520, lineHeight: 1.5 }}>When a winner claims their bar tab, find their code (it's in their prize email), check the amount, and mark it redeemed — each code works exactly once.</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FCD34D' }}>{gbpFmt(outstanding)}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>outstanding tabs</div>
+          </div>
+        </div>
+        <input
+          value={vSearch}
+          onChange={e => setVSearch(e.target.value)}
+          placeholder="Type the code from their email (e.g. JAVLKT) or a name…"
+          style={{ padding: '11px 13px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }}
+        />
+        {vouchers === null ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>{vSearch ? 'No voucher matches that — check the code letter by letter.' : 'No vouchers yet — they appear when a tournament finishes.'}</div> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rows.map(v => {
+              const medal = v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+              const redeemed = !!v.redeemed_at
+              return (
+                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: CARD, border: `1px solid ${redeemed ? 'rgba(255,255,255,0.10)' : LINE}`, borderRadius: 11, padding: '11px 13px', opacity: redeemed ? 0.65 : 1 }}>
+                  <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{medal} {v.display_name || '—'} <span style={{ color: PURPLE, fontWeight: 800 }}>{gbpFmt(v.amount_pence || 0)}</span>{v.recipient === 2 ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}> · player 2</span> : null}</div>
+                    <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${fmtDate(v.night_date)}` : ''}{v.emailed_at ? ' · emailed ✓' : ' · not emailed'}</div>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.1em', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', fontFamily: 'ui-monospace, monospace', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
+                  {redeemed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>✓ redeemed {String(v.redeemed_at).slice(0, 10)}{v.redeemed_by ? ` · ${v.redeemed_by}` : ''}</span>
+                      <button onClick={() => doUnredeem(v)} disabled={busy} style={{ ...btn('ghost'), padding: '5px 10px', fontSize: 11 }}>Undo</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => doRedeem(v)} disabled={busy} style={{ ...btn('gold'), padding: '8px 14px', fontSize: 12.5 }}>✓ Mark redeemed</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (leagueView) {
     const rows = league?.table || []
     return (
@@ -270,7 +366,7 @@ export default function PingPong() {
             <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏓 Ping Pong tournaments</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked ping pong nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
           </div>
-          <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button onClick={openVouchers} style={pill(false)}>🎟 Vouchers</button><button onClick={openLeague} style={pill(false)}>🏆 League table</button></div>
         </div>
         {err && <div style={errBox}>{err}</div>}
         {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No ping pong nights booked yet.</div> : (
@@ -329,6 +425,11 @@ export default function PingPong() {
   const matches = run.matches || []
   const standings = run.standings || []
   const nameById = Object.fromEntries(parts.map(p => [p.id, p.display_name]))
+  // Display order for the rounds column: NEWEST first (founder direction
+  // 12 Aug 2026) so the round being played sits at the top, level with the
+  // standings, and finished rounds stack underneath. `rounds` itself stays in
+  // DB order — curRound and every id lookup depend on it.
+  const orderedRounds = [...rounds].sort((a, b) => (b.ordinal || 0) - (a.ordinal || 0))
   const curRound = rounds[rounds.length - 1]
   const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
 
@@ -407,26 +508,31 @@ export default function PingPong() {
         <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
       </>}
 
-      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (oldest at top, new
-          rounds append at the bottom), standings on the RIGHT. Every "option"
+      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (NEWEST at top, older
+          rounds stack below), standings on the RIGHT. Every "option"
           (substitute player, undo, start knockout, restart…) lives in the ☰
           drawer so the founder can find them in one predictable place. ══ */}
       {status === 'rounds' && <>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
-          {/* LEFT — rounds (oldest first, "+ Add another round" at the bottom) */}
+          {/* LEFT — rounds (newest first, "+ Add another round" under the current one) */}
           <div style={{ flex: '2 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
         {/* Score entry hint — deuce rule (founder 3 Aug 2026): first to 11, win by 2. */}
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Games are <strong style={{ color: 'rgba(255,255,255,0.75)' }}>first to 11, win by 2</strong>. Pick the <strong style={{ color: 'rgba(255,255,255,0.75)' }}>loser's</strong> score and the winner fills itself in — deuce included (pick 10 → 12–10, pick 13 → 15–13).</div>
-        {/* Rounds — oldest at top, newest at the bottom so the page reads like
-            a match log written down the page (founder direction 2026-07-30). */}
-        {rounds.map(rnd => {
+        {/* Rounds — newest at top so the round in play is always the first thing
+            you see, next to the standings; older rounds read down the page as
+            history (founder direction 12 Aug 2026, replacing the 30 Jul order). */}
+        {orderedRounds.map((rnd, ri) => {
           const rms = matches.filter(m => m.round_id === rnd.id).sort((a, b) => (a.slot || 0) - (b.slot || 0))
           const done = rms.filter(m => m.status === 'done').length
           return (
-            <div key={rnd.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <React.Fragment key={rnd.id}>
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Round {rnd.ordinal}</div>
-                <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {ri === 0 && done < rms.length && <button onClick={() => callPlayers(null, rnd.id)} disabled={busy} title="Text everyone still to play in this round" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>📣 Call players</button>}
+                  <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {rms.map(m => {
@@ -441,6 +547,7 @@ export default function PingPong() {
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
+                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2 }}>📣</button>}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -454,17 +561,36 @@ export default function PingPong() {
                 })}
               </div>
             </div>
+            {/* "+ Add another round" sits directly UNDER the current round, so a
+                new draw appears immediately above it and the older rounds below
+                stay out of the way. Always enabled; pairings use standings so far. */}
+            {ri === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, marginBottom: 4 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
+                </div>
+                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+                {/* Add a team/player mid-tournament — was drawer-only, surfaced here
+                    on the founder's word during a live night (12 Aug 2026). They
+                    join the NEXT round's draw; take the entry fee at the bar. */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={walkin} onChange={e => setWalkin(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Add a team / player…" style={{ flex: '1 1 150px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+                  <button onClick={addWalkin} disabled={busy || !walkin.trim()} style={{ ...btn('ghost'), padding: '9px 13px', fontSize: 13, opacity: walkin.trim() ? 1 : 0.45 }}>＋ Add</button>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: -3 }}>Goes straight into the next round's draw — take the entry fee at the bar.</div>
+                {callMsg && (
+                  <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
+                )}
+                {orderedRounds.length > 1 && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 700 }}>Earlier rounds ↓</div>}
+              </div>
+            )}
+            </React.Fragment>
           )
         })}
 
-        {/* "+ Add another round" sits at the BOTTOM of the rounds column so
-            the next round appears immediately below when clicked — matches
-            the "reads down the page" founder direction. Always enabled;
-            pairings use standings-so-far if the current round isn't finished. */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+        {orderedRounds.length === 0 && (
           <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
-        </div>
-        {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+        )}
           </div>
 
           {/* RIGHT — live standings (reference column). Sticky (founder rule
@@ -512,7 +638,7 @@ export default function PingPong() {
         const tpm = matches.find(m => m.is_third_place)
         const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
         const placings = run.placings
-        const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
+        const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'The Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
         // Knockout target: first to 21 (deuce past 20–20). The dropdown ceiling sits 10
         // above so deuce finishes (23–21…) can be entered.
         const koWin = run.run?.settings?.koRaceTo || 21
@@ -654,18 +780,18 @@ export default function PingPong() {
             </div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
-                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: 'space-around' }}>
+                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: r === totalRounds ? 'center' : 'space-around' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{roundLabel(r)}</div>
                   {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => <BracketMatch key={m.id} m={m} />)}
+                  {r === totalRounds && tpm && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8 }}>3rd-place play-off</div>
+                      <BracketMatch m={tpm} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-            {tpm && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>3rd-place match</div>
-                <div style={{ maxWidth: 220 }}><BracketMatch m={tpm} /></div>
-              </div>
-            )}
             <button onClick={refresh} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>↻ Refresh</button>
           </>
         )

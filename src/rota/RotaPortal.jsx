@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
 import StatementDoc from './StatementDoc.jsx'
 import { fmtMin, shiftTimeLabel, shiftHours, dayName, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { getFix, presenceBadge } from './geo.js'
+import { tipsForStaff, tipsForStaffMonth, TIPS_META } from '../finance/tipsData.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -13,6 +14,8 @@ import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
 import KitchenChecklists from '../kitchen/KitchenChecklists.jsx'
+import PortalReservations from './PortalReservations.jsx'
+import DateField from '../lib/DateField.jsx'
 
 // ─── Staff Rota portal (/rota) ───────────────────────────────────────────────
 // Team members log in with their email + password, set the days they're
@@ -91,7 +94,7 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
+    return ['shifts', 'reservations', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -318,7 +321,8 @@ export default function RotaPortal() {
   // Kitchen food-safety is its own clear tab for EVERY kitchen-trained member — not
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const managerTier = ['Asst. Manager', 'Manager'].includes(staff?.role)
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -513,6 +517,8 @@ export default function RotaPortal() {
           </>
         )}
 
+        {view === 'reservations' && <PortalReservations token={token} />}
+
         {view === 'checklists' && <ChecklistView token={token} />}
 
         {view === 'kitchen' && showKitchen && <KitchenChecklists token={token} kitchen={kitchen} />}
@@ -523,10 +529,11 @@ export default function RotaPortal() {
 
         {view === 'cocktails' && <CocktailSpecs embedded />}
 
+        {view === 'prizes' && managerTier && <PrizesView token={token} />}
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} reload={() => loadState(token)} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} reload={() => loadState(token)} />
         )}
       </div>
 
@@ -571,14 +578,18 @@ function NotesView({ token, notes, staffId, reload }) {
             (the main reason it felt fiddly); drag the corner to make it taller. */}
         <textarea value={body} onChange={e => setBody(e.target.value)} rows={4} placeholder="Leave a handover note for the next shift… e.g. glasswasher needs salt, low on tonic" style={{ width: '100%', minHeight: 120, padding: '13px 14px', fontSize: 16, lineHeight: 1.5, borderRadius: 10, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }} />
         <button onClick={add} disabled={busy || !body.trim()} style={{ ...btn('red'), width: '100%', padding: '13px', fontSize: 15, opacity: body.trim() ? 1 : 0.5 }}>{busy ? 'Posting…' : 'Post note'}</button>
+        <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>💡 Address someone with <strong style={{ color: '#FCD34D' }}>@</strong> and their name — e.g. <strong style={{ color: '#fff' }}>@Rhys don't cash up before the delivery</strong>. They'll see it flagged here and it's included in their shift reminder.</div>
       </div>
       {notes.length === 0 && <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.45)', padding: '18px 0', textAlign: 'center' }}>No notes yet. Management briefings and shift handovers show up here.</div>}
       {notes.map(n => {
         const mgr = n.kind === 'manager'
+        // @-mention badge: this note names YOU (mentions come from the server's
+        // @-parsing; also included in your 2h WhatsApp shift reminder).
+        const forMe = Array.isArray(n.mentions) && staffId && n.mentions.includes(staffId)
         return (
-          <div key={n.id} style={{ background: mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${mgr ? 'rgba(218,27,51,0.35)' : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
+          <div key={n.id} style={{ background: forMe ? 'rgba(252,211,77,0.08)' : mgr ? 'rgba(218,27,51,0.08)' : 'rgba(255,255,255,0.04)', border: `1px solid ${forMe ? 'rgba(252,211,77,0.5)' : mgr ? 'rgba(218,27,51,0.35)' : LINE}`, borderRadius: 10, padding: '10px 12px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline', marginBottom: 3 }}>
-              <span style={{ fontSize: 11.5, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}</span>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: mgr ? RED : GREEN }}>{mgr ? '📣 ' : '↪ '}{n.author_name || (mgr ? 'Management' : 'Staff')}{forMe && <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 800, color: '#FCD34D', background: 'rgba(252,211,77,0.14)', border: '1px solid rgba(252,211,77,0.45)', borderRadius: 999, padding: '1px 7px' }}>@ mentions you</span>}</span>
               <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)' }}>{fmtWhen(n.date, n.created_at)}</span>
             </div>
             <div style={{ fontSize: 14, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
@@ -603,7 +614,19 @@ function ChecklistView({ token }) {
   const [busy, setBusy] = useState(false)
   const [savedAt, setSavedAt] = useState(false)
 
-  useEffect(() => { loadAll() }, [])   // eslint-disable-line react-hooks/exhaustive-deps
+  // The sheet is SHARED per day — everyone ticking the same list. Beyond loading
+  // fresh on open, poll every 20s so a phone left on this tab sees teammates'
+  // ticks appear live. A poll requested before our own latest tick is discarded
+  // (same stale-snapshot guard as the reservations view) so it can never briefly
+  // un-tick what you just tapped. The typed note is never overwritten by a poll.
+  const lastMutation = useRef(0)
+  const openKeyRef = useRef(null)
+  useEffect(() => { openKeyRef.current = openKey }, [openKey])
+  useEffect(() => {
+    loadAll()
+    const id = setInterval(() => { if (!document.hidden) refresh() }, 20000)
+    return () => clearInterval(id)
+  }, [])   // eslint-disable-line react-hooks/exhaustive-deps
   const loadAll = async () => {
     const t = dateNow(); setToday(t); setLoading(true)
     try {
@@ -612,14 +635,27 @@ function ChecklistView({ token }) {
       setSubs(m)
     } catch (e) { /* leave empty; portal-level handleErr covers auth */ } finally { setLoading(false) }
   }
+  const refresh = async () => {
+    const startedAt = Date.now()
+    const t = dateNow()
+    try {
+      const res = await Promise.all(CHECKLIST_ORDER.map(k => rotaGetChecklist(token, t, k)))
+      if (startedAt < lastMutation.current) return   // stale — our own tick is newer
+      const m = {}; CHECKLIST_ORDER.forEach((k, i) => { m[k] = res[i].submission })
+      setSubs(m); setToday(t)
+      const ok = openKeyRef.current
+      if (ok && m[ok]) setItems(m[ok].items || {})   // live-merge ticks into the open list (note untouched)
+    } catch (e) { /* silent — next poll tries again */ }
+  }
   const open = (k) => { const s = subs[k]; setItems(s?.items || {}); setNote(s?.note || ''); setOpenKey(k); setSavedAt(false) }
   // Each task toggle is an atomic per-item save (two phones can tick at once).
   const toggle = (text) => {
     const on = !items[text]
     const next = { ...items }; if (on) next[text] = true; else delete next[text]
+    lastMutation.current = Date.now()
     setItems(next)
     setSubs(s => ({ ...s, [openKey]: { ...(s[openKey] || {}), items: next } }))
-    rotaToggleChecklist(token, today, openKey, text, on).then(() => setSavedAt(true))
+    rotaToggleChecklist(token, today, openKey, text, on).then(() => { lastMutation.current = Date.now(); setSavedAt(true) })
       .catch(e => { setItems(p => { const r = { ...p }; if (on) delete r[text]; else r[text] = true; return r }); alert(e.message) })
   }
   // Note + submit (submit is sticky on the server).
@@ -768,7 +804,13 @@ function Onboarding({ token, staff, docs, reload, goProfile }) {
   )
 }
 
-function ProfileView({ staff, onSave, busy, token, docs, reload }) {
+// Date of birth as a TYPED field (house rule: dates are typed, never scrollers) —
+// the shared DateField with a DOB year range.
+function DobInput({ value, onChange, style }) {
+  return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
+}
+
+function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
@@ -810,6 +852,9 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         {staff.work_rules && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Notes:</strong> {staff.work_rules}</div>}
       </div>
 
+      <TipsCard staff={staff} />
+      <InvoiceCard staff={staff} clocks={clocks} />
+
       <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Your details — keep these up to date</div>
         <L label="Full name" wide><input value={f.name} onChange={e => on('name', e.target.value)} style={inp} /></L>
@@ -822,7 +867,7 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
         <L label="Relationship" wide><input value={f.emergency_relation} onChange={e => on('emergency_relation', e.target.value)} style={inp} /></L>
 
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', borderTop: `1px dashed ${LINE}`, paddingTop: 10 }}>Payroll &amp; right to work</div>
-        <L label="Date of birth"><input type="date" value={f.dob} onChange={e => on('dob', e.target.value)} style={inp} /></L>
+        <L label="Date of birth"><DobInput value={f.dob} onChange={v => on('dob', v)} style={inp} /></L>
         <L label="National Insurance no."><input value={f.ni_number} onChange={e => on('ni_number', e.target.value)} placeholder="QQ 12 34 56 C" style={inp} /></L>
         <L label="Bank — account name" wide><input value={f.bank_name} onChange={e => on('bank_name', e.target.value)} style={inp} /></L>
         <L label="Sort code"><input value={f.bank_sort} onChange={e => on('bank_sort', e.target.value)} placeholder="00-00-00" style={inp} /></L>
@@ -876,6 +921,101 @@ function ProfileView({ staff, onSave, busy, token, docs, reload }) {
   )
 }
 
+
+// ─── Tips (finance lane feeds src/finance/tipsData.js) ──────────────────────
+function TipsCard({ staff }) {
+  const rows = tipsForStaff(staff.name)
+  const total = rows.reduce((a, r) => a + r.amount, 0)
+  return (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>💷 Your card tips</div>
+      {rows.length === 0 ? (
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>No card tips recorded for you yet — tips tracking started {TIPS_META.coverageFrom}.</div>
+      ) : (
+        <>
+          {rows.map(r => (
+            <div key={r.month} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
+              <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
+              <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+            </div>
+          ))}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0 0', fontSize: 13.5 }}>
+            <span style={{ color: '#fff', fontWeight: 700 }}>Total recorded</span>
+            <span style={{ color: GREEN, fontWeight: 800 }}>£{total.toFixed(2)}</span>
+          </div>
+        </>
+      )}
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 1.5 }}>
+        Tips customers add on the card machine while you're on the till, tracked {TIPS_META.coverageFrom} – {TIPS_META.coverageTo}. 100% is passed on to you — no deductions except tax — paid with the month after they're earned. Add them to your invoice below.
+      </div>
+    </div>
+  )
+}
+
+// ─── Invoicing — build a ready-to-send invoice from clocked hours + tips ────
+function InvoiceCard({ staff, clocks }) {
+  const months = {}
+  for (const c of clocks) {
+    if (!c.date || !c.clock_in || !c.clock_out) continue
+    const m = c.date.slice(0, 7)
+    months[m] = (months[m] || 0) + (workedMins(c.clock_in, c.clock_out) || 0)
+  }
+  const monthKeys = Object.keys(months).sort().reverse().slice(0, 3)
+  const [month, setMonth] = useState(monthKeys[0] || '')
+  const [copied, setCopied] = useState(false)
+  if (!monthKeys.length) return null
+  const mins = months[month] || 0
+  const hours = Math.round((mins / 60) * 100) / 100
+  const rate = Number(staff.hourly_rate)
+  const rated = Number.isFinite(rate) && rate > 0
+  const pay = rated ? Math.round(hours * rate * 100) / 100 : 0
+  const tips = tipsForStaffMonth(staff.name, month)
+  const totalDue = Math.round((pay + tips) * 100) / 100
+  const label = new Date(month + '-15T12:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
+  const today = new Date().toLocaleDateString('en-GB')
+  const invNo = `NDH-${month.replace('-', '')}-${String(staff.name || '').trim().split(/\s+/)[0].toUpperCase()}`
+  const text = [
+    'INVOICE  ' + invNo,
+    'Date: ' + today,
+    '',
+    'From: ' + (staff.name || ''),
+    (staff.address ? staff.address : '(add your address in Profile)'),
+    '',
+    'To: No Dice Hackney Ltd',
+    '407 Mentmore Terrace, London Fields, London E8 3PH',
+    '',
+    'Period: ' + label,
+    '',
+    'Bar work — ' + hoursLabel(mins) + (rated ? ' @ £' + rate.toFixed(2) + '/h:  £' + pay.toFixed(2) : ':  £____ (rate not set — ask the manager)'),
+    ...(tips > 0 ? ['Card tips (100% passed on):  £' + tips.toFixed(2)] : []),
+    'TOTAL DUE:  £' + (rated ? totalDue.toFixed(2) : '____'),
+    '',
+    'Pay to: ' + (staff.bank_name || '(account name)') + ' · ' + (staff.bank_sort || '(sort code)') + ' · ' + (staff.bank_account || '(account no.)'),
+  ].join('\n')
+  const copy = async () => { try { await navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 2000) } catch {} }
+  return (
+    <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+        <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>🧾 Invoicing</div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {monthKeys.map(m => (
+            <button key={m} onClick={() => setMonth(m)} style={{ ...btn(m === month ? 'red' : 'ghost'), padding: '5px 10px', fontSize: 11 }}>
+              {new Date(m + '-15T12:00:00Z').toLocaleDateString('en-GB', { month: 'short' })}
+            </button>
+          ))}
+        </div>
+      </div>
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 10 }}>
+        Built from your clocked hours{tips > 0 ? ' and your card tips' : ''} for {label}. Check it, copy it, send it to elliot@nodice.bar.
+      </div>
+      <textarea readOnly value={text} style={{ ...inp, fontFamily: 'ui-monospace, monospace', fontSize: 11.5, minHeight: 210, lineHeight: 1.5, resize: 'vertical' }} />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+        <button onClick={copy} style={btn('red')}>{copied ? '✓ Copied' : 'Copy invoice'}</button>
+      </div>
+    </div>
+  )
+}
+
 const L = ({ label, wide, children }) => (
   <label style={{ display: 'flex', flexDirection: 'column', gap: 3, gridColumn: wide ? '1 / -1' : 'auto' }}>
     <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.55)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{label}</span>
@@ -894,3 +1034,100 @@ const btn = (kind) => {
 }
 const inp = { width: '100%', minWidth: 0, padding: '10px 12px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', boxSizing: 'border-box' }
 const linkBtn = { background: 'none', border: 'none', padding: 0, color: RED, fontWeight: 700, fontSize: 'inherit', cursor: 'pointer', textDecoration: 'underline' }
+
+
+// ── 🎟 Prizes (managers only) — redeem tournament bar-tab vouchers ──────────
+// Founder brief 12 Aug 2026: managers redeem winners' codes from their own
+// portal, mid-shift. Who redeemed is recorded automatically (their login);
+// codes lock after one use; Undo fixes mis-taps. Rank is enforced server-side
+// — hiding the tab is UX, not security.
+function PrizesView({ token }) {
+  const [vouchers, setVouchers] = useState(null)
+  const [q, setQ] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [sendOpen, setSendOpen] = useState(false)
+  const [send, setSend] = useState({ name: '', email: '', amount: '', reason: '' })
+  const load = async () => { try { const r = await rotaListPrizeVouchers(token); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) } }
+  const doSend = async () => {
+    const pounds = Number(send.amount)
+    if (!send.name.trim()) return alert('Customer name needed.')
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(send.email.trim())) return alert('Valid email needed \u2014 the voucher is sent there.')
+    if (!Number.isFinite(pounds) || pounds < 1 || pounds > 250) return alert('Amount must be between \u00a31 and \u00a3250.')
+    if (!window.confirm(`Send a \u00a3${pounds} voucher to ${send.name.trim()} (${send.email.trim()})?\n\nThey get the code by email straight away, logged under your name.`)) return
+    setBusy(true)
+    try {
+      await rotaSendCustomerVoucher(token, { name: send.name.trim(), email: send.email.trim(), amountPence: Math.round(pounds * 100), reason: send.reason.trim() })
+      setSend({ name: '', email: '', amount: '', reason: '' }); setSendOpen(false)
+      alert('Sent \u2014 the voucher is in their inbox.')
+    } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
+  useEffect(() => { load() }, [])
+  const doRedeem = async (v) => {
+    if (!window.confirm(`Redeem ${v.code} — ${v.display_name || 'winner'}, £${Math.round((v.amount_pence || 0) / 100)} tab?\n\nThis uses the code up (recorded under your name).`)) return
+    setBusy(true)
+    try { await rotaRedeemPrizeVoucher(token, v.sport, v.id) } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
+  const doUndo = async (v) => {
+    if (!window.confirm(`Un-redeem ${v.code}? Only to fix a mis-tap.`)) return
+    setBusy(true)
+    try { await rotaUnredeemPrizeVoucher(token, v.sport, v.id) } catch (e) { alert(e.message) } finally { await load(); setBusy(false) }
+  }
+  const norm = q.trim().toLowerCase().replace(/^nd-?/, '')
+  const rows = (vouchers || []).filter(v => {
+    if (!norm) return true
+    const code = String(v.code || '').toLowerCase().replace(/^nd-?/, '')
+    return code.includes(norm) || String(v.display_name || '').toLowerCase().includes(q.trim().toLowerCase())
+  })
+  const outstanding = (vouchers || []).filter(v => !v.redeemed_at).reduce((t, v) => t + (v.amount_pence || 0), 0)
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 17, fontWeight: 800, color: '#fff' }}>🎟 Prize vouchers</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 3, lineHeight: 1.5 }}>Winner shows their prize email → find the code → check the amount → mark it redeemed. Each code works once, logged under your name.</div>
+        </div>
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: AMBER }}>£{Math.round(outstanding / 100)}</div>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>outstanding</div>
+        </div>
+      </div>
+      <input value={q} onChange={e => setQ(e.target.value)} placeholder="Code from their email (e.g. JAVLKT) or name…" style={{ padding: '11px 12px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+      <button onClick={() => setSendOpen(o => !o)} style={{ background: sendOpen ? 'rgba(255,255,255,0.08)' : 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 9, padding: '10px 12px', fontSize: 13, fontWeight: 700, cursor: 'pointer', textAlign: 'left' }}>🎁 Send a voucher to a customer {sendOpen ? '▴' : '▾'}</button>
+      {sendOpen && (
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>For goodwill — an apology, a thank-you, a regular you want to look after. The customer gets the code by email straight away, and it lands in this list to redeem like any prize.</div>
+          <input value={send.name} onChange={e => setSend(s => ({ ...s, name: e.target.value }))} placeholder="Customer name" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.email} onChange={e => setSend(s => ({ ...s, email: e.target.value }))} placeholder="Customer email" type="email" inputMode="email" autoCapitalize="none" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.amount} onChange={e => setSend(s => ({ ...s, amount: e.target.value.replace(/[^0-9.]/g, '') }))} placeholder="Amount in £ (e.g. 10)" inputMode="decimal" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <input value={send.reason} onChange={e => setSend(s => ({ ...s, reason: e.target.value }))} placeholder="Reason — optional, the customer sees it" style={{ padding: '10px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <button onClick={doSend} disabled={busy} style={{ background: GREEN, border: 'none', color: '#000', borderRadius: 8, padding: '10px 14px', fontSize: 13, fontWeight: 800, cursor: 'pointer' }}>{busy ? 'Sending…' : '🎁 Send voucher'}</button>
+        </div>
+      )}
+      {vouchers === null ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>Loading…</div>
+        : rows.length === 0 ? <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.5)' }}>{q ? 'No match — check the code letter by letter.' : 'No vouchers yet — they appear when tournaments finish.'}</div>
+        : rows.map(v => {
+          const medal = v.sport === 'manager' ? '' : v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+          const redeemed = !!v.redeemed_at
+          return (
+            <div key={`${v.sport}-${v.id}`} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', opacity: redeemed ? 0.6 : 1 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13.5, fontWeight: 700, color: '#fff' }}>{v.sport === 'manager' ? '🎁' : v.sport === 'pingpong' ? '🏓' : '🎱'} {medal ? medal + ' ' : ''}{v.display_name || '—'} <span style={{ color: AMBER, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)}</span></div>
+                  <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${v.night_date}` : ''}{v.issued_by ? ` · sent by ${v.issued_by}` : ''}</div>
+                </div>
+                <div style={{ fontSize: 14, fontWeight: 800, letterSpacing: '0.08em', fontFamily: 'ui-monospace, monospace', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
+              </div>
+              <div style={{ marginTop: 8 }}>
+                {redeemed
+                  ? <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>✓ redeemed {String(v.redeemed_at).slice(0, 10)}{v.redeemed_by ? ` by ${v.redeemed_by}` : ''}</span>
+                      <button onClick={() => doUndo(v)} disabled={busy} style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.7)', borderRadius: 7, padding: '4px 10px', fontSize: 11, cursor: 'pointer' }}>Undo</button>
+                    </div>
+                  : <button onClick={() => doRedeem(v)} disabled={busy} style={{ background: RED, border: 'none', color: '#fff', borderRadius: 8, padding: '9px 14px', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', width: '100%' }}>✓ Mark redeemed</button>}
+              </div>
+            </div>
+          )
+        })}
+    </div>
+  )
+}
