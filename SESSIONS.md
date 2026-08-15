@@ -20,6 +20,11 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **Kitchen** | `Sites/nodice/team-sessions/kitchen` |
 | **Bar** (stock, cocktails, till) | `Sites/nodice/team-sessions/bar` |
 | **Finances** (wages, takings, costs — founder-only) | `Sites/nodice/team-sessions/finance` |
+| **Lithos handover** (plonkgolf.co.uk → Lithos Digital: handover docs, DNS cutover, SEO) | `Sites/nodice/team-sessions/lithos` |
+
+Note: the **Lithos** folder is a different codebase underneath (the Plonk Golf public
+website repo, `plonkgolf-website`) — same idea though: open a session in that folder and
+it knows it's the Lithos-handover session.
 
 The original folder — `Sites/nodice/Plonk-Borough-2.0` — is the **integration** copy
 (this is `main`, what's live). Use it for cross-cutting/admin work, or just leave it.

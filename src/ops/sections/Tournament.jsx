@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import {
-  tournList, tournOpen, tournAddManual, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
+  tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
-  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague, tournSetDiscipline,
-} from '../../tournament/api.js'
+  tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournSetDiscipline, tournCallPlayers, tournCallRound, tournMergeLeague, tournUnmergeLeague} from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
 // Slice 1: pick a booked pool night, see the paid entrants auto-pulled in, tidy the
@@ -48,6 +48,9 @@ export default function Tournament() {
   const [replacing, setReplacing] = useState(null)      // { participantId, oldName, newName } during mid-tournament substitution
   const [menuOpen, setMenuOpen] = useState(false)       // 2026-07-30 refactor: slide-out options drawer (☰) hosts every "action" so the main view stays focused on rounds + standings
   const [leagueView, setLeagueView] = useState(false)   // showing the season league table
+  const [voucherView, setVoucherView] = useState(false)  // 🎟 redemption panel
+  const [vouchers, setVouchers] = useState(null)
+  const [vSearch, setVSearch] = useState('')
   const [league, setLeague] = useState(null)
   const [leagueDisc, setLeagueDisc] = useState('singles')
   const [showPast, setShowPast] = useState(false)       // calendar: reveal past months
@@ -65,12 +68,64 @@ export default function Tournament() {
     catch (e) { setErr(e.message) } finally { setBusy(false) }
   }
   const refresh = async () => { if (run) { const r = await tournOpen(run.tournament.id); setRun(r) } }
-  const guard = (fn) => async (...a) => { setBusy(true); try { await fn(...a); await refresh() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
+  // ── Live auto-refresh (20s) ─────────────────────────────────────────────
+  // Keeps the screen current without a manual reload: a walk-up paying their
+  // texted Stripe link flips to 🎟️ paid, online sales appear, and a second
+  // device's changes show up. Deliberately conservative on a LIVE tournament
+  // night — it skips entirely while you're mid-action (saving, renaming,
+  // substituting) or the tab is in the background, and a response that was
+  // requested before your latest action is discarded. Typed scores live in
+  // separate state (`scores` / `gameScores`), so a refresh never wipes them.
+  const liveRef = useRef({})
+  const lastMutation = useRef(0)
+  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing } })
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const s = liveRef.current
+      if (typeof document !== 'undefined' && document.hidden) return
+      if (s.busy || inFlight.current || s.editing || s.replacing) return
+      const startedAt = Date.now()
+      try {
+        if (s.view === 'run' && s.tid) {
+          const r = await tournOpen(s.tid)
+          if (startedAt < lastMutation.current) return   // our own change is newer
+          setRun(r)
+        } else if (s.view === 'list') {
+          const r = await tournList()
+          if (startedAt < lastMutation.current) return
+          setTourns(r.tournaments || [])
+        }
+      } catch (_) { /* silent — next tick tries again */ }
+    }, 20000)
+    return () => clearInterval(id)
+  }, [])
+  // In-flight lock via ref, not just state: two taps in the same frame both see
+  // busy=false (setState is async), so a fast double-tap on "+ Add another round"
+  // could fire twice and generate TWO rounds (happened live 5 Aug 2026). The ref
+  // flips synchronously, so the second tap is swallowed.
+  const inFlight = useRef(false)
+  const guard = (fn) => async (...a) => {
+    if (inFlight.current) return
+    inFlight.current = true
+    setBusy(true)
+    lastMutation.current = Date.now()
+    try { await fn(...a); await refresh(); lastMutation.current = Date.now() } catch (e) { alert(e.message) } finally { inFlight.current = false; setBusy(false) }
+  }
 
   const addWalkin = async () => { const name = walkin.trim(); if (!name || !run) return; await guard(async () => { await tournAddManual(run.run.id, name); setWalkin('') })() }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
   const remove = async (p) => { if (p.source === 'manual' && !window.confirm(`Remove walk-in "${p.display_name}"?`)) return; await guard(() => tournRemove(p.id))() }
   const restore = (id) => guard(() => tournRestore(id))()
+  // Walk-up sign-up: full booking-style details + emailed Stripe pay link
+  // (founder rule 6 Aug 2026). Returns the fn result so the panel can show
+  // whether the email fired.
+  const addWalkupSubmit = async (d) => {
+    let out = null
+    await guard(async () => { out = await tournAddWalkup(run.run.id, d) })()
+    return out
+  }
+  const renameFromDrawer = (pid, name) => guard(() => tournRename(pid, name))()
   // Mid-tournament substitution: cascades the new name across every match in this
   // run AND nulls the ORIGINAL player's league points for the night — see edge
   // fn `replacePlayer`. A confirmation dialog spells the trade-off out.
@@ -83,11 +138,65 @@ export default function Tournament() {
   }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  // 📣 Call players over — texts both sides on demand and SAYS what happened
+  // (founder direction, tournament night 12 Aug 2026: the automatic ping was
+  // invisible, so there was no way to tell a silent failure from a sent text).
+  const [callMsg, setCallMsg] = useState(null)
+  const callPlayers = async (matchId, roundId) => {
+    if (busy) return
+    setBusy(true); setCallMsg(null)
+    try {
+      const r = matchId ? await tournCallPlayers(matchId) : await tournCallRound(roundId)
+      const bits = []
+      if (r.sent?.length) bits.push(`📣 Texted ${r.sent.length}: ${r.sent.join(', ')}`)
+      if (r.noPhone?.length) bits.push(`📵 No number on file — call these over yourself: ${r.noPhone.join(', ')}`)
+      if (r.failed?.length) bits.push(`⚠️ Text failed for ${r.failed.join(', ')} — shout for them`)
+      if (r.note) bits.push(r.note)
+      setCallMsg(bits.length ? bits.join('  ·  ') : 'Nobody to call.')
+    } catch (e) { setCallMsg('⚠️ ' + e.message) } finally { setBusy(false) }
+  }
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // 🔗 Reconnect a returning walk-in's points. Walk-ins have no booking email,
+  // so their league identity is the name typed at the bar; when they come back
+  // (or later book online and gain an email identity) this folds the old row
+  // into the new one. Nothing historic is rewritten — undo restores the split.
+  const [mergeFrom, setMergeFrom] = useState('')
+  const [mergeTo, setMergeTo] = useState('')
+  const doMerge = async () => {
+    const rows = league?.table || []
+    const a = rows.find(r => r.key === mergeFrom), bRow = rows.find(r => r.key === mergeTo)
+    if (!a || !bRow) return alert('Pick both rows.')
+    if (!window.confirm(`Move ${a.name}'s ${a.pts} point${a.pts === 1 ? '' : 's'} onto ${bRow.name}?\n\nThey become one row in the league. You can undo this.`)) return
+    setBusy(true)
+    try { setLeague(await tournMergeLeague(leagueDisc, mergeFrom, mergeTo)); setMergeFrom(''); setMergeTo('') }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const undoMerge = async (fromKey, label) => {
+    if (!window.confirm(`Split "${label}" back out into its own league row?`)) return
+    setBusy(true)
+    try { setLeague(await tournUnmergeLeague(leagueDisc, fromKey)) } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  // 🎟 Voucher redemption (founder brief 12 Aug 2026) — codes lock on redeem.
+  const openVouchers = async () => {
+    setVoucherView(true); setVouchers(null); setVSearch('')
+    try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (e) { alert(e.message); setVouchers([]) }
+  }
+  const reloadVouchers = async () => { try { const r = await tournListVouchers(); setVouchers(r.vouchers || []) } catch (_) { /* keep stale list */ } }
+  const doRedeem = async (v) => {
+    const by = window.prompt(`Mark ${v.code} (${v.display_name || 'winner'}) as redeemed?\n\nYour name/initials (optional — just OK is fine):`)
+    if (by === null) return   // cancelled
+    setBusy(true)
+    try { await tournRedeemVoucher(v.id, by.trim()); await reloadVouchers() } catch (e) { alert(e.message); await reloadVouchers() } finally { setBusy(false) }
+  }
+  const doUnredeem = async (v) => {
+    if (!window.confirm(`Un-redeem ${v.code}? Use this only to fix a mis-tap.`)) return
+    setBusy(true)
+    try { await tournUnredeemVoucher(v.id); await reloadVouchers() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const seedGrandFinal = async () => { if (!window.confirm('Add the league top 8 to this grand final?')) return; await guard(() => tournSeedFromLeague(run.run.id))() }
   const resendVouchers = () => guard(() => tournFinalize(run.run.id))()
   const saveScore = async (m) => {
@@ -133,6 +242,65 @@ export default function Tournament() {
   }
 
   // ── Season league table ─────────────────────────────────────────────────────
+
+  // ── Prize vouchers — look up a code, mark it redeemed (once), undo mistakes ──
+  if (voucherView) {
+    const q = vSearch.trim().toLowerCase().replace(/^nd-?/, '')
+    const rows = (vouchers || []).filter(v => {
+      if (!q) return true
+      const code = String(v.code || '').toLowerCase().replace(/^nd-?/, '')
+      return code.includes(q) || String(v.display_name || '').toLowerCase().includes(vSearch.trim().toLowerCase())
+    })
+    const outstanding = (vouchers || []).filter(v => !v.redeemed_at).reduce((t, v) => t + (v.amount_pence || 0), 0)
+    const gbpFmt = (p) => '£' + (p % 100 ? (p / 100).toFixed(2) : String(p / 100))
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+        <button onClick={() => setVoucherView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Back</button>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div>
+            <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎟 Prize vouchers</div>
+            <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, maxWidth: 520, lineHeight: 1.5 }}>When a winner claims their bar tab, find their code (it's in their prize email), check the amount, and mark it redeemed — each code works exactly once.</div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 22, fontWeight: 800, color: '#FCD34D' }}>{gbpFmt(outstanding)}</div>
+            <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>outstanding tabs</div>
+          </div>
+        </div>
+        <input
+          value={vSearch}
+          onChange={e => setVSearch(e.target.value)}
+          placeholder="Type the code from their email (e.g. JAVLKT) or a name…"
+          style={{ padding: '11px 13px', fontSize: 15, borderRadius: 9, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }}
+        />
+        {vouchers === null ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>{vSearch ? 'No voucher matches that — check the code letter by letter.' : 'No vouchers yet — they appear when a tournament finishes.'}</div> : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {rows.map(v => {
+              const medal = v.place === 1 ? '🥇' : v.place === 2 ? '🥈' : '🥉'
+              const redeemed = !!v.redeemed_at
+              return (
+                <div key={v.id} style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap', background: CARD, border: `1px solid ${redeemed ? 'rgba(255,255,255,0.10)' : LINE}`, borderRadius: 11, padding: '11px 13px', opacity: redeemed ? 0.65 : 1 }}>
+                  <div style={{ minWidth: 0, flex: '1 1 200px' }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{medal} {v.display_name || '—'} <span style={{ color: PURPLE, fontWeight: 800 }}>{gbpFmt(v.amount_pence || 0)}</span>{v.recipient === 2 ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}> · player 2</span> : null}</div>
+                    <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{v.night_name}{v.night_date ? ` · ${fmtDate(v.night_date)}` : ''}{v.emailed_at ? ' · emailed ✓' : ' · not emailed'}</div>
+                  </div>
+                  <div style={{ fontSize: 15, fontWeight: 800, letterSpacing: '0.1em', color: redeemed ? 'rgba(255,255,255,0.4)' : '#fff', fontFamily: 'ui-monospace, monospace', textDecoration: redeemed ? 'line-through' : 'none' }}>{v.code}</div>
+                  {redeemed ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: 11, fontWeight: 700, color: GREEN }}>✓ redeemed {String(v.redeemed_at).slice(0, 10)}{v.redeemed_by ? ` · ${v.redeemed_by}` : ''}</span>
+                      <button onClick={() => doUnredeem(v)} disabled={busy} style={{ ...btn('ghost'), padding: '5px 10px', fontSize: 11 }}>Undo</button>
+                    </div>
+                  ) : (
+                    <button onClick={() => doRedeem(v)} disabled={busy} style={{ ...btn('gold'), padding: '8px 14px', fontSize: 12.5 }}>✓ Mark redeemed</button>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   if (leagueView) {
     const rows = league?.table || []
     return (
@@ -156,7 +324,7 @@ export default function Tournament() {
                 {rows.map(r => (
                   <tr key={r.key} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff', background: r.qualifies ? 'rgba(168,85,247,0.12)' : 'transparent' }}>
                     <td style={{ padding: '8px 8px 8px 0', fontWeight: 700, color: r.rank <= 8 ? PURPLE : 'rgba(255,255,255,0.5)' }}>{r.rank}{r.rank <= 8 ? ' ✦' : ''}</td>
-                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 600 }}>{r.name}</td>
+                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 600 }}>{r.name}{r.alsoKnownAs?.length ? <span style={{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,0.45)' }}> · incl. {r.alsoKnownAs.join(', ')}</span> : null}</td>
                     <td style={{ padding: '8px', textAlign: 'right', color: 'rgba(255,255,255,0.55)' }}>{r.nights}</td>
                     <td style={{ padding: '8px', textAlign: 'right' }}>{r.wins || ''}</td>
                     <td style={{ padding: '8px', textAlign: 'right' }}>{r.seconds || ''}</td>
@@ -168,6 +336,34 @@ export default function Tournament() {
               </tbody>
             </table>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>✦ = top 8 · qualifies for the grand final. This same table shows live on nodice.bar.</div>
+            {/* Reconnect a returning walk-in — the founder's rule: let them come
+                back, then stitch the points together (13 Aug 2026). */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>🔗 Same player, two rows?</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Walk-ins added at the bar have no email, so a returning player can end up with a second row. Fold the old one into the new and their points carry over.</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select value={mergeFrom} onChange={e => setMergeFrom(e.target.value)} style={{ flex: '1 1 150px', padding: '9px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff' }}>
+                  <option value="">Move this row…</option>
+                  {rows.map(r => <option key={r.key} value={r.key}>{r.name} ({r.pts} pts)</option>)}
+                </select>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>→ onto</span>
+                <select value={mergeTo} onChange={e => setMergeTo(e.target.value)} style={{ flex: '1 1 150px', padding: '9px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff' }}>
+                  <option value="">…this one</option>
+                  {rows.filter(r => r.key !== mergeFrom).map(r => <option key={r.key} value={r.key}>{r.name} ({r.pts} pts)</option>)}
+                </select>
+                <button onClick={doMerge} disabled={busy || !mergeFrom || !mergeTo} style={{ ...btn('gold'), padding: '9px 14px', fontSize: 13, opacity: (mergeFrom && mergeTo) ? 1 : 0.45 }}>🔗 Join</button>
+              </div>
+              {!!(league?.merges || []).length && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
+                  {league.merges.map(mg => (
+                    <div key={mg.from_key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>
+                      <span>“{mg.from_key}” → “{mg.to_key}”</span>
+                      <button onClick={() => undoMerge(mg.from_key, mg.from_key)} disabled={busy} style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.75)', borderRadius: 6, padding: '2px 8px', fontSize: 10.5, cursor: 'pointer' }}>undo</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -214,7 +410,7 @@ export default function Tournament() {
         }}>
           <span style={{ position: 'absolute', top: 3, right: 5, fontSize: 9, fontWeight: 700, color: 'rgba(255,255,255,0.5)' }}>{cell.day}</span>
           <span style={{ fontSize: 15, lineHeight: 1 }}>{t.type === 'doubles' ? '👥' : t.type === 'singles' ? '👤' : '🎱'}</span>
-          <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.paid}/{t.cap}</span>
+          <span style={{ fontSize: 10.5, fontWeight: 800, lineHeight: 1, color: full ? RED : '#fff' }}>{t.cap >= 999 ? t.paid : `${t.paid}/${t.cap}`}</span>
           {t.run && <span style={{ fontSize: 7.5, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', color: GREEN, lineHeight: 1 }}>{t.run.status === 'setup' ? 'set up' : t.run.status}</span>}
           {evs.length > 1 && <span style={{ fontSize: 8, color: 'rgba(255,255,255,0.55)', lineHeight: 1 }}>+{evs.length - 1}</span>}
         </button>
@@ -242,7 +438,7 @@ export default function Tournament() {
             <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🎱 Pool tournaments</div>
             <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', marginTop: 3 }}>Your booked pool nights — tap a date to see who's paid and run the tournament. Entrants come straight from online bookings.</div>
           </div>
-          <button onClick={openLeague} style={pill(false)}>🏆 League table</button>
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}><button onClick={openVouchers} style={pill(false)}>🎟 Vouchers</button><button onClick={openLeague} style={pill(false)}>🏆 League table</button></div>
         </div>
         {err && <div style={errBox}>{err}</div>}
         {loading ? <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.5)' }}>Loading…</div> : dated.length === 0 ? <div style={muted}>No pool nights booked yet.</div> : (
@@ -262,7 +458,7 @@ export default function Tournament() {
                     </div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                    <div style={{ fontSize: 20, fontWeight: 800, color: full ? RED : '#fff' }}>{nextT.paid}<span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {nextT.cap}</span></div>
+                    <div style={{ fontSize: 20, fontWeight: 800, color: full ? RED : '#fff' }}>{nextT.paid}{nextT.cap < 999 && <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {nextT.cap}</span>}</div>
                     <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: full ? RED : 'rgba(255,255,255,0.4)' }}>{full ? 'Full' : 'booked'}</div>
                   </div>
                 </button>
@@ -302,6 +498,11 @@ export default function Tournament() {
   const matches = run.matches || []
   const standings = run.standings || []
   const nameById = Object.fromEntries(parts.map(p => [p.id, p.display_name]))
+  // Display order for the rounds column: NEWEST first (founder direction
+  // 12 Aug 2026) so the round being played sits at the top, level with the
+  // standings, and finished rounds stack underneath. `rounds` itself stays in
+  // DB order — curRound and every id lookup depend on it.
+  const orderedRounds = [...rounds].sort((a, b) => (b.ordinal || 0) - (a.ordinal || 0))
   const curRound = rounds[rounds.length - 1]
   const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
 
@@ -319,7 +520,7 @@ export default function Tournament() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}<span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
+            <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}{t.cap < 999 && <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span>}</div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
           </div>
           {/* Hamburger opens a slide-out drawer with every tournament option
@@ -380,24 +581,29 @@ export default function Tournament() {
         <button onClick={startRounds} disabled={busy || activeParts.length < 2} style={{ ...btn('gold'), padding: '13px', fontSize: 15, opacity: activeParts.length < 2 ? 0.5 : 1 }}>▶ Start tournament — draw Round 1</button>
       </>}
 
-      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (oldest at top, new
-          rounds append at the bottom), standings on the RIGHT. Every "option"
+      {/* ══ ROUNDS: two-column layout — rounds on the LEFT (NEWEST at top, older
+          rounds stack below), standings on the RIGHT. Every "option"
           (substitute player, undo, start knockout, restart…) lives in the ☰
           drawer so the founder can find them in one predictable place. ══ */}
       {status === 'rounds' && <>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16, alignItems: 'flex-start' }}>
-          {/* LEFT — rounds (oldest first, "+ Add another round" at the bottom) */}
+          {/* LEFT — rounds (newest first, "+ Add another round" under the current one) */}
           <div style={{ flex: '2 1 320px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 12 }}>
-        {/* Rounds — oldest at top, newest at the bottom so the page reads like
-            a match log written down the page (founder direction 2026-07-30). */}
-        {rounds.map(rnd => {
+        {/* Rounds — newest at top so the round in play is always the first thing
+            you see, next to the standings; older rounds read down the page as
+            history (founder direction 12 Aug 2026, replacing the 30 Jul order). */}
+        {orderedRounds.map((rnd, ri) => {
           const rms = matches.filter(m => m.round_id === rnd.id).sort((a, b) => (a.slot || 0) - (b.slot || 0))
           const done = rms.filter(m => m.status === 'done').length
           return (
-            <div key={rnd.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+            <React.Fragment key={rnd.id}>
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
                 <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>Round {rnd.ordinal}</div>
-                <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                  {ri === 0 && done < rms.length && <button onClick={() => callPlayers(null, rnd.id)} disabled={busy} title="Text everyone still to play in this round" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>📣 Call players</button>}
+                  <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
                 {rms.map(m => {
@@ -412,6 +618,7 @@ export default function Tournament() {
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
+                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2 }}>📣</button>}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -425,21 +632,43 @@ export default function Tournament() {
                 })}
               </div>
             </div>
+            {/* "+ Add another round" sits directly UNDER the current round, so a
+                new draw appears immediately above it and the older rounds below
+                stay out of the way. Always enabled; pairings use standings so far. */}
+            {ri === 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, marginBottom: 4 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
+                </div>
+                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+                {/* Add a team/player mid-tournament — was drawer-only, surfaced here
+                    on the founder's word during a live night (12 Aug 2026). They
+                    join the NEXT round's draw; take the entry fee at the bar. */}
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  <input value={walkin} onChange={e => setWalkin(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Add a team / player…" style={{ flex: '1 1 150px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+                  <button onClick={addWalkin} disabled={busy || !walkin.trim()} style={{ ...btn('ghost'), padding: '9px 13px', fontSize: 13, opacity: walkin.trim() ? 1 : 0.45 }}>＋ Add</button>
+                </div>
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: -3 }}>Goes straight into the next round's draw — take the entry fee at the bar.</div>
+                {callMsg && (
+                  <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
+                )}
+                {orderedRounds.length > 1 && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.35)', letterSpacing: '0.04em', textTransform: 'uppercase', fontWeight: 700 }}>Earlier rounds ↓</div>}
+              </div>
+            )}
+            </React.Fragment>
           )
         })}
 
-        {/* "+ Add another round" sits at the BOTTOM of the rounds column so
-            the next round appears immediately below when clicked — matches
-            the "reads down the page" founder direction. Always enabled;
-            pairings use standings-so-far if the current round isn't finished. */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+        {orderedRounds.length === 0 && (
           <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
-        </div>
-        {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+        )}
           </div>
 
-          {/* RIGHT — live standings (reference column) */}
-          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
+          {/* RIGHT — live standings (reference column). Sticky (founder rule
+              4 Aug 2026): the table pins to the top of the window while the
+              rounds column scrolls, so scores stay in view. On phones the
+              columns stack and the stickiness naturally does nothing. */}
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -480,7 +709,7 @@ export default function Tournament() {
         const tpm = matches.find(m => m.is_third_place)
         const totalRounds = bmatches.length ? Math.max(...bmatches.map(m => m.bracket_round)) : 0
         const placings = run.placings
-        const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
+        const roundLabel = (r) => { const inRound = Math.pow(2, totalRounds - r); return inRound === 1 ? 'The Final' : inRound === 2 ? 'Semi-finals' : inRound === 4 ? 'Quarter-finals' : `1/${inRound} Finals` }
         const bracketMax = run.run?.settings?.raceTo || 8
         const bo3On = !!run.run?.settings?.finalBestOf3
         const BracketMatch = ({ m }) => {
@@ -578,7 +807,11 @@ export default function Tournament() {
               </div>
             )}
             {status === 'done' && placings && (() => {
-              const vByPlace = Object.fromEntries((run.vouchers || []).map(v => [v.place, v]))
+              // Doubles split (founder rule 6 Aug 2026): a place can carry TWO
+              // half-vouchers — one per player, each with its own code + email
+              // status. Singles (and legacy full vouchers) show one line.
+              const vsByPlace = {}
+              ;(run.vouchers || []).forEach(v => { (vsByPlace[v.place] = vsByPlace[v.place] || []).push(v) })
               return (
                 <div style={{ background: 'rgba(168,85,247,0.10)', border: `1px solid ${PURPLE}88`, borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ fontSize: 15, fontWeight: 800, color: '#FCD34D' }}>🏆 {nameById[placings.first]} — Champion!</div>
@@ -586,15 +819,23 @@ export default function Tournament() {
                     {[1, 2, 3].map(place => {
                       const pid = place === 1 ? placings.first : place === 2 ? placings.second : placings.third
                       if (!pid) return null
-                      const v = vByPlace[place], medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉', amt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
-                      return (
+                      const medal = place === 1 ? '🥇' : place === 2 ? '🥈' : '🥉'
+                      const fallbackAmt = place === 1 ? '£30' : place === 2 ? '£20' : '£10'
+                      const vs = (vsByPlace[place] || []).slice().sort((a, b) => (a.recipient || 1) - (b.recipient || 1))
+                      if (!vs.length) return (
                         <div key={place} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
                           <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}</span>
-                          <span style={{ color: PURPLE, fontWeight: 800 }}>{amt} tab</span>
-                          {v?.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
-                          {v?.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v?.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>{fallbackAmt} tab</span>
                         </div>
                       )
+                      return vs.map(v => (
+                        <div key={`${place}-${v.recipient || 1}`} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 13 }}>
+                          <span style={{ color: '#fff', fontWeight: 700 }}>{medal} {nameById[pid]}{vs.length > 1 ? <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}> · player {v.recipient || 1}</span> : null}</span>
+                          <span style={{ color: PURPLE, fontWeight: 800 }}>£{Math.round((v.amount_pence || 0) / 100)} tab</span>
+                          {v.code && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', fontFamily: 'ui-monospace, monospace' }}>{v.code}</span>}
+                          {v.emailed_at ? <span style={{ fontSize: 11, color: GREEN }}>✓ emailed</span> : v.email ? <span style={{ fontSize: 11, color: AMBER }}>will email</span> : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>no email — give at the bar</span>}
+                        </div>
+                      ))
                     })}
                   </div>
                   <button onClick={resendVouchers} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start', padding: '6px 12px', fontSize: 11.5 }}>↻ Re-issue / email vouchers</button>
@@ -607,18 +848,18 @@ export default function Tournament() {
             </div>
             <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
-                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: 'space-around' }}>
+                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: r === totalRounds ? 'center' : 'space-around' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{roundLabel(r)}</div>
                   {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => <BracketMatch key={m.id} m={m} />)}
+                  {r === totalRounds && tpm && (
+                    <div style={{ marginTop: 10 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8 }}>3rd-place play-off</div>
+                      <BracketMatch m={tpm} />
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
-            {tpm && (
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 8 }}>3rd-place match</div>
-                <div style={{ maxWidth: 220 }}><BracketMatch m={tpm} /></div>
-              </div>
-            )}
             <button onClick={refresh} disabled={busy} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>↻ Refresh</button>
           </>
         )
@@ -637,6 +878,11 @@ export default function Tournament() {
         replacing={replacing}
         setReplacing={setReplacing}
         onSaveReplace={saveReplace}
+        onAddLate={(name) => guard(() => tournAddManual(run.run.id, name))()}
+        onAddWalkup={addWalkupSubmit}
+        onRenameParticipant={renameFromDrawer}
+        walkupNameLabel={t.type === 'singles' ? 'Player name…' : 'Team name…'}
+        walkupPartner={t.type !== 'singles'}
         onUndoRound={undoRound}
         onRefresh={refresh}
         onDeleteRun={() => {
@@ -718,6 +964,96 @@ function TableBadge({ n, pending, small }) {
   return null
 }
 
+// ── Add-late-player panel ───────────────────────────────────────────────────
+// Small self-contained input + button used in the ☰ drawer while the rounds
+// run, so a late arrival can be added without leaving the tournament view.
+function AddLatePanel({ busy, onAdd, label, hint }) {
+  const [name, setName] = useState('')
+  const submit = async () => { const n = name.trim(); if (!n || busy) return; await onAdd(n); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>{hint}</span>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder={label}
+          disabled={busy}
+          style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
+        />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
+      </div>
+    </div>
+  )
+}
+
+
+// ── Walk-up sign-up panel ───────────────────────────────────────────────────
+// Full mid-tournament sign-up, exactly like booking online (founder rule
+// 6 Aug 2026): creates a real booking entry (pending payment), drops them
+// into the run NOW, and emails them a secure Stripe link to pay the entry
+// fee. The webhook marks them paid + fires the normal confirmation when the
+// link is used. Cash payers can use quick-add instead.
+function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [phone, setPhone] = useState('')
+  const [p2name, setP2name] = useState('')
+  const [p2email, setP2email] = useState('')
+  const [note, setNote] = useState('')
+  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim())
+  const inp = { padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none', minWidth: 0 }
+  const submit = async () => {
+    if (!valid || busy) return
+    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), partnerName: p2name.trim(), partnerEmail: p2email.trim() })
+    if (r && r.ok) {
+      setNote(r.emailed ? `✓ ${name.trim()} is in — payment link emailed` : `✓ ${name.trim()} is in — pay-link email failed, take cash instead`)
+      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email('')
+    }
+  }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Signs them up like an online booking: they join the tournament straight away and get an email with a secure Stripe link to pay the entry fee.</span>
+      <input value={name} onChange={e => setName(e.target.value)} placeholder={nameLabel} disabled={busy} style={inp} />
+      <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
+      <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Mobile — for their &quot;you're up next&quot; text…" type="tel" disabled={busy} style={inp} />
+      {showPartner && <>
+        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
+        <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
+      </>}
+      <button onClick={submit} disabled={busy || !valid} style={{ ...btn('gold'), padding: '10px', opacity: (busy || !valid) ? 0.5 : 1 }}>🚶 Sign up & email the pay link</button>
+      {note && <span style={{ fontSize: 11.5, color: GREEN }}>{note}</span>}
+    </div>
+  )
+}
+
+// ── Rename panel ────────────────────────────────────────────────────────────
+// Fix a name / team name mid-tournament — cascades everywhere instantly and
+// KEEPS league points (substitution is the one that nulls the night). League
+// identity follows the booking email, so a rename never splits a player's
+// season record.
+function RenamePanel({ participants, busy, onRename }) {
+  const [pid, setPid] = useState('')
+  const [name, setName] = useState('')
+  const active = (participants || []).filter(p => p.active)
+  if (!active.length) return null
+  const submit = async () => { const n = name.trim(); if (!pid || !n || busy) return; await onRename(pid, n); setPid(''); setName('') }
+  return (
+    <div style={{ background: 'rgba(168,85,247,0.05)', border: '1px solid rgba(168,85,247,0.25)', borderRadius: 10, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 7 }}>
+      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>Fix a spelling or change a team name — applies everywhere at once and keeps their league points. (A DIFFERENT person stepping in? Use Substitute below instead.)</span>
+      <select value={pid} onChange={e => setPid(e.target.value)} disabled={busy} style={{ padding: '8px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}>
+        <option value="">Pick who to rename…</option>
+        {active.map(p => <option key={p.id} value={p.id}>{p.display_name}</option>)}
+      </select>
+      {pid && <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+        <input autoFocus value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="New name…" disabled={busy} style={{ flex: '1 1 150px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
+        <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>Save</button>
+      </div>}
+    </div>
+  )
+}
+
 // ── Replace-player panel ────────────────────────────────────────────────────
 // Compact mid-tournament substitution UI: pick a player from the dropdown,
 // type the replacement's name, hit Save. Cascades the new name to every match
@@ -782,7 +1118,8 @@ const pill = (active) => ({ padding: '6px 14px', borderRadius: 20, fontSize: 12.
 // surface at each stage.
 function MenuDrawer({
   open, onClose, status, curDone, busy,
-  participants, replacing, setReplacing, onSaveReplace,
+  participants, replacing, setReplacing, onSaveReplace, onAddLate,
+  onAddWalkup, onRenameParticipant, walkupNameLabel, walkupPartner,
   onUndoRound, onRefresh, onDeleteRun,
   koRaceTo, setKoRaceTo, thirdPlace, setThirdPlace, finalBestOf3, setFinalBestOf3, onStartKnockout,
   onResendVouchers, onSeedGrandFinal, tournamentName,
@@ -806,6 +1143,19 @@ function MenuDrawer({
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>
+
+        {/* Add a late player — founder rule 4 Aug 2026: joining mid-tournament is
+            allowed while the Swiss rounds run. They start on 0 points and get
+            drawn into the NEXT round (the engine already handles odd numbers
+            with a bye). Not shown in the knockout — the bracket is fixed. */}
+        {isRounds && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🚶 Walk-up sign-up — emails a pay link</div>
+            <WalkupPanel busy={busy} onAdd={onAddWalkup} nameLabel={walkupNameLabel} showPartner={walkupPartner} />
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>➕ Quick add (cash at the bar)</div>
+            <AddLatePanel busy={busy} onAdd={onAddLate} label="Player / team name…" hint="No email, no link — just drops them straight into the next round. Take cash at the bar." />
+          </div>
+        )}
 
         {/* Format — flip the night's discipline if not enough teams show up.
             Founder rule 2026-07-30: a doubles night played as singles still
@@ -862,6 +1212,7 @@ function MenuDrawer({
         {(isRounds || isKO) && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <div style={{ fontSize: 11, fontWeight: 800, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>🔁 Change team names / substitute</div>
+            <RenamePanel participants={participants} busy={busy} onRename={onRenameParticipant} />
             <ReplacePanel
               participants={participants}
               replacing={replacing}

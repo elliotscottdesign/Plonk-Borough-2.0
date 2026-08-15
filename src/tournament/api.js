@@ -17,6 +17,7 @@ async function call(payload) {
 export const tournList = () => call({ action: 'list' })                                   // pool nights + paid counts + run status
 export const tournOpen = (tournamentId) => call({ action: 'open', tournamentId })          // create/sync a run → roster
 export const tournAddManual = (runId, name) => call({ action: 'addManual', runId, name })   // add a walk-in
+export const tournAddWalkup = (runId, d) => call({ action: 'addWalkup', runId, name: d.name, email: d.email, phone: d.phone, partnerName: d.partnerName, partnerEmail: d.partnerEmail })   // full sign-up + emailed Stripe pay link
 export const tournRename = (participantId, name) => call({ action: 'renameParticipant', participantId, name })
 // Mid-tournament substitution — cascades the new name across every historic
 // match AND flags the slot so the original player earns no league points.
@@ -31,6 +32,10 @@ export const tournNextRound = (runId) => call({ action: 'generateNextRound', run
 export const tournEnterScore = (matchId, p1_score, p2_score) => call({ action: 'enterScore', matchId, p1_score, p2_score })
 export const tournEnterGames = (matchId, games) => call({ action: 'enterScore', matchId, games })   // best-of-3 final / 3rd-place
 export const tournClearScore = (matchId) => call({ action: 'clearScore', matchId })
+// 📣 Manual call-up — text both players of a match (or a whole round) on demand.
+// Returns who was texted / who has no number / who failed, so the screen can say so.
+export const tournCallPlayers = (matchId) => call({ action: 'callPlayers', matchId })
+export const tournCallRound = (roundId) => call({ action: 'callPlayers', roundId })
 export const tournDeleteLastRound = (runId) => call({ action: 'deleteLastRound', runId })
 
 // Slice 3 — knockout bracket.
@@ -38,7 +43,14 @@ export const tournStartKnockout = (runId, thirdPlace, raceTo, finalBestOf3) => c
 
 // Slice 4 — vouchers + league + grand final.
 export const tournGetLeague = (discipline) => call({ action: 'getLeague', discipline })      // public read (secret harmless)
-export const tournFinalize = (runId) => call({ action: 'finalize', runId })                  // re-run voucher emails
+export const tournFinalize = (runId) => call({ action: 'finalize', runId })
+// 🔗 League merges — reconnect a returning walk-in's earlier points to the
+// identity they play under now. Read-time only; undo restores the split.
+export const tournMergeLeague = (discipline, fromKey, toKey) => call({ action: 'mergeLeague', discipline, fromKey, toKey })
+export const tournUnmergeLeague = (discipline, fromKey) => call({ action: 'unmergeLeague', discipline, fromKey })                  // re-run voucher emails
+export const tournListVouchers = () => call({ action: 'listVouchers' })                        // all prize vouchers + redemption state
+export const tournRedeemVoucher = (voucherId, by) => call({ action: 'redeemVoucher', voucherId, by })   // one-shot: locks the code
+export const tournUnredeemVoucher = (voucherId) => call({ action: 'unredeemVoucher', voucherId })       // undo a mis-tap
 export const tournSeedFromLeague = (runId) => call({ action: 'seedFromLeague', runId })       // grand final: add league top-8
 // Flip THIS night's discipline (e.g. doubles → singles) when not enough
 // teams show up. Points still accrue to the league — just the OTHER league.
