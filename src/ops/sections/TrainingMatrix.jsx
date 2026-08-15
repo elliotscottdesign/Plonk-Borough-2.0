@@ -95,7 +95,7 @@ export default function TrainingMatrix({ staff = [] }) {
       ) : docKey ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-            <button onClick={() => { setDocKey(null); setEditingDoc(false) }} style={btn}>‹ All documents</button>
+            <button onClick={() => { setDocKey(null); setEditingDoc(false) }} style={{ ...btn, position: 'sticky', top: 0, zIndex: 20 }}>‹ All documents</button>
             {!editingDoc && <button onClick={() => setEditingDoc(true)} style={btn}>✏️ Edit this doc</button>}
           </div>
           {editingDoc

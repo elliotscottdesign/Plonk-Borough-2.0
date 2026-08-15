@@ -1114,7 +1114,10 @@ function MenuDrawer({
         overflowY: 'auto', boxShadow: '-8px 0 30px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column', gap: 16, padding: 18,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        {/* Pinned: the drawer is its own scroller, so an unpinned ✕ scrolled out of
+            sight once the options list got long — leaving only a thin strip of
+            backdrop to escape by (founder: "no way out"). */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: -18, zIndex: 2, background: '#0b0713', paddingTop: 18, marginTop: -18, paddingBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>

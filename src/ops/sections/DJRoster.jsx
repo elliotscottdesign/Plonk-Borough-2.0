@@ -430,9 +430,14 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
                   <Field label="SoundCloud"><input value={form.soundcloud || ''} onChange={e => onField('soundcloud', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="Spotify"><input value={form.spotify || ''} onChange={e => onField('spotify', e.target.value)} style={inp('100%')} /></Field>
                   <Field label="YouTube" wide><input value={form.youtube || ''} onChange={e => onField('youtube', e.target.value)} style={inp('100%')} /></Field>
-                  <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'space-between' }}>
+                  {/* Cancel was missing: the only ways out of an edit were Save or
+                      Remove — both writes (founder: "no way out"). */}
+                  <div style={{ gridColumn: '1 / -1', display: 'flex', gap: 8, justifyContent: 'space-between', flexWrap: 'wrap' }}>
                     <button onClick={() => removeDj(d.id)} style={btn('red')}>Remove</button>
-                    <button onClick={saveEdit} disabled={busy} style={btn('gold')}>{busy ? 'Saving…' : 'Save'}</button>
+                    <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
+                      <button onClick={() => setEditing(null)} disabled={busy} style={btn('ghost')}>Cancel</button>
+                      <button onClick={saveEdit} disabled={busy} style={btn('gold')}>{busy ? 'Saving…' : 'Save'}</button>
+                    </div>
                   </div>
                 </div>
               ) : (

@@ -185,7 +185,9 @@ export default function StaffRota() {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Sticky: editing a staff profile or opening a day/statement used to bury
+          this row — the way back must stay on screen (founder, Aug 2026). */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
         {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
