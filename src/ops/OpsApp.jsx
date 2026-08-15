@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
@@ -95,7 +95,30 @@ export default function OpsApp() {
   lastInGroup.current[activeGroup.key] = tab
 
   const current = allTabs.find(t => t.key === tab) || allTabs[0]
-  const pick = (k) => { setTab(k); setMenuOpen(false) }
+
+  // Keep the open tab IN THE URL (?tab=djbookings). Without this, refreshing any
+  // screen threw you back to the first tab, and the phone's Back button left the
+  // app entirely (founder, Aug 2026). Changing tab pushes a history entry, so
+  // Back now steps between tabs; refresh reopens exactly where you were.
+  const putTabInUrl = (k, push) => {
+    try {
+      const u = new URL(window.location.href)
+      u.searchParams.set('tab', k)
+      window.history[push ? 'pushState' : 'replaceState']({ ndbTab: k }, '', u)
+    } catch { /* non-fatal */ }
+  }
+  useEffect(() => { putTabInUrl(tab, false) }, [])   // stamp the URL on first paint
+  useEffect(() => {
+    const onPop = () => {
+      const q = new URLSearchParams(window.location.search).get('tab')
+      if (q && allTabs.some(t => t.key === q)) { setTab(q); setMenuOpen(false) }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const pick = (k) => { if (k !== tab) putTabInUrl(k, true); setTab(k); setMenuOpen(false) }
   const pickGroup = (g) => {
     const remembered = lastInGroup.current[g.key]
     pick(g.tabs.some(t => t.key === remembered) ? remembered : g.tabs[0].key)

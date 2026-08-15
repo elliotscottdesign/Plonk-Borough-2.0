@@ -43,7 +43,8 @@ export default function Operations() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* On phones the tool tabs are a single swipeable row instead of a 9-row
           wrapped wall that buries the content. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0, WebkitOverflowScrolling: 'touch' }}>
+      {/* Sticky: these tools are long pages — the way back must stay on screen. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0, WebkitOverflowScrolling: 'touch', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6 }}>
         {OPS_TOOLS.map(t => {
           const on = tool === t.key
           return (
