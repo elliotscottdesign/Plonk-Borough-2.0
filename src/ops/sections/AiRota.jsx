@@ -34,13 +34,28 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   // longer needs flagging — everyone's available by default and only marks days off.
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
 
-  const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days); setWarnings(r.warnings || []); setApplied({}) }
+  const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days.map(d => ({ ...d, slots: sortSlots(d.slots) }))); setWarnings(r.warnings || []); setApplied({}) }
   // Engine warnings are strings prefixed "YYYY-MM-DD: …" — split them per day so each
   // one sits on the day card it's about (plus the header pill for the total).
   const warnsFor = (date) => warnings.filter(w => w.startsWith(date + ':')).map(w => w.slice(date.length + 1).trim())
   const stepWeek = (n) => { setWeekStart(w => addDaysISO(w, n * 7)); setDays(null) }
 
-  const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
+  // What a slot IS is decided by who's in it: a manager → 👔, kitchen-trained → 🍳,
+  // else 🍺 Bar. Fixed engine slots (manager/kitchen) keep their identity; free
+  // slots (floor / evening / added) take on the person's role. Days keep the
+  // Manager → Kitchen → Bar order, so re-assigning re-sorts the card.
+  const staffById = Object.fromEntries(active.map(s => [s.id, s]))
+  const kindOf = (s) => {
+    if (s.role === 'manager') return 'manager'
+    if (s.role === 'kitchen') return 'kitchen'
+    const p = s.staffId ? staffById[s.staffId] : null
+    if (p && (p.role === 'Manager' || p.role === 'Asst. Manager')) return 'manager'
+    if (p && isKitchen(p)) return 'kitchen'
+    return 'bar'
+  }
+  const KIND_ORDER = { manager: 0, kitchen: 1, bar: 2 }
+  const sortSlots = (slots) => slots.map((s, i) => [s, i]).sort((a, b) => (KIND_ORDER[kindOf(a[0])] - KIND_ORDER[kindOf(b[0])]) || (a[0].start - b[0].start) || (a[1] - b[1])).map(([s]) => s)
+  const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: sortSlots(d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' })) }))
   const removeSlot = (di, si) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.filter((_, j) => j !== si) }))
   // Add an extra shift to a day — a plain floor slot across the day's opening hours,
   // unassigned; the founder picks the person and trims the times with the steppers.
@@ -86,9 +101,11 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   }
 
   const slotTag = (s) => {
-    if (s.role === 'manager') return { txt: '👔 Manager', color: PURPLE }
-    if (s.role === 'kitchen' || s.kitchen) return { txt: '🍳 Kitchen', color: AMBER }
-    return { txt: s.label, color: 'rgba(255,255,255,0.5)' }
+    const k = kindOf(s)
+    if (k === 'manager') return { txt: '👔 Manager', color: PURPLE }
+    if (k === 'kitchen') return { txt: '🍳 Kitchen', color: AMBER }
+    if (!s.staffId) return { txt: '＋ Pick who', color: BLUE }   // added/unassigned — becomes Bar/Kitchen/Manager once filled
+    return { txt: '🍺 Bar', color: 'rgba(255,255,255,0.6)' }
   }
 
   return (
