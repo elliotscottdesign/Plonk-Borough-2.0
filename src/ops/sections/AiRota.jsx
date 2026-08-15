@@ -42,6 +42,11 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
 
   const reassign = (di, si, staffId) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.map((s, j) => j !== si ? s : { ...s, staffId: staffId || null, name: staffId ? nameById[staffId] : null, warn: '' }) }))
   const removeSlot = (di, si) => setDays(ds => ds.map((d, i) => i !== di ? d : { ...d, slots: d.slots.filter((_, j) => j !== si) }))
+  // Add an extra shift to a day — a plain floor slot across the day's opening hours,
+  // unassigned; the founder picks the person and trims the times with the steppers.
+  const addSlot = (di) => setDays(ds => ds.map((d, i) => i !== di ? d : {
+    ...d, slots: [...d.slots, { start: d.open, end: d.close, role: 'any', label: 'Extra', staffId: null, name: null, kitchen: false, warn: '', added: true }],
+  }))
   // Shorten / lengthen a single shift (30-min steps). Keeps ≥1h, caps the end at 2am.
   const adjust = (di, si, field, delta) => setDays(ds => ds.map((d, i) => i !== di ? d : {
     ...d, slots: d.slots.map((s, j) => {
@@ -56,7 +61,9 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
     const blocks = blocksOf(day)
     if (blocks.length === 0) { alert('No one is assigned on this day, so there’s nothing to apply — I won’t wipe the day. Assign someone first (or clear a day from the Rota grid).'); return }
     const pastNote = day.date < todayStr ? '\n\n(This is a past day — you\'re editing history.)' : ''
-    if (!window.confirm(`Apply this roster to ${dayLabel(day.date)}?\n\nThis REPLACES whatever is currently rostered for that day.${pastNote}`)) return
+    const emptyN = day.slots.filter(s => !s.staffId).length
+    const emptyNote = emptyN ? `\n\n${emptyN} unassigned slot${emptyN === 1 ? '' : 's'} will be skipped — pick someone for them first if you want them on.` : ''
+    if (!window.confirm(`Apply this roster to ${dayLabel(day.date)}?\n\nThis REPLACES whatever is currently rostered for that day.${emptyNote}${pastNote}`)) return
     setBusy(true)
     try { await rotaSaveDayRoster(day.date, blocks); setApplied(a => ({ ...a, [day.date]: true })); await reload?.() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
@@ -167,7 +174,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                     const tag = slotTag(s)
                     const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : s.role === 'kitchen' ? active.filter(isKitchen) : active
                     return (
-                      <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px solid ${s.warn ? 'rgba(245,158,11,0.4)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
+                      <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px ${s.added && !s.staffId ? 'dashed' : 'solid'} ${s.warn ? 'rgba(245,158,11,0.4)' : s.added && !s.staffId ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 10, fontWeight: 700, color: tag.color, whiteSpace: 'nowrap', minWidth: 66 }}>{tag.txt}</span>
                           <select value={s.staffId || ''} onChange={e => reassign(di, si, e.target.value)} style={sel}>
@@ -186,6 +193,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                     )
                   })}
                   {day.slots.length === 0 && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.4)' }}>Closed / no one on.</div>}
+                  <button onClick={() => addSlot(di)} disabled={busy} title="Add another shift to this day — pick who, then set the times" style={{ padding: '7px 8px', borderRadius: 7, cursor: 'pointer', background: 'transparent', border: '1px dashed rgba(255,255,255,0.28)', color: 'rgba(255,255,255,0.7)', fontSize: 12, fontWeight: 600, textAlign: 'center' }}>+ Add a shift</button>
                 </div>
                 <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
                   {(() => {
@@ -199,7 +207,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
             ))}
           </div>
           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', lineHeight: 1.6, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '12px 14px' }}>
-            Change anyone with the dropdowns, <strong style={{ color: '#fff' }}>shorten or lengthen a shift</strong> with the −/+ buttons (30-min steps), or remove a slot with ✕. <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — with the exact times you set — and you can still fine-tune in the Rota grid afterwards. All the rules — house rules, hours, staff priority, opener/closer, quiet-day early cut and holidays — are yours to edit in <strong style={{ color: '#fff' }}>⚙️ Rota rules</strong> above.
+            Change anyone with the dropdowns, <strong style={{ color: '#fff' }}>shorten or lengthen a shift</strong> with the −/+ buttons (30-min steps), remove a slot with ✕, or <strong style={{ color: '#fff' }}>+ Add a shift</strong> to put an extra person on a day (pick who, set the times). <strong style={{ color: '#fff' }}>Apply</strong> writes it to the real rota for that day (replacing what's there) — with the exact times you set — and you can still fine-tune in the Rota grid afterwards. All the rules — house rules, hours, staff priority, opener/closer, quiet-day early cut and holidays — are yours to edit in <strong style={{ color: '#fff' }}>⚙️ Rota rules</strong> above.
           </div>
         </>
       )}
