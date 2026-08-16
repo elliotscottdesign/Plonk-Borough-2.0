@@ -128,6 +128,25 @@ export default function PingPong() {
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top teams seed into a single-elimination bracket from the standings.\n\nMatches: first to ${koRaceTo} points, win by 2${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
   const loadLeague = async () => { setBusy(true); try { setLeague(await tournGetLeague('teams')) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // 🔗 Reconnect a returning walk-in's points — walk-ins have no booking email,
+  // so their league identity is the name typed at the bar. Folds the old row
+  // into the new one; nothing historic is rewritten and undo restores the split.
+  const [mergeFrom, setMergeFrom] = useState('')
+  const [mergeTo, setMergeTo] = useState('')
+  const doMerge = async () => {
+    const rows = league?.table || []
+    const a = rows.find(r => r.key === mergeFrom), bRow = rows.find(r => r.key === mergeTo)
+    if (!a || !bRow) return alert('Pick both rows.')
+    if (!window.confirm(`Move ${a.name}'s ${a.pts} point${a.pts === 1 ? '' : 's'} onto ${bRow.name}?\n\nThey become one row in the league. You can undo this.`)) return
+    setBusy(true)
+    try { setLeague(await tournMergeLeague('teams', mergeFrom, mergeTo)); setMergeFrom(''); setMergeTo('') }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const undoMerge = async (fromKey, label) => {
+    if (!window.confirm(`Split "${label}" back out into its own league row?`)) return
+    setBusy(true)
+    try { setLeague(await tournUnmergeLeague('teams', fromKey)) } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const openLeague = async () => { setLeagueView(true); await loadLeague() }
   // 🎟 Voucher redemption (founder brief 12 Aug 2026) — codes lock on redeem.
   const openVouchers = async () => {
@@ -280,7 +299,7 @@ export default function PingPong() {
                 {rows.map(r => (
                   <tr key={r.key} style={{ borderTop: '1px solid rgba(255,255,255,0.06)', color: '#fff', background: r.qualifies ? 'rgba(168,85,247,0.12)' : 'transparent' }}>
                     <td style={{ padding: '8px 8px 8px 0', fontWeight: 700, color: r.rank <= 8 ? PURPLE : 'rgba(255,255,255,0.5)' }}>{r.rank}{r.rank <= 8 ? ' ✦' : ''}</td>
-                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 600 }}>{r.name}</td>
+                    <td style={{ padding: '8px 8px 8px 0', fontWeight: 600 }}>{r.name}{r.alsoKnownAs?.length ? <span style={{ fontSize: 10.5, fontWeight: 500, color: 'rgba(255,255,255,0.45)' }}> · incl. {r.alsoKnownAs.join(', ')}</span> : null}</td>
                     <td style={{ padding: '8px', textAlign: 'right', color: 'rgba(255,255,255,0.55)' }}>{r.nights}</td>
                     <td style={{ padding: '8px', textAlign: 'right' }}>{r.wins || ''}</td>
                     <td style={{ padding: '8px', textAlign: 'right' }}>{r.seconds || ''}</td>
@@ -292,6 +311,34 @@ export default function PingPong() {
               </tbody>
             </table>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8 }}>✦ = top 8 · qualifies for the grand final. This same table shows live on nodice.bar.</div>
+            {/* Reconnect a returning walk-in — founder's rule: let them come
+                back, then stitch the points together (13 Aug 2026). */}
+            <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff' }}>🔗 Same team, two rows?</div>
+              <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Walk-ins added at the bar have no email, so a returning team can end up with a second row. Fold the old one into the new and their points carry over.</div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                <select value={mergeFrom} onChange={e => setMergeFrom(e.target.value)} style={{ flex: '1 1 150px', padding: '9px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff' }}>
+                  <option value="">Move this row…</option>
+                  {rows.map(r => <option key={r.key} value={r.key}>{r.name} ({r.pts} pts)</option>)}
+                </select>
+                <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>→ onto</span>
+                <select value={mergeTo} onChange={e => setMergeTo(e.target.value)} style={{ flex: '1 1 150px', padding: '9px 10px', fontSize: 13, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff' }}>
+                  <option value="">…this one</option>
+                  {rows.filter(r => r.key !== mergeFrom).map(r => <option key={r.key} value={r.key}>{r.name} ({r.pts} pts)</option>)}
+                </select>
+                <button onClick={doMerge} disabled={busy || !mergeFrom || !mergeTo} style={{ ...btn('gold'), padding: '9px 14px', fontSize: 13, opacity: (mergeFrom && mergeTo) ? 1 : 0.45 }}>🔗 Join</button>
+              </div>
+              {!!(league?.merges || []).length && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5, marginTop: 2 }}>
+                  {league.merges.map(mg => (
+                    <div key={mg.from_key} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>
+                      <span>“{mg.from_key}” → “{mg.to_key}”</span>
+                      <button onClick={() => undoMerge(mg.from_key, mg.from_key)} disabled={busy} style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.75)', borderRadius: 6, padding: '2px 8px', fontSize: 10.5, cursor: 'pointer' }}>undo</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -1067,7 +1114,10 @@ function MenuDrawer({
         overflowY: 'auto', boxShadow: '-8px 0 30px rgba(0,0,0,0.5)',
         display: 'flex', flexDirection: 'column', gap: 16, padding: 18,
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+        {/* Pinned: the drawer is its own scroller, so an unpinned ✕ scrolled out of
+            sight once the options list got long — leaving only a thin strip of
+            backdrop to escape by (founder: "no way out"). */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, position: 'sticky', top: -18, zIndex: 2, background: '#0b0713', paddingTop: 18, marginTop: -18, paddingBottom: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 800, color: PURPLE, letterSpacing: '0.16em', textTransform: 'uppercase' }}>Tournament options</div>
           <button onClick={onClose} aria-label="Close" style={{ width: 40, height: 40, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 18, cursor: 'pointer' }}>✕</button>
         </div>

@@ -27,7 +27,8 @@ export default function Kitchen() {
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>
-      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap' }}>
+      {/* Sticky — the stock + allergen sheets are long; the way back must stay put. */}
+      <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
         {[['orders', '🎫 Orders'], ['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}

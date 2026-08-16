@@ -215,7 +215,11 @@ function availState(unavailSet, date) {
 
 // Generate a concept week. Returns { days: [{ date, hours, holiday, slots:[{...}] }], warnings }
 // Each slot: { start, end, label, role, staffId|null, name|null, kitchen, warn }
-export function generateWeek(weekStart, staff, availabilityRows, rules) {
+// opts.slotsByDate: { 'YYYY-MM-DD': { slots, open, close } } — when present for a
+// date, those slots are used instead of the rules' daySlots (the Historical build
+// shapes slots to last week's till demand, then hands off here so every people
+// rule — availability, rest, keep-apart, priority — still applies).
+export function generateWeek(weekStart, staff, availabilityRows, rules, opts = {}) {
   const R = applyCompiled(withDefaults(rules))
   const active = (staff || []).filter(s => s.active !== false)
   const unavail = buildUnavail(availabilityRows)
@@ -249,7 +253,9 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
   const warnings = []
   for (let i = 0; i < 7; i++) {
     const date = addDaysISO(weekStart, i)
-    const { slots, open, close, holiday, kitchen: kitchenReq } = daySlots(date, R)
+    const base = daySlots(date, R)
+    const ov = opts.slotsByDate && opts.slotsByDate[date]
+    const { slots, open, close, holiday, kitchen: kitchenReq } = ov ? { ...base, ...ov, slots: ov.slots || base.slots } : base
     const usedToday = new Set()
     let kitchenCovered = false
     const out = []

@@ -109,7 +109,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
-  const [sortBy, setSortBy] = useState('hours')   // 'hours' | 'role' | 'name'
+  const [sortBy, setSortBy] = useState('role')   // 'role' (default) | 'hours' | 'name'
   const [pastOpen, setPastOpen] = useState(false)
   const [noteText, setNoteText] = useState('')
   const isMobile = useIsMobile()
@@ -160,11 +160,12 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const totalHours = Math.round(weekRows.reduce((a, r) => a + r.hrs, 0) * 10) / 10
   const totalSpend = weekRows.reduce((a, r) => a + (r.cost || 0), 0)
   const missingRate = weekRows.some(r => r.hrs > 0 && r.rate == null)
-  // Sort order the founder can flip: by hours (default), by role (Manager→Bar→Kitchen), or A–Z.
+  // Sort order the founder can flip: by role (default — Managers → Kitchen → Bar,
+  // most hours first within each group), by hours, or A–Z.
   const byName = (a, b) => (a.s.name || '').localeCompare(b.s.name || '')
   const sorters = {
     hours: (a, b) => b.hrs - a.hrs || byName(a, b),
-    role: (a, b) => roleRank(a.s.role) - roleRank(b.s.role) || byName(a, b),
+    role: (a, b) => roleRank(a.s) - roleRank(b.s) || b.hrs - a.hrs || byName(a, b),
     name: byName,
   }
   const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null).slice().sort(sorters[sortBy] || sorters.hours)
@@ -217,8 +218,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.04em', marginRight: 2 }}>Sort</span>
-              {[['hours', 'Hours'], ['role', 'Role'], ['name', 'A–Z']].map(([k, lbl]) => (
-                <button key={k} onClick={() => setSortBy(k)} title={k === 'role' ? 'Manager → Assistant Manager → Bar Staff → Kitchen Staff' : ''} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer', background: sortBy === k ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sortBy === k ? PURPLE : 'rgba(255,255,255,0.14)'}`, color: sortBy === k ? '#fff' : 'rgba(255,255,255,0.6)' }}>{lbl}</button>
+              {[['role', 'Role'], ['hours', 'Hours'], ['name', 'A–Z']].map(([k, lbl]) => (
+                <button key={k} onClick={() => setSortBy(k)} title={k === 'role' ? 'Managers → Kitchen → Bar (most hours first within each)' : ''} style={{ padding: '3px 10px', fontSize: 11, fontWeight: 600, borderRadius: 6, cursor: 'pointer', background: sortBy === k ? 'rgba(168,85,247,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${sortBy === k ? PURPLE : 'rgba(255,255,255,0.14)'}`, color: sortBy === k ? '#fff' : 'rgba(255,255,255,0.6)' }}>{lbl}</button>
               ))}
             </div>
             <div style={{ display: 'grid', gap: 8, marginTop: 10 }}>
@@ -471,10 +472,17 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
 }
 
 // Role display order for the "by role" sort (founder-set stack):
-// Manager → Assistant Manager → Bar Staff → Kitchen Staff. (Supervisor sits just
-// below Assistant Manager; unknown/blank roles group with Bar Staff.)
-const ROLE_ORDER = { 'Manager': 0, 'Asst. Manager': 1, 'Supervisor': 2, 'Bar Staff': 3, 'Kitchen / Barback': 4 }
-const roleRank = (role) => ROLE_ORDER[role] ?? 3
+// House stacking order (same rule as the AI Builder): Managers → Kitchen → Bar.
+// Manager, then Assistant Manager; kitchen = the kitchen role OR anyone kitchen-
+// trained; Supervisor leads the bar group; unknown/blank roles group with Bar.
+const roleRank = (s) => {
+  const role = s?.role
+  if (role === 'Manager') return 0
+  if (role === 'Asst. Manager') return 1
+  if (role === 'Kitchen / Barback' || (s?.abilities || []).includes('kitchen')) return 2
+  if (role === 'Supervisor') return 3
+  return 4
+}
 
 const btn = (kind) => {
   const base = { padding: '7px 12px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600, border: '1px solid transparent', whiteSpace: 'nowrap' }

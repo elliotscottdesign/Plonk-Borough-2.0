@@ -394,7 +394,10 @@ export default function RotaPortal() {
           )
         })()}
 
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+        {/* Sticky so the way out is ALWAYS on screen — scrolling a long checklist,
+            cocktail list or profile used to bury these tabs (founder: "no page
+            should leave you stranded"). */}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16, position: 'sticky', top: 0, zIndex: 20, background: BG, paddingTop: 6, paddingBottom: 6 }}>
           {TABS.map(([k, ic, lbl]) => (
             <button key={k} onClick={() => { setView(k); setSelDate(null) }} style={{ flex: '1 1 28%', minWidth: 92, padding: '10px 4px', fontSize: 12, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? RED : LINE}`, color: view === k ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: view === k ? 700 : 400, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textAlign: 'center' }}>{ic} {lbl}</button>
           ))}

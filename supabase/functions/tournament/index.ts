@@ -569,6 +569,15 @@ async function computeLeague(sb: any, discipline: string) {
   const effectiveType = (r: any) => r.discipline_override || (r.tournaments && r.tournaments.tournament_type);
   const relevant = (runs || []).filter((r: any) => r.tournaments && effectiveType(r) === discipline && !/season final/i.test(r.tournaments.name || ""));
   relevant.sort((a: any, b: any) => String(a.tournaments.event_date).localeCompare(String(b.tournaments.event_date)));
+  // Merged identities (founder rule 13 Aug 2026): a walk-in keyed by name can be
+  // folded into the identity they later book under, so their earlier points
+  // follow them. Resolved at READ time — nothing historic is rewritten, and a
+  // merge is undone by deleting its row. Chains are followed (a→b→c) with a hop
+  // limit so a mistaken loop can never hang the league.
+  const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+  const mergeMap: Record<string, string> = {};
+  for (const m of merges || []) mergeMap[m.from_key] = m.to_key;
+  const resolve = (k: string) => { let cur = k; for (let i = 0; i < 10 && mergeMap[cur] && mergeMap[cur] !== cur; i++) cur = mergeMap[cur]; return cur; };
   const table: Record<string, any> = {};
   for (const run of relevant) {
     const { participants, standings, placings } = await loadRun(sb, run);
@@ -585,8 +594,9 @@ async function computeLeague(sb: any, discipline: string) {
       for (const e of ents || []) if (e.captain_email) emailByEntry[e.id] = String(e.captain_email).trim().toLowerCase();
     }
     const entryByPid: Record<string, string> = {}; for (const p of participants as any[]) if (p.entry_id) entryByPid[p.id] = p.entry_id;
-    const keyOf = (id: string) => (emailByEntry[entryByPid[id] || ""] || (nameById[id] || "").trim().toLowerCase());
-    const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
+    const rawKeyOf = (id: string) => (emailByEntry[entryByPid[id] || ""] || (nameById[id] || "").trim().toLowerCase());
+    const keyOf = (id: string) => resolve(rawKeyOf(id));
+    const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0, alsoKnownAs: [] }); if (rawKeyOf(id) !== k && !e.alsoKnownAs.includes(nameById[id])) e.alsoKnownAs.push(nameById[id]); else if (rawKeyOf(id) === k) e.name = nameById[id]; return e; };
     for (const p of participants.filter((p: any) => p.active && !p.league_null)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
     for (const s of standings) { if (nulled.has(s.id)) continue; const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
     if (standings[0] && !nulled.has(standings[0].id)) { const e = table[keyOf(standings[0].id)]; if (e) e.pts += 1; }
@@ -611,7 +621,8 @@ Deno.serve(async (req) => {
   try {
     if (action === "getLeague") {
       const discipline = b.discipline === "doubles" ? "doubles" : "singles";
-      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+      const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)), merges: merges || [] });
     }
   } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 
@@ -621,6 +632,36 @@ Deno.serve(async (req) => {
     // The pool nights to run: booked tournaments + their paid count, cap, and run status.
     // Excludes tournament_type='teams' — those are the Sunday ping pong nights, which
     // live in the separate `pingpong` function/tab (3 Aug 2026).
+    // ── 🔗 League identity merge ────────────────────────────────────────────
+    // Reconnects a returning walk-in's earlier points to the identity they now
+    // play under. Read-time only — no historic row is edited, and unmerging
+    // restores the split exactly.
+    if (action === "mergeLeague") {
+      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
+      const fromKey = String(b.fromKey ?? "").trim().toLowerCase().slice(0, 200);
+      const toKey = String(b.toKey ?? "").trim().toLowerCase().slice(0, 200);
+      if (!fromKey || !toKey) return json({ error: "Pick both rows." }, 400);
+      if (fromKey === toKey) return json({ error: "That's the same row." }, 400);
+      // Refuse a cycle: the target must not already fold back into the source.
+      const { data: existing } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+      const map: Record<string, string> = {};
+      for (const m of existing || []) map[m.from_key] = m.to_key;
+      map[fromKey] = toKey;
+      let cur = toKey;
+      for (let i = 0; i < 20 && map[cur]; i++) { cur = map[cur]; if (cur === fromKey) return json({ error: "That would loop back on itself." }, 400); }
+      const { error } = await sb.from("league_merges")
+        .upsert({ sport: "pool", discipline, from_key: fromKey, to_key: toKey, note: String(b.note ?? "").slice(0, 200) || null }, { onConflict: "sport,discipline,from_key" });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+    }
+    if (action === "unmergeLeague") {
+      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
+      const fromKey = String(b.fromKey ?? "").trim().toLowerCase().slice(0, 200);
+      if (!fromKey) return json({ error: "Nothing to undo." }, 400);
+      await sb.from("league_merges").delete().eq("sport", "pool").eq("discipline", discipline).eq("from_key", fromKey);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
