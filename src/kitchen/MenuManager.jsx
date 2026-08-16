@@ -19,19 +19,19 @@ const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
   { id: 'rolls', name: 'Rolls', items: [
-    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2' }] },
+    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }] },
     { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [] },
     { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [] },
   ] },
   { id: 'sides', name: 'Sides', items: [
     { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [] },
     { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [] },
-    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3' }] },
+    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }] },
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence) })) })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price) })) })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })) })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })) })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -52,7 +52,7 @@ export default function MenuManager() {
   const setItem = (si, ii, k, v) => mutate(s => { s[si].items[ii][k] = v })
   const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [] }) })
   const delItem = (si, ii) => mutate(s => { s[si].items.splice(ii, 1) })
-  const addAddon = (si, ii) => mutate(s => { (s[si].items[ii].addons ||= []).push({ id: nid('ao'), name: '', price: '' }) })
+  const addAddon = (si, ii) => mutate(s => { (s[si].items[ii].addons ||= []).push({ id: nid('ao'), name: '', price: '', cost: '' }) })
   const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
   const delAddon = (si, ii, ai) => mutate(s => { s[si].items[ii].addons.splice(ai, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
@@ -128,18 +128,27 @@ export default function MenuManager() {
                     <textarea value={it.desc || ''} placeholder="Description (shown on the printed menu)…" onChange={e => setItem(si, ii, 'desc', e.target.value)} rows={2} style={{ width: '100%', marginTop: 7, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '7px 9px', fontSize: 12.5, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                     <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
                       <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Add-ons / extras</div>
-                      {(it.addons || []).map((a, ai) => (
-                        <div key={a.id} style={{ display: 'flex', gap: 7, alignItems: 'center', marginBottom: 6 }}>
+                      {(it.addons || []).map((a, ai) => {
+                        const amp = marginPct(a.price, a.cost)
+                        return (
+                        <div key={a.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                           <input value={a.name} placeholder="e.g. Extra patty" onChange={e => setAddon(si, ii, ai, 'name', e.target.value)}
-                            style={{ flex: 1, minWidth: 0, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 9px', fontSize: 12.5 }} />
+                            style={{ flex: '1 1 120px', minWidth: 0, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 9px', fontSize: 12.5 }} />
                           <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 8, padding: '5px 8px' }}>
                             <span style={{ fontSize: 12, color: MUTED, fontWeight: 700 }}>+£</span>
                             <input value={a.price} inputMode="decimal" onChange={e => setAddon(si, ii, ai, 'price', e.target.value.replace(/[^0-9.]/g, ''))}
-                              style={{ width: 40, background: 'none', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'right' }} />
+                              style={{ width: 38, background: 'none', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'right' }} />
                           </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 8, padding: '5px 8px' }}>
+                            <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase' }}>cost £</span>
+                            <input value={a.cost} inputMode="decimal" onChange={e => setAddon(si, ii, ai, 'cost', e.target.value.replace(/[^0-9.]/g, ''))}
+                              style={{ width: 34, background: 'none', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'right' }} />
+                          </span>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, minWidth: 34, textAlign: 'center', color: a.price && a.cost ? mgColor(amp) : MUTED }}>{a.price && a.cost ? amp + '%' : '—'}</span>
                           <button onClick={() => delAddon(si, ii, ai)} title="Remove extra" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
                         </div>
-                      ))}
+                        )
+                      })}
                       <button onClick={() => addAddon(si, ii)} style={{ background: 'none', border: `1px dashed ${LINE}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>＋ Add an extra</button>
                     </div>
                   </div>
@@ -153,8 +162,12 @@ export default function MenuManager() {
       <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 14 }}>＋ Add a new section</button>
 
       {/* ── Deals & bundles (beer + burger) ── */}
-      <div style={{ marginTop: 24 }}>
-        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.12em', color: MUTED, margin: '0 2px 8px' }}>Deals &amp; bundles</div>
+      <div style={{ marginTop: 30, background: 'rgba(201,168,76,0.06)', border: `1.5px solid ${GOLD}`, borderRadius: 14, padding: '16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: GOLD }}>🍺 Deals &amp; bundles</div>
+          <div style={{ fontSize: 12, color: MUTED }}>Beer + burger combos — set the price, pick the days.</div>
+        </div>
+        <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.45, marginBottom: 12 }}>This is where you build a deal. Choose a burger, set the beer price and the bundle price, and tick the days it runs. The burger goes to the kitchen; the beer becomes a single-use 🎟 voucher redeemed at the bar.</div>
         {bundles.map((bn, bi) => {
           const burger = burgerOpts.find(o => o.id === bn.burger_id)
           const normal = (parseFloat(bn.beer) || 0) + (burger ? (parseFloat(burger.sell) || 0) : 0)
