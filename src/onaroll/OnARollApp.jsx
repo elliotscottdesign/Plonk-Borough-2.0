@@ -6,7 +6,7 @@ import MenuManager from '../kitchen/MenuManager.jsx'
 // page (team.nodice.bar/onaroll) behind a simple code, separate from both the
 // staff /ops profile AND the customer order page (nodice.bar/onaroll). The backend
 // actions are still SEND_SECRET-gated; this code is just the door to the app UI.
-const CODE = '8899'   // ← truck access code (entrance)
+const CODE = '9119'   // ← truck access code (entrance)
 const GOLD = '#C9A84C'
 
 export default function OnARollApp() {
