@@ -197,10 +197,6 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
         <div style={sectionHdr}>⚙️ Options</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           <label style={optRow}>
-            <input type="checkbox" checked={draft.requireKitchen !== false} onChange={e => setDraft(d => ({ ...d, requireKitchen: e.target.checked }))} />
-            <span>Always put a <strong style={{ color: '#fff' }}>kitchen-trained</strong> person on each day (and warn if none is free)</span>
-          </label>
-          <label style={optRow}>
             <input type="checkbox" checked={draft.requireManager !== false} onChange={e => setDraft(d => ({ ...d, requireManager: e.target.checked }))} />
             <span>Always reserve a <strong style={{ color: '#fff' }}>manager / assistant manager</strong> slot</span>
           </label>

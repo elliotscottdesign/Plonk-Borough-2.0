@@ -11,6 +11,7 @@ import RotaCalendar from './RotaCalendar.jsx'
 import AiRota from './AiRota.jsx'
 import AvailabilityOverview from './AvailabilityOverview.jsx'
 import ChecklistLog from './ChecklistLog.jsx'
+import ToiletLog from './ToiletLog.jsx'
 import TrainingMatrix from './TrainingMatrix.jsx'
 import MenuAdmin from './MenuAdmin.jsx'
 import VenueClockSettings from './VenueClockSettings.jsx'
@@ -204,7 +205,7 @@ export default function StaffRota() {
       ) : view === 'ai' ? (
         <AiRota staff={staff} availability={availability} rules={rotaRules} shifts={shifts} claims={claims} reload={load} />
       ) : view === 'checklists' ? (
-        <ChecklistLog />
+        <ChecklistsHub />
       ) : view === 'training' ? (
         <TrainingMatrix staff={staff} />
       ) : view === 'menus' ? (
@@ -499,3 +500,27 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })
+
+
+// ─── Checklists hub — every completed-checks log in one place ────────────────
+// Founder (Aug 2026): "move toilet checks into the checklist section" — toilet
+// checks ARE a checklist, so the top-level /ops tab was retired and both logs
+// now live here behind one switch.
+function ChecklistsHub() {
+  const [which, setWhich] = React.useState('shift')
+  const pill = (on) => ({
+    padding: '8px 15px', fontSize: 13, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+    background: on ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${on ? '#DA1B33' : 'rgba(255,255,255,0.12)'}`,
+    color: on ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: on ? 700 : 400,
+  })
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setWhich('shift')} style={pill(which === 'shift')}>📋 Shift checklists</button>
+        <button onClick={() => setWhich('toilets')} style={pill(which === 'toilets')}>🚻 Toilet checks</button>
+      </div>
+      {which === 'shift' ? <ChecklistLog /> : <ToiletLog />}
+    </div>
+  )
+}

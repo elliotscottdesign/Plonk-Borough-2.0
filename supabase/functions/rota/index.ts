@@ -1213,7 +1213,7 @@ ENGINE VOCABULARY (all optional; emit only what the rules state):
 - afterCloseMin (global) and days[w].afterClose (per weekday): minutes FLOOR staff stay on after closing time for the wind-down, so they leave with the manager. "Staff go home 30 min after close Sun–Thu, 1 hour after on Fri/Sat" → days 0,1,2,3,4 afterClose:30 and days 5,6 afterClose:60. Encode these — do NOT dismiss them as "already matches" (that only applies to the manager).
 - stagger (bool) + staggerGap (min): one person opens & one closes instead of two full shifts.
 - earlyCutMin: minutes to send the floor home early on quiet days.
-- managerMargin (min), requireKitchen (bool), requireManager (bool).
+- managerMargin (min), requireManager (bool). (Kitchen cover is per-day via days[w].kitchen — there is no global kitchen switch.)
 - strength: {staffId: 1..5} — 5 = pick first/most (prioritise), 1 = pick least. Default 3.
 - neverTogether: [[staffId, staffId], …] — never roster the pair on the same day.
 - preferDays / avoidDays: {staffId: [weekday…]} — lean toward/away from those days.

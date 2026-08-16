@@ -12,7 +12,7 @@
 //  • Per weekday: opening hours + how many people (base), plus an optional evening
 //    bump (extra bodies from a given time).
 //  • A manager/assistant manager on from `managerMargin` before open to after close.
-//  • At least one kitchen-capable person each day (requireKitchen).
+//  • Kitchen: a per-day 🍳 shift (days[w].kitchen + kitchenStart/End) — nothing global.
 //  • School / bank holidays → their own hours every day.
 
 // Weekday index = JS getUTCDay: 0=Sun … 6=Sat. Minutes from midnight (next-day > 1440).
@@ -39,7 +39,7 @@ export const DEFAULT_RULES = {
   ],
   managerMargin: 60,       // manager on from open-margin to close+margin
   requireManager: true,    // reserve a manager/asst-manager slot
-  requireKitchen: true,    // steer one body toward kitchen cover + warn if none
+  requireKitchen: true,    // RETIRED (ignored) — kitchen is per-day via days[w].kitchen; kept so old saved rules still parse
   // ── Founder's manual rules (editable in the AI Rota tab, no code change) ──────
   houseRules: [],          // free-text reminders shown on every generated week
   strength: {},            // staffId → 1..5 priority/strength (default 3); higher = picked first
@@ -163,7 +163,9 @@ export function daySlots(dateStr, rules) {
   const d = { ...(R.days[wd(dateStr)] || {}), ...(dr || {}) }
   // Kitchen cover per day: an AI day-rule (kitchen: true/false on the weekday or the
   // specific date) overrides the global "always a kitchen-trained person" option.
-  const kitchenReq = d.kitchen != null ? d.kitchen === true : R.requireKitchen !== false
+  // Kitchen requirement comes ONLY from the per-day 🍳 column (or an AI day rule) —
+  // the old global 'always a kitchen-trained person' option is retired.
+  const kitchenReq = d.kitchen === true
   // Dedicated kitchen shift times (e.g. "kitchen 5pm–11pm"): when set, the kitchen
   // person gets their own slot with exactly these times — they replace one of the
   // floor bodies (same total headcount) and only kitchen-trained staff can fill it.

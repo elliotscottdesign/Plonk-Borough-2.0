@@ -11,7 +11,6 @@ import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
-import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -33,7 +32,8 @@ const GROUPS = [
       { key: 'operations', label: 'Bar',           Component: Operations },
       { key: 'rota',       label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
-      { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
+      // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
+      // it's a checklist log, so it lives with the others. Component still used there.
       { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
       // The founder's system map — how every service fits together. Founder-only
       // (mentions costs + internals); open it to team-tier if the founder asks.
