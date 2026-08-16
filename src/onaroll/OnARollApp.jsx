@@ -3,10 +3,10 @@ import KitchenTickets from '../kitchen/KitchenTickets.jsx'
 import MenuManager from '../kitchen/MenuManager.jsx'
 
 // On A Roll MANAGEMENT app — the kitchen order display + menu manager, on its OWN
-// page (team.nodice.bar/onaroll-kitchen) behind a simple code, separate from both the
+// page (team.nodice.bar/onaroll) behind a simple code, separate from both the
 // staff /ops profile AND the customer order page (nodice.bar/onaroll). The backend
 // actions are still SEND_SECRET-gated; this code is just the door to the app UI.
-const CODE = 'onaroll'   // ← truck access code (change here / tell me what you want it to be)
+const CODE = '8899'   // ← truck access code (entrance)
 const GOLD = '#C9A84C'
 
 export default function OnARollApp() {
