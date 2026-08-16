@@ -101,10 +101,11 @@ const isRotaPath = () =>
   typeof window !== 'undefined' &&
   /^\/rota(\/|$)/.test(window.location.pathname)
 
-// On A Roll truck MANAGEMENT — order display + menu manager, coded entry. /onaroll-kitchen.
-const isOnARollKitchenPath = () =>
+// On A Roll truck MANAGEMENT — order display + menu manager, coded entry. /onaroll on
+// team.nodice.bar (the customer order page is nodice.bar/onaroll — a different host).
+const isOnARollPath = () =>
   typeof window !== 'undefined' &&
-  /^\/onaroll-kitchen(\/|$)/.test(window.location.pathname)
+  /^\/onaroll(\/|$)/.test(window.location.pathname)
 
 // Daily clock-in hub — the shared link the team opens each shift. /today.
 const isTodayPath = () =>
@@ -315,8 +316,8 @@ export default function App() {
   // Standalone (its own login), sits before the root fallback below.
   if (isRotaPath()) return <RotaPortal />
 
-  // On A Roll truck management — order display + menu manager (coded entry). /onaroll-kitchen.
-  if (isOnARollKitchenPath()) return <OnARollApp />
+  // On A Roll truck management — order display + menu manager (coded entry). /onaroll.
+  if (isOnARollPath()) return <OnARollApp />
 
   // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
   if (isTodayPath()) return <DailyHub />

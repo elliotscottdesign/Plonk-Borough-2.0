@@ -23,7 +23,7 @@ if (stashed) {
 // dark flash), and point the mobile status-bar colour at the shade that matches
 // the device's current theme. Investor decks + public pages stay dark on every
 // device.
-const isStaffSurface = /^\/(ops|operations|rota|today|marketing|onaroll-kitchen)(\/|$)/.test(location.pathname)
+const isStaffSurface = /^\/(ops|operations|rota|today|marketing|onaroll)(\/|$)/.test(location.pathname)
 if (isStaffSurface) {
   document.documentElement.setAttribute('data-theme', 'auto')
   const bar = document.querySelector('meta[name="theme-color"]')
