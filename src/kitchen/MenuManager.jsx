@@ -202,12 +202,12 @@ function exportMenu(sections) {
     .a4{ display:flex; width:297mm; height:210mm; background:#fff }
     .logo{ width:130px; height:auto; display:block; margin-bottom:3px }
     .a5{ flex:1; padding:13mm 12mm; color:#000; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #999 }
-    .msub{ font-family:Arial; font-size:9px; color:#444; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:10px } .mh{ font-size:15px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:3px; margin-bottom:6px }
-    .mrow{ margin-bottom:6px }
-    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:15px; color:#000 }
+    .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
+    .msec{ margin-bottom:17px } .mh{ font-size:18px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
+    .mrow{ margin-bottom:12px }
+    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:18px; color:#000 }
     .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
-    .md{ font-family:Arial; font-size:9.5px; color:#333; line-height:1.3; margin-top:1px }
+    .md{ font-family:Arial; font-size:12px; color:#222; line-height:1.4; margin-top:3px }
     .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #000; padding-top:10px }
     .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
     .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
