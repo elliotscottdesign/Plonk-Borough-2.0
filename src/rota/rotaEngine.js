@@ -46,6 +46,7 @@ export const DEFAULT_RULES = {
   stagger: false,          // one opener + one closer instead of two full floor shifts
   staggerGap: 90,          // minutes the opener leaves early / the closer starts late
   earlyCutMin: 30,         // on a "quiet" day, send the floor home this many min early
+  afterCloseMin: 30,       // floor staff stay this many min after close (wind-down with the manager); per-day override via days[w].afterClose
   // (per-weekday `quiet: true` lives inside days[w], added via withDefaults below)
 }
 
@@ -72,6 +73,7 @@ export function withDefaults(rules) {
     stagger: src.stagger === true,
     staggerGap: Number.isFinite(+src.staggerGap) ? Math.max(0, +src.staggerGap) : DEFAULT_RULES.staggerGap,
     earlyCutMin: Number.isFinite(+src.earlyCutMin) ? Math.max(0, +src.earlyCutMin) : DEFAULT_RULES.earlyCutMin,
+    afterCloseMin: Number.isFinite(+src.afterCloseMin) ? Math.max(0, +src.afterCloseMin) : DEFAULT_RULES.afterCloseMin,
     // AI-compiled directives from the founder's typed house rules (see applyCompiled)
     // + the per-rule "how I read it" notes. Passed through untouched so a manual-rules
     // save never wipes what the AI compiled.
@@ -93,7 +95,17 @@ export function applyCompiled(R) {
   if (!c) return base
   const days = { ...R.days }
   const cDays = asObj(c.days)
-  for (let w = 0; w <= 6; w++) if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...days[w], ...cDays[w] }
+  for (let w = 0; w <= 6; w++) {
+    const manual = days[w] || {}
+    if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...manual, ...cDays[w] }
+    // The Kitchen COLUMN in the rules table is the most explicit statement — when
+    // the founder has set it (kitchen true/false), it beats any typed kitchen rule.
+    if (typeof manual.kitchen === 'boolean') {
+      days[w] = { ...days[w], kitchen: manual.kitchen }
+      if (manual.kitchen) { days[w].kitchenStart = manual.kitchenStart ?? days[w].kitchenStart ?? null; days[w].kitchenEnd = manual.kitchenEnd ?? days[w].kitchenEnd ?? null }
+      else { delete days[w].kitchenStart; delete days[w].kitchenEnd }
+    }
+  }
   const num = (v, fb) => Number.isFinite(+v) ? Math.max(0, +v) : fb
   return {
     ...base,
@@ -101,6 +113,7 @@ export function applyCompiled(R) {
     stagger: typeof c.stagger === 'boolean' ? c.stagger : R.stagger,
     staggerGap: c.staggerGap != null ? num(c.staggerGap, R.staggerGap) : R.staggerGap,
     earlyCutMin: c.earlyCutMin != null ? num(c.earlyCutMin, R.earlyCutMin) : R.earlyCutMin,
+    afterCloseMin: c.afterCloseMin != null ? num(c.afterCloseMin, R.afterCloseMin) : R.afterCloseMin,
     managerMargin: c.managerMargin != null ? num(c.managerMargin, R.managerMargin) : R.managerMargin,
     requireKitchen: typeof c.requireKitchen === 'boolean' ? c.requireKitchen : R.requireKitchen,
     requireManager: typeof c.requireManager === 'boolean' ? c.requireManager : R.requireManager,
@@ -165,7 +178,11 @@ export function daySlots(dateStr, rules) {
   // "Quiet" day → send the floor home `earlyCutMin` before close (the manager still
   // covers the close via their margin). Off = no trim.
   const cut = (d.quiet === true) ? Math.max(0, R.earlyCutMin ?? 0) : 0
-  const floorClose = Math.max(open + 60, close - cut)
+  // Floor staff stay on after close for the wind-down (founder rule: everyone
+  // leaves with the manager). Per-day `afterClose` minutes (AI/day rule) else the
+  // global default. A quiet-day early cut still trims from that finish time.
+  const stay = Number.isFinite(+d.afterClose) ? Math.max(0, +d.afterClose) : Math.max(0, R.afterCloseMin ?? 0)
+  const floorClose = Math.max(open + 60, close + stay - cut)
   const slots = []
   if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
   // Dedicated kitchen slot right after the manager, so the kitchen-trained person

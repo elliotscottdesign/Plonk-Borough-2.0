@@ -123,6 +123,18 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
                 <input type="number" min={0} max={8} value={d.eveAdd} onChange={e => setDay(w, { eveAdd: Math.max(0, Math.min(8, parseInt(e.target.value) || 0)) })} style={num} />
                 <label style={lbl}>from</label>
                 <span style={{ opacity: d.eveAdd > 0 ? 1 : 0.4, pointerEvents: d.eveAdd > 0 ? 'auto' : 'none' }}>{timeSel(d.eveAt ?? 1080, v => setDay(w, { eveAt: v }))}</span>
+                {/* Kitchen column: on/off + the dedicated kitchen shift's exact times */}
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 6, paddingLeft: 10, borderLeft: `1px solid ${LINE}` }}>
+                  <label title="A dedicated kitchen shift on this day (only kitchen-trained staff can fill it). It counts as one of the day's people." style={{ ...optRow, cursor: 'pointer', color: d.kitchen === true ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
+                    <input type="checkbox" checked={d.kitchen === true} onChange={e => setDay(w, e.target.checked ? { kitchen: true, kitchenStart: d.kitchenStart ?? 1020, kitchenEnd: d.kitchenEnd ?? 1380 } : { kitchen: false })} />
+                    <span>🍳 Kitchen</span>
+                  </label>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, opacity: d.kitchen === true ? 1 : 0.35, pointerEvents: d.kitchen === true ? 'auto' : 'none' }}>
+                    {timeSel(d.kitchenStart ?? 1020, v => setDay(w, { kitchenStart: v }))}
+                    <span style={{ color: 'rgba(255,255,255,0.4)' }}>–</span>
+                    {timeSel(d.kitchenEnd ?? 1380, v => setDay(w, { kitchenEnd: v }))}
+                  </span>
+                </span>
                 <label title="Mark this day as usually quiet — the floor gets sent home early (see Options)" style={{ ...optRow, marginLeft: 'auto', cursor: 'pointer', color: d.quiet ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
                   <input type="checkbox" checked={d.quiet === true} onChange={e => setDay(w, { quiet: e.target.checked })} />
                   <span>😴 quiet</span>
@@ -131,7 +143,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             )
           })}
         </div>
-        <div style={hint}>“Staff” = total people on that day (incl. the manager). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
+        <div style={hint}>“Staff” = total people on that day (incl. the manager <em>and</em> the kitchen person if 🍳 is ticked). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). <strong style={{ color: AMBER }}>🍳 Kitchen</strong> = a dedicated kitchen shift with those exact times, filled only by kitchen-trained staff — this column beats any typed kitchen rule. Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
       </div>
 
       {/* Holidays */}
@@ -206,6 +218,12 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             <label style={lbl}>Stagger by</label>
             <input type="number" min={0} max={240} step={15} value={draft.staggerGap} onChange={e => setDraft(d => ({ ...d, staggerGap: Math.max(0, Math.min(240, parseInt(e.target.value) || 0)) }))} style={num} />
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min (opener leaves this early / closer starts this late)</span>
+          </div>
+          {/* Floor stays after close (wind-down with the manager) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={lbl}>Floor staff stay on after close</label>
+            <input type="number" min={0} max={120} step={15} value={draft.afterCloseMin} onChange={e => setDraft(d => ({ ...d, afterCloseMin: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)) }))} style={num} />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min — everyone leaves with the manager (a house rule like “1 hour on Fri/Sat” can set this per day)</span>
           </div>
           {/* Quiet-day early cut */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
