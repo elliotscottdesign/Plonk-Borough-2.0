@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
-import { ON_A_ROLL_LOGO } from './logo.js'
+import { ON_A_ROLL_LOGO_BW } from './logo.js'
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
 // items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
@@ -19,19 +19,19 @@ const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
   { id: 'rolls', name: 'Rolls', items: [
-    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '' },
-    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '' },
-    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '' },
+    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.' },
+    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.' },
+    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.' },
   ] },
   { id: 'sides', name: 'Sides', items: [
-    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '' },
-    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '' },
-    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '' },
+    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.' },
+    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.' },
+    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce. Make it a Cheesy Chip Butty +£3.' },
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '' })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '' })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '' })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '' })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -50,7 +50,7 @@ export default function MenuManager() {
   const mutate = fn => { setSections(s => { const c = JSON.parse(JSON.stringify(s)); fn(c); return c }); setDirty(true); setMsg('') }
   const mutateB = fn => { setBundles(bs => { const c = JSON.parse(JSON.stringify(bs)); fn(c); return c }); setDirty(true); setMsg('') }
   const setItem = (si, ii, k, v) => mutate(s => { s[si].items[ii][k] = v })
-  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '' }) })
+  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '' }) })
   const delItem = (si, ii) => mutate(s => { s[si].items.splice(ii, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
   const delSection = si => { if (confirm('Delete this whole section?')) mutate(s => { s.splice(si, 1) }) }
@@ -117,6 +117,7 @@ export default function MenuManager() {
                       <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 13, color: it.sell ? mgColor(mp) : MUTED }}>{it.sell ? mp + '%' : '—'}</span>
                       <button onClick={() => delItem(si, ii)} title="Remove item" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
                     </div>
+                    <textarea value={it.desc || ''} placeholder="Description (shown on the printed menu)…" onChange={e => setItem(si, ii, 'desc', e.target.value)} rows={2} style={{ width: '100%', marginTop: 7, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '7px 9px', fontSize: 12.5, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                   </div>
                 </div>
               </div>
@@ -188,26 +189,32 @@ function exportMenu(sections) {
   const inner = secs.map(sec => {
     const its = sec.items.filter(it => it.name)
     if (!its.length) return ''
-    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(it => `<div class="mi"><span>${esc(it.name)}</span><span class="dots"></span><span>${it.sell ? '£' + (parseFloat(it.sell) % 1 === 0 ? parseFloat(it.sell) : parseFloat(it.sell).toFixed(2)) : ''}</span></div>`).join('')}</div>`
+    const rows = its.map(it => {
+      const price = it.sell ? '£' + (parseFloat(it.sell) % 1 === 0 ? parseFloat(it.sell) : parseFloat(it.sell).toFixed(2)) : ''
+      return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}</div>`
+    }).join('')
+    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
     @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
     body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
-    .a4{ display:flex; width:297mm; height:210mm; background:#fdf2e0 }
-    .logo{ width:150px; height:auto; display:block; margin-bottom:3px }
-    .a5{ flex:1; padding:13mm 12mm; color:#15305c; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #b9b1a1 }
-    .mtitle{ font-size:30px; letter-spacing:1px } .msub{ font-family:Arial; font-size:9px; color:#8a8275; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:11px } .mh{ font-size:15px; color:#183fa0; letter-spacing:1px; border-bottom:1px solid #e2d9c2; padding-bottom:3px; margin-bottom:6px }
-    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Arial; font-weight:700; font-size:13px; margin:4px 0; color:#15305c }
-    .mi .dots{ flex:1; border-bottom:1px dotted #c9bfa8 } .mi span:last-child{ color:#e0231b; font-weight:800 }
-    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #183fa0; padding-top:10px }
-    .qr{ width:96px; height:96px; flex-shrink:0 } .qr img,.qr canvas{ width:96px!important; height:96px!important }
-    .scanh{ font-size:17px; color:#e0231b } .scansub{ font-family:Arial; font-size:10px; color:#15305c; margin-top:3px; line-height:1.35 }
-    .mfoot{ font-family:Arial; font-size:8.5px; color:#8a8275; margin-top:10px }
+    .a4{ display:flex; width:297mm; height:210mm; background:#fff }
+    .logo{ width:130px; height:auto; display:block; margin-bottom:3px }
+    .a5{ flex:1; padding:13mm 12mm; color:#000; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #999 }
+    .msub{ font-family:Arial; font-size:9px; color:#444; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
+    .msec{ margin-bottom:10px } .mh{ font-size:15px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:3px; margin-bottom:6px }
+    .mrow{ margin-bottom:6px }
+    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:15px; color:#000 }
+    .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
+    .md{ font-family:Arial; font-size:9.5px; color:#333; line-height:1.3; margin-top:1px }
+    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #000; padding-top:10px }
+    .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
+    .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
+    .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
   </style></head><body><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:96,height:96,colorDark:'#15305c',colorLight:'#e8e3d0',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
+  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:92,height:92,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
   </body></html>`
   const w = window.open('', '_blank')
   if (!w) { alert('Allow pop-ups to print the menu.'); return }
