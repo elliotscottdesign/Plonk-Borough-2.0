@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus, listHistory } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory, getStatus, setSettings } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -17,6 +17,7 @@ export default function KitchenTickets() {
   const [sound, setSound] = useState(true)
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState(null)
+  const [pause, setPause] = useState(null)
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
@@ -41,15 +42,19 @@ export default function KitchenTickets() {
       setOrders(list); setErr('')
     } catch (e) { setErr(e.message); setOrders(o => (o == null ? [] : o)) }
   }
+  const loadPause = async () => { try { setPause(await getStatus()) } catch { /* ignore */ } }
   useEffect(() => {
-    load()
-    const poll = setInterval(load, 10000)
+    load(); loadPause()
+    const poll = setInterval(() => { load(); loadPause() }, 10000)
     const clock = setInterval(() => tick(t => t + 1), 1000)
     return () => { clearInterval(poll); clearInterval(clock) }
   }, [])   // eslint-disable-line
 
   const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
+  const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
+  const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(1, n) })) } catch (e) { alert(e.message) } }
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
@@ -57,6 +62,24 @@ export default function KitchenTickets() {
   return (
     <div>
       <img src="/on-a-roll-logo.jpg" alt="On A Roll" style={{ height: 42, borderRadius: 8, display: 'block', marginBottom: 12 }} />
+
+      {pause && (
+        <div style={{ marginBottom: 12 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={togglePause} disabled={busy} style={{ ...btn(pause.paused ? GREEN : RED, '#fff'), padding: '10px 16px' }}>{pause.paused ? '▶ Reopen orders' : '⏸ Pause orders'}</button>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#fff' }}>
+              <input type="checkbox" checked={!!pause.auto_pause} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
+              <input type="number" min="1" value={pause.auto_threshold} onChange={e => setThreshold(parseInt(e.target.value, 10) || 1)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
+            </label>
+            {pause.waiting > 0 && <span style={{ fontSize: 12, color: '#E8B84B', fontWeight: 700 }}>{pause.waiting} waiting to be texted</span>}
+          </div>
+          {!pause.open && (
+            <div style={{ marginTop: 8, background: RED, color: '#fff', borderRadius: 10, padding: '10px 12px', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
+              ⏸ Ordering paused{pause.autoTripped ? ` — auto (busy: ${pause.active} live)` : ''}. Customers see “a few orders ahead”. Reopen to text {pause.waiting} waiting {pause.waiting === 1 ? 'person' : 'people'} (1 a minute).
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{ fontSize: 13, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{active.length ? `${active.length} live order${active.length > 1 ? 's' : ''}` : 'No live orders'}</div>
         <button onClick={showHistory ? () => setShowHistory(false) : openHistory} style={{ fontSize: 12, fontWeight: 700, background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}>{showHistory ? '← Live orders' : '📋 Order history'}</button>
