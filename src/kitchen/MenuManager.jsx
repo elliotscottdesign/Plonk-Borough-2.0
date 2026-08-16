@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
+import { ON_A_ROLL_LOGO } from './logo.js'
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
 // items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
@@ -189,11 +190,12 @@ function exportMenu(sections) {
     if (!its.length) return ''
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(it => `<div class="mi"><span>${esc(it.name)}</span><span class="dots"></span><span>${it.sell ? '£' + (parseFloat(it.sell) % 1 === 0 ? parseFloat(it.sell) : parseFloat(it.sell).toFixed(2)) : ''}</span></div>`).join('')}</div>`
   }).join('')
-  const a5 = `<div class="a5"><div class="mtitle">On A Roll</div><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
     @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
     body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
-    .a4{ display:flex; width:297mm; height:210mm; background:#e8e3d0 }
+    .a4{ display:flex; width:297mm; height:210mm; background:#fdf2e0 }
+    .logo{ width:150px; height:auto; display:block; margin-bottom:3px }
     .a5{ flex:1; padding:13mm 12mm; color:#15305c; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #b9b1a1 }
     .mtitle{ font-size:30px; letter-spacing:1px } .msub{ font-family:Arial; font-size:9px; color:#8a8275; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
     .msec{ margin-bottom:11px } .mh{ font-size:15px; color:#183fa0; letter-spacing:1px; border-bottom:1px solid #e2d9c2; padding-bottom:3px; margin-bottom:6px }

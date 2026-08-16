@@ -53,6 +53,7 @@ export default function KitchenTickets() {
   const active = orders.filter(o => o.status !== 'collected')
   return (
     <div>
+      <img src="/on-a-roll-logo.jpg" alt="On A Roll" style={{ height: 42, borderRadius: 8, display: 'block', marginBottom: 12 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{ fontSize: 13, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{active.length ? `${active.length} live order${active.length > 1 ? 's' : ''}` : 'No live orders'}</div>
         <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
@@ -94,7 +95,7 @@ export default function KitchenTickets() {
                     </>
                   : <>
                       {o.status !== 'preparing' && <button disabled={busy} onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
-                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(RED, '#fff')}>✓ Ready — text customer</button>
+                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
                     </>}
               </div>
             </div>
