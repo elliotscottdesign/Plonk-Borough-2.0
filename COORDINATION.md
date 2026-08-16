@@ -105,3 +105,17 @@ added `['👥','Team','/ops?tab=rota', …]` for the founder only (that screen h
 staff logins, so it stays founder-gated like Office), and the Operations door's subtitle no
 longer says "rota". **Rota lane: you own this file — I kept the diff to the doors array so a
 merge conflict is unlikely; shout if it clashes with anything mid-flight.**
+
+## 13 Aug 2026 — integration session: Team opened to management + Help Out closed (founder-directed)
+Founder: "Remove volunteer sign up page - Rhys can have team section too".
+(1) NEW middle tier: the sign-in bridge in src/App.jsx now sets `ndb_role_manager`
+from the person's own STAFF RECORD (role Manager / Asst. Manager), never from the shared
+NDTEAM code. src/ops/OpsApp.jsx gained a `managerOnly` gate and the Team group uses it,
+so Rhys reaches the roster while ordinary staff on the shared code do not (verified both
+ways in the browser, incl. a ?tab=rota deep-link as bar staff → bounced). Office stays
+founder-only. NB the Team screen shows pay rates + staff login passwords — that was the
+founder's explicit call.
+(2) /helpout now renders a "We're open — thank you" notice instead of the sign-up form
+(src/App.jsx). HelpOutPortal, the help-out edge fn and all bar_helpers sign-ups are
+untouched — one line reopens it.
+Rota lane: one line in RotaPortal.jsx doors array (Team door now shows for management).

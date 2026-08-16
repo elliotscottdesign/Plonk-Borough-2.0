@@ -49,10 +49,13 @@ const GROUPS = [
     // inside Operations. Single tab, so no second row renders — StaffRota's own
     // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
     // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
-    // Founder-only: this screen holds pay rates + staff logins.
-    key: 'team', label: 'Team', founderOnly: true,
+    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
+    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
+    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
+    // bridge), never on the shared NDTEAM code.
+    key: 'team', label: 'Team', managerOnly: true,
     tabs: [
-      { key: 'rota', label: 'Team', Component: StaffRota, founderOnly: true },
+      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
     ],
   },
   {
@@ -87,10 +90,13 @@ export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
+  // Real management (founder, Manager, Asst. Manager) — set by the sign-in bridge
+  // from their staff record, so the shared team code alone never grants it.
+  const isManager = isFounder || (typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_manager') === '1')
   // Visible groups, each with its visible tabs; a group with nothing visible vanishes.
   // A group-level founderOnly (Office) hides the WHOLE group from team-tier logins.
   const visGroups = GROUPS
-    .map(g => ({ ...g, tabs: (g.founderOnly && !isFounder) ? [] : g.tabs.filter(t => !t.founderOnly || isFounder) }))
+    .map(g => ({ ...g, tabs: ((g.founderOnly && !isFounder) || (g.managerOnly && !isManager)) ? [] : g.tabs.filter(t => (!t.founderOnly || isFounder) && (!t.managerOnly || isManager)) }))
     .filter(g => g.tabs.length > 0)
   const allTabs = visGroups.flatMap(g => g.tabs)
   const groupOf = (tabKey) => visGroups.find(g => g.tabs.some(t => t.key === tabKey)) || visGroups[0]
