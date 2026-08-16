@@ -33,7 +33,12 @@ const GROUPS = [
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
       // it's a checklist log, so it lives with the others. Component still used there.
-      { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
+      // Help Out ARCHIVED 13 Aug 2026 (founder: "remove and archive for now") —
+      // the volunteer drive did its job getting Hackney open. Nothing deleted:
+      // the component, the `help-out` edge fn, the bar_helpers data and the
+      // public sign-up page at /helpout all still exist. To bring the tab back,
+      // uncomment this one line.
+      // { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
       // The founder's system map — how every service fits together. Founder-only
       // (mentions costs + internals); open it to team-tier if the founder asks.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
