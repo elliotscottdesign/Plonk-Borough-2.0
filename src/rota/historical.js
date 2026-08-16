@@ -91,13 +91,14 @@ export function shapeDay(targetDate, sourceDay, rules, opts = {}) {
   if (!sourceDay) return { ...base, demand: [], shadow: null }   // no data → rules as-is
   const series = seriesFor(sourceDay, open, close)
   const curve = demandCurve(series, opts.capacity)
-  const floor = peel(curve, open, close, { minShift: opts.minShift ?? 180, floorMin: opts.floorMin ?? 1, cap: opts.cap ?? 5, reserved })
+  const minShift = opts.minShift ?? R.minShiftMin ?? 360
+  const floor = peel(curve, open, close, { minShift, floorMin: opts.floorMin ?? 1, cap: opts.cap ?? 5, reserved })
   // House rule: floor staff stay on after close with the manager for the wind-down —
   // any floor shift that runs to close is stretched to the same finish the rules
   // builder uses (per-day afterClose, else the global afterCloseMin).
   const dw = { ...(R.days[wd(targetDate)] || {}), ...((R.dateRules || {})[targetDate] || {}) }
   const stay = Number.isFinite(+dw.afterClose) ? Math.max(0, +dw.afterClose) : Math.max(0, R.afterCloseMin ?? 0)
-  const floorOut = floor.map(s => (s.end >= close - 1 ? { ...s, end: close + stay } : s))
+  const floorOut = floor.map(s => (s.end >= close - 1 ? { ...s, end: close + stay } : s)).map(s => (s.end - s.start >= minShift ? s : { ...s, start: Math.max(open, s.end - minShift) }))
   return { ...base, slots: [...fixed, ...floorOut], demand: curve, shadow: { sourceDate: sourceDay.date, series, total: sourceDay.total, orders: sourceDay.orders, src: sourceDay.src } }
 }
 

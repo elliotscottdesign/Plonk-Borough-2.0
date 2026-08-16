@@ -129,6 +129,9 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
                   <span style={segIcon}>🕒</span>
                   <label style={lbl}>Open</label>{timeSel(d.open, v => setDay(w, { open: v }))}
                   <label style={lbl}>Close</label>{timeSel(d.close, v => setDay(w, { close: v }))}
+                  <label style={lbl} title="Everyone (manager + floor) stays this many minutes after close for the wind-down">stay</label>
+                  <input type="number" min={0} max={120} step={15} value={d.afterClose ?? ''} placeholder={String(draft.afterCloseMin)} onChange={e => setDay(w, { afterClose: e.target.value === '' ? null : Math.max(0, Math.min(120, parseInt(e.target.value) || 0)) })} style={{ ...num, width: 44 }} title="min after close everyone stays (blank = the default in Options)" />
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>min</span>
                 </Seg>
                 {/* Manager — purple, always on */}
                 <Seg color={C_MANAGER} tint="rgba(168,85,247,0.10)" title={`A manager is always on: ${draft.managerMargin} min before open until everyone leaves after close`}>
@@ -167,7 +170,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             )
           })}
         </div>
-        <div style={hint}>“Staff” = manager + bar people on that day (the 🍳 kitchen person is on top of this, not counted in it). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). <strong style={{ color: AMBER }}>🍳 Kitchen</strong> = a dedicated kitchen shift with those exact times, filled only by kitchen-trained staff — this column beats any typed kitchen rule. Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
+        <div style={hint}>“Staff” = manager + bar people on that day (the 🍳 kitchen person is on top of this, not counted in it). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). <strong style={{ color: AMBER }}>🍳 Kitchen</strong> = a dedicated kitchen shift with those exact times, filled only by kitchen-trained staff — this column beats any typed kitchen rule. “stay” = minutes everyone stays after close that day (blank = default in Options). Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
       </div>
 
       {/* Holidays */}
@@ -244,6 +247,12 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             <label style={lbl}>Floor staff stay on after close</label>
             <input type="number" min={0} max={120} step={15} value={draft.afterCloseMin} onChange={e => setDraft(d => ({ ...d, afterCloseMin: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)) }))} style={num} />
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min — everyone leaves with the manager (a house rule like “1 hour on Fri/Sat” can set this per day)</span>
+          </div>
+          {/* Shortest shift */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={lbl}>Shortest shift</label>
+            <input type="number" min={1} max={12} step={0.5} value={(draft.minShiftMin || 360) / 60} onChange={e => setDraft(d => ({ ...d, minShiftMin: Math.max(60, Math.min(720, Math.round((parseFloat(e.target.value) || 6) * 60))) }))} style={num} />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>hours — no floor / evening shift is ever shorter (both builders; kitchen &amp; manager keep their exact times)</span>
           </div>
           {/* Quiet-day early cut */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

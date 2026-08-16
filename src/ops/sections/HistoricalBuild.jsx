@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react'
 import { sourceWeekFor, TILL_BY_DATE, TILL_HISTORY_META, shapeDay, analyseDay, rosteredBars, personForLogin, LOGIN_TO_NAME, fmtT, gbp0, mondayOf } from '../../rota/historical.js'
-import { addDaysISO } from '../../rota/rotaEngine.js'
+import { addDaysISO, withDefaults } from '../../rota/rotaEngine.js'
 
 // ─── Historical build (AI Builder mode) ──────────────────────────────────────
 // A shadow of last week's till: half-hour sales bars per day, who was on the
@@ -20,7 +20,8 @@ export default function HistoricalBuild({ weekStart, staff = [], shifts = [], cl
   React.useEffect(() => { setSrcMonday(auto.monday) }, [auto.monday])
   const [capacity, setCapacity] = useState(110)   // £ one person serves per half-hour
   const [floorMin, setFloorMin] = useState(0)
-  const [minShift, setMinShift] = useState(180)
+  const ruleMin = withDefaults(rules).minShiftMin || 360
+  const [minShift, setMinShift] = useState(ruleMin)   // your Shortest-shift rule is the default (and the floor of the dial)
   const srcDates = Array.from({ length: 7 }, (_, i) => addDaysISO(srcMonday, i))
   const covered = srcDates.filter(d => TILL_BY_DATE[d]).length
   const latestMonday = mondayOf(TILL_HISTORY_META.to)
@@ -57,7 +58,7 @@ export default function HistoricalBuild({ weekStart, staff = [], shifts = [], cl
         <div style={{ display: 'flex', gap: 18, flexWrap: 'wrap', alignItems: 'center' }}>
           <Dial label="How lean" hint="£ one person can serve per half-hour — higher = fewer people" value={capacity} min={50} max={220} step={10} onChange={setCapacity} fmt={v => `£${v}`} />
           <Dial label="Never fewer than" hint="floor people always on (besides the manager)" value={floorMin} min={0} max={3} step={1} onChange={setFloorMin} fmt={v => `${v} on floor`} />
-          <Dial label="Shortest shift" hint="a shift is never shorter than this" value={minShift} min={120} max={360} step={30} onChange={setMinShift} fmt={v => `${v / 60}h`} />
+          <Dial label="Shortest shift" hint="a shift is never shorter than this — set by your rules (Options → Shortest shift); you can only go longer here" value={minShift} min={ruleMin} max={Math.max(ruleMin, 480)} step={30} onChange={setMinShift} fmt={v => `${v / 60}h`} />
         </div>
         <div style={{ display: 'flex', gap: 14, flexWrap: 'wrap', alignItems: 'center', fontSize: 12, color: 'rgba(255,255,255,0.75)' }}>
           <span>Last week staffed <strong style={{ color: '#fff' }}>{Math.round(lastWeekHours)}h</strong></span>
