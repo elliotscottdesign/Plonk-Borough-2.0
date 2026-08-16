@@ -23,7 +23,6 @@ export default function PasswordGate({ onUnlock }) {
     if (/^\/hackney(\/|$)/.test(p))          return { label: 'Investors · Hackney',  footer: t('footer') }
     if (/^\/borough(\/|$)/.test(p))          return { label: 'Investors · Borough',  footer: t('footer') }
     if (/^\/worldcup(\/|$)/.test(p))         return { label: 'World Cup',            footer: TEAM }
-    if (/^\/help-?out(\/|$)/.test(p))        return { label: 'Help Out',             footer: 'Helping us open' }
     return { label: t('eyebrow'), footer: t('footer') }
   })()
 

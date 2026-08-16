@@ -105,15 +105,6 @@ export default function TeamLanding() {
         Staff &amp; investor access only · enter your code
       </div>
 
-      {/* "🙌 Help us open" volunteer door ARCHIVED 16 Aug 2026 (founder: "remove
-          help out section and archive for now" · "Remove volunteer sign up page").
-          It sat here at the top, above the four doors, and was the last public
-          entry point into the volunteer drive. Nothing is deleted: /helpout still
-          answers with the "we're open — thank you" notice, HelpOutPortal, the
-          `help-out` edge fn and every bar_helpers sign-up are intact. To bring it
-          back, restore this block from git (see this commit) and reopen /helpout
-          in App.jsx. */}
-
       {/* Four doors */}
       <div style={{
         width: '100%',
