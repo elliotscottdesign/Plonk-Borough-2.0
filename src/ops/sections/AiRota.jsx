@@ -142,21 +142,28 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
       </div>
 
       {/* The founder's plain-English house rules — always visible as the review checklist */}
-      {houseRules.length > 0 && (
-        <div style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '12px 14px' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: BLUE, marginBottom: 8 }}>📌 Your house rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>· ✅ = the builder does it automatically · ⚠️ = check by hand as you review</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {houseRules.map((r, i) => {
-              const n = noteFor(r)
-              return (
-                <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
-                  <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {houseRules.length > 0 && (() => {
+        const applied = houseRules.filter(r => noteFor(r)?.status === 'applied').length
+        const check = houseRules.length - applied
+        return (
+          <details style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '0 14px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: BLUE, padding: '13px 0' }}>
+              📌 Rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>· {houseRules.length} house rule{houseRules.length === 1 ? '' : 's'} · <span style={{ color: GREEN }}>{applied} applied automatically</span>{check > 0 && <> · <span style={{ color: AMBER }}>{check} to check by hand</span></>}</span>
+            </summary>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>✅ = the builder does it automatically · ⚠️ = check by hand as you review · hover a rule for how it was read</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 14 }}>
+              {houseRules.map((r, i) => {
+                const n = noteFor(r)
+                return (
+                  <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
+                    <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </details>
+        )
+      })()}
 
       {/* Editable rules the AI builds from — house rules, hours, staffing, priority, holidays */}
       <details style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0 14px' }}>
