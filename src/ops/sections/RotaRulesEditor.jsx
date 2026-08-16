@@ -207,6 +207,12 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             <input type="number" min={0} max={240} step={15} value={draft.staggerGap} onChange={e => setDraft(d => ({ ...d, staggerGap: Math.max(0, Math.min(240, parseInt(e.target.value) || 0)) }))} style={num} />
             <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min (opener leaves this early / closer starts this late)</span>
           </div>
+          {/* Floor stays after close (wind-down with the manager) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <label style={lbl}>Floor staff stay on after close</label>
+            <input type="number" min={0} max={120} step={15} value={draft.afterCloseMin} onChange={e => setDraft(d => ({ ...d, afterCloseMin: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)) }))} style={num} />
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min — everyone leaves with the manager (a house rule like “1 hour on Fri/Sat” can set this per day)</span>
+          </div>
           {/* Quiet-day early cut */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <label style={lbl}>On 😴 quiet days, send the floor home</label>

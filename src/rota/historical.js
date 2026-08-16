@@ -10,7 +10,7 @@
 //   • insights         — quiet stretches that were over-staffed (shave), the
 //                        peak stretch (overlap shifts here), £ per staff-hour.
 import { TILL_HISTORY, LOGIN_TO_NAME, TILL_HISTORY_META } from './tillHistory.js'
-import { daySlots, hoursFor, withDefaults, addDaysISO } from './rotaEngine.js'
+import { daySlots, hoursFor, withDefaults, applyCompiled, addDaysISO } from './rotaEngine.js'
 
 export { LOGIN_TO_NAME, TILL_HISTORY_META }
 export const TILL_BY_DATE = Object.fromEntries(TILL_HISTORY.map(d => [d.date, d]))
@@ -82,7 +82,7 @@ function peel(curve, open, close, { minShift = 180, floorMin = 1, cap = 5, reser
 // Shape one target day from a source till day.
 // opts: { capacity (£/person/half-hour), minShift (min), floorMin, cap }
 export function shapeDay(targetDate, sourceDay, rules, opts = {}) {
-  const R = withDefaults(rules)
+  const R = applyCompiled(withDefaults(rules))   // manual settings + the AI-compiled layer
   const base = daySlots(targetDate, R)             // manager + kitchen + rules floor
   const { open, close } = base
   if (base.closed) return { ...base, slots: [], demand: [], shadow: null }
@@ -92,7 +92,13 @@ export function shapeDay(targetDate, sourceDay, rules, opts = {}) {
   const series = seriesFor(sourceDay, open, close)
   const curve = demandCurve(series, opts.capacity)
   const floor = peel(curve, open, close, { minShift: opts.minShift ?? 180, floorMin: opts.floorMin ?? 1, cap: opts.cap ?? 5, reserved })
-  return { ...base, slots: [...fixed, ...floor], demand: curve, shadow: { sourceDate: sourceDay.date, series, total: sourceDay.total, orders: sourceDay.orders, src: sourceDay.src } }
+  // House rule: floor staff stay on after close with the manager for the wind-down —
+  // any floor shift that runs to close is stretched to the same finish the rules
+  // builder uses (per-day afterClose, else the global afterCloseMin).
+  const dw = { ...(R.days[wd(targetDate)] || {}), ...((R.dateRules || {})[targetDate] || {}) }
+  const stay = Number.isFinite(+dw.afterClose) ? Math.max(0, +dw.afterClose) : Math.max(0, R.afterCloseMin ?? 0)
+  const floorOut = floor.map(s => (s.end >= close - 1 ? { ...s, end: close + stay } : s))
+  return { ...base, slots: [...fixed, ...floorOut], demand: curve, shadow: { sourceDate: sourceDay.date, series, total: sourceDay.total, orders: sourceDay.orders, src: sourceDay.src } }
 }
 
 // Insights for a source day, given who was actually staffed (bars: [{name,start,end}]).
