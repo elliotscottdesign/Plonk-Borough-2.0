@@ -3,6 +3,7 @@ import { generateWeek, holidayName, addDaysISO, hoursFor, withDefaults, isKitche
 import { fmtMin } from '../../rota/shifts.js'
 import { rotaSaveDayRoster } from '../../rota/api.js'
 import RotaRulesEditor from './RotaRulesEditor.jsx'
+import HistoricalBuild from './HistoricalBuild.jsx'
 
 // ─── AI Rota — auto-filled concept the founder reviews, amends & applies ──────
 // Deterministic generator (src/rota/rotaEngine.js) using the venue's rules. This
@@ -13,7 +14,8 @@ const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).pad
 const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
 const dayLabel = (d) => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short', timeZone: 'UTC' })
 
-export default function AiRota({ staff = [], availability = [], rules = null, reload }) {
+export default function AiRota({ staff = [], availability = [], rules = null, shifts = [], claims = [], reload }) {
+  const [mode, setMode] = useState('rules')   // 'rules' (✨ from your rules) | 'history' (📜 from last week's till)
   const now = new Date()
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))
   const [days, setDays] = useState(null)
@@ -35,6 +37,14 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
   const missingHours = active.filter(s => { const t = Number(s.target_hours); return !(Number.isFinite(t) && t > 0) })
 
   const generate = () => { const r = generateWeek(weekStart, staff, availability, rules); setDays(r.days.map(d => ({ ...d, slots: sortSlots(d.slots) }))); setWarnings(r.warnings || []); setApplied({}) }
+  // Historical build: slots shaped from last week's till → same assignment engine →
+  // same editable preview. Each day keeps its `shadow` so the card can show the bars.
+  const buildFromHistory = (slotsByDate) => {
+    const r = generateWeek(weekStart, staff, availability, rules, { slotsByDate })
+    setDays(r.days.map(d => ({ ...d, slots: sortSlots(d.slots), shadow: slotsByDate[d.date]?.shadow || null })))
+    setWarnings(r.warnings || []); setApplied({})
+    setTimeout(() => document.getElementById('ai-preview')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 50)
+  }
   // Engine warnings are strings prefixed "YYYY-MM-DD: …" — split them per day so each
   // one sits on the day card it's about (plus the header pill for the total).
   const warnsFor = (date) => warnings.filter(w => w.startsWith(date + ':')).map(w => w.slice(date.length + 1).trim())
@@ -113,7 +123,12 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="serif" style={{ fontSize: 20, color: '#fff' }}>🤖 Ai Builder — auto-fill</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>A concept built from your rules. Review &amp; tweak below, then Apply — nothing changes until you do.</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>{mode === 'history' ? 'A concept shaped from last week\'s till — busy times, who was on, what sold. Review & tweak, then Apply.' : 'A concept built from your rules. Review & tweak below, then Apply — nothing changes until you do.'}</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            {[['rules', '✨ From your rules'], ['history', '📜 Historical build']].map(([k, lbl]) => (
+              <button key={k} onClick={() => setMode(k)} style={{ padding: '5px 12px', fontSize: 12, borderRadius: 999, cursor: 'pointer', background: mode === k ? 'rgba(96,165,250,0.18)' : 'rgba(255,255,255,0.05)', border: `1px solid ${mode === k ? BLUE : 'rgba(255,255,255,0.14)'}`, color: mode === k ? '#fff' : 'rgba(255,255,255,0.65)', fontWeight: mode === k ? 700 : 400 }}>{lbl}</button>
+            ))}
+          </div>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           {days && warnings.length > 0 && (
@@ -122,7 +137,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
           <button onClick={() => stepWeek(-1)} style={nav}>◀</button>
           <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{dayLabel(weekStart)} – {dayLabel(weekEnd)}</div>
           <button onClick={() => stepWeek(1)} style={nav}>▶</button>
-          <button onClick={generate} disabled={busy} style={btn('gold')}>✨ Generate</button>
+          {mode === 'rules' && <button onClick={generate} disabled={busy} style={btn('gold')}>✨ Generate</button>}
         </div>
       </div>
 
@@ -161,7 +176,12 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
         <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours set — the AI has what it needs. It works around any days people marked off.</div>
       ) : null}
 
-      {!days ? (
+      {mode === 'history' && (
+        <HistoricalBuild weekStart={weekStart} staff={staff} shifts={shifts} claims={claims} rules={rules} onBuild={buildFromHistory} />
+      )}
+
+      <div id="ai-preview" />
+      {!days ? (mode === 'history' ? null :
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 18px', lineHeight: 1.7 }}>
           Pick a week and tap <strong style={{ color: '#fff' }}>✨ Generate</strong>. The AI fills every day with:
           a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open to 1h after close, the right headcount
@@ -181,6 +201,17 @@ export default function AiRota({ staff = [], availability = [], rules = null, re
                   <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{fmtMin(day.open)}–{fmtMin(day.close)}</div>
                 </div>
                 {day.holiday && <div style={{ fontSize: 10.5, color: BLUE, marginBottom: 8 }}>🏖️ {day.holiday} · 12–12</div>}
+                {day.shadow && (() => {
+                  const peak = Math.max(1, ...day.shadow.series.map(p => p.s))
+                  return (
+                    <div title={`Shaped from ${day.shadow.sourceDate}: £${Math.round(day.shadow.total)} · ${day.shadow.orders} orders`} style={{ marginBottom: 8 }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-end', gap: 1, height: 22, borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                        {day.shadow.series.map(p => <div key={p.t} style={{ flex: 1, height: Math.max(1, (p.s / peak) * 20), background: p.s >= peak * 0.6 ? RED : BLUE, opacity: 0.8, borderRadius: '1px 1px 0 0' }} />)}
+                      </div>
+                      <div style={{ fontSize: 9.5, color: BLUE, marginTop: 2 }}>📜 shadow of {day.shadow.sourceDate.slice(8)}/{day.shadow.sourceDate.slice(5, 7)} · £{Math.round(day.shadow.total)}</div>
+                    </div>
+                  )
+                })()}
                 {(() => { const ws = warnsFor(day.date); return ws.length > 0 ? (
                   <div style={{ fontSize: 10.5, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 7, padding: '6px 9px', marginBottom: 8, lineHeight: 1.55 }}>
                     {ws.map((w, i) => <div key={i}>⚠️ {w}</div>)}
