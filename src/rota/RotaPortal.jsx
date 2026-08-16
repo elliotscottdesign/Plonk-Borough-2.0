@@ -377,7 +377,8 @@ export default function RotaPortal() {
           const isMgmt = ['Manager', 'Asst. Manager'].includes(staff?.role)
           if (!isFounderStaff && !isMgmt) return null
           const doors = [
-            ['⚙️', 'Operations', '/ops', 'Rota · kitchen · checks'],
+            ['⚙️', 'Operations', '/ops', 'Bar · kitchen · checks'],
+            ['👥', 'Team', '/ops?tab=rota', 'Rota · training · staff'],
             ['🎪', 'Events', '/ops?tab=reservations', 'Bookings · DJs · pool'],
             ...(isFounderStaff ? [['💷', 'Office', '/ops?tab=reports', 'Reports · docs · money']] : []),
           ]
