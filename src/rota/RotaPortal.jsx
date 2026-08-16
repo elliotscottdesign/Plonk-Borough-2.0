@@ -853,7 +853,9 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
       </div>
 
       <TipsCard staff={staff} />
-      <InvoiceCard staff={staff} clocks={clocks} />
+      {/* Invoicing card hidden at the founder's request (12 Aug 2026). The
+          component is kept below — re-enable by restoring this line:
+          <InvoiceCard staff={staff} clocks={clocks} /> */}
 
       <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
         <div style={{ gridColumn: '1 / -1', fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)' }}>Your details — keep these up to date</div>
