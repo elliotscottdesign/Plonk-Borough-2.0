@@ -119,3 +119,15 @@ founder's explicit call.
 (src/App.jsx). HelpOutPortal, the help-out edge fn and all bar_helpers sign-ups are
 untouched — one line reopens it.
 Rota lane: one line in RotaPortal.jsx doors array (Team door now shows for management).
+
+## 16 Aug 2026 — integration session touched src/ops/sections/ChecklistLog.jsx (founder-directed)
+Founder: "make shift checklists a calendar array of dates - with small logo links to
+checklist of that day". The flat 3-week list is now a **month calendar** — each day cell
+shows one small checklist logo per submission (🌅/🔄/🌙), ringed green/amber/red by how
+complete it is; tapping a logo (or the day) opens that day's cards underneath. Month
+back/forward nav bounded by the 90 days the `rota` fn keeps (request widened 21 → 90 —
+the fn already caps at 90, no back-end change and no deploy). Emoji logos carry
+`data-keep-color` so they read correctly in the light/day theme.
+**Kitchen lane: this is your file** — the change is confined to ChecklistLog.jsx; the
+submission card markup is unchanged, just extracted to a `SubCard` component. Shout if
+it clashes with anything mid-flight.
