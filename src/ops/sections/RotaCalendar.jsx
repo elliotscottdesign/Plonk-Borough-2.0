@@ -55,13 +55,19 @@ function WeekRow({ row }) {
           {target != null && hrs >= target - 0.05 && hrs <= target + 0.05 && <span style={{ color: GREEN }}> · on target</span>}
         </div>
       </div>
+      {isFounderTier() && (
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{cost == null ? '—' : gbp(cost)}</div>
         <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>{rate == null ? 'no rate' : `£${Number.isInteger(rate) ? rate : rate.toFixed(2)}/h`}</div>
       </div>
+      )}
     </div>
   )
 }
+
+// Wage figures are FOUNDER-ONLY (founder rule 13 Aug 2026) — managers run the
+// roster and see HOURS, never rates or spend.
+const isFounderTier = () => { try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false } }
 
 export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], reload }) {
   // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
@@ -210,7 +216,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wage spend this week</div>
-            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{gbp(totalSpend)} <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>· {totalHours}h assigned</span></div>
+            <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{isFounderTier() ? <>{gbp(totalSpend)} <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>· {totalHours}h assigned</span></> : <>{totalHours}h <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>assigned</span></>}</div>
           </div>
         </div>
         {missingRate && <div style={{ fontSize: 11, color: AMBER, marginTop: 8 }}>⚠️ Some assigned staff have no hourly rate, so their pay isn't in the total — set it in Team → Edit profile → Pay &amp; hours.</div>}
