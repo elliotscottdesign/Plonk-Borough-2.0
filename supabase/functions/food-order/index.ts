@@ -42,6 +42,26 @@ async function sendSMS(to: string, body: string): Promise<boolean> {
   }
 }
 
+// Order page the waitlist "you can order again" text points at (update to the live URL).
+const ORDER_URL = "https://nodice.bar/order";
+
+async function activeCount(sb: any): Promise<number> {
+  const { count } = await sb.from("food_orders").select("id", { count: "exact", head: true }).in("status", ["new", "preparing", "ready"]);
+  return count || 0;
+}
+// Effective open/paused: paused manually, OR auto-paused when live orders hit the threshold.
+async function getEffective(sb: any) {
+  const { data: s } = await sb.from("food_settings").select("*").eq("id", 1).maybeSingle();
+  const paused = !!s?.paused, auto = !!s?.auto_pause, threshold = s?.auto_threshold ?? 8;
+  const active = await activeCount(sb);
+  const autoTripped = auto && active >= threshold;
+  return { open: !(paused || autoTripped), paused, auto, threshold, active, autoTripped };
+}
+async function waitingCount(sb: any): Promise<number> {
+  const { count } = await sb.from("food_waitlist").select("id", { count: "exact", head: true }).is("notified_at", null);
+  return count || 0;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   const sb = createClient(SUPABASE_URL, SERVICE_KEY);
@@ -55,6 +75,8 @@ Deno.serve(async (req) => {
     if (action === "createOrder") {
       const items = Array.isArray(b.items) ? b.items.slice(0, 50) : [];
       if (!items.length) return json({ error: "empty order" }, 400);
+      const eff0 = await getEffective(sb);
+      if (!eff0.open) return json({ error: "Ordering is paused right now — please try again shortly.", open: false }, 409);
       const row = {
         customer_name: clean(b.name, 80) || null,
         customer_phone: clean(b.phone, 30) || null,
@@ -115,6 +137,40 @@ Deno.serve(async (req) => {
         .select("*").order("created_at", { ascending: false }).limit(200);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, orders: data || [] });
+    }
+
+    // ── Order pause + customer waitlist ──────────────────────────────────────────
+    if (action === "getStatus") {   // public — the customer order page reads this
+      const e = await getEffective(sb);
+      return json({ ok: true, ...e, waiting: await waitingCount(sb) });
+    }
+    if (action === "setSettings") { // kitchen — pause / auto-pause / threshold
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const patch: any = { updated_at: new Date().toISOString() };
+      if (typeof b.paused === "boolean") patch.paused = b.paused;
+      if (typeof b.auto_pause === "boolean") patch.auto_pause = b.auto_pause;
+      if (b.auto_threshold != null) patch.auto_threshold = Math.max(1, parseInt(b.auto_threshold, 10) || 8);
+      const { error } = await sb.from("food_settings").update(patch).eq("id", 1);
+      if (error) return json({ error: error.message }, 400);
+      const e = await getEffective(sb);
+      return json({ ok: true, ...e, waiting: await waitingCount(sb) });
+    }
+    if (action === "joinWaitlist") { // public — customer leaves their number while paused
+      const phone = clean(b.phone, 30);
+      if (!phone) return json({ error: "no phone number" }, 400);
+      const { data: dupe } = await sb.from("food_waitlist").select("id").eq("phone", phone).is("notified_at", null).maybeSingle();
+      if (!dupe) { const { error } = await sb.from("food_waitlist").insert({ phone, name: clean(b.name, 80) || null }); if (error) return json({ error: error.message }, 400); }
+      return json({ ok: true });
+    }
+    if (action === "sendDueWaitlist") { // cron (every minute) — text the next waiter if OPEN
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const e = await getEffective(sb);
+      if (!e.open) return json({ ok: true, sent: 0, note: "paused" });
+      const { data: next } = await sb.from("food_waitlist").select("*").is("notified_at", null).order("created_at", { ascending: true }).limit(1).maybeSingle();
+      if (!next) return json({ ok: true, sent: 0 });
+      const texted = await sendSMS(next.phone, `On A Roll 🌭 you can order again! Order here: ${ORDER_URL}`);
+      await sb.from("food_waitlist").update({ notified_at: new Date().toISOString() }).eq("id", next.id);
+      return json({ ok: true, sent: 1, texted });
     }
 
     return json({ error: "unknown action" }, 400);

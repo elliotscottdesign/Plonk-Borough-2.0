@@ -17,6 +17,11 @@ async function call(payload) {
 // Kitchen display (staff on the /ops Kitchen tab)
 export const listOrders = () => call({ action: 'listOrders', secret: SEND_SECRET })
 export const listHistory = () => call({ action: 'listHistory', secret: SEND_SECRET })
+
+// Pause / auto-pause / waitlist
+export const getStatus = () => call({ action: 'getStatus' })                       // public
+export const setSettings = (patch) => call({ action: 'setSettings', secret: SEND_SECRET, ...patch })
+export const joinWaitlist = ({ phone, name }) => call({ action: 'joinWaitlist', phone, name })  // public (customer page)
 export const setOrderStatus = (id, status, by) => call({ action: 'setStatus', secret: SEND_SECRET, id, status, by })
 
 // Called by the customer order page after payment (built next, in the customer site)
