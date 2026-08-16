@@ -15,7 +15,7 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **DJs** | `Sites/nodice/team-sessions/dj` |
 | **Rota / staff** | `Sites/nodice/team-sessions/rota` |
 | **Tournaments / pool** | `Sites/nodice/team-sessions/tournament` |
-| **Ops info** (reports, docs, key dates, help-out) | `Sites/nodice/team-sessions/ops` |
+| **Ops info** (reports, docs, key dates) | `Sites/nodice/team-sessions/ops` |
 | **Marketing** | `Sites/nodice/team-sessions/marketing` |
 | **Kitchen** | `Sites/nodice/team-sessions/kitchen` |
 | **Bar** (stock, cocktails, till) | `Sites/nodice/team-sessions/bar` |
