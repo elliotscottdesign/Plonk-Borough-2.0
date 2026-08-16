@@ -176,8 +176,12 @@ const addBtn = () => ({ width: '100%', background: 'none', border: `1px dashed $
 const selectStyle = { width: '100%', background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '9px', fontSize: 14 }
 const dayStyle = on => ({ display: 'inline-block', border: `1px solid ${on ? GOLD : LINE}`, background: on ? 'rgba(201,168,76,0.16)' : 'transparent', color: on ? GOLD : MUTED, borderRadius: 8, padding: '6px 9px', fontSize: 12, marginRight: 5, marginBottom: 5, cursor: 'pointer' })
 
-// Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half). Opens a
-// print window.
+// Order-page URL the printed QR points to. UPDATE this to the live order page once
+// the customer order+pay page is deployed (customer-site repo).
+const ORDER_URL = 'https://nodice.bar/order'
+
+// Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half), each with
+// a "scan to order & pay" QR and the "open til 10pm" line. Opens a print window.
 function exportMenu(sections) {
   const secs = (sections || []).filter(s => s.id !== 'bar')
   const inner = secs.map(sec => {
@@ -185,18 +189,24 @@ function exportMenu(sections) {
     if (!its.length) return ''
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(it => `<div class="mi"><span>${esc(it.name)}</span><span class="dots"></span><span>${it.sell ? '£' + (parseFloat(it.sell) % 1 === 0 ? parseFloat(it.sell) : parseFloat(it.sell).toFixed(2)) : ''}</span></div>`).join('')}</div>`
   }).join('')
-  const a5 = `<div class="a5"><div class="mtitle">On A Roll</div><div class="msub">London Fields · order at the bar, collect at the van</div>${inner}<div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><div class="mtitle">On A Roll</div><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
     @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
     body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
     .a4{ display:flex; width:297mm; height:210mm; background:#e8e3d0 }
-    .a5{ flex:1; padding:14mm 12mm; color:#15305c } .a5:first-child{ border-right:1px dashed #b9b1a1 }
-    .mtitle{ font-size:30px; letter-spacing:1px } .msub{ font-family:Arial; font-size:9px; color:#8a8275; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:13px } .mh{ font-size:15px; color:#183fa0; letter-spacing:1px; border-bottom:1px solid #e2d9c2; padding-bottom:3px; margin-bottom:6px }
+    .a5{ flex:1; padding:13mm 12mm; color:#15305c; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #b9b1a1 }
+    .mtitle{ font-size:30px; letter-spacing:1px } .msub{ font-family:Arial; font-size:9px; color:#8a8275; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
+    .msec{ margin-bottom:11px } .mh{ font-size:15px; color:#183fa0; letter-spacing:1px; border-bottom:1px solid #e2d9c2; padding-bottom:3px; margin-bottom:6px }
     .mi{ display:flex; align-items:baseline; gap:5px; font-family:Arial; font-weight:700; font-size:13px; margin:4px 0; color:#15305c }
     .mi .dots{ flex:1; border-bottom:1px dotted #c9bfa8 } .mi span:last-child{ color:#e0231b; font-weight:800 }
-    .mfoot{ font-family:Arial; font-size:8.5px; color:#8a8275; margin-top:14px }
-  </style></head><body><div class="a4">${a5}${a5}</div><script>window.onload=function(){window.print()}<\/script></body></html>`
+    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #183fa0; padding-top:10px }
+    .qr{ width:96px; height:96px; flex-shrink:0 } .qr img,.qr canvas{ width:96px!important; height:96px!important }
+    .scanh{ font-size:17px; color:#e0231b } .scansub{ font-family:Arial; font-size:10px; color:#15305c; margin-top:3px; line-height:1.35 }
+    .mfoot{ font-family:Arial; font-size:8.5px; color:#8a8275; margin-top:10px }
+  </style></head><body><div class="a4">${a5}${a5}</div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
+  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:96,height:96,colorDark:'#15305c',colorLight:'#e8e3d0',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
+  </body></html>`
   const w = window.open('', '_blank')
   if (!w) { alert('Allow pop-ups to print the menu.'); return }
   w.document.write(html); w.document.close()
