@@ -4,7 +4,6 @@ import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
-import HelpOut from './sections/HelpOut.jsx'
 import StaffRota from './sections/StaffRota.jsx'
 import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
@@ -21,7 +20,6 @@ import useIsMobile from '../lib/useIsMobile.js'
 // (running the venue day to day), Events (everything bookable/promotable) and
 // Office (paperwork + money) — with the active group's tabs on a second row.
 // On phones the whole thing collapses into one ☰ menu, grouped the same way.
-// Tab `key`s are stable — deep links (?tab=helpout etc. in alert emails) keep
 // working regardless of which group a tab lives in.
 const GROUPS = [
   {
@@ -33,12 +31,6 @@ const GROUPS = [
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
       // it's a checklist log, so it lives with the others. Component still used there.
-      // Help Out ARCHIVED 13 Aug 2026 (founder: "remove and archive for now") —
-      // the volunteer drive did its job getting Hackney open. Nothing deleted:
-      // the component, the `help-out` edge fn, the bar_helpers data and the
-      // public sign-up page at /helpout all still exist. To bring the tab back,
-      // uncomment this one line.
-      // { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
       // The founder's system map — how every service fits together. Founder-only
       // (mentions costs + internals); open it to team-tier if the founder asks.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
@@ -101,7 +93,6 @@ export default function OpsApp() {
   const allTabs = visGroups.flatMap(g => g.tabs)
   const groupOf = (tabKey) => visGroups.find(g => g.tabs.some(t => t.key === tabKey)) || visGroups[0]
 
-  // Deep link (?tab=helpout) opens straight to that tab, whichever group holds it.
   const initialTab = (() => {
     const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
     return allTabs.some(t => t.key === q) ? q : 'operations'
