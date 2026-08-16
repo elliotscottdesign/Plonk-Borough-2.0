@@ -173,14 +173,19 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
 
       {/* Readiness — the engine fills from expected hours, so flag anyone missing them for this week */}
       {missingHours.length > 0 ? (
-        <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: AMBER }}>⚠️ Some rules aren't set for this week</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong>. It'll still generate, but it has to guess for these people:</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>
-          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Everyone's treated as available unless they've marked days off in their portal or the Availability tab.</div>
-        </div>
+        <details style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12, padding: '0 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: AMBER, padding: '13px 0' }}>⚠️ Ready to build? <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>· {missingHours.length} {missingHours.length === 1 ? 'person has' : 'people have'} no expected hours set — the AI has to guess for them</span></summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong>. It'll still generate, but it has to guess for these people:</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Everyone's treated as available unless they've marked days off in their portal or the Availability tab.</div>
+          </div>
+        </details>
       ) : active.length > 0 ? (
-        <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours set — the AI has what it needs. It works around any days people marked off.</div>
+        <details style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 12, padding: '0 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: GREEN, padding: '13px 0' }}>✓ Ready to build <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>· everyone has expected hours set</span></summary>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, paddingBottom: 14 }}>The AI has what it needs — it builds from each person's expected hours and works around any days they've marked off in their portal or the Availability tab.</div>
+        </details>
       ) : null}
 
       {mode === 'history' && (
