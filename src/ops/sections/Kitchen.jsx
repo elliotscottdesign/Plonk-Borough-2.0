@@ -22,7 +22,7 @@ export default function Kitchen() {
   const [sub, setSub] = useState('runs')   // 'runs' | 'matrix'
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>

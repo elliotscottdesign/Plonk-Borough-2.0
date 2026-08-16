@@ -151,7 +151,7 @@ export default function KitchenChecklists({ token, kitchen }) {
 
   return (
     <div>
-      <div className="serif" style={{ fontSize: 18, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div className="serif" style={{ fontSize: 18, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
       <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', margin: '3px 0 14px', lineHeight: 1.5 }}>
         Safer Food, Better Business. Complete each sheet on shift — temperatures and critical checks are logged for the EHO, and a failed check pings the manager.
       </div>

@@ -26,7 +26,7 @@ const clean = (v: unknown, n = 200) => (v == null ? "" : String(v)).slice(0, n).
 
 // The pre-programmed "food ready" message (founder brief Aug 2026).
 const readyMessage = (orderNo: number, name?: string | null) =>
-  `On A Roll 🌭 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
+  `On A Roll 🍔🍟 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
 
 async function sendSMS(to: string, body: string): Promise<boolean> {
   if (!TW_SID || !TW_TOKEN || !to) return false;
@@ -168,7 +168,7 @@ Deno.serve(async (req) => {
       if (!e.open) return json({ ok: true, sent: 0, note: "paused" });
       const { data: next } = await sb.from("food_waitlist").select("*").is("notified_at", null).order("created_at", { ascending: true }).limit(1).maybeSingle();
       if (!next) return json({ ok: true, sent: 0 });
-      const texted = await sendSMS(next.phone, `On A Roll 🌭 you can order again! Order here: ${ORDER_URL}`);
+      const texted = await sendSMS(next.phone, `On A Roll 🍔🍟 you can order again! Order here: ${ORDER_URL}`);
       await sb.from("food_waitlist").update({ notified_at: new Date().toISOString() }).eq("id", next.id);
       return json({ ok: true, sent: 1, texted });
     }
