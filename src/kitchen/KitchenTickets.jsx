@@ -95,7 +95,7 @@ export default function KitchenTickets() {
                     </>
                   : <>
                       {o.status !== 'preparing' && <button disabled={busy} onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
-                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(RED, '#fff')}>✓ Ready — text customer</button>
+                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
                     </>}
               </div>
             </div>
