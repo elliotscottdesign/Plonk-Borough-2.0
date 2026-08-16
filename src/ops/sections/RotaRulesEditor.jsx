@@ -10,6 +10,8 @@ import DateField from '../../lib/DateField.jsx'
 // table; the engine reads them (falling back to venue defaults for anything blank).
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33'
+// Role colours — identical to the drag-to-build rota grid (DayRosterGrid ROLE_COLOR).
+const C_MANAGER = '#A855F7', C_BAR = '#34D399', C_KITCHEN = '#FB923C'
 const LINE = 'rgba(255,255,255,0.12)'
 const DAYS = [[1, 'Monday'], [2, 'Tuesday'], [3, 'Wednesday'], [4, 'Thursday'], [5, 'Friday'], [6, 'Saturday'], [0, 'Sunday']]
 // Time options every 30 min, 8am → 3am next day (covers late closes).
@@ -108,24 +110,44 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
       {/* Per-day hours + staffing */}
       <div>
         <div style={sectionHdr}>📅 Opening hours &amp; staffing</div>
+        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', fontSize: 11, marginBottom: 8, color: 'rgba(255,255,255,0.6)' }}>
+          <span style={{ color: C_MANAGER, fontWeight: 700 }}>■ 👔 Manager</span>
+          <span style={{ color: C_BAR, fontWeight: 700 }}>■ 🍺 Bar</span>
+          <span style={{ color: C_KITCHEN, fontWeight: 700 }}>■ 🍳 Kitchen</span>
+          <span style={{ color: AMBER, fontWeight: 700 }}>■ 😴 Quiet day</span>
+          <span style={{ color: 'rgba(255,255,255,0.4)' }}>· same colours as the drag-to-build rota</span>
+        </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {DAYS.map(([w, name]) => {
             const d = draft.days[w]
+            const bar = d.base + (d.eveAdd > 0 ? d.eveAdd : 0) - 1   // bar people at peak (Staff incl. manager, + extras)
             return (
               <div key={w} style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px' }}>
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', minWidth: 78 }}>{name}</div>
-                <label style={lbl}>Open</label>{timeSel(d.open, v => setDay(w, { open: v }))}
-                <label style={lbl}>Close</label>{timeSel(d.close, v => setDay(w, { close: v }))}
-                <label style={lbl}>Staff</label>
-                <input type="number" min={0} max={12} value={d.base} onChange={e => setDay(w, { base: Math.max(0, Math.min(12, parseInt(e.target.value) || 0)) })} style={num} />
-                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>·</span>
-                <label style={lbl}>+extra</label>
-                <input type="number" min={0} max={8} value={d.eveAdd} onChange={e => setDay(w, { eveAdd: Math.max(0, Math.min(8, parseInt(e.target.value) || 0)) })} style={num} />
-                <label style={lbl}>from</label>
-                <span style={{ opacity: d.eveAdd > 0 ? 1 : 0.4, pointerEvents: d.eveAdd > 0 ? 'auto' : 'none' }}>{timeSel(d.eveAt ?? 1080, v => setDay(w, { eveAt: v }))}</span>
-                {/* Kitchen column: on/off + the dedicated kitchen shift's exact times */}
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 6, paddingLeft: 10, borderLeft: `1px solid ${LINE}` }}>
-                  <label title="A dedicated kitchen shift on this day (only kitchen-trained staff can fill it) — on top of the Staff number, not counted in it." style={{ ...optRow, cursor: 'pointer', color: d.kitchen === true ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
+                {/* Hours — neutral */}
+                <Seg color="rgba(255,255,255,0.7)" tint="rgba(255,255,255,0.04)" title="Bar opening hours">
+                  <span style={segIcon}>🕒</span>
+                  <label style={lbl}>Open</label>{timeSel(d.open, v => setDay(w, { open: v }))}
+                  <label style={lbl}>Close</label>{timeSel(d.close, v => setDay(w, { close: v }))}
+                </Seg>
+                {/* Manager — purple, always on */}
+                <Seg color={C_MANAGER} tint="rgba(168,85,247,0.10)" title={`A manager is always on: ${draft.managerMargin} min before open until everyone leaves after close`}>
+                  <span style={segIcon}>👔</span><span style={{ fontSize: 11.5, fontWeight: 700, color: C_MANAGER }}>Manager</span><span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)' }}>always on</span>
+                </Seg>
+                {/* Bar — green */}
+                <Seg color={C_BAR} tint="rgba(52,211,153,0.09)" title="Bar people: “Staff” = manager + bar people from open; “+extra … from” adds more for the evening rush">
+                  <span style={segIcon}>🍺</span>
+                  <label style={{ ...lbl, color: C_BAR }}>Staff</label>
+                  <input type="number" min={0} max={12} value={d.base} onChange={e => setDay(w, { base: Math.max(0, Math.min(12, parseInt(e.target.value) || 0)) })} style={num} />
+                  <label style={{ ...lbl, color: C_BAR }}>+extra</label>
+                  <input type="number" min={0} max={8} value={d.eveAdd} onChange={e => setDay(w, { eveAdd: Math.max(0, Math.min(8, parseInt(e.target.value) || 0)) })} style={num} />
+                  <label style={{ ...lbl, color: C_BAR }}>from</label>
+                  <span style={{ opacity: d.eveAdd > 0 ? 1 : 0.4, pointerEvents: d.eveAdd > 0 ? 'auto' : 'none' }}>{timeSel(d.eveAt ?? 1080, v => setDay(w, { eveAt: v }))}</span>
+                  <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginLeft: 2 }}>= {Math.max(0, bar)} bar at peak</span>
+                </Seg>
+                {/* Kitchen — orange (matches the manual builder) */}
+                <Seg color={C_KITCHEN} tint={d.kitchen === true ? 'rgba(251,146,60,0.10)' : 'rgba(255,255,255,0.03)'} title="A dedicated kitchen shift on this day (only kitchen-trained staff can fill it) — on top of the Staff number, not counted in it.">
+                  <label style={{ ...optRow, cursor: 'pointer', color: d.kitchen === true ? C_KITCHEN : 'rgba(255,255,255,0.5)', fontSize: 11.5, fontWeight: d.kitchen === true ? 700 : 400 }}>
                     <input type="checkbox" checked={d.kitchen === true} onChange={e => setDay(w, e.target.checked ? { kitchen: true, kitchenStart: d.kitchenStart ?? 1020, kitchenEnd: d.kitchenEnd ?? 1380 } : { kitchen: false })} />
                     <span>🍳 Kitchen</span>
                   </label>
@@ -134,8 +156,10 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
                     <span style={{ color: 'rgba(255,255,255,0.4)' }}>–</span>
                     {timeSel(d.kitchenEnd ?? 1380, v => setDay(w, { kitchenEnd: v }))}
                   </span>
-                </span>
-                <label title="Mark this day as usually quiet — the floor gets sent home early (see Options)" style={{ ...optRow, marginLeft: 'auto', cursor: 'pointer', color: d.quiet ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
+                  {d.kitchen !== true && <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)' }}>no kitchen</span>}
+                </Seg>
+                {/* Quiet — amber chip */}
+                <label title="Mark this day as usually quiet — the floor gets sent home early (see Options)" style={{ ...optRow, marginLeft: 'auto', cursor: 'pointer', color: d.quiet ? AMBER : 'rgba(255,255,255,0.5)', fontSize: 11.5, background: d.quiet ? 'rgba(245,158,11,0.10)' : 'transparent', border: `1px solid ${d.quiet ? 'rgba(245,158,11,0.45)' : 'transparent'}`, borderRadius: 999, padding: '3px 9px' }}>
                   <input type="checkbox" checked={d.quiet === true} onChange={e => setDay(w, { quiet: e.target.checked })} />
                   <span>😴 quiet</span>
                 </label>
@@ -241,6 +265,11 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
 }
 
 const sectionHdr = { fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 8 }
+// A colour-coded segment inside a day row (hours / manager / bar / kitchen).
+function Seg({ color, tint, title, children }) {
+  return <span title={title} style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 8, background: tint, border: `1px solid ${color}44`, flexWrap: 'wrap' }}>{children}</span>
+}
+const segIcon = { fontSize: 13, lineHeight: 1 }
 const lbl = { fontSize: 10.5, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.03em' }
 const hint = { fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 8, lineHeight: 1.45 }
 const sel = { padding: '5px 6px', fontSize: 12, borderRadius: 6, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none', cursor: 'pointer' }
