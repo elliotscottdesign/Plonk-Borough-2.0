@@ -229,6 +229,10 @@ export function daySlots(dateStr, rules) {
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
 export const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
+// Lanes (founder rule, 16 Aug 2026): kitchen-ROLE staff never fill bar/floor
+// shifts; the kitchen slot takes kitchen-role staff first, and a kitchen-trained
+// manager (Elliot) is the fallback cover. Bar/floor = everyone who isn't kitchen-role.
+const isKitchenRole = (s) => s.role === 'Kitchen / Barback'
 
 // unavailByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked OFF.
 // Everyone's available by default; only an explicit `{ unavailable: true }` counts.
@@ -299,7 +303,15 @@ export function generateWeek(weekStart, staff, availabilityRows, rules, opts = {
     for (const slot of slots) {
       let pool = active.filter(s => !usedToday.has(s.id))
       if (slot.role === 'manager') pool = pool.filter(isManager)
-      if (slot.role === 'kitchen') pool = pool.filter(isKitchen)
+      if (slot.role === 'kitchen') {
+        // Cover order: an AVAILABLE kitchen-role person → a kitchen-trained manager
+        // (Elliot) → last resort, a kitchen-role person who marked the day off (flagged).
+        const cooks = pool.filter(isKitchenRole)
+        const freeCooks = cooks.filter(s => availState(unavail[s.id] || new Set(), date) >= 1)
+        const mgrCover = pool.filter(s => isKitchen(s) && isManager(s))
+        pool = freeCooks.length ? freeCooks : mgrCover.length ? mgrCover : cooks
+      }
+      if (slot.role !== 'manager' && slot.role !== 'kitchen') pool = pool.filter(s => !isKitchenRole(s))   // lanes: no kitchen staff on the floor
       // Keep-apart pairs (AI rule): drop anyone paired with someone already on today —
       // unless that empties the pool, in which case staffing the day wins (flagged below).
       const apart = pool.filter(s => !badPair[s.id] || ![...usedToday].some(u => badPair[s.id].has(u)))
