@@ -24,7 +24,7 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 | `dj` | `src/dj/**`, `src/ops/sections/DJRoster.jsx`, `DJBookings.jsx`, `DJMedia.jsx`, `DJMessages.jsx` | `dj-portal`, `dj-admin`, `dj-caption`, `dj-holds-cron` |
 | `rota` | `src/rota/**`, `src/ops/sections/StaffRota.jsx`, `AiRota.jsx`, `AvailabilityOverview.jsx`, `DayRosterGrid.jsx`, `RotaCalendar.jsx`, `RotaRulesEditor.jsx`, `TrainingMatrix.jsx`, `VenueClockSettings.jsx` | `rota` |
 | `tournament` | `src/tournament/**`, `src/ops/sections/Tournament.jsx` | `tournament` |
-| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out`, `keydates` |
+| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `WorldCup.jsx` | `events-feed`, `keydates` |
 | `marketing` | `src/marketing/**`, `src/slides/**`, `src/borough/**` | `send-campaign`, `send-newsletter`, `confirm-optin`, `unsubscribe`, `import-subscribers` |
 | `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | `kitchen` |
 | `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**`, `src/toilets/**`, `src/ops/sections/ToiletLog.jsx` | `toilet-check` |

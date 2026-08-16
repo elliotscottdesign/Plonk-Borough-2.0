@@ -131,3 +131,32 @@ the fn already caps at 90, no back-end change and no deploy). Emoji logos carry
 **Kitchen lane: this is your file** — the change is confined to ChecklistLog.jsx; the
 submission card markup is unchanged, just extracted to a `SubCard` component. Shout if
 it clashes with anything mid-flight.
+
+## 16 Aug 2026 — Help Out / volunteer sign-up REMOVED FROM THE SYSTEM (founder-directed)
+Founder: "remove all volunteer and help out section - Hide / archive - remove from system".
+The 13 Aug change only *hid* it; an audit found the public sign-up API was still wide
+open (the `signup` action had no secret, no auth and CORS `*`, so anyone holding the old
+URL could still write rows into `bar_helpers`), and the team landing page still led with a
+"🙌 Help us open" volunteer card.
+
+Removed (front end, this repo): the `/helpout` + `/help-out` routes and the closed-notice
+component in `src/App.jsx`; the Help Out gateway case in `src/PasswordGate.jsx`; the
+volunteer door on `src/TeamLanding.jsx`; the dead import + commented tab registry entry in
+`src/ops/OpsApp.jsx`; and the files `src/help/**`, `src/ops/sections/HelpOut.jsx`,
+`src/ops/sections/HelpCalendar.jsx` (deleted — recoverable from git).
+
+Back end: `supabase/functions/help-out/index.ts` REPLACED with a stub that returns **410
+Gone** for every action, and DEPLOYED (`--no-verify-jwt`) — a stub had to be deployed
+because simply deleting the repo file would have left the last live version running and
+still accepting sign-ups. Verified live: POST returns 410. The original 56 KB function is
+archived at `supabase/archive/help-out-index.ts`; copy it back + redeploy to restore.
+
+Data: `bar_helpers` and `help_settings` NOT touched by this change — no DDL, no deletes.
+NB for the record: `bar_helpers` was already EMPTY before this work (lifetime table stats,
+unreset since 22 May 2026, show 31 inserts and 31 deletes, so every sign-up had already
+been removed at some earlier point — not by this change). The table, its 17 columns and its
+RLS policy are intact. The project has no backups and no PITR, so those rows are not
+recoverable.
+
+Ops lane: `help-out` was yours — it is now retired; CLAUDE.md's ownership map and
+SESSIONS.md have been updated to drop it.
