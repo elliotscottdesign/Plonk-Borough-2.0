@@ -12,7 +12,7 @@
 //  • Per weekday: opening hours + how many people (base), plus an optional evening
 //    bump (extra bodies from a given time).
 //  • A manager/assistant manager on from `managerMargin` before open to after close.
-//  • At least one kitchen-capable person each day (requireKitchen).
+//  • Kitchen: a per-day 🍳 shift (days[w].kitchen + kitchenStart/End) — nothing global.
 //  • School / bank holidays → their own hours every day.
 
 // Weekday index = JS getUTCDay: 0=Sun … 6=Sat. Minutes from midnight (next-day > 1440).
@@ -39,13 +39,15 @@ export const DEFAULT_RULES = {
   ],
   managerMargin: 60,       // manager on from open-margin to close+margin
   requireManager: true,    // reserve a manager/asst-manager slot
-  requireKitchen: true,    // steer one body toward kitchen cover + warn if none
+  requireKitchen: true,    // RETIRED (ignored) — kitchen is per-day via days[w].kitchen; kept so old saved rules still parse
   // ── Founder's manual rules (editable in the AI Rota tab, no code change) ──────
   houseRules: [],          // free-text reminders shown on every generated week
   strength: {},            // staffId → 1..5 priority/strength (default 3); higher = picked first
   stagger: false,          // one opener + one closer instead of two full floor shifts
   staggerGap: 90,          // minutes the opener leaves early / the closer starts late
   earlyCutMin: 30,         // on a "quiet" day, send the floor home this many min early
+  afterCloseMin: 30,       // floor staff stay this many min after close (wind-down with the manager); per-day override via days[w].afterClose
+  minShiftMin: 360,        // no floor/evening shift shorter than this (founder: 6h); manager + kitchen are exact by design
   // (per-weekday `quiet: true` lives inside days[w], added via withDefaults below)
 }
 
@@ -72,6 +74,8 @@ export function withDefaults(rules) {
     stagger: src.stagger === true,
     staggerGap: Number.isFinite(+src.staggerGap) ? Math.max(0, +src.staggerGap) : DEFAULT_RULES.staggerGap,
     earlyCutMin: Number.isFinite(+src.earlyCutMin) ? Math.max(0, +src.earlyCutMin) : DEFAULT_RULES.earlyCutMin,
+    afterCloseMin: Number.isFinite(+src.afterCloseMin) ? Math.max(0, +src.afterCloseMin) : DEFAULT_RULES.afterCloseMin,
+    minShiftMin: Number.isFinite(+src.minShiftMin) ? Math.max(60, +src.minShiftMin) : DEFAULT_RULES.minShiftMin,
     // AI-compiled directives from the founder's typed house rules (see applyCompiled)
     // + the per-rule "how I read it" notes. Passed through untouched so a manual-rules
     // save never wipes what the AI compiled.
@@ -93,7 +97,19 @@ export function applyCompiled(R) {
   if (!c) return base
   const days = { ...R.days }
   const cDays = asObj(c.days)
-  for (let w = 0; w <= 6; w++) if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...days[w], ...cDays[w] }
+  for (let w = 0; w <= 6; w++) {
+    const manual = days[w] || {}
+    if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...manual, ...cDays[w] }
+    // The Kitchen COLUMN in the rules table is the most explicit statement — when
+    // the founder has set it (kitchen true/false), it beats any typed kitchen rule.
+    if (typeof manual.kitchen === 'boolean') {
+      days[w] = { ...days[w], kitchen: manual.kitchen }
+      if (manual.kitchen) { days[w].kitchenStart = manual.kitchenStart ?? days[w].kitchenStart ?? null; days[w].kitchenEnd = manual.kitchenEnd ?? days[w].kitchenEnd ?? null }
+      else { delete days[w].kitchenStart; delete days[w].kitchenEnd }
+    }
+    // Same for the per-day "stay after close" column — set in the table, it wins.
+    if (Number.isFinite(+manual.afterClose) && manual.afterClose !== null && manual.afterClose !== '') days[w] = { ...days[w], afterClose: +manual.afterClose }
+  }
   const num = (v, fb) => Number.isFinite(+v) ? Math.max(0, +v) : fb
   return {
     ...base,
@@ -101,6 +117,8 @@ export function applyCompiled(R) {
     stagger: typeof c.stagger === 'boolean' ? c.stagger : R.stagger,
     staggerGap: c.staggerGap != null ? num(c.staggerGap, R.staggerGap) : R.staggerGap,
     earlyCutMin: c.earlyCutMin != null ? num(c.earlyCutMin, R.earlyCutMin) : R.earlyCutMin,
+    afterCloseMin: c.afterCloseMin != null ? num(c.afterCloseMin, R.afterCloseMin) : R.afterCloseMin,
+    minShiftMin: c.minShiftHours != null && Number.isFinite(+c.minShiftHours) && +c.minShiftHours > 0 ? Math.max(60, +c.minShiftHours * 60) : R.minShiftMin,
     managerMargin: c.managerMargin != null ? num(c.managerMargin, R.managerMargin) : R.managerMargin,
     requireKitchen: typeof c.requireKitchen === 'boolean' ? c.requireKitchen : R.requireKitchen,
     requireManager: typeof c.requireManager === 'boolean' ? c.requireManager : R.requireManager,
@@ -150,7 +168,9 @@ export function daySlots(dateStr, rules) {
   const d = { ...(R.days[wd(dateStr)] || {}), ...(dr || {}) }
   // Kitchen cover per day: an AI day-rule (kitchen: true/false on the weekday or the
   // specific date) overrides the global "always a kitchen-trained person" option.
-  const kitchenReq = d.kitchen != null ? d.kitchen === true : R.requireKitchen !== false
+  // Kitchen requirement comes ONLY from the per-day 🍳 column (or an AI day rule) —
+  // the old global 'always a kitchen-trained person' option is retired.
+  const kitchenReq = d.kitchen === true
   // Dedicated kitchen shift times (e.g. "kitchen 5pm–11pm"): when set, the kitchen
   // person gets their own slot with exactly these times — they replace one of the
   // floor bodies (same total headcount) and only kitchen-trained staff can fill it.
@@ -165,14 +185,23 @@ export function daySlots(dateStr, rules) {
   // "Quiet" day → send the floor home `earlyCutMin` before close (the manager still
   // covers the close via their margin). Off = no trim.
   const cut = (d.quiet === true) ? Math.max(0, R.earlyCutMin ?? 0) : 0
-  const floorClose = Math.max(open + 60, close - cut)
+  // Floor staff stay on after close for the wind-down (founder rule: everyone
+  // leaves with the manager). Per-day `afterClose` minutes (AI/day rule) else the
+  // global default. A quiet-day early cut still trims from that finish time.
+  const stay = Number.isFinite(+d.afterClose) ? Math.max(0, +d.afterClose) : Math.max(0, R.afterCloseMin ?? 0)
+  const floorClose = Math.max(open + 60, close + stay - cut)
   const slots = []
-  if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
+  // Manager: in `margin` before open to set up; leaves WITH everyone at the stay-on
+  // time (close + stay) — never later. So Sun–Thu (stay 30) the manager finishes
+  // 11:30pm like the floor; Fri/Sat (stay 60) 1am. `margin` is now the before-open span only.
+  if (R.requireManager) slots.push({ start: open - margin, end: close + stay, role: 'manager', label: 'Manager' })
   // Dedicated kitchen slot right after the manager, so the kitchen-trained person
   // is claimed before the floor slots swallow them. Exact times as the rule states —
   // never trimmed by the quiet-day cut.
   if (kitchenSlot) slots.push({ start: kStart, end: kEnd, role: 'kitchen', label: 'Kitchen' })
-  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0) - (kitchenSlot ? 1 : 0))
+  // "Staff" = manager + floor. The kitchen shift is on TOP of that (founder rule,
+  // 16 Aug 2026: kitchen no longer counts as one of the day's staff).
+  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0))
   const floor = []
   for (let i = 0; i < floorN; i++) floor.push({ start: open, end: floorClose, role: 'any', label: 'Floor' })
   // Stagger: instead of two people both open→close, one OPENS (leaves `staggerGap`
@@ -184,18 +213,26 @@ export function daySlots(dateStr, rules) {
     floor[0] = { ...floor[0], end: Math.max(floor[0].start + 60, floorClose - gap), label: 'Opener' }
     floor[last] = { ...floor[last], start: Math.min(floorClose - 60, open + gap), label: 'Closer' }
   }
-  slots.push(...floor)
+  // Shortest-shift rule: no floor/opener/closer shift shorter than minShiftMin —
+  // grow it earlier (never before open); if the day itself is shorter, it spans the day.
+  const minS = Math.max(60, R.minShiftMin ?? 0)
+  const grow = (s) => (s.end - s.start >= minS) ? s : { ...s, start: Math.max(open, s.end - minS) }
+  slots.push(...floor.map(grow))
   // Evening bump: extra bodies from eveAt to close (only if eveAt sits inside opening
   // hours). On a quiet day they leave with the floor (floorClose), not at full close.
   if (eveAt != null && eveAdd > 0 && eveAt > open && eveAt < close) {
     const eveEnd = Math.max(eveAt + 60, floorClose)
-    for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' })
+    for (let i = 0; i < eveAdd; i++) slots.push(grow({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' }))
   }
   return { slots, open, close, holiday: holidayName(dateStr, R), kitchen: kitchenReq }
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
 export const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
+// Lanes (founder rule, 16 Aug 2026): kitchen-ROLE staff never fill bar/floor
+// shifts; the kitchen slot takes kitchen-role staff first, and a kitchen-trained
+// manager (Elliot) is the fallback cover. Bar/floor = everyone who isn't kitchen-role.
+const isKitchenRole = (s) => s.role === 'Kitchen / Barback'
 
 // unavailByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked OFF.
 // Everyone's available by default; only an explicit `{ unavailable: true }` counts.
@@ -215,7 +252,11 @@ function availState(unavailSet, date) {
 
 // Generate a concept week. Returns { days: [{ date, hours, holiday, slots:[{...}] }], warnings }
 // Each slot: { start, end, label, role, staffId|null, name|null, kitchen, warn }
-export function generateWeek(weekStart, staff, availabilityRows, rules) {
+// opts.slotsByDate: { 'YYYY-MM-DD': { slots, open, close } } — when present for a
+// date, those slots are used instead of the rules' daySlots (the Historical build
+// shapes slots to last week's till demand, then hands off here so every people
+// rule — availability, rest, keep-apart, priority — still applies).
+export function generateWeek(weekStart, staff, availabilityRows, rules, opts = {}) {
   const R = applyCompiled(withDefaults(rules))
   const active = (staff || []).filter(s => s.active !== false)
   const unavail = buildUnavail(availabilityRows)
@@ -249,7 +290,9 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
   const warnings = []
   for (let i = 0; i < 7; i++) {
     const date = addDaysISO(weekStart, i)
-    const { slots, open, close, holiday, kitchen: kitchenReq } = daySlots(date, R)
+    const base = daySlots(date, R)
+    const ov = opts.slotsByDate && opts.slotsByDate[date]
+    const { slots, open, close, holiday, kitchen: kitchenReq } = ov ? { ...base, ...ov, slots: ov.slots || base.slots } : base
     const usedToday = new Set()
     let kitchenCovered = false
     const out = []
@@ -260,7 +303,15 @@ export function generateWeek(weekStart, staff, availabilityRows, rules) {
     for (const slot of slots) {
       let pool = active.filter(s => !usedToday.has(s.id))
       if (slot.role === 'manager') pool = pool.filter(isManager)
-      if (slot.role === 'kitchen') pool = pool.filter(isKitchen)
+      if (slot.role === 'kitchen') {
+        // Cover order: an AVAILABLE kitchen-role person → a kitchen-trained manager
+        // (Elliot) → last resort, a kitchen-role person who marked the day off (flagged).
+        const cooks = pool.filter(isKitchenRole)
+        const freeCooks = cooks.filter(s => availState(unavail[s.id] || new Set(), date) >= 1)
+        const mgrCover = pool.filter(s => isKitchen(s) && isManager(s))
+        pool = freeCooks.length ? freeCooks : mgrCover.length ? mgrCover : cooks
+      }
+      if (slot.role !== 'manager' && slot.role !== 'kitchen') pool = pool.filter(s => !isKitchenRole(s))   // lanes: no kitchen staff on the floor
       // Keep-apart pairs (AI rule): drop anyone paired with someone already on today —
       // unless that empties the pool, in which case staffing the day wins (flagged below).
       const apart = pool.filter(s => !badPair[s.id] || ![...usedToday].some(u => badPair[s.id].has(u)))

@@ -84,3 +84,50 @@ Changes: ProfileView gains a `clocks` prop (passed from portal state), two new c
 TipsCard/InvoiceCard at the bottom of RotaPortal.jsx. No changes to rota logic, api, or shifts.
 Rota lane: shout if this steps on anything you're mid-flight on.
 
+
+## 12 Aug 2026 — integration session touched tournament + pingpong fns (founder-directed, urgent)
+Founder's WhatsApp templates were still PENDING with Meta on tournament night, so the
+"you're up next" auto-ping had no working channel. Added an **SMS fallback** to
+`supabase/functions/{tournament,pingpong}/index.ts`: new `sendSMS()` using a UK
+**alphanumeric sender** (`TWILIO_SMS_FROM`, default "NoDice" — no phone number to buy,
+no Meta approval, one-way) and `notifyMatchReady` now sends WhatsApp when its template
+is live, else SMS (and SMS on any WhatsApp failure). New project secret
+`NOTIFY_PREFER_SMS=1` forces SMS — **unset it when the WhatsApp template approves** and
+WhatsApp resumes automatically with SMS as the fallback. Guard relaxed (SMS doesn't need
+TW_FROM). Both fns redeployed. Delivery proven live (alphanumeric SMS → founder's phone,
+status=delivered). Tournament lane: this is your file — shout if it conflicts.
+
+
+## 13 Aug 2026 — integration session touched src/rota/RotaPortal.jsx (founder-directed, 1-line)
+Founder asked for a **Team** hotlink on the manager doors under the shift banner, to match
+the new top-level Team door in /ops. Change is ONE line in the `doors` array (~line 380):
+added `['👥','Team','/ops?tab=rota', …]` for the founder only (that screen holds pay rates +
+staff logins, so it stays founder-gated like Office), and the Operations door's subtitle no
+longer says "rota". **Rota lane: you own this file — I kept the diff to the doors array so a
+merge conflict is unlikely; shout if it clashes with anything mid-flight.**
+
+## 13 Aug 2026 — integration session: Team opened to management + Help Out closed (founder-directed)
+Founder: "Remove volunteer sign up page - Rhys can have team section too".
+(1) NEW middle tier: the sign-in bridge in src/App.jsx now sets `ndb_role_manager`
+from the person's own STAFF RECORD (role Manager / Asst. Manager), never from the shared
+NDTEAM code. src/ops/OpsApp.jsx gained a `managerOnly` gate and the Team group uses it,
+so Rhys reaches the roster while ordinary staff on the shared code do not (verified both
+ways in the browser, incl. a ?tab=rota deep-link as bar staff → bounced). Office stays
+founder-only. NB the Team screen shows pay rates + staff login passwords — that was the
+founder's explicit call.
+(2) /helpout now renders a "We're open — thank you" notice instead of the sign-up form
+(src/App.jsx). HelpOutPortal, the help-out edge fn and all bar_helpers sign-ups are
+untouched — one line reopens it.
+Rota lane: one line in RotaPortal.jsx doors array (Team door now shows for management).
+
+## 16 Aug 2026 — integration session touched src/ops/sections/ChecklistLog.jsx (founder-directed)
+Founder: "make shift checklists a calendar array of dates - with small logo links to
+checklist of that day". The flat 3-week list is now a **month calendar** — each day cell
+shows one small checklist logo per submission (🌅/🔄/🌙), ringed green/amber/red by how
+complete it is; tapping a logo (or the day) opens that day's cards underneath. Month
+back/forward nav bounded by the 90 days the `rota` fn keeps (request widened 21 → 90 —
+the fn already caps at 90, no back-end change and no deploy). Emoji logos carry
+`data-keep-color` so they read correctly in the light/day theme.
+**Kitchen lane: this is your file** — the change is confined to ChecklistLog.jsx; the
+submission card markup is unchanged, just extracted to a `SubCard` component. Shout if
+it clashes with anything mid-flight.

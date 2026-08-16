@@ -34,6 +34,28 @@ async function sendMail(to: string, subject: string, html: string) {
     return true;
   } catch (_) { return false; }
 }
+
+// ── SMS fallback (works TONIGHT — no Meta template approval needed) ──────────
+// WhatsApp business-initiated messages need an approved template; ours were
+// still pending with Meta on 12 Aug. UK alphanumeric sender IDs need no number
+// and no approval, so the "you're up next" call-up goes out as a text from
+// "NoDice" (one-way — players can't reply, which is what we want).
+// NOTIFY_PREFER_SMS=1 forces SMS; unset it once the WhatsApp template approves
+// and WhatsApp is used again automatically (SMS stays the fallback).
+const TW_SMS_FROM = Deno.env.get("TWILIO_SMS_FROM") || "NoDice";
+const PREFER_SMS = Deno.env.get("NOTIFY_PREFER_SMS") === "1";
+
+async function sendSMS(to: string, body: string): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN) return false;
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body }),
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
 const gbp = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
 const voucherEmail = (name: string, place: number, amount: number, code: string, tournName: string) => {
   const ord = place === 1 ? "1st" : place === 2 ? "2nd" : "3rd";
@@ -275,7 +297,7 @@ async function sendWhatsApp(to: string, vars: { name: string; table: number; opp
 // skipped silently (the founder calls them the old way).
 async function notifyMatchReady(sb: any, m: any, table: number) {
   try {
-    if (!TW_SID || !TW_TOKEN || !TW_FROM) return;
+    if (!TW_SID || !TW_TOKEN) return;   // SMS needs no WhatsApp sender
     const { data: ps } = await sb.from("pool_participants").select("id, display_name, entry_id").in("id", [m.p1_id, m.p2_id]);
     const byId: Record<string, any> = {};
     for (const p of ps || []) byId[p.id] = p;
@@ -289,7 +311,12 @@ async function notifyMatchReady(sb: any, m: any, table: number) {
     }
     for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
       const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
-      if (to) await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+      if (!to) continue;
+      const text = `🎱 ${me.display_name} — you're up NEXT at No Dice! Table ${table}, playing ${opp.display_name}. Good luck! 🍀`;
+      // WhatsApp when its template is live; otherwise (and on any failure) SMS.
+      let ok = false;
+      if (!PREFER_SMS && TW_FROM) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+      if (!ok) await sendSMS(to, text);
     }
   } catch (_) { /* notifications must never break the tournament */ }
 }
@@ -542,6 +569,15 @@ async function computeLeague(sb: any, discipline: string) {
   const effectiveType = (r: any) => r.discipline_override || (r.tournaments && r.tournaments.tournament_type);
   const relevant = (runs || []).filter((r: any) => r.tournaments && effectiveType(r) === discipline && !/season final/i.test(r.tournaments.name || ""));
   relevant.sort((a: any, b: any) => String(a.tournaments.event_date).localeCompare(String(b.tournaments.event_date)));
+  // Merged identities (founder rule 13 Aug 2026): a walk-in keyed by name can be
+  // folded into the identity they later book under, so their earlier points
+  // follow them. Resolved at READ time — nothing historic is rewritten, and a
+  // merge is undone by deleting its row. Chains are followed (a→b→c) with a hop
+  // limit so a mistaken loop can never hang the league.
+  const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+  const mergeMap: Record<string, string> = {};
+  for (const m of merges || []) mergeMap[m.from_key] = m.to_key;
+  const resolve = (k: string) => { let cur = k; for (let i = 0; i < 10 && mergeMap[cur] && mergeMap[cur] !== cur; i++) cur = mergeMap[cur]; return cur; };
   const table: Record<string, any> = {};
   for (const run of relevant) {
     const { participants, standings, placings } = await loadRun(sb, run);
@@ -558,8 +594,9 @@ async function computeLeague(sb: any, discipline: string) {
       for (const e of ents || []) if (e.captain_email) emailByEntry[e.id] = String(e.captain_email).trim().toLowerCase();
     }
     const entryByPid: Record<string, string> = {}; for (const p of participants as any[]) if (p.entry_id) entryByPid[p.id] = p.entry_id;
-    const keyOf = (id: string) => (emailByEntry[entryByPid[id] || ""] || (nameById[id] || "").trim().toLowerCase());
-    const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0 }); e.name = nameById[id]; return e; };
+    const rawKeyOf = (id: string) => (emailByEntry[entryByPid[id] || ""] || (nameById[id] || "").trim().toLowerCase());
+    const keyOf = (id: string) => resolve(rawKeyOf(id));
+    const ensure = (id: string) => { if (nulled.has(id)) return null; const k = keyOf(id); if (!k) return null; const e = (table[k] ||= { key: k, name: nameById[id], pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0, alsoKnownAs: [] }); if (rawKeyOf(id) !== k && !e.alsoKnownAs.includes(nameById[id])) e.alsoKnownAs.push(nameById[id]); else if (rawKeyOf(id) === k) e.name = nameById[id]; return e; };
     for (const p of participants.filter((p: any) => p.active && !p.league_null)) { const e = ensure(p.id); if (e) { e.pts += 1; e.nights += 1; } }
     for (const s of standings) { if (nulled.has(s.id)) continue; const e = table[keyOf(s.id)]; if (e) e.frameDiff += s.diff; }
     if (standings[0] && !nulled.has(standings[0].id)) { const e = table[keyOf(standings[0].id)]; if (e) e.pts += 1; }
@@ -584,7 +621,8 @@ Deno.serve(async (req) => {
   try {
     if (action === "getLeague") {
       const discipline = b.discipline === "doubles" ? "doubles" : "singles";
-      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+      const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)), merges: merges || [] });
     }
   } catch (e) { return json({ error: String((e as any)?.message || e) }, 500); }
 
@@ -594,6 +632,36 @@ Deno.serve(async (req) => {
     // The pool nights to run: booked tournaments + their paid count, cap, and run status.
     // Excludes tournament_type='teams' — those are the Sunday ping pong nights, which
     // live in the separate `pingpong` function/tab (3 Aug 2026).
+    // ── 🔗 League identity merge ────────────────────────────────────────────
+    // Reconnects a returning walk-in's earlier points to the identity they now
+    // play under. Read-time only — no historic row is edited, and unmerging
+    // restores the split exactly.
+    if (action === "mergeLeague") {
+      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
+      const fromKey = String(b.fromKey ?? "").trim().toLowerCase().slice(0, 200);
+      const toKey = String(b.toKey ?? "").trim().toLowerCase().slice(0, 200);
+      if (!fromKey || !toKey) return json({ error: "Pick both rows." }, 400);
+      if (fromKey === toKey) return json({ error: "That's the same row." }, 400);
+      // Refuse a cycle: the target must not already fold back into the source.
+      const { data: existing } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pool").eq("discipline", discipline);
+      const map: Record<string, string> = {};
+      for (const m of existing || []) map[m.from_key] = m.to_key;
+      map[fromKey] = toKey;
+      let cur = toKey;
+      for (let i = 0; i < 20 && map[cur]; i++) { cur = map[cur]; if (cur === fromKey) return json({ error: "That would loop back on itself." }, 400); }
+      const { error } = await sb.from("league_merges")
+        .upsert({ sport: "pool", discipline, from_key: fromKey, to_key: toKey, note: String(b.note ?? "").slice(0, 200) || null }, { onConflict: "sport,discipline,from_key" });
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+    }
+    if (action === "unmergeLeague") {
+      const discipline = b.discipline === "doubles" ? "doubles" : "singles";
+      const fromKey = String(b.fromKey ?? "").trim().toLowerCase().slice(0, 200);
+      if (!fromKey) return json({ error: "Nothing to undo." }, 400);
+      await sb.from("league_merges").delete().eq("sport", "pool").eq("discipline", discipline).eq("from_key", fromKey);
+      return json({ ok: true, ...(await computeLeague(sb, discipline)) });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
@@ -608,7 +676,7 @@ Deno.serve(async (req) => {
         ok: true,
         tournaments: (tourns || []).map((t: any) => ({
           id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time,
-          type: t.tournament_type, cap: t.max_teams || 12, paid: paidCount[t.id] || 0,
+          type: t.tournament_type, cap: t.max_teams || 999, paid: paidCount[t.id] || 0,
           bookable: t.bookable, registration_open: t.registration_open,
           run: runByT[t.id] ? { id: runByT[t.id].id, status: runByT[t.id].status } : null,
         })),
@@ -644,7 +712,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 12 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
@@ -739,6 +807,50 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
     // Reopen a match. For a bracket match, also un-advance the winner from the next slot.
+    // ── 📣 Manual "call players" — the founder presses this ─────────────────
+    // The auto-ping fires when a table is assigned, but on a busy night the
+    // founder needs to call a pair over on demand (they wandered off, the text
+    // never landed, a walk-up joined late). Takes a match OR a whole round, and
+    // REPORTS BACK who was texted, who has no number on file, and who failed —
+    // so the screen tells the truth instead of failing silently.
+    if (action === "callPlayers") {
+      const matchId = clean(b.matchId, 40);
+      const roundId = clean(b.roundId, 40);
+      if (!matchId && !roundId) return json({ error: "Nothing to call." }, 400);
+      let q = sb.from("pool_matches").select("*");
+      q = matchId ? q.eq("id", matchId) : q.eq("round_id", roundId);
+      const { data: ms } = await q;
+      const live = (ms || []).filter((m: any) => !m.is_bye && m.p1_id && m.p2_id && m.status !== "done");
+      if (!live.length) return json({ ok: true, sent: [], noPhone: [], failed: [], note: "Nothing to call — those matches are done." });
+      const ids = [...new Set(live.flatMap((m: any) => [m.p1_id, m.p2_id]))];
+      const { data: ps } = await sb.from("pool_participants").select("id, display_name, entry_id").in("id", ids);
+      const byId: Record<string, any> = {};
+      for (const p of ps || []) byId[p.id] = p;
+      const entryIds = (ps || []).map((p: any) => p.entry_id).filter(Boolean);
+      const phoneByEntry: Record<string, string | null> = {};
+      if (entryIds.length) {
+        const { data: es } = await sb.from("tournament_entries").select("id, captain_phone").in("id", entryIds);
+        for (const e of es || []) phoneByEntry[e.id] = e.captain_phone;
+      }
+      const sent: string[] = [], noPhone: string[] = [], failed: string[] = [];
+      for (const m of live) {
+        const p1 = byId[m.p1_id], p2 = byId[m.p2_id];
+        if (!p1 || !p2) continue;
+        const table = m.table_number;
+        for (const [me, opp] of [[p1, p2], [p2, p1]] as const) {
+          const to = e164(me.entry_id ? phoneByEntry[me.entry_id] : null);
+          if (!to) { noPhone.push(me.display_name); continue; }
+          const where = table ? `table ${table}` : "the tables";
+          const text = `🎱 ${me.display_name} — you're up NEXT at No Dice! Come to ${where}, playing ${opp.display_name}. Good luck! 🍀`;
+          let ok = false;
+          if (!PREFER_SMS && TW_FROM && table) ok = await sendWhatsApp(to, { name: me.display_name, table, opponent: opp.display_name });
+          if (!ok) ok = await sendSMS(to, text);
+          (ok ? sent : failed).push(me.display_name);
+        }
+      }
+      return json({ ok: true, sent, noPhone, failed });
+    }
+
     if (action === "clearScore") {
       const matchId = clean(b.matchId, 40);
       const { data: m } = await sb.from("pool_matches").select("*").eq("id", matchId).maybeSingle();
@@ -906,9 +1018,14 @@ Deno.serve(async (req) => {
         pool_tournament_id: runId, entry_id: entry.id, display_name: name, source: "manual",
       }).select("*").single();
       if (pErr) return json({ error: pErr.message }, 400);
-      let emailed = false;
-      if (payUrl) emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
-      return json({ ok: true, entry, participant, payUrl, emailed });
+      let emailed = false, texted = false;
+      if (payUrl) {
+        emailed = await sendMail(email, `You're in — pay ${gbp(fee)} to confirm your ${t.name} entry`, payLinkEmail(name, t.name, fee, payUrl));
+        // Also TEXT the link — a walk-up at the bar reads a text, not an inbox.
+        const sms = e164(phone);
+        if (sms) texted = await sendSMS(sms, `🎱 You're in, ${name}! Pay ${gbp(fee)} to confirm your ${t.name} entry: ${payUrl}`);
+      }
+      return json({ ok: true, entry, participant, payUrl, emailed, texted });
     }
 
 

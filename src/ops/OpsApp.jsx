@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
@@ -11,7 +11,6 @@ import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
-import ToiletLog from './sections/ToiletLog.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -31,13 +30,32 @@ const GROUPS = [
       // "Bar" = the stock/margin toolkit (stock take, perishables, costing…).
       // key stays 'operations' so old ?tab=/?tool= deep links keep working.
       { key: 'operations', label: 'Bar',           Component: Operations },
-      { key: 'rota',       label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
-      { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
-      { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
+      // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
+      // it's a checklist log, so it lives with the others. Component still used there.
+      // Help Out ARCHIVED 13 Aug 2026 (founder: "remove and archive for now") —
+      // the volunteer drive did its job getting Hackney open. Nothing deleted:
+      // the component, the `help-out` edge fn, the bar_helpers data and the
+      // public sign-up page at /helpout all still exist. To bring the tab back,
+      // uncomment this one line.
+      // { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
       // The founder's system map — how every service fits together. Founder-only
       // (mentions costs + internals); open it to team-tier if the founder asks.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
+    ],
+  },
+  {
+    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
+    // inside Operations. Single tab, so no second row renders — StaffRota's own
+    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
+    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
+    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
+    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
+    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
+    // bridge), never on the shared NDTEAM code.
+    key: 'team', label: 'Team', managerOnly: true,
+    tabs: [
+      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
     ],
   },
   {
@@ -72,10 +90,13 @@ export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
+  // Real management (founder, Manager, Asst. Manager) — set by the sign-in bridge
+  // from their staff record, so the shared team code alone never grants it.
+  const isManager = isFounder || (typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_manager') === '1')
   // Visible groups, each with its visible tabs; a group with nothing visible vanishes.
   // A group-level founderOnly (Office) hides the WHOLE group from team-tier logins.
   const visGroups = GROUPS
-    .map(g => ({ ...g, tabs: (g.founderOnly && !isFounder) ? [] : g.tabs.filter(t => !t.founderOnly || isFounder) }))
+    .map(g => ({ ...g, tabs: ((g.founderOnly && !isFounder) || (g.managerOnly && !isManager)) ? [] : g.tabs.filter(t => (!t.founderOnly || isFounder) && (!t.managerOnly || isManager)) }))
     .filter(g => g.tabs.length > 0)
   const allTabs = visGroups.flatMap(g => g.tabs)
   const groupOf = (tabKey) => visGroups.find(g => g.tabs.some(t => t.key === tabKey)) || visGroups[0]
@@ -95,7 +116,30 @@ export default function OpsApp() {
   lastInGroup.current[activeGroup.key] = tab
 
   const current = allTabs.find(t => t.key === tab) || allTabs[0]
-  const pick = (k) => { setTab(k); setMenuOpen(false) }
+
+  // Keep the open tab IN THE URL (?tab=djbookings). Without this, refreshing any
+  // screen threw you back to the first tab, and the phone's Back button left the
+  // app entirely (founder, Aug 2026). Changing tab pushes a history entry, so
+  // Back now steps between tabs; refresh reopens exactly where you were.
+  const putTabInUrl = (k, push) => {
+    try {
+      const u = new URL(window.location.href)
+      u.searchParams.set('tab', k)
+      window.history[push ? 'pushState' : 'replaceState']({ ndbTab: k }, '', u)
+    } catch { /* non-fatal */ }
+  }
+  useEffect(() => { putTabInUrl(tab, false) }, [])   // stamp the URL on first paint
+  useEffect(() => {
+    const onPop = () => {
+      const q = new URLSearchParams(window.location.search).get('tab')
+      if (q && allTabs.some(t => t.key === q)) { setTab(q); setMenuOpen(false) }
+    }
+    window.addEventListener('popstate', onPop)
+    return () => window.removeEventListener('popstate', onPop)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  const pick = (k) => { if (k !== tab) putTabInUrl(k, true); setTab(k); setMenuOpen(false) }
   const pickGroup = (g) => {
     const remembered = lastInGroup.current[g.key]
     pick(g.tabs.some(t => t.key === remembered) ? remembered : g.tabs[0].key)

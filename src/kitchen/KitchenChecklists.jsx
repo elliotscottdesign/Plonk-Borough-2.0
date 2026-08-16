@@ -25,6 +25,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   const [busy, setBusy] = useState(false)
   const [showMatrix, setShowMatrix] = useState(false)
   const [waste, setWaste] = useState({ product: '', reason: '', quantity: '' })
+  const [savedFlash, setSavedFlash] = useState(null)   // cadence just saved-as-progress (transient ✓)
   const panelRef = useRef(null)
   const isMobile = useIsMobile()
 
@@ -124,6 +125,7 @@ export default function KitchenChecklists({ token, kitchen }) {
       dirtyRef.current = false            // local sheet now matches the server
       await load()
       if (submit) setOpenKey(null)
+      else { setSavedFlash(cadence); setTimeout(() => setSavedFlash(f => (f === cadence ? null : f)), 2600) }
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
@@ -202,9 +204,10 @@ export default function KitchenChecklists({ token, kitchen }) {
                     </div>
                   ))}
                   {!isGuidance && (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
                       <button onClick={() => save(k, false)} disabled={busy} style={btn('ghost')}>Save progress</button>
                       <button onClick={() => save(k, true)} disabled={busy} style={btn('red')}>Submit checklist</button>
+                      {savedFlash === k && <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ Progress saved</span>}
                     </div>
                   )}
                   {!isGuidance && done && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Already submitted — you can update it and submit again.</div>}
