@@ -15,3 +15,4 @@ async function call(payload) {
 
 export const getMenu = () => call({ action: 'getMenu' })
 export const saveMenu = (sections, bundles) => call({ action: 'saveMenu', secret: SEND_SECRET, sections, bundles })
+export const uploadPhoto = (dataUrl) => call({ action: 'uploadPhoto', secret: SEND_SECRET, dataUrl })

@@ -15,3 +15,10 @@ create table if not exists menu_catalog (
 insert into menu_catalog (id) values (1) on conflict (id) do nothing;
 
 alter table menu_catalog enable row level security;
+
+-- Public bucket for item photos. The `menu` edge fn uploads with the service key
+-- (via the uploadPhoto action) and stores the resulting public URL on the item,
+-- so the menu doc stays small (URLs, not base64 blobs).
+insert into storage.buckets (id, name, public)
+values ('menu-photos', 'menu-photos', true)
+on conflict (id) do nothing;

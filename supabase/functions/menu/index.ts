@@ -43,6 +43,22 @@ Deno.serve(async (req) => {
       return json({ ok: true });
     }
 
+    // Upload an item photo to the public menu-photos bucket; returns its URL so the
+    // menu doc stores a small URL rather than a base64 blob.
+    if (action === "uploadPhoto") {
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const m = String(b.dataUrl || "").match(/^data:(image\/[\w+.-]+);base64,(.+)$/);
+      if (!m) return json({ error: "bad image" }, 400);
+      const contentType = m[1];
+      const bytes = Uint8Array.from(atob(m[2]), (c) => c.charCodeAt(0));
+      if (bytes.length > 3_000_000) return json({ error: "image too big (max 3MB)" }, 400);
+      const path = `${crypto.randomUUID()}.${(contentType.split("/")[1] || "jpg").replace(/[^\w]/g, "")}`;
+      const up = await sb.storage.from("menu-photos").upload(path, bytes, { contentType, upsert: false });
+      if (up.error) return json({ error: up.error.message }, 400);
+      const { data } = sb.storage.from("menu-photos").getPublicUrl(path);
+      return json({ ok: true, url: data.publicUrl });
+    }
+
     return json({ error: "unknown action" }, 400);
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
