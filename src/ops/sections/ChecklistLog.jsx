@@ -83,6 +83,14 @@ export default function ChecklistLog() {
     return out
   }, [view])
 
+  // Legend = every checklist type that actually appears in the log (opening /
+  // during / closing plus deep clean, toilet checks, weekly …), in the order the
+  // checklists file defines them — so no logo on the grid is ever unexplained.
+  const legendKeys = useMemo(() => {
+    const seen = new Set(subs.map(s => s.checklist_key))
+    return Object.keys(CHECKLISTS).filter(k => seen.has(k))
+  }, [subs])
+
   const today = todayISO()
   const monthCount = cells.filter(Boolean).reduce((n, d) => n + (byDate[d]?.length || 0), 0)
   // Opening a day scrolls the panel into view only if it isn't already ('nearest'),
@@ -143,7 +151,7 @@ export default function ChecklistLog() {
                 }}>
                   <span style={{ fontSize: 'clamp(9.5px, 2.2vw, 11px)', fontWeight: isToday ? 800 : 600, color: list.length ? '#fff' : 'rgba(255,255,255,0.3)', lineHeight: 1 }}>{+d.slice(8)}</span>
                   <span style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: 2, lineHeight: 1 }}>
-                    {list.slice(0, 4).map(s => {
+                    {list.map(s => {
                       const c = CHECKLISTS[s.checklist_key]
                       const { pct } = scoreOf(s)
                       return (
@@ -159,7 +167,6 @@ export default function ChecklistLog() {
                           }}><span data-keep-color>{c?.icon || '📋'}</span></span>
                       )
                     })}
-                    {list.length > 4 && <span style={{ fontSize: 'clamp(8px, 1.8vw, 9.5px)', color: 'rgba(255,255,255,0.5)', alignSelf: 'center' }}>+{list.length - 4}</span>}
                   </span>
                 </button>
               )
@@ -167,7 +174,7 @@ export default function ChecklistLog() {
           </div>
           {/* Legend */}
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 'clamp(6px, 2vw, 14px)', justifyContent: 'center', borderTop: '1px solid rgba(255,255,255,0.06)', marginTop: 8, paddingTop: 8 }}>
-            {['opening', 'during', 'closing'].filter(k => CHECKLISTS[k]).map(k => (
+            {legendKeys.map(k => (
               <span key={k} style={{ fontSize: 'clamp(9px, 2vw, 11px)', color: 'rgba(255,255,255,0.5)', display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 <span data-keep-color style={{ fontSize: 'clamp(11px, 2.4vw, 13px)' }}>{CHECKLISTS[k].icon}</span>{CHECKLISTS[k].title}
               </span>
