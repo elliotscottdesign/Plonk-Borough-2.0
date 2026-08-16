@@ -55,13 +55,17 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
   // slots (floor / evening / added) take on the person's role. Days keep the
   // Manager → Kitchen → Bar order, so re-assigning re-sorts the card.
   const staffById = Object.fromEntries(active.map(s => [s.id, s]))
-  const kindOf = (s) => {
-    if (s.role === 'manager') return 'manager'
-    if (s.role === 'kitchen') return 'kitchen'
+  // Kind = what the SHIFT is (the slot's job), not who's in it: 👔 the manager
+  // slot, 🍳 the dedicated kitchen slot, 🍺 everything else. The person's own role
+  // shows as a small badge instead — so a kitchen-trained barback on a floor shift
+  // reads "🍺 Bar · 🍳", not as a second kitchen shift.
+  const kindOf = (s) => (s.role === 'manager' ? 'manager' : s.role === 'kitchen' ? 'kitchen' : 'bar')
+  const personBadge = (s) => {
     const p = s.staffId ? staffById[s.staffId] : null
-    if (p && (p.role === 'Manager' || p.role === 'Asst. Manager')) return 'manager'
-    if (p && isKitchen(p)) return 'kitchen'
-    return 'bar'
+    if (!p || s.role === 'manager' || s.role === 'kitchen') return null
+    if (p.role === 'Manager' || p.role === 'Asst. Manager') return { txt: '👔', title: `${p.name} is a ${p.role} — this is still a bar shift` }
+    if (isKitchen(p)) return { txt: '🍳', title: `${p.name} is kitchen-trained — this is still a bar shift` }
+    return null
   }
   const KIND_ORDER = { manager: 0, kitchen: 1, bar: 2 }
   const sortSlots = (slots) => slots.map((s, i) => [s, i]).sort((a, b) => (KIND_ORDER[kindOf(a[0])] - KIND_ORDER[kindOf(b[0])]) || (a[0].start - b[0].start) || (a[1] - b[1])).map(([s]) => s)
@@ -114,7 +118,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
     const k = kindOf(s)
     if (k === 'manager') return { txt: '👔 Manager', color: PURPLE }
     if (k === 'kitchen') return { txt: '🍳 Kitchen', color: AMBER }
-    if (!s.staffId) return { txt: '＋ Pick who', color: BLUE }   // added/unassigned — becomes Bar/Kitchen/Manager once filled
+    if (!s.staffId) return { txt: '＋ Pick who', color: BLUE }   // added/unassigned bar shift
     return { txt: '🍺 Bar', color: 'rgba(255,255,255,0.6)' }
   }
 
@@ -236,7 +240,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
                     return (
                       <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px ${s.added && !s.staffId ? 'dashed' : 'solid'} ${s.warn ? 'rgba(245,158,11,0.4)' : s.added && !s.staffId ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 10, fontWeight: 700, color: tag.color, whiteSpace: 'nowrap', minWidth: 66 }}>{tag.txt}</span>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: tag.color, whiteSpace: 'nowrap', minWidth: 66 }}>{tag.txt}{(() => { const b = personBadge(s); return b ? <span title={b.title} style={{ marginLeft: 4, opacity: 0.85 }}>· {b.txt}</span> : null })()}</span>
                           <select value={s.staffId || ''} onChange={e => reassign(di, si, e.target.value)} style={sel}>
                             <option value="">— unassigned —</option>
                             {eligible.map(x => <option key={x.id} value={x.id}>{x.name}</option>)}
