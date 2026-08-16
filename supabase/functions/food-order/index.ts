@@ -43,7 +43,7 @@ async function sendSMS(to: string, body: string): Promise<boolean> {
 }
 
 // Order page the waitlist "you can order again" text points at (update to the live URL).
-const ORDER_URL = "https://nodice.bar/order";
+const ORDER_URL = "https://nodice.bar/onaroll";
 
 async function activeCount(sb: any): Promise<number> {
   const { count } = await sb.from("food_orders").select("id", { count: "exact", head: true }).in("status", ["new", "preparing", "ready"]);

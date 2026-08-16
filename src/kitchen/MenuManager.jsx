@@ -179,7 +179,7 @@ const dayStyle = on => ({ display: 'inline-block', border: `1px solid ${on ? GOL
 
 // Order-page URL the printed QR points to. UPDATE this to the live order page once
 // the customer order+pay page is deployed (customer-site repo).
-const ORDER_URL = 'https://nodice.bar/order'
+const ORDER_URL = 'https://nodice.bar/onaroll'
 
 // Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half), each with
 // a "scan to order & pay" QR and the "open til 10pm" line. Opens a print window.

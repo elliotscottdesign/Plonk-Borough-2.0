@@ -31,6 +31,7 @@ import MarketingApp from './marketing/MarketingApp.jsx'
 import DJPortal from './dj/DJPortal.jsx'
 import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
+import OnARollApp from './onaroll/OnARollApp.jsx'
 import DailyHub from './rota/DailyHub.jsx'
 import ToiletChecks from './toilets/ToiletChecks.jsx'
 import LeisureWatcher from './leisure/LeisureWatcher.jsx'
@@ -99,6 +100,11 @@ const isHelpOutPath = () =>
 const isRotaPath = () =>
   typeof window !== 'undefined' &&
   /^\/rota(\/|$)/.test(window.location.pathname)
+
+// On A Roll truck MANAGEMENT — order display + menu manager, coded entry. /onaroll-kitchen.
+const isOnARollKitchenPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/onaroll-kitchen(\/|$)/.test(window.location.pathname)
 
 // Daily clock-in hub — the shared link the team opens each shift. /today.
 const isTodayPath = () =>
@@ -308,6 +314,9 @@ export default function App() {
   // Staff Rota portal — team members log in with their own email + password.
   // Standalone (its own login), sits before the root fallback below.
   if (isRotaPath()) return <RotaPortal />
+
+  // On A Roll truck management — order display + menu manager (coded entry). /onaroll-kitchen.
+  if (isOnARollKitchenPath()) return <OnARollApp />
 
   // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
   if (isTodayPath()) return <DailyHub />
