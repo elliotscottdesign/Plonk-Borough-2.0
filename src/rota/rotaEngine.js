@@ -95,7 +95,17 @@ export function applyCompiled(R) {
   if (!c) return base
   const days = { ...R.days }
   const cDays = asObj(c.days)
-  for (let w = 0; w <= 6; w++) if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...days[w], ...cDays[w] }
+  for (let w = 0; w <= 6; w++) {
+    const manual = days[w] || {}
+    if (cDays[w] && typeof cDays[w] === 'object') days[w] = { ...manual, ...cDays[w] }
+    // The Kitchen COLUMN in the rules table is the most explicit statement — when
+    // the founder has set it (kitchen true/false), it beats any typed kitchen rule.
+    if (typeof manual.kitchen === 'boolean') {
+      days[w] = { ...days[w], kitchen: manual.kitchen }
+      if (manual.kitchen) { days[w].kitchenStart = manual.kitchenStart ?? days[w].kitchenStart ?? null; days[w].kitchenEnd = manual.kitchenEnd ?? days[w].kitchenEnd ?? null }
+      else { delete days[w].kitchenStart; delete days[w].kitchenEnd }
+    }
+  }
   const num = (v, fb) => Number.isFinite(+v) ? Math.max(0, +v) : fb
   return {
     ...base,
