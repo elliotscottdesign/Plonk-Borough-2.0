@@ -18,7 +18,7 @@ export default function OnARollApp() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink)', color: '#fff', padding: '14px 16px 44px' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 1000, margin: '0 auto 14px', flexWrap: 'wrap' }}>
-        <img src="/on-a-roll-logo.png" alt="On A Roll" style={{ height: 52 }} />
+        <img src="/on-a-roll-logo.png?v=3" alt="On A Roll" style={{ height: 52 }} />
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
           {[['orders', '🎫 Orders'], ['menu', '🍔 Menu']].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} style={tabBtn(tab === k)}>{l}</button>
@@ -39,7 +39,7 @@ function Gate({ onOk }) {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--ink)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
       <div style={{ textAlign: 'center', maxWidth: 320, width: '100%' }}>
-        <img src="/on-a-roll-logo.png" alt="On A Roll" style={{ width: 200, maxWidth: '76%', marginBottom: 18 }} />
+        <img src="/on-a-roll-logo.png?v=3" alt="On A Roll" style={{ width: 200, maxWidth: '76%', marginBottom: 18 }} />
         <input value={v} autoFocus placeholder="Enter code"
           onChange={e => { setV(e.target.value); setErr(false) }}
           onKeyDown={e => e.key === 'Enter' && submit()}

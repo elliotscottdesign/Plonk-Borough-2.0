@@ -111,11 +111,16 @@ export default function MenuManager() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
                       style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Field label="Sell £ inc VAT" value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
-                      <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 13, color: it.sell ? mgColor(mp) : MUTED }}>{it.sell ? mp + '%' : '—'}</span>
-                      <button onClick={() => delItem(si, ii)} title="Remove item" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#0e0e10', border: `1px solid ${it.sell && it.cost ? mgColor(mp) : LINE}`, borderRadius: 8, padding: '5px 9px' }}
+                        title="Gross margin on the ex-VAT price. £ figure = cash profit per item.">
+                        <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Margin</span>
+                        <b style={{ fontSize: 14, color: it.sell && it.cost ? mgColor(mp) : MUTED }}>{it.sell && it.cost ? mp + '%' : '—'}</b>
+                        {it.sell && it.cost && <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>· £{(parseFloat(it.sell) / VAT - parseFloat(it.cost)).toFixed(2)}</span>}
+                      </span>
+                      <button onClick={() => delItem(si, ii)} title="Remove item" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
                     </div>
                     <textarea value={it.desc || ''} placeholder="Description (shown on the printed menu)…" onChange={e => setItem(si, ii, 'desc', e.target.value)} rows={2} style={{ width: '100%', marginTop: 7, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '7px 9px', fontSize: 12.5, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
                   </div>
