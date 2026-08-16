@@ -108,6 +108,15 @@ Deno.serve(async (req) => {
       return json({ ok: true, order: data, texted });
     }
 
+    // Kitchen display: full recent order history (all statuses), newest first.
+    if (action === "listHistory") {
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data, error } = await sb.from("food_orders")
+        .select("*").order("created_at", { ascending: false }).limit(200);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, orders: data || [] });
+    }
+
     return json({ error: "unknown action" }, 400);
   } catch (e) {
     return json({ error: String((e as Error).message || e) }, 500);
