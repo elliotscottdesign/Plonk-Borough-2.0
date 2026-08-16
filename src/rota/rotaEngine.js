@@ -184,7 +184,10 @@ export function daySlots(dateStr, rules) {
   const stay = Number.isFinite(+d.afterClose) ? Math.max(0, +d.afterClose) : Math.max(0, R.afterCloseMin ?? 0)
   const floorClose = Math.max(open + 60, close + stay - cut)
   const slots = []
-  if (R.requireManager) slots.push({ start: open - margin, end: close + margin, role: 'manager', label: 'Manager' })
+  // Manager: in `margin` before open to set up; leaves WITH everyone at the stay-on
+  // time (close + stay) — never later. So Sun–Thu (stay 30) the manager finishes
+  // 11:30pm like the floor; Fri/Sat (stay 60) 1am. `margin` is now the before-open span only.
+  if (R.requireManager) slots.push({ start: open - margin, end: close + stay, role: 'manager', label: 'Manager' })
   // Dedicated kitchen slot right after the manager, so the kitchen-trained person
   // is claimed before the floor slots swallow them. Exact times as the rule states —
   // never trimmed by the quiet-day cut.

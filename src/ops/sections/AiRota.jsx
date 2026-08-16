@@ -142,21 +142,28 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
       </div>
 
       {/* The founder's plain-English house rules — always visible as the review checklist */}
-      {houseRules.length > 0 && (
-        <div style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '12px 14px' }}>
-          <div style={{ fontSize: 12.5, fontWeight: 700, color: BLUE, marginBottom: 8 }}>📌 Your house rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>· ✅ = the builder does it automatically · ⚠️ = check by hand as you review</span></div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
-            {houseRules.map((r, i) => {
-              const n = noteFor(r)
-              return (
-                <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
-                  <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
-                </div>
-              )
-            })}
-          </div>
-        </div>
-      )}
+      {houseRules.length > 0 && (() => {
+        const applied = houseRules.filter(r => noteFor(r)?.status === 'applied').length
+        const check = houseRules.length - applied
+        return (
+          <details style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '0 14px' }}>
+            <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: BLUE, padding: '13px 0' }}>
+              📌 Rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>· {houseRules.length} house rule{houseRules.length === 1 ? '' : 's'} · <span style={{ color: GREEN }}>{applied} applied automatically</span>{check > 0 && <> · <span style={{ color: AMBER }}>{check} to check by hand</span></>}</span>
+            </summary>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>✅ = the builder does it automatically · ⚠️ = check by hand as you review · hover a rule for how it was read</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 14 }}>
+              {houseRules.map((r, i) => {
+                const n = noteFor(r)
+                return (
+                  <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
+                    <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </details>
+        )
+      })()}
 
       {/* Editable rules the AI builds from — house rules, hours, staffing, priority, holidays */}
       <details style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0 14px' }}>
@@ -166,14 +173,19 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
 
       {/* Readiness — the engine fills from expected hours, so flag anyone missing them for this week */}
       {missingHours.length > 0 ? (
-        <div style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: AMBER }}>⚠️ Some rules aren't set for this week</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong>. It'll still generate, but it has to guess for these people:</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>
-          <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Everyone's treated as available unless they've marked days off in their portal or the Availability tab.</div>
-        </div>
+        <details style={{ background: 'rgba(245,158,11,0.07)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12, padding: '0 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: AMBER, padding: '13px 0' }}>⚠️ Ready to build? <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>· {missingHours.length} {missingHours.length === 1 ? 'person has' : 'people have'} no expected hours set — the AI has to guess for them</span></summary>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 14 }}>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>The AI builds the rota from each person's <strong style={{ color: '#fff' }}>expected hours</strong>. It'll still generate, but it has to guess for these people:</div>
+            <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.75)', lineHeight: 1.5 }}>💷 <strong>No expected hours:</strong> {missingHours.map(s => s.name).join(', ')} <span style={{ color: 'rgba(255,255,255,0.5)' }}>— set each in Team → Edit profile → Pay &amp; hours.</span></div>
+            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', lineHeight: 1.5 }}>Everyone's treated as available unless they've marked days off in their portal or the Availability tab.</div>
+          </div>
+        </details>
       ) : active.length > 0 ? (
-        <div style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px', fontSize: 12.5, color: GREEN }}>✓ Everyone has expected hours set — the AI has what it needs. It works around any days people marked off.</div>
+        <details style={{ background: 'rgba(52,211,153,0.06)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 12, padding: '0 14px' }}>
+          <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: GREEN, padding: '13px 0' }}>✓ Ready to build <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.6)', fontSize: 12 }}>· everyone has expected hours set</span></summary>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, paddingBottom: 14 }}>The AI has what it needs — it builds from each person's expected hours and works around any days they've marked off in their portal or the Availability tab.</div>
+        </details>
       ) : null}
 
       {mode === 'history' && (
@@ -184,7 +196,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
       {!days ? (mode === 'history' ? null :
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 18px', lineHeight: 1.7 }}>
           Pick a week and tap <strong style={{ color: '#fff' }}>✨ Generate</strong>. The AI fills every day with:
-          a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open to 1h after close, the right headcount
+          a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open until everyone leaves after close, the right headcount
           (Mon–Thu 2 · Fri 2→4 · Sat 3→4 · Sun 2), at least one <strong style={{ color: AMBER }}>kitchen</strong> person, and it
           spreads hours fairly while avoiding anyone who's marked themselves off. School-holiday weeks auto-switch to 12pm–12am.
         </div>
