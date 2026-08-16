@@ -5,6 +5,7 @@ import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitche
 import useIsMobile from '../../lib/useIsMobile.js'
 import KitchenStock from '../../kitchen/KitchenStock.jsx'
 import KitchenTickets from '../../kitchen/KitchenTickets.jsx'
+import MenuManager from '../../kitchen/MenuManager.jsx'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
 const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
@@ -29,11 +30,11 @@ export default function Kitchen() {
       </div>
       {/* Sticky — the stock + allergen sheets are long; the way back must stay put. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
-        {[['orders', '🎫 Orders'], ['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+        {[['orders', '🎫 Orders'], ['menu', '🍔 Menu'], ['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}
       </div>
-      {sub === 'orders' ? <KitchenTickets /> : sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : sub === 'stock' ? <KitchenStock /> : <Matrix />}
+      {sub === 'orders' ? <KitchenTickets /> : sub === 'menu' ? <MenuManager /> : sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : sub === 'stock' ? <KitchenStock /> : <Matrix />}
     </div>
   )
 }
