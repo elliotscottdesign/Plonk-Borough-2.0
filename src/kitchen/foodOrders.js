@@ -16,6 +16,7 @@ async function call(payload) {
 
 // Kitchen display (staff on the /ops Kitchen tab)
 export const listOrders = () => call({ action: 'listOrders', secret: SEND_SECRET })
+export const listHistory = () => call({ action: 'listHistory', secret: SEND_SECRET })
 export const setOrderStatus = (id, status, by) => call({ action: 'setStatus', secret: SEND_SECRET, id, status, by })
 
 // Called by the customer order page after payment (built next, in the customer site)

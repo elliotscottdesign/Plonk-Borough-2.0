@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -15,6 +15,8 @@ export default function KitchenTickets() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [sound, setSound] = useState(true)
+  const [showHistory, setShowHistory] = useState(false)
+  const [history, setHistory] = useState(null)
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
@@ -47,6 +49,7 @@ export default function KitchenTickets() {
   }, [])   // eslint-disable-line
 
   const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
@@ -56,11 +59,13 @@ export default function KitchenTickets() {
       <img src="/on-a-roll-logo.jpg" alt="On A Roll" style={{ height: 42, borderRadius: 8, display: 'block', marginBottom: 12 }} />
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
         <div style={{ fontSize: 13, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{active.length ? `${active.length} live order${active.length > 1 ? 's' : ''}` : 'No live orders'}</div>
+        <button onClick={showHistory ? () => setShowHistory(false) : openHistory} style={{ fontSize: 12, fontWeight: 700, background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}>{showHistory ? '← Live orders' : '📋 Order history'}</button>
         <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
           <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
         </label>
       </div>
 
+      {showHistory ? <HistoryView history={history} /> : <>
       {err && <div style={{ fontSize: 12, color: RED, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, lineHeight: 1.5 }}>
         Can't reach orders yet — {err}. Orders appear here once the <code>food-order</code> backend is deployed.
       </div>}
@@ -102,6 +107,29 @@ export default function KitchenTickets() {
           )
         })}
       </div>
+      </>}
+    </div>
+  )
+}
+
+function HistoryView({ history }) {
+  if (history == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading history…</div>
+  if (!history.length) return <div style={{ color: MUTED, fontSize: 14, padding: '30px 0', textAlign: 'center' }}>No orders yet.</div>
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+      {history.map(o => {
+        const items = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
+        const when = new Date(o.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+        const sc = o.status === 'collected' ? GREEN : o.status === 'cancelled' ? RED : o.status === 'ready' ? BLUE : 'rgba(255,255,255,0.5)'
+        return (
+          <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 10, color: INK }}>
+            <span style={{ fontFamily: HEAVY, fontSize: 17, color: BLUE, minWidth: 44 }}>#{o.order_no}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>{o.customer_name || '—'}</b> · {items || '—'}</span>
+            <span style={{ fontSize: 11.5, color: '#8a8275', whiteSpace: 'nowrap' }}>{when}</span>
+            <span style={{ fontSize: 11, fontWeight: 800, color: sc, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{o.status}</span>
+          </div>
+        )
+      })}
     </div>
   )
 }
