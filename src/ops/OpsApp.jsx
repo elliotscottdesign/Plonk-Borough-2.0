@@ -30,7 +30,6 @@ const GROUPS = [
       // "Bar" = the stock/margin toolkit (stock take, perishables, costing…).
       // key stays 'operations' so old ?tab=/?tool= deep links keep working.
       { key: 'operations', label: 'Bar',           Component: Operations },
-      { key: 'rota',       label: 'Staff Rota',    Component: StaffRota, founderOnly: true },
       { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
       // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
       // it's a checklist log, so it lives with the others. Component still used there.
@@ -38,6 +37,17 @@ const GROUPS = [
       // The founder's system map — how every service fits together. Founder-only
       // (mentions costs + internals); open it to team-tier if the founder asks.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
+    ],
+  },
+  {
+    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
+    // inside Operations. Single tab, so no second row renders — StaffRota's own
+    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
+    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
+    // Founder-only: this screen holds pay rates + staff logins.
+    key: 'team', label: 'Team', founderOnly: true,
+    tabs: [
+      { key: 'rota', label: 'Team', Component: StaffRota, founderOnly: true },
     ],
   },
   {

@@ -96,3 +96,12 @@ is live, else SMS (and SMS on any WhatsApp failure). New project secret
 WhatsApp resumes automatically with SMS as the fallback. Guard relaxed (SMS doesn't need
 TW_FROM). Both fns redeployed. Delivery proven live (alphanumeric SMS → founder's phone,
 status=delivered). Tournament lane: this is your file — shout if it conflicts.
+
+
+## 13 Aug 2026 — integration session touched src/rota/RotaPortal.jsx (founder-directed, 1-line)
+Founder asked for a **Team** hotlink on the manager doors under the shift banner, to match
+the new top-level Team door in /ops. Change is ONE line in the `doors` array (~line 380):
+added `['👥','Team','/ops?tab=rota', …]` for the founder only (that screen holds pay rates +
+staff logins, so it stays founder-gated like Office), and the Operations door's subtitle no
+longer says "rota". **Rota lane: you own this file — I kept the diff to the doors array so a
+merge conflict is unlikely; shout if it clashes with anything mid-flight.**
