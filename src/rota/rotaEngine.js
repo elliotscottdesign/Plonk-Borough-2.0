@@ -47,6 +47,7 @@ export const DEFAULT_RULES = {
   staggerGap: 90,          // minutes the opener leaves early / the closer starts late
   earlyCutMin: 30,         // on a "quiet" day, send the floor home this many min early
   afterCloseMin: 30,       // floor staff stay this many min after close (wind-down with the manager); per-day override via days[w].afterClose
+  minShiftMin: 360,        // no floor/evening shift shorter than this (founder: 6h); manager + kitchen are exact by design
   // (per-weekday `quiet: true` lives inside days[w], added via withDefaults below)
 }
 
@@ -74,6 +75,7 @@ export function withDefaults(rules) {
     staggerGap: Number.isFinite(+src.staggerGap) ? Math.max(0, +src.staggerGap) : DEFAULT_RULES.staggerGap,
     earlyCutMin: Number.isFinite(+src.earlyCutMin) ? Math.max(0, +src.earlyCutMin) : DEFAULT_RULES.earlyCutMin,
     afterCloseMin: Number.isFinite(+src.afterCloseMin) ? Math.max(0, +src.afterCloseMin) : DEFAULT_RULES.afterCloseMin,
+    minShiftMin: Number.isFinite(+src.minShiftMin) ? Math.max(60, +src.minShiftMin) : DEFAULT_RULES.minShiftMin,
     // AI-compiled directives from the founder's typed house rules (see applyCompiled)
     // + the per-rule "how I read it" notes. Passed through untouched so a manual-rules
     // save never wipes what the AI compiled.
@@ -105,6 +107,8 @@ export function applyCompiled(R) {
       if (manual.kitchen) { days[w].kitchenStart = manual.kitchenStart ?? days[w].kitchenStart ?? null; days[w].kitchenEnd = manual.kitchenEnd ?? days[w].kitchenEnd ?? null }
       else { delete days[w].kitchenStart; delete days[w].kitchenEnd }
     }
+    // Same for the per-day "stay after close" column — set in the table, it wins.
+    if (Number.isFinite(+manual.afterClose) && manual.afterClose !== null && manual.afterClose !== '') days[w] = { ...days[w], afterClose: +manual.afterClose }
   }
   const num = (v, fb) => Number.isFinite(+v) ? Math.max(0, +v) : fb
   return {
@@ -114,6 +118,7 @@ export function applyCompiled(R) {
     staggerGap: c.staggerGap != null ? num(c.staggerGap, R.staggerGap) : R.staggerGap,
     earlyCutMin: c.earlyCutMin != null ? num(c.earlyCutMin, R.earlyCutMin) : R.earlyCutMin,
     afterCloseMin: c.afterCloseMin != null ? num(c.afterCloseMin, R.afterCloseMin) : R.afterCloseMin,
+    minShiftMin: c.minShiftHours != null && Number.isFinite(+c.minShiftHours) && +c.minShiftHours > 0 ? Math.max(60, +c.minShiftHours * 60) : R.minShiftMin,
     managerMargin: c.managerMargin != null ? num(c.managerMargin, R.managerMargin) : R.managerMargin,
     requireKitchen: typeof c.requireKitchen === 'boolean' ? c.requireKitchen : R.requireKitchen,
     requireManager: typeof c.requireManager === 'boolean' ? c.requireManager : R.requireManager,
@@ -208,12 +213,16 @@ export function daySlots(dateStr, rules) {
     floor[0] = { ...floor[0], end: Math.max(floor[0].start + 60, floorClose - gap), label: 'Opener' }
     floor[last] = { ...floor[last], start: Math.min(floorClose - 60, open + gap), label: 'Closer' }
   }
-  slots.push(...floor)
+  // Shortest-shift rule: no floor/opener/closer shift shorter than minShiftMin —
+  // grow it earlier (never before open); if the day itself is shorter, it spans the day.
+  const minS = Math.max(60, R.minShiftMin ?? 0)
+  const grow = (s) => (s.end - s.start >= minS) ? s : { ...s, start: Math.max(open, s.end - minS) }
+  slots.push(...floor.map(grow))
   // Evening bump: extra bodies from eveAt to close (only if eveAt sits inside opening
   // hours). On a quiet day they leave with the floor (floorClose), not at full close.
   if (eveAt != null && eveAdd > 0 && eveAt > open && eveAt < close) {
     const eveEnd = Math.max(eveAt + 60, floorClose)
-    for (let i = 0; i < eveAdd; i++) slots.push({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' })
+    for (let i = 0; i < eveAdd; i++) slots.push(grow({ start: eveAt, end: eveEnd, role: 'any', label: 'Evening' }))
   }
   return { slots, open, close, holiday: holidayName(dateStr, R), kitchen: kitchenReq }
 }
