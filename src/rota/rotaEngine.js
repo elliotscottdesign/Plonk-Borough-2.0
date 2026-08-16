@@ -189,7 +189,9 @@ export function daySlots(dateStr, rules) {
   // is claimed before the floor slots swallow them. Exact times as the rule states —
   // never trimmed by the quiet-day cut.
   if (kitchenSlot) slots.push({ start: kStart, end: kEnd, role: 'kitchen', label: 'Kitchen' })
-  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0) - (kitchenSlot ? 1 : 0))
+  // "Staff" = manager + floor. The kitchen shift is on TOP of that (founder rule,
+  // 16 Aug 2026: kitchen no longer counts as one of the day's staff).
+  const floorN = Math.max(0, base - (R.requireManager ? 1 : 0))
   const floor = []
   for (let i = 0; i < floorN; i++) floor.push({ start: open, end: floorClose, role: 'any', label: 'Floor' })
   // Stagger: instead of two people both open→close, one OPENS (leaves `staggerGap`

@@ -125,7 +125,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
                 <span style={{ opacity: d.eveAdd > 0 ? 1 : 0.4, pointerEvents: d.eveAdd > 0 ? 'auto' : 'none' }}>{timeSel(d.eveAt ?? 1080, v => setDay(w, { eveAt: v }))}</span>
                 {/* Kitchen column: on/off + the dedicated kitchen shift's exact times */}
                 <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginLeft: 6, paddingLeft: 10, borderLeft: `1px solid ${LINE}` }}>
-                  <label title="A dedicated kitchen shift on this day (only kitchen-trained staff can fill it). It counts as one of the day's people." style={{ ...optRow, cursor: 'pointer', color: d.kitchen === true ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
+                  <label title="A dedicated kitchen shift on this day (only kitchen-trained staff can fill it) — on top of the Staff number, not counted in it." style={{ ...optRow, cursor: 'pointer', color: d.kitchen === true ? AMBER : 'rgba(255,255,255,0.55)', fontSize: 11.5 }}>
                     <input type="checkbox" checked={d.kitchen === true} onChange={e => setDay(w, e.target.checked ? { kitchen: true, kitchenStart: d.kitchenStart ?? 1020, kitchenEnd: d.kitchenEnd ?? 1380 } : { kitchen: false })} />
                     <span>🍳 Kitchen</span>
                   </label>
@@ -143,7 +143,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             )
           })}
         </div>
-        <div style={hint}>“Staff” = total people on that day (incl. the manager <em>and</em> the kitchen person if 🍳 is ticked). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). <strong style={{ color: AMBER }}>🍳 Kitchen</strong> = a dedicated kitchen shift with those exact times, filled only by kitchen-trained staff — this column beats any typed kitchen rule. Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
+        <div style={hint}>“Staff” = manager + bar people on that day (the 🍳 kitchen person is on top of this, not counted in it). “+extra … from” adds more bodies for the evening rush (set extra to 0 for none). <strong style={{ color: AMBER }}>🍳 Kitchen</strong> = a dedicated kitchen shift with those exact times, filled only by kitchen-trained staff — this column beats any typed kitchen rule. Tick <strong style={{ color: AMBER }}>😴 quiet</strong> on your slow days to send the floor home early (by the amount set in Options).</div>
       </div>
 
       {/* Holidays */}
