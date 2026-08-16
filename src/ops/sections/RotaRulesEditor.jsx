@@ -69,7 +69,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
-        These are the rules the AI builds from. Change them here and <strong style={{ color: '#fff' }}>Save</strong> — the next time you Generate, it uses your new rules. A manager is always put on from {draft.managerMargin} min before open to {draft.managerMargin} min after close.
+        These are the rules the AI builds from. Change them here and <strong style={{ color: '#fff' }}>Save</strong> — the next time you Generate, it uses your new rules. A manager is always put on from {draft.managerMargin} min before open, and leaves with everyone at the stay-on time after close.
       </div>
 
       {err && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }}>{err}</div>}
@@ -205,9 +205,9 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
             <span>Always reserve a <strong style={{ color: '#fff' }}>manager / assistant manager</strong> slot</span>
           </label>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label style={lbl}>Manager starts / ends</label>
+            <label style={lbl}>Manager starts</label>
             <input type="number" min={0} max={120} step={15} value={draft.managerMargin} onChange={e => setDraft(d => ({ ...d, managerMargin: Math.max(0, Math.min(120, parseInt(e.target.value) || 0)) }))} style={num} />
-            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min before open / after close</span>
+            <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>min before open (they finish with everyone — see “stay on after close” below)</span>
           </div>
           {/* Opener + closer stagger */}
           <label style={optRow}>

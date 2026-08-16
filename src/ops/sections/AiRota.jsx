@@ -184,7 +184,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
       {!days ? (mode === 'history' ? null :
         <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.55)', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '16px 18px', lineHeight: 1.7 }}>
           Pick a week and tap <strong style={{ color: '#fff' }}>✨ Generate</strong>. The AI fills every day with:
-          a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open to 1h after close, the right headcount
+          a <strong style={{ color: PURPLE }}>manager</strong> from 1h before open until everyone leaves after close, the right headcount
           (Mon–Thu 2 · Fri 2→4 · Sat 3→4 · Sun 2), at least one <strong style={{ color: AMBER }}>kitchen</strong> person, and it
           spreads hours fairly while avoiding anyone who's marked themselves off. School-holiday weeks auto-switch to 12pm–12am.
         </div>
