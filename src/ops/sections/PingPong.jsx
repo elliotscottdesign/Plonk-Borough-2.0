@@ -283,7 +283,7 @@ export default function PingPong() {
     const rows = league?.table || []
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Ping pong nights</button>
+        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>← Ping pong nights</button>
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 Team league</div>
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished Sunday night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season point difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
@@ -482,7 +482,7 @@ export default function PingPong() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← All ping pong nights</button>
+      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>← All ping pong nights</button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>

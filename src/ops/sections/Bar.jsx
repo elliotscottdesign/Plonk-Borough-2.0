@@ -362,6 +362,11 @@ function Drawer({ k, open, onToggle, icon, title, hint, tone, children }) {
       </button>
       {isOpen && <div style={{ padding: '0 14px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ paddingTop: 14 }}>{children}</div>
+        {/* The count sheet and the full list run to 160+ rows. Without this the only
+            way to close a drawer was to scroll all the way back to its header. */}
+        <button onClick={() => onToggle(k)} style={{ ...btn(), marginTop: 14, width: '100%' }}>
+          ▲ Close {title.toLowerCase()}
+        </button>
       </div>}
     </div>
   )

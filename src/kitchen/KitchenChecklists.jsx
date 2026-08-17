@@ -157,7 +157,18 @@ export default function KitchenChecklists({ token, kitchen }) {
       </div>
 
       <button onClick={() => setShowMatrix(m => !m)} style={pill(showMatrix)}>🥜 Allergen matrix {showMatrix ? '▲' : '▼'}</button>
-      {showMatrix && (isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />)}
+      {showMatrix && (
+        <div>
+          <button onClick={() => setShowMatrix(false)} style={{
+            position: 'sticky', top: 0, zIndex: 25, margin: '8px 0',
+            padding: '9px 14px', borderRadius: 9, cursor: 'pointer',
+            background: 'rgba(0,0,0,0.85)', border: `1px solid ${LINE}`,
+            color: '#fff', fontSize: 13, fontWeight: 600,
+            boxShadow: '0 6px 14px rgba(0,0,0,0.5)',
+          }}>‹ Close allergen matrix</button>
+          {isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
         {cadences.map(k => {
@@ -185,6 +196,16 @@ export default function KitchenChecklists({ token, kitchen }) {
 
               {openKey === k && (
                 <div ref={panelRef} style={{ border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 14, marginTop: -4, background: 'rgba(255,255,255,0.02)' }}>
+                  {/* An open sheet runs to 20-40 ticks. Its only close used to be the
+                      header button far above — so once you'd scrolled in, there was no
+                      way out (founder: "no page should leave you with no way out"). */}
+                  <button onClick={() => setOpenKey(null)} style={{
+                    position: 'sticky', top: 0, zIndex: 25, marginBottom: 12,
+                    padding: '9px 14px', borderRadius: 9, cursor: 'pointer',
+                    background: 'rgba(0,0,0,0.85)', border: `1px solid ${LINE}`,
+                    color: '#fff', fontSize: 13, fontWeight: 600,
+                    boxShadow: '0 6px 14px rgba(0,0,0,0.5)',
+                  }}>‹ All checklists</button>
                   {t.groups.map(g => (
                     <div key={g.title} style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{g.title}</div>
