@@ -145,7 +145,14 @@ var RECEIPT_LINKS = [
 /* MAIN                                                               */
 /* ------------------------------------------------------------------ */
 
-function run() {
+/**
+ * Apps Script passes an event object when a trigger fires, and nothing when
+ * you press Run yourself. That is how we tell the two apart: a scheduled run
+ * that found nothing stays quiet, but pressing Run always reports back so you
+ * are never left wondering whether it worked.
+ */
+function run(e) {
+  var isManual = !e;
   var filed = [], review = [], skipped = 0;
   var labelFiled  = ensureLabel_(CONFIG.LABEL_FILED);
   var labelReview = ensureLabel_(CONFIG.LABEL_REVIEW);
@@ -223,8 +230,12 @@ function run() {
     }
   }
 
-  report_(filed, review, skipped);
-  return 'filed ' + filed.length + ', needs review ' + review.length;
+  // Six "nothing found" emails a day is how a useful alert becomes noise you
+  // stop opening. Only write when there is something to say.
+  if (isManual || filed.length || review.length) report_(filed, review, skipped);
+
+  return 'filed ' + filed.length + ', needs review ' + review.length
+       + (isManual ? '' : ' (scheduled run)');
 }
 
 
