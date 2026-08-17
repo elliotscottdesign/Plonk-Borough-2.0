@@ -47,14 +47,23 @@ var CONFIG = {
 
   // true  = report only, send nothing to Xero (safe)
   // false = actually file the receipts
-  DRY_RUN: true,
+  DRY_RUN: false,
 
   // How far back to look on each run. Gmail labels stop anything being
   // filed twice, so a generous window is fine.
   LOOKBACK_DAYS: 60,
 
-  // Don't file anything dated before this — the venue's first trading day.
-  EARLIEST: '2026-06-01',
+  // Don't file anything dated before this.
+  //
+  // Set to 17 Aug 2026, the day this went live — NOT the first trading day.
+  // The back catalogue (19 Jun – 16 Aug) was attached to its bank payments by
+  // hand: 23 receipts, £645.68. Re-filing those would only put duplicate
+  // copies in the Xero files inbox. This date is the line between "done by
+  // hand" and "handled automatically".
+  //
+  // If you ever need to sweep older mail, move this back, run once, then
+  // put it forward again.
+  EARLIEST: '2026-08-17',
 
   // Safety cap per run.
   MAX_PER_RUN: 60,
