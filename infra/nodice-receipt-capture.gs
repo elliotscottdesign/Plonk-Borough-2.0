@@ -102,15 +102,27 @@ var SOURCES = [
     query: 'from:stripe.com subject:receipt',
     supplier: /Your\s+(.+?)\s+receipt/i,       // "Your Lightspeed POS UK Ltd receipt [#...]"
     fallbackSupplier: 'Stripe'
-  },
-  {
-    id: 'attachments',
-    // Genuine invoices/receipts that arrive as a real PDF.
-    query: 'has:attachment filename:pdf (subject:invoice OR subject:receipt)',
-    supplier: null,
-    fallbackSupplier: null                     // fall back to the sender's domain
   }
+
+  // DELIBERATELY NOT HERE: a catch-all for "has:attachment subject:invoice".
+  // The first preview run (17 Aug 2026) showed why. It pulled in 32 supplier
+  // invoices — Five Points, The Drinks Club, BOC, Google Workspace, Storage
+  // Solutions and the staff invoices from Skye, Theo and Nicola. Those are
+  // unpaid bills, not receipts for money already spent. They belong in the
+  // BILLS inbox, which the separate forwarder already handles, and filing
+  // them here would just have made a pile of unattached duplicates.
+  // This script's job is narrow on purpose: evidence for card spend that has
+  // already left the bank.
 ];
+
+/**
+ * Receipts we issued, not ones we were given.
+ * Stripe emails a copy of every payment TAKEN as well as every payment made,
+ * so the first run picked up "Your No Dice Hackney LTD receipt" for a £22
+ * customer booking — income, not a cost. Anything whose supplier matches
+ * this is skipped.
+ */
+var OUR_OWN_NAMES = /no\s*dice|plonk/i;
 
 /** Receipt pages we know how to fetch directly. */
 var RECEIPT_LINKS = [
@@ -159,6 +171,15 @@ function run() {
         if (msg.getDate() < earliest) { skipped++; continue; }
 
         var item = buildReceipt_(msg, src);
+
+        // Our own sales receipt, not a purchase. Label it so it stops coming
+        // back, but don't file it and don't count it.
+        if (OUR_OWN_NAMES.test(item.supplier)) {
+          if (!CONFIG.DRY_RUN) threads[t].addLabel(labelFiled);
+          skipped++;
+          continue;
+        }
+
         count++;
 
         if (!item.blob) {
@@ -242,6 +263,13 @@ function buildReceipt_(msg, src) {
   if (link) {
     var fetched = fetchPage_(link);
     if (fetched && looksLikeReceipt_(fetched, item.amount)) {
+      // Some emails are nothing but a link — SumUp's is one line — so the
+      // amount isn't in the message at all. Take it off the fetched receipt
+      // instead, or the file lands named "_na" and can't be matched later.
+      if (!item.amount) {
+        item.amount = pickAmount_(fetched.replace(/<[^>]+>/g, ' '), '');
+        if (item.amount) item.filename = item.filename.replace(/_na\.pdf$/, '_' + item.amount + '.pdf');
+      }
       item.blob = htmlToPdf_(fetched, item.filename);
       if (item.blob) { item.how = 'receipt link'; return item; }
     }
@@ -368,6 +396,17 @@ function escapeHtml_(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
+/**
+ * Filenames keep 2026-08-14, because that is the only form that sorts into
+ * date order in the Xero files list. This is just for the report you read.
+ */
+function ukDate_(iso) {
+  var m = String(iso || '').match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return iso;
+  var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  return parseInt(m[3], 10) + ' ' + months[parseInt(m[2], 10) - 1] + ' ' + m[1];
+}
+
 function ensureLabel_(name) {
   return GmailApp.getUserLabelByName(name) || GmailApp.createLabel(name);
 }
@@ -385,7 +424,7 @@ function report_(filed, review, skipped) {
   for (var i = 0; i < filed.length; i++) {
     var f = filed[i];
     if (f.amount) total += parseFloat(f.amount);
-    rows += '<tr><td>' + escapeHtml_(f.dateStr) + '</td>'
+    rows += '<tr><td>' + escapeHtml_(ukDate_(f.dateStr)) + '</td>'
           + '<td>' + escapeHtml_(f.supplier) + '</td>'
           + '<td align="right">' + (f.amount ? '£' + f.amount : '&mdash;') + '</td>'
           + '<td style="color:#777">' + escapeHtml_(f.how) + '</td></tr>';
