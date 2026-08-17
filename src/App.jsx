@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import PasswordGate from './PasswordGate.jsx'
+import { applyTheme } from './lib/theme.js'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
@@ -258,13 +259,9 @@ export default function App() {
     // Keep the day/night light theme scoped to the staff tools even across
     // in-app (pushState) navigation — mirrors the pre-render flag set in
     // main.jsx so the investor decks/public pages never pick up the light flip.
-    const STAFF_SURFACE = /^\/(ops|operations|rota|today|marketing)(\/|$)/
-    const syncTheme = () => {
-      if (STAFF_SURFACE.test(window.location.pathname))
-        document.documentElement.setAttribute('data-theme', 'auto')
-      else
-        document.documentElement.removeAttribute('data-theme')
-    }
+    // applyTheme() handles both halves: which paths get a theme at all, and
+    // which theme the person has chosen (src/lib/theme.js).
+    const syncTheme = applyTheme
     const onPath = () => { syncTheme(); setPathTick(n => n + 1) }
     syncTheme()
     window.addEventListener('popstate', onPath)

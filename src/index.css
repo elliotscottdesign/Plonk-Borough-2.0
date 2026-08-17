@@ -46,6 +46,7 @@ html, body, #root {
    The filter is applied to the ROOT <html>, which the CSS spec exempts from
    creating a containing block — so position:fixed modals still anchor to the
    viewport and scroll/positioning are unaffected. */
+/* AUTO — follow the device (the original behaviour). */
 @media (prefers-color-scheme: light) {
   html[data-theme="auto"] { filter: invert(1) hue-rotate(180deg); }
   html[data-theme="auto"] img,
@@ -53,6 +54,17 @@ html, body, #root {
   html[data-theme="auto"] canvas,
   html[data-theme="auto"] [data-keep-color] { filter: invert(1) hue-rotate(180deg); }
 }
+
+/* LIGHT — chosen explicitly, so it ignores the device entirely. */
+html[data-theme="light"] { filter: invert(1) hue-rotate(180deg); }
+html[data-theme="light"] img,
+html[data-theme="light"] video,
+html[data-theme="light"] canvas,
+html[data-theme="light"] [data-keep-color] { filter: invert(1) hue-rotate(180deg); }
+
+/* DARK — chosen explicitly: no filter at all, i.e. the app as designed.
+   Deliberately no rule here; the absence of a filter IS the dark theme.
+   This is what a founder on a Light-set phone could never reach before. */
 
 /* Typography */
 .serif { font-family: 'DM Serif Display', serif; }
