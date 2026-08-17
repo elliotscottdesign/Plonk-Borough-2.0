@@ -42,6 +42,26 @@ UNITS = {
 # Stated as a container with no size — count them whole, flag for a size later.
 WHOLE = {'case','each','box','jar','tub','tub / box','carton','cylinder','keg'}
 
+# Pack sizes the founder confirmed on 17 Aug 2026, keyed by product name. These
+# beat the written unit, so re-running this seeder reproduces the live database
+# instead of reverting these lines to whole units.
+#   name -> (base_unit, order_unit, order_to_base, count_unit, count_to_base)
+CONFIRMED = {
+  'Eager Pineapple':            (ML,'case',8000,'carton',1000),
+  'Eager Cloudy Apple':         (ML,'case',8000,'carton',1000),
+  'Eager Cranberry':            (ML,'case',8000,'carton',1000),
+  'Eager Orange':               (ML,'case',8000,'carton',1000),
+  'Umbrella Apple Cider (keg)': (ML,'keg',50000,'keg',50000),
+  'Lemons':                     (EA,'case',30,'each',1),
+  # "All beers are in packs of 24" (founder)
+  'Big Drop Citra IPA 0.5%':    (EA,'case',24,'bottle',1),
+  'Piccadilly Pilsner GF':      (EA,'case',24,'bottle',1),
+  'Cherry Sour':                (EA,'case',24,'bottle',1),
+  'Fresh Non-Alc':              (EA,'case',24,'bottle',1),
+}
+# Off the menu — seeded inactive rather than dropped, so any history survives.
+RETIRED = {'Kombucha'}
+
 KIND = {                       # group label prefix → product kind
   'Fruit & perishables': 'fresh', 'Snacks': 'other', 'Gas': 'other',
 }
@@ -72,7 +92,9 @@ for s in suppliers:
 needs_size, seeded = [], 0
 for r in rows:
     u = r['unit']
-    if u in UNITS:
+    if r['name'] in CONFIRMED:
+        base, ou, otb, cu, ctb = CONFIRMED[r['name']]
+    elif u in UNITS:
         base, ou, otb, cu, ctb = UNITS[u]
     elif u in WHOLE:
         base, ou, otb, cu, ctb = EA, u.split(' /')[0], 1, u.split(' /')[0], 1
@@ -89,6 +111,8 @@ for r in rows:
       f"{q(r['name'])},{q(kind_for(r['group']))},{q(cat)},'bought',{q(base)},{q(ou)},{otb},"
       f"{q(cu)},{ctb},{q(area)},{sup},{q('seeded from stock sheet · unit written as: '+u)}) "
       "on conflict (lower(name)) do nothing;")
+    if r['name'] in RETIRED:
+        out.append(f"update bar_products set active=false where lower(name)=lower({q(r['name'])});")
     seeded += 1
 
 out.append("commit;")
