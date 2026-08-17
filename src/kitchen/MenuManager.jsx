@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
-import { ON_A_ROLL_LOGO } from './logo.js'
+import { ON_A_ROLL_LOGO_BW } from './logo.js'
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
 // items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
@@ -19,19 +19,19 @@ const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
   { id: 'rolls', name: 'Rolls', items: [
-    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '' },
-    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '' },
-    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '' },
+    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }] },
+    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [] },
+    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [] },
   ] },
   { id: 'sides', name: 'Sides', items: [
-    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '' },
-    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '' },
-    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '' },
+    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [] },
+    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [] },
+    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }] },
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '' })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '' })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })) })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })) })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -50,8 +50,11 @@ export default function MenuManager() {
   const mutate = fn => { setSections(s => { const c = JSON.parse(JSON.stringify(s)); fn(c); return c }); setDirty(true); setMsg('') }
   const mutateB = fn => { setBundles(bs => { const c = JSON.parse(JSON.stringify(bs)); fn(c); return c }); setDirty(true); setMsg('') }
   const setItem = (si, ii, k, v) => mutate(s => { s[si].items[ii][k] = v })
-  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '' }) })
+  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [] }) })
   const delItem = (si, ii) => mutate(s => { s[si].items.splice(ii, 1) })
+  const addAddon = (si, ii) => mutate(s => { (s[si].items[ii].addons ||= []).push({ id: nid('ao'), name: '', price: '', cost: '' }) })
+  const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
+  const delAddon = (si, ii, ai) => mutate(s => { s[si].items[ii].addons.splice(ai, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
   const delSection = si => { if (confirm('Delete this whole section?')) mutate(s => { s.splice(si, 1) }) }
 
@@ -111,11 +114,42 @@ export default function MenuManager() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
                       style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Field label="Sell £ inc VAT" value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
-                      <span style={{ marginLeft: 'auto', fontWeight: 800, fontSize: 13, color: it.sell ? mgColor(mp) : MUTED }}>{it.sell ? mp + '%' : '—'}</span>
-                      <button onClick={() => delItem(si, ii)} title="Remove item" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#0e0e10', border: `1px solid ${it.sell && it.cost ? mgColor(mp) : LINE}`, borderRadius: 8, padding: '5px 9px' }}
+                        title="Gross margin on the ex-VAT price. £ figure = cash profit per item.">
+                        <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Margin</span>
+                        <b style={{ fontSize: 14, color: it.sell && it.cost ? mgColor(mp) : MUTED }}>{it.sell && it.cost ? mp + '%' : '—'}</b>
+                        {it.sell && it.cost && <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>· £{(parseFloat(it.sell) / VAT - parseFloat(it.cost)).toFixed(2)}</span>}
+                      </span>
+                      <button onClick={() => delItem(si, ii)} title="Remove item" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
+                    </div>
+                    <textarea value={it.desc || ''} placeholder="Description (shown on the printed menu)…" onChange={e => setItem(si, ii, 'desc', e.target.value)} rows={2} style={{ width: '100%', marginTop: 7, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '7px 9px', fontSize: 12.5, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box' }} />
+                    <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+                      <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Add-ons / extras</div>
+                      {(it.addons || []).map((a, ai) => {
+                        const amp = marginPct(a.price, a.cost)
+                        return (
+                        <div key={a.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
+                          <input value={a.name} placeholder="e.g. Extra patty" onChange={e => setAddon(si, ii, ai, 'name', e.target.value)}
+                            style={{ flex: '1 1 120px', minWidth: 0, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 9px', fontSize: 12.5 }} />
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 8, padding: '5px 8px' }}>
+                            <span style={{ fontSize: 12, color: MUTED, fontWeight: 700 }}>+£</span>
+                            <input value={a.price} inputMode="decimal" onChange={e => setAddon(si, ii, ai, 'price', e.target.value.replace(/[^0-9.]/g, ''))}
+                              style={{ width: 38, background: 'none', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'right' }} />
+                          </span>
+                          <span style={{ display: 'flex', alignItems: 'center', gap: 3, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 8, padding: '5px 8px' }}>
+                            <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase' }}>cost £</span>
+                            <input value={a.cost} inputMode="decimal" onChange={e => setAddon(si, ii, ai, 'cost', e.target.value.replace(/[^0-9.]/g, ''))}
+                              style={{ width: 34, background: 'none', border: 'none', color: '#fff', fontSize: 13, fontWeight: 700, textAlign: 'right' }} />
+                          </span>
+                          <span style={{ fontSize: 12.5, fontWeight: 800, minWidth: 34, textAlign: 'center', color: a.price && a.cost ? mgColor(amp) : MUTED }}>{a.price && a.cost ? amp + '%' : '—'}</span>
+                          <button onClick={() => delAddon(si, ii, ai)} title="Remove extra" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
+                        </div>
+                        )
+                      })}
+                      <button onClick={() => addAddon(si, ii)} style={{ background: 'none', border: `1px dashed ${LINE}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>＋ Add an extra</button>
                     </div>
                   </div>
                 </div>
@@ -128,8 +162,12 @@ export default function MenuManager() {
       <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 14 }}>＋ Add a new section</button>
 
       {/* ── Deals & bundles (beer + burger) ── */}
-      <div style={{ marginTop: 24 }}>
-        <div style={{ fontSize: 12, textTransform: 'uppercase', letterSpacing: '0.12em', color: MUTED, margin: '0 2px 8px' }}>Deals &amp; bundles</div>
+      <div style={{ marginTop: 30, background: 'rgba(201,168,76,0.06)', border: `1.5px solid ${GOLD}`, borderRadius: 14, padding: '16px 14px' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+          <div style={{ fontSize: 18, fontWeight: 800, color: GOLD }}>🍺 Deals &amp; bundles</div>
+          <div style={{ fontSize: 12, color: MUTED }}>Beer + burger combos — set the price, pick the days.</div>
+        </div>
+        <div style={{ fontSize: 12, color: MUTED, lineHeight: 1.45, marginBottom: 12 }}>This is where you build a deal. Choose a burger, set the beer price and the bundle price, and tick the days it runs. The burger goes to the kitchen; the beer becomes a single-use 🎟 voucher redeemed at the bar.</div>
         {bundles.map((bn, bi) => {
           const burger = burgerOpts.find(o => o.id === bn.burger_id)
           const normal = (parseFloat(bn.beer) || 0) + (burger ? (parseFloat(burger.sell) || 0) : 0)
@@ -179,7 +217,7 @@ const dayStyle = on => ({ display: 'inline-block', border: `1px solid ${on ? GOL
 
 // Order-page URL the printed QR points to. UPDATE this to the live order page once
 // the customer order+pay page is deployed (customer-site repo).
-const ORDER_URL = 'https://nodice.bar/order'
+const ORDER_URL = 'https://nodice.bar/onaroll'
 
 // Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half), each with
 // a "scan to order & pay" QR and the "open til 10pm" line. Opens a print window.
@@ -188,26 +226,36 @@ function exportMenu(sections) {
   const inner = secs.map(sec => {
     const its = sec.items.filter(it => it.name)
     if (!its.length) return ''
-    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(it => `<div class="mi"><span>${esc(it.name)}</span><span class="dots"></span><span>${it.sell ? '£' + (parseFloat(it.sell) % 1 === 0 ? parseFloat(it.sell) : parseFloat(it.sell).toFixed(2)) : ''}</span></div>`).join('')}</div>`
+    const gbp = n => '£' + (n % 1 === 0 ? n : n.toFixed(2))
+    const rows = its.map(it => {
+      const price = it.sell ? gbp(parseFloat(it.sell)) : ''
+      const adds = (it.addons || []).filter(a => a.name && a.name.trim())
+      const addLine = adds.length ? `<div class="mao">${adds.map(a => `${esc(a.name.trim())} +${gbp(parseFloat(a.price) || 0)}`).join(' · ')}</div>` : ''
+      return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
+    }).join('')
+    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
     @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
     body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
-    .a4{ display:flex; width:297mm; height:210mm; background:#fdf2e0 }
-    .logo{ width:150px; height:auto; display:block; margin-bottom:3px }
-    .a5{ flex:1; padding:13mm 12mm; color:#15305c; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #b9b1a1 }
-    .mtitle{ font-size:30px; letter-spacing:1px } .msub{ font-family:Arial; font-size:9px; color:#8a8275; margin:2px 0 12px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:11px } .mh{ font-size:15px; color:#183fa0; letter-spacing:1px; border-bottom:1px solid #e2d9c2; padding-bottom:3px; margin-bottom:6px }
-    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Arial; font-weight:700; font-size:13px; margin:4px 0; color:#15305c }
-    .mi .dots{ flex:1; border-bottom:1px dotted #c9bfa8 } .mi span:last-child{ color:#e0231b; font-weight:800 }
-    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #183fa0; padding-top:10px }
-    .qr{ width:96px; height:96px; flex-shrink:0 } .qr img,.qr canvas{ width:96px!important; height:96px!important }
-    .scanh{ font-size:17px; color:#e0231b } .scansub{ font-family:Arial; font-size:10px; color:#15305c; margin-top:3px; line-height:1.35 }
-    .mfoot{ font-family:Arial; font-size:8.5px; color:#8a8275; margin-top:10px }
+    .a4{ display:flex; width:297mm; height:210mm; background:#fff }
+    .logo{ width:130px; height:auto; display:block; margin-bottom:3px }
+    .a5{ flex:1; padding:13mm 12mm; color:#000; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #999 }
+    .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
+    .msec{ margin-bottom:17px } .mh{ font-size:18px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
+    .mrow{ margin-bottom:12px }
+    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:18px; color:#000 }
+    .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
+    .md{ font-family:Arial; font-size:12px; color:#222; line-height:1.4; margin-top:3px }
+    .mao{ font-family:Arial; font-size:11px; font-style:italic; color:#000; margin-top:3px }
+    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #000; padding-top:10px }
+    .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
+    .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
+    .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
   </style></head><body><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:96,height:96,colorDark:'#15305c',colorLight:'#e8e3d0',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
+  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:92,height:92,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
   </body></html>`
   const w = window.open('', '_blank')
   if (!w) { alert('Allow pop-ups to print the menu.'); return }

@@ -61,8 +61,6 @@ export default function KitchenTickets() {
   const active = orders.filter(o => o.status !== 'collected')
   return (
     <div>
-      <img src="/on-a-roll-logo.jpg" alt="On A Roll" style={{ height: 42, borderRadius: 8, display: 'block', marginBottom: 12 }} />
-
       {pause && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>

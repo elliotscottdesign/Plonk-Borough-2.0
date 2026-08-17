@@ -322,7 +322,7 @@ export default function RotaPortal() {
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
   const managerTier = ['Asst. Manager', 'Manager'].includes(staff?.role)
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🌭', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🍔', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>

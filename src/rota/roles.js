@@ -4,7 +4,7 @@
 // Abilities a staff member is trained for — a shift needs exactly one of these.
 export const ABILITIES = [
   { key: 'bar', label: 'Bar', icon: '🍸' },
-  { key: 'kitchen', label: 'Kitchen', icon: '🌭' },
+  { key: 'kitchen', label: 'Kitchen', icon: '🍔' },
   { key: 'foh', label: 'Front of house', icon: '🛎️' },
   { key: 'golf', label: 'Golf', icon: '🏌️' },
 ]
