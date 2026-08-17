@@ -42,6 +42,7 @@ never run destructive or "today"-dated test writes on real data.
 | tournament | Doubles prize split: `tournament_entries` + `partner_name`/`partner_email` (additive); `pool_vouchers` + `pingpong_vouchers` + `recipient` col, unique(run,place) → unique(run,place,recipient). Legacy full-amount vouchers untouched. SQL in `supabase/doubles_split.sql`. | ✅ applied | 6 Aug 2026 |
 | tournament | `pool_vouchers` + `pingpong_vouchers`: `redeemed_at timestamptz` + `redeemed_by text` (additive — voucher redemption tracking). SQL in `supabase/voucher_redemption.sql`. | ✅ applied | 12 Aug 2026 |
 | tournament | NEW table `manager_vouchers` (goodwill vouchers managers send to customers from the staff portal 🎟 Prizes tab — same ND- code + email design + redemption flow as tournament prizes). Additive; RLS on, no policies (service-role only). SQL in `supabase/manager_vouchers.sql`. | ✅ applied | 12 Aug 2026 |
+| bar (via integration session, founder-directed) | **NEW: 15 tables + 7 views — the BAR stock/cost/margin/ordering system.** `bar_suppliers`, `bar_products`, `bar_prep_recipes`, `bar_production_log`, `bar_stocktakes`, `bar_stocktake_sheets`, `bar_stocktake_lines`, `bar_orders`, `bar_order_lines`, `bar_price_history`, `bar_menu_items`, `bar_recipe_lines`, `bar_sales_daily`, `bar_covers`, `bar_waste`; views `bar_cost_base`, `bar_margins`, `bar_on_hand`, `bar_usage_actual`, `bar_usage_theoretical`, `bar_variance`, `bar_stock_value`; trigger `bar_capture_price` on `bar_order_lines`. Additive only — `bar_reservations` and `bar_helpers` untouched. RLS on, no policies (service-role only). SQL in `supabase/bar_stock_system.sql`. Dry-run in a rolled-back txn first; verified with a rolled-back fixture (Corona case-of-24 bought / bottles counted → 113 used, correct). All tables currently EMPTY — seeding is the next slice. | ✅ applied | 17 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
 ## Known architecture debt (all lanes — don't make it worse)
@@ -160,3 +161,38 @@ recoverable.
 
 Ops lane: `help-out` was yours — it is now retired; CLAUDE.md's ownership map and
 SESSIONS.md have been updated to drop it.
+
+## 17 Aug 2026 — BAR stock system: new schema applied (founder-directed)
+Founder: "we need to develop a full stock management, cost, margin and ordering system.
+This has to include fruit use, ice use per week, consumables like straws and tissues. The
+system needs to feed from orders and stock level inputs. This will all sit on BAR page
+develop with new database."
+
+Context from the audit: there were **no bar stock tables at all**. Every stock screen wrote
+to `localStorage` on one device, so a count on Rhys's phone was invisible to everyone and
+had no date on it — no history, no usage, no variance. Product/cost/supplier data lived in
+static JS files last touched 30 Jun 2026, and StockOrder was still scaling off a Feb 2026
+baseline, ordering beers the bar no longer pours.
+
+v1 of the schema was reviewed by four adversarial critics (data modeller, bar-ops expert,
+hospitality-finance specialist, migration engineer) and came back **needs-rework** with 20
+blockers. v2 (applied) fixes them. The load-bearing ones:
+- **Base units.** v1 subtracted counts from deliveries with no conversion — Corona bought by
+  the case and counted in bottles reported 21 used against a true 113. Every quantity is now
+  stored in the product's `base_unit` (ml/g/each); order and count units convert on the way in.
+- **Stocktake header + per-area sheets.** v1 compared "the two most recent counts", which
+  silently compared the cellar to the back bar. Usage is now stocktake-to-stocktake.
+- **Made, not bought.** Ice from the machine, house syrup, fresh lime juice and batches never
+  appear on an invoice — `source='made'` + `bar_prep_recipes` + `bar_production_log`.
+- **Never guess a cost.** v1 coalesced missing prices to £0, inflating GP. `bar_margins` now
+  returns NULL and an `unpriced_lines` count so the UI must say "not costed".
+- **Covers table** — straws/napkins scale with bodies, not drinks, so `usage_per_cover` was
+  unusable without it.
+- **Price history is wired** — a trigger on receipt writes history and repriced the product.
+- New views actually deliver the promised numbers: `bar_usage_theoretical` (sales × recipe),
+  `bar_variance` (what went missing, in £), `bar_stock_value` (for true CoGS).
+
+Tables are EMPTY. Next: the `bar` edge function + seeding from the existing data files, then
+the single BAR page. **Bar lane: these tables and `supabase/bar_stock_system.sql` are yours** —
+I applied them at the founder's direction while working the /ops UX brief. Shout if this
+cuts across anything you have in flight.
