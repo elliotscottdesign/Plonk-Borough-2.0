@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
+import Bar from './sections/Bar.jsx'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
@@ -23,31 +24,23 @@ import useIsMobile from '../lib/useIsMobile.js'
 // working regardless of which group a tab lives in.
 const GROUPS = [
   {
-    key: 'operations', label: 'Operations',
+    // BAR — one sheet (founder, Aug 2026): "All Stock reports perishables stock
+    // sheets should come from one sheet called BAR". The new Bar page reads the
+    // bar_* tables (real stock, costs, margins, orders). The eleven legacy
+    // sub-tabs live on under "Old sheets" while the new system builds up its
+    // first weeks of counts — they are being retired, not kept.
+    key: 'bar', label: 'Bar',
     tabs: [
-      // "Bar" = the stock/margin toolkit (stock take, perishables, costing…).
-      // key stays 'operations' so old ?tab=/?tool= deep links keep working.
-      { key: 'operations', label: 'Bar',           Component: Operations },
-      { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
-      // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
-      // it's a checklist log, so it lives with the others. Component still used there.
-      // The founder's system map — how every service fits together. Founder-only
-      // (mentions costs + internals); open it to team-tier if the founder asks.
+      { key: 'bar',        label: 'Bar',           Component: Bar },
+      { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
+      // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
     ],
   },
   {
-    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
-    // inside Operations. Single tab, so no second row renders — StaffRota's own
-    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
-    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
-    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
-    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
-    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
-    // bridge), never on the shared NDTEAM code.
-    key: 'team', label: 'Team', managerOnly: true,
+    key: 'kitchen', label: 'Kitchen',
     tabs: [
-      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
+      { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
     ],
   },
   {
@@ -74,6 +67,20 @@ const GROUPS = [
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
+    ],
+  },
+  {
+    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
+    // inside Operations. Single tab, so no second row renders — StaffRota's own
+    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
+    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
+    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
+    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
+    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
+    // bridge), never on the shared NDTEAM code.
+    key: 'team', label: 'Team', managerOnly: true,
+    tabs: [
+      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
     ],
   },
 ]
