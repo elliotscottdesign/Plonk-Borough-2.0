@@ -1,12 +1,12 @@
 // Client for the `bar` edge function (stock, cost, margin, ordering).
 // Mirrors the shape of src/kitchen/api.js — one call() with the shared secret,
 // and the staff token when the person is signed in through the rota portal.
-import { API_URL, SEND_SECRET } from '../marketing/data/backend.js'
+import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
-const FN = API_URL.replace(/\/functions\/v1\/.*$/, '/functions/v1/bar')
+const FN = `${SUPABASE_URL}/functions/v1/bar`
 
 const staffToken = () => {
-  try { return localStorage.getItem('ndb_rota_token') || sessionStorage.getItem('ndb_rota_token') || '' }
+  try { return localStorage.getItem('nd_rota_token') || sessionStorage.getItem('nd_rota_token') || '' }
   catch { return '' }
 }
 
