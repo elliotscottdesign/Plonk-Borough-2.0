@@ -196,3 +196,10 @@ Tables are EMPTY. Next: the `bar` edge function + seeding from the existing data
 the single BAR page. **Bar lane: these tables and `supabase/bar_stock_system.sql` are yours** —
 I applied them at the founder's direction while working the /ops UX brief. Shout if this
 cuts across anything you have in flight.
+
+## finance lane — schema DDL, 17 Aug 2026
+
+Created table `receipts` + private storage bucket `receipts` (10MB, images/PDF only, RLS on,
+reached only via the future `finance` edge function using the service key — no anon access).
+Backs the phone receipt-capture screen in /ops. Additive only; nothing existing was touched.
+SQL kept at `supabase/receipts_capture.sql`.
