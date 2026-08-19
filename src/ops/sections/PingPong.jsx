@@ -594,7 +594,7 @@ export default function PingPong() {
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
-                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2 }}>📣</button>}
+                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2, flexShrink: 0 }}>📣</button>}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -602,7 +602,7 @@ export default function PingPong() {
                       <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
                       {doneM
                         ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
-                        : <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '6px 12px' }}>Save</button>}
+                        : <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '6px 12px', flexShrink: 0 }}>Save</button>}
                     </div>
                   )
                 })}
@@ -930,11 +930,12 @@ function TableBadge({ n, pending, small }) {
   if (pending) {
     return (
       <span style={{
-        display: 'inline-block', padding: size.pad, borderRadius: 999,
-        fontSize: size.fs, fontWeight: 700, letterSpacing: '0.04em',
+        borderRadius: 999, fontSize: small ? 11 : 12.5, lineHeight: 1,
         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.18)',
-        color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap',
-      }}>waiting for a table</span>
+        color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        minWidth: small ? 20 : 24, padding: small ? '2px 5px' : '3px 6px',
+      }} title="Waiting for a table to free up">🕐</span>
     )
   }
   return null
