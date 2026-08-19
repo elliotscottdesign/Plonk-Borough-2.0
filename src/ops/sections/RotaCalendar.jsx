@@ -206,6 +206,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const focusUpcoming = focusId
     ? Object.entries(focusByDate).filter(([dt]) => dt >= todayStr).sort((a, b) => a[0].localeCompare(b[0])).slice(0, 6)
     : []
+  // Their booked-off days (from availability rows: staff_id + month + {date: {unavailable}}).
+  const focusOff = new Set()
+  if (focusId) for (const r of availability) if (r.staff_id === focusId) for (const [dt, v] of Object.entries(r.data || {})) if (v && v.unavailable) focusOff.add(dt)
+  const focusOffMonth = focusId ? [...focusOff].filter(dt => dt.startsWith(ymPrefix)).length : 0
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -276,6 +280,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <span style={{ fontWeight: 700, color: '#fff' }}>{focusPerson.name}</span>
             <span style={{ color: roleC(focusPerson), fontWeight: 700 }}>{focusPerson.role || ''}</span>
             <span><strong style={{ color: '#fff' }}>{focusMonthHrs}h</strong> in {MONTHS[viewM]}</span>
+            <span style={{ color: '#F87171' }}>{focusOffMonth === 0 ? 'no days booked off' : `${focusOffMonth} day${focusOffMonth === 1 ? '' : 's'} booked off`} this month</span>
+            <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)' }}><span style={{ color: GREEN, fontWeight: 700 }}>■</span> on shift · <span style={{ color: '#F87171', fontWeight: 700 }}>■</span> booked off</span>
             <span style={{ color: 'rgba(255,255,255,0.55)' }}>
               {focusUpcoming.length === 0 ? 'no upcoming shifts on the rota' : <>next: {focusUpcoming.map(([dt, arr]) => `${dayName(dt).slice(0, 3)} ${+dt.slice(8)} ${fmtMin(Math.min(...arr.map(z => z.start_min)))}`).join(' · ')}</>}
             </span>
@@ -295,10 +301,11 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const isToday = dateStr === todayStr
             const evs = eventsForDate(keyEvents, dateStr)
             const mine = focusId ? (focusByDate[dateStr] || []) : null
-            const focusC = focusPerson ? roleC(focusPerson) : null
+            const mineOff = focusId ? focusOff.has(dateStr) : false
+            const focusC = GREEN   // founder rule: green = on shift, red = booked off
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : mine && mine.length ? `2px solid ${focusC}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : mine && mine.length ? `2px solid ${focusC}` : mineOff ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -322,9 +329,12 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 </span>
                 {(() => {
                   // Person focus: their shift times instead of the day totals.
-                  if (mine) return mine.sort((x, y) => x.start_min - y.start_min).map((sh, j) => (
+                  if (mine) return <>
+                    {mineOff && <div style={{ fontSize: 8.5, fontWeight: 700, color: '#F87171', border: '1px solid #F87171', background: 'rgba(248,113,113,0.14)', borderRadius: 4, padding: '2px 3px', whiteSpace: 'nowrap' }} title={`${focusPerson.name} booked this day off`}>✕ off</div>}
+                    {mine.sort((x, y) => x.start_min - y.start_min).map((sh, j) => (
                     <div key={j} style={{ fontSize: 8.5, fontWeight: 700, color: '#fff', border: `1px solid ${focusC}`, background: `${focusC}26`, borderRadius: 4, padding: '2px 3px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0 }} title={`${focusPerson.name} ${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}`}>{fmtMin(sh.start_min)}–{fmtMin(sh.end_min)}</div>
-                  ))
+                  ))}
+                  </>
                   const people = rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length, 0)
                   const hrs = Math.round(rows.reduce((a, sh) => a + (claimsByShift[sh.id] || []).length * shiftHours(sh), 0))
                   // Pills wrap instead of forcing the cell wide — on a phone the 7-col
