@@ -62,6 +62,14 @@ so others know the live backend moved.
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
 - **`tournament` + `pingpong`** redeployed with WhatsApp up-next wiring — 11 Aug 2026, tournament lane. New project secrets: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WA_FROM` (sandbox sender for the trial) / `TWILIO_CONTENT_SID_UP_NEXT`. Messaging stays dormant-safe: send failures never affect tournament flow.
 
+## 20 Aug 2026 — tournament lane touched src/ops/OpsApp.jsx (shared file)
+Added a **"new version is ready — tap to update"** banner to the ops shell
+(poll index.html every 2 min + on tab focus, compare bundle hash, sticky gold
+bar, manual reload only). Reason: stale cached pages cost the founder three
+separate fights on tournament night 19 Aug. Change is additive — one state
+hook + one banner element above the header; tab registry untouched. Claimed,
+edited, shipped same hour.
+
 ## 12 Aug 2026 — tournament lane touched rota files (founder-directed)
 Founder asked the tournament session to give managers voucher redemption from their own
 staff-portal login ("Managers need to be able to do this from their profiles - Vouchers tab").
@@ -208,3 +216,11 @@ SQL kept at `supabase/receipts_capture.sql`.
 
 Added one tab to the Office group: Receipts (founderOnly, like Finances).
 One import line + one registry entry. Nothing else touched. Claim released.
+
+## finance lane — CLAIM on src/rota/RotaPortal.jsx, 19 Aug 2026
+
+TipsCard only: added the "tick to confirm you got it" button + token prop.
+The card already reads finance-lane data. Nothing else in the file touched.
+Released on merge.
+
+- **16 Aug 2026 · rota lane → dj lane (FYI, done):** one-line edit in `src/dj/MonthCalendar.jsx` — the `TODAY` ring colour changed `#60A5FA` → `#FFFFFF` (founder house rule: today = white ring on ALL calendars; status colours wrap outside it). No logic touched. If the DJ session objects, revert just that constant.

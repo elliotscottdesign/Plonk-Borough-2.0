@@ -7,6 +7,7 @@ import StatementDoc from './StatementDoc.jsx'
 import { fmtMin, shiftTimeLabel, shiftHours, dayName, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { getFix, presenceBadge } from './geo.js'
 import { tipsForStaff, tipsForStaffMonth, TIPS_META } from '../finance/tipsData.js'
+import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -32,7 +33,11 @@ const INTEREST_SUGGESTIONS = ['Gardening', 'Painting', 'Carpentry', 'Sign-writin
 
 // Reusable month grid (weeks start Monday, UTC math). renderDay(dateStr,dayNum)
 // returns the cell's inner content; clickable(dateStr) gates taps.
-function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected }) {
+// ringFor(ds) → a status colour for the day (green on-shift / red off) or null.
+// Today gets a WHITE ring (house rule, Aug 2026); the status colour wraps OUTSIDE it.
+function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected, ringFor }) {
+  const nowD = new Date()
+  const todayDs = iso(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())
   const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
@@ -56,7 +61,11 @@ function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, click
           const ok = clickable(ds)
           return (
             <button key={i} type="button" disabled={!ok} onClick={() => ok && onDay(ds)}
-              style={{ minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              style={(() => {
+                const isToday = ds === todayDs
+                const sc = ringFor ? ringFor(ds) : null
+                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
+              })()}>
               {renderDay(ds, d)}
             </button>
           )
@@ -94,7 +103,8 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'reservations', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
+    if (t === 'availability') return 'shifts'   // merged into Shifts (Aug 2026) — old links still land right
+    return ['shifts', 'reservations', 'notes', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -322,7 +332,7 @@ export default function RotaPortal() {
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
   const managerTier = ['Asst. Manager', 'Manager'].includes(staff?.role)
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🍔', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🍔', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -434,26 +444,6 @@ export default function RotaPortal() {
           ))}
         </div>
 
-        {view === 'availability' && (
-          <>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginTop: 0 }}>You're available by default — just tap the days you <strong style={{ color: '#fff' }}>can't</strong> work this month. <strong style={{ color: RED }}>Red = off.</strong> Tap again to clear. Saved automatically.</p>
-            <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
-              clickable={(ds) => ds >= todayStr} onDay={toggleAvail} selected={null}
-              renderDay={(ds, d) => {
-                const off = dayOff(ds)
-                return (<>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: off ? RED : undefined }}>{d}</span>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
-                    {off && <span style={{ fontSize: 9, color: RED, fontWeight: 700 }}>✕ off</span>}
-                  </div>
-                </>)
-              }} />
-            {(() => { const n = Object.keys(monthAvail).filter(k => (monthAvail[k] || {}).unavailable).length; return (
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 10 }}>{n === 0 ? `Available all of ${MONTHS[vm]}.` : `${n} day${n === 1 ? '' : 's'} marked off in ${MONTHS[vm]}.`}</div>
-            ) })()}
-          </>
-        )}
-
         {view === 'shifts' && calendarLocked(staff, docs) && (
           <Onboarding token={token} staff={staff} docs={docs} reload={() => loadState(token)} goProfile={() => setView('profile')} />
         )}
@@ -461,21 +451,24 @@ export default function RotaPortal() {
         {view === 'shifts' && !calendarLocked(staff, docs) && (
           <>
             <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
-              clickable={(ds) => (shiftsByDate[ds] || []).length > 0 && ds >= todayStr} onDay={setSelDate} selected={selDate}
+              clickable={(ds) => (shiftsByDate[ds] || []).length > 0 || ds >= todayStr} onDay={setSelDate} selected={selDate}
+              ringFor={(ds) => (shiftsByDate[ds] || []).some(x => x.mine) ? GREEN : dayOff(ds) ? RED : null}
               renderDay={(ds, d) => {
                 const rows = shiftsByDate[ds] || []
                 const mineN = rows.filter(s => s.mine).length
                 const openN = rows.filter(s => !s.mine && s.filled < (s.headcount ?? 1)).length
+                const off = dayOff(ds)
                 return (<>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{d}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: off ? RED : undefined }}>{d}</span>
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
                     {mineN > 0 && <span style={{ fontSize: 8.5, color: GREEN, fontWeight: 700 }}>✓{mineN}</span>}
-                    {openN > 0 && availOn(ds) && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
+                    {off && <span style={{ fontSize: 8.5, color: RED, fontWeight: 700 }}>✕ off</span>}
+                    {openN > 0 && !off && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
                   </div>
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span>
+              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span>
             </div>
 
             {selDate && (() => {
@@ -487,7 +480,12 @@ export default function RotaPortal() {
                     <div className="serif" style={{ fontSize: 17, color: '#fff' }}>{dayName(selDate)} {selDate.slice(8)} {MONTHS[+selDate.slice(5, 7) - 1]}</div>
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
-                  {!avail && <div style={{ fontSize: 12, color: '#FCD34D' }}>You've marked yourself off this day. Clear it on the Availability tab to grab a shift.</div>}
+                  {selDate >= todayStr && (avail
+                    ? <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>
+                    : <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
+                        <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>
+                      </div>)}
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need
@@ -886,7 +884,7 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
         {staff.work_rules && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Notes:</strong> {staff.work_rules}</div>}
       </div>
 
-      <TipsCard staff={staff} />
+      <TipsCard staff={staff} token={token} />
       {/* Invoicing card hidden at the founder's request (12 Aug 2026). The
           component is kept below — re-enable by restoring this line:
           <InvoiceCard staff={staff} clocks={clocks} /> */}
@@ -959,9 +957,30 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
 
 
 // ─── Tips (finance lane feeds src/finance/tipsData.js) ──────────────────────
-function TipsCard({ staff }) {
+function TipsCard({ staff, token }) {
   const rows = tipsForStaff(staff.name)
   const total = rows.reduce((a, r) => a + r.amount, 0)
+
+  // The payout record. Amounts come from the finance lane's snapshot above;
+  // this is only about whether the money actually reached you, and your
+  // confirmation is what makes it a record rather than one person's word.
+  const [paid, setPaid] = useState({})
+  const [busy, setBusy] = useState('')
+  useEffect(() => {
+    if (!token) return
+    tipsMine(token)
+      .then(r => setPaid(Object.fromEntries((r.payouts || []).map(p => [p.month, p]))))
+      .catch(() => {})
+  }, [token])
+
+  const confirm = async (month) => {
+    setBusy(month)
+    try {
+      const r = await tipConfirm(token, month)
+      setPaid(p => ({ ...p, [month]: r.payout }))
+    } catch (e) { alert(e.message) } finally { setBusy('') }
+  }
+
   return (
     <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
       <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>💷 Your card tips</div>
@@ -969,12 +988,27 @@ function TipsCard({ staff }) {
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>No card tips recorded for you yet — tips tracking started {TIPS_META.coverageFrom}.</div>
       ) : (
         <>
-          {rows.map(r => (
-            <div key={r.month} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
-              <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
-              <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+          {rows.map(r => {
+            const p = paid[r.month]
+            return (
+            <div key={r.month} style={{ borderBottom: `1px solid ${LINE}`, padding: '7px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
+                <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+              </div>
+              <div style={{ marginTop: 5 }}>
+                {!p?.paid_at
+                  ? <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Not paid out yet</span>
+                  : p.confirmed_at
+                    ? <span style={{ fontSize: 11, color: GREEN }}>✓ You confirmed you got this</span>
+                    : <button onClick={() => confirm(r.month)} disabled={busy === r.month}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
+                                 border: `1px solid ${GREEN}`, background: 'transparent', color: GREEN }}>
+                        {busy === r.month ? 'Saving…' : 'Paid — tick to confirm you got it'}
+                      </button>}
+              </div>
             </div>
-          ))}
+          )})}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0 0', fontSize: 13.5 }}>
             <span style={{ color: '#fff', fontWeight: 700 }}>Total recorded</span>
             <span style={{ color: GREEN, fontWeight: 800 }}>£{total.toFixed(2)}</span>
