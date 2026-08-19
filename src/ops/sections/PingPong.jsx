@@ -3,7 +3,7 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound } from '../../pingpong/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound, tournSetSignups} from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
 // Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
@@ -107,6 +107,24 @@ export default function PingPong() {
   }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  // Open/close online sign-ups for this night. Closing hides it from the public
+  // booking form immediately — the usual move once the room is full or the
+  // night has started (founder, 19 Aug 2026).
+  const toggleSignups = async () => {
+    const nowOpen = t.registration_open !== false
+    if (!window.confirm(nowOpen
+      ? `Close online sign-ups for ${t.name}?\n\nIt disappears from the booking page straight away. Walk-ins at the bar are unaffected.`
+      : `Re-open online sign-ups for ${t.name}?`)) return
+    await guard(async () => { await tournSetSignups(t.id, !nowOpen); const r = await tournOpen(t.id); setRun(r) })()
+  }
+  const changeCap = async () => {
+    const cur = t.cap >= 999 ? '' : String(t.cap)
+    const v = window.prompt(`How many players max for ${t.name}?\n\nLeave blank for no limit.`, cur)
+    if (v === null) return
+    const cap = v.trim() === '' ? 999 : Number(v.trim())
+    if (!Number.isFinite(cap) || cap < 2 || cap > 999) return alert('Enter a number between 2 and 999 (or blank for no limit).')
+    await guard(async () => { await tournSetSignups(t.id, undefined, cap); const r = await tournOpen(t.id); setRun(r) })()
+  }
   // 📣 Call players over — texts both sides on demand and SAYS what happened
   // (founder direction, tournament night 12 Aug 2026: the automatic ping was
   // invisible, so there was no way to tell a silent failure from a sent text).
@@ -477,6 +495,7 @@ export default function PingPong() {
   // standings, and finished rounds stack underneath. `rounds` itself stays in
   // DB order — curRound and every id lookup depend on it.
   const orderedRounds = [...rounds].sort((a, b) => (b.ordinal || 0) - (a.ordinal || 0))
+  const nowTick = useNow(status === 'rounds' || status === 'knockout')
   const curRound = rounds[rounds.length - 1]
   const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
 
@@ -496,6 +515,8 @@ export default function PingPong() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}<span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span></div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
+            <button onClick={toggleSignups} disabled={busy} title="Open or close online sign-ups for this night" style={{ marginTop: 5, background: 'none', border: `1px solid ${t.registration_open === false ? LINE : GREEN + '77'}`, color: t.registration_open === false ? 'rgba(255,255,255,0.55)' : GREEN, borderRadius: 999, padding: '3px 9px', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.registration_open === false ? '🔒 sign-ups closed' : '🔓 sign-ups open'}</button>
+            <button onClick={changeCap} disabled={busy} title="Set how many can book this night" style={{ marginTop: 4, background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', padding: 0 }}>{t.cap >= 999 ? 'no limit · set cap' : `cap ${t.cap} · change`}</button>
           </div>
           {/* Hamburger opens a slide-out drawer with every tournament option
               (substitute a player, undo round, restart, start knockout, resend
@@ -595,6 +616,7 @@ export default function PingPong() {
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
                       {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2, flexShrink: 0 }}>📣</button>}
+                      {!doneM && m.table_number && <GameTimer since={m.table_assigned_at} now={nowTick} />}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={(run.run?.settings?.raceTo || 11) + 10} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -913,6 +935,33 @@ const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderR
 // a match is pending but no table is assigned yet ("all tables busy"), it
 // renders a muted "table free soon" pill instead. Done matches show no badge
 // (the info is redundant once a result is in).
+// ── Game-length timer ───────────────────────────────────────────────────────
+// Starts the moment a pair are given a table (including the very first draw of
+// the night) and ticks until the score is saved. Founder, 19 Aug 2026: it tells
+// you at a glance which table is running long and needs chasing. One shared
+// interval drives every match on screen rather than one timer each.
+function useNow(active) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [active])
+  return now
+}
+function GameTimer({ since, now, done }) {
+  if (!since) return null
+  const secs = Math.max(0, Math.floor(((done ? new Date(done).getTime() : now) - new Date(since).getTime()) / 1000))
+  const mins = Math.floor(secs / 60)
+  const label = `${mins}:${String(secs % 60).padStart(2, '0')}`
+  // Amber past 20 minutes, red past 30 — a frame taking that long is the one
+  // holding the whole round up.
+  const c = mins >= 30 ? '#F87171' : mins >= 20 ? AMBER : 'rgba(255,255,255,0.55)'
+  return (
+    <span title={`On the table for ${mins} min`} style={{ fontSize: 11, fontWeight: 700, color: c, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>⏱ {label}</span>
+  )
+}
+
 function TableBadge({ n, pending, small }) {
   const size = small ? { pad: '2px 7px', fs: 10 } : { pad: '3px 9px', fs: 11 }
   if (n === 1 || n === 2) {

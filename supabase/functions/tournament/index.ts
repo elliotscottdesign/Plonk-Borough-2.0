@@ -360,7 +360,7 @@ async function reassignTables(sb: any, runId: string) {
     const clash = occupied.has(m.table_number) ||
       (m.p1_id && busy.has(m.p1_id)) || (m.p2_id && busy.has(m.p2_id));
     if (clash) {
-      await sb.from("pool_matches").update({ table_number: null }).eq("id", m.id);
+      await sb.from("pool_matches").update({ table_number: null, table_assigned_at: null }).eq("id", m.id);
       m.table_number = null;
     } else {
       occupied.add(m.table_number);
@@ -379,7 +379,7 @@ async function reassignTables(sb: any, runId: string) {
     if (!free.length) break;
     if (busy.has(m.p1_id) || busy.has(m.p2_id)) continue;   // player already mid-game
     const t = free.shift()!;
-    await sb.from("pool_matches").update({ table_number: t }).eq("id", m.id);
+    await sb.from("pool_matches").update({ table_number: t, table_assigned_at: m.table_assigned_at || new Date().toISOString() }).eq("id", m.id);
     occupied.add(t);
     busy.add(m.p1_id);
     busy.add(m.p2_id);
@@ -662,6 +662,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...(await computeLeague(sb, discipline)) });
     }
 
+    // ── Open / close sign-ups for a night, and set how many can book ────────
+    // The founder needs to stop online bookings once the room is full (or the
+    // night has started) without touching the database. `registration_open`
+    // gates the public booking form; `max_teams` is the cap shown on the night.
+    if (action === "setSignups") {
+      const tournamentId = clean(b.tournamentId, 40);
+      if (!tournamentId) return json({ error: "no tournament" }, 400);
+      const patch: Record<string, any> = {};
+      if (b.open !== undefined) { patch.registration_open = !!b.open; patch.bookable = !!b.open; }
+      if (b.cap !== undefined && b.cap !== null && b.cap !== "") {
+        const c = Math.round(Number(b.cap));
+        if (!Number.isFinite(c) || c < 2 || c > 999) return json({ error: "Cap must be between 2 and 999." }, 400);
+        patch.max_teams = c;
+      }
+      if (!Object.keys(patch).length) return json({ error: "Nothing to change." }, 400);
+      const { data, error } = await sb.from("tournaments").update(patch).eq("id", tournamentId).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, tournament: { id: data.id, registration_open: data.registration_open, cap: data.max_teams || 999 } });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
@@ -712,7 +732,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999, registration_open: t.registration_open },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
