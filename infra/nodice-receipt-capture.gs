@@ -104,7 +104,27 @@ var SOURCES = [
     id: 'sumup',
     query: 'subject:"SumUp Receipt"',
     supplier: null,
-    fallbackSupplier: 'SumUp'
+    fallbackSupplier: 'SumUp',
+    allowSelf: true                            // SumUp receipts arrive self-sent
+  },
+  {
+    // THE CATCH-ALL THAT MATTERS.
+    //
+    // Anything you forward to yourself is an explicit "file this" — that is
+    // the whole point of bothering to forward it. It does not need to be from
+    // a shop we already know about, and it does not need an attachment.
+    // Without this, a receipt from a supplier not on the list above (Ozone,
+    // any new café, a one-off) is invisible no matter what you do with it.
+    //
+    // Requires a currency amount somewhere so ordinary notes-to-self don't
+    // get filed as spending.
+    id: 'forwarded',
+    query: 'from:me to:me',
+    supplier: null,
+    fallbackSupplier: null,
+    allowSelf: true,
+    oncePerThread: true,                       // a self-send lands twice; file once
+    needsAmount: true
   },
   {
     id: 'stripe',
@@ -177,13 +197,18 @@ function run(e) {
     for (var t = 0; t < threads.length; t++) {
       if (count >= CONFIG.MAX_PER_RUN) break;
       var msgs = threads[t].getMessages();
+      var doneThisThread = false;
 
       for (var m = 0; m < msgs.length; m++) {
+        // A message you send to yourself lands in the thread twice. File once.
+        if (src.oncePerThread && doneThisThread) break;
         if (count >= CONFIG.MAX_PER_RUN) break;
         var msg = msgs[m];
 
-        // Ignore anything we sent ourselves (old forwarder copies, replies).
-        if (msg.getFrom().indexOf(CONFIG.REPORT_TO) > -1 && src.id !== 'sumup') continue;
+        // Normally ignore our own mail (old forwarder copies, replies). But a
+        // source can opt in: forwarding a receipt to yourself IS the
+        // instruction to file it, and that mail is from you by definition.
+        if (!src.allowSelf && msg.getFrom().indexOf(CONFIG.REPORT_TO) > -1) continue;
         if (msg.getDate() < earliest) { skipped++; continue; }
 
         var item = buildReceipt_(msg, src);
@@ -196,6 +221,13 @@ function run(e) {
           continue;
         }
 
+        // The forwarded catch-all is deliberately wide, so it has to earn its
+        // keep: no money on the page means it is a note to yourself, not a
+        // receipt. Left unlabelled so a later, better-formed forward still gets
+        // picked up.
+        if (src.needsAmount && !item.amount) { skipped++; continue; }
+
+        doneThisThread = true;
         count++;
 
         if (!item.blob) {
@@ -249,7 +281,7 @@ function buildReceipt_(msg, src) {
   var date    = msg.getDate();
 
   var item = {
-    supplier: pickSupplier_(subject, msg.getFrom(), src),
+    supplier: pickSupplier_(subject, msg.getFrom(), src, body),
     dateStr:  Utilities.formatDate(date, 'Europe/London', 'yyyy-MM-dd'),
     amount:   pickAmount_(body, subject),
     subject:  subject,
@@ -364,11 +396,28 @@ function htmlToPdf_(html, filename) {
 /* READING THE DETAIL                                                  */
 /* ------------------------------------------------------------------ */
 
-function pickSupplier_(subject, from, src) {
+function pickSupplier_(subject, from, src, body) {
   if (src.supplier) {
     var hit = subject.match(src.supplier);
     if (hit && hit[1]) return tidy_(hit[1]);
   }
+
+  // A forward is from YOU, so the sender tells us nothing. The shop's name is
+  // in the quoted header inside the body, or in the subject after "Fwd:".
+  if (src.id === 'forwarded') {
+    var orig = (body || '').match(/^\s*[>\s]*From:\s*"?([^"<\n]+?)"?\s*(?:<|$)/m);
+    if (orig && orig[1] && orig[1].indexOf('@') === -1) {
+      var name = tidy_(orig[1]);
+      if (name && !/^elliot/i.test(name)) return name;
+    }
+    var addr = (body || '').match(/^\s*[>\s]*From:.*?<([^@>]+)@([A-Za-z0-9.\-]+)>/m);
+    if (addr && addr[2] && !/nodice\.bar/i.test(addr[2])) return tidy_(addr[2].split('.')[0]);
+
+    var subj = tidy_(String(subject || '').replace(/^\s*(fw|fwd|re)\s*:\s*/i, ''));
+    if (subj) return subj.slice(0, 40);
+    return 'Forwarded receipt';
+  }
+
   if (src.fallbackSupplier) return src.fallbackSupplier;
   var dom = (from.match(/@([A-Za-z0-9.\-]+)/) || [])[1] || 'Unknown';
   return tidy_(dom.split('.')[0]);

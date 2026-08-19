@@ -32,11 +32,11 @@ const monthMatrix = (year, month0) => {
 
 export default function Tournament() {
   const [view, setView] = useState('list')     // 'list' | 'run'
-  const nowTick = useNow(view === 'run')
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [run, setRun] = useState(null)          // full run state from `open`
+  const nowTick = useNow(view === 'run' && run?.run?.status === 'rounds')
   const [busy, setBusy] = useState(false)
   const [walkin, setWalkin] = useState('')
   const [editing, setEditing] = useState(null)
@@ -80,12 +80,20 @@ export default function Tournament() {
   // separate state (`scores` / `gameScores`), so a refresh never wipes them.
   const liveRef = useRef({})
   const lastMutation = useRef(0)
-  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing } })
+  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing, status: run?.run?.status } })
   useEffect(() => {
     const id = setInterval(async () => {
       const s = liveRef.current
       if (typeof document !== 'undefined' && document.hidden) return
       if (s.busy || inFlight.current || s.editing || s.replacing) return
+      // A score dropdown is open (or any control has focus) — a re-render now
+      // snaps it shut under the founder's finger (live, 19 Aug 2026 knockout).
+      // Also: never refresh during the knockout/finish — the bracket is the one
+      // place where a silent re-render mid-entry is fatal, and nothing there
+      // changes without the founder pressing something anyway.
+      const ae = typeof document !== 'undefined' ? document.activeElement : null
+      if (ae && (ae.tagName === 'SELECT' || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return
+      if (s.status === 'knockout' || s.status === 'done') return
       const startedAt = Date.now()
       try {
         if (s.view === 'run' && s.tid) {
@@ -759,7 +767,7 @@ export default function Tournament() {
             return (
               <div style={bracketBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · race to {perGame}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · first to 2 games</div>
                   {editing && <TableBadge n={m.table_number} pending small />}
                 </div>
                 {tallyLine(m.p1_id, w1, decided && w1 >= 2)}

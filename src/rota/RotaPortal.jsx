@@ -7,6 +7,7 @@ import StatementDoc from './StatementDoc.jsx'
 import { fmtMin, shiftTimeLabel, shiftHours, dayName, fmtClockTime, workedMins, hoursLabel } from './shifts.js'
 import { getFix, presenceBadge } from './geo.js'
 import { tipsForStaff, tipsForStaffMonth, TIPS_META } from '../finance/tipsData.js'
+import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { rotaMenus } from './api.js'
@@ -886,7 +887,7 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
         {staff.work_rules && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 6, lineHeight: 1.5 }}><strong style={{ color: '#fff' }}>Notes:</strong> {staff.work_rules}</div>}
       </div>
 
-      <TipsCard staff={staff} />
+      <TipsCard staff={staff} token={token} />
       {/* Invoicing card hidden at the founder's request (12 Aug 2026). The
           component is kept below — re-enable by restoring this line:
           <InvoiceCard staff={staff} clocks={clocks} /> */}
@@ -959,9 +960,30 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
 
 
 // ─── Tips (finance lane feeds src/finance/tipsData.js) ──────────────────────
-function TipsCard({ staff }) {
+function TipsCard({ staff, token }) {
   const rows = tipsForStaff(staff.name)
   const total = rows.reduce((a, r) => a + r.amount, 0)
+
+  // The payout record. Amounts come from the finance lane's snapshot above;
+  // this is only about whether the money actually reached you, and your
+  // confirmation is what makes it a record rather than one person's word.
+  const [paid, setPaid] = useState({})
+  const [busy, setBusy] = useState('')
+  useEffect(() => {
+    if (!token) return
+    tipsMine(token)
+      .then(r => setPaid(Object.fromEntries((r.payouts || []).map(p => [p.month, p]))))
+      .catch(() => {})
+  }, [token])
+
+  const confirm = async (month) => {
+    setBusy(month)
+    try {
+      const r = await tipConfirm(token, month)
+      setPaid(p => ({ ...p, [month]: r.payout }))
+    } catch (e) { alert(e.message) } finally { setBusy('') }
+  }
+
   return (
     <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14 }}>
       <div style={{ fontSize: 11, letterSpacing: '0.06em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>💷 Your card tips</div>
@@ -969,12 +991,27 @@ function TipsCard({ staff }) {
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>No card tips recorded for you yet — tips tracking started {TIPS_META.coverageFrom}.</div>
       ) : (
         <>
-          {rows.map(r => (
-            <div key={r.month} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: `1px solid ${LINE}`, fontSize: 13 }}>
-              <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
-              <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+          {rows.map(r => {
+            const p = paid[r.month]
+            return (
+            <div key={r.month} style={{ borderBottom: `1px solid ${LINE}`, padding: '7px 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13 }}>
+                <span style={{ color: 'rgba(255,255,255,0.8)' }}>{r.label}</span>
+                <span style={{ color: GREEN, fontWeight: 800 }}>£{r.amount.toFixed(2)}</span>
+              </div>
+              <div style={{ marginTop: 5 }}>
+                {!p?.paid_at
+                  ? <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)' }}>Not paid out yet</span>
+                  : p.confirmed_at
+                    ? <span style={{ fontSize: 11, color: GREEN }}>✓ You confirmed you got this</span>
+                    : <button onClick={() => confirm(r.month)} disabled={busy === r.month}
+                        style={{ fontSize: 11, padding: '4px 10px', borderRadius: 20, cursor: 'pointer',
+                                 border: `1px solid ${GREEN}`, background: 'transparent', color: GREEN }}>
+                        {busy === r.month ? 'Saving…' : 'Paid — tick to confirm you got it'}
+                      </button>}
+              </div>
             </div>
-          ))}
+          )})}
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0 0', fontSize: 13.5 }}>
             <span style={{ color: '#fff', fontWeight: 700 }}>Total recorded</span>
             <span style={{ color: GREEN, fontWeight: 800 }}>£{total.toFixed(2)}</span>
