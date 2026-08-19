@@ -385,7 +385,37 @@ export default function RotaPortal() {
           return (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {doors.map(([ic, lbl, href, sub]) => (
-                <a key={lbl} href={href} style={{ flex: 1, minWidth: 0, textDecoration: 'none', textAlign: 'center', padding: '13px 6px', borderRadius: 11, background: 'rgba(218,27,51,0.10)', border: '1.5px solid rgba(218,27,51,0.5)', color: '#fff' }}>
+                <a
+                  key={lbl}
+                  href={href}
+                  // Founder: "I have to hold the button down and then open a link" — one
+                  // tap did nothing. Diagnosed Aug 2026: nothing covers these doors and
+                  // nothing intercepts the tap (measured: zero overlap at every scroll
+                  // position; the repo registers no touch/pointer/click listeners at all).
+                  // Long-press worked precisely BECAUSE it bypasses tap activation and
+                  // navigates natively. These four are the only <a> elements on the whole
+                  // portal — everything else is a <button> with onClick — so they were the
+                  // only controls relying on the browser promoting a touch into a link
+                  // activation, which the installed home-screen app doesn't always do.
+                  // So: drive the navigation ourselves, and keep href so long-press,
+                  // share, open-in-new-tab and desktop middle-click all still work.
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return
+                    e.preventDefault()
+                    window.location.assign(href)
+                  }}
+                  style={{
+                    flex: 1, minWidth: 0, display: 'block',
+                    textDecoration: 'none', textAlign: 'center',
+                    padding: '13px 6px', borderRadius: 11,
+                    background: 'rgba(218,27,51,0.10)',
+                    border: '1.5px solid rgba(218,27,51,0.5)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation',                        // no double-tap-zoom arbitration
+                    WebkitTapHighlightColor: 'rgba(218,27,51,0.45)',    // visible proof the tap landed
+                  }}
+                >
                   <span style={{ display: 'block', fontSize: 21, lineHeight: 1.2 }}>{ic}</span>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, letterSpacing: '0.02em', marginTop: 2 }}>{lbl}</span>
                   <span style={{ display: 'block', fontSize: 9.5, color: 'rgba(255,255,255,0.6)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
@@ -705,7 +735,7 @@ function ChecklistView({ token }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={() => { setOpenKey(null); loadAll() }} style={btn('ghost')}>‹ Back</button>
+        <button onClick={() => { setOpenKey(null); loadAll() }} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>‹ All checklists</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{c.icon} {c.title}</div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{done}/{total} done{busy ? ' · saving…' : savedAt ? ' · saved ✓' : ''}</div>
