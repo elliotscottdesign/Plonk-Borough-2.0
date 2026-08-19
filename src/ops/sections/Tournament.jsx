@@ -32,6 +32,7 @@ const monthMatrix = (year, month0) => {
 
 export default function Tournament() {
   const [view, setView] = useState('list')     // 'list' | 'run'
+  const nowTick = useNow(view === 'run')
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -521,7 +522,6 @@ export default function Tournament() {
   // standings, and finished rounds stack underneath. `rounds` itself stays in
   // DB order — curRound and every id lookup depend on it.
   const orderedRounds = [...rounds].sort((a, b) => (b.ordinal || 0) - (a.ordinal || 0))
-  const nowTick = useNow(status === 'rounds' || status === 'knockout')
   const curRound = rounds[rounds.length - 1]
   const curDone = curRound ? matches.filter(m => m.round_id === curRound.id).every(m => m.status === 'done') : true
 
