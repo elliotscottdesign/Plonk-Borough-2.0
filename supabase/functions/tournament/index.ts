@@ -682,6 +682,35 @@ Deno.serve(async (req) => {
       return json({ ok: true, tournament: { id: data.id, registration_open: data.registration_open, cap: data.max_teams || 999 } });
     }
 
+    // ── Messaging health check (founder-gated, read-only) ───────────────────
+    // Asks Twilio, with the same credentials the call-ups use: is the account
+    // alive, what's the balance, and what happened to the last few messages.
+    // Sends nothing. Added live on 19 Aug 2026 when no player was receiving
+    // texts and we couldn't see why from outside.
+    if (action === "twilioStatus") {
+      if (!TW_SID || !TW_TOKEN) return json({ ok: false, reason: "Twilio credentials not set" });
+      const auth = { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`) };
+      const out: any = { sidPrefix: TW_SID.slice(0, 6), preferSms: PREFER_SMS, waFrom: TW_FROM || null, smsFrom: TW_SMS_FROM };
+      try {
+        const a = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}.json`, { headers: auth });
+        out.accountHttp = a.status;
+        if (a.ok) { const j = await a.json(); out.accountStatus = j.status; out.accountType = j.type; out.friendlyName = j.friendly_name; }
+        else out.accountError = (await a.text()).slice(0, 300);
+      } catch (e) { out.accountError = String(e); }
+      try {
+        const b = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Balance.json`, { headers: auth });
+        if (b.ok) { const j = await b.json(); out.balance = j.balance; out.currency = j.currency; }
+      } catch (_) {}
+      try {
+        const m = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json?PageSize=12`, { headers: auth });
+        if (m.ok) {
+          const j = await m.json();
+          out.recent = (j.messages || []).map((x: any) => ({ to: String(x.to).replace(/\d(?=\d{3})/g, "•"), status: x.status, err: x.error_code, msg: x.error_message, when: x.date_sent || x.date_created, from: x.from }));
+        } else out.messagesError = (await m.text()).slice(0, 300);
+      } catch (e) { out.messagesError = String(e); }
+      return json({ ok: true, ...out });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),

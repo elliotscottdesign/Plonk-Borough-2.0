@@ -80,12 +80,20 @@ export default function Tournament() {
   // separate state (`scores` / `gameScores`), so a refresh never wipes them.
   const liveRef = useRef({})
   const lastMutation = useRef(0)
-  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing } })
+  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing, status: run?.run?.status } })
   useEffect(() => {
     const id = setInterval(async () => {
       const s = liveRef.current
       if (typeof document !== 'undefined' && document.hidden) return
       if (s.busy || inFlight.current || s.editing || s.replacing) return
+      // A score dropdown is open (or any control has focus) — a re-render now
+      // snaps it shut under the founder's finger (live, 19 Aug 2026 knockout).
+      // Also: never refresh during the knockout/finish — the bracket is the one
+      // place where a silent re-render mid-entry is fatal, and nothing there
+      // changes without the founder pressing something anyway.
+      const ae = typeof document !== 'undefined' ? document.activeElement : null
+      if (ae && (ae.tagName === 'SELECT' || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return
+      if (s.status === 'knockout' || s.status === 'done') return
       const startedAt = Date.now()
       try {
         if (s.view === 'run' && s.tid) {
