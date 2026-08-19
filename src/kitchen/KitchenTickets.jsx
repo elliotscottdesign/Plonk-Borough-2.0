@@ -21,7 +21,7 @@ export default function KitchenTickets() {
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
-  const [stats, setStats] = useState({ avgSec: null, count: 0 })
+  const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
@@ -51,11 +51,11 @@ export default function KitchenTickets() {
   // that have been marked ready. Reads the order history (last 200).
   const loadStats = async () => {
     try {
-      const r = await listHistory(); const now = new Date()
-      const done = (r.orders || []).filter(o => o.ready_at && sameDay(new Date(o.created_at), now))
-      if (!done.length) { setStats({ avgSec: null, count: 0 }); return }
-      const total = done.reduce((s, o) => s + (new Date(o.ready_at) - new Date(o.created_at)), 0)
-      setStats({ avgSec: Math.round(total / done.length / 1000), count: done.length })
+      const r = await listHistory(); const now = new Date(); const orders = r.orders || []
+      const done = orders.filter(o => o.ready_at && sameDay(new Date(o.created_at), now))
+      const tipsPence = orders.filter(o => o.paid && sameDay(new Date(o.created_at), now)).reduce((s, o) => s + (o.tip_pence || 0), 0)
+      const avgSec = done.length ? Math.round(done.reduce((s, o) => s + (new Date(o.ready_at) - new Date(o.created_at)), 0) / done.length / 1000) : null
+      setStats({ avgSec, count: done.length, tipsPence })
     } catch { /* ignore */ }
   }
   useEffect(() => {
@@ -85,6 +85,11 @@ export default function KitchenTickets() {
           <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>⏱ Avg time to service · tonight</div>
           <div style={{ fontFamily: HEAVY, fontSize: 36, color: avgColor, lineHeight: 1.05 }}>{stats.avgSec == null ? '—' : mmss(stats.avgSec * 1000)}</div>
           <div style={{ fontSize: 11.5, color: MUTED }}>{stats.count ? `${stats.count} order${stats.count > 1 ? 's' : ''} served · target under 12:00` : 'no orders served yet'}</div>
+        </div>
+        <div style={{ flex: '1 1 150px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
+          <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💛 Tips tonight · kitchen</div>
+          <div style={{ fontFamily: HEAVY, fontSize: 36, color: GREEN, lineHeight: 1.05 }}>£{(stats.tipsPence / 100).toFixed(2)}</div>
+          <div style={{ fontSize: 11.5, color: MUTED }}>100% to the kitchen team</div>
         </div>
         {flagged.length > 0 && (
           <div style={{ flex: '1 1 190px', background: RED, borderRadius: 12, padding: '10px 14px', color: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', animation: 'oarflash 1.2s infinite' }}>
