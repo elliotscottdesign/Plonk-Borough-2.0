@@ -497,6 +497,13 @@ const emailsForParticipant = async (sb: any, p: any): Promise<{ captain: string 
   const { data: e } = await sb.from("tournament_entries").select("captain_email, partner_email").eq("id", p.entry_id).maybeSingle();
   return { captain: e?.captain_email || null, partner: e?.partner_email || null };
 };
+// Winners' mobiles, mirrored from the booking. Only the captain's number is
+// collected today, so recipient 2 (the partner) has no phone — email only.
+const phonesForParticipant = async (sb: any, p: any): Promise<{ captain: string | null; partner: string | null }> => {
+  if (!p?.entry_id) return { captain: null, partner: null };
+  const { data: e } = await sb.from("tournament_entries").select("captain_phone").eq("id", p.entry_id).maybeSingle();
+  return { captain: e?.captain_phone || null, partner: null };
+};
 // Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders.
 //
 // SINGLES: one voucher per place, full amount, to the booking email.
@@ -523,12 +530,13 @@ async function finalizeTournament(sb: any, run: any) {
     if (!pid) continue;
     const p = byId[pid];
     const emails = await emailsForParticipant(sb, p);
+    const phones = await phonesForParticipant(sb, p);
     const { data: existing } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).order("recipient");
     const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
     const shares = (split && !legacyFull)
-      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain },
-         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner }]
-      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain }];
+      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain, phone: phones.captain },
+         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner, phone: phones.partner }]
+      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain, phone: phones.captain }];
     for (const sh of shares) {
       let v = (existing || []).find((x: any) => (x.recipient ?? 1) === sh.recipient) || null;
       if (!v) {
@@ -547,6 +555,17 @@ async function finalizeTournament(sb: any, run: any) {
         const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
         const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
         if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+      }
+      // 📱 Text the code too (founder, 19 Aug 2026): inboxes greylist prize
+      // emails for minutes; a text lands while the winner is still at the bar.
+      // Once per voucher (texted_at) — re-running finalize never double-texts.
+      if (v && (sh as any).phone && !v.texted_at) {
+        const to = e164((sh as any).phone);
+        if (to) {
+          const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+          const okSms = await sendSMS(to, `${medal} ${v.display_name || "You"} — you won ${gbp(v.amount_pence)} at No Dice! Your bar-tab code: ${v.code}. Show this text at the bar. 🎉`);
+          if (okSms) { await sb.from("pool_vouchers").update({ texted_at: new Date().toISOString() }).eq("id", v.id); v.texted_at = new Date().toISOString(); }
+        }
       }
       if (v) vouchers.push(v);
     }
