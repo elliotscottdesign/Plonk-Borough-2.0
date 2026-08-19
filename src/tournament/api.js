@@ -25,6 +25,8 @@ export const tournReplace = (participantId, name) => call({ action: 'replacePlay
 export const tournRemove = (participantId) => call({ action: 'removeParticipant', participantId })
 export const tournRestore = (participantId) => call({ action: 'restoreParticipant', participantId })
 export const tournDeleteRun = (runId) => call({ action: 'deleteRun', runId })
+// Open/close online sign-ups for a night + set the cap (founder, 19 Aug 2026).
+export const tournSetSignups = (tournamentId, open, cap) => call({ action: 'setSignups', tournamentId, open, cap })
 
 // Slice 2 — Swiss rounds + standings.
 export const tournStartRounds = (runId) => call({ action: 'startRounds', runId })
