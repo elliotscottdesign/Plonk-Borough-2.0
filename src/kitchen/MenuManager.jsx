@@ -93,7 +93,8 @@ export default function MenuManager() {
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6, position: 'sticky', top: 46, zIndex: 15, background: 'var(--ink)', paddingBottom: 8 }}>
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
-        <button onClick={() => exportMenu(sections)} style={pill(false)}>🖨 Export branded menu · A4 = 2× A5</button>
+        <button onClick={() => exportMenu(sections, 'print')} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
+        <button onClick={() => exportMenu(sections, 'pdf')} style={pill(false)}>⬇ Download PDF</button>
         <span style={{ fontSize: 12, color: MUTED }}>Sell prices are inc VAT (20%); margin is on the ex-VAT price.</span>
       </div>
       {msg && <div style={{ fontSize: 12.5, color: msg.startsWith('Saved') ? GREEN : GOLD, marginBottom: 10, lineHeight: 1.5 }}>{msg}</div>}
@@ -245,7 +246,7 @@ const ORDER_URL = 'https://nodice.bar/onaroll'
 
 // Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half), each with
 // a "scan to order & pay" QR and the "open til 10pm" line. Opens a print window.
-function exportMenu(sections) {
+function exportMenu(sections, mode = 'print') {
   const secs = (sections || []).filter(s => s.id !== 'bar')
   const inner = secs.map(sec => {
     const its = sec.items.filter(it => it.name)
@@ -260,10 +261,22 @@ function exportMenu(sections) {
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
   const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="a5body"><div class="msub">London Fields · open til 10pm</div>${inner}</div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const isPdf = mode === 'pdf'
+  const ORDER = JSON.stringify(ORDER_URL)
+  const libs = isPdf
+    ? `<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>`
+    : ''
+  // PDF mode captures the A4 at natural height (nothing clipped) and scales the
+  // whole thing to fit one A4 landscape page → a real downloadable file, no print
+  // dialog. Print mode shrinks each half to fit and calls window.print().
+  const runScript = isPdf
+    ? `window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${ORDER},width:88,height:88,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){var el=document.querySelector('.a4');html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){try{var J=(window.jspdf||{}).jsPDF;var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});var pw=297,ph=210,m=7,aw=pw-2*m,ah=ph-2*m,iw=canvas.width,ih=canvas.height,r=Math.min(aw/iw,ah/ih),w=iw*r,h=ih*r;pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,(ph-h)/2,w,h);pdf.save('On A Roll Menu.pdf');document.body.innerHTML="<div style='font-family:sans-serif;padding:48px;text-align:center;color:#111'><h2 style='color:#e0231b'>&#10003; PDF downloaded</h2><p>Saved as <b>On A Roll Menu.pdf</b> — check your Downloads folder. You can close this tab.</p></div>";}catch(e){document.body.innerHTML="<div style='font-family:sans-serif;padding:48px'>Sorry, the PDF didn't generate: "+e+". Try the Print button and choose \\"Save as PDF\\".</div>";}},600)},450)});`
+    : `function fitA5(){document.querySelectorAll('.a5').forEach(function(a5){var b=a5.querySelector('.a5body');if(!b)return;var z=1;b.style.zoom='1';var g=0;while(a5.scrollHeight>a5.clientHeight&&z>0.5&&g<60){z-=0.02;b.style.zoom=String(z);g++;}});}window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${ORDER},width:88,height:88,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){fitA5();setTimeout(function(){window.print()},250)},400)});`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
     @page{ size:A4 landscape; margin:6mm } *{ box-sizing:border-box }
     html,body{ margin:0; padding:0; font-family:Impact,'Arial Narrow Bold',sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact }
     .a4{ display:flex; width:283mm; height:195mm; background:#fff; overflow:hidden; page-break-inside:avoid; break-inside:avoid }
+    body.pdf .a4{ height:auto; overflow:visible } body.pdf .a5{ overflow:visible }
     .logo{ width:118px; height:auto; display:block; margin-bottom:3px }
     .a5{ flex:1; min-width:0; padding:8mm 9mm; color:#000; display:flex; flex-direction:column; overflow:hidden } .a5:first-child{ border-right:1px dashed #999 }
     .a5body{ transform-origin:top left }
@@ -278,14 +291,10 @@ function exportMenu(sections) {
     .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
     .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
     .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
-  </style></head><body><div class="a4">${a5}${a5}</div>
+  </style></head><body class="${isPdf ? 'pdf' : ''}"><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>
-    // Shrink each A5's menu body until the whole half (logo + menu + QR footer)
-    // fits its page — so it always prints on ONE landscape sheet, no overflow to
-    // a 2nd sheet and no "fit to page" needed in the printer dialog.
-    function fitA5(){document.querySelectorAll('.a5').forEach(function(a5){var b=a5.querySelector('.a5body');if(!b)return;var z=1;b.style.zoom='1';var g=0;while(a5.scrollHeight>a5.clientHeight&&z>0.5&&g<60){z-=0.02;b.style.zoom=String(z);g++;}});}
-    window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:88,height:88,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){fitA5();setTimeout(function(){window.print()},250)},400)});<\/script>
+  ${libs}
+  <script>${runScript}<\/script>
   </body></html>`
   const w = window.open('', '_blank')
   if (!w) { alert('Allow pop-ups to print the menu.'); return }
