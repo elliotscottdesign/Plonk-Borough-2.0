@@ -47,13 +47,51 @@ function competitorGap(r: { comp_item?: any; comp_price?: any; comp_verdict?: an
   return null
 }
 
+/** Staff-side auth: the same token the rota portal issues. */
+async function staffFromToken(token: unknown) {
+  const t = String(token || '').trim()
+  if (t.length < 8) return null
+  const { data } = await db.from('staff')
+    .select('id, name, active').eq('token', t).eq('active', true).maybeSingle()
+  return data ?? null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
   let p: Record<string, any> = {}
   try { p = await req.json() } catch { return json({ error: 'Bad request' }, 400) }
 
-  // Everything here is founder/manager territory, reached through the already
+  /* ── Staff-token actions: a person acting on their OWN tips ──────────── */
+  if (p.action === 'tipsMine' || p.action === 'tipConfirm') {
+    const me = await staffFromToken(p.token)
+    if (!me) return json({ error: 'Unauthorized' }, 401)
+
+    if (p.action === 'tipsMine') {
+      const { data, error } = await db.from('tip_payouts')
+        .select('*').eq('staff_id', me.id).order('month', { ascending: false })
+      if (error) throw error
+      return json({ ok: true, payouts: data ?? [] })
+    }
+
+    // Confirming receipt. Scoped to their own id, so a token can only ever
+    // acknowledge its owner's money. You cannot confirm what has not been
+    // paid — that would turn the record into a fiction.
+    const month = String(p.month || '')
+    if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: 'Which month?' }, 400)
+    const { data: row } = await db.from('tip_payouts')
+      .select('id, paid_at').eq('staff_id', me.id).eq('month', month).maybeSingle()
+    if (!row) return json({ error: 'Nothing recorded for that month' }, 404)
+    if (!row.paid_at) return json({ error: "That hasn't been paid out yet" }, 400)
+
+    const { data, error } = await db.from('tip_payouts')
+      .update({ confirmed_at: new Date().toISOString() })
+      .eq('id', row.id).select().single()
+    if (error) throw error
+    return json({ ok: true, payout: data })
+  }
+
+  // Everything else is founder/manager territory, reached through the already
   // gated /ops shell.
   if (!SEND_SECRET || p.secret !== SEND_SECRET) return json({ error: 'Unauthorized' }, 401)
 
@@ -206,6 +244,54 @@ Deno.serve(async (req) => {
           out[k].total += Number(r.amount) || 0
         }
         return json({ ok: true, summary: out })
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* TIPS — the payout record the Tips Act requires                    */
+      /* ---------------------------------------------------------------- */
+
+      case 'tipsLedger': {
+        const { data, error } = await db.from('tip_payouts')
+          .select('*').order('month', { ascending: false }).order('staff_name')
+        if (error) throw error
+        return json({ ok: true, payouts: data ?? [] })
+      }
+
+      // The amounts live in the front end (src/finance/tipsData.js, rebuilt
+      // from each Lightspeed export), so they arrive with the request. The
+      // server records what was paid and when — it does not recompute what is
+      // owed.
+      case 'tipMarkPaid': {
+        const month = String(p.month || '')
+        if (!p.staffId) return json({ error: 'Which person?' }, 400)
+        if (!/^\d{4}-\d{2}$/.test(month)) return json({ error: 'Which month?' }, 400)
+        const amount = Number(p.amount)
+        if (!(amount >= 0)) return json({ error: 'How much?' }, 400)
+
+        const row = {
+          staff_id: p.staffId,
+          staff_name: String(p.staffName || '').trim() || null,
+          month, amount,
+          paid_at: new Date().toISOString(),
+          paid_method: ['payroll', 'bank', 'cash'].includes(p.method) ? p.method : 'bank',
+          paid_by: String(p.paidBy || 'Elliot Scott').trim(),
+          paid_note: String(p.note || '').trim() || null,
+        }
+        const { data, error } = await db.from('tip_payouts')
+          .upsert(row, { onConflict: 'staff_id,month' }).select().single()
+        if (error) throw error
+        return json({ ok: true, payout: data })
+      }
+
+      // Undo a mistake. Clears the staff confirmation too — an acknowledgement
+      // of a payment that no longer exists is worse than no record at all.
+      case 'tipUnmarkPaid': {
+        if (!p.id) return json({ error: 'Which one?' }, 400)
+        const { error } = await db.from('tip_payouts')
+          .update({ paid_at: null, paid_method: null, paid_by: null, confirmed_at: null })
+          .eq('id', p.id)
+        if (error) throw error
+        return json({ ok: true })
       }
 
       default:

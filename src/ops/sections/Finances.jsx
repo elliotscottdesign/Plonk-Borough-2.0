@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from 'react'
 import { rotaLoad } from '../../rota/api.js'
 import { workedMins, hoursLabel } from '../../rota/shifts.js'
 import { ASOF, PNL, INCOME_CHANNELS, SPEND_CATEGORIES, TILL, VAT, OWED } from '../../finance/overviewData.js'
+import { tipsForStaffMonth, TIPS_MONTHS } from '../../finance/tipsData.js'
+import { tipsLedger, tipMarkPaid, tipUnmarkPaid } from '../../finance/tipsApi.js'
 
 // ─── Finances (FOUNDER ONLY — registered founderOnly:true in OpsApp) ─────────
 // Senior-management money view, hidden from team-tier (NDTEAM) logins.
@@ -35,6 +37,7 @@ const SECTIONS = [
   { id: 'till',     label: 'Till Sales',       icon: '🍺' },
   { id: 'vat',      label: 'VAT Tracker',      icon: '🧾' },
   { id: 'wages',    label: 'Wage Bill (live)', icon: '👥' },
+  { id: 'tips',     label: 'Tips — paid out',  icon: '💷' },
 ]
 
 function SidebarTOC({ active, onChange }) {
@@ -412,6 +415,127 @@ function WagesLive() {
 }
 
 // ─── Page ───────────────────────────────────────────────────────────────────
+// ─── Tips: what's owed, what's been paid, and who has confirmed it ──────────
+//
+// The Employment (Allocation of Tips) Act 2023 requires tips to be passed on in
+// full by the end of the month AFTER they were earned, and requires you to be
+// able to SHOW it happened. The amounts have always been known; the paying was
+// never evidenced. A month past its deadline and still unpaid is flagged.
+function TipsPayouts() {
+  const [ledger, setLedger] = useState(null)
+  const [staff, setStaff] = useState([])
+  const [busy, setBusy] = useState('')
+
+  const load = async () => {
+    try {
+      const [l, r] = await Promise.all([tipsLedger(), rotaLoad()])
+      setLedger(Object.fromEntries((l.payouts || []).map(p => [p.staff_id + '|' + p.month, p])))
+      setStaff(r.staff || [])
+    } catch (e) { alert(e.message); setLedger({}) }
+  }
+  useEffect(() => { load() }, [])
+
+  // Deadline: end of the month after the one the tips were earned in.
+  const overdue = (month) => {
+    const [y, m] = month.split('-').map(Number)
+    const due = new Date(Date.UTC(y, m + 1, 0))          // last day of the following month
+    return new Date() > due
+  }
+
+  const mark = async (person, month, amount) => {
+    setBusy(person.id + month)
+    try {
+      await tipMarkPaid({ staffId: person.id, staffName: person.name, month, amount })
+      await load()
+    } catch (e) { alert(e.message) } finally { setBusy('') }
+  }
+  const unmark = async (row) => {
+    if (!window.confirm('Undo this payment record?')) return
+    setBusy(row.staff_id + row.month)
+    try { await tipUnmarkPaid(row.id); await load() } catch (e) { alert(e.message) } finally { setBusy('') }
+  }
+
+  if (!ledger) return <div style={{ color: 'rgba(255,255,255,0.55)' }}>Loading…</div>
+
+  // Every person/month pair that has tips owing, newest month first.
+  const months = [...TIPS_MONTHS].reverse()
+  let owedTotal = 0, paidTotal = 0
+
+  const blocks = months.map(month => {
+    const people = staff
+      .map(s => ({ person: s, amount: tipsForStaffMonth(s.name, month) }))
+      .filter(x => x.amount > 0)
+    if (!people.length) return null
+    return { month, people }
+  }).filter(Boolean)
+
+  for (const b of blocks) for (const { person, amount } of b.people) {
+    const row = ledger[person.id + '|' + b.month]
+    if (row?.paid_at) paidTotal += amount; else owedTotal += amount
+  }
+
+  return (
+    <div>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+        <Stat label="Still to pay" value={'£' + owedTotal.toFixed(2)} tone={owedTotal > 0 ? 'warn' : 'ok'} />
+        <Stat label="Paid out" value={'£' + paidTotal.toFixed(2)} tone="ok" />
+      </div>
+
+      {blocks.map(({ month, people }) => (
+        <div key={month} style={{ marginBottom: 18 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, marginBottom: 6 }}>
+            <div style={{ color: '#fff', fontWeight: 700 }}>{monthName(month)}</div>
+            {overdue(month) && people.some(x => !ledger[x.person.id + '|' + month]?.paid_at) && (
+              <span style={{ fontSize: 11, color: '#f5a623' }}>past the legal deadline</span>
+            )}
+          </div>
+          {people.map(({ person, amount }) => {
+            const row = ledger[person.id + '|' + month]
+            const key = person.id + month
+            return (
+              <div key={person.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.07)', fontSize: 13.5, flexWrap: 'wrap' }}>
+                <span style={{ color: 'rgba(255,255,255,0.85)', flex: '1 1 130px' }}>{person.name}</span>
+                <span style={{ color: 'var(--gold)', fontWeight: 800, width: 78, textAlign: 'right' }}>£{amount.toFixed(2)}</span>
+                {row?.paid_at
+                  ? <>
+                      <span style={{ fontSize: 11.5, color: 'var(--teal)', flex: '0 0 auto' }}>
+                        paid {new Date(row.paid_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                        {row.confirmed_at ? ' · confirmed by them' : ' · not yet confirmed'}
+                      </span>
+                      <button onClick={() => unmark(row)} disabled={busy === key} style={miniBtn}>undo</button>
+                    </>
+                  : <button onClick={() => mark(person, month, amount)} disabled={busy === key}
+                      style={{ ...miniBtn, borderColor: 'var(--gold)', color: 'var(--gold)' }}>
+                      {busy === key ? 'saving…' : 'mark paid'}
+                    </button>}
+              </div>
+            )
+          })}
+        </div>
+      ))}
+
+      <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)', lineHeight: 1.6, marginTop: 12 }}>
+        Marking a month paid records who, how much and when. The staff member then sees it on their own
+        profile and ticks to confirm they received it — their confirmation is what turns your record into
+        evidence rather than your word alone.
+      </div>
+    </div>
+  )
+}
+
+const miniBtn = { padding: '3px 10px', borderRadius: 20, fontSize: 11.5, cursor: 'pointer', background: 'transparent', color: 'rgba(255,255,255,0.6)', border: '1px solid rgba(255,255,255,0.2)' }
+const monthName = (m) => new Date(m + '-01T00:00:00Z').toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+function Stat({ label, value, tone }) {
+  const c = tone === 'warn' ? '#f5a623' : 'var(--teal)'
+  return (
+    <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--ink-2)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{label}</div>
+      <div style={{ fontSize: 19, fontWeight: 800, color: c }}>{value}</div>
+    </div>
+  )
+}
+
 export default function Finances() {
   const [section, setSection] = useState('overview')
   const incomeTotal = INCOME_CHANNELS.reduce((s, r) => s + r.amount, 0)
@@ -485,6 +609,12 @@ export default function Finances() {
             <>
               <STitle>Wage Bill — live from clock-ins</STitle>
               <WagesLive />
+            </>
+          )}
+          {section === 'tips' && (
+            <>
+              <STitle>Tips — what's owed and what's been paid</STitle>
+              <TipsPayouts />
             </>
           )}
         </div>

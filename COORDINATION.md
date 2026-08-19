@@ -208,3 +208,9 @@ SQL kept at `supabase/receipts_capture.sql`.
 
 Added one tab to the Office group: Receipts (founderOnly, like Finances).
 One import line + one registry entry. Nothing else touched. Claim released.
+
+## finance lane — CLAIM on src/rota/RotaPortal.jsx, 19 Aug 2026
+
+TipsCard only: added the "tick to confirm you got it" button + token prop.
+The card already reads finance-lane data. Nothing else in the file touched.
+Released on merge.

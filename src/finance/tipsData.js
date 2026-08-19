@@ -70,6 +70,9 @@ const TIPS_BY_MONTH = {
   '2026-08': { skye: 61.11, theo: 44.32, elliot: 28.91, jude: 4.10, rhys: 1.38 },
 }
 
+// Months we have tips for, oldest first — drives the payout screen in /ops.
+export const TIPS_MONTHS = Object.keys(TIPS_BY_MONTH).sort()
+
 const MONTH_LABELS = { '2026-06': 'June 2026 (from 19th)', '2026-07': 'July 2026', '2026-08': 'August 2026' }
 
 const firstNameKey = (name) => String(name || '').trim().split(/\s+/)[0].toLowerCase()
