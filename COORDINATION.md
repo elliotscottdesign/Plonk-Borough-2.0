@@ -203,3 +203,8 @@ Created table `receipts` + private storage bucket `receipts` (10MB, images/PDF o
 reached only via the future `finance` edge function using the service key — no anon access).
 Backs the phone receipt-capture screen in /ops. Additive only; nothing existing was touched.
 SQL kept at `supabase/receipts_capture.sql`.
+
+## finance lane — src/ops/OpsApp.jsx, 18 Aug 2026 — RELEASED
+
+Added one tab to the Office group: Receipts (founderOnly, like Finances).
+One import line + one registry entry. Nothing else touched. Claim released.
