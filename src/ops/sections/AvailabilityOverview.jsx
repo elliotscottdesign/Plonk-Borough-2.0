@@ -101,7 +101,7 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
               const weekend = dow === 0 || dow === 6
               const isToday = date === todayStr
               return (
-                <div key={d} style={{ width: CELL_W, flexShrink: 0, textAlign: 'center', padding: '3px 0', background: isToday ? 'rgba(218,27,51,0.22)' : (weekend ? 'rgba(255,255,255,0.04)' : 'transparent') }}>
+                <div key={d} style={{ width: CELL_W, flexShrink: 0, textAlign: 'center', padding: '3px 0', background: weekend ? 'rgba(255,255,255,0.04)' : 'transparent', boxShadow: isToday ? 'inset 0 0 0 1.5px #FFFFFF' : undefined, borderRadius: isToday ? 5 : 0 }}>
                   <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.4)' }}>{DOW[dow]}</div>
                   <div style={{ fontSize: 10, color: isToday ? '#fff' : 'rgba(255,255,255,0.72)', fontWeight: isToday ? 700 : 400 }}>{d}</div>
                 </div>

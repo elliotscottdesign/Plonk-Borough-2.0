@@ -33,7 +33,11 @@ const INTEREST_SUGGESTIONS = ['Gardening', 'Painting', 'Carpentry', 'Sign-writin
 
 // Reusable month grid (weeks start Monday, UTC math). renderDay(dateStr,dayNum)
 // returns the cell's inner content; clickable(dateStr) gates taps.
-function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected }) {
+// ringFor(ds) → a status colour for the day (green on-shift / red off) or null.
+// Today gets a WHITE ring (house rule, Aug 2026); the status colour wraps OUTSIDE it.
+function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected, ringFor }) {
+  const nowD = new Date()
+  const todayDs = iso(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())
   const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
@@ -57,7 +61,11 @@ function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, click
           const ok = clickable(ds)
           return (
             <button key={i} type="button" disabled={!ok} onClick={() => ok && onDay(ds)}
-              style={{ minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              style={(() => {
+                const isToday = ds === todayDs
+                const sc = ringFor ? ringFor(ds) : null
+                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
+              })()}>
               {renderDay(ds, d)}
             </button>
           )
@@ -444,6 +452,7 @@ export default function RotaPortal() {
           <>
             <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
               clickable={(ds) => (shiftsByDate[ds] || []).length > 0 || ds >= todayStr} onDay={setSelDate} selected={selDate}
+              ringFor={(ds) => (shiftsByDate[ds] || []).some(x => x.mine) ? GREEN : dayOff(ds) ? RED : null}
               renderDay={(ds, d) => {
                 const rows = shiftsByDate[ds] || []
                 const mineN = rows.filter(s => s.mine).length

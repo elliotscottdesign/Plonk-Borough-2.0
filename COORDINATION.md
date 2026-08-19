@@ -222,3 +222,5 @@ One import line + one registry entry. Nothing else touched. Claim released.
 TipsCard only: added the "tick to confirm you got it" button + token prop.
 The card already reads finance-lane data. Nothing else in the file touched.
 Released on merge.
+
+- **16 Aug 2026 · rota lane → dj lane (FYI, done):** one-line edit in `src/dj/MonthCalendar.jsx` — the `TODAY` ring colour changed `#60A5FA` → `#FFFFFF` (founder house rule: today = white ring on ALL calendars; status colours wrap outside it). No logic touched. If the DJ session objects, revert just that constant.
