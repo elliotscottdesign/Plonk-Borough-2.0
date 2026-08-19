@@ -32,7 +32,7 @@ const monthMatrix = (year, month0) => {
 
 export default function Tournament() {
   const [view, setView] = useState('list')     // 'list' | 'run'
-  const nowTick = useNow(view === 'run')
+  const nowTick = useNow(view === 'run' && run?.run?.status === 'rounds')
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
@@ -767,7 +767,7 @@ export default function Tournament() {
             return (
               <div style={bracketBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · race to {perGame}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · first to 2 games</div>
                   {editing && <TableBadge n={m.table_number} pending small />}
                 </div>
                 {tallyLine(m.p1_id, w1, decided && w1 >= 2)}

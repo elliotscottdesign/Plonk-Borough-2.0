@@ -35,7 +35,7 @@ const monthMatrix = (year, month0) => {
 
 export default function PingPong() {
   const [view, setView] = useState('list')     // 'list' | 'run'
-  const nowTick = useNow(view === 'run')
+  const nowTick = useNow(view === 'run' && run?.run?.status === 'rounds')
   const [tourns, setTourns] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
