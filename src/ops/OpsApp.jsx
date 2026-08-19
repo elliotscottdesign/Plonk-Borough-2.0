@@ -92,6 +92,32 @@ export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
   const [themePref, setThemePref] = useState(() => getTheme())
+  // ── "New version is ready" banner (founder, 19 Aug 2026) ────────────────
+  // Stale cached pages cost the founder three separate fights on tournament
+  // night — fixes were live on the server while their browser re-ran a dead
+  // copy. Every couple of minutes (and whenever the tab regains focus) we
+  // fetch a fresh index.html, read which bundle it points at, and if it's not
+  // the one running we show a tap-to-update banner. No auto-reload — never
+  // yank the page out from under someone mid-score.
+  const [updateReady, setUpdateReady] = useState(false)
+  useEffect(() => {
+    let cur = null
+    try { cur = [...document.querySelectorAll('script[src*="assets/index-"]')].map(sc => (sc.src.match(/index-[A-Za-z0-9_-]+\.js/) || [])[0]).find(Boolean) || null } catch { /* old browser — skip */ }
+    if (!cur) return
+    let stop = false
+    const check = async () => {
+      try {
+        const r = await fetch('/index.html?u=' + Date.now(), { cache: 'no-store' })
+        const t = await r.text()
+        const m = t.match(/index-[A-Za-z0-9_-]+\.js/)
+        if (!stop && m && m[0] !== cur) setUpdateReady(true)
+      } catch { /* offline — try again next tick */ }
+    }
+    const id = setInterval(check, 120000)
+    const vis = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', vis)
+    return () => { stop = true; clearInterval(id); document.removeEventListener('visibilitychange', vis) }
+  }, [])
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
   // Real management (founder, Manager, Asst. Manager) — set by the sign-in bridge
   // from their staff record, so the shared team code alone never grants it.
@@ -166,6 +192,11 @@ export default function OpsApp() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--ink)', color: 'var(--cream)', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
+      {updateReady && (
+        <button onClick={() => window.location.reload()} style={{ position: 'sticky', top: 0, zIndex: 60, width: '100%', border: 'none', cursor: 'pointer', background: 'var(--gold)', color: '#141414', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 800, padding: '11px 14px', letterSpacing: '0.02em' }}>
+          ⬆ A new version of this app is ready — tap here to update (nothing is lost)
+        </button>
+      )}
       {/* Header — brand + the three group doors */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left))', minHeight: 56, background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0, gap: 12, position: 'relative', zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
