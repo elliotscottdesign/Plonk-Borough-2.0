@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { applyTheme } from './lib/theme.js'
 import './i18n/i18n-setup.js'
 import App from './App.jsx'
 import './index.css'
@@ -23,15 +24,9 @@ if (stashed) {
 // dark flash), and point the mobile status-bar colour at the shade that matches
 // the device's current theme. Investor decks + public pages stay dark on every
 // device.
-const isStaffSurface = /^\/(ops|operations|rota|today|marketing)(\/|$)/.test(location.pathname)
-if (isStaffSurface) {
-  document.documentElement.setAttribute('data-theme', 'auto')
-  const bar = document.querySelector('meta[name="theme-color"]')
-  const mq = window.matchMedia('(prefers-color-scheme: light)')
-  const syncBar = () => { if (bar) bar.setAttribute('content', mq.matches ? '#F5F5F0' : '#0A0A0F') }
-  syncBar()
-  mq.addEventListener('change', syncBar)
-}
+// The stored choice wins; 'auto' reproduces the old device-following behaviour.
+applyTheme()
+window.matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme)
 
 const root = ReactDOM.createRoot(document.getElementById('root'))
 

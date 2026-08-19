@@ -6,3 +6,8 @@ alter table pool_vouchers     add column if not exists redeemed_at timestamptz;
 alter table pool_vouchers     add column if not exists redeemed_by text;
 alter table pingpong_vouchers add column if not exists redeemed_at timestamptz;
 alter table pingpong_vouchers add column if not exists redeemed_by text;
+
+-- 19 Aug 2026: winners get their code by SMS at the moment of finalize (email
+-- stays as the branded backup — inboxes greylist, texts land instantly).
+alter table pool_vouchers     add column if not exists texted_at timestamptz;
+alter table pingpong_vouchers add column if not exists texted_at timestamptz;

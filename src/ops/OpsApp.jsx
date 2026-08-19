@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
+import Bar from './sections/Bar.jsx'
+import { getTheme, setTheme, nextTheme, THEME_LABEL, THEME_HINT } from '../lib/theme.js'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
 import WorldCup from './sections/WorldCup.jsx'
-import HelpOut from './sections/HelpOut.jsx'
 import StaffRota from './sections/StaffRota.jsx'
 import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
@@ -13,6 +14,7 @@ import KeyDates from './sections/KeyDates.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
+import Receipts from './sections/Receipts.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -21,41 +23,26 @@ import useIsMobile from '../lib/useIsMobile.js'
 // (running the venue day to day), Events (everything bookable/promotable) and
 // Office (paperwork + money) — with the active group's tabs on a second row.
 // On phones the whole thing collapses into one ☰ menu, grouped the same way.
-// Tab `key`s are stable — deep links (?tab=helpout etc. in alert emails) keep
 // working regardless of which group a tab lives in.
 const GROUPS = [
   {
-    key: 'operations', label: 'Operations',
+    // BAR — one sheet (founder, Aug 2026): "All Stock reports perishables stock
+    // sheets should come from one sheet called BAR". The new Bar page reads the
+    // bar_* tables (real stock, costs, margins, orders). The eleven legacy
+    // sub-tabs live on under "Old sheets" while the new system builds up its
+    // first weeks of counts — they are being retired, not kept.
+    key: 'bar', label: 'Bar',
     tabs: [
-      // "Bar" = the stock/margin toolkit (stock take, perishables, costing…).
-      // key stays 'operations' so old ?tab=/?tool= deep links keep working.
-      { key: 'operations', label: 'Bar',           Component: Operations },
-      { key: 'kitchen',    label: 'Kitchen',       Component: Kitchen, founderOnly: true },
-      // Toilet Checks moved into Staff Rota → 📋 Checklists (founder, Aug 2026) —
-      // it's a checklist log, so it lives with the others. Component still used there.
-      // Help Out ARCHIVED 13 Aug 2026 (founder: "remove and archive for now") —
-      // the volunteer drive did its job getting Hackney open. Nothing deleted:
-      // the component, the `help-out` edge fn, the bar_helpers data and the
-      // public sign-up page at /helpout all still exist. To bring the tab back,
-      // uncomment this one line.
-      // { key: 'helpout',    label: 'Help Out',      Component: HelpOut },
-      // The founder's system map — how every service fits together. Founder-only
-      // (mentions costs + internals); open it to team-tier if the founder asks.
+      { key: 'bar',        label: 'Bar',           Component: Bar },
+      { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
+      // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
     ],
   },
   {
-    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
-    // inside Operations. Single tab, so no second row renders — StaffRota's own
-    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
-    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
-    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
-    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
-    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
-    // bridge), never on the shared NDTEAM code.
-    key: 'team', label: 'Team', managerOnly: true,
+    key: 'kitchen', label: 'Kitchen',
     tabs: [
-      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
+      { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
     ],
   },
   {
@@ -82,6 +69,21 @@ const GROUPS = [
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
+      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
+    ],
+  },
+  {
+    // TEAM — its own door (founder, Aug 2026): the rota outgrew being one tab
+    // inside Operations. Single tab, so no second row renders — StaffRota's own
+    // sub-tabs (Team/Rota/Availability/Ai Builder/Checklists/Training/Menus/
+    // Settings) are the navigation. Key stays 'rota' so ?tab=rota links live on.
+    // Management (founder + Manager/Asst. Manager) — founder opened this to Rhys
+    // on 13 Aug 2026. NB it shows pay rates and staff login passwords, so it is
+    // gated on the person's STAFF RECORD (ndb_role_manager, set by the sign-in
+    // bridge), never on the shared NDTEAM code.
+    key: 'team', label: 'Team', managerOnly: true,
+    tabs: [
+      { key: 'rota', label: 'Team', Component: StaffRota, managerOnly: true },
     ],
   },
 ]
@@ -89,6 +91,7 @@ const GROUPS = [
 export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
+  const [themePref, setThemePref] = useState(() => getTheme())
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
   // Real management (founder, Manager, Asst. Manager) — set by the sign-in bridge
   // from their staff record, so the shared team code alone never grants it.
@@ -101,7 +104,6 @@ export default function OpsApp() {
   const allTabs = visGroups.flatMap(g => g.tabs)
   const groupOf = (tabKey) => visGroups.find(g => g.tabs.some(t => t.key === tabKey)) || visGroups[0]
 
-  // Deep link (?tab=helpout) opens straight to that tab, whichever group holds it.
   const initialTab = (() => {
     const q = typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : null
     return allTabs.some(t => t.key === q) ? q : 'operations'
@@ -195,12 +197,28 @@ export default function OpsApp() {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left))', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
           <span style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.16em', textTransform: 'uppercase', marginRight: 4 }}>{activeGroup.label}</span>
           {activeGroup.tabs.map(t => <button key={t.key} onClick={() => pick(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>)}
+          <button onClick={() => setThemePref(setTheme(nextTheme(themePref)))} title={THEME_HINT[themePref]}
+            style={{ marginLeft: 'auto', padding: '6px 11px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                     background: 'rgba(255,255,255,0.05)', color: 'var(--cream-dim)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            {THEME_LABEL[themePref]}
+          </button>
         </div>
       )}
 
       {/* Mobile dropdown menu — the same three groups as labelled sections */}
       {isMobile && menuOpen && (
         <div style={{ background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, position: 'relative', zIndex: 30, maxHeight: '70dvh', overflowY: 'auto' }}>
+          {/* Appearance — Auto / Dark / Light. Before this the look was decided
+              entirely by the phone's own setting, so a founder whose phone sits on
+              Light never saw the dark app at all. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 4 }}>
+            <span style={{ fontSize: 10.5, color: 'var(--cream-dim)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Appearance</span>
+            <button onClick={() => setThemePref(setTheme(nextTheme(themePref)))} style={{
+              marginLeft: 'auto', padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+              background: 'rgba(255,255,255,0.06)', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.2)',
+            }}>{THEME_LABEL[themePref]}</button>
+            <span style={{ fontSize: 10.5, color: 'var(--cream-dim)' }}>{THEME_HINT[themePref]}</span>
+          </div>
           {visGroups.map(g => (
             <div key={g.key}>
               <div style={{ fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 4px 6px' }}>{g.label}</div>
@@ -223,12 +241,11 @@ export default function OpsApp() {
       {/* Body */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         <div style={{ maxWidth: 1100, margin: '0 auto', padding: isMobile ? '18px 13px 56px' : '28px 24px 64px' }}>
-          {/* No Dice wordmark — brand every backend section like the DJ Bookings page.
-              Skipped for tabs that already render their own wordmark: DJ Bookings has
-              an inline one; Operations' sub-tools self-brand via OpsBrandHeader. */}
-          {!['djbookings', 'operations'].includes(tab) && (
-            <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block', marginBottom: 18 }} />
-          )}
+          {/* The wordmark used to be repeated here on every screen, under a sticky
+              header that already reads "No Dice · Operations" — and several sub-tools
+              printed a THIRD one via OpsBrandHeader. On a phone that pushed the actual
+              content below the fold before you'd read a single number. Branded once,
+              in the header. (Founder, Aug 2026: "ugly menu headers".) */}
           <current.Component />
         </div>
       </div>

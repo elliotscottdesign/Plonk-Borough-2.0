@@ -3,7 +3,7 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournSetDiscipline, tournCallPlayers, tournCallRound, tournMergeLeague, tournUnmergeLeague} from '../../tournament/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournSetDiscipline, tournCallPlayers, tournCallRound, tournMergeLeague, tournUnmergeLeague, tournSetSignups} from '../../tournament/api.js'
 
 // ─── Pool tournaments (founder) ──────────────────────────────────────────────
 // Slice 1: pick a booked pool night, see the paid entrants auto-pulled in, tidy the
@@ -36,6 +36,7 @@ export default function Tournament() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [run, setRun] = useState(null)          // full run state from `open`
+  const nowTick = useNow(view === 'run' && run?.run?.status === 'rounds')
   const [busy, setBusy] = useState(false)
   const [walkin, setWalkin] = useState('')
   const [editing, setEditing] = useState(null)
@@ -79,12 +80,20 @@ export default function Tournament() {
   // separate state (`scores` / `gameScores`), so a refresh never wipes them.
   const liveRef = useRef({})
   const lastMutation = useRef(0)
-  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing } })
+  useEffect(() => { liveRef.current = { view, tid: run?.tournament?.id, busy, editing, replacing, status: run?.run?.status } })
   useEffect(() => {
     const id = setInterval(async () => {
       const s = liveRef.current
       if (typeof document !== 'undefined' && document.hidden) return
       if (s.busy || inFlight.current || s.editing || s.replacing) return
+      // A score dropdown is open (or any control has focus) — a re-render now
+      // snaps it shut under the founder's finger (live, 19 Aug 2026 knockout).
+      // Also: never refresh during the knockout/finish — the bracket is the one
+      // place where a silent re-render mid-entry is fatal, and nothing there
+      // changes without the founder pressing something anyway.
+      const ae = typeof document !== 'undefined' ? document.activeElement : null
+      if (ae && (ae.tagName === 'SELECT' || ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')) return
+      if (s.status === 'knockout' || s.status === 'done') return
       const startedAt = Date.now()
       try {
         if (s.view === 'run' && s.tid) {
@@ -138,6 +147,24 @@ export default function Tournament() {
   }
   const startRounds = async () => { if (!window.confirm('Start the tournament? This locks the entrant list and draws Round 1.')) return; await guard(() => tournStartRounds(run.run.id))() }
   const nextRound = () => guard(() => tournNextRound(run.run.id))()
+  // Open/close online sign-ups for this night. Closing hides it from the public
+  // booking form immediately — the usual move once the room is full or the
+  // night has started (founder, 19 Aug 2026).
+  const toggleSignups = async () => {
+    const nowOpen = t.registration_open !== false
+    if (!window.confirm(nowOpen
+      ? `Close online sign-ups for ${t.name}?\n\nIt disappears from the booking page straight away. Walk-ins at the bar are unaffected.`
+      : `Re-open online sign-ups for ${t.name}?`)) return
+    await guard(async () => { await tournSetSignups(t.id, !nowOpen); const r = await tournOpen(t.id); setRun(r) })()
+  }
+  const changeCap = async () => {
+    const cur = t.cap >= 999 ? '' : String(t.cap)
+    const v = window.prompt(`How many players max for ${t.name}?\n\nLeave blank for no limit.`, cur)
+    if (v === null) return
+    const cap = v.trim() === '' ? 999 : Number(v.trim())
+    if (!Number.isFinite(cap) || cap < 2 || cap > 999) return alert('Enter a number between 2 and 999 (or blank for no limit).')
+    await guard(async () => { await tournSetSignups(t.id, undefined, cap); const r = await tournOpen(t.id); setRun(r) })()
+  }
   // 📣 Call players over — texts both sides on demand and SAYS what happened
   // (founder direction, tournament night 12 Aug 2026: the automatic ping was
   // invisible, so there was no way to tell a silent failure from a sent text).
@@ -305,7 +332,7 @@ export default function Tournament() {
     const rows = league?.table || []
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← Pool nights</button>
+        <button onClick={() => setLeagueView(false)} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>← Pool nights</button>
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#fff' }}>🏆 League table</div>
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season frame difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
@@ -508,7 +535,7 @@ export default function Tournament() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), alignSelf: 'flex-start' }}>← All pool nights</button>
+      <button onClick={() => { setView('list'); loadList() }} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>← All pool nights</button>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
@@ -522,6 +549,8 @@ export default function Tournament() {
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 24, fontWeight: 800, color: full ? RED : '#fff', lineHeight: 1 }}>{activeParts.length}{t.cap < 999 && <span style={{ fontSize: 14, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}> / {t.cap}</span>}</div>
             <div style={{ fontSize: 10.5, fontWeight: 700, color: full ? RED : GREEN, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{full ? '● Full' : 'entrants'}</div>
+            <button onClick={toggleSignups} disabled={busy} title="Open or close online sign-ups for this night" style={{ marginTop: 5, background: 'none', border: `1px solid ${t.registration_open === false ? LINE : GREEN + '77'}`, color: t.registration_open === false ? 'rgba(255,255,255,0.55)' : GREEN, borderRadius: 999, padding: '3px 9px', fontSize: 10, fontWeight: 800, letterSpacing: '0.04em', textTransform: 'uppercase', cursor: 'pointer', whiteSpace: 'nowrap' }}>{t.registration_open === false ? '🔒 sign-ups closed' : '🔓 sign-ups open'}</button>
+            <button onClick={changeCap} disabled={busy} title="Set how many can book this night" style={{ marginTop: 4, background: 'none', border: 'none', color: 'rgba(255,255,255,0.45)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.04em', cursor: 'pointer', padding: 0 }}>{t.cap >= 999 ? 'no limit · set cap' : `cap ${t.cap} · change`}</button>
           </div>
           {/* Hamburger opens a slide-out drawer with every tournament option
               (substitute a player, undo round, restart, start knockout, resend
@@ -618,7 +647,8 @@ export default function Tournament() {
                           Populated by the edge fn's reassignTables helper; unassigned
                           pending matches (waiting for a table to free up) show "—". */}
                       <TableBadge n={m.table_number} pending={!doneM} />
-                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2 }}>📣</button>}
+                      {!doneM && <button onClick={() => callPlayers(m.id)} disabled={busy} title="Text both players to come to the table" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '3px 7px', fontSize: 12, cursor: 'pointer', lineHeight: 1.2, flexShrink: 0 }}>📣</button>}
+                      {!doneM && m.table_number && <GameTimer since={m.table_assigned_at} now={nowTick} />}
                       <div style={{ flex: 1, minWidth: 90, textAlign: 'right', fontSize: 13.5, fontWeight: p1win ? 800 : 600, color: p1win ? GREEN : '#fff' }}>{nameById[m.p1_id]}</div>
                       <ScoreSelect value={v1} onPick={val => setScore(m.id, 'p1', val)} disabled={busy || doneM} max={run.run?.settings?.raceTo || 8} />
                       <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 700 }}>–</span>
@@ -626,7 +656,7 @@ export default function Tournament() {
                       <div style={{ flex: 1, minWidth: 90, fontSize: 13.5, fontWeight: p2win ? 800 : 600, color: p2win ? GREEN : '#fff' }}>{nameById[m.p2_id]}</div>
                       {doneM
                         ? <button onClick={() => reopenMatch(m)} disabled={busy} title="Edit result" style={iconBtn}>✎</button>
-                        : <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '6px 12px' }}>Save</button>}
+                        : <button onClick={() => saveScore(m)} disabled={busy} style={{ ...btn('gold'), padding: '6px 12px', flexShrink: 0 }}>Save</button>}
                     </div>
                   )
                 })}
@@ -668,7 +698,7 @@ export default function Tournament() {
               4 Aug 2026): the table pins to the top of the window while the
               rounds column scrolls, so scores stay in view. On phones the
               columns stack and the stickiness naturally does nothing. */}
-          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start' }}>
+          <div style={{ flex: '1 1 300px', minWidth: 0, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, position: 'sticky', top: 12, alignSelf: 'flex-start', maxHeight: 'calc(100dvh - 90px)', overflowY: 'auto' }}>
             <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', marginBottom: 10 }}>📊 Standings <span style={{ fontSize: 11, fontWeight: 400, color: 'rgba(255,255,255,0.45)' }}>· pts → frame diff</span></div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12.5, whiteSpace: 'nowrap' }}>
@@ -737,7 +767,7 @@ export default function Tournament() {
             return (
               <div style={bracketBox}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6, marginBottom: 4 }}>
-                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · race to {perGame}</div>
+                  <div style={{ fontSize: 9.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Best of 3 · first to 2 games</div>
                   {editing && <TableBadge n={m.table_number} pending small />}
                 </div>
                 {tallyLine(m.p1_id, w1, decided && w1 >= 2)}
@@ -937,6 +967,33 @@ const bracketBox = { background: '#0A0A0A', border: `1px solid ${LINE}`, borderR
 // a match is pending but no table is assigned yet ("all tables busy"), it
 // renders a muted "table free soon" pill instead. Done matches show no badge
 // (the info is redundant once a result is in).
+// ── Game-length timer ───────────────────────────────────────────────────────
+// Starts the moment a pair are given a table (including the very first draw of
+// the night) and ticks until the score is saved. Founder, 19 Aug 2026: it tells
+// you at a glance which table is running long and needs chasing. One shared
+// interval drives every match on screen rather than one timer each.
+function useNow(active) {
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => {
+    if (!active) return
+    const id = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(id)
+  }, [active])
+  return now
+}
+function GameTimer({ since, now, done }) {
+  if (!since) return null
+  const secs = Math.max(0, Math.floor(((done ? new Date(done).getTime() : now) - new Date(since).getTime()) / 1000))
+  const mins = Math.floor(secs / 60)
+  const label = `${mins}:${String(secs % 60).padStart(2, '0')}`
+  // Amber past 20 minutes, red past 30 — a frame taking that long is the one
+  // holding the whole round up.
+  const c = mins >= 30 ? '#F87171' : mins >= 20 ? AMBER : 'rgba(255,255,255,0.55)'
+  return (
+    <span title={`On the table for ${mins} min`} style={{ fontSize: 11, fontWeight: 700, color: c, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap', flexShrink: 0 }}>⏱ {label}</span>
+  )
+}
+
 function TableBadge({ n, pending, small }) {
   const size = small ? { pad: '2px 7px', fs: 10 } : { pad: '3px 9px', fs: 11 }
   if (n === 1 || n === 2) {
@@ -954,11 +1011,12 @@ function TableBadge({ n, pending, small }) {
   if (pending) {
     return (
       <span style={{
-        display: 'inline-block', padding: size.pad, borderRadius: 999,
-        fontSize: size.fs, fontWeight: 700, letterSpacing: '0.04em',
+        borderRadius: 999, fontSize: small ? 11 : 12.5, lineHeight: 1,
         background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.18)',
-        color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap',
-      }}>waiting for a table</span>
+        color: 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', flexShrink: 0,
+        display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+        minWidth: small ? 20 : 24, padding: small ? '2px 5px' : '3px 6px',
+      }} title="Waiting for a table to free up">🕐</span>
     )
   }
   return null

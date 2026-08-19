@@ -379,7 +379,7 @@ async function reassignTables(sb: any, runId: string) {
     const clash = occupied.has(m.table_number) ||
       (m.p1_id && busy.has(m.p1_id)) || (m.p2_id && busy.has(m.p2_id));
     if (clash) {
-      await sb.from("pingpong_matches").update({ table_number: null }).eq("id", m.id);
+      await sb.from("pingpong_matches").update({ table_number: null, table_assigned_at: null }).eq("id", m.id);
       m.table_number = null;
     } else {
       occupied.add(m.table_number);
@@ -398,7 +398,7 @@ async function reassignTables(sb: any, runId: string) {
     if (!free.length) break;
     if (busy.has(m.p1_id) || busy.has(m.p2_id)) continue;   // player already mid-game
     const t = free.shift()!;
-    await sb.from("pingpong_matches").update({ table_number: t }).eq("id", m.id);
+    await sb.from("pingpong_matches").update({ table_number: t, table_assigned_at: m.table_assigned_at || new Date().toISOString() }).eq("id", m.id);
     occupied.add(t);
     busy.add(m.p1_id);
     busy.add(m.p2_id);
@@ -516,6 +516,13 @@ const emailsForParticipant = async (sb: any, p: any): Promise<{ captain: string 
   const { data: e } = await sb.from("tournament_entries").select("captain_email, partner_email").eq("id", p.entry_id).maybeSingle();
   return { captain: e?.captain_email || null, partner: e?.partner_email || null };
 };
+// Winners' mobiles, mirrored from the booking. Only the captain's number is
+// collected today, so recipient 2 (the partner) has no phone — email only.
+const phonesForParticipant = async (sb: any, p: any): Promise<{ captain: string | null; partner: string | null }> => {
+  if (!p?.entry_id) return { captain: null, partner: null };
+  const { data: e } = await sb.from("tournament_entries").select("captain_phone").eq("id", p.entry_id).maybeSingle();
+  return { captain: e?.captain_phone || null, partner: null };
+};
 // Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders.
 //
 // SINGLES: one voucher per place, full amount, to the booking email.
@@ -542,12 +549,13 @@ async function finalizeTournament(sb: any, run: any) {
     if (!pid) continue;
     const p = byId[pid];
     const emails = await emailsForParticipant(sb, p);
+    const phones = await phonesForParticipant(sb, p);
     const { data: existing } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).eq("place", place).order("recipient");
     const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
     const shares = (split && !legacyFull)
-      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain },
-         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner }]
-      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain }];
+      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain, phone: phones.captain },
+         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner, phone: phones.partner }]
+      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain, phone: phones.captain }];
     for (const sh of shares) {
       let v = (existing || []).find((x: any) => (x.recipient ?? 1) === sh.recipient) || null;
       if (!v) {
@@ -566,6 +574,17 @@ async function finalizeTournament(sb: any, run: any) {
         const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
         const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice ping pong!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
         if (sent) { await sb.from("pingpong_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+      }
+      // 📱 Text the code too (founder, 19 Aug 2026): inboxes greylist prize
+      // emails for minutes; a text lands while the winner is still at the bar.
+      // Once per voucher (texted_at) — re-running finalize never double-texts.
+      if (v && (sh as any).phone && !v.texted_at) {
+        const to = e164((sh as any).phone);
+        if (to) {
+          const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+          const okSms = await sendSMS(to, `${medal} ${v.display_name || "You"} — you won ${gbp(v.amount_pence)} at No Dice! Your bar-tab code: ${v.code}. Show this text at the bar. 🎉`);
+          if (okSms) { await sb.from("pingpong_vouchers").update({ texted_at: new Date().toISOString() }).eq("id", v.id); v.texted_at = new Date().toISOString(); }
+        }
       }
       if (v) vouchers.push(v);
     }
@@ -678,6 +697,26 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...(await computeLeague(sb, "teams")) });
     }
 
+    // ── Open / close sign-ups for a night, and set how many can book ────────
+    // The founder needs to stop online bookings once the room is full (or the
+    // night has started) without touching the database. `registration_open`
+    // gates the public booking form; `max_teams` is the cap shown on the night.
+    if (action === "setSignups") {
+      const tournamentId = clean(b.tournamentId, 40);
+      if (!tournamentId) return json({ error: "no tournament" }, 400);
+      const patch: Record<string, any> = {};
+      if (b.open !== undefined) { patch.registration_open = !!b.open; patch.bookable = !!b.open; }
+      if (b.cap !== undefined && b.cap !== null && b.cap !== "") {
+        const c = Math.round(Number(b.cap));
+        if (!Number.isFinite(c) || c < 2 || c > 999) return json({ error: "Cap must be between 2 and 999." }, 400);
+        patch.max_teams = c;
+      }
+      if (!Object.keys(patch).length) return json({ error: "Nothing to change." }, 400);
+      const { data, error } = await sb.from("tournaments").update(patch).eq("id", tournamentId).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, tournament: { id: data.id, registration_open: data.registration_open, cap: data.max_teams || 999 } });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").eq("tournament_type", "teams").order("event_date", { ascending: true }),
@@ -728,7 +767,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999, registration_open: t.registration_open },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }

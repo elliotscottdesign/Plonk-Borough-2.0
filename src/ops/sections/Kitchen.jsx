@@ -4,8 +4,6 @@ import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_
 import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed, kitchenWasteLog } from '../../kitchen/api.js'
 import useIsMobile from '../../lib/useIsMobile.js'
 import KitchenStock from '../../kitchen/KitchenStock.jsx'
-import KitchenTickets from '../../kitchen/KitchenTickets.jsx'
-import MenuManager from '../../kitchen/MenuManager.jsx'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
 const CARD = 'rgba(255,255,255,0.03)', LINE = 'rgba(201,168,76,0.22)'
@@ -24,17 +22,17 @@ export default function Kitchen() {
   const [sub, setSub] = useState('runs')   // 'runs' | 'matrix'
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
         Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
       </div>
       {/* Sticky — the stock + allergen sheets are long; the way back must stay put. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
-        {[['orders', '🎫 Orders'], ['menu', '🍔 Menu'], ['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
+        {[['runs', '✅ Submitted'], ['templates', '📋 The checklists'], ['waste', '🗑️ Wastage'], ['stock', '🥕 Stock'], ['matrix', '🥜 Allergen matrix']].map(([k, l]) => (
           <button key={k} onClick={() => setSub(k)} style={tab(sub === k)}>{l}</button>
         ))}
       </div>
-      {sub === 'orders' ? <KitchenTickets /> : sub === 'menu' ? <MenuManager /> : sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : sub === 'stock' ? <KitchenStock /> : <Matrix />}
+      {sub === 'runs' ? <Runs /> : sub === 'templates' ? <Templates /> : sub === 'waste' ? <WasteLog /> : sub === 'stock' ? <KitchenStock /> : <Matrix />}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import PasswordGate from './PasswordGate.jsx'
+import { applyTheme } from './lib/theme.js'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
@@ -29,8 +30,8 @@ import DecemberSales from './borough/DecemberSales.jsx'
 import OpsApp from './ops/OpsApp.jsx'
 import MarketingApp from './marketing/MarketingApp.jsx'
 import DJPortal from './dj/DJPortal.jsx'
-import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
+import OnARollApp from './onaroll/OnARollApp.jsx'
 import DailyHub from './rota/DailyHub.jsx'
 import ToiletChecks from './toilets/ToiletChecks.jsx'
 import LeisureWatcher from './leisure/LeisureWatcher.jsx'
@@ -87,18 +88,17 @@ const isDJPath = () =>
   typeof window !== 'undefined' &&
   /^\/dj(\/|$)/.test(window.location.pathname)
 
-// Help Out portal — public, shareable volunteer sign-up at /helpout. No gate:
-// friends getting the bar open won't have a staff code. Standalone like /dj.
-// Matches the clean /helpout AND the older /help-out so shared links still work.
-const isHelpOutPath = () =>
-  typeof window !== 'undefined' &&
-  /^\/help-?out(\/|$)/.test(window.location.pathname)
-
 // Staff Rota portal — standalone, at /rota. Staff log in with their own email +
 // password (issued a token by the rota edge fn), so no PasswordGate here — like /dj.
 const isRotaPath = () =>
   typeof window !== 'undefined' &&
   /^\/rota(\/|$)/.test(window.location.pathname)
+
+// On A Roll truck MANAGEMENT — order display + menu manager, coded entry. /onaroll on
+// team.nodice.bar (the customer order page is nodice.bar/onaroll — a different host).
+const isOnARollPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/onaroll(\/|$)/.test(window.location.pathname)
 
 // Daily clock-in hub — the shared link the team opens each shift. /today.
 const isTodayPath = () =>
@@ -259,13 +259,9 @@ export default function App() {
     // Keep the day/night light theme scoped to the staff tools even across
     // in-app (pushState) navigation — mirrors the pre-render flag set in
     // main.jsx so the investor decks/public pages never pick up the light flip.
-    const STAFF_SURFACE = /^\/(ops|operations|rota|today|marketing)(\/|$)/
-    const syncTheme = () => {
-      if (STAFF_SURFACE.test(window.location.pathname))
-        document.documentElement.setAttribute('data-theme', 'auto')
-      else
-        document.documentElement.removeAttribute('data-theme')
-    }
+    // applyTheme() handles both halves: which paths get a theme at all, and
+    // which theme the person has chosen (src/lib/theme.js).
+    const syncTheme = applyTheme
     const onPath = () => { syncTheme(); setPathTick(n => n + 1) }
     syncTheme()
     window.addEventListener('popstate', onPath)
@@ -298,16 +294,17 @@ export default function App() {
   // Standalone: no team hub, no investor decks, no password gate.
   if (isDJPath()) return <DJPortal />
 
-  // Help Out — CLOSED 13 Aug 2026 (founder: the volunteer drive is done, the bar
-  // is open). The sign-up form is retired, but the link was shared widely by text
-  // so the URL still answers with a thank-you rather than a dead page. Nothing is
-  // deleted: HelpOutPortal, the help-out edge fn and every sign-up still exist —
-  // swap the line below back to `return <HelpOutPortal />` to reopen it.
-  if (isHelpOutPath()) return <HelpOutClosed />
+  // (The Help Out volunteer portal was REMOVED from the app on 16 Aug 2026 —
+  // founder: "remove all volunteer and help out section". /helpout and /help-out
+  // now fall through to the team landing page like any other unknown path. The
+  // sign-up records in bar_helpers are untouched; the retired code is in git.)
 
   // Staff Rota portal — team members log in with their own email + password.
   // Standalone (its own login), sits before the root fallback below.
   if (isRotaPath()) return <RotaPortal />
+
+  // On A Roll truck management — order display + menu manager (coded entry). /onaroll.
+  if (isOnARollPath()) return <OnARollApp />
 
   // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
   if (isTodayPath()) return <DailyHub />
@@ -321,7 +318,7 @@ export default function App() {
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath() && !isTodayPath() && !isLeisurePath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isRotaPath() && !isTodayPath() && !isLeisurePath())) {
     // This repo now lives at team.nodice.bar (the public customer site owns
     // nodice.bar). Root + any unrecognised path shows the branded team hub —
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.
@@ -608,23 +605,3 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
   )
 }
 
-
-// ─── Help Out — closed notice ────────────────────────────────────────────────
-// Stands in for the retired volunteer sign-up so previously-shared links land
-// somewhere warm instead of a 404 (founder, 13 Aug 2026).
-function HelpOutClosed() {
-  return (
-    <div style={{ minHeight: '100dvh', background: '#000', color: '#fff', fontFamily: "'DM Sans', sans-serif", display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, textAlign: 'center' }}>
-      <div style={{ maxWidth: 460 }}>
-        <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 'min(240px, 62vw)', height: 'auto', marginBottom: 22 }} />
-        <div className="serif" style={{ fontSize: 26, marginBottom: 12 }}>We're open — thank you 🙌</div>
-        <p style={{ fontSize: 14.5, lineHeight: 1.7, color: 'rgba(255,255,255,0.75)' }}>
-          The volunteer sign-up has closed: with a lot of help from a lot of friends,
-          No Dice is open at London Fields. If you pitched in — the first one's on us.
-        </p>
-        <a href="https://nodice.bar" style={{ display: 'inline-block', marginTop: 22, padding: '13px 24px', borderRadius: 10, background: '#DA1B33', color: '#fff', textDecoration: 'none', fontWeight: 800, fontSize: 15 }}>Come see the place →</a>
-        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.45)', marginTop: 20 }}>No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</div>
-      </div>
-    </div>
-  )
-}

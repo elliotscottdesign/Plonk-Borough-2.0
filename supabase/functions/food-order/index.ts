@@ -26,7 +26,7 @@ const clean = (v: unknown, n = 200) => (v == null ? "" : String(v)).slice(0, n).
 
 // The pre-programmed "food ready" message (founder brief Aug 2026).
 const readyMessage = (orderNo: number, name?: string | null) =>
-  `On A Roll 🌭 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
+  `On A Roll 🍔🍟 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
 
 async function sendSMS(to: string, body: string): Promise<boolean> {
   if (!TW_SID || !TW_TOKEN || !to) return false;
@@ -43,7 +43,7 @@ async function sendSMS(to: string, body: string): Promise<boolean> {
 }
 
 // Order page the waitlist "you can order again" text points at (update to the live URL).
-const ORDER_URL = "https://nodice.bar/order";
+const ORDER_URL = "https://nodice.bar/onaroll";
 
 async function activeCount(sb: any): Promise<number> {
   const { count } = await sb.from("food_orders").select("id", { count: "exact", head: true }).in("status", ["new", "preparing", "ready"]);
@@ -54,7 +54,7 @@ async function getEffective(sb: any) {
   const { data: s } = await sb.from("food_settings").select("*").eq("id", 1).maybeSingle();
   const paused = !!s?.paused, auto = !!s?.auto_pause, threshold = s?.auto_threshold ?? 8;
   const active = await activeCount(sb);
-  const autoTripped = auto && active >= threshold;
+  const autoTripped = auto && threshold >= 1 && active >= threshold;   // threshold 0 = auto-pause off
   return { open: !(paused || autoTripped), paused, auto, threshold, active, autoTripped };
 }
 async function waitingCount(sb: any): Promise<number> {
@@ -133,6 +133,8 @@ Deno.serve(async (req) => {
     // Kitchen display: full recent order history (all statuses), newest first.
     if (action === "listHistory") {
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      // Return all orders; the kitchen screen splits real orders from abandoned
+      // (unpaid, status 'pending') checkouts into separate filters.
       const { data, error } = await sb.from("food_orders")
         .select("*").order("created_at", { ascending: false }).limit(200);
       if (error) return json({ error: error.message }, 400);
@@ -168,7 +170,7 @@ Deno.serve(async (req) => {
       if (!e.open) return json({ ok: true, sent: 0, note: "paused" });
       const { data: next } = await sb.from("food_waitlist").select("*").is("notified_at", null).order("created_at", { ascending: true }).limit(1).maybeSingle();
       if (!next) return json({ ok: true, sent: 0 });
-      const texted = await sendSMS(next.phone, `On A Roll 🌭 you can order again! Order here: ${ORDER_URL}`);
+      const texted = await sendSMS(next.phone, `On A Roll 🍔🍟 you can order again! Order here: ${ORDER_URL}`);
       await sb.from("food_waitlist").update({ notified_at: new Date().toISOString() }).eq("id", next.id);
       return json({ ok: true, sent: 1, texted });
     }
