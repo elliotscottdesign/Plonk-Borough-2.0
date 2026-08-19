@@ -259,13 +259,14 @@ function exportMenu(sections) {
     }).join('')
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="a5body"><div class="msub">London Fields · open til 10pm</div>${inner}</div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
-    @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
-    body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
-    .a4{ display:flex; width:297mm; height:210mm; background:#fff }
-    .logo{ width:130px; height:auto; display:block; margin-bottom:3px }
-    .a5{ flex:1; padding:13mm 12mm; color:#000; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #999 }
+    @page{ size:A4 landscape; margin:6mm } *{ box-sizing:border-box }
+    html,body{ margin:0; padding:0; font-family:Impact,'Arial Narrow Bold',sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact }
+    .a4{ display:flex; width:283mm; height:195mm; background:#fff; overflow:hidden; page-break-inside:avoid; break-inside:avoid }
+    .logo{ width:118px; height:auto; display:block; margin-bottom:3px }
+    .a5{ flex:1; min-width:0; padding:8mm 9mm; color:#000; display:flex; flex-direction:column; overflow:hidden } .a5:first-child{ border-right:1px dashed #999 }
+    .a5body{ transform-origin:top left }
     .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
     .msec{ margin-bottom:17px } .mh{ font-size:18px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
     .mrow{ margin-bottom:12px }
@@ -279,7 +280,12 @@ function exportMenu(sections) {
     .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
   </style></head><body><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:92,height:92,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
+  <script>
+    // Shrink each A5's menu body until the whole half (logo + menu + QR footer)
+    // fits its page — so it always prints on ONE landscape sheet, no overflow to
+    // a 2nd sheet and no "fit to page" needed in the printer dialog.
+    function fitA5(){document.querySelectorAll('.a5').forEach(function(a5){var b=a5.querySelector('.a5body');if(!b)return;var z=1;b.style.zoom='1';var g=0;while(a5.scrollHeight>a5.clientHeight&&z>0.5&&g<60){z-=0.02;b.style.zoom=String(z);g++;}});}
+    window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:88,height:88,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){fitA5();setTimeout(function(){window.print()},250)},400)});<\/script>
   </body></html>`
   const w = window.open('', '_blank')
   if (!w) { alert('Allow pop-ups to print the menu.'); return }
