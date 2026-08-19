@@ -16,6 +16,16 @@ const BLANK = {
   staffName: '', staffId: null, imagePath: null, imagePreview: null,
 }
 
+// What a competitor check must carry to be worth claiming. Mirrors the same
+// check in the edge function — the server is the one that actually enforces it,
+// this just says so before you lose the typing.
+const competitorGap = (f) => {
+  if (!String(f.compItem || '').trim()) return 'A competitor check needs their item — what did you buy?'
+  if (!(Number(f.compPrice) > 0)) return 'A competitor check needs their price.'
+  if (!String(f.compVerdict || '').trim()) return 'A competitor check needs your note. What did you conclude? Written now, it is evidence; written in March, it is worth nothing.'
+  return null
+}
+
 const btn = { padding: '9px 14px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'transparent', color: '#fff', fontSize: 13, cursor: 'pointer' }
 const inp = { width: '100%', padding: '10px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'rgba(0,0,0,0.25)', color: '#fff', fontSize: 15, boxSizing: 'border-box' }
 const lbl = { display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.6)', marginBottom: 5 }
@@ -33,6 +43,7 @@ export default function Receipts() {
   const [form, setForm] = useState(null)
   const [busy, setBusy] = useState(false)
   const [filter, setFilter] = useState('all')
+  const [retag, setRetag] = useState(null)   // re-tagging an existing row to 'competitor'
   const fileRef = useRef(null)
 
   const load = async () => {
@@ -60,9 +71,8 @@ export default function Receipts() {
     if (!f.supplier.trim()) return alert('Who did you pay?')
     if (!f.spendDate) return alert('What date was it?')
     if (!(Number(f.amount) > 0)) return alert('How much was it?')
-    if (f.category === 'competitor' && (!f.compItem.trim() || !(Number(f.compPrice) > 0))) {
-      return alert('A competitor check needs their item and their price — that is what makes it count.')
-    }
+    const gap = f.category === 'competitor' ? competitorGap(f) : null
+    if (gap) return alert(gap)
     setBusy(true)
     try {
       await receiptAdd({
@@ -77,10 +87,31 @@ export default function Receipts() {
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
+  // Re-tagging to 'competitor' can't be a single tap — it has to collect the
+  // same numbers and note as creating one, or you'd end up with a competitor
+  // claim that has nothing behind it. Everything else is one tap.
   const recategorise = async (r, category) => {
+    if (category === 'competitor') {
+      setRetag({ id: r.id, supplier: r.supplier, compItem: r.comp_item || '', compPrice: r.comp_price || '', ourPrice: r.our_price || '', compVerdict: r.comp_verdict || '' })
+      return
+    }
     setBusy(true)
     try { await receiptUpdate(r.id, { category }); await load() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
+  const saveRetag = async () => {
+    const gap = competitorGap(retag)
+    if (gap) return alert(gap)
+    setBusy(true)
+    try {
+      await receiptUpdate(retag.id, {
+        category: 'competitor',
+        comp_item: retag.compItem.trim(), compPrice: Number(retag.compPrice) || 0,
+        ourPrice: Number(retag.ourPrice) || 0, comp_verdict: retag.compVerdict.trim(),
+      })
+      setRetag(null); await load()
+    } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
   const remove = async (r) => {
@@ -198,11 +229,11 @@ export default function Receipts() {
                 business cost rather than lunch — and it builds a local price list you can actually use.
               </div>
               <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                <label style={{ flex: '2 1 200px' }}><span style={lbl}>Their item</span>
+                <label style={{ flex: '2 1 200px' }}><span style={lbl}>Their item <span style={{ color: GOLD }}>· required</span></span>
                   <input value={form.compItem} placeholder="Mortadella focaccia"
                     onChange={e => setForm(f => ({ ...f, compItem: e.target.value }))} style={inp} />
                 </label>
-                <label style={{ flex: '1 1 110px' }}><span style={lbl}>Their price £</span>
+                <label style={{ flex: '1 1 110px' }}><span style={lbl}>Their price £ <span style={{ color: GOLD }}>·&nbsp;req</span></span>
                   <input value={form.compPrice} inputMode="decimal" placeholder="11.00"
                     onChange={e => setForm(f => ({ ...f, compPrice: e.target.value.replace(/[^\d.]/g, '') }))} style={inp} />
                 </label>
@@ -211,7 +242,7 @@ export default function Receipts() {
                     onChange={e => setForm(f => ({ ...f, ourPrice: e.target.value.replace(/[^\d.]/g, '') }))} style={inp} />
                 </label>
               </div>
-              <label><span style={lbl}>What did you conclude?</span>
+              <label><span style={lbl}>What did you conclude? <span style={{ color: GOLD }}>· required</span></span>
                 <input value={form.compVerdict} placeholder="Bigger portion, better bread — review our pricing"
                   onChange={e => setForm(f => ({ ...f, compVerdict: e.target.value }))} style={inp} />
               </label>
@@ -241,6 +272,44 @@ export default function Receipts() {
               {busy ? 'Saving…' : 'Save receipt'}
             </button>
             <button onClick={() => setForm(null)} disabled={busy} style={btn}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* ── re-tagging an existing receipt to a competitor check ─────── */}
+      {retag && (
+        <div style={{ marginTop: 18, padding: 16, borderRadius: 12, border: `1px solid ${GOLD}`, background: CARD }}>
+          <div style={{ color: '#fff', fontWeight: 700, marginBottom: 4 }}>Competitor check — {retag.supplier}</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5, marginBottom: 12 }}>
+            This can't be a single tap. A competitor claim only counts with the numbers and your note
+            behind it, so they're needed here too.
+          </div>
+          <div style={{ display: 'grid', gap: 12 }}>
+            <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+              <label style={{ flex: '2 1 200px' }}><span style={lbl}>Their item</span>
+                <input value={retag.compItem} autoFocus placeholder="Mortadella focaccia"
+                  onChange={e => setRetag(r => ({ ...r, compItem: e.target.value }))} style={inp} />
+              </label>
+              <label style={{ flex: '1 1 110px' }}><span style={lbl}>Their price £</span>
+                <input value={retag.compPrice} inputMode="decimal"
+                  onChange={e => setRetag(r => ({ ...r, compPrice: e.target.value.replace(/[^\d.]/g, '') }))} style={inp} />
+              </label>
+              <label style={{ flex: '1 1 110px' }}><span style={lbl}>Ours £</span>
+                <input value={retag.ourPrice} inputMode="decimal"
+                  onChange={e => setRetag(r => ({ ...r, ourPrice: e.target.value.replace(/[^\d.]/g, '') }))} style={inp} />
+              </label>
+            </div>
+            <label><span style={lbl}>What did you conclude?</span>
+              <input value={retag.compVerdict} placeholder="Bigger portion, better bread — review our pricing"
+                onChange={e => setRetag(r => ({ ...r, compVerdict: e.target.value }))} style={inp} />
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <button onClick={saveRetag} disabled={busy}
+              style={{ ...btn, background: GOLD, color: '#1a1509', border: 'none', fontWeight: 800, opacity: busy ? 0.6 : 1 }}>
+              {busy ? 'Saving…' : 'Save competitor check'}
+            </button>
+            <button onClick={() => setRetag(null)} disabled={busy} style={btn}>Cancel</button>
           </div>
         </div>
       )}
