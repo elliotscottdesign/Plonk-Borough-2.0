@@ -501,8 +501,8 @@ const emailsForParticipant = async (sb: any, p: any): Promise<{ captain: string 
 // collected today, so recipient 2 (the partner) has no phone — email only.
 const phonesForParticipant = async (sb: any, p: any): Promise<{ captain: string | null; partner: string | null }> => {
   if (!p?.entry_id) return { captain: null, partner: null };
-  const { data: e } = await sb.from("tournament_entries").select("captain_phone").eq("id", p.entry_id).maybeSingle();
-  return { captain: e?.captain_phone || null, partner: null };
+  const { data: e } = await sb.from("tournament_entries").select("captain_phone, partner_phone").eq("id", p.entry_id).maybeSingle();
+  return { captain: e?.captain_phone || null, partner: e?.partner_phone || null };
 };
 // Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders.
 //
