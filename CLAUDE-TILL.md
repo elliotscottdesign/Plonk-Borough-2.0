@@ -108,11 +108,77 @@ joined from day one — that is the whole design problem.
 
 ---
 
-## Payment / hardware options
+## Payment / hardware — researched, decided
 
-Being researched: **Square**, **SumUp**, and **Stripe Terminal** (worth assessing because
-No Dice already runs Stripe for tournament entries, so the account, webhooks and
-reconciliation already exist). Findings and a single recommendation go here.
+Full research with sources, costings and the open questions: **[docs/till-decision.md](docs/till-decision.md).**
+Read it before writing any payment code. Summary:
+
+- **All three (Square, SumUp, Stripe) let our own web till drive their card machine**, with
+  no requirement to mirror the menu into their system. Card data never touches our code.
+- **Costed on the venue's real 2025 export** (£692,899 gross, 95,754 units, median £6.60,
+  Jan–Sep): SumUp Payments Plus ≈ £6,059 · SumUp PAYG ≈ £9,953 · Square ≈ £10,307 ·
+  Stripe ≈ £11,637 over that period. SumUp is ~£5–6k/yr cheaper than Square.
+- **Recommendation: Square Terminal** (£149 + £39 Hub for wired Ethernet), driven by
+  Terminal API. SumUp is a legitimate cheaper alternative; Stripe is weakest for
+  card-present here despite already being in the stack — keep Stripe for online.
+- ⚠️ **None of the three support offline card payments from a web-based till.** When the
+  broadband drops mid-service, card sales stop. This is architectural. Mitigate with wired
+  Ethernet + 4G failover + a provider app on a spare device as break-glass.
+- ⚠️ Square Terminal API **cannot split a checkout**. Split bills are routine in a bar.
+- ⚠️ Square **Readers** cannot be driven from a web page (native SDK only) — a browser till
+  needs a **Terminal**.
+
+## The design principle to build on
+
+**A till button is a SERVE of a stock product, never a product in its own right.**
+
+Define the thing you buy once (30L keg, 70cl bottle, case of 24) and the size you pour it
+in (pint, half, 25ml, 50ml, 175ml). **Price is the only number a human ever types.** Cost,
+GP% and stock depletion are then arithmetic, because `bar_cost_base` already knows the cost
+of one millilitre of everything.
+
+That rule collapses **726 products → ~190 buttons across 14 pages**, keeping the Lightspeed
+category names and running order so muscle memory survives.
+
+**Known gap to design in from the start: MODIFIERS.** Make it a double (+£2), gin with
+tonic vs soda vs neat, ice/no ice. Their absence is exactly why Lightspeed ended up with
+726 products; if modifiers aren't in the model, the bloat rebuilds itself.
+
+## Before you build: the challenge on the record
+
+An independent bar-operations review of this plan returned **"stands: False"**. It is
+summarised in full in [docs/till-decision.md](docs/till-decision.md) §6 and must be read,
+not skipped. Its central objection:
+
+> We pay the card processing fee whichever till we run, so building our own saves only the
+> Lightspeed subscription — while taking on VAT at multiple rates, HMRC's provably
+> append-only sales-record obligations (Electronic Sales Suppression is an offence), the
+> Making Tax Digital link into Xero that Lightspeed currently handles automatically, tips
+> legislation, and the loss of a support line at 23:00 on a Saturday.
+
+The conclusion is not "don't build it" — it is that **slice 1 must be the part with no
+downside**: a read-only catalogue screen showing the new layout with GP on every line.
+It changes nothing operationally and immediately shows which lines lose money.
+
+## Slice plan
+
+1. **The catalogue** — read-only in /ops: the 14-page layout, 726 → ~190, GP on every line.
+2. **The till screen, cash only, alongside Lightspeed.** *(Review warning: do NOT make staff
+   ring card sales twice on two systems — redesign this slice so that never happens.)*
+3. **Square Terminal on one till point**, via a new `till` edge function.
+4. **Money discipline** — sessions, float, expected vs counted, over/short, numbered Z-read,
+   voids, refunds, append-only audit. *(Review: move this earlier — cash is taken in 2.)*
+5. **Live stock and variance, and the Xero link.**
+6. **Cut over** — more Terminals, two full weeks running both systems in parallel.
+
+## Answer these before writing code
+
+- Real card mix (domestic debit vs premium vs international) — decides SumUp vs Square.
+- Bespoke rates from Square **and** SumUp, in writing (both offer custom pricing at this volume).
+- Can a cash drawer be kicked from a Square Terminal under Terminal API? (Docs conflict.)
+- How do pre-paid golf bookings (17,519 units/yr, paid via Stripe in the other repo) reach the till?
+- Tabs: holding a card / pre-auth is the hardest item on the list.
+- What is the break-glass when the internet dies mid-service?
 
 ---
 
