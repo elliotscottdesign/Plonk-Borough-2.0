@@ -34,6 +34,19 @@ const json = (body: unknown, status = 200) =>
 
 const CATEGORIES = ['business', 'staff_welfare', 'personal', 'competitor']
 
+/**
+ * What a competitor check must carry to be worth claiming. Returns the missing
+ * piece, or null if it is complete. Used on the way in AND when something is
+ * re-tagged to 'competitor' later — otherwise a tap in the list would create a
+ * competitor claim with no numbers behind it at all.
+ */
+function competitorGap(r: { comp_item?: any; comp_price?: any; comp_verdict?: any }): string | null {
+  if (!String(r.comp_item || '').trim())  return 'A competitor check needs their item'
+  if (!(Number(r.comp_price) > 0))        return 'A competitor check needs their price'
+  if (!String(r.comp_verdict || '').trim()) return 'A competitor check needs your note — what did you conclude?'
+  return null
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
 
@@ -90,8 +103,14 @@ Deno.serve(async (req) => {
         // A competitor check without the numbers is just a story, and it is the
         // note written at the time that makes the claim stand up. Refuse a
         // half-filled one rather than let it look documented when it isn't.
-        if (category === 'competitor' && (!String(p.compItem || '').trim() || !(Number(p.compPrice) > 0))) {
-          return json({ error: 'A competitor check needs their item and their price' }, 400)
+        // The verdict is mandatory for the same reason the price is: an
+        // inspector's question is "what did you actually conclude?", and an
+        // answer written months later is worth nothing.
+        if (category === 'competitor') {
+          const bad = competitorGap({
+            comp_item: p.compItem, comp_price: p.compPrice, comp_verdict: p.compVerdict,
+          })
+          if (bad) return json({ error: bad }, 400)
         }
 
         const row = {
@@ -121,6 +140,25 @@ Deno.serve(async (req) => {
         if (p.category !== undefined && CATEGORIES.includes(p.category)) patch.category = p.category
         if (p.amount !== undefined && Number(p.amount) > 0) patch.amount = Number(p.amount)
         if (p.spendDate !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(p.spendDate)) patch.spend_date = p.spendDate
+        if (p.compPrice !== undefined) patch.comp_price = Number(p.compPrice) > 0 ? Number(p.compPrice) : null
+        if (p.ourPrice  !== undefined) patch.our_price  = Number(p.ourPrice)  > 0 ? Number(p.ourPrice)  : null
+
+        // Re-tagging something to 'competitor' has to clear the same bar as
+        // creating one. Check the row as it will be AFTER the patch, so the
+        // numbers can arrive in the same request as the new category.
+        if (patch.category === 'competitor') {
+          const { data: cur } = await db.from('receipts')
+            .select('comp_item, comp_price, comp_verdict').eq('id', p.id).single()
+          const bad = competitorGap({ ...(cur ?? {}), ...patch })
+          if (bad) return json({ error: bad }, 400)
+        }
+
+        // Leaving 'competitor' clears the fields, so a stale price can't sit on
+        // a receipt that is no longer a competitor check.
+        if (patch.category && patch.category !== 'competitor') {
+          patch.comp_item = null; patch.comp_price = null
+          patch.our_price = null; patch.comp_verdict = null
+        }
         if (p.status !== undefined) {
           patch.status = p.status
           if (p.status === 'attached') patch.attached_at = new Date().toISOString()
