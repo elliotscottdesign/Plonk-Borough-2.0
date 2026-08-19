@@ -805,6 +805,17 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
+      if (!b.force) {
+        const { data: lastR } = await sb.from("pool_rounds").select("id, ordinal").eq("pool_tournament_id", runId).order("ordinal", { ascending: false }).limit(1);
+        const lr = (lastR || [])[0];
+        if (lr) {
+          const { data: lms } = await sb.from("pool_matches").select("id, status, is_bye").eq("round_id", lr.id);
+          const played = (lms || []).filter((m: any) => !m.is_bye && m.status === "done").length;
+          if ((lms || []).length && played === 0) {
+            return json({ error: `Round ${lr.ordinal} hasn't started — nobody has played a match yet.`, needsForce: true, round: lr.ordinal }, 409);
+          }
+        }
+      }
       const gen = await generateRound(sb, run);
       if (gen.error) return json({ error: gen.error }, 400);
       return json({ ok: true, round: gen.round });
@@ -840,7 +851,7 @@ Deno.serve(async (req) => {
         // Store games; p1_score/p2_score hold GAMES won (e.g. 2–1) for display — standings &
         // league read round matches only, so this never affects frame difference.
         // Free the table when the match is decided so the next pending match can take it.
-        const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" };
+        const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active", completed_at: t.decided ? new Date().toISOString() : null };
         if (t.decided) patch.table_number = null;
         const { error } = await sb.from("pool_matches").update(patch).eq("id", matchId);
         if (error) return json({ error: error.message }, 400);
@@ -856,7 +867,7 @@ Deno.serve(async (req) => {
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       // Free the table this match was on — reassignTables below will hand it
       // to the next ready pending match.
-      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null }).eq("id", matchId);
+      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null, completed_at: new Date().toISOString() }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
       // Bracket: push the winner into the next match, then feed the 3rd-place match.
       if (isBracket && winner) {
@@ -1034,11 +1045,13 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name, 80);
       const email = clean(b.email, 120).toLowerCase();
-      const phone = clean(b.phone, 30);
+      const phone = String(b.phone ?? "").replace(/\s+/g, "");
       const partnerName = clean(b.partnerName, 80);
       const partnerEmail = clean(b.partnerEmail, 120).toLowerCase();
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!email || !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email — the payment link goes there." }, 400);
+      // Founder rule 19 Aug 2026: UK mobile only — the pay link + up-next texts go there.
+      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07." }, 400);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: t } = await sb.from("tournaments").select("*").eq("id", run.tournament_id).maybeSingle();
@@ -1135,10 +1148,28 @@ Deno.serve(async (req) => {
 
     // Add a walk-in (cash at the bar). Flagged source=manual so the books reconcile.
     if (action === "addManual") {
+      // Walk-in, cash at the bar. Founder rule 19 Aug 2026: name, email and a
+      // UK MOBILE (07…) are ALL required — name-only walk-ins created league
+      // rows with no identity and players the up-next texts couldn't reach.
+      // A real booking row is created (status 'paid' — they paid cash) so the
+      // walk-in gets texts, prize emails and a durable league identity, exactly
+      // like an online booking.
       const runId = clean(b.runId, 40);
       const name = clean(b.name);
+      const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
+      const phone = String(b.phone ?? "").replace(/\s+/g, "");
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
-      const { data, error } = await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: name, source: "manual" }).select("*").single();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email needed — prizes and league points hang off it." }, 400);
+      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07 (the up-next texts go there)." }, 400);
+      const { data: run } = await sb.from("pool_tournaments").select("tournament_id").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      const { data: entry, error: ee } = await sb.from("tournament_entries").insert({
+        tournament_id: run.tournament_id, team_name: name, captain_name: name,
+        captain_email: email, captain_phone: phone, status: "paid",
+        paid_at: new Date().toISOString(), notes: "walk-in (cash at bar)", marketing_opt_in: false,
+      }).select("id").single();
+      if (ee) return json({ error: ee.message }, 400);
+      const { data, error } = await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: name, source: "manual", entry_id: entry.id }).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, participant: data });
     }
