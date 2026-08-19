@@ -13,6 +13,7 @@ import KeyDates from './sections/KeyDates.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
+import Receipts from './sections/Receipts.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -67,6 +68,7 @@ const GROUPS = [
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
+      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
     ],
   },
   {
