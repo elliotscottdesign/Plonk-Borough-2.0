@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
+import { ALLERGENS } from './allergens.js'
+
+// Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
+const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
+const ALLERGEN_COLOR = { contains: '#DA1B33', trace: '#F59E0B' }
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
 // items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
@@ -19,19 +24,19 @@ const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
   { id: 'rolls', name: 'Rolls', items: [
-    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }] },
-    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [] },
-    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [] },
+    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', mustard: 'contains', soya: 'trace', sulphites: 'contains' } },
+    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', soya: 'trace', sulphites: 'contains' } },
+    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', mustard: 'contains', nuts: 'trace', soya: 'trace' } },
   ] },
   { id: 'sides', name: 'Sides', items: [
-    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [] },
-    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [] },
-    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }] },
+    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [], allergens: {} },
+    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [], allergens: { celery: 'contains', gluten: 'contains', mushroom: 'contains', nuts: 'trace', peanuts: 'trace', sesame: 'trace', soya: 'contains' } },
+    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }], allergens: { celery: 'trace', gluten: 'trace', mushroom: 'trace', soya: 'trace' } },
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })) })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })) })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {} })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {} })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -50,7 +55,8 @@ export default function MenuManager() {
   const mutate = fn => { setSections(s => { const c = JSON.parse(JSON.stringify(s)); fn(c); return c }); setDirty(true); setMsg('') }
   const mutateB = fn => { setBundles(bs => { const c = JSON.parse(JSON.stringify(bs)); fn(c); return c }); setDirty(true); setMsg('') }
   const setItem = (si, ii, k, v) => mutate(s => { s[si].items[ii][k] = v })
-  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [] }) })
+  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [], allergens: {} }) })
+  const cycleAllergen = (si, ii, key) => mutate(s => { const al = (s[si].items[ii].allergens ||= {}); const nx = ALLERGEN_NEXT[al[key]]; if (nx) al[key] = nx; else delete al[key] })
   const delItem = (si, ii) => mutate(s => { s[si].items.splice(ii, 1) })
   const addAddon = (si, ii) => mutate(s => { (s[si].items[ii].addons ||= []).push({ id: nid('ao'), name: '', price: '', cost: '' }) })
   const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
@@ -150,6 +156,24 @@ export default function MenuManager() {
                         )
                       })}
                       <button onClick={() => addAddon(si, ii)} style={{ background: 'none', border: `1px dashed ${LINE}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>＋ Add an extra</button>
+                    </div>
+                    <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+                      <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                        Allergens <span style={{ textTransform: 'none', letterSpacing: 0 }}>— tap once = <b style={{ color: ALLERGEN_COLOR.contains }}>●&nbsp;contains</b>, twice = <b style={{ color: ALLERGEN_COLOR.trace }}>○&nbsp;may&nbsp;contain</b>, again = off. Drives the customer allergy warning.</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {ALLERGENS.map(al => {
+                          const st = (it.allergens || {})[al.key]
+                          const col = ALLERGEN_COLOR[st]
+                          return (
+                            <button key={al.key} onClick={() => cycleAllergen(si, ii, al.key)}
+                              style={{ fontSize: 11.5, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', fontWeight: st ? 700 : 500,
+                                border: `1px solid ${col || LINE}`, background: st ? `${col}22` : 'transparent', color: st ? col : MUTED }}>
+                              {st === 'contains' ? '● ' : st === 'trace' ? '○ ' : ''}{al.label}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
