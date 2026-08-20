@@ -115,6 +115,103 @@ async function xeroAccessToken(): Promise<string | null> {
   return t.access_token
 }
 
+const XERO_API = 'https://api.xero.com/api.xro/2.0'
+
+async function xeroGet(path: string, token: string, tenant: string) {
+  const r = await fetch(`${XERO_API}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, 'Xero-tenant-id': tenant, Accept: 'application/json' },
+  })
+  if (!r.ok) throw new Error(`Xero ${r.status}: ${(await r.text()).slice(0, 300)}`)
+  return r.json()
+}
+
+const ymd = (iso: string) => iso.slice(0, 10).split('-').map(Number)
+const shift = (iso: string, days: number) =>
+  new Date(new Date(iso + 'T12:00:00Z').getTime() + days * 864e5).toISOString().slice(0, 10)
+
+/** Loose name comparison — "E5 Bakehouse - London Fields" vs "E5 Bakehouse". */
+function nameScore(a: string, b: string) {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+  const A = norm(a), B = norm(b)
+  if (!A || !B) return 0
+  if (A === B) return 1
+  if (A.includes(B) || B.includes(A)) return 0.85
+  const wa = new Set(A.split(' ').filter(w => w.length > 2))
+  const wb = new Set(B.split(' ').filter(w => w.length > 2))
+  if (!wa.size || !wb.size) return 0
+  let hit = 0
+  for (const w of wa) if (wb.has(w)) hit++
+  return hit / Math.max(wa.size, wb.size)
+}
+
+/**
+ * Find the bank payment a receipt belongs to.
+ *
+ * The card settles a day or two after you buy, so the ledger date and the
+ * receipt date rarely agree — hence a window rather than an exact date. The
+ * AMOUNT has to be exact; that is what makes a match trustworthy. The supplier
+ * name only breaks ties, because it is the least reliable of the three: the
+ * bank writes "E5 BAKEHOUSE LTD", the receipt says "E5 Bakehouse - London
+ * Fields", and neither is wrong.
+ *
+ * Returns a match only when it is unambiguous. Two identical amounts in the
+ * window with nothing to separate them is NOT a match — attaching a receipt to
+ * the wrong payment is worse than leaving it unattached, because it looks done.
+ */
+async function findBankTx(token: string, tenant: string, r: { amount: number; spend_date: string; supplier: string }) {
+  // A card settles ON or AFTER the day you spend, never before — so the window
+  // is asymmetric. One day of slack backwards for timezone and till-clock
+  // drift, five forwards for a slow weekend settlement.
+  const [y1, m1, d1] = ymd(shift(r.spend_date, -1))
+  const [y2, m2, d2] = ymd(shift(r.spend_date, +5))
+  const where = `Type=="SPEND" AND Date>=DateTime(${y1},${m1},${d1}) AND Date<=DateTime(${y2},${m2},${d2})`
+  const data = await xeroGet(`/BankTransactions?where=${encodeURIComponent(where)}`, token, tenant)
+
+  const target = Math.round(Number(r.amount) * 100)
+  const sameAmount = (data.BankTransactions ?? [])
+    .filter((t: any) => Math.round(Number(t.Total) * 100) === target)
+
+  if (!sameAmount.length) {
+    // An unreconciled bank line is NOT a transaction in Xero, so there is
+    // nothing to attach to until it has been coded. Receipts arrive before
+    // the reconciling gets done, so this is the normal state for anything
+    // recent — not a failure. It stays 'new' and the next sweep picks it up.
+    const recent = (Date.now() - new Date(r.spend_date + 'T12:00:00Z').getTime()) < 12 * 864e5
+    return {
+      tx: null,
+      why: recent
+        ? "that payment isn't coded in Xero yet — reconcile it and this attaches itself"
+        : 'no payment of that amount within 5 days',
+    }
+  }
+  if (sameAmount.length === 1) return { tx: sameAmount[0], why: '' }
+
+  const dayGap = (t: any) => {
+    const d = String(t.DateString ?? t.Date ?? '').slice(0, 10)
+    return Math.abs((new Date(d + 'T12:00:00Z').getTime() - new Date(r.spend_date + 'T12:00:00Z').getTime()) / 864e5)
+  }
+
+  // Do the candidates all belong to the SAME supplier? Ice Ice Baby deliver
+  // the same round £32 and £48 over and over, so several identical payments a
+  // few days apart is their normal week. Choosing the closest by date between
+  // two identical payments to the same supplier is harmless — the receipt is
+  // still evidence for an ice delivery sitting on an ice delivery. Getting it
+  // wrong between DIFFERENT suppliers is not harmless, so that still refuses.
+  const contacts = new Set(sameAmount.map((t: any) => (t.Contact?.Name ?? '').toLowerCase().trim()))
+  if (contacts.size === 1) {
+    const best = [...sameAmount].sort((a, b) => dayGap(a) - dayGap(b))[0]
+    return { tx: best, why: '' }
+  }
+
+  const scored = sameAmount
+    .map((t: any) => ({ t, s: nameScore(r.supplier, t.Contact?.Name ?? '') }))
+    .sort((a, b) => b.s - a.s || dayGap(a.t) - dayGap(b.t))
+
+  // A clear winner on the name, or nothing. Never guess between rival suppliers.
+  if (scored[0].s >= 0.5 && scored[0].s > scored[1].s + 0.15) return { tx: scored[0].t, why: '' }
+  return { tx: null, why: `${sameAmount.length} payments of that amount to different suppliers — can't tell which` }
+}
+
 /** Staff-side auth: the same token the rota portal issues. */
 async function staffFromToken(token: unknown) {
   const t = String(token || '').trim()
@@ -455,6 +552,68 @@ Deno.serve(async (req) => {
           tenant: row.tenant_name, legalName: o.LegalName ?? o.Name,
           baseCurrency: o.BaseCurrency, connectedAt: row.connected_at,
         })
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* THE SWEEP — put each receipt on its bank payment                  */
+      /* ---------------------------------------------------------------- */
+      case 'xeroSweep': {
+        const row = await xeroRow()
+        const token = await xeroAccessToken()
+        if (!token || !row?.tenant_id) return json({ error: 'Xero is not connected' }, 400)
+
+        const dry = p.dryRun !== false      // must ASK to write; default is a rehearsal
+        const { data: pending } = await db.from('receipts')
+          .select('*').eq('status', 'new').not('image_path', 'is', null)
+          .order('spend_date', { ascending: true }).limit(Math.min(Number(p.limit) || 25, 60))
+
+        const attached: any[] = [], skipped: any[] = []
+
+        for (const r of pending ?? []) {
+          try {
+            const { tx, why } = await findBankTx(token, row.tenant_id, r as any)
+            if (!tx) { skipped.push({ id: r.id, supplier: r.supplier, amount: r.amount, why }); continue }
+
+            // Never add a second copy. A shop emails a receipt AND you
+            // photograph it, and the payment quietly ends up with two.
+            const existing = await xeroGet(`/BankTransactions/${tx.BankTransactionID}/Attachments`, token, row.tenant_id)
+            if ((existing.Attachments ?? []).length) {
+              skipped.push({ id: r.id, supplier: r.supplier, amount: r.amount, why: 'that payment already has a receipt' })
+              if (!dry) await db.from('receipts').update({ status: 'attached', xero_file_id: tx.BankTransactionID, attached_at: new Date().toISOString() }).eq('id', r.id)
+              continue
+            }
+
+            const hit = {
+              id: r.id, supplier: r.supplier, amount: Number(r.amount), date: r.spend_date,
+              paidTo: tx.Contact?.Name, txDate: String(tx.DateString ?? tx.Date ?? '').slice(0, 10),
+              txId: tx.BankTransactionID, category: r.category,
+            }
+            if (dry) { attached.push({ ...hit, dryRun: true }); continue }
+
+            const file = await db.storage.from(BUCKET).download(r.image_path)
+            if (file.error || !file.data) { skipped.push({ id: r.id, why: 'could not read the photo' }); continue }
+
+            const name = `${String(r.supplier).replace(/[^A-Za-z0-9]+/g, '')}_${r.spend_date}_${Number(r.amount).toFixed(2)}${(r.image_path.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0]}`
+            const put = await fetch(`${XERO_API}/BankTransactions/${tx.BankTransactionID}/Attachments/${encodeURIComponent(name)}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${token}`, 'Xero-tenant-id': row.tenant_id,
+                'Content-Type': file.data.type || 'application/octet-stream', Accept: 'application/json',
+              },
+              body: new Uint8Array(await file.data.arrayBuffer()),
+            })
+            if (!put.ok) { skipped.push({ id: r.id, why: `Xero refused the file: ${(await put.text()).slice(0, 200)}` }); continue }
+
+            await db.from('receipts').update({
+              status: 'attached', xero_file_id: tx.BankTransactionID, attached_at: new Date().toISOString(),
+            }).eq('id', r.id)
+            attached.push(hit)
+          } catch (e) {
+            skipped.push({ id: r.id, supplier: r.supplier, why: String((e as Error).message).slice(0, 200) })
+          }
+        }
+
+        return json({ ok: true, dryRun: dry, considered: (pending ?? []).length, attached, skipped })
       }
 
       default:
