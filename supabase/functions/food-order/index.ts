@@ -141,6 +141,31 @@ Deno.serve(async (req) => {
       return json({ ok: true, orders: data || [] });
     }
 
+    // ── Customer texts: resend "ready", "order received", or a custom reply ─────
+    if (action === "resendReady") {   // kitchen — re-send the "food ready" text
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone").eq("id", clean(b.id, 40)).maybeSingle();
+      if (!data?.customer_phone) return json({ error: "No phone number on this order." }, 400);
+      const texted = await sendSMS(data.customer_phone, readyMessage(data.order_no, data.customer_name));
+      return json({ ok: true, texted });
+    }
+    if (action === "notifyReceived") {   // called by the webhook on payment — one reassurance text
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone").eq("id", clean(b.id, 40)).maybeSingle();
+      if (!data?.customer_phone) return json({ ok: true, texted: false });
+      const texted = await sendSMS(data.customer_phone, `On A Roll 🍔 Order #${data.order_no} received — we're on it! We'll text you the moment it's ready to collect.`);
+      return json({ ok: true, texted });
+    }
+    if (action === "textCustomer") {   // kitchen — send a custom message (e.g. reply to a note)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const message = clean(b.message, 300);
+      if (!message) return json({ error: "Write a message first." }, 400);
+      const { data } = await sb.from("food_orders").select("order_no,customer_phone").eq("id", clean(b.id, 40)).maybeSingle();
+      if (!data?.customer_phone) return json({ error: "No phone number on this order." }, 400);
+      const texted = await sendSMS(data.customer_phone, `On A Roll (Order #${data.order_no}): ${message}`);
+      return json({ ok: true, texted });
+    }
+
     // ── Order pause + customer waitlist ──────────────────────────────────────────
     if (action === "getStatus") {   // public — the customer order page reads this
       const e = await getEffective(sb);

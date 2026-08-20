@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus, listHistory, getStatus, setSettings } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -67,6 +67,8 @@ export default function KitchenTickets() {
   }, [])   // eslint-disable-line
 
   const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const resend = async (o) => { setBusy(true); try { const r = await resendReady(o.id); alert(r.texted ? `Re-sent the “ready” text to ${o.customer_name || 'the customer'}.` : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const reply = async (o) => { const m = prompt(`Text ${o.customer_name || 'the customer'} (Order #${o.order_no}):`, ''); if (!m || !m.trim()) return; setBusy(true); try { const r = await textCustomer(o.id, m.trim()); alert(r.texted ? 'Sent ✓' : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
@@ -154,15 +156,20 @@ export default function KitchenTickets() {
                   ))}
                 </div>
                 {o.allergen_note && <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: RED, borderRadius: 6, padding: '5px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚠ Allergy: {o.allergen_note}</div>}
+                {o.customer_note && <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: BLUE, borderRadius: 6, padding: '6px 9px' }}>📝 {o.customer_note}</div>}
                 {ready
                   ? <>
                       <div style={{ fontSize: 13, color: GREEN, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✓ Texted — waiting to collect</div>
-                      <button disabled={busy} onClick={() => act(o, 'collected')} style={btn(INK, '#fff')}>Collected</button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={busy} onClick={() => resend(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 13, padding: '9px' }}>🔁 Resend text</button>
+                        <button disabled={busy} onClick={() => act(o, 'collected')} style={{ ...btn(INK, '#fff'), flex: 1 }}>Collected</button>
+                      </div>
                     </>
                   : <>
                       {o.status !== 'preparing' && <button disabled={busy} onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
                       <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
                     </>}
+                {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ background: 'none', border: 'none', color: '#8a8275', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '2px', textDecoration: 'underline' }}>💬 Text customer</button>}
               </div>
             </div>
           )
