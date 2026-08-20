@@ -49,6 +49,8 @@ export default function MenuManager() {
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
   const [vat, setVat] = useState(false)   // VAT registered? drives margin maths + labels
+  const [openAllg, setOpenAllg] = useState(new Set())   // which items have the allergen editor expanded
+  const toggleAllg = id => setOpenAllg(s => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n })
 
   useEffect(() => { (async () => {
     try { const r = await getMenu(); setSections(r.sections?.length ? fromDoc(r.sections) : DEFAULTS); setBundles(bundlesFromDoc(r.bundles)); setVat(!!r.vat_registered) }
@@ -168,24 +170,41 @@ export default function MenuManager() {
                       })}
                       <button onClick={() => addAddon(si, ii)} style={{ background: 'none', border: `1px dashed ${LINE}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>＋ Add an extra</button>
                     </div>
-                    <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
-                      <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-                        Allergens <span style={{ textTransform: 'none', letterSpacing: 0 }}>— tap once = <b style={{ color: ALLERGEN_COLOR.contains }}>●&nbsp;contains</b>, twice = <b style={{ color: ALLERGEN_COLOR.trace }}>○&nbsp;may&nbsp;contain</b>, again = off. Drives the customer allergy warning.</span>
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                        {ALLERGENS.map(al => {
-                          const st = (it.allergens || {})[al.key]
-                          const col = ALLERGEN_COLOR[st]
-                          return (
-                            <button key={al.key} onClick={() => cycleAllergen(si, ii, al.key)}
-                              style={{ fontSize: 11.5, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', fontWeight: st ? 700 : 500,
-                                border: `1px solid ${col || LINE}`, background: st ? `${col}22` : 'transparent', color: st ? col : MUTED }}>
-                              {st === 'contains' ? '● ' : st === 'trace' ? '○ ' : ''}{al.label}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
+                    {(() => {
+                      const al = it.allergens || {}
+                      const contains = ALLERGENS.filter(a => al[a.key] === 'contains').map(a => a.label)
+                      const trace = ALLERGENS.filter(a => al[a.key] === 'trace').map(a => a.label)
+                      const open = openAllg.has(it.id)
+                      return (
+                        <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+                          <button onClick={() => toggleAllg(it.id)} style={{ display: 'flex', alignItems: 'center', gap: 7, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+                            <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', flexShrink: 0 }}>Allergens</span>
+                            <span style={{ fontSize: 11.5, flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: contains.length ? ALLERGEN_COLOR.contains : MUTED }}>
+                              {contains.length ? `● ${contains.join(', ')}` : ''}{contains.length && trace.length ? '  ' : ''}{trace.length ? <span style={{ color: ALLERGEN_COLOR.trace }}>○ {trace.join(', ')}</span> : ''}{!contains.length && !trace.length ? 'none set — tap to add' : ''}
+                            </span>
+                            <span style={{ fontSize: 12, color: MUTED, flexShrink: 0 }}>{open ? '▾ edit' : '▸ edit'}</span>
+                          </button>
+                          {open && (
+                            <div style={{ marginTop: 8 }}>
+                              <div style={{ fontSize: 10.5, color: MUTED, marginBottom: 6, lineHeight: 1.4 }}>tap once = <b style={{ color: ALLERGEN_COLOR.contains }}>●&nbsp;contains</b>, twice = <b style={{ color: ALLERGEN_COLOR.trace }}>○&nbsp;may&nbsp;contain</b>, again = off</div>
+                              <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                                {ALLERGENS.map(a => {
+                                  const st = al[a.key]
+                                  const col = ALLERGEN_COLOR[st]
+                                  return (
+                                    <button key={a.key} onClick={() => cycleAllergen(si, ii, a.key)}
+                                      style={{ fontSize: 11.5, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', fontWeight: st ? 700 : 500,
+                                        border: `1px solid ${col || LINE}`, background: st ? `${col}22` : 'transparent', color: st ? col : MUTED }}>
+                                      {st === 'contains' ? '● ' : st === 'trace' ? '○ ' : ''}{a.label}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </div>
                 </div>
               </div>
