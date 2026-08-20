@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { rotaSetRotaRules, rotaCompileRules } from '../../rota/api.js'
+import { rotaSetRotaRules } from '../../rota/api.js'
 import { withDefaults } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
 import DateField from '../../lib/DateField.jsx'
@@ -29,28 +29,20 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
   const addHoliday = () => setDraft(d => ({ ...d, holidayDates: [...d.holidayDates, ['', '', 'New holiday']] }))
   const setHolidayCell = (i, j, val) => setDraft(d => ({ ...d, holidayDates: d.holidayDates.map((r, k) => k !== i ? r : r.map((c, x) => x === j ? val : c)) }))
   const removeHoliday = (i) => setDraft(d => ({ ...d, holidayDates: d.holidayDates.filter((_, k) => k !== i) }))
-  // Free-text house rules
-  const addRule = () => setDraft(d => ({ ...d, houseRules: [...(d.houseRules || []), ''] }))
-  const setRule = (i, v) => setDraft(d => ({ ...d, houseRules: (d.houseRules || []).map((r, k) => k === i ? v : r) }))
-  const removeRule = (i) => setDraft(d => ({ ...d, houseRules: (d.houseRules || []).filter((_, k) => k !== i) }))
   // Per-person strength / priority (1..5)
   const setStrength = (id, v) => setDraft(d => ({ ...d, strength: { ...(d.strength || {}), [id]: v } }))
   const activeStaff = (staff || []).filter(s => s.active !== false)
 
-  const [notice, setNotice] = useState('')
   const save = async () => {
-    // Drop half-filled holiday rows so a blank date range can't swallow every day,
-    // and blank house-rule lines so an empty box isn't saved.
-    const clean = { ...draft, holidayDates: draft.holidayDates.filter(r => r[0] && r[1]), houseRules: (draft.houseRules || []).map(s => s.trim()).filter(Boolean) }
-    // Typed rules changed → have the AI re-read them and compile what it can into
-    // live directives (compileRules saves the whole object server-side, nothing lost).
-    // Otherwise a plain save keeps the existing compiled layer untouched.
-    const rulesChanged = JSON.stringify(clean.houseRules) !== JSON.stringify(withDefaults(rules).houseRules)
-    setBusy(rulesChanged ? 'ai' : 'save'); setErr(''); setNotice('')
+    // Drop half-filled holiday rows so a blank date range can't swallow every day.
+    // House rules + the AI-compiled layer are edited in 📌 Rules (AI Builder) now —
+    // always send the FRESH copies from the prop so this save can never clobber them.
+    const fresh = withDefaults(rules)
+    const clean = { ...draft, holidayDates: draft.holidayDates.filter(r => r[0] && r[1]), houseRules: fresh.houseRules, compiled: fresh.compiled, compiledNotes: fresh.compiledNotes }
+    setBusy('save'); setErr('')
     try {
-      const r = rulesChanged ? await rotaCompileRules(clean) : await rotaSetRotaRules(clean)
-      setDraft(withDefaults(r.rules))   // sync the fresh compiled layer into the draft
-      if (r.setup && r.error) setNotice(r.error)
+      const r = await rotaSetRotaRules(clean)
+      setDraft(withDefaults(r.rules))
       setSaved(true); setTimeout(() => setSaved(false), 2500); await onSaved?.()
     }
     catch (e) { setErr(e.message) } finally { setBusy('') }
@@ -71,41 +63,10 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>
-        These are the rules the AI builds from. Change them here and <strong style={{ color: '#fff' }}>Save</strong> — the next time you Generate, it uses your new rules. A manager is always put on from {draft.managerMargin} min before open, and leaves with everyone at the stay-on time after close.
+        Opening hours, staffing, staff priority and holidays — the settings the builder runs on (your typed house rules live in 📌 Rules above). Change them here and <strong style={{ color: '#fff' }}>Save</strong> — the next time you Generate, it uses your new rules. A manager is always put on from {draft.managerMargin} min before open, and leaves with everyone at the stay-on time after close.
       </div>
 
       {err && <div style={{ fontSize: 12.5, color: '#F87171', background: 'rgba(248,113,113,0.1)', border: '1px solid rgba(248,113,113,0.35)', borderRadius: 8, padding: '9px 12px' }}>{err}</div>}
-
-      {/* Free-text house rules — the founder's own rules, in plain English */}
-      <div>
-        <div style={sectionHdr}>🧠 House rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 11 }}>· type them — the AI applies them</span></div>
-        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 8 }}>
-          Type any rule in plain English — “one person opens, one closes”, “prioritise Jordan this week”, “never put Alex and Sam on together”, “max 3 shifts for Ben”. When you <strong style={{ color: '#fff' }}>Save</strong>, the AI reads them and wires what it can straight into the builder — each rule gets a receipt below: <strong style={{ color: GREEN }}>✓ applied</strong> (with what it'll do) or <strong style={{ color: AMBER }}>⚠️ reminder</strong> (shown on every rota for you to check by hand). Delete a rule and Save to un-apply it.
-        </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-          {(draft.houseRules || []).length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No house rules yet — add your first below.</div>}
-          {(draft.houseRules || []).map((r, i) => {
-            // Each rule row carries its own receipt (how the AI read it last save).
-            // Edited text no longer matches a saved receipt → show the "re-save" hint.
-            const norm = (s) => String(s || '').replace(/\s+/g, ' ').trim().toLowerCase()
-            const note = (draft.compiledNotes || []).find(n => n && norm(n.rule) === norm(r)) || null
-            return (
-              <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
-                  <span style={{ fontSize: 13, lineHeight: '30px', flexShrink: 0 }} title={note ? (note.status === 'applied' ? 'Applied — the builder does this automatically' : 'Reminder — check it by hand when you review a week') : 'Not read yet — Save rules'}>{note ? (note.status === 'applied' ? '✅' : '⚠️') : '📝'}</span>
-                  <textarea value={r} onChange={e => setRule(i, e.target.value)} rows={1} placeholder="e.g. On weekdays, one person opens and one closes rather than two full shifts" style={{ ...txt, flex: 1, minWidth: 0, resize: 'vertical', lineHeight: 1.4 }} />
-                  <button onClick={() => removeRule(i)} title="Delete this rule — then Save rules to make it stick" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.35)', color: '#F87171', fontSize: 11.5, fontWeight: 700 }}>🗑 Delete</button>
-                </div>
-                {note
-                  ? <div style={{ fontSize: 11.5, color: note.status === 'applied' ? GREEN : AMBER, lineHeight: 1.45, marginTop: 5, paddingLeft: 29 }}>{note.understood}</div>
-                  : <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 5, paddingLeft: 29 }}>New or edited — tap <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Save rules</strong> below and the AI will read it.</div>}
-              </div>
-            )
-          })}
-        </div>
-        <button onClick={addRule} style={{ ...btn('ghost'), marginTop: 8 }}>+ Add a rule</button>
-        {notice && <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '9px 12px', marginTop: 10, lineHeight: 1.5 }}>{notice}</div>}
-      </div>
 
       {/* Per-day hours + staffing */}
       <div>
@@ -265,7 +226,7 @@ export default function RotaRulesEditor({ rules, staff = [], onSaved }) {
 
       {/* Actions */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderTop: `1px dashed ${LINE}`, paddingTop: 12 }}>
-        <button onClick={save} disabled={busy === 'save' || busy === 'ai' || !dirty} style={{ ...btn('gold'), opacity: ((busy === 'save' || busy === 'ai') || !dirty) ? 0.5 : 1 }}>{busy === 'ai' ? '🧠 AI reading your rules…' : busy === 'save' ? 'Saving…' : saved ? 'Saved ✓' : dirty ? 'Save rules' : 'Saved ✓'}</button>
+        <button onClick={save} disabled={busy === 'save' || !dirty} style={{ ...btn('gold'), opacity: (busy === 'save' || !dirty) ? 0.5 : 1 }}>{busy === 'save' ? 'Saving…' : saved ? 'Saved ✓' : dirty ? 'Save rules' : 'Saved ✓'}</button>
         <button onClick={resetDefaults} disabled={!!busy} style={btn('ghost')}>{busy === 'reset' ? '…' : 'Reset to defaults'}</button>
         {dirty && <span style={{ fontSize: 11.5, color: AMBER }}>Unsaved changes — Save, then Generate to use them.</span>}
       </div>
