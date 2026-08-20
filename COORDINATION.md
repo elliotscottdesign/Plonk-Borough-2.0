@@ -26,7 +26,6 @@ _(none — add a row when you start editing a shared file, remove it when you've
 
 | Lane | Shared file | What / why | Since |
 |------|-------------|-----------|-------|
-| till | src/ops/OpsApp.jsx | One import + one tab entry: "Till" (founderOnly) in the Bar group — slice 1 read-only catalogue. Released on merge. | 20 Aug 2026 |
 
 ## Schema (DDL) changes — announce here
 One Supabase project (`rntcujcpsozvuxvmlejv`) is shared by every lane. Any
@@ -61,6 +60,7 @@ your lane owns, and always from the latest merged `main`. If you deploy, jot it 
 so others know the live backend moved.
 
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
+- **`till`** — NEW edge function (till lane, 20 Aug 2026): read-only, founder-gated; returns bar_cost_base + bar_margins for the Till catalogue tab. ⏳ NOT yet deployed — the machine's Supabase token expired; deploy `--no-verify-jwt` pending a fresh PAT from the founder. Until then the Till tab shows the layout with "couldn't load costs".
 - **`tournament` + `pingpong`** redeployed with WhatsApp up-next wiring — 11 Aug 2026, tournament lane. New project secrets: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WA_FROM` (sandbox sender for the trial) / `TWILIO_CONTENT_SID_UP_NEXT`. Messaging stays dormant-safe: send failures never affect tournament flow.
 
 ## 20 Aug 2026 — tournament lane touched src/ops/OpsApp.jsx (shared file)
