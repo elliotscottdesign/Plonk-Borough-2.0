@@ -13,7 +13,7 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js
 // vs target + wage spend. Own calendar grid (not the DJ MonthCalendar).
 
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', GREY = 'rgba(255,255,255,0.28)', PURPLE = '#A855F7'
-const TODAY = '#60A5FA'                          // "today" ring — blue, never clashes with the status colours
+const TODAY = '#FFFFFF'                          // "today" ring — white (house rule); any status colour wraps OUTSIDE it
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 const iso = (y, m, d) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
@@ -305,7 +305,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const focusC = GREEN   // founder rule: green = on shift, red = booked off
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : mine && mine.length ? `2px solid ${focusC}` : mineOff ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? `0 0 0 2px ${TODAY}` : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>

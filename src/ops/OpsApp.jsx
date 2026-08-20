@@ -15,6 +15,7 @@ import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
 import Receipts from './sections/Receipts.jsx'
+import TillCatalogue from '../till/TillCatalogue.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -34,6 +35,9 @@ const GROUPS = [
     key: 'bar', label: 'Bar',
     tabs: [
       { key: 'bar',        label: 'Bar',           Component: Bar },
+      // TILL lane, slice 1 (20 Aug 2026): read-only catalogue of our own till
+      // layout with GP per line. Money on screen → founder-only, like Finances.
+      { key: 'till',       label: 'Till',          Component: TillCatalogue, founderOnly: true },
       { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
       // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
@@ -66,10 +70,10 @@ const GROUPS = [
     // paperwork and money are senior-management — team-tier logins never see the door.
     key: 'office', label: 'Office', founderOnly: true,
     tabs: [
+      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
-      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
     ],
   },
   {

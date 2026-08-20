@@ -60,6 +60,7 @@ your lane owns, and always from the latest merged `main`. If you deploy, jot it 
 so others know the live backend moved.
 
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
+- **`till`** — NEW edge function (till lane, 20 Aug 2026): read-only, founder-gated; returns bar_cost_base + bar_margins for the Till catalogue tab. ⏳ NOT yet deployed — the machine's Supabase token expired; deploy `--no-verify-jwt` pending a fresh PAT from the founder. Until then the Till tab shows the layout with "couldn't load costs".
 - **`tournament` + `pingpong`** redeployed with WhatsApp up-next wiring — 11 Aug 2026, tournament lane. New project secrets: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WA_FROM` (sandbox sender for the trial) / `TWILIO_CONTENT_SID_UP_NEXT`. Messaging stays dormant-safe: send failures never affect tournament flow.
 
 ## 20 Aug 2026 — tournament lane touched src/ops/OpsApp.jsx (shared file)
@@ -222,3 +223,5 @@ One import line + one registry entry. Nothing else touched. Claim released.
 TipsCard only: added the "tick to confirm you got it" button + token prop.
 The card already reads finance-lane data. Nothing else in the file touched.
 Released on merge.
+
+- **16 Aug 2026 · rota lane → dj lane (FYI, done):** one-line edit in `src/dj/MonthCalendar.jsx` — the `TODAY` ring colour changed `#60A5FA` → `#FFFFFF` (founder house rule: today = white ring on ALL calendars; status colours wrap outside it). No logic touched. If the DJ session objects, revert just that constant.

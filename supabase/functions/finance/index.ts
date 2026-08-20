@@ -34,6 +34,9 @@ const json = (body: unknown, status = 200) =>
 
 const CATEGORIES = ['business', 'staff_welfare', 'personal', 'competitor']
 
+const escapeHtml = (s: unknown) => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
 /**
  * What a competitor check must carry to be worth claiming. Returns the missing
  * piece, or null if it is complete. Used on the way in AND when something is
@@ -47,6 +50,168 @@ function competitorGap(r: { comp_item?: any; comp_price?: any; comp_verdict?: an
   return null
 }
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* XERO CONNECTION                                                            */
+/*                                                                            */
+/* A standard OAuth2 web app rather than a paid Custom Connection. It is      */
+/* authorised once through a browser and then keeps itself alive: the access  */
+/* token lasts 30 minutes, the refresh token rotates on every use and only    */
+/* dies after 60 days unused, which the daily sweep prevents.                 */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+const XERO_ID     = Deno.env.get('XERO_CLIENT_ID') ?? ''
+const XERO_SECRET = Deno.env.get('XERO_CLIENT_SECRET') ?? ''
+const XERO_REDIRECT = `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/functions/v1/finance`
+// EXACTLY the three scopes this app is provisioned for, and no more. Asking
+// for anything else — accounting.transactions, accounting.reports.read —
+// gets invalid_scope and a 500 from the authorise endpoint, which reads like
+// a broken link rather than a permissions problem. Verified one by one
+// against Xero on 19 Aug 2026.
+//
+// accounting.banktransactions is also the RIGHT scope here: narrower than
+// accounting.transactions, and bank transactions are all this touches.
+const XERO_SCOPES = [
+  'openid', 'profile', 'email',
+  'accounting.banktransactions',  // find the bank payment a receipt belongs to
+  'accounting.attachments',       // attach the file to it
+  'accounting.settings.read',     // read the chart of accounts
+  'offline_access',               // the refresh token — without this it dies in 30 minutes
+].join(' ')
+
+const basicAuth = () => btoa(`${XERO_ID}:${XERO_SECRET}`)
+
+async function xeroRow() {
+  const { data } = await db.from('xero_auth').select('*').eq('id', 1).maybeSingle()
+  return data
+}
+
+/** A valid access token, refreshed if the current one is stale or nearly so. */
+async function xeroAccessToken(): Promise<string | null> {
+  const row = await xeroRow()
+  if (!row?.refresh_token) return null
+
+  // 60s of headroom so a token can't expire mid-request.
+  if (row.access_token && row.expires_at && new Date(row.expires_at).getTime() - 60_000 > Date.now()) {
+    return row.access_token
+  }
+
+  const res = await fetch('https://identity.xero.com/connect/token', {
+    method: 'POST',
+    headers: { Authorization: `Basic ${basicAuth()}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: row.refresh_token }),
+  })
+  if (!res.ok) return null
+  const t = await res.json()
+
+  // Xero rotates the refresh token on every use — store the new one or the
+  // next refresh fails and the connection is dead.
+  await db.from('xero_auth').update({
+    access_token: t.access_token,
+    refresh_token: t.refresh_token ?? row.refresh_token,
+    expires_at: new Date(Date.now() + (t.expires_in ?? 1800) * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', 1)
+
+  return t.access_token
+}
+
+const XERO_API = 'https://api.xero.com/api.xro/2.0'
+
+async function xeroGet(path: string, token: string, tenant: string) {
+  const r = await fetch(`${XERO_API}${path}`, {
+    headers: { Authorization: `Bearer ${token}`, 'Xero-tenant-id': tenant, Accept: 'application/json' },
+  })
+  if (!r.ok) throw new Error(`Xero ${r.status}: ${(await r.text()).slice(0, 300)}`)
+  return r.json()
+}
+
+const ymd = (iso: string) => iso.slice(0, 10).split('-').map(Number)
+const shift = (iso: string, days: number) =>
+  new Date(new Date(iso + 'T12:00:00Z').getTime() + days * 864e5).toISOString().slice(0, 10)
+
+/** Loose name comparison — "E5 Bakehouse - London Fields" vs "E5 Bakehouse". */
+function nameScore(a: string, b: string) {
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+  const A = norm(a), B = norm(b)
+  if (!A || !B) return 0
+  if (A === B) return 1
+  if (A.includes(B) || B.includes(A)) return 0.85
+  const wa = new Set(A.split(' ').filter(w => w.length > 2))
+  const wb = new Set(B.split(' ').filter(w => w.length > 2))
+  if (!wa.size || !wb.size) return 0
+  let hit = 0
+  for (const w of wa) if (wb.has(w)) hit++
+  return hit / Math.max(wa.size, wb.size)
+}
+
+/**
+ * Find the bank payment a receipt belongs to.
+ *
+ * The card settles a day or two after you buy, so the ledger date and the
+ * receipt date rarely agree — hence a window rather than an exact date. The
+ * AMOUNT has to be exact; that is what makes a match trustworthy. The supplier
+ * name only breaks ties, because it is the least reliable of the three: the
+ * bank writes "E5 BAKEHOUSE LTD", the receipt says "E5 Bakehouse - London
+ * Fields", and neither is wrong.
+ *
+ * Returns a match only when it is unambiguous. Two identical amounts in the
+ * window with nothing to separate them is NOT a match — attaching a receipt to
+ * the wrong payment is worse than leaving it unattached, because it looks done.
+ */
+async function findBankTx(token: string, tenant: string, r: { amount: number; spend_date: string; supplier: string }) {
+  // A card settles ON or AFTER the day you spend, never before — so the window
+  // is asymmetric. One day of slack backwards for timezone and till-clock
+  // drift, five forwards for a slow weekend settlement.
+  const [y1, m1, d1] = ymd(shift(r.spend_date, -1))
+  const [y2, m2, d2] = ymd(shift(r.spend_date, +5))
+  const where = `Type=="SPEND" AND Date>=DateTime(${y1},${m1},${d1}) AND Date<=DateTime(${y2},${m2},${d2})`
+  const data = await xeroGet(`/BankTransactions?where=${encodeURIComponent(where)}`, token, tenant)
+
+  const target = Math.round(Number(r.amount) * 100)
+  const sameAmount = (data.BankTransactions ?? [])
+    .filter((t: any) => Math.round(Number(t.Total) * 100) === target)
+
+  if (!sameAmount.length) {
+    // An unreconciled bank line is NOT a transaction in Xero, so there is
+    // nothing to attach to until it has been coded. Receipts arrive before
+    // the reconciling gets done, so this is the normal state for anything
+    // recent — not a failure. It stays 'new' and the next sweep picks it up.
+    const recent = (Date.now() - new Date(r.spend_date + 'T12:00:00Z').getTime()) < 12 * 864e5
+    return {
+      tx: null,
+      why: recent
+        ? "that payment isn't coded in Xero yet — reconcile it and this attaches itself"
+        : 'no payment of that amount within 5 days',
+    }
+  }
+  if (sameAmount.length === 1) return { tx: sameAmount[0], why: '' }
+
+  const dayGap = (t: any) => {
+    const d = String(t.DateString ?? t.Date ?? '').slice(0, 10)
+    return Math.abs((new Date(d + 'T12:00:00Z').getTime() - new Date(r.spend_date + 'T12:00:00Z').getTime()) / 864e5)
+  }
+
+  // Do the candidates all belong to the SAME supplier? Ice Ice Baby deliver
+  // the same round £32 and £48 over and over, so several identical payments a
+  // few days apart is their normal week. Choosing the closest by date between
+  // two identical payments to the same supplier is harmless — the receipt is
+  // still evidence for an ice delivery sitting on an ice delivery. Getting it
+  // wrong between DIFFERENT suppliers is not harmless, so that still refuses.
+  const contacts = new Set(sameAmount.map((t: any) => (t.Contact?.Name ?? '').toLowerCase().trim()))
+  if (contacts.size === 1) {
+    const best = [...sameAmount].sort((a, b) => dayGap(a) - dayGap(b))[0]
+    return { tx: best, why: '' }
+  }
+
+  const scored = sameAmount
+    .map((t: any) => ({ t, s: nameScore(r.supplier, t.Contact?.Name ?? '') }))
+    .sort((a, b) => b.s - a.s || dayGap(a.t) - dayGap(b.t))
+
+  // A clear winner on the name, or nothing. Never guess between rival suppliers.
+  if (scored[0].s >= 0.5 && scored[0].s > scored[1].s + 0.15) return { tx: scored[0].t, why: '' }
+  return { tx: null, why: `${sameAmount.length} payments of that amount to different suppliers — can't tell which` }
+}
+
 /** Staff-side auth: the same token the rota portal issues. */
 async function staffFromToken(token: unknown) {
   const t = String(token || '').trim()
@@ -56,8 +221,61 @@ async function staffFromToken(token: unknown) {
   return data ?? null
 }
 
+// Supabase's gateway forces text/plain with nosniff on function responses, so
+// HTML arrives as visible source. Don't fight it: send the browser somewhere
+// that can actually render, and keep plain words for anything that goes wrong.
+const HUB = 'https://team.nodice.bar/ops?tab=receipts'
+
+const goToHub = (status: string) =>
+  new Response(null, { status: 302, headers: { Location: `${HUB}&xero=${status}` } })
+
+const say = (text: string) =>
+  new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
+  /* ── Xero sends the browser back here after you approve the connection ── */
+  if (req.method === 'GET') {
+    const u = new URL(req.url)
+    const code = u.searchParams.get('code')
+    const state = u.searchParams.get('state')
+    if (!code) return say('No Dice finance service. Nothing to see here.')
+
+    const row = await xeroRow()
+    if (!row?.pending_state || row.pending_state !== state) {
+      return say('That link has already been used, or it has expired. Ask Claude for a fresh one.')
+    }
+
+    const res = await fetch('https://identity.xero.com/connect/token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${basicAuth()}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: XERO_REDIRECT }),
+    })
+    if (!res.ok) return say('Could not connect. Xero said: ' + (await res.text()))
+    const t = await res.json()
+
+    // Which organisation did they actually pick?
+    const conn = await fetch('https://api.xero.com/connections', {
+      headers: { Authorization: `Bearer ${t.access_token}`, 'Content-Type': 'application/json' },
+    })
+    const tenants = conn.ok ? await conn.json() : []
+    const tenant = tenants[0]
+
+    await db.from('xero_auth').update({
+      tenant_id: tenant?.tenantId ?? null,
+      tenant_name: tenant?.tenantName ?? null,
+      refresh_token: t.refresh_token,
+      access_token: t.access_token,
+      expires_at: new Date(Date.now() + (t.expires_in ?? 1800) * 1000).toISOString(),
+      pending_state: null,
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', 1)
+
+    // Straight back into the hub, connected. No dead-end page to close.
+    return goToHub('connected')
+  }
 
   let p: Record<string, any> = {}
   try { p = await req.json() } catch { return json({ error: 'Bad request' }, 400) }
@@ -292,6 +510,110 @@ Deno.serve(async (req) => {
           .eq('id', p.id)
         if (error) throw error
         return json({ ok: true })
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* XERO — connect, and check it is still alive                       */
+      /* ---------------------------------------------------------------- */
+
+      case 'xeroAuthUrl': {
+        if (!XERO_ID || !XERO_SECRET) return json({ error: 'Xero credentials are not set' }, 400)
+        const state = crypto.randomUUID()
+        await db.from('xero_auth').update({ pending_state: state, updated_at: new Date().toISOString() }).eq('id', 1)
+        // Built by hand, NOT with URLSearchParams: that encodes the spaces
+        // between scopes as "+", and Xero's authorise endpoint reads the whole
+        // lot as one nonsense scope and returns invalid_scope with a 500.
+        // encodeURIComponent gives %20, which it accepts.
+        const url = 'https://login.xero.com/identity/connect/authorize'
+          + '?response_type=code'
+          + '&client_id=' + encodeURIComponent(XERO_ID)
+          + '&redirect_uri=' + encodeURIComponent(XERO_REDIRECT)
+          + '&scope=' + encodeURIComponent(XERO_SCOPES)
+          + '&state=' + encodeURIComponent(state)
+        return json({ ok: true, url })
+      }
+
+      case 'xeroStatus': {
+        const row = await xeroRow()
+        if (!row?.refresh_token) {
+          return json({ ok: true, connected: false, hasCredentials: !!(XERO_ID && XERO_SECRET) })
+        }
+        // Prove it rather than trust the stored row: fetch the org.
+        const tok = await xeroAccessToken()
+        if (!tok) return json({ ok: true, connected: false, stale: true, tenant: row.tenant_name })
+        const r = await fetch('https://api.xero.com/api.xro/2.0/Organisation', {
+          headers: { Authorization: `Bearer ${tok}`, 'Xero-tenant-id': row.tenant_id ?? '', Accept: 'application/json' },
+        })
+        if (!r.ok) return json({ ok: true, connected: false, stale: true, tenant: row.tenant_name })
+        const org = await r.json()
+        const o = org?.Organisations?.[0] ?? {}
+        return json({
+          ok: true, connected: true,
+          tenant: row.tenant_name, legalName: o.LegalName ?? o.Name,
+          baseCurrency: o.BaseCurrency, connectedAt: row.connected_at,
+        })
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* THE SWEEP — put each receipt on its bank payment                  */
+      /* ---------------------------------------------------------------- */
+      case 'xeroSweep': {
+        const row = await xeroRow()
+        const token = await xeroAccessToken()
+        if (!token || !row?.tenant_id) return json({ error: 'Xero is not connected' }, 400)
+
+        const dry = p.dryRun !== false      // must ASK to write; default is a rehearsal
+        const { data: pending } = await db.from('receipts')
+          .select('*').eq('status', 'new').not('image_path', 'is', null)
+          .order('spend_date', { ascending: true }).limit(Math.min(Number(p.limit) || 25, 60))
+
+        const attached: any[] = [], skipped: any[] = []
+
+        for (const r of pending ?? []) {
+          try {
+            const { tx, why } = await findBankTx(token, row.tenant_id, r as any)
+            if (!tx) { skipped.push({ id: r.id, supplier: r.supplier, amount: r.amount, why }); continue }
+
+            // Never add a second copy. A shop emails a receipt AND you
+            // photograph it, and the payment quietly ends up with two.
+            const existing = await xeroGet(`/BankTransactions/${tx.BankTransactionID}/Attachments`, token, row.tenant_id)
+            if ((existing.Attachments ?? []).length) {
+              skipped.push({ id: r.id, supplier: r.supplier, amount: r.amount, why: 'that payment already has a receipt' })
+              if (!dry) await db.from('receipts').update({ status: 'attached', xero_file_id: tx.BankTransactionID, attached_at: new Date().toISOString() }).eq('id', r.id)
+              continue
+            }
+
+            const hit = {
+              id: r.id, supplier: r.supplier, amount: Number(r.amount), date: r.spend_date,
+              paidTo: tx.Contact?.Name, txDate: String(tx.DateString ?? tx.Date ?? '').slice(0, 10),
+              txId: tx.BankTransactionID, category: r.category,
+            }
+            if (dry) { attached.push({ ...hit, dryRun: true }); continue }
+
+            const file = await db.storage.from(BUCKET).download(r.image_path)
+            if (file.error || !file.data) { skipped.push({ id: r.id, why: 'could not read the photo' }); continue }
+
+            const name = `${String(r.supplier).replace(/[^A-Za-z0-9]+/g, '')}_${r.spend_date}_${Number(r.amount).toFixed(2)}${(r.image_path.match(/\.[a-z0-9]+$/i) || ['.jpg'])[0]}`
+            const put = await fetch(`${XERO_API}/BankTransactions/${tx.BankTransactionID}/Attachments/${encodeURIComponent(name)}`, {
+              method: 'PUT',
+              headers: {
+                Authorization: `Bearer ${token}`, 'Xero-tenant-id': row.tenant_id,
+                'Content-Type': file.data.type || 'application/octet-stream', Accept: 'application/json',
+              },
+              body: new Uint8Array(await file.data.arrayBuffer()),
+            })
+            if (!put.ok) { skipped.push({ id: r.id, why: `Xero refused the file: ${(await put.text()).slice(0, 200)}` }); continue }
+
+            await db.from('receipts').update({
+              status: 'attached', xero_file_id: tx.BankTransactionID, attached_at: new Date().toISOString(),
+            }).eq('id', r.id)
+            attached.push(hit)
+          } catch (e) {
+            skipped.push({ id: r.id, supplier: r.supplier, why: String((e as Error).message).slice(0, 200) })
+          }
+        }
+
+        return json({ ok: true, dryRun: dry, considered: (pending ?? []).length, attached, skipped })
       }
 
       default:

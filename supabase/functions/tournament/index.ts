@@ -706,6 +706,24 @@ Deno.serve(async (req) => {
     // alive, what's the balance, and what happened to the last few messages.
     // Sends nothing. Added live on 19 Aug 2026 when no player was receiving
     // texts and we couldn't see why from outside.
+    // ── Email health check (founder-gated, read-only) ───────────────────────
+    // Asks Resend, with the key the prize emails use: is the sending domain
+    // verified (SPF/DKIM), and what records are missing? Sends nothing.
+    // Added 20 Aug 2026 — prize emails were reaching Hotmail/Yahoo minutes late.
+    if (action === "resendStatus") {
+      if (!RESEND) return json({ ok: false, reason: "RESEND_API_KEY not set" });
+      const out: any = {};
+      try {
+        const r = await fetch("https://api.resend.com/domains", { headers: { Authorization: `Bearer ${RESEND}` } });
+        out.http = r.status;
+        if (r.ok) {
+          const j = await r.json();
+          out.domains = (j.data || []).map((d: any) => ({ name: d.name, status: d.status, region: d.region, records: (d.records || []).map((x: any) => ({ type: x.record, name: x.name, status: x.status })) }));
+        } else out.error = (await r.text()).slice(0, 400);
+      } catch (e) { out.error = String(e); }
+      return json({ ok: true, ...out });
+    }
+
     if (action === "twilioStatus") {
       if (!TW_SID || !TW_TOKEN) return json({ ok: false, reason: "Twilio credentials not set" });
       const auth = { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`) };

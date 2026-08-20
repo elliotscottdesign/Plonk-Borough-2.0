@@ -1,7 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { generateWeek, holidayName, addDaysISO, hoursFor, withDefaults, isKitchen } from '../../rota/rotaEngine.js'
 import { fmtMin } from '../../rota/shifts.js'
-import { rotaSaveDayRoster } from '../../rota/api.js'
+import { rotaSaveDayRoster, rotaCompileRules } from '../../rota/api.js'
 import RotaRulesEditor from './RotaRulesEditor.jsx'
 import HistoricalBuild from './HistoricalBuild.jsx'
 
@@ -25,8 +25,6 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
 
   const active = staff.filter(s => s.active !== false)
   const nameById = Object.fromEntries(active.map(s => [s.id, s.name]))
-  const { houseRules, compiledNotes } = withDefaults(rules)   // the founder's typed rules + how the AI read them
-  const noteFor = (r) => (compiledNotes || []).find(n => n && n.rule === r) || null
   const weekEnd = addDaysISO(weekStart, 6)
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const assignedCount = (day) => day.slots.filter(s => s.staffId).length
@@ -146,32 +144,12 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
       </div>
 
       {/* The founder's plain-English house rules — always visible as the review checklist */}
-      {houseRules.length > 0 && (() => {
-        const applied = houseRules.filter(r => noteFor(r)?.status === 'applied').length
-        const check = houseRules.length - applied
-        return (
-          <details style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '0 14px' }}>
-            <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: BLUE, padding: '13px 0' }}>
-              📌 Rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>· {houseRules.length} house rule{houseRules.length === 1 ? '' : 's'} · <span style={{ color: GREEN }}>{applied} applied automatically</span>{check > 0 && <> · <span style={{ color: AMBER }}>{check} to check by hand</span></>}</span>
-            </summary>
-            <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>✅ = the builder does it automatically · ⚠️ = check by hand as you review · hover a rule for how it was read</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 5, paddingBottom: 14 }}>
-              {houseRules.map((r, i) => {
-                const n = noteFor(r)
-                return (
-                  <div key={i} title={n?.understood || ''} style={{ display: 'flex', gap: 8, alignItems: 'flex-start', fontSize: 12.5, color: 'rgba(255,255,255,0.85)', lineHeight: 1.45 }}>
-                    <span style={{ flexShrink: 0 }}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '•'}</span><span>{r}</span>
-                  </div>
-                )
-              })}
-            </div>
-          </details>
-        )
-      })()}
+      {/* 📌 Rules — THE editable house-rules section (was a read-only copy + a second editor inside ⚙️ Rota rules; unified 19 Aug 2026) */}
+      <HouseRulesEditor rules={rules} reload={reload} />
 
       {/* Editable rules the AI builds from — house rules, hours, staffing, priority, holidays */}
       <details style={{ background: '#0A0A0A', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 12, padding: '0 14px' }}>
-        <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '13px 0' }}>⚙️ Rota rules — house rules, hours, staff priority &amp; holidays <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>· what the builder uses (edit &amp; save)</span></summary>
+        <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: '#fff', padding: '13px 0' }}>⚙️ Rota rules — hours, staffing, staff priority &amp; holidays <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>· what the builder uses (edit &amp; save)</span></summary>
         <div style={{ paddingBottom: 14 }}><RotaRulesEditor rules={rules} staff={staff} onSaved={reload} /></div>
       </details>
 
@@ -277,6 +255,79 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
         </>
       )}
     </div>
+  )
+}
+
+// ─── 📌 Rules — the one place house rules live (type → Save → the AI applies) ──
+// Rows are editable in place with a receipt under each (how the AI read it).
+// Save sends the FULL current rules object with the new houseRules so nothing
+// manual is lost; the 20s background refresh never clobbers unsaved typing.
+function HouseRulesEditor({ rules, reload }) {
+  const fresh = withDefaults(rules)
+  const [list, setList] = useState(() => [...fresh.houseRules])
+  const [notes, setNotes] = useState(() => fresh.compiledNotes || [])
+  const seedRef = useRef(JSON.stringify(fresh.houseRules))
+  const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState('')
+  useEffect(() => {
+    const R = withDefaults(rules)
+    setNotes(R.compiledNotes || [])
+    const seed = JSON.stringify(R.houseRules)
+    setList(cur => {
+      if (JSON.stringify(cur) !== seedRef.current) return cur   // founder is mid-edit — don't clobber
+      seedRef.current = seed
+      return [...R.houseRules]
+    })
+  }, [rules])
+  const cleaned = list.map(t => t.trim()).filter(Boolean)
+  const dirty = JSON.stringify(cleaned) !== JSON.stringify(withDefaults(rules).houseRules)
+  const norm = (x) => String(x || '').replace(/\s+/g, ' ').trim().toLowerCase()
+  const noteFor = (r) => notes.find(n => n && norm(n.rule) === norm(r)) || null
+  const applied = cleaned.filter(r => noteFor(r)?.status === 'applied').length
+  const toCheck = cleaned.filter(r => noteFor(r) && noteFor(r).status !== 'applied').length
+  const save = async () => {
+    setBusy(true); setErr('')
+    try {
+      const r = await rotaCompileRules({ ...(rules || {}), houseRules: cleaned })
+      const R = withDefaults(r.rules)
+      seedRef.current = JSON.stringify(R.houseRules)
+      setList([...R.houseRules]); setNotes(R.compiledNotes || [])
+      if (r.setup && r.error) setErr(r.error)
+      await reload?.()
+    } catch (e) { setErr(e.message) } finally { setBusy(false) }
+  }
+  return (
+    <details style={{ background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 12, padding: '0 14px' }}>
+      <summary style={{ cursor: 'pointer', fontSize: 13.5, fontWeight: 700, color: BLUE, padding: '13px 0' }}>
+        📌 Rules <span style={{ fontWeight: 400, color: 'rgba(255,255,255,0.55)', fontSize: 12 }}>· {cleaned.length} house rule{cleaned.length === 1 ? '' : 's'}{cleaned.length > 0 && <> · <span style={{ color: GREEN }}>{applied} applied automatically</span></>}{toCheck > 0 && <> · <span style={{ color: AMBER }}>{toCheck} to check by hand</span></>}{dirty && <> · <span style={{ color: AMBER, fontWeight: 700 }}>unsaved changes</span></>} · type, edit or delete — Save has the AI apply them</span>
+      </summary>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6, paddingBottom: 14 }}>
+        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5 }}>
+          Type any rule in plain English — “prioritise Jordan this week”, “never put Alex and Sam on together”, “max 3 shifts for Ben”. <strong style={{ color: '#fff' }}>Save</strong> and the AI wires what it can straight into the builder: <strong style={{ color: GREEN }}>✅ applied</strong> (with what it will do) or <strong style={{ color: AMBER }}>⚠️ reminder</strong> to check by hand. Delete a rule and Save to un-apply it.
+        </div>
+        {err && <div style={{ fontSize: 12, color: '#F87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '9px 12px', lineHeight: 1.5 }}>{err}</div>}
+        {list.length === 0 && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>No house rules yet — add your first below.</div>}
+        {list.map((r, i) => {
+          const n = r.trim() ? noteFor(r) : null
+          return (
+            <div key={i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, padding: '8px 10px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+                <span style={{ fontSize: 13, lineHeight: '30px', flexShrink: 0 }} title={n ? (n.status === 'applied' ? 'Applied — the builder does this automatically' : 'Reminder — check it by hand as you review') : 'Not read yet — Save'}>{n ? (n.status === 'applied' ? '✅' : '⚠️') : '📝'}</span>
+                <textarea value={r} onChange={e => setList(l => l.map((x, k) => k === i ? e.target.value : x))} rows={1} placeholder="e.g. Prioritise Jordan this week" style={{ flex: 1, minWidth: 0, resize: 'vertical', lineHeight: 1.4, padding: '6px 9px', fontSize: 12.5, borderRadius: 6, background: '#000', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', outline: 'none' }} />
+                <button onClick={() => setList(l => l.filter((_, k) => k !== i))} title="Delete this rule — then Save to make it stick" style={{ flexShrink: 0, display: 'inline-flex', alignItems: 'center', gap: 4, padding: '6px 10px', borderRadius: 7, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.35)', color: '#F87171', fontSize: 11.5, fontWeight: 700 }}>🗑 Delete</button>
+              </div>
+              {n
+                ? <div style={{ fontSize: 11.5, color: n.status === 'applied' ? GREEN : AMBER, lineHeight: 1.45, marginTop: 5, paddingLeft: 29 }}>{n.understood}</div>
+                : <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 5, paddingLeft: 29 }}>New or edited — tap <strong style={{ color: 'rgba(255,255,255,0.7)' }}>Save rules</strong> and the AI will read it.</div>}
+            </div>
+          )
+        })}
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', marginTop: 2 }}>
+          <button onClick={() => setList(l => [...l, ''])} style={btn('ghost')}>+ Add a rule</button>
+          <button onClick={save} disabled={busy || !dirty} style={{ ...btn('gold'), opacity: busy || !dirty ? 0.5 : 1 }}>{busy ? '🧠 AI reading your rules…' : dirty ? 'Save rules' : 'Saved ✓'}</button>
+        </div>
+      </div>
+    </details>
   )
 }
 
