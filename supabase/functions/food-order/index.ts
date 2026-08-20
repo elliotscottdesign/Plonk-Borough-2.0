@@ -151,12 +151,45 @@ Deno.serve(async (req) => {
       const patch: any = { updated_at: new Date().toISOString() };
       if (typeof b.paused === "boolean") patch.paused = b.paused;
       if (typeof b.auto_pause === "boolean") patch.auto_pause = b.auto_pause;
-      if (b.auto_threshold != null) patch.auto_threshold = Math.max(1, parseInt(b.auto_threshold, 10) || 8);
+      if (b.auto_threshold != null) patch.auto_threshold = Math.max(0, parseInt(b.auto_threshold, 10) || 0);   // 0 = auto-pause off
       const { error } = await sb.from("food_settings").update(patch).eq("id", 1);
       if (error) return json({ error: error.message }, 400);
       const e = await getEffective(sb);
       return json({ ok: true, ...e, waiting: await waitingCount(sb) });
     }
+    // ── Live stock levels (limiting ingredients) → drives menu availability ──────
+    if (action === "getStock") {   // public — the order page + kitchen read this
+      const { data } = await sb.from("kitchen_stock_levels").select("*");
+      const levels: Record<string, any> = {};
+      for (const r of (data || [])) {
+        const soldOut = r.override === "sold_out" || (r.override !== "available" && r.count <= 0);
+        levels[r.ingredient] = { count: r.count, override: r.override, soldOut, label: r.label };
+      }
+      return json({ ok: true, levels });
+    }
+    if (action === "setStock") {   // kitchen — set absolute counts (opening / correction)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const levels = (b.levels && typeof b.levels === "object") ? b.levels : {};
+      for (const [ing, count] of Object.entries(levels)) {
+        await sb.from("kitchen_stock_levels").update({ count: Math.max(0, parseInt(String(count), 10) || 0), updated_at: new Date().toISOString() }).eq("ingredient", ing);
+      }
+      return json({ ok: true });
+    }
+    if (action === "adjustStock") {   // kitchen — nudge one ingredient by +/- delta
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const ing = clean(b.ingredient, 40), delta = parseInt(String(b.delta), 10) || 0;
+      const { data: cur } = await sb.from("kitchen_stock_levels").select("count").eq("ingredient", ing).maybeSingle();
+      if (cur) await sb.from("kitchen_stock_levels").update({ count: Math.max(0, cur.count + delta), updated_at: new Date().toISOString() }).eq("ingredient", ing);
+      return json({ ok: true });
+    }
+    if (action === "setStockOverride") {   // kitchen — force sold_out / available / auto(null)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const ing = clean(b.ingredient, 40);
+      const ov = b.override === "sold_out" || b.override === "available" ? b.override : null;
+      await sb.from("kitchen_stock_levels").update({ override: ov, updated_at: new Date().toISOString() }).eq("ingredient", ing);
+      return json({ ok: true });
+    }
+
     if (action === "joinWaitlist") { // public — customer leaves their number while paused
       const phone = clean(b.phone, 30);
       if (!phone) return json({ error: "no phone number" }, 400);
