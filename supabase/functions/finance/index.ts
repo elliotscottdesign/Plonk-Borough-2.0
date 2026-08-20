@@ -34,6 +34,9 @@ const json = (body: unknown, status = 200) =>
 
 const CATEGORIES = ['business', 'staff_welfare', 'personal', 'competitor']
 
+const escapeHtml = (s: unknown) => String(s ?? '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+
 /**
  * What a competitor check must carry to be worth claiming. Returns the missing
  * piece, or null if it is complete. Used on the way in AND when something is
@@ -47,6 +50,71 @@ function competitorGap(r: { comp_item?: any; comp_price?: any; comp_verdict?: an
   return null
 }
 
+/* ────────────────────────────────────────────────────────────────────────── */
+/* XERO CONNECTION                                                            */
+/*                                                                            */
+/* A standard OAuth2 web app rather than a paid Custom Connection. It is      */
+/* authorised once through a browser and then keeps itself alive: the access  */
+/* token lasts 30 minutes, the refresh token rotates on every use and only    */
+/* dies after 60 days unused, which the daily sweep prevents.                 */
+/* ────────────────────────────────────────────────────────────────────────── */
+
+const XERO_ID     = Deno.env.get('XERO_CLIENT_ID') ?? ''
+const XERO_SECRET = Deno.env.get('XERO_CLIENT_SECRET') ?? ''
+const XERO_REDIRECT = `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/functions/v1/finance`
+// EXACTLY the three scopes this app is provisioned for, and no more. Asking
+// for anything else — accounting.transactions, accounting.reports.read —
+// gets invalid_scope and a 500 from the authorise endpoint, which reads like
+// a broken link rather than a permissions problem. Verified one by one
+// against Xero on 19 Aug 2026.
+//
+// accounting.banktransactions is also the RIGHT scope here: narrower than
+// accounting.transactions, and bank transactions are all this touches.
+const XERO_SCOPES = [
+  'openid', 'profile', 'email',
+  'accounting.banktransactions',  // find the bank payment a receipt belongs to
+  'accounting.attachments',       // attach the file to it
+  'accounting.settings.read',     // read the chart of accounts
+  'offline_access',               // the refresh token — without this it dies in 30 minutes
+].join(' ')
+
+const basicAuth = () => btoa(`${XERO_ID}:${XERO_SECRET}`)
+
+async function xeroRow() {
+  const { data } = await db.from('xero_auth').select('*').eq('id', 1).maybeSingle()
+  return data
+}
+
+/** A valid access token, refreshed if the current one is stale or nearly so. */
+async function xeroAccessToken(): Promise<string | null> {
+  const row = await xeroRow()
+  if (!row?.refresh_token) return null
+
+  // 60s of headroom so a token can't expire mid-request.
+  if (row.access_token && row.expires_at && new Date(row.expires_at).getTime() - 60_000 > Date.now()) {
+    return row.access_token
+  }
+
+  const res = await fetch('https://identity.xero.com/connect/token', {
+    method: 'POST',
+    headers: { Authorization: `Basic ${basicAuth()}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ grant_type: 'refresh_token', refresh_token: row.refresh_token }),
+  })
+  if (!res.ok) return null
+  const t = await res.json()
+
+  // Xero rotates the refresh token on every use — store the new one or the
+  // next refresh fails and the connection is dead.
+  await db.from('xero_auth').update({
+    access_token: t.access_token,
+    refresh_token: t.refresh_token ?? row.refresh_token,
+    expires_at: new Date(Date.now() + (t.expires_in ?? 1800) * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }).eq('id', 1)
+
+  return t.access_token
+}
+
 /** Staff-side auth: the same token the rota portal issues. */
 async function staffFromToken(token: unknown) {
   const t = String(token || '').trim()
@@ -56,8 +124,61 @@ async function staffFromToken(token: unknown) {
   return data ?? null
 }
 
+// Supabase's gateway forces text/plain with nosniff on function responses, so
+// HTML arrives as visible source. Don't fight it: send the browser somewhere
+// that can actually render, and keep plain words for anything that goes wrong.
+const HUB = 'https://team.nodice.bar/ops?tab=receipts'
+
+const goToHub = (status: string) =>
+  new Response(null, { status: 302, headers: { Location: `${HUB}&xero=${status}` } })
+
+const say = (text: string) =>
+  new Response(text, { headers: { 'Content-Type': 'text/plain; charset=utf-8' } })
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
+
+  /* ── Xero sends the browser back here after you approve the connection ── */
+  if (req.method === 'GET') {
+    const u = new URL(req.url)
+    const code = u.searchParams.get('code')
+    const state = u.searchParams.get('state')
+    if (!code) return say('No Dice finance service. Nothing to see here.')
+
+    const row = await xeroRow()
+    if (!row?.pending_state || row.pending_state !== state) {
+      return say('That link has already been used, or it has expired. Ask Claude for a fresh one.')
+    }
+
+    const res = await fetch('https://identity.xero.com/connect/token', {
+      method: 'POST',
+      headers: { Authorization: `Basic ${basicAuth()}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ grant_type: 'authorization_code', code, redirect_uri: XERO_REDIRECT }),
+    })
+    if (!res.ok) return say('Could not connect. Xero said: ' + (await res.text()))
+    const t = await res.json()
+
+    // Which organisation did they actually pick?
+    const conn = await fetch('https://api.xero.com/connections', {
+      headers: { Authorization: `Bearer ${t.access_token}`, 'Content-Type': 'application/json' },
+    })
+    const tenants = conn.ok ? await conn.json() : []
+    const tenant = tenants[0]
+
+    await db.from('xero_auth').update({
+      tenant_id: tenant?.tenantId ?? null,
+      tenant_name: tenant?.tenantName ?? null,
+      refresh_token: t.refresh_token,
+      access_token: t.access_token,
+      expires_at: new Date(Date.now() + (t.expires_in ?? 1800) * 1000).toISOString(),
+      pending_state: null,
+      connected_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', 1)
+
+    // Straight back into the hub, connected. No dead-end page to close.
+    return goToHub('connected')
+  }
 
   let p: Record<string, any> = {}
   try { p = await req.json() } catch { return json({ error: 'Bad request' }, 400) }
@@ -292,6 +413,48 @@ Deno.serve(async (req) => {
           .eq('id', p.id)
         if (error) throw error
         return json({ ok: true })
+      }
+
+      /* ---------------------------------------------------------------- */
+      /* XERO — connect, and check it is still alive                       */
+      /* ---------------------------------------------------------------- */
+
+      case 'xeroAuthUrl': {
+        if (!XERO_ID || !XERO_SECRET) return json({ error: 'Xero credentials are not set' }, 400)
+        const state = crypto.randomUUID()
+        await db.from('xero_auth').update({ pending_state: state, updated_at: new Date().toISOString() }).eq('id', 1)
+        // Built by hand, NOT with URLSearchParams: that encodes the spaces
+        // between scopes as "+", and Xero's authorise endpoint reads the whole
+        // lot as one nonsense scope and returns invalid_scope with a 500.
+        // encodeURIComponent gives %20, which it accepts.
+        const url = 'https://login.xero.com/identity/connect/authorize'
+          + '?response_type=code'
+          + '&client_id=' + encodeURIComponent(XERO_ID)
+          + '&redirect_uri=' + encodeURIComponent(XERO_REDIRECT)
+          + '&scope=' + encodeURIComponent(XERO_SCOPES)
+          + '&state=' + encodeURIComponent(state)
+        return json({ ok: true, url })
+      }
+
+      case 'xeroStatus': {
+        const row = await xeroRow()
+        if (!row?.refresh_token) {
+          return json({ ok: true, connected: false, hasCredentials: !!(XERO_ID && XERO_SECRET) })
+        }
+        // Prove it rather than trust the stored row: fetch the org.
+        const tok = await xeroAccessToken()
+        if (!tok) return json({ ok: true, connected: false, stale: true, tenant: row.tenant_name })
+        const r = await fetch('https://api.xero.com/api.xro/2.0/Organisation', {
+          headers: { Authorization: `Bearer ${tok}`, 'Xero-tenant-id': row.tenant_id ?? '', Accept: 'application/json' },
+        })
+        if (!r.ok) return json({ ok: true, connected: false, stale: true, tenant: row.tenant_name })
+        const org = await r.json()
+        const o = org?.Organisations?.[0] ?? {}
+        return json({
+          ok: true, connected: true,
+          tenant: row.tenant_name, legalName: o.LegalName ?? o.Name,
+          baseCurrency: o.BaseCurrency, connectedAt: row.connected_at,
+        })
       }
 
       default:
