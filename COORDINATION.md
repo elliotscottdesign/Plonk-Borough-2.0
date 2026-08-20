@@ -26,6 +26,7 @@ _(none — add a row when you start editing a shared file, remove it when you've
 
 | Lane | Shared file | What / why | Since |
 |------|-------------|-----------|-------|
+| till | src/ops/OpsApp.jsx | One import + one tab entry: "Till" (founderOnly) in the Bar group — slice 1 read-only catalogue. Released on merge. | 20 Aug 2026 |
 
 ## Schema (DDL) changes — announce here
 One Supabase project (`rntcujcpsozvuxvmlejv`) is shared by every lane. Any
