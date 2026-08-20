@@ -9,12 +9,12 @@ const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefin
 const ALLERGEN_COLOR = { contains: '#DA1B33', trace: '#F59E0B' }
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
-// items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
+// items, sell price + cost → live margin (not VAT registered), a photo per item, and beer+burger
 // bundles. Saves to menu_catalog (via the `menu` edge fn); the order page + kitchen
 // screen read the same doc. "Export branded menu" prints one A4 = two A5 halves.
 
 const GOLD = '#C9A84C', GREEN = '#34D399', RED = '#DA1B33', LINE = 'rgba(201,168,76,0.22)', CARD = 'rgba(255,255,255,0.03)', MUTED = 'rgba(255,255,255,0.55)'
-const VAT = 1.2
+const VAT = 1   // On A Roll is NOT VAT registered — the sell price is final; margin = price − cost.
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 let uid = 1000
 const nid = p => `${p}${uid++}`
@@ -96,7 +96,7 @@ export default function MenuManager() {
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
         <button onClick={() => exportMenu(sections, 'print')} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
         <button onClick={() => exportMenu(sections, 'pdf')} style={pill(false)}>⬇ Download PDF</button>
-        <span style={{ fontSize: 12, color: MUTED }}>Sell prices are inc VAT (20%); margin is on the ex-VAT price.</span>
+        <span style={{ fontSize: 12, color: MUTED }}>On A Roll isn't VAT registered — the sell price is final; margin is price − cost.</span>
       </div>
       <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 10, lineHeight: 1.5, background: 'rgba(201,168,76,0.06)', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 11px' }}>
         📄 <b style={{ color: '#fff' }}>Live On A Roll menu</b> — share this with all staff; it always shows the latest <b>saved</b> menu (Print / Download PDF on it too):{' '}
@@ -127,10 +127,10 @@ export default function MenuManager() {
                     <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
                       style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Field label="Sell £ inc VAT" value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
+                      <Field label="Sell £" value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#0e0e10', border: `1px solid ${it.sell && it.cost ? mgColor(mp) : LINE}`, borderRadius: 8, padding: '5px 9px' }}
-                        title="Gross margin on the ex-VAT price. £ figure = cash profit per item.">
+                        title="Gross margin (price − cost). £ figure = cash profit per item.">
                         <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Margin</span>
                         <b style={{ fontSize: 14, color: it.sell && it.cost ? mgColor(mp) : MUTED }}>{it.sell && it.cost ? mp + '%' : '—'}</b>
                         {it.sell && it.cost && <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>· £{(parseFloat(it.sell) / VAT - parseFloat(it.cost)).toFixed(2)}</span>}
