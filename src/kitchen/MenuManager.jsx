@@ -14,13 +14,14 @@ const ALLERGEN_COLOR = { contains: '#DA1B33', trace: '#F59E0B' }
 // screen read the same doc. "Export branded menu" prints one A4 = two A5 halves.
 
 const GOLD = '#C9A84C', GREEN = '#34D399', RED = '#DA1B33', LINE = 'rgba(201,168,76,0.22)', CARD = 'rgba(255,255,255,0.03)', MUTED = 'rgba(255,255,255,0.55)'
-const VAT = 1   // On A Roll is NOT VAT registered — the sell price is final; margin = price − cost.
+const VAT_RATE = 1.2   // when VAT registered, margin is on the ex-VAT price (price ÷ 1.2)
+const netPrice = (sellStr, vatOn) => (parseFloat(sellStr) || 0) / (vatOn ? VAT_RATE : 1)
 const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
 let uid = 1000
 const nid = p => `${p}${uid++}`
 const pounds = pence => ((pence || 0) / 100).toString()
 const toPence = str => Math.round((parseFloat(str) || 0) * 100)
-const marginPct = (sellStr, costStr) => { const net = (parseFloat(sellStr) || 0) / VAT; const c = parseFloat(costStr) || 0; return net ? Math.round((net - c) / net * 100) : 0 }
+const marginPct = (sellStr, costStr, vatOn) => { const net = netPrice(sellStr, vatOn); const c = parseFloat(costStr) || 0; return net ? Math.round((net - c) / net * 100) : 0 }
 const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
@@ -47,9 +48,10 @@ export default function MenuManager() {
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [vat, setVat] = useState(false)   // VAT registered? drives margin maths + labels
 
   useEffect(() => { (async () => {
-    try { const r = await getMenu(); setSections(r.sections?.length ? fromDoc(r.sections) : DEFAULTS); setBundles(bundlesFromDoc(r.bundles)) }
+    try { const r = await getMenu(); setSections(r.sections?.length ? fromDoc(r.sections) : DEFAULTS); setBundles(bundlesFromDoc(r.bundles)); setVat(!!r.vat_registered) }
     catch { setSections(DEFAULTS); setMsg("Backend not reachable yet — you're editing local defaults. Deploy the `menu` function to save.") }
   })() }, [])
 
@@ -82,7 +84,7 @@ export default function MenuManager() {
 
   const save = async () => {
     setSaving(true); setMsg('')
-    try { await saveMenu(toDoc(sections), bundlesToDoc(bundles)); setDirty(false); setMsg('Saved ✓ — the order page & kitchen screen now use this menu.') }
+    try { await saveMenu(toDoc(sections), bundlesToDoc(bundles), vat); setDirty(false); setMsg('Saved ✓ — the order page & kitchen screen now use this menu.') }
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
   }
 
@@ -94,9 +96,12 @@ export default function MenuManager() {
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6, position: 'sticky', top: 46, zIndex: 15, background: 'var(--ink)', paddingBottom: 8 }}>
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
-        <button onClick={() => exportMenu(sections, 'print')} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
-        <button onClick={() => exportMenu(sections, 'pdf')} style={pill(false)}>⬇ Download PDF</button>
-        <span style={{ fontSize: 12, color: MUTED }}>On A Roll isn't VAT registered — the sell price is final; margin is price − cost.</span>
+        <button onClick={() => exportMenu(sections, 'print', vat)} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
+        <button onClick={() => exportMenu(sections, 'pdf', vat)} style={pill(false)}>⬇ Download PDF</button>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: vat ? GOLD : MUTED, cursor: 'pointer', border: `1px solid ${vat ? GOLD : LINE}`, borderRadius: 8, padding: '7px 11px' }}>
+          <input type="checkbox" checked={vat} onChange={e => { setVat(e.target.checked); setDirty(true) }} /> VAT registered (20%)
+        </label>
+        <span style={{ fontSize: 12, color: MUTED }}>{vat ? 'Prices include VAT; margin is on the ex-VAT price (÷1.2).' : 'Not VAT registered — the sell price is final; margin is price − cost.'}</span>
       </div>
       <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 10, lineHeight: 1.5, background: 'rgba(201,168,76,0.06)', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 11px' }}>
         📄 <b style={{ color: '#fff' }}>Live On A Roll menu</b> — share this with all staff; it always shows the latest <b>saved</b> menu (Print / Download PDF on it too):{' '}
@@ -115,7 +120,7 @@ export default function MenuManager() {
           </div>
 
           {sec.items.map((it, ii) => {
-            const mp = marginPct(it.sell, it.cost)
+            const mp = marginPct(it.sell, it.cost, vat)
             return (
               <div key={it.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
                 <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
@@ -127,13 +132,13 @@ export default function MenuManager() {
                     <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
                       style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                      <Field label="Sell £" value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
+                      <Field label={vat ? "Sell £ inc VAT" : "Sell £"} value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
                       <span style={{ display: 'flex', alignItems: 'center', gap: 5, background: '#0e0e10', border: `1px solid ${it.sell && it.cost ? mgColor(mp) : LINE}`, borderRadius: 8, padding: '5px 9px' }}
-                        title="Gross margin (price − cost). £ figure = cash profit per item.">
+                        title={vat ? "Gross margin on the ex-VAT price. £ = cash profit per item." : "Gross margin (price − cost). £ = cash profit per item."}>
                         <span style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Margin</span>
                         <b style={{ fontSize: 14, color: it.sell && it.cost ? mgColor(mp) : MUTED }}>{it.sell && it.cost ? mp + '%' : '—'}</b>
-                        {it.sell && it.cost && <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>· £{(parseFloat(it.sell) / VAT - parseFloat(it.cost)).toFixed(2)}</span>}
+                        {it.sell && it.cost && <span style={{ fontSize: 11, color: MUTED, fontWeight: 700 }}>· £{(netPrice(it.sell, vat) - (parseFloat(it.cost) || 0)).toFixed(2)}</span>}
                       </span>
                       <button onClick={() => delItem(si, ii)} title="Remove item" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 15 }}>×</button>
                     </div>
@@ -141,7 +146,7 @@ export default function MenuManager() {
                     <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
                       <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>Add-ons / extras</div>
                       {(it.addons || []).map((a, ai) => {
-                        const amp = marginPct(a.price, a.cost)
+                        const amp = marginPct(a.price, a.cost, vat)
                         return (
                         <div key={a.id} style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6, flexWrap: 'wrap' }}>
                           <input value={a.name} placeholder="e.g. Extra patty" onChange={e => setAddon(si, ii, ai, 'name', e.target.value)}
