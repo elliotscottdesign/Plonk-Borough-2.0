@@ -90,6 +90,16 @@ export default function TillScreen() {
 
   const refLabel = (o) => o.kind === 'table' ? o.ref : o.kind === 'tab' ? `Tab · ${o.ref}` : 'Quick sale'
 
+  // Going back to the floor with nothing rung = never opened. Otherwise a
+  // mis-tapped table shows "occupied · £0.00" until someone notices.
+  const toFloor = () => {
+    const o = orders[currentId]
+    if (o && o.lines.length === 0) {
+      setOrders(prev => { const n = { ...prev }; delete n[currentId]; return n })
+    }
+    setCurrentId(null); setScreen('floor')
+  }
+
   // ── buttons for the ring grid ─────────────────────────────────────────────
   const buttons = useMemo(() => {
     const q = query.trim().toLowerCase()
@@ -207,7 +217,7 @@ export default function TillScreen() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, minWidth: isMobile ? undefined : 280, maxWidth: isMobile ? undefined : 310 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 13, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
-        <button onClick={() => setScreen('floor')} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
+        <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
       </div>
       {current.lines.length === 0 && <div style={{ fontSize: 12.5, color: DIM, padding: '4px 0 8px' }}>Tap buttons to ring.</div>}
       {current.lines.map(l => (
