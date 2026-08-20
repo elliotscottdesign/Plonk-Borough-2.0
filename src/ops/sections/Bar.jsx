@@ -361,7 +361,17 @@ function Drawer({ k, open, onToggle, icon, title, hint, tone, children }) {
         <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 13 }}>{isOpen ? '▲' : '▼'}</span>
       </button>
       {isOpen && <div style={{ padding: '0 14px 16px', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ paddingTop: 14 }}>{children}</div>
+        {/* Founder: "i have 165 lines on the Bar 'The Full List'". An open drawer
+            used to make the page thousands of pixels tall, so the header — and the
+            ☰ that gets you back to Events — was a very long scroll away. Each
+            drawer now scrolls INSIDE itself and never grows past two-thirds of the
+            screen, so the page stays a normal length whatever is open. */}
+        <div style={{ paddingTop: 14, maxHeight: '62vh', overflowY: 'auto', overscrollBehavior: 'contain' }}>{children}</div>
+        {/* The count sheet and the full list run to 160+ rows. Without this the only
+            way to close a drawer was to scroll all the way back to its header. */}
+        <button onClick={() => onToggle(k)} style={{ ...btn(), marginTop: 14, width: '100%' }}>
+          ▲ Close {title.toLowerCase()}
+        </button>
       </div>}
     </div>
   )

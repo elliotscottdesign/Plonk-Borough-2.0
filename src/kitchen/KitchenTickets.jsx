@@ -7,8 +7,11 @@ import { listOrders, setOrderStatus, listHistory, getStatus, setSettings } from 
 // Lives in /ops → Kitchen. Polls every 10s so a fresh order shows without a reload.
 
 const BLUE = '#183fa0', RED = '#e0231b', GREEN = '#1f8a4d', INK = '#15305c', LINE = '#cabfa2', MUTED = 'rgba(255,255,255,0.55)'
+const AMBER = '#E8B84B'
 const HEAVY = "Impact, 'Arial Narrow Bold', sans-serif"
+const FLAG_MS = 12 * 60 * 1000    // flag any order still open past 12 minutes
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
+const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
 
 export default function KitchenTickets() {
   const [orders, setOrders] = useState(null)
@@ -18,6 +21,7 @@ export default function KitchenTickets() {
   const [showHistory, setShowHistory] = useState(false)
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
+  const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
@@ -43,31 +47,64 @@ export default function KitchenTickets() {
     } catch (e) { setErr(e.message); setOrders(o => (o == null ? [] : o)) }
   }
   const loadPause = async () => { try { setPause(await getStatus()) } catch { /* ignore */ } }
+  // Avg time-to-service tonight: mean of (ready_at − created_at) over today's orders
+  // that have been marked ready. Reads the order history (last 200).
+  const loadStats = async () => {
+    try {
+      const r = await listHistory(); const now = new Date(); const orders = r.orders || []
+      const done = orders.filter(o => o.ready_at && sameDay(new Date(o.created_at), now))
+      const tipsPence = orders.filter(o => o.paid && sameDay(new Date(o.created_at), now)).reduce((s, o) => s + (o.tip_pence || 0), 0)
+      const avgSec = done.length ? Math.round(done.reduce((s, o) => s + (new Date(o.ready_at) - new Date(o.created_at)), 0) / done.length / 1000) : null
+      setStats({ avgSec, count: done.length, tipsPence })
+    } catch { /* ignore */ }
+  }
   useEffect(() => {
-    load(); loadPause()
+    load(); loadPause(); loadStats()
     const poll = setInterval(() => { load(); loadPause() }, 10000)
+    const statsPoll = setInterval(loadStats, 30000)
     const clock = setInterval(() => tick(t => t + 1), 1000)
-    return () => { clearInterval(poll); clearInterval(clock) }
+    return () => { clearInterval(poll); clearInterval(statsPoll); clearInterval(clock) }
   }, [])   // eslint-disable-line
 
-  const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
-  const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(1, n) })) } catch (e) { alert(e.message) } }
+  const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(0, n) })) } catch (e) { alert(e.message) } }
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
   const active = orders.filter(o => o.status !== 'collected')
+  const flagged = active.filter(o => o.status !== 'ready' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
+  const avgColor = stats.avgSec == null ? MUTED : stats.avgSec > 12 * 60 ? RED : stats.avgSec > 8 * 60 ? AMBER : GREEN
   return (
     <div>
+      <style>{`@keyframes oarflash{0%,100%{box-shadow:0 0 0 0 rgba(224,35,27,.65)}50%{box-shadow:0 0 0 5px rgba(224,35,27,0)}}`}</style>
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
+        <div style={{ flex: '1 1 190px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
+          <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>⏱ Avg time to service · tonight</div>
+          <div style={{ fontFamily: HEAVY, fontSize: 36, color: avgColor, lineHeight: 1.05 }}>{stats.avgSec == null ? '—' : mmss(stats.avgSec * 1000)}</div>
+          <div style={{ fontSize: 11.5, color: MUTED }}>{stats.count ? `${stats.count} order${stats.count > 1 ? 's' : ''} served · target under 12:00` : 'no orders served yet'}</div>
+        </div>
+        <div style={{ flex: '1 1 150px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
+          <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💛 Tips tonight · kitchen</div>
+          <div style={{ fontFamily: HEAVY, fontSize: 36, color: GREEN, lineHeight: 1.05 }}>£{(stats.tipsPence / 100).toFixed(2)}</div>
+          <div style={{ fontSize: 11.5, color: MUTED }}>100% to the kitchen team</div>
+        </div>
+        {flagged.length > 0 && (
+          <div style={{ flex: '1 1 190px', background: RED, borderRadius: 12, padding: '10px 14px', color: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', animation: 'oarflash 1.2s infinite' }}>
+            <div style={{ fontFamily: HEAVY, fontSize: 24, letterSpacing: '0.5px' }}>🚨 {flagged.length} over 12 min</div>
+            <div style={{ fontSize: 12.5, fontWeight: 700 }}>#{flagged.map(o => o.order_no).join(', #')} — push these out</div>
+          </div>
+        )}
+      </div>
       {pause && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={togglePause} disabled={busy} style={{ ...btn(pause.paused ? GREEN : RED, '#fff'), padding: '10px 16px' }}>{pause.paused ? '▶ Reopen orders' : '⏸ Pause orders'}</button>
             <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#fff' }}>
               <input type="checkbox" checked={!!pause.auto_pause} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
-              <input type="number" min="1" value={pause.auto_threshold} onChange={e => setThreshold(parseInt(e.target.value, 10) || 1)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
+              <input type="number" min="0" value={pause.auto_threshold} onChange={e => setThreshold(parseInt(e.target.value, 10) || 0)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
             </label>
             {pause.waiting > 0 && <span style={{ fontSize: 12, color: '#E8B84B', fontWeight: 700 }}>{pause.waiting} waiting to be texted</span>}
           </div>
@@ -96,13 +133,16 @@ export default function KitchenTickets() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
         {active.map(o => {
           const items = Array.isArray(o.items) ? o.items : []
-          const wait = mmss(Date.now() - new Date(o.created_at).getTime())
+          const waitMs = Date.now() - new Date(o.created_at).getTime()
+          const wait = mmss(waitMs)
           const ready = o.status === 'ready'
+          const overdue = !ready && waitMs > FLAG_MS
+          const headBg = overdue ? RED : ready ? GREEN : BLUE
           return (
-            <div key={o.id} style={{ background: '#fff', border: `2px solid ${ready ? GREEN : BLUE}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ background: ready ? GREEN : BLUE, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '7px 12px' }}>
+            <div key={o.id} style={{ background: '#fff', border: `2px solid ${headBg}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: overdue ? 'oarflash 1.2s infinite' : 'none' }}>
+              <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '7px 12px' }}>
                 <span style={{ fontFamily: HEAVY, fontSize: 24, letterSpacing: '1px' }}>#{o.order_no}</span>
-                <span style={{ fontSize: 12, opacity: 0.9, textTransform: 'uppercase' }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {wait}</span>
+                <span style={{ fontSize: 12, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
               </div>
               <div style={{ padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 9 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -134,23 +174,41 @@ export default function KitchenTickets() {
 }
 
 function HistoryView({ history }) {
+  const [filter, setFilter] = useState('done')   // 'done' = real orders · 'abandoned' = unpaid checkouts
   if (history == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading history…</div>
-  if (!history.length) return <div style={{ color: MUTED, fontSize: 14, padding: '30px 0', textAlign: 'center' }}>No orders yet.</div>
+  const done = history.filter(o => o.status !== 'pending')
+  const abandoned = history.filter(o => o.status === 'pending')
+  const rows = filter === 'abandoned' ? abandoned : done
+  const tab = (k, label, n) => (
+    <button onClick={() => setFilter(k)} style={{ fontSize: 12, fontWeight: 700, background: filter === k ? (k === 'abandoned' ? RED : BLUE) : 'none', border: `1px solid ${filter === k ? (k === 'abandoned' ? RED : BLUE) : LINE}`, color: '#fff', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}>{label} ({n})</button>
+  )
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-      {history.map(o => {
-        const items = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
-        const when = new Date(o.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
-        const sc = o.status === 'collected' ? GREEN : o.status === 'cancelled' ? RED : o.status === 'ready' ? BLUE : 'rgba(255,255,255,0.5)'
-        return (
-          <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 10, color: INK }}>
-            <span style={{ fontFamily: HEAVY, fontSize: 17, color: BLUE, minWidth: 44 }}>#{o.order_no}</span>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>{o.customer_name || '—'}</b> · {items || '—'}</span>
-            <span style={{ fontSize: 11.5, color: '#8a8275', whiteSpace: 'nowrap' }}>{when}</span>
-            <span style={{ fontSize: 11, fontWeight: 800, color: sc, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{o.status}</span>
-          </div>
-        )
-      })}
+    <div>
+      <div style={{ display: 'flex', gap: 8, marginBottom: 10 }}>
+        {tab('done', '✅ Orders', done.length)}
+        {tab('abandoned', '🛒 Abandoned', abandoned.length)}
+      </div>
+      {filter === 'abandoned' && (
+        <div style={{ fontSize: 12, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>Carts where “Continue to pay” was tapped but payment was never completed — no money taken, never sent to the kitchen.</div>
+      )}
+      {rows.length === 0
+        ? <div style={{ color: MUTED, fontSize: 14, padding: '30px 0', textAlign: 'center' }}>{filter === 'abandoned' ? 'No abandoned checkouts.' : 'No orders yet.'}</div>
+        : <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {rows.map(o => {
+              const items = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
+              const when = new Date(o.created_at).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+              const sc = o.status === 'collected' ? GREEN : o.status === 'cancelled' ? RED : o.status === 'ready' ? BLUE : o.status === 'pending' ? '#b58a00' : 'rgba(255,255,255,0.5)'
+              const label = o.status === 'pending' ? 'unpaid' : o.status
+              return (
+                <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px', display: 'flex', alignItems: 'center', gap: 10, color: INK, opacity: o.status === 'pending' ? 0.72 : 1 }}>
+                  <span style={{ fontFamily: HEAVY, fontSize: 17, color: BLUE, minWidth: 44 }}>#{o.order_no}</span>
+                  <span style={{ flex: 1, minWidth: 0, fontSize: 13.5 }}><b>{o.customer_name || '—'}</b> · {items || '—'}</span>
+                  <span style={{ fontSize: 11.5, color: '#8a8275', whiteSpace: 'nowrap' }}>{when}</span>
+                  <span style={{ fontSize: 11, fontWeight: 800, color: sc, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{label}</span>
+                </div>
+              )
+            })}
+          </div>}
     </div>
   )
 }

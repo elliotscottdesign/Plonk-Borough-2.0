@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import Bar from './sections/Bar.jsx'
+import { getTheme, setTheme, nextTheme, THEME_LABEL, THEME_HINT } from '../lib/theme.js'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
@@ -90,6 +91,33 @@ const GROUPS = [
 export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
   // logins (NDTEAM). Only the founder tier sets ndb_role_founder.
+  const [themePref, setThemePref] = useState(() => getTheme())
+  // ── "New version is ready" banner (founder, 19 Aug 2026) ────────────────
+  // Stale cached pages cost the founder three separate fights on tournament
+  // night — fixes were live on the server while their browser re-ran a dead
+  // copy. Every couple of minutes (and whenever the tab regains focus) we
+  // fetch a fresh index.html, read which bundle it points at, and if it's not
+  // the one running we show a tap-to-update banner. No auto-reload — never
+  // yank the page out from under someone mid-score.
+  const [updateReady, setUpdateReady] = useState(false)
+  useEffect(() => {
+    let cur = null
+    try { cur = [...document.querySelectorAll('script[src*="assets/index-"]')].map(sc => (sc.src.match(/index-[A-Za-z0-9_-]+\.js/) || [])[0]).find(Boolean) || null } catch { /* old browser — skip */ }
+    if (!cur) return
+    let stop = false
+    const check = async () => {
+      try {
+        const r = await fetch('/index.html?u=' + Date.now(), { cache: 'no-store' })
+        const t = await r.text()
+        const m = t.match(/index-[A-Za-z0-9_-]+\.js/)
+        if (!stop && m && m[0] !== cur) setUpdateReady(true)
+      } catch { /* offline — try again next tick */ }
+    }
+    const id = setInterval(check, 120000)
+    const vis = () => { if (!document.hidden) check() }
+    document.addEventListener('visibilitychange', vis)
+    return () => { stop = true; clearInterval(id); document.removeEventListener('visibilitychange', vis) }
+  }, [])
   const isFounder = typeof window !== 'undefined' && sessionStorage.getItem('ndb_role_founder') === '1'
   // Real management (founder, Manager, Asst. Manager) — set by the sign-in bridge
   // from their staff record, so the shared team code alone never grants it.
@@ -164,6 +192,11 @@ export default function OpsApp() {
 
   return (
     <div style={{ minHeight: '100dvh', background: 'var(--ink)', color: 'var(--cream)', fontFamily: "'DM Sans', sans-serif", display: 'flex', flexDirection: 'column' }}>
+      {updateReady && (
+        <button onClick={() => window.location.reload()} style={{ position: 'sticky', top: 0, zIndex: 60, width: '100%', border: 'none', cursor: 'pointer', background: 'var(--gold)', color: '#141414', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 800, padding: '11px 14px', letterSpacing: '0.02em' }}>
+          ⬆ A new version of this app is ready — tap here to update (nothing is lost)
+        </button>
+      )}
       {/* Header — brand + the three group doors */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: 'env(safe-area-inset-top) max(16px, env(safe-area-inset-right)) 0 max(16px, env(safe-area-inset-left))', minHeight: 56, background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', flexShrink: 0, gap: 12, position: 'relative', zIndex: 30 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
@@ -195,12 +228,28 @@ export default function OpsApp() {
         <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap', padding: '10px max(16px, env(safe-area-inset-right)) 10px max(16px, env(safe-area-inset-left))', background: 'rgba(255,255,255,0.02)', borderBottom: '1px solid rgba(255,255,255,0.07)', flexShrink: 0 }}>
           <span style={{ fontSize: 10, color: 'var(--cream-dim)', letterSpacing: '0.16em', textTransform: 'uppercase', marginRight: 4 }}>{activeGroup.label}</span>
           {activeGroup.tabs.map(t => <button key={t.key} onClick={() => pick(t.key)} style={tabStyle(tab === t.key)}>{t.label}</button>)}
+          <button onClick={() => setThemePref(setTheme(nextTheme(themePref)))} title={THEME_HINT[themePref]}
+            style={{ marginLeft: 'auto', padding: '6px 11px', borderRadius: 7, cursor: 'pointer', fontSize: 12, fontWeight: 600,
+                     background: 'rgba(255,255,255,0.05)', color: 'var(--cream-dim)', border: '1px solid rgba(255,255,255,0.15)' }}>
+            {THEME_LABEL[themePref]}
+          </button>
         </div>
       )}
 
       {/* Mobile dropdown menu — the same three groups as labelled sections */}
       {isMobile && menuOpen && (
         <div style={{ background: 'var(--ink-2)', borderBottom: '1px solid rgba(201,168,76,0.15)', padding: '4px 12px 12px', display: 'flex', flexDirection: 'column', gap: 4, flexShrink: 0, position: 'relative', zIndex: 30, maxHeight: '70dvh', overflowY: 'auto' }}>
+          {/* Appearance — Auto / Dark / Light. Before this the look was decided
+              entirely by the phone's own setting, so a founder whose phone sits on
+              Light never saw the dark app at all. */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 4 }}>
+            <span style={{ fontSize: 10.5, color: 'var(--cream-dim)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Appearance</span>
+            <button onClick={() => setThemePref(setTheme(nextTheme(themePref)))} style={{
+              marginLeft: 'auto', padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12.5, fontWeight: 700,
+              background: 'rgba(255,255,255,0.06)', color: 'var(--cream)', border: '1px solid rgba(255,255,255,0.2)',
+            }}>{THEME_LABEL[themePref]}</button>
+            <span style={{ fontSize: 10.5, color: 'var(--cream-dim)' }}>{THEME_HINT[themePref]}</span>
+          </div>
           {visGroups.map(g => (
             <div key={g.key}>
               <div style={{ fontSize: 10.5, color: 'var(--gold)', letterSpacing: '0.18em', textTransform: 'uppercase', padding: '12px 4px 6px' }}>{g.label}</div>

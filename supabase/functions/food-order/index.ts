@@ -54,7 +54,7 @@ async function getEffective(sb: any) {
   const { data: s } = await sb.from("food_settings").select("*").eq("id", 1).maybeSingle();
   const paused = !!s?.paused, auto = !!s?.auto_pause, threshold = s?.auto_threshold ?? 8;
   const active = await activeCount(sb);
-  const autoTripped = auto && active >= threshold;
+  const autoTripped = auto && threshold >= 1 && active >= threshold;   // threshold 0 = auto-pause off
   return { open: !(paused || autoTripped), paused, auto, threshold, active, autoTripped };
 }
 async function waitingCount(sb: any): Promise<number> {
@@ -133,6 +133,8 @@ Deno.serve(async (req) => {
     // Kitchen display: full recent order history (all statuses), newest first.
     if (action === "listHistory") {
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      // Return all orders; the kitchen screen splits real orders from abandoned
+      // (unpaid, status 'pending') checkouts into separate filters.
       const { data, error } = await sb.from("food_orders")
         .select("*").order("created_at", { ascending: false }).limit(200);
       if (error) return json({ error: error.message }, 400);

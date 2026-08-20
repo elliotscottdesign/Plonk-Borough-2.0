@@ -33,7 +33,11 @@ const INTEREST_SUGGESTIONS = ['Gardening', 'Painting', 'Carpentry', 'Sign-writin
 
 // Reusable month grid (weeks start Monday, UTC math). renderDay(dateStr,dayNum)
 // returns the cell's inner content; clickable(dateStr) gates taps.
-function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected }) {
+// ringFor(ds) → a status colour for the day (green on-shift / red off) or null.
+// Today gets a WHITE ring (house rule, Aug 2026); the status colour wraps OUTSIDE it.
+function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, clickable, selected, ringFor }) {
+  const nowD = new Date()
+  const todayDs = iso(nowD.getFullYear(), nowD.getMonth(), nowD.getDate())
   const startDow = (new Date(Date.UTC(year, month, 1)).getUTCDay() + 6) % 7
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate()
   const cells = []
@@ -57,7 +61,11 @@ function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, click
           const ok = clickable(ds)
           return (
             <button key={i} type="button" disabled={!ok} onClick={() => ok && onDay(ds)}
-              style={{ minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : `1px solid ${LINE}`, display: 'flex', flexDirection: 'column', gap: 2 }}>
+              style={(() => {
+                const isToday = ds === todayDs
+                const sc = ringFor ? ringFor(ds) : null
+                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
+              })()}>
               {renderDay(ds, d)}
             </button>
           )
@@ -95,7 +103,8 @@ export default function RotaPortal() {
   const [err, setErr] = useState('')
   const [view, setView] = useState(() => {               // 'shifts' | 'availability' | 'profile' … (deep-linkable via ?tab=)
     const t = (typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('tab') : '') || ''
-    return ['shifts', 'reservations', 'notes', 'availability', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
+    if (t === 'availability') return 'shifts'   // merged into Shifts (Aug 2026) — old links still land right
+    return ['shifts', 'reservations', 'notes', 'checklists', 'training', 'menus', 'cocktails', 'profile'].includes(t) ? t : 'shifts'
   })
   const now = new Date()
   const [vy, setVy] = useState(now.getFullYear())
@@ -323,7 +332,7 @@ export default function RotaPortal() {
   // buried in the general Checklists tab, and not gated on being rostered today.
   const showKitchen = !!kitchen?.isKitchen
   const managerTier = ['Asst. Manager', 'Manager'].includes(staff?.role)
-  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['availability', '✅', 'Availability'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🍔', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
+  const TABS = [['shifts', '🗓️', 'Shifts'], ['reservations', '📇', 'Reservations'], ...(managerTier ? [['prizes', '🎟', 'Prizes']] : []), ['notes', '📝', 'Notes'], ['checklists', '📋', 'Checklists'], ...(showKitchen ? [['kitchen', '🍔', 'Kitchen']] : []), ['training', '🎓', 'Training'], ['menus', '🍽️', 'Menus'], ['cocktails', '🍸', 'Cocktails'], ['profile', '👤', 'Profile']]
 
   return (
     <Shell>
@@ -386,7 +395,37 @@ export default function RotaPortal() {
           return (
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
               {doors.map(([ic, lbl, href, sub]) => (
-                <a key={lbl} href={href} style={{ flex: 1, minWidth: 0, textDecoration: 'none', textAlign: 'center', padding: '13px 6px', borderRadius: 11, background: 'rgba(218,27,51,0.10)', border: '1.5px solid rgba(218,27,51,0.5)', color: '#fff' }}>
+                <a
+                  key={lbl}
+                  href={href}
+                  // Founder: "I have to hold the button down and then open a link" — one
+                  // tap did nothing. Diagnosed Aug 2026: nothing covers these doors and
+                  // nothing intercepts the tap (measured: zero overlap at every scroll
+                  // position; the repo registers no touch/pointer/click listeners at all).
+                  // Long-press worked precisely BECAUSE it bypasses tap activation and
+                  // navigates natively. These four are the only <a> elements on the whole
+                  // portal — everything else is a <button> with onClick — so they were the
+                  // only controls relying on the browser promoting a touch into a link
+                  // activation, which the installed home-screen app doesn't always do.
+                  // So: drive the navigation ourselves, and keep href so long-press,
+                  // share, open-in-new-tab and desktop middle-click all still work.
+                  onClick={(e) => {
+                    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return
+                    e.preventDefault()
+                    window.location.assign(href)
+                  }}
+                  style={{
+                    flex: 1, minWidth: 0, display: 'block',
+                    textDecoration: 'none', textAlign: 'center',
+                    padding: '13px 6px', borderRadius: 11,
+                    background: 'rgba(218,27,51,0.10)',
+                    border: '1.5px solid rgba(218,27,51,0.5)',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    touchAction: 'manipulation',                        // no double-tap-zoom arbitration
+                    WebkitTapHighlightColor: 'rgba(218,27,51,0.45)',    // visible proof the tap landed
+                  }}
+                >
                   <span style={{ display: 'block', fontSize: 21, lineHeight: 1.2 }}>{ic}</span>
                   <span style={{ display: 'block', fontSize: 13.5, fontWeight: 800, letterSpacing: '0.02em', marginTop: 2 }}>{lbl}</span>
                   <span style={{ display: 'block', fontSize: 9.5, color: 'rgba(255,255,255,0.6)', marginTop: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{sub}</span>
@@ -405,26 +444,6 @@ export default function RotaPortal() {
           ))}
         </div>
 
-        {view === 'availability' && (
-          <>
-            <p style={{ fontSize: 13, color: 'rgba(255,255,255,0.7)', lineHeight: 1.6, marginTop: 0 }}>You're available by default — just tap the days you <strong style={{ color: '#fff' }}>can't</strong> work this month. <strong style={{ color: RED }}>Red = off.</strong> Tap again to clear. Saved automatically.</p>
-            <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
-              clickable={(ds) => ds >= todayStr} onDay={toggleAvail} selected={null}
-              renderDay={(ds, d) => {
-                const off = dayOff(ds)
-                return (<>
-                  <span style={{ fontSize: 12, fontWeight: 700, color: off ? RED : undefined }}>{d}</span>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'flex-end' }}>
-                    {off && <span style={{ fontSize: 9, color: RED, fontWeight: 700 }}>✕ off</span>}
-                  </div>
-                </>)
-              }} />
-            {(() => { const n = Object.keys(monthAvail).filter(k => (monthAvail[k] || {}).unavailable).length; return (
-              <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 10 }}>{n === 0 ? `Available all of ${MONTHS[vm]}.` : `${n} day${n === 1 ? '' : 's'} marked off in ${MONTHS[vm]}.`}</div>
-            ) })()}
-          </>
-        )}
-
         {view === 'shifts' && calendarLocked(staff, docs) && (
           <Onboarding token={token} staff={staff} docs={docs} reload={() => loadState(token)} goProfile={() => setView('profile')} />
         )}
@@ -432,21 +451,24 @@ export default function RotaPortal() {
         {view === 'shifts' && !calendarLocked(staff, docs) && (
           <>
             <MiniCal year={vy} month={vm} onPrev={() => stepMonth(-1)} onNext={() => stepMonth(1)} canPrev={!atCurrentMonth}
-              clickable={(ds) => (shiftsByDate[ds] || []).length > 0 && ds >= todayStr} onDay={setSelDate} selected={selDate}
+              clickable={(ds) => (shiftsByDate[ds] || []).length > 0 || ds >= todayStr} onDay={setSelDate} selected={selDate}
+              ringFor={(ds) => (shiftsByDate[ds] || []).some(x => x.mine) ? GREEN : dayOff(ds) ? RED : null}
               renderDay={(ds, d) => {
                 const rows = shiftsByDate[ds] || []
                 const mineN = rows.filter(s => s.mine).length
                 const openN = rows.filter(s => !s.mine && s.filled < (s.headcount ?? 1)).length
+                const off = dayOff(ds)
                 return (<>
-                  <span style={{ fontSize: 12, fontWeight: 700 }}>{d}</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: off ? RED : undefined }}>{d}</span>
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
                     {mineN > 0 && <span style={{ fontSize: 8.5, color: GREEN, fontWeight: 700 }}>✓{mineN}</span>}
-                    {openN > 0 && availOn(ds) && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
+                    {off && <span style={{ fontSize: 8.5, color: RED, fontWeight: 700 }}>✕ off</span>}
+                    {openN > 0 && !off && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
                   </div>
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span>
+              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span>
             </div>
 
             {selDate && (() => {
@@ -458,7 +480,12 @@ export default function RotaPortal() {
                     <div className="serif" style={{ fontSize: 17, color: '#fff' }}>{dayName(selDate)} {selDate.slice(8)} {MONTHS[+selDate.slice(5, 7) - 1]}</div>
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
-                  {!avail && <div style={{ fontSize: 12, color: '#FCD34D' }}>You've marked yourself off this day. Clear it on the Availability tab to grab a shift.</div>}
+                  {selDate >= todayStr && (avail
+                    ? <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>
+                    : <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
+                        <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>
+                      </div>)}
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need
@@ -706,7 +733,7 @@ function ChecklistView({ token }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <button onClick={() => { setOpenKey(null); loadAll() }} style={btn('ghost')}>‹ Back</button>
+        <button onClick={() => { setOpenKey(null); loadAll() }} style={{ ...btn('ghost'), position: 'sticky', top: 0, zIndex: 25, alignSelf: 'flex-start', boxShadow: '0 6px 14px rgba(0,0,0,0.5)' }}>‹ All checklists</button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 16, fontWeight: 700, color: '#fff' }}>{c.icon} {c.title}</div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)' }}>{done}/{total} done{busy ? ' · saving…' : savedAt ? ' · saved ✓' : ''}</div>

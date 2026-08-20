@@ -360,7 +360,7 @@ async function reassignTables(sb: any, runId: string) {
     const clash = occupied.has(m.table_number) ||
       (m.p1_id && busy.has(m.p1_id)) || (m.p2_id && busy.has(m.p2_id));
     if (clash) {
-      await sb.from("pool_matches").update({ table_number: null }).eq("id", m.id);
+      await sb.from("pool_matches").update({ table_number: null, table_assigned_at: null }).eq("id", m.id);
       m.table_number = null;
     } else {
       occupied.add(m.table_number);
@@ -379,7 +379,7 @@ async function reassignTables(sb: any, runId: string) {
     if (!free.length) break;
     if (busy.has(m.p1_id) || busy.has(m.p2_id)) continue;   // player already mid-game
     const t = free.shift()!;
-    await sb.from("pool_matches").update({ table_number: t }).eq("id", m.id);
+    await sb.from("pool_matches").update({ table_number: t, table_assigned_at: m.table_assigned_at || new Date().toISOString() }).eq("id", m.id);
     occupied.add(t);
     busy.add(m.p1_id);
     busy.add(m.p2_id);
@@ -497,6 +497,13 @@ const emailsForParticipant = async (sb: any, p: any): Promise<{ captain: string 
   const { data: e } = await sb.from("tournament_entries").select("captain_email, partner_email").eq("id", p.entry_id).maybeSingle();
   return { captain: e?.captain_email || null, partner: e?.partner_email || null };
 };
+// Winners' mobiles, mirrored from the booking. Only the captain's number is
+// collected today, so recipient 2 (the partner) has no phone — email only.
+const phonesForParticipant = async (sb: any, p: any): Promise<{ captain: string | null; partner: string | null }> => {
+  if (!p?.entry_id) return { captain: null, partner: null };
+  const { data: e } = await sb.from("tournament_entries").select("captain_phone, partner_phone").eq("id", p.entry_id).maybeSingle();
+  return { captain: e?.captain_phone || null, partner: e?.partner_phone || null };
+};
 // Create/reconcile the 1st/2nd/3rd voucher records + email ticket-holders.
 //
 // SINGLES: one voucher per place, full amount, to the booking email.
@@ -523,12 +530,13 @@ async function finalizeTournament(sb: any, run: any) {
     if (!pid) continue;
     const p = byId[pid];
     const emails = await emailsForParticipant(sb, p);
+    const phones = await phonesForParticipant(sb, p);
     const { data: existing } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).order("recipient");
     const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
     const shares = (split && !legacyFull)
-      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain },
-         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner }]
-      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain }];
+      ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain, phone: phones.captain },
+         { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner, phone: phones.partner }]
+      : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain, phone: phones.captain }];
     for (const sh of shares) {
       let v = (existing || []).find((x: any) => (x.recipient ?? 1) === sh.recipient) || null;
       if (!v) {
@@ -547,6 +555,17 @@ async function finalizeTournament(sb: any, run: any) {
         const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
         const sent = await sendMail(v.email, `${medal} You won ${gbp(v.amount_pence)} at No Dice pool!`, voucherEmail(v.display_name || "", place, v.amount_pence, v.code, tournName));
         if (sent) { await sb.from("pool_vouchers").update({ emailed_at: new Date().toISOString() }).eq("id", v.id); v.emailed_at = new Date().toISOString(); }
+      }
+      // 📱 Text the code too (founder, 19 Aug 2026): inboxes greylist prize
+      // emails for minutes; a text lands while the winner is still at the bar.
+      // Once per voucher (texted_at) — re-running finalize never double-texts.
+      if (v && (sh as any).phone && !v.texted_at) {
+        const to = e164((sh as any).phone);
+        if (to) {
+          const medal = place === 1 ? "🥇" : place === 2 ? "🥈" : "🥉";
+          const okSms = await sendSMS(to, `${medal} ${v.display_name || "You"} — you won ${gbp(v.amount_pence)} at No Dice! Your bar-tab code: ${v.code}. Show this text at the bar. 🎉`);
+          if (okSms) { await sb.from("pool_vouchers").update({ texted_at: new Date().toISOString() }).eq("id", v.id); v.texted_at = new Date().toISOString(); }
+        }
       }
       if (v) vouchers.push(v);
     }
@@ -662,6 +681,73 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...(await computeLeague(sb, discipline)) });
     }
 
+    // ── Open / close sign-ups for a night, and set how many can book ────────
+    // The founder needs to stop online bookings once the room is full (or the
+    // night has started) without touching the database. `registration_open`
+    // gates the public booking form; `max_teams` is the cap shown on the night.
+    if (action === "setSignups") {
+      const tournamentId = clean(b.tournamentId, 40);
+      if (!tournamentId) return json({ error: "no tournament" }, 400);
+      const patch: Record<string, any> = {};
+      if (b.open !== undefined) { patch.registration_open = !!b.open; patch.bookable = !!b.open; }
+      if (b.cap !== undefined && b.cap !== null && b.cap !== "") {
+        const c = Math.round(Number(b.cap));
+        if (!Number.isFinite(c) || c < 2 || c > 999) return json({ error: "Cap must be between 2 and 999." }, 400);
+        patch.max_teams = c;
+      }
+      if (!Object.keys(patch).length) return json({ error: "Nothing to change." }, 400);
+      const { data, error } = await sb.from("tournaments").update(patch).eq("id", tournamentId).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, tournament: { id: data.id, registration_open: data.registration_open, cap: data.max_teams || 999 } });
+    }
+
+    // ── Messaging health check (founder-gated, read-only) ───────────────────
+    // Asks Twilio, with the same credentials the call-ups use: is the account
+    // alive, what's the balance, and what happened to the last few messages.
+    // Sends nothing. Added live on 19 Aug 2026 when no player was receiving
+    // texts and we couldn't see why from outside.
+    // ── Email health check (founder-gated, read-only) ───────────────────────
+    // Asks Resend, with the key the prize emails use: is the sending domain
+    // verified (SPF/DKIM), and what records are missing? Sends nothing.
+    // Added 20 Aug 2026 — prize emails were reaching Hotmail/Yahoo minutes late.
+    if (action === "resendStatus") {
+      if (!RESEND) return json({ ok: false, reason: "RESEND_API_KEY not set" });
+      const out: any = {};
+      try {
+        const r = await fetch("https://api.resend.com/domains", { headers: { Authorization: `Bearer ${RESEND}` } });
+        out.http = r.status;
+        if (r.ok) {
+          const j = await r.json();
+          out.domains = (j.data || []).map((d: any) => ({ name: d.name, status: d.status, region: d.region, records: (d.records || []).map((x: any) => ({ type: x.record, name: x.name, status: x.status })) }));
+        } else out.error = (await r.text()).slice(0, 400);
+      } catch (e) { out.error = String(e); }
+      return json({ ok: true, ...out });
+    }
+
+    if (action === "twilioStatus") {
+      if (!TW_SID || !TW_TOKEN) return json({ ok: false, reason: "Twilio credentials not set" });
+      const auth = { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`) };
+      const out: any = { sidPrefix: TW_SID.slice(0, 6), preferSms: PREFER_SMS, waFrom: TW_FROM || null, smsFrom: TW_SMS_FROM };
+      try {
+        const a = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}.json`, { headers: auth });
+        out.accountHttp = a.status;
+        if (a.ok) { const j = await a.json(); out.accountStatus = j.status; out.accountType = j.type; out.friendlyName = j.friendly_name; }
+        else out.accountError = (await a.text()).slice(0, 300);
+      } catch (e) { out.accountError = String(e); }
+      try {
+        const b = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Balance.json`, { headers: auth });
+        if (b.ok) { const j = await b.json(); out.balance = j.balance; out.currency = j.currency; }
+      } catch (_) {}
+      try {
+        const m = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json?PageSize=12`, { headers: auth });
+        if (m.ok) {
+          const j = await m.json();
+          out.recent = (j.messages || []).map((x: any) => ({ to: String(x.to).replace(/\d(?=\d{3})/g, "•"), status: x.status, err: x.error_code, msg: x.error_message, when: x.date_sent || x.date_created, from: x.from }));
+        } else out.messagesError = (await m.text()).slice(0, 300);
+      } catch (e) { out.messagesError = String(e); }
+      return json({ ok: true, ...out });
+    }
+
     if (action === "list") {
       const [{ data: tourns }, { data: paid }, { data: runs }] = await Promise.all([
         sb.from("tournaments").select("id,name,event_date,start_time,tournament_type,max_teams,bookable,registration_open").neq("tournament_type", "teams").order("event_date", { ascending: true }),
@@ -712,7 +798,7 @@ Deno.serve(async (req) => {
       const { data: vouchers } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).order("place");
       return json({
         ok: true,
-        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999 },
+        tournament: { id: t.id, name: t.name, event_date: t.event_date, start_time: t.start_time, type: t.tournament_type, cap: t.max_teams || 999, registration_open: t.registration_open },
         run, paidCount: (entries || []).length, ...data, vouchers: vouchers || [],
       });
     }
@@ -737,6 +823,17 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
+      if (!b.force) {
+        const { data: lastR } = await sb.from("pool_rounds").select("id, ordinal").eq("pool_tournament_id", runId).order("ordinal", { ascending: false }).limit(1);
+        const lr = (lastR || [])[0];
+        if (lr) {
+          const { data: lms } = await sb.from("pool_matches").select("id, status, is_bye").eq("round_id", lr.id);
+          const played = (lms || []).filter((m: any) => !m.is_bye && m.status === "done").length;
+          if ((lms || []).length && played === 0) {
+            return json({ error: `Round ${lr.ordinal} hasn't started — nobody has played a match yet.`, needsForce: true, round: lr.ordinal }, 409);
+          }
+        }
+      }
       const gen = await generateRound(sb, run);
       if (gen.error) return json({ error: gen.error }, 400);
       return json({ ok: true, round: gen.round });
@@ -772,7 +869,7 @@ Deno.serve(async (req) => {
         // Store games; p1_score/p2_score hold GAMES won (e.g. 2–1) for display — standings &
         // league read round matches only, so this never affects frame difference.
         // Free the table when the match is decided so the next pending match can take it.
-        const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active" };
+        const patch: any = { games, p1_score: t.p1, p2_score: t.p2, winner_id: winner, status: t.decided ? "done" : "active", completed_at: t.decided ? new Date().toISOString() : null };
         if (t.decided) patch.table_number = null;
         const { error } = await sb.from("pool_matches").update(patch).eq("id", matchId);
         if (error) return json({ error: error.message }, 400);
@@ -788,7 +885,7 @@ Deno.serve(async (req) => {
       const winner = p1 > p2 ? m.p1_id : p2 > p1 ? m.p2_id : null;
       // Free the table this match was on — reassignTables below will hand it
       // to the next ready pending match.
-      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null }).eq("id", matchId);
+      const { error } = await sb.from("pool_matches").update({ p1_score: p1, p2_score: p2, winner_id: winner, status: "done", table_number: null, completed_at: new Date().toISOString() }).eq("id", matchId);
       if (error) return json({ error: error.message }, 400);
       // Bracket: push the winner into the next match, then feed the 3rd-place match.
       if (isBracket && winner) {
@@ -966,11 +1063,13 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name, 80);
       const email = clean(b.email, 120).toLowerCase();
-      const phone = clean(b.phone, 30);
+      const phone = String(b.phone ?? "").replace(/\s+/g, "");
       const partnerName = clean(b.partnerName, 80);
       const partnerEmail = clean(b.partnerEmail, 120).toLowerCase();
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!email || !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email — the payment link goes there." }, 400);
+      // Founder rule 19 Aug 2026: UK mobile only — the pay link + up-next texts go there.
+      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07." }, 400);
       const { data: run } = await sb.from("pool_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: t } = await sb.from("tournaments").select("*").eq("id", run.tournament_id).maybeSingle();
@@ -1067,10 +1166,28 @@ Deno.serve(async (req) => {
 
     // Add a walk-in (cash at the bar). Flagged source=manual so the books reconcile.
     if (action === "addManual") {
+      // Walk-in, cash at the bar. Founder rule 19 Aug 2026: name, email and a
+      // UK MOBILE (07…) are ALL required — name-only walk-ins created league
+      // rows with no identity and players the up-next texts couldn't reach.
+      // A real booking row is created (status 'paid' — they paid cash) so the
+      // walk-in gets texts, prize emails and a durable league identity, exactly
+      // like an online booking.
       const runId = clean(b.runId, 40);
       const name = clean(b.name);
+      const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
+      const phone = String(b.phone ?? "").replace(/\s+/g, "");
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
-      const { data, error } = await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: name, source: "manual" }).select("*").single();
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email needed — prizes and league points hang off it." }, 400);
+      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07 (the up-next texts go there)." }, 400);
+      const { data: run } = await sb.from("pool_tournaments").select("tournament_id").eq("id", runId).maybeSingle();
+      if (!run) return json({ error: "Run not found." }, 404);
+      const { data: entry, error: ee } = await sb.from("tournament_entries").insert({
+        tournament_id: run.tournament_id, team_name: name, captain_name: name,
+        captain_email: email, captain_phone: phone, status: "paid",
+        paid_at: new Date().toISOString(), notes: "walk-in (cash at bar)", marketing_opt_in: false,
+      }).select("id").single();
+      if (ee) return json({ error: ee.message }, 400);
+      const { data, error } = await sb.from("pool_participants").insert({ pool_tournament_id: runId, display_name: name, source: "manual", entry_id: entry.id }).select("*").single();
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, participant: data });
     }

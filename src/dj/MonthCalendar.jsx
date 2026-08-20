@@ -14,7 +14,7 @@ import React from 'react'
 //       events: [{ image, title, time, sub, status }] — matches the public
 //       events viewer at /events. Off by default (DJ portal keeps plain cells).
 const RED = '#DA1B33', ORANGE = '#F97316', LINE = 'rgba(255,255,255,0.12)'   // ORANGE = Open Decks (distinct from confirmed-green)
-const TODAY = '#60A5FA'                          // "today" ring — blue, unused by any status colour so it never clashes
+const TODAY = '#FFFFFF'                          // "today" ring — white (house rule, Aug 2026 — matches the rota calendars)
 const TODAY_RING = `0 0 0 2px ${TODAY}`
 const MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 const DOW = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']

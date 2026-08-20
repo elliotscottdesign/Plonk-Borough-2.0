@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import KitchenTickets from '../kitchen/KitchenTickets.jsx'
 import MenuManager from '../kitchen/MenuManager.jsx'
+import MenuPrint from '../kitchen/MenuPrint.jsx'
 
 // On A Roll MANAGEMENT app — the kitchen order display + menu manager, on its OWN
 // page (team.nodice.bar/onaroll) behind a simple code, separate from both the
@@ -10,6 +11,12 @@ const CODE = '9119'   // ← truck access code (entrance)
 const GOLD = '#C9A84C'
 
 export default function OnARollApp() {
+  // Public LIVE printable menu — /onaroll/print — no code gate, all staff can open it.
+  if (typeof window !== 'undefined' && /\/onaroll\/print\/?$/.test(window.location.pathname)) return <MenuPrint />
+  return <OnARollManage />
+}
+
+function OnARollManage() {
   const [ok, setOk] = useState(() => { try { return sessionStorage.getItem('onaroll_ok') === '1' } catch { return false } })
   const [tab, setTab] = useState('orders')
 

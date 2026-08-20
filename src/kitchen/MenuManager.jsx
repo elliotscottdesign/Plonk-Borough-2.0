@@ -1,6 +1,12 @@
 import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
+import { ALLERGENS } from './allergens.js'
+import { exportMenu, ORDER_URL } from './menuExport.js'
+
+// Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
+const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
+const ALLERGEN_COLOR = { contains: '#DA1B33', trace: '#F59E0B' }
 
 // 🍔 /ops → Kitchen → Menu. The founder edits the On A Roll menu here — sections,
 // items, sell price (inc VAT) + cost → live margin, a photo per item, and beer+burger
@@ -19,19 +25,19 @@ const mgColor = p => p >= 60 ? GREEN : p >= 40 ? GOLD : RED
 
 const DEFAULTS = [
   { id: 'rolls', name: 'Rolls', items: [
-    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }] },
-    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [] },
-    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [] },
+    { id: 'cheeseburger', name: 'Cheeseburger', sell: '12', cost: '4.5', img: '', desc: '8oz Wagyu sirloin & ribeye patty, American cheese, caramelised onions, gherkin, burger sauce, on a brioche roll. Served with fries and a sauce.', addons: [{ id: 'ao-patty', name: 'Extra patty', price: '3', cost: '1.5' }, { id: 'ao-bacon', name: 'Smoked bacon', price: '2', cost: '0.8' }], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', mustard: 'contains', soya: 'trace', sulphites: 'contains' } },
+    { id: 'halloumi', name: 'Halloumi Burger', sell: '11', cost: '3.8', img: '', desc: 'Halloumi cheese, caramelised onions, harissa mayo, in a brioche bun. Served with fries and a sauce.', addons: [], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', soya: 'trace', sulphites: 'contains' } },
+    { id: 'mortadella', name: 'Bella Mortadella', sell: '10', cost: '3.5', img: '', desc: '“Chopped cheese style” mortadella, mozzarella, fresh tomato, crunchy cornichons, mustard mayo, in a brioche roll. Served with fries and a sauce.', addons: [], allergens: { celery: 'trace', gluten: 'contains', eggs: 'contains', milk: 'contains', mushroom: 'trace', mustard: 'contains', nuts: 'trace', soya: 'trace' } },
   ] },
   { id: 'sides', name: 'Sides', items: [
-    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [] },
-    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [] },
-    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }] },
+    { id: 'padron', name: 'Padron Peppers', sell: '6', cost: '1.8', img: '', desc: 'Fried Padron peppers, served with rock salt.', addons: [], allergens: {} },
+    { id: 'springrolls', name: "Mumzy's Spring Rolls", sell: '6', cost: '1.5', img: '', desc: 'Homemade shallot, carrot and cabbage spring rolls. Served with sweet chilli sauce and cucumber.', addons: [], allergens: { celery: 'contains', gluten: 'contains', mushroom: 'contains', nuts: 'trace', peanuts: 'trace', sesame: 'trace', soya: 'contains' } },
+    { id: 'chips', name: 'Chips', sell: '5', cost: '1.2', img: '', desc: 'Skinny skin-on fries, tossed in Himalayan salt. Served with a sauce.', addons: [{ id: 'ao-butty', name: 'Make it a Cheesy Chip Butty', price: '3', cost: '0.9' }], allergens: { celery: 'trace', gluten: 'trace', mushroom: 'trace', soya: 'trace' } },
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })) })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })) })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {} })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {} })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -50,7 +56,8 @@ export default function MenuManager() {
   const mutate = fn => { setSections(s => { const c = JSON.parse(JSON.stringify(s)); fn(c); return c }); setDirty(true); setMsg('') }
   const mutateB = fn => { setBundles(bs => { const c = JSON.parse(JSON.stringify(bs)); fn(c); return c }); setDirty(true); setMsg('') }
   const setItem = (si, ii, k, v) => mutate(s => { s[si].items[ii][k] = v })
-  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [] }) })
+  const addItem = si => mutate(s => { s[si].items.push({ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [], allergens: {} }) })
+  const cycleAllergen = (si, ii, key) => mutate(s => { const al = (s[si].items[ii].allergens ||= {}); const nx = ALLERGEN_NEXT[al[key]]; if (nx) al[key] = nx; else delete al[key] })
   const delItem = (si, ii) => mutate(s => { s[si].items.splice(ii, 1) })
   const addAddon = (si, ii) => mutate(s => { (s[si].items[ii].addons ||= []).push({ id: nid('ao'), name: '', price: '', cost: '' }) })
   const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
@@ -87,8 +94,13 @@ export default function MenuManager() {
     <div>
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center', marginBottom: 6, position: 'sticky', top: 46, zIndex: 15, background: 'var(--ink)', paddingBottom: 8 }}>
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
-        <button onClick={() => exportMenu(sections)} style={pill(false)}>🖨 Export branded menu · A4 = 2× A5</button>
+        <button onClick={() => exportMenu(sections, 'print')} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
+        <button onClick={() => exportMenu(sections, 'pdf')} style={pill(false)}>⬇ Download PDF</button>
         <span style={{ fontSize: 12, color: MUTED }}>Sell prices are inc VAT (20%); margin is on the ex-VAT price.</span>
+      </div>
+      <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 10, lineHeight: 1.5, background: 'rgba(201,168,76,0.06)', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 11px' }}>
+        📄 <b style={{ color: '#fff' }}>Live On A Roll menu</b> — share this with all staff; it always shows the latest <b>saved</b> menu (Print / Download PDF on it too):{' '}
+        <a href="/onaroll/print" target="_blank" rel="noreferrer" style={{ color: GOLD, fontWeight: 700 }}>team.nodice.bar/onaroll/print</a>
       </div>
       {msg && <div style={{ fontSize: 12.5, color: msg.startsWith('Saved') ? GREEN : GOLD, marginBottom: 10, lineHeight: 1.5 }}>{msg}</div>}
 
@@ -150,6 +162,24 @@ export default function MenuManager() {
                         )
                       })}
                       <button onClick={() => addAddon(si, ii)} style={{ background: 'none', border: `1px dashed ${LINE}`, color: MUTED, borderRadius: 8, padding: '6px 10px', fontSize: 12, cursor: 'pointer' }}>＋ Add an extra</button>
+                    </div>
+                    <div style={{ marginTop: 8, borderTop: `1px dashed ${LINE}`, paddingTop: 8 }}>
+                      <div style={{ fontSize: 10, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
+                        Allergens <span style={{ textTransform: 'none', letterSpacing: 0 }}>— tap once = <b style={{ color: ALLERGEN_COLOR.contains }}>●&nbsp;contains</b>, twice = <b style={{ color: ALLERGEN_COLOR.trace }}>○&nbsp;may&nbsp;contain</b>, again = off. Drives the customer allergy warning.</span>
+                      </div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                        {ALLERGENS.map(al => {
+                          const st = (it.allergens || {})[al.key]
+                          const col = ALLERGEN_COLOR[st]
+                          return (
+                            <button key={al.key} onClick={() => cycleAllergen(si, ii, al.key)}
+                              style={{ fontSize: 11.5, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', fontWeight: st ? 700 : 500,
+                                border: `1px solid ${col || LINE}`, background: st ? `${col}22` : 'transparent', color: st ? col : MUTED }}>
+                              {st === 'contains' ? '● ' : st === 'trace' ? '○ ' : ''}{al.label}
+                            </button>
+                          )
+                        })}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -215,50 +245,3 @@ const addBtn = () => ({ width: '100%', background: 'none', border: `1px dashed $
 const selectStyle = { width: '100%', background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '9px', fontSize: 14 }
 const dayStyle = on => ({ display: 'inline-block', border: `1px solid ${on ? GOLD : LINE}`, background: on ? 'rgba(201,168,76,0.16)' : 'transparent', color: on ? GOLD : MUTED, borderRadius: 8, padding: '6px 9px', fontSize: 12, marginRight: 5, marginBottom: 5, cursor: 'pointer' })
 
-// Order-page URL the printed QR points to. UPDATE this to the live order page once
-// the customer order+pay page is deployed (customer-site repo).
-const ORDER_URL = 'https://nodice.bar/onaroll'
-
-// Branded "On A Roll" menu — one A4 = two identical A5 halves (cut in half), each with
-// a "scan to order & pay" QR and the "open til 10pm" line. Opens a print window.
-function exportMenu(sections) {
-  const secs = (sections || []).filter(s => s.id !== 'bar')
-  const inner = secs.map(sec => {
-    const its = sec.items.filter(it => it.name)
-    if (!its.length) return ''
-    const gbp = n => '£' + (n % 1 === 0 ? n : n.toFixed(2))
-    const rows = its.map(it => {
-      const price = it.sell ? gbp(parseFloat(it.sell)) : ''
-      const adds = (it.addons || []).filter(a => a.name && a.name.trim())
-      const addLine = adds.length ? `<div class="mao">${adds.map(a => `${esc(a.name.trim())} +${gbp(parseFloat(a.price) || 0)}`).join(' · ')}</div>` : ''
-      return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
-    }).join('')
-    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
-  }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div>${inner}<div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
-  const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>
-    @page{ size:A4 landscape; margin:0 } *{ box-sizing:border-box }
-    body{ margin:0; font-family:Impact,'Arial Narrow Bold',sans-serif; }
-    .a4{ display:flex; width:297mm; height:210mm; background:#fff }
-    .logo{ width:130px; height:auto; display:block; margin-bottom:3px }
-    .a5{ flex:1; padding:13mm 12mm; color:#000; display:flex; flex-direction:column } .a5:first-child{ border-right:1px dashed #999 }
-    .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:17px } .mh{ font-size:18px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
-    .mrow{ margin-bottom:12px }
-    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:18px; color:#000 }
-    .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
-    .md{ font-family:Arial; font-size:12px; color:#222; line-height:1.4; margin-top:3px }
-    .mao{ font-family:Arial; font-size:11px; font-style:italic; color:#000; margin-top:3px }
-    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #000; padding-top:10px }
-    .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
-    .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
-    .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
-  </style></head><body><div class="a4">${a5}${a5}</div>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
-  <script>window.addEventListener('load',function(){try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${JSON.stringify(ORDER_URL)},width:92,height:92,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}setTimeout(function(){window.print()},600)});<\/script>
-  </body></html>`
-  const w = window.open('', '_blank')
-  if (!w) { alert('Allow pop-ups to print the menu.'); return }
-  w.document.write(html); w.document.close()
-}
-const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
