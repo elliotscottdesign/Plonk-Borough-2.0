@@ -24,6 +24,12 @@ export const setSettings = (patch) => call({ action: 'setSettings', secret: SEND
 export const joinWaitlist = ({ phone, name }) => call({ action: 'joinWaitlist', phone, name })  // public (customer page)
 export const setOrderStatus = (id, status, by) => call({ action: 'setStatus', secret: SEND_SECRET, id, status, by })
 
+// Live menu stock (limiting ingredients) — set/replenish anytime; the customer menu reads it.
+export const getStock = () => call({ action: 'getStock' })                          // public
+export const setStock = (levels) => call({ action: 'setStock', secret: SEND_SECRET, levels })
+export const adjustStock = (ingredient, delta) => call({ action: 'adjustStock', secret: SEND_SECRET, ingredient, delta })
+export const setStockOverride = (ingredient, override) => call({ action: 'setStockOverride', secret: SEND_SECRET, ingredient, override })
+
 // Called by the customer order page after payment (built next, in the customer site)
 export const createOrder = ({ name, phone, items, total_pence, payment_ref, allergen_note, voucher_code }) =>
   call({ action: 'createOrder', name, phone, items, total_pence, payment_ref, allergen_note, voucher_code })
