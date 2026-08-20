@@ -162,14 +162,20 @@ It changes nothing operationally and immediately shows which lines lose money.
 
 ## Slice plan
 
-1. **The catalogue** — read-only in /ops: the 14-page layout, 726 → ~190, GP on every line.
-2. **The till screen, cash only, alongside Lightspeed.** *(Review warning: do NOT make staff
-   ring card sales twice on two systems — redesign this slice so that never happens.)*
-3. **Square Terminal on one till point**, via a new `till` edge function.
-4. **Money discipline** — sessions, float, expected vs counted, over/short, numbered Z-read,
-   voids, refunds, append-only audit. *(Review: move this earlier — cash is taken in 2.)*
-5. **Live stock and variance, and the Xero link.**
-6. **Cut over** — more Terminals, two full weeks running both systems in parallel.
+> ⚠️ Superseded from slice 2 onward by **[docs/till-architecture.md](docs/till-architecture.md)**
+> (founder, 20 Aug 2026: tables/tabs/orders/addition/printing/payments, K Series as the
+> design architecture). Slices 1–2 SHIPPED 20 Aug: the founder-only Till tab in /ops holds
+> the ringing-screen demo + the catalogue with GP per line, built from the LIVE K Series
+> export (`data/hackney_till_products_2026-08-20.csv` → `scripts/tillLiveMenu.py` →
+> `src/till/data/liveTill.json`). Re-run the script when a fresh export drops.
+
+1. ✅ **The catalogue** — GP on every line, joins validated against `bar_seed.sql`.
+2. ✅ **The ringing screen (demo)** — live layout & prices, writes nothing.
+3. **Orders that persist** — `till_*` schema; open/send/bill/pay-CASH; sessions, float,
+   numbered Z-read, append-only `till_events` from day one. Training mode beside Lightspeed.
+4. **Printing** — Epson ePOS from the browser to the venue's existing LAN printers.
+5. **Square Terminal** on one till point (bespoke rates from Square AND SumUp first).
+6. **Cut over** — two full weeks parallel running, Z-reads reconciled daily.
 
 ## Answer these before writing code
 
