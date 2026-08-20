@@ -45,7 +45,7 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 
 ## Project
 
-Single-page React app deployed at **nodice.bar** (custom domain via [public/CNAME](public/CNAME)). Vite + React 18 + Tailwind 3 + Recharts + lucide-react.
+Single-page React app deployed at **team.nodice.bar** (custom domain via [public/CNAME](public/CNAME)). Vite + React 18 + Tailwind 3 + Recharts + lucide-react. **NB `nodice.bar` itself is the SEPARATE public customer site (a Next.js repo — see the `dj`/`lithos` lanes)** — links to anything in THIS repo (/ops, /rota, tournaments…) must use `team.nodice.bar`, or the founder gets the customer site's 404 (happened 20 Aug 2026).
 
 **Venue / brand:** "No Dice" is the operating venue at **Hackney — London Fields, 407 Mentmore Terrace, E8 3PH**, owned by **No Dice Hackney Ltd** (operating subsidiary of No Dice Bars Ltd). All customer-facing surfaces (the Landing page, the public World Cup bookings page at `/worldcup`, anything new) reference Hackney / London Fields. The legal entity "No Dice Borough Ltd" is retained inside the gated `/borough` investor deck and adjacent financial / legal artefacts that specifically pitch the original Borough entity — see the working-style rule above.
 
