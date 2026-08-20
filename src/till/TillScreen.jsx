@@ -1,31 +1,96 @@
-import React, { useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import liveTill from './data/liveTill.json'
 import { gbp } from './gp.js'
 import useIsMobile from '../lib/useIsMobile.js'
 
-// ─── TILL — the ringing screen (DEMO) ────────────────────────────────────────
-// The real Hackney till layout (K Series export, 20 Aug 2026) as tappable
-// buttons: pick a page, tap serves, watch the order build. Its job is to test
-// SPEED — if ringing a round of four here takes one more tap than Lightspeed,
-// the design is wrong and we fix it before any money moves.
+// ─── TILL — the ringing screen with TABLES & TABS (demo) ────────────────────
+// K Series flow, copied (docs/till-architecture.md): an order is opened against
+// a TABLE, a named TAB, or as a QUICK SALE → lines added → SEND (kitchen docket)
+// → ADDITION (the bill) → PAY → closed. Several orders stay open at once and the
+// floor view shows what's where.
 //
-// DELIBERATELY writes nothing. No sale is recorded anywhere; Lightspeed stays
-// the till of record. Payments, sessions, floats, voids and the append-only
-// audit trail are later slices (docs/till-decision.md §7) — not skipped,
-// sequenced.
+// DEMO discipline: orders persist in THIS device's browser (localStorage) so a
+// refresh doesn't lose a test — but nothing is written to any server, no sale is
+// recorded anywhere, and Lightspeed stays the till of record. The till_* schema
+// with sessions, Z-reads and the append-only audit trail is the next slice.
 
 const CREAM = 'var(--cream)', DIM = 'rgba(255,255,255,0.55)', GOLD = 'var(--gold)'
-const LINE = 'rgba(255,255,255,0.12)', GREEN = '#34D399'
+const LINE = 'rgba(255,255,255,0.12)', GREEN = '#34D399', AMBER = '#F59E0B'
+
+// Demo floor plan — rename/extend when the venue confirms its real layout.
+const FLOOR = [
+  { zone: 'Booths', spots: ['Booth 1', 'Booth 2', 'Booth 3', 'Booth 4'] },
+  { zone: 'Tables', spots: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8'] },
+  { zone: 'Bar', spots: ['Bar 1', 'Bar 2'] },
+]
+
+const STORE = 'nd_till_demo_orders_v1'
+const loadOrders = () => {
+  try { return JSON.parse(localStorage.getItem(STORE)) || {} } catch { return {} }
+}
+
+let nextId = Date.now()
+const newOrder = (kind, ref) => ({
+  id: 'o' + (nextId++), kind, ref, lines: [], openedAt: new Date().toISOString(), status: 'open',
+})
 
 export default function TillScreen() {
   const isMobile = useIsMobile()
   const pages = liveTill.pages
+  const [orders, setOrders] = useState(loadOrders)       // { id: order }
+  const [currentId, setCurrentId] = useState(null)       // open order being rung
+  const [screen, setScreen] = useState('floor')          // 'floor' | 'ring' | 'bill'
   const [pageName, setPageName] = useState(pages[0]?.name)
   const [query, setQuery] = useState('')
-  const [order, setOrder] = useState([])          // [{ key, name, label, price, qty }]
-  const [rung, setRung] = useState(null)          // last "completed" demo order total
+  const [closed, setClosed] = useState(null)             // last paid order (for the toast)
 
-  // Every tappable button: one per product×serve. Search cuts across all pages.
+  useEffect(() => {
+    try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
+  }, [orders])
+
+  const open = Object.values(orders).filter(o => o.status === 'open')
+  const orderFor = (kind, ref) => open.find(o => o.kind === kind && o.ref === ref)
+  const current = currentId ? orders[currentId] : null
+  const totalOf = (o) => o.lines.reduce((s, l) => s + l.qty * l.price, 0)
+  const unsentOf = (o) => o.lines.reduce((s, l) => s + Math.max(0, l.qty - (l.sentQty || 0)), 0)
+
+  const start = (kind, ref) => {
+    const existing = orderFor(kind, ref)
+    if (existing) { setCurrentId(existing.id); setScreen('ring'); return }
+    const o = newOrder(kind, ref)
+    setOrders(prev => ({ ...prev, [o.id]: o }))
+    setCurrentId(o.id); setScreen('ring')
+  }
+  const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
+
+  // ── ring actions ──────────────────────────────────────────────────────────
+  const add = (b) => patch(currentId, o => {
+    const key = `${b.product.sku}·${b.serve.label}`
+    const hit = o.lines.find(l => l.key === key)
+    const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
+    return {
+      ...o,
+      lines: hit
+        ? o.lines.map(l => l.key === key ? { ...l, qty: l.qty + 1 } : l)
+        : [...o.lines, { key, name: `${b.product.name}${label}`, price: b.serve.price, qty: 1, sentQty: 0, food: b.page === 'Snacks & Food' }],
+    }
+  })
+  const bump = (key, d) => patch(currentId, o => ({
+    ...o,
+    lines: o.lines.map(l => l.key === key ? { ...l, qty: Math.max(l.sentQty || 0, l.qty + d) } : l)
+      .filter(l => l.qty > 0),
+  }))
+  const send = () => patch(currentId, o => ({ ...o, lines: o.lines.map(l => ({ ...l, sentQty: l.qty })) }))
+  const pay = () => {
+    const o = orders[currentId]
+    setClosed({ ref: refLabel(o), total: totalOf(o) })
+    setOrders(prev => { const n = { ...prev }; delete n[currentId]; return n })
+    setCurrentId(null); setScreen('floor')
+  }
+
+  const refLabel = (o) => o.kind === 'table' ? o.ref : o.kind === 'tab' ? `Tab · ${o.ref}` : 'Quick sale'
+
+  // ── buttons for the ring grid ─────────────────────────────────────────────
   const buttons = useMemo(() => {
     const q = query.trim().toLowerCase()
     const out = []
@@ -39,38 +104,120 @@ export default function TillScreen() {
     return out
   }, [pages, pageName, query])
 
-  const keyOf = (b) => `${b.product.sku}·${b.serve.label}`
-  const add = (b) => {
-    setRung(null)
-    setOrder(prev => {
-      const k = keyOf(b)
-      const hit = prev.find(l => l.key === k)
-      if (hit) return prev.map(l => l.key === k ? { ...l, qty: l.qty + 1 } : l)
-      const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
-      return [...prev, { key: k, name: `${b.product.name}${label}`, price: b.serve.price, qty: 1 }]
-    })
+  // ═══ FLOOR — tables, tabs, quick sale ═══════════════════════════════════
+  if (screen === 'floor') {
+    const tabs = open.filter(o => o.kind === 'tab')
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+        {closed && (
+          <div style={{ fontSize: 13, color: GREEN, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px' }}>
+            ✓ {closed.ref} paid {gbp(closed.total)} — demo only, nothing recorded. Ring it on Lightspeed for real.
+          </div>
+        )}
+        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <button onClick={() => start('quick', null)} style={bigBtn(true)}>⚡ Quick sale</button>
+          <button onClick={() => { const name = prompt('Name for the tab? (e.g. "Sarah — blue jacket")'); if (name?.trim()) start('tab', name.trim()) }} style={bigBtn(false)}>➕ Open a tab</button>
+        </div>
+
+        {FLOOR.map(z => (
+          <div key={z.zone}>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, marginBottom: 8 }}>{z.zone}</div>
+            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 100 : 120}px, 1fr))`, gap: 8 }}>
+              {z.spots.map(ref => {
+                const o = orderFor('table', ref)
+                return (
+                  <button key={ref} onClick={() => start('table', ref)} style={{
+                    minHeight: 74, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', padding: '10px 12px',
+                    background: o ? 'rgba(201,168,76,0.13)' : 'rgba(255,255,255,0.04)',
+                    border: `1.5px solid ${o ? GOLD : LINE}`, color: CREAM,
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
+                  }}>
+                    <span style={{ fontSize: 14, fontWeight: 700, color: o ? GOLD : CREAM }}>{ref}</span>
+                    {o
+                      ? <span style={{ fontSize: 12 }}>{o.lines.reduce((s, l) => s + l.qty, 0)} items · <b>{gbp(totalOf(o))}</b>{unsentOf(o) > 0 && <span style={{ color: AMBER }}> · unsent</span>}</span>
+                      : <span style={{ fontSize: 11.5, color: DIM }}>free</span>}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        ))}
+
+        <div>
+          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, marginBottom: 8 }}>Open tabs</div>
+          {tabs.length === 0 && <div style={{ fontSize: 12.5, color: DIM }}>No tabs open.</div>}
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            {tabs.map(o => (
+              <button key={o.id} onClick={() => { setCurrentId(o.id); setScreen('ring') }} style={{
+                borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', padding: '10px 16px',
+                background: 'rgba(201,168,76,0.13)', border: `1.5px solid ${GOLD}`, color: CREAM, fontSize: 13,
+              }}>
+                🍺 <b>{o.ref}</b> · {gbp(totalOf(o))}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
+          Demo till — orders live only in this browser; no sale is recorded anywhere. Lightspeed is still the till of
+          record. Table names are placeholders until the venue's real floor plan goes in.
+        </div>
+      </div>
+    )
   }
-  const bump = (k, d) => setOrder(prev => prev
-    .map(l => l.key === k ? { ...l, qty: l.qty + d } : l)
-    .filter(l => l.qty > 0))
-  const total = order.reduce((s, l) => s + l.qty * l.price, 0)
-  const ring = () => { setRung(total); setOrder([]) }
+
+  if (!current) { setScreen('floor'); return null }
+
+  // ═══ BILL — the addition ══════════════════════════════════════════════════
+  if (screen === 'bill') {
+    const total = totalOf(current)
+    return (
+      <div style={{ maxWidth: 420, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 18 }}>
+          <div className="serif" style={{ fontSize: 18, color: '#fff' }}>No Dice — London Fields</div>
+          <div style={{ fontSize: 10.5, color: DIM, marginBottom: 12 }}>No Dice Hackney Ltd · 407 Mentmore Terrace, E8 3PH · DEMO BILL — NOT A VAT RECEIPT</div>
+          <div style={{ fontSize: 12.5, color: CREAM, marginBottom: 10, fontWeight: 700 }}>{refLabel(current)}</div>
+          {current.lines.map(l => (
+            <div key={l.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, padding: '3px 0' }}>
+              <span style={{ color: CREAM }}>{l.qty} × {l.name}</span>
+              <span style={{ color: CREAM, fontWeight: 600 }}>{gbp(l.qty * l.price)}</span>
+            </div>
+          ))}
+          <div style={{ borderTop: `1px solid ${LINE}`, marginTop: 10, paddingTop: 10, display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+            <span style={{ fontSize: 12, color: DIM }}>Total (inc VAT)</span>
+            <span className="serif" style={{ fontSize: 24, color: '#fff' }}>{gbp(total)}</span>
+          </div>
+          <div style={{ fontSize: 10.5, color: DIM, marginTop: 2 }}>includes VAT {gbp(total - total / 1.2)} @ 20%</div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setScreen('ring')} style={btn()}>← Back to order</button>
+          <button onClick={pay} style={{ ...bigBtn(true), flex: 1 }}>PAY {gbp(total)} — close (demo)</button>
+        </div>
+        <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square. Demo: it just closes the order.</div>
+      </div>
+    )
+  }
+
+  // ═══ RING — button grid + this order ══════════════════════════════════════
+  const total = totalOf(current)
+  const unsent = unsentOf(current)
+  const foodUnsent = current.lines.reduce((s, l) => s + (l.food ? Math.max(0, l.qty - (l.sentQty || 0)) : 0), 0)
 
   const orderPanel = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, minWidth: isMobile ? undefined : 270, maxWidth: isMobile ? undefined : 300 }}>
-      <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM }}>Order</div>
-      {order.length === 0 && !rung && <div style={{ fontSize: 12.5, color: DIM, padding: '6px 0 10px' }}>Tap buttons to ring a round.</div>}
-      {rung != null && order.length === 0 && (
-        <div style={{ fontSize: 12.5, color: GREEN, padding: '4px 0 8px' }}>
-          ✓ Rung {gbp(rung)} — demo only, nothing recorded. Ring it on Lightspeed for real.
-        </div>
-      )}
-      {order.map(l => (
-        <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, minWidth: isMobile ? undefined : 280, maxWidth: isMobile ? undefined : 310 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
+        <span style={{ fontSize: 13, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
+        <button onClick={() => setScreen('floor')} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
+      </div>
+      {current.lines.length === 0 && <div style={{ fontSize: 12.5, color: DIM, padding: '4px 0 8px' }}>Tap buttons to ring.</div>}
+      {current.lines.map(l => (
+        <div key={l.key} style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13 }}>
           <button onClick={() => bump(l.key, -1)} style={qtyBtn()}>−</button>
           <span style={{ minWidth: 16, textAlign: 'center', fontWeight: 700, color: GOLD }}>{l.qty}</span>
           <button onClick={() => bump(l.key, +1)} style={qtyBtn()}>+</button>
-          <span style={{ flex: 1, color: CREAM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.name}</span>
+          <span style={{ flex: 1, color: CREAM, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {l.name}{(l.sentQty || 0) >= l.qty && <span title="sent" style={{ color: GREEN }}> ✓</span>}
+          </span>
           <span style={{ fontWeight: 700, color: CREAM, whiteSpace: 'nowrap' }}>{gbp(l.qty * l.price)}</span>
         </div>
       ))}
@@ -78,27 +225,21 @@ export default function TillScreen() {
         <span style={{ fontSize: 12, color: DIM }}>Total</span>
         <span className="serif" style={{ fontSize: 26, color: '#fff' }}>{gbp(total)}</span>
       </div>
-      <button onClick={ring} disabled={order.length === 0} style={{
-        padding: '13px 10px', borderRadius: 10, border: 'none', cursor: order.length ? 'pointer' : 'default',
-        background: order.length ? GOLD : 'rgba(255,255,255,0.07)', color: order.length ? '#141414' : DIM,
-        fontFamily: 'inherit', fontSize: 15, fontWeight: 800, letterSpacing: '0.02em',
-      }}>
-        RING IT — DEMO
-      </button>
-      {order.length > 0 && (
-        <button onClick={() => setOrder([])} style={{ padding: '8px 10px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'transparent', color: DIM, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12 }}>
-          Clear order
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button onClick={send} disabled={unsent === 0} style={{ ...bigBtn(false), flex: 1, opacity: unsent ? 1 : 0.45 }}>
+          SEND{unsent > 0 ? ` (${unsent})` : ''}
         </button>
-      )}
-      <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
-        Demo till — no sale is saved anywhere. Lightspeed is still the till of record.
+        <button onClick={() => setScreen('bill')} disabled={current.lines.length === 0} style={{ ...bigBtn(true), flex: 1, opacity: current.lines.length ? 1 : 0.45 }}>
+          BILL
+        </button>
       </div>
+      {foodUnsent > 0 && <div style={{ fontSize: 11, color: AMBER }}>SEND will fire {foodUnsent} food item{foodUnsent > 1 ? 's' : ''} to the kitchen printer (real version).</div>}
+      <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>Demo — nothing is recorded. Lightspeed is still the till of record.</div>
     </div>
   )
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-      {/* Page rail + search */}
       <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
         <input
           value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find anything…"
@@ -114,11 +255,10 @@ export default function TillScreen() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
-        {/* Button grid */}
+      <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column-reverse' : 'row' }}>
         <div style={{ flex: 1, display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 150}px, 1fr))`, gap: 8, width: '100%' }}>
           {buttons.map(b => (
-            <button key={keyOf(b) + b.page} onClick={() => add(b)} style={{
+            <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
               minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
               background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM, fontFamily: 'inherit',
               display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
@@ -137,6 +277,15 @@ export default function TillScreen() {
   )
 }
 
+const btn = () => ({
+  padding: '8px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)',
+  color: CREAM, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5,
+})
+const bigBtn = (primary) => ({
+  padding: '13px 18px', borderRadius: 10, border: primary ? 'none' : `1.5px solid ${GOLD}`,
+  background: primary ? GOLD : 'rgba(201,168,76,0.1)', color: primary ? '#141414' : GOLD,
+  cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, fontWeight: 800, letterSpacing: '0.02em',
+})
 const qtyBtn = () => ({
   width: 26, height: 26, borderRadius: 7, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)',
   color: CREAM, cursor: 'pointer', fontFamily: 'inherit', fontSize: 14, lineHeight: 1,
