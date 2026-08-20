@@ -45,6 +45,12 @@ never run destructive or "today"-dated test writes on real data.
 | bar (via integration session, founder-directed) | **NEW: 15 tables + 7 views — the BAR stock/cost/margin/ordering system.** `bar_suppliers`, `bar_products`, `bar_prep_recipes`, `bar_production_log`, `bar_stocktakes`, `bar_stocktake_sheets`, `bar_stocktake_lines`, `bar_orders`, `bar_order_lines`, `bar_price_history`, `bar_menu_items`, `bar_recipe_lines`, `bar_sales_daily`, `bar_covers`, `bar_waste`; views `bar_cost_base`, `bar_margins`, `bar_on_hand`, `bar_usage_actual`, `bar_usage_theoretical`, `bar_variance`, `bar_stock_value`; trigger `bar_capture_price` on `bar_order_lines`. Additive only — `bar_reservations` and `bar_helpers` untouched. RLS on, no policies (service-role only). SQL in `supabase/bar_stock_system.sql`. Dry-run in a rolled-back txn first; verified with a rolled-back fixture (Corona case-of-24 bought / bottles counted → 113 used, correct). All tables currently EMPTY — seeding is the next slice. | ✅ applied | 17 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
+## 20 Aug 2026 — till lane touched CLAUDE.md (shared file, one line)
+The "## Project" intro said the app deploys at **nodice.bar** — stale since the public
+customer site (Next.js repo) took that domain; public/CNAME says **team.nodice.bar**.
+Founder got a 404 from a link built off the stale line. Fixed the line + added a warning.
+Claimed, edited, shipped same hour.
+
 ## Known architecture debt (all lanes — don't make it worse)
 **`SEND_SECRET` ships in the public JS bundle** (`src/marketing/data/backend.js`) — so
 every "founder-gated" edge-fn action is technically world-callable, and several source
