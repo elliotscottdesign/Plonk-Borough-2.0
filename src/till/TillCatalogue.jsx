@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react'
 import liveTill from './data/liveTill.json'
 import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
+import { pageColor } from './colors.js'
 import TillScreen from './TillScreen.jsx'
 
 // ─── The TILL tab in /ops ────────────────────────────────────────────────────
@@ -152,7 +153,9 @@ function CatalogueView() {
               background: 'rgba(255,255,255,0.03)', border: 'none', cursor: 'pointer',
               padding: '13px 16px', color: CREAM, fontFamily: 'inherit',
             }}>
-              <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '0.04em' }}>{isOpen ? '▾' : '▸'} {pg.name}</span>
+              <span style={{ fontSize: 14.5, fontWeight: 700, letterSpacing: '0.04em' }}>
+                {isOpen ? '▾' : '▸'} <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: pageColor(pg.name), verticalAlign: 'baseline', marginRight: 2 }} /> {pg.name}
+              </span>
               <span style={{ fontSize: 11.5, color: DIM }}>
                 {pg.products.length} products · {pg.products.reduce((s, p) => s + p.serves.length, 0)} buttons
               </span>

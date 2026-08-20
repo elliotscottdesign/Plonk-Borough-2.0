@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import liveTill from './data/liveTill.json'
 import { gbp } from './gp.js'
+import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── TILL — the register, K Series layout (demo) ────────────────────────────
@@ -374,28 +375,35 @@ export default function TillScreen() {
           value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find anything…"
           style={{ padding: '8px 12px', borderRadius: 8, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 13, width: isMobile ? '100%' : 180 }}
         />
-        {!query && pages.map(pg => (
-          <button key={pg.name} onClick={() => setPageName(pg.name)} style={{
-            padding: '7px 11px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5,
-            background: pg.name === pageName ? 'rgba(201,168,76,0.15)' : 'transparent',
-            border: `1.5px solid ${pg.name === pageName ? GOLD : LINE}`,
-            color: pg.name === pageName ? GOLD : CREAM, fontWeight: pg.name === pageName ? 700 : 400, whiteSpace: 'nowrap',
-          }}>{pg.name}</button>
-        ))}
+        {!query && pages.map(pg => {
+          const c = pageColor(pg.name), active = pg.name === pageName
+          return (
+            <button key={pg.name} onClick={() => setPageName(pg.name)} style={{
+              padding: '7px 11px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5,
+              background: active ? tint(c, '2E') : 'transparent',
+              border: `1.5px solid ${active ? c : tint(c, '73')}`,
+              color: active ? c : CREAM, fontWeight: active ? 700 : 400, whiteSpace: 'nowrap',
+            }}>{pg.name}</button>
+          )
+        })}
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
-        {buttons.map(b => (
-          <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
-            minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-            background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM, fontFamily: 'inherit',
-            display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
-          }}>
-            <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>
-              {b.product.name}{b.serve.label && b.serve.label !== 'Each' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
-            </span>
-            <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>{gbp(b.serve.price)}</span>
-          </button>
-        ))}
+        {buttons.map(b => {
+          const c = pageColor(b.page)
+          return (
+            <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
+              minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+              background: tint(c, '14'), border: `1px solid ${tint(c, '73')}`, borderLeft: `4px solid ${c}`,
+              color: CREAM, fontFamily: 'inherit',
+              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
+            }}>
+              <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>
+                {b.product.name}{b.serve.label && b.serve.label !== 'Each' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
+              </span>
+              <span style={{ fontSize: 13.5, fontWeight: 800, color: c }}>{gbp(b.serve.price)}</span>
+            </button>
+          )
+        })}
         {buttons.length === 0 && <div style={{ fontSize: 13, color: DIM, padding: 12 }}>Nothing matches "{query}".</div>}
       </div>
     </div>
