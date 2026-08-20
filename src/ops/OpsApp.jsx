@@ -70,10 +70,10 @@ const GROUPS = [
     // paperwork and money are senior-management — team-tier logins never see the door.
     key: 'office', label: 'Office', founderOnly: true,
     tabs: [
+      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
-      { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
     ],
   },
   {
