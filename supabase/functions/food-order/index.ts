@@ -99,6 +99,14 @@ Deno.serve(async (req) => {
       const { data, error } = await sb.from("food_orders")
         .select("*").in("status", ["new", "preparing", "ready", "card_failed"]).order("created_at", { ascending: true });
       if (error) return json({ error: error.message }, 400);
+      // Enrich coded orders with the code's kind/label so the kitchen can colour
+      // staff/comp orders differently (deprioritise vs paying customers).
+      const orderCodes = [...new Set((data || []).map((o: any) => o.order_code).filter(Boolean))];
+      if (orderCodes.length) {
+        const { data: cr } = await sb.from("order_codes").select("code,kind,label").in("code", orderCodes);
+        const cm: Record<string, any> = Object.fromEntries((cr || []).map((c: any) => [c.code, c]));
+        for (const o of (data as any[])) if (o.order_code && cm[o.order_code]) { o.code_kind = cm[o.order_code].kind; o.code_label = cm[o.order_code].label; }
+      }
       return json({ ok: true, orders: data || [] });
     }
 
@@ -232,6 +240,89 @@ Deno.serve(async (req) => {
       const ov = b.override === "sold_out" || b.override === "available" ? b.override : null;
       await sb.from("kitchen_stock_levels").update({ override: ov, updated_at: new Date().toISOString() }).eq("ingredient", ing);
       return json({ ok: true });
+    }
+
+    // ── Order codes (party tabs / staff food) — order without a card, tracked ────
+    if (action === "listCodes") {   // kitchen — codes + live tab totals
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data: codes } = await sb.from("order_codes").select("*").order("created_at", { ascending: false });
+      const { data: orders } = await sb.from("food_orders").select("order_code,total_pence,status").not("order_code", "is", null);
+      const tally: Record<string, { orders: number; total_pence: number }> = {};
+      for (const o of (orders || [])) {
+        if (o.status === "cancelled" || o.status === "card_failed") continue;
+        const t = (tally[o.order_code] ||= { orders: 0, total_pence: 0 });
+        t.orders++; t.total_pence += o.total_pence || 0;
+      }
+      return json({ ok: true, codes: (codes || []).map((c: any) => ({ ...c, tab: tally[c.code] || { orders: 0, total_pence: 0 } })) });
+    }
+    if (action === "createCode") {   // kitchen — create a party/staff/comp code
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const code = clean(b.code, 40).toUpperCase().replace(/\s+/g, "");
+      if (code.length < 3) return json({ error: "Code needs at least 3 characters." }, 400);
+      const kind = ["party", "staff", "comp"].includes(b.kind) ? b.kind : "party";
+      const { error } = await sb.from("order_codes").insert({ code, label: clean(b.label, 80) || null, kind });
+      if (error) return json({ error: /duplicate/i.test(error.message) ? "That code already exists." : error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "setCodeActive") {   // kitchen — open/close a code (close = settle at bar)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      await sb.from("order_codes").update({ active: !!b.active }).eq("code", clean(b.code, 40).toUpperCase());
+      return json({ ok: true });
+    }
+    if (action === "validateCode") {   // public — customer checks a code before ordering
+      const { data: c } = await sb.from("order_codes").select("code,label,kind,active").eq("code", clean(b.code, 40).toUpperCase()).maybeSingle();
+      if (!c || !c.active) return json({ ok: true, valid: false });
+      return json({ ok: true, valid: true, label: c.label, kind: c.kind });
+    }
+    if (action === "createCodedOrder") {   // public — place an order on a code (no card)
+      const code = clean(b.code, 40).toUpperCase();
+      const { data: codeRow } = await sb.from("order_codes").select("*").eq("code", code).maybeSingle();
+      if (!codeRow || !codeRow.active) return json({ error: "That code isn't valid — check with staff." }, 403);
+      const name = clean(b.name, 80), phone = clean(b.phone, 30);
+      if (name.length < 2) return json({ error: "Please enter your name." }, 400);
+      const cart = Array.isArray(b.cart) ? b.cart.slice(0, 50) : [];
+      if (!cart.length) return json({ error: "Your order is empty." }, 400);
+      const eff = await getEffective(sb);
+      if (!eff.open) return json({ error: "Ordering is paused right now — please try again shortly.", open: false }, 409);
+      // price from the live menu + tally limiting ingredients
+      const { data: menu } = await sb.from("menu_catalog").select("sections").eq("id", 1).maybeSingle();
+      const idx = new Map<string, any>();
+      for (const sec of (Array.isArray(menu?.sections) ? menu!.sections : [])) for (const it of (sec.items || [])) idx.set(String(it.id), it);
+      const lineItems: any[] = []; let total = 0; const need: Record<string, number> = {};
+      for (const line of cart) {
+        const it = idx.get(String(line.id));
+        if (!it) return json({ error: "That menu has just changed — please refresh." }, 409);
+        const qty = Math.min(20, Math.max(1, parseInt(String(line.qty), 10) || 1));
+        const chosen = (it.addons || []).filter((a: any) => (Array.isArray(line.addon_ids) ? line.addon_ids.map(String) : []).includes(String(a.id)));
+        const options = chosen.map((a: any) => ({ name: a.name, price_pence: parseInt(a.price_pence, 10) || 0 }));
+        const stock = Array.isArray(it.stock) ? it.stock : [];
+        total += ((parseInt(it.sell_pence, 10) || 0) + options.reduce((s: number, o: any) => s + o.price_pence, 0)) * qty;
+        for (const ing of stock) need[ing] = (need[ing] || 0) + qty;
+        lineItems.push({ name: it.name, qty, price_pence: parseInt(it.sell_pence, 10) || 0, options, stock });
+      }
+      // never oversell + draw down (order is confirmed on placement — no card step)
+      if (Object.keys(need).length) {
+        const { data: levels } = await sb.from("kitchen_stock_levels").select("*");
+        const lvl: Record<string, any> = Object.fromEntries((levels || []).map((r: any) => [r.ingredient, r]));
+        for (const [ing, qty] of Object.entries(need)) {
+          const r = lvl[ing]; if (!r) continue;
+          const soldOut = r.override === "sold_out" || (r.override !== "available" && r.count <= 0);
+          const avail = r.override === "available" ? Infinity : r.count;
+          if (soldOut || qty > avail) return json({ error: `Sorry — we've run low on ${r.label || ing}. Adjust your order.`, sold_out: ing }, 409);
+        }
+        for (const [ing, qty] of Object.entries(need)) {
+          const { data: cur } = await sb.from("kitchen_stock_levels").select("count").eq("ingredient", ing).maybeSingle();
+          if (cur) await sb.from("kitchen_stock_levels").update({ count: Math.max(0, cur.count - qty), updated_at: new Date().toISOString() }).eq("ingredient", ing);
+        }
+      }
+      const { data: row, error } = await sb.from("food_orders").insert({
+        customer_name: name, customer_phone: phone, customer_note: clean(b.note, 300) || null,
+        items: lineItems, total_pence: total, status: "new", paid: false,
+        order_code: code, allergen_note: clean(b.allergen_note, 500) || null,
+      }).select("id,order_no").single();
+      if (error) return json({ error: error.message }, 400);
+      if (phone) await sendSMS(phone, `On A Roll 🍔 Order #${row.order_no} received — we're on it! We'll text you the moment it's ready to collect.`);
+      return json({ ok: true, order_id: row.id, order_no: row.order_no, code_label: codeRow.label });
     }
 
     if (action === "joinWaitlist") { // public — customer leaves their number while paused

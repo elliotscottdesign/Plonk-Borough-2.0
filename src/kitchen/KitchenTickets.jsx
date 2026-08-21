@@ -7,7 +7,7 @@ import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resend
 // Lives in /ops → Kitchen. Polls every 10s so a fresh order shows without a reload.
 
 const BLUE = '#183fa0', RED = '#e0231b', GREEN = '#1f8a4d', INK = '#15305c', LINE = '#cabfa2', MUTED = 'rgba(255,255,255,0.55)'
-const AMBER = '#E8B84B'
+const AMBER = '#E8B84B', STAFF = '#78716c'
 const HEAVY = "Impact, 'Arial Narrow Bold', sans-serif"
 const FLAG_MS = 12 * 60 * 1000    // flag any order still open past 12 minutes
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
@@ -83,7 +83,7 @@ export default function KitchenTickets() {
 
   const failed = orders.filter(o => o.status === 'card_failed')
   const active = orders.filter(o => o.status !== 'collected' && o.status !== 'card_failed')
-  const flagged = active.filter(o => o.status !== 'ready' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
+  const flagged = active.filter(o => o.status !== 'ready' && o.code_kind !== 'staff' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
   const avgColor = stats.avgSec == null ? MUTED : stats.avgSec > 12 * 60 ? RED : stats.avgSec > 8 * 60 ? AMBER : GREEN
   return (
     <div>
@@ -177,8 +177,9 @@ export default function KitchenTickets() {
           const waitMs = Date.now() - new Date(o.created_at).getTime()
           const wait = mmss(waitMs)
           const ready = o.status === 'ready'
-          const overdue = !ready && waitMs > FLAG_MS
-          const headBg = overdue ? RED : ready ? GREEN : BLUE
+          const isStaff = o.code_kind === 'staff'
+          const overdue = !ready && !isStaff && waitMs > FLAG_MS
+          const headBg = overdue ? RED : ready ? GREEN : isStaff ? STAFF : BLUE
           return (
             <div key={o.id} style={{ background: '#fff', border: `2px solid ${headBg}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: overdue ? 'oarflash 1.2s infinite' : 'none' }}>
               <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '9px 13px' }}>
@@ -186,6 +187,7 @@ export default function KitchenTickets() {
                 <span style={{ fontSize: 13.5, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
               </div>
               <div style={{ padding: '13px 13px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {o.order_code && <div style={{ fontSize: 12.5, fontWeight: 800, color: '#fff', background: isStaff ? STAFF : '#5B8DEF', borderRadius: 6, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎟 {o.code_label || o.order_code}{isStaff ? ' · STAFF — no rush' : ' · on tab'}</div>}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {items.map((it, i) => (
                     <div key={i} style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>

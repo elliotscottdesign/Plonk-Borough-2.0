@@ -3,6 +3,7 @@ import KitchenTickets from '../kitchen/KitchenTickets.jsx'
 import MenuManager from '../kitchen/MenuManager.jsx'
 import MenuPrint from '../kitchen/MenuPrint.jsx'
 import StockPanel from '../kitchen/StockPanel.jsx'
+import CodesPanel from '../kitchen/CodesPanel.jsx'
 
 // On A Roll MANAGEMENT app — the kitchen order display + menu manager, on its OWN
 // page (team.nodice.bar/onaroll) behind a simple code, separate from both the
@@ -28,13 +29,13 @@ function OnARollManage() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, maxWidth: 1000, margin: '0 auto 14px', flexWrap: 'wrap' }}>
         <img src="/on-a-roll-logo.png?v=3" alt="On A Roll" style={{ height: 52 }} />
         <div style={{ display: 'flex', gap: 8, marginLeft: 'auto' }}>
-          {[['orders', '🎫 Orders'], ['stock', '📦 Stock'], ['menu', '🍔 Menu']].map(([k, l]) => (
+          {[['orders', '🎫 Orders'], ['stock', '📦 Stock'], ['codes', '🎟 Codes'], ['menu', '🍔 Menu']].map(([k, l]) => (
             <button key={k} onClick={() => setTab(k)} style={tabBtn(tab === k)}>{l}</button>
           ))}
         </div>
       </div>
       <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-        {tab === 'orders' ? <KitchenTickets /> : tab === 'stock' ? <StockPanel /> : <MenuManager />}
+        {tab === 'orders' ? <KitchenTickets /> : tab === 'stock' ? <StockPanel /> : tab === 'codes' ? <CodesPanel /> : <MenuManager />}
       </div>
     </div>
   )
