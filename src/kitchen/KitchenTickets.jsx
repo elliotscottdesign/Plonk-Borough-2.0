@@ -18,7 +18,7 @@ export default function KitchenTickets() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [sound, setSound] = useState(true)
-  const [showHistory, setShowHistory] = useState(false)
+  const [view, setView] = useState('live')   // 'live' | 'history' | 'failed'
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
   const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
@@ -70,7 +70,7 @@ export default function KitchenTickets() {
   const resend = async (o) => { setBusy(true); try { const r = await resendReady(o.id); alert(r.texted ? `Re-sent the “ready” text to ${o.customer_name || 'the customer'}.` : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const reply = async (o) => { const m = prompt(`Text ${o.customer_name || 'the customer'} (Order #${o.order_no}):`, ''); if (!m || !m.trim()) return; setBusy(true); try { const r = await textCustomer(o.id, m.trim()); alert(r.texted ? 'Sent ✓' : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const paidAtBar = async (o) => { setBusy(true); try { await markPaidAtBar(o.id); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
+  const openHistory = async () => { setView('history'); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
   const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(0, n) })) } catch (e) { alert(e.message) } }
@@ -102,28 +102,44 @@ export default function KitchenTickets() {
           </div>
         )}
       </div>
-      {failed.length > 0 && (
-        <div style={{ border: `2px solid ${RED}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, background: 'rgba(224,35,27,0.08)' }}>
-          <div style={{ fontFamily: HEAVY, color: RED, fontSize: 18, marginBottom: 8 }}>❌ {failed.length} card {failed.length > 1 ? 'payments' : 'payment'} failed — customer thinks they've ordered</div>
-          {failed.map(o => {
-            const its = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
-            return (
-              <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 11px', marginBottom: 7, color: INK }}>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
-                  <span style={{ fontFamily: HEAVY, fontSize: 17, color: RED }}>#{o.order_no}</span>
-                  <span style={{ fontSize: 13.5, flex: 1, minWidth: 0 }}><b>{o.customer_name || '—'}</b> · {its || '—'} · <b>£{(o.total_pence / 100).toFixed(2)}</b></span>
-                </div>
-                {o.customer_note && <div style={{ fontSize: 12, color: BLUE, marginTop: 3 }}>📝 {o.customer_note}</div>}
-                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
-                  <button disabled={busy} onClick={() => paidAtBar(o)} style={{ ...btn(GREEN, '#fff'), flex: 2, fontSize: 13, padding: '9px' }}>✓ Paid at bar — make it</button>
-                  {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 13, padding: '9px' }}>💬 Text</button>}
-                  <button disabled={busy} onClick={() => act(o, 'cancelled')} style={{ ...btn('#fff', '#8a8275', LINE), flex: 1, fontSize: 13, padding: '9px' }}>✕ Dismiss</button>
-                </div>
-              </div>
-            )
-          })}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {[['live', `🎫 Live${active.length ? ` · ${active.length}` : ''}`], ['history', '📋 History'], ...(failed.length ? [['failed', `❌ Card failed · ${failed.length}`]] : [])].map(([k, l]) => (
+          <button key={k} onClick={() => k === 'history' ? openHistory() : setView(k)}
+            style={{ fontSize: 14, fontWeight: 800, background: view === k ? (k === 'failed' ? RED : BLUE) : 'none', border: `1px solid ${view === k ? (k === 'failed' ? RED : BLUE) : LINE}`, color: '#fff', borderRadius: 9, padding: '10px 16px', cursor: 'pointer' }}>{l}</button>
+        ))}
+        <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
+        </label>
+      </div>
+
+      {view === 'history' && <HistoryView history={history} />}
+
+      {view === 'failed' && (
+        <div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>Cards that declined — the customer may think they've ordered. Take the money at the bar and “make it”, text them, or dismiss.</div>
+          {failed.length === 0
+            ? <div style={{ color: MUTED, fontSize: 14, padding: '30px 0', textAlign: 'center' }}>No failed card payments right now.</div>
+            : failed.map(o => {
+                const its = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
+                return (
+                  <div key={o.id} style={{ background: '#fff', border: `2px solid ${RED}`, borderRadius: 12, padding: '13px 15px', marginBottom: 10, color: INK }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: HEAVY, fontSize: 24, color: RED }}>#{o.order_no}</span>
+                      <span style={{ fontSize: 16, flex: 1, minWidth: 0 }}><b>{o.customer_name || '—'}</b> · {its || '—'} · <b>£{(o.total_pence / 100).toFixed(2)}</b></span>
+                    </div>
+                    {o.customer_note && <div style={{ fontSize: 14, color: BLUE, marginTop: 4 }}>📝 {o.customer_note}</div>}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
+                      <button disabled={busy} onClick={() => paidAtBar(o)} style={{ ...btn(GREEN, '#fff'), flex: 2 }}>✓ Paid at bar — make it</button>
+                      {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1 }}>💬 Text</button>}
+                      <button disabled={busy} onClick={() => act(o, 'cancelled')} style={{ ...btn('#fff', '#8a8275', LINE), flex: 1 }}>✕ Dismiss</button>
+                    </div>
+                  </div>
+                )
+              })}
         </div>
       )}
+
+      {view === 'live' && <>
       {pause && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -141,22 +157,13 @@ export default function KitchenTickets() {
           )}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{active.length ? `${active.length} live order${active.length > 1 ? 's' : ''}` : 'No live orders'}</div>
-        <button onClick={showHistory ? () => setShowHistory(false) : openHistory} style={{ fontSize: 12, fontWeight: 700, background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}>{showHistory ? '← Live orders' : '📋 Order history'}</button>
-        <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
-        </label>
-      </div>
-
-      {showHistory ? <HistoryView history={history} /> : <>
       {err && <div style={{ fontSize: 12, color: RED, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, lineHeight: 1.5 }}>
         Can't reach orders yet — {err}. Orders appear here once the <code>food-order</code> backend is deployed.
       </div>}
 
       {active.length === 0 && !err && <div style={{ color: MUTED, fontSize: 14, padding: '44px 0', textAlign: 'center' }}>No orders on the go. New paid orders land here and ding. 🔔</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(232px, 1fr))', gap: 14 }}>
         {active.map(o => {
           const items = Array.isArray(o.items) ? o.items : []
           const waitMs = Date.now() - new Date(o.created_at).getTime()
@@ -166,15 +173,15 @@ export default function KitchenTickets() {
           const headBg = overdue ? RED : ready ? GREEN : BLUE
           return (
             <div key={o.id} style={{ background: '#fff', border: `2px solid ${headBg}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: overdue ? 'oarflash 1.2s infinite' : 'none' }}>
-              <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '7px 12px' }}>
-                <span style={{ fontFamily: HEAVY, fontSize: 24, letterSpacing: '1px' }}>#{o.order_no}</span>
-                <span style={{ fontSize: 12, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
+              <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '9px 13px' }}>
+                <span style={{ fontFamily: HEAVY, fontSize: 30, letterSpacing: '1px' }}>#{o.order_no}</span>
+                <span style={{ fontSize: 13.5, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
               </div>
-              <div style={{ padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 9 }}>
+              <div style={{ padding: '13px 13px', display: 'flex', flexDirection: 'column', gap: 11 }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {items.map((it, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, fontSize: 16, fontWeight: 700, color: INK }}>
-                      <span style={{ fontFamily: HEAVY, color: RED, minWidth: 22 }}>{it.qty}×</span>
+                    <div key={i} style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
+                      <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
                       <span>{it.name}</span>
                     </div>
                   ))}
@@ -185,7 +192,7 @@ export default function KitchenTickets() {
                   ? <>
                       <div style={{ fontSize: 13, color: GREEN, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✓ Texted — waiting to collect</div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <button disabled={busy} onClick={() => resend(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 13, padding: '9px' }}>🔁 Resend text</button>
+                        <button disabled={busy} onClick={() => resend(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 15, padding: '13px' }}>🔁 Resend text</button>
                         <button disabled={busy} onClick={() => act(o, 'collected')} style={{ ...btn(INK, '#fff'), flex: 1 }}>Collected</button>
                       </div>
                     </>
@@ -243,4 +250,4 @@ function HistoryView({ history }) {
     </div>
   )
 }
-function btn(bg, color, border) { return { border: border ? `2px solid ${border}` : 'none', borderRadius: 9, padding: '12px', fontFamily: HEAVY, fontSize: 16, letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', background: bg, color } }
+function btn(bg, color, border) { return { border: border ? `2px solid ${border}` : 'none', borderRadius: 10, padding: '16px 12px', fontFamily: HEAVY, fontSize: 19, letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', background: bg, color } }
