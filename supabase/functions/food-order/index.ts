@@ -162,6 +162,19 @@ Deno.serve(async (req) => {
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, order: data });
     }
+    if (action === "sendDueNudges") {   // cron (every minute) — ONE auto-nudge for orders left ready
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const cutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();   // 3 min after ready
+      const { data: due } = await sb.from("food_orders")
+        .select("id,order_no,customer_phone")
+        .eq("status", "ready").is("nudged_at", null).not("ready_at", "is", null).lte("ready_at", cutoff).limit(20);
+      let sent = 0;
+      for (const o of (due || [])) {
+        await sb.from("food_orders").update({ nudged_at: new Date().toISOString() }).eq("id", o.id);   // mark first → never double-nudge
+        if (o.customer_phone) { const ok = await sendSMS(o.customer_phone, `⏰ On A Roll: Order #${o.order_no} is ready and waiting — please come to the van to collect it!`); if (ok) sent++; }
+      }
+      return json({ ok: true, sent });
+    }
     if (action === "textCustomer") {   // kitchen — send a custom message (e.g. reply to a note)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
       const message = clean(b.message, 300);
