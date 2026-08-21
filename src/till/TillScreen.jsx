@@ -495,8 +495,8 @@ export default function TillScreen() {
         : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', maxHeight: '76vh', overflowY: 'auto' }),
     }}>
       <input
-        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find…"
-        style={{ minHeight: 54, padding: '8px 12px', borderRadius: 10, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
+        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Find anything…"
+        style={{ minHeight: 72, padding: '10px 14px', borderRadius: 12, border: `2px solid ${query ? GOLD : 'rgba(255,255,255,0.25)'}`, background: 'rgba(255,255,255,0.07)', color: CREAM, fontFamily: 'inherit', fontSize: 17, fontWeight: 600, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
       />
       {catTiles}
     </div>
