@@ -67,6 +67,9 @@ export default function TillScreen() {
   const [splitN, setSplitN] = useState(0)                // 0 = no split
   const [sharesPaid, setSharesPaid] = useState([])       // one bool per share
   const [folder, setFolder] = useState(null)             // null | 'Spirits' — the open category folder
+  const [mixerFor, setMixerFor] = useState(null)         // { b, qty } — spirit awaiting its mixer choice
+  const [infoFor, setInfoFor] = useState(null)           // product shown in the long-press info popup
+  const [dealFor, setDealFor] = useState(null)           // { b, qty, cfg, picks } — deal awaiting its drink choices
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
@@ -107,20 +110,77 @@ export default function TillScreen() {
   }
 
   // ── ring actions ──────────────────────────────────────────────────────────
+  // Mixers, K Series style (founder, 20 Aug 2026): tapping a SPIRIT asks for a
+  // mixer — Coke / Coke Zero / Lemonade / Tonic at £1 a splash, or none. The
+  // Double Deal: on the £6 house spirits ONLY, a double + dash is £10 flat.
+  const MIXERS = ['Coke', 'Coke Zero', 'Lemonade', 'Tonic']
+  const MIXER_PRICE = 1.0
+  const isDoubleDealSpirit = (product) =>
+    product.serves.some(s => s.label === 'Single' && s.price === 6.0)
+
+  const pushLine = (key, name, price, qty, food) => patch(currentId, o => {
+    const hit = o.lines.find(l => l.key === key)
+    return {
+      ...o,
+      lines: hit
+        ? o.lines.map(l => l.key === key ? { ...l, qty: l.qty + qty } : l)
+        : [...o.lines, { key, name, price, qty, sentQty: 0, disc: null, food }],
+    }
+  })
+
+  // Deals must record WHICH drinks are poured (founder, 20 Aug 2026) — a "2
+  // for £12" that doesn't name the cocktails can never deplete stock. Each
+  // deal opens a picker; the choices are written into the ticket line.
+  const productNamesOf = (pageNames) =>
+    pages.filter(pg => pageNames.includes(pg.name)).flatMap(pg => pg.products.map(p => p.name))
+  const dealCfg = (product) => {
+    const n = product.name.toUpperCase()
+    if (n.includes('2 FOR £12')) return { picks: 2, title: 'Which 2 cocktails?', opts: productNamesOf(['Cocktails & Warmers']) }
+    if (n.includes('SHOOTER')) return { picks: 3, title: 'Which 3 shooters?', opts: productNamesOf(['Shots']) }
+    if (n.includes('CAZCABEL')) return { picks: 3, title: 'Which 3 Cazcabels?', opts: pages.flatMap(pg => pg.products).filter(p => p.name.startsWith('Cazcabel')).map(p => p.name) }
+    if (n.includes('HAPPY HOUR COCKTAIL')) return { picks: 1, title: 'Which cocktail?', opts: productNamesOf(['Cocktails & Warmers']) }
+    if (n.includes('HAPPY HOUR SPIRITS')) return {
+      picks: 1, title: 'Which house spirit? (double)',
+      opts: pages.filter(pg => pg.name.startsWith('Spirits — '))
+        .flatMap(pg => pg.products)
+        .filter(p => p.serves.some(s => s.label === 'Single' && s.price === 6.0)).map(p => p.name),
+    }
+    if (n.includes('GAME & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Cocktails & Warmers', 'Softs & Hot Drinks']) }
+    if (n.includes('HOT DOG & DRINK') || n.includes('HOTDOG & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Softs & Hot Drinks']) }
+    return null
+  }
+
   const add = (b) => {
     const qty = Math.max(1, Math.min(99, parseInt(buf || '1', 10) || 1))
     setBuf('')
-    patch(currentId, o => {
-      const key = `${b.product.sku}·${b.serve.label}`
-      const hit = o.lines.find(l => l.key === key)
-      const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
-      return {
-        ...o,
-        lines: hit
-          ? o.lines.map(l => l.key === key ? { ...l, qty: l.qty + qty } : l)
-          : [...o.lines, { key, name: `${b.product.name}${label}`, price: b.serve.price, qty, sentQty: 0, disc: null, food: b.page === 'Snacks & Food' }],
-      }
-    })
+    const cfg = dealCfg(b.product)
+    if (cfg) { setDealFor({ b, qty, cfg, picks: [] }); return }
+    if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
+      setMixerFor({ b, qty })                      // ask for the mixer first
+      return
+    }
+    const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
+    pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, b.page === 'Snacks & Food')
+  }
+
+  const addDeal = () => {
+    const { b, qty, picks } = dealFor
+    setDealFor(null)
+    pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${picks.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
+  }
+
+  const addSpirit = (mixer) => {                   // mixer = name string or null
+    const { b, qty } = mixerFor
+    setMixerFor(null)
+    const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
+    if (!mixer) {
+      pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, false)
+      return
+    }
+    const deal = b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
+    const price = deal ? 10.0 : b.serve.price + MIXER_PRICE
+    const name = `${b.product.name}${label} + ${mixer}${deal ? ' · Double Deal' : ''}`
+    pushLine(`${b.product.sku}·${b.serve.label}·${mixer}`, name, price, qty, false)
   }
   const bump = (key, d) => patch(currentId, o => ({
     ...o,
@@ -495,8 +555,8 @@ export default function TillScreen() {
         : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', maxHeight: '76vh', overflowY: 'auto' }),
     }}>
       <input
-        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find…"
-        style={{ minHeight: 54, padding: '8px 12px', borderRadius: 10, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
+        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Find anything…"
+        style={{ minHeight: 72, padding: '10px 14px', borderRadius: 12, border: `2px solid ${query ? GOLD : 'rgba(255,255,255,0.25)'}`, background: 'rgba(255,255,255,0.07)', color: CREAM, fontFamily: 'inherit', fontSize: 17, fontWeight: 600, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
       />
       {catTiles}
     </div>
@@ -505,26 +565,134 @@ export default function TillScreen() {
   const stock = (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
-        {buttons.map(b => {
-          const c = pageColor(b.page)
-          return (
-            <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
-              minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
-              background: tint(c, '14'), border: `1px solid ${tint(c, '73')}`, borderLeft: `4px solid ${c}`,
-              color: CREAM, fontFamily: 'inherit',
-              display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
-            }}>
-              <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>
-                {b.product.name}{b.serve.label && b.serve.label !== 'Each' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
-              </span>
-              <span style={{ fontSize: 13.5, fontWeight: 800, color: c }}>{gbp(b.serve.price)}</span>
-            </button>
-          )
-        })}
-        {buttons.length === 0 && <div style={{ fontSize: 13, color: DIM, padding: 12 }}>Nothing matches "{query}".</div>}
+        {/* Spirits pages: ONE tile per spirit — tap = single, "+ Double" on the
+            tile, long-press = product info (founder, 20 Aug 2026). */}
+        {!query && pageName.startsWith('Spirits — ')
+          ? (pages.find(pg => pg.name === pageName)?.products || []).map(p => (
+              <SpiritTile key={p.sku} p={p} color={pageColor(pageName)}
+                onAdd={(serve) => add({ product: p, serve, page: pageName })}
+                onInfo={() => setInfoFor(p)} />
+            ))
+          : buttons.map(b => {
+              const c = pageColor(b.page)
+              return (
+                <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
+                  minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  background: tint(c, '14'), border: `1px solid ${tint(c, '73')}`, borderLeft: `4px solid ${c}`,
+                  color: CREAM, fontFamily: 'inherit',
+                  display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
+                }}>
+                  <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>
+                    {b.product.name}{b.serve.label && b.serve.label !== 'Each' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
+                  </span>
+                  <span style={{ fontSize: 13.5, fontWeight: 800, color: c }}>{gbp(b.serve.price)}</span>
+                </button>
+              )
+            })}
+        {query && buttons.length === 0 && <div style={{ fontSize: 13, color: DIM, padding: 12 }}>Nothing matches "{query}".</div>}
       </div>
     </div>
   )
+
+  const mixerPanel = mixerFor && (() => {
+    const { b, qty } = mixerFor
+    const deal = b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
+    const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
+    return (
+      <div onClick={() => setMixerFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 360, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 14, fontWeight: 800, color: CREAM }}>
+            {qty > 1 ? `${qty} × ` : ''}{b.product.name}{label} <span style={{ color: DIM, fontWeight: 400 }}>· add a mixer?</span>
+          </div>
+          {deal && (
+            <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, background: 'rgba(201,168,76,0.1)', border: `1px solid ${GOLD}`, borderRadius: 9, padding: '8px 11px' }}>
+              ⭐ Double Deal — double + any dash £10.00
+            </div>
+          )}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>
+            {MIXERS.map(m => (
+              <button key={m} onClick={() => addSpirit(m)} style={{
+                minHeight: 56, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 14, fontWeight: 700, textAlign: 'left',
+                background: 'rgba(34,211,238,0.08)', border: '1.5px solid rgba(34,211,238,0.5)', color: CREAM,
+              }}>
+                {m}<div style={{ fontSize: 12, fontWeight: 800, color: deal ? GOLD : '#22D3EE', marginTop: 3 }}>
+                  {deal ? `£10.00 all in` : `+ £1.00 → ${gbp(b.serve.price + MIXER_PRICE)}`}
+                </div>
+              </button>
+            ))}
+          </div>
+          <button onClick={() => addSpirit(null)} style={{ ...bigBtn(true), width: '100%' }}>
+            NO MIXER — {gbp(b.serve.price)}
+          </button>
+          <button onClick={() => setMixerFor(null)} style={btn()}>Cancel</button>
+        </div>
+      </div>
+    )
+  })()
+
+  const infoPanel = infoFor && (
+    <div onClick={() => setInfoFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 340, display: 'flex', flexDirection: 'column', gap: 9 }}>
+        <div style={{ fontSize: 16, fontWeight: 800, color: CREAM }}>{infoFor.name}</div>
+        <div style={{ fontSize: 12, color: DIM }}>{infoFor.page}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, borderTop: `1px solid ${LINE}`, paddingTop: 9 }}>
+          {infoFor.serves.map(s => (
+            <div key={s.label} style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13.5 }}>
+              <span style={{ color: CREAM }}>{s.label === 'Each' ? 'Serve' : s.label}{s.ml ? <span style={{ color: DIM }}> · {s.ml}ml</span> : null}</span>
+              <span style={{ fontWeight: 700, color: GOLD }}>{s.price != null ? gbp(s.price) : 'no price'}</span>
+            </div>
+          ))}
+          {isDoubleDealSpirit(infoFor) && <div style={{ fontSize: 12, color: GOLD }}>⭐ Double Deal — double + any dash £10.00</div>}
+        </div>
+        <div style={{ fontSize: 12, color: DIM, borderTop: `1px solid ${LINE}`, paddingTop: 9 }}>
+          {infoFor.stock ? <>Stock: <b style={{ color: CREAM }}>{infoFor.stock}</b></> : infoFor.recipe ? <>Recipe: <b style={{ color: CREAM }}>{infoFor.recipe}</b></> : 'No stock record yet'}
+          {infoFor.units2025 ? <> · {infoFor.units2025.toLocaleString('en-GB')} sold in 2025</> : null}
+        </div>
+        <button onClick={() => setInfoFor(null)} style={btn()}>Close</button>
+      </div>
+    </div>
+  )
+
+  const dealPanel = dealFor && (() => {
+    const { b, qty, cfg, picks } = dealFor
+    const done = picks.length >= cfg.picks
+    return (
+      <div onClick={() => setDealFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 460, maxWidth: '94vw', maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: CREAM }}>
+            {qty > 1 ? `${qty} × ` : ''}{b.product.name} · {gbp(b.serve.price)}
+          </div>
+          <div style={{ fontSize: 13, color: picks.length < cfg.picks ? GOLD : GREEN, fontWeight: 700 }}>
+            {cfg.title} — {picks.length}/{cfg.picks} picked
+          </div>
+          {picks.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {picks.map((name, i) => (
+                <button key={i} onClick={() => setDealFor(d => ({ ...d, picks: d.picks.filter((_, j) => j !== i) }))} style={{
+                  padding: '8px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700,
+                  background: 'rgba(52,211,153,0.12)', border: `1.5px solid ${GREEN}`, color: GREEN,
+                }}>✓ {name} ✕</button>
+              ))}
+            </div>
+          )}
+          <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, paddingRight: 2 }}>
+            {cfg.opts.map(name => (
+              <button key={name} disabled={done} onClick={() => setDealFor(d => ({ ...d, picks: [...d.picks, name] }))} style={{
+                minHeight: 46, padding: '8px 10px', borderRadius: 9, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit',
+                fontSize: 12.5, fontWeight: 600, textAlign: 'left', opacity: done ? 0.4 : 1,
+                background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM,
+              }}>{name}</button>
+            ))}
+          </div>
+          <button onClick={addDeal} disabled={!done} style={{ ...bigBtn(true), width: '100%', opacity: done ? 1 : 0.45 }}>
+            ADD DEAL — {gbp(b.serve.price)}
+          </button>
+          <button onClick={() => setDealFor(null)} style={btn()}>Cancel</button>
+        </div>
+      </div>
+    )
+  })()
 
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
@@ -532,6 +700,49 @@ export default function TillScreen() {
       {catColumn}
       {stock}
       {discPanel}
+      {mixerPanel}
+      {infoPanel}
+      {dealPanel}
+    </div>
+  )
+}
+
+// One tile per spirit: tap = single, "+ Double" corner button, long-press
+// (~half a second) = product info. Suppresses the tap that ends a long-press.
+function SpiritTile({ p, color, onAdd, onInfo }) {
+  const timer = React.useRef(null)
+  const fired = React.useRef(false)
+  const single = p.serves.find(s => s.label === 'Single') || p.serves[0]
+  const double = p.serves.find(s => s.label === 'Double' && s !== single)
+  const down = () => { fired.current = false; timer.current = setTimeout(() => { fired.current = true; onInfo() }, 500) }
+  const up = () => clearTimeout(timer.current)
+  return (
+    <div
+      onPointerDown={down} onPointerUp={up} onPointerLeave={up}
+      onContextMenu={e => e.preventDefault()}
+      onClick={() => { if (!fired.current) onAdd(single) }}
+      style={{
+        minHeight: 76, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+        background: `${color}14`, border: `1px solid ${color}73`, borderLeft: `4px solid ${color}`,
+        color: 'var(--cream)', fontFamily: 'inherit', userSelect: 'none', WebkitUserSelect: 'none', WebkitTouchCallout: 'none',
+        display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 5,
+      }}>
+      <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>{p.name}</span>
+      <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 6 }}>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color }}>{single?.price != null ? gbp(single.price) : '—'}</span>
+        {double && (
+          <button
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => { e.stopPropagation(); onAdd(double) }}
+            style={{
+              padding: '7px 10px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit',
+              fontSize: 11.5, fontWeight: 800, background: `${color}2E`, border: `1.5px solid ${color}`, color,
+              whiteSpace: 'nowrap',
+            }}>
+            + Double {gbp(double.price)}
+          </button>
+        )}
+      </span>
     </div>
   )
 }
