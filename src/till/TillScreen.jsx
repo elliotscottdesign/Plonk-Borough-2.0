@@ -69,6 +69,15 @@ export default function TillScreen() {
     try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
   }, [orders])
 
+  // Land on a Quick Sale register, ready to ring (founder, 20 Aug 2026) — the
+  // floor is one tap away. Resumes an unfinished quick sale if one exists.
+  useEffect(() => {
+    const quick = Object.values(loadOrders()).find(o => o.status === 'open' && o.kind === 'quick')
+    if (quick) { setCurrentId(quick.id); setScreen('ring') }
+    else start('quick', null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
   const open = Object.values(orders).filter(o => o.status === 'open')
   const orderFor = (kind, ref) => open.find(o => o.kind === kind && o.ref === ref)
   const current = currentId ? orders[currentId] : null
@@ -118,8 +127,11 @@ export default function TillScreen() {
   const pay = () => {
     const o = orders[currentId]
     setClosed({ ref: refLabel(o), total: orderTotal(o) })
-    setOrders(prev => { const n = { ...prev }; delete n[currentId]; return n })
-    setCurrentId(null); setScreen('floor'); resetRingUi()
+    resetRingUi()
+    // Straight into the next sale — a fresh Quick Sale register, K Series style.
+    const fresh = newOrder('quick', null)
+    setOrders(prev => { const n = { ...prev }; delete n[currentId]; n[fresh.id] = fresh; return n })
+    setCurrentId(fresh.id); setScreen('ring')
   }
 
   // ── discounts ─────────────────────────────────────────────────────────────
@@ -268,6 +280,10 @@ export default function TillScreen() {
         <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
         <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
       </div>
+
+      {closed && current.lines.length === 0 && (
+        <div style={{ fontSize: 12, color: GREEN }}>✓ {closed.ref} paid {gbp(closed.total)} — demo, nothing recorded.</div>
+      )}
 
       {/* the ticket lines — tap a line to select it (for line discounts) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minHeight: 60, maxHeight: isMobile ? 200 : 300, overflowY: 'auto' }}>
