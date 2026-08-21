@@ -3,6 +3,7 @@ import liveTill from './data/liveTill.json'
 import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
 import { pageColor } from './colors.js'
+import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
 
 // ─── The TILL tab in /ops ────────────────────────────────────────────────────
@@ -26,6 +27,8 @@ const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', LINE = 'rgba(255,25
 
 export default function TillTab() {
   const [view, setView] = useState('till')
+  // While the Till is open, Add to Home Screen installs "No Dice Till".
+  useEffect(() => adoptTillAppIdentity(), [])
   const tabBtn = (k, label) => (
     <button onClick={() => setView(k)} style={{
       padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13,
