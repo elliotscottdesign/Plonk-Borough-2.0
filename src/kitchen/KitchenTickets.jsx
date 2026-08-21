@@ -18,14 +18,18 @@ export default function KitchenTickets() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [sound, setSound] = useState(true)
+  const [flashOn, setFlashOn] = useState(true)
   const [view, setView] = useState('live')   // 'live' | 'history' | 'failed'
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
   const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
+  const [flash, setFlash] = useState(0)   // bumps on a new order → full-screen white flash
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
+  const flashRef = useRef(true)
   useEffect(() => { soundRef.current = sound }, [sound])
+  useEffect(() => { flashRef.current = flashOn }, [flashOn])
 
   const beep = () => {
     if (!soundRef.current) return
@@ -41,7 +45,7 @@ export default function KitchenTickets() {
   const load = async () => {
     try {
       const r = await listOrders(); const list = r.orders || []
-      if (seen.current.size) { for (const o of list) { if (!seen.current.has(o.id) && o.status !== 'ready') { beep(); break } } }
+      if (seen.current.size) { for (const o of list) { if (!seen.current.has(o.id) && o.status === 'new') { beep(); if (flashRef.current) setFlash(f => f + 1); break } } }
       for (const o of list) seen.current.add(o.id)
       setOrders(list); setErr('')
     } catch (e) { setErr(e.message); setOrders(o => (o == null ? [] : o)) }
@@ -83,7 +87,8 @@ export default function KitchenTickets() {
   const avgColor = stats.avgSec == null ? MUTED : stats.avgSec > 12 * 60 ? RED : stats.avgSec > 8 * 60 ? AMBER : GREEN
   return (
     <div>
-      <style>{`@keyframes oarflash{0%,100%{box-shadow:0 0 0 0 rgba(224,35,27,.65)}50%{box-shadow:0 0 0 5px rgba(224,35,27,0)}}`}</style>
+      <style>{`@keyframes oarflash{0%,100%{box-shadow:0 0 0 0 rgba(224,35,27,.65)}50%{box-shadow:0 0 0 5px rgba(224,35,27,0)}}@keyframes oarwhite{0%{opacity:.92}100%{opacity:0}}`}</style>
+      {flash > 0 && <div key={flash} style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, pointerEvents: 'none', animation: 'oarwhite 0.55s ease-out forwards' }} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <div style={{ flex: '1 1 190px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
           <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>⏱ Avg time to service · tonight</div>
@@ -109,6 +114,9 @@ export default function KitchenTickets() {
         ))}
         <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
           <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
+        </label>
+        <label style={{ fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={flashOn} onChange={e => setFlashOn(e.target.checked)} /> ⚡ Flash on new
         </label>
       </div>
 
