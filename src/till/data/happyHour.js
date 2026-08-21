@@ -39,7 +39,12 @@ function buildHH() {
       item('£5 Pint', 5.0, { title: 'Which pint?', opts: pints }),
       item('£5 Wine 125ml', 5.0, { title: 'Which wine?', opts: wines125 }),
       item('£6 Double', 6.0, { title: 'Which house spirit?', opts: houseSpirits, mixer: 'paid' }),
-      item('£7 Long Drink', 7.0, { title: 'Which house spirit?', opts: houseSpirits, mixer: 'included' }),
+      // "Long drinks" = the Tall Seltz section on the live till (normally £8):
+      // an aperitif served long with soda.
+      item('£7 Long Drink', 7.0, {
+        title: 'Which long drink? (Tall Seltz)',
+        opts: ['Amaro', 'Campari', 'Cocchi', 'Cynar', 'El Bandarra', 'Limoncello', 'Vermut'],
+      }),
       item('£3 House Shot', 3.0, { title: 'Which shot?', opts: shots }),
       item('£7 Aperitif', 7.0, { title: 'Which aperitif?', opts: aperitifs }),
       item("Rhys's Peaches", 7.0),
