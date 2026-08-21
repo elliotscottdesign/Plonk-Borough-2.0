@@ -14,10 +14,11 @@ const btn = (bg, color) => ({ border: 'none', borderRadius: 11, padding: '13px 2
 
 export default function MenuPrint() {
   const [sections, setSections] = useState(null)
+  const [vat, setVat] = useState(false)
   const [err, setErr] = useState('')
   useEffect(() => {
     getMenu()
-      .then(r => setSections((r.sections || []).filter(s => (s.items || []).some(it => it.name))))
+      .then(r => { setSections((r.sections || []).filter(s => (s.items || []).some(it => it.name))); setVat(!!r.vat_registered) })
       .catch(e => setErr(e.message))
   }, [])
 
@@ -33,8 +34,8 @@ export default function MenuPrint() {
         </p>
 
         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 20 }}>
-          <button disabled={!sections} onClick={() => exportMenu(sections, 'print')} style={{ ...btn(BLUE, '#fff'), opacity: sections ? 1 : 0.5 }}>🖨 Print menu</button>
-          <button disabled={!sections} onClick={() => exportMenu(sections, 'pdf')} style={{ ...btn(RED, '#fff'), opacity: sections ? 1 : 0.5 }}>⬇ Download PDF</button>
+          <button disabled={!sections} onClick={() => exportMenu(sections, 'print', vat)} style={{ ...btn(BLUE, '#fff'), opacity: sections ? 1 : 0.5 }}>🖨 Print menu</button>
+          <button disabled={!sections} onClick={() => exportMenu(sections, 'pdf', vat)} style={{ ...btn(RED, '#fff'), opacity: sections ? 1 : 0.5 }}>⬇ Download PDF</button>
         </div>
 
         {err && <div style={{ background: '#fff', border: `1px solid ${RED}`, color: RED, borderRadius: 10, padding: '10px 12px', fontSize: 13.5 }}>Couldn't load the menu — {err}</div>}
