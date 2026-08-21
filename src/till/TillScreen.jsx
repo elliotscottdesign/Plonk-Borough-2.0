@@ -64,10 +64,22 @@ export default function TillScreen() {
   const [selKey, setSelKey] = useState(null)             // selected ticket line
   const [buf, setBuf] = useState('')                     // keypad buffer
   const [discOpen, setDiscOpen] = useState(false)
+  const [splitN, setSplitN] = useState(0)                // 0 = no split
+  const [sharesPaid, setSharesPaid] = useState([])       // one bool per share
+  const [folder, setFolder] = useState(null)             // null | 'Spirits' — the open category folder
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
   }, [orders])
+
+  // Land on a Quick Sale register, ready to ring (founder, 20 Aug 2026) — the
+  // floor is one tap away. Resumes an unfinished quick sale if one exists.
+  useEffect(() => {
+    const quick = Object.values(loadOrders()).find(o => o.status === 'open' && o.kind === 'quick')
+    if (quick) { setCurrentId(quick.id); setScreen('ring') }
+    else start('quick', null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const open = Object.values(orders).filter(o => o.status === 'open')
   const orderFor = (kind, ref) => open.find(o => o.kind === kind && o.ref === ref)
@@ -83,7 +95,8 @@ export default function TillScreen() {
     setCurrentId(o.id); setScreen('ring')
   }
   const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
-  const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false) }
+  const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]) }
+  const chooseSplit = (n) => { setSplitN(n); setSharesPaid(n > 0 ? Array(n).fill(false) : []) }
 
   const toFloor = () => {
     const o = orders[currentId]
@@ -118,8 +131,11 @@ export default function TillScreen() {
   const pay = () => {
     const o = orders[currentId]
     setClosed({ ref: refLabel(o), total: orderTotal(o) })
-    setOrders(prev => { const n = { ...prev }; delete n[currentId]; return n })
-    setCurrentId(null); setScreen('floor'); resetRingUi()
+    resetRingUi()
+    // Straight into the next sale — a fresh Quick Sale register, K Series style.
+    const fresh = newOrder('quick', null)
+    setOrders(prev => { const n = { ...prev }; delete n[currentId]; n[fresh.id] = fresh; return n })
+    setCurrentId(fresh.id); setScreen('ring')
   }
 
   // ── discounts ─────────────────────────────────────────────────────────────
@@ -240,11 +256,61 @@ export default function TillScreen() {
           </div>
           <div style={{ fontSize: 10.5, color: DIM, marginTop: 2 }}>includes VAT {gbp(total - total / 1.2)} @ 20%{sub !== total ? ` · before discounts ${gbp(sub + 0)}` : ''}</div>
         </div>
+        {/* Split the bill — ÷2 / ÷3 / ÷4 or any number. Real version runs one
+            card checkout per share (Square's Terminal API can't split one
+            checkout, so the till owns the split — by design). */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: DIM }}>Split the bill</div>
+          <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+            {[0, 2, 3, 4].map(n => (
+              <button key={n} onClick={() => chooseSplit(n)} style={{
+                padding: '10px 16px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+                background: splitN === n ? 'rgba(201,168,76,0.18)' : 'rgba(255,255,255,0.05)',
+                border: `1.5px solid ${splitN === n ? GOLD : LINE}`, color: splitN === n ? GOLD : CREAM,
+              }}>{n === 0 ? 'No split' : `÷ ${n}`}</button>
+            ))}
+            <button onClick={() => { const v = parseInt(prompt('Split how many ways? (2–20)') || '', 10); if (v >= 2 && v <= 20) chooseSplit(v) }} style={{
+              padding: '10px 16px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5, fontWeight: 700,
+              background: splitN > 4 ? 'rgba(201,168,76,0.18)' : 'rgba(255,255,255,0.05)',
+              border: `1.5px solid ${splitN > 4 ? GOLD : LINE}`, color: splitN > 4 ? GOLD : CREAM,
+            }}>{splitN > 4 ? `÷ ${splitN}` : 'Custom…'}</button>
+          </div>
+          {splitN > 1 && (() => {
+            const share = Math.floor((total / splitN) * 100) / 100
+            const last = +(total - share * (splitN - 1)).toFixed(2)
+            return (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {Array.from({ length: splitN }, (_, i) => {
+                  const amt = i === splitN - 1 ? last : share
+                  const paid = sharesPaid[i]
+                  return (
+                    <button key={i} onClick={() => setSharesPaid(p => p.map((x, j) => j === i ? !x : x))} style={{
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8,
+                      padding: '11px 13px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit', fontSize: 13.5,
+                      background: paid ? 'rgba(52,211,153,0.12)' : 'rgba(255,255,255,0.05)',
+                      border: `1.5px solid ${paid ? GREEN : LINE}`, color: paid ? GREEN : CREAM,
+                    }}>
+                      <span>Share {i + 1} of {splitN}</span>
+                      <span style={{ fontWeight: 800 }}>{paid ? `✓ paid ${gbp(amt)}` : gbp(amt)}</span>
+                    </button>
+                  )
+                })}
+                <div style={{ fontSize: 11, color: DIM }}>Tap each share as it's paid — cash or card per share. Close unlocks when every share is in.</div>
+              </div>
+            )
+          })()}
+        </div>
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setScreen('ring')} style={btn()}>← Back to order</button>
-          <button onClick={pay} style={{ ...bigBtn(true), flex: 1 }}>PAY {gbp(total)} — close (demo)</button>
+          {splitN > 1 ? (
+            <button onClick={pay} disabled={!sharesPaid.every(Boolean)} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) ? 1 : 0.45 }}>
+              CLOSE — {sharesPaid.filter(Boolean).length}/{splitN} shares paid
+            </button>
+          ) : (
+            <button onClick={pay} style={{ ...bigBtn(true), flex: 1 }}>PAY {gbp(total)} — close (demo)</button>
+          )}
         </div>
-        <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square. Demo: it just closes the order.</div>
+        <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square per share. Demo: it just closes the order.</div>
       </div>
     )
   }
@@ -268,6 +334,10 @@ export default function TillScreen() {
         <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
         <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
       </div>
+
+      {closed && current.lines.length === 0 && (
+        <div style={{ fontSize: 12, color: GREEN }}>✓ {closed.ref} paid {gbp(closed.total)} — demo, nothing recorded.</div>
+      )}
 
       {/* the ticket lines — tap a line to select it (for line discounts) */}
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minHeight: 60, maxHeight: isMobile ? 200 : 300, overflowY: 'auto' }}>
@@ -329,7 +399,7 @@ export default function TillScreen() {
         <button onClick={send} disabled={unsent === 0} style={{ ...bigBtn(false), flex: 1, opacity: unsent ? 1 : 0.45, padding: '12px 8px' }}>
           SEND{unsent > 0 ? ` (${unsent})` : ''}
         </button>
-        <button onClick={() => setScreen('bill')} disabled={current.lines.length === 0} style={{ ...bigBtn(true), flex: 1.3, opacity: current.lines.length ? 1 : 0.45, padding: '12px 8px' }}>
+        <button onClick={() => { chooseSplit(0); setScreen('bill') }} disabled={current.lines.length === 0} style={{ ...bigBtn(true), flex: 1.3, opacity: current.lines.length ? 1 : 0.45, padding: '12px 8px' }}>
           ADDITION
         </button>
       </div>
@@ -368,28 +438,72 @@ export default function TillScreen() {
     </div>
   )
 
+  // Middle column — the categories, between the calculator and the products
+  // (founder, 20 Aug 2026), with clear rules either side so the register reads
+  // as three sections: TICKET | CATEGORIES | STOCK.
+  //
+  // The eight spirits pages live behind ONE "Spirits" tile that opens as a
+  // folder — a fresh list with a back tile, not a drop-down (founder, 20 Aug).
+  const SPIRITS_PREFIX = 'Spirits — '
+  const spiritsPages = pages.filter(pg => pg.name.startsWith(SPIRITS_PREFIX))
+  const catTile = (key, label, c, active, onClick) => (
+    <button key={key} onClick={onClick} style={{
+      minHeight: 54, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 13.5, textAlign: 'left', lineHeight: 1.2, flexShrink: 0,
+      background: active ? tint(c, '3D') : tint(c, '14'),
+      border: `2px solid ${active ? c : tint(c, '73')}`,
+      color: active ? c : CREAM, fontWeight: active ? 800 : 600,
+    }}>{label}</button>
+  )
+
+  let catTiles
+  if (folder === 'Spirits') {
+    const violet = pageColor('Spirits — Gin')
+    catTiles = [
+      catTile('back', '← All categories', '#9CA3AF', false, () => setFolder(null)),
+      ...spiritsPages.map(pg =>
+        catTile(pg.name, pg.name.slice(SPIRITS_PREFIX.length), violet, !query && pg.name === pageName,
+          () => { setQuery(''); setPageName(pg.name) })),
+    ]
+  } else {
+    catTiles = []
+    let spiritsInserted = false
+    for (const pg of pages) {
+      if (pg.name.startsWith(SPIRITS_PREFIX)) {
+        if (!spiritsInserted) {
+          spiritsInserted = true
+          const violet = pageColor(pg.name)
+          const active = !query && pageName.startsWith(SPIRITS_PREFIX)
+          catTiles.push(catTile('spirits-folder', 'Spirits 🥃', violet, active, () => {
+            setFolder('Spirits'); setQuery('')
+            if (!pageName.startsWith(SPIRITS_PREFIX)) setPageName(spiritsPages[0]?.name)
+          }))
+        }
+        continue
+      }
+      catTiles.push(catTile(pg.name, pg.name, pageColor(pg.name), !query && pg.name === pageName,
+        () => { setFolder(null); setQuery(''); setPageName(pg.name) }))
+    }
+  }
+
+  const catColumn = (
+    <div style={{
+      width: isMobile ? '100%' : 200, flexShrink: 0,
+      display: 'flex', flexDirection: 'column', gap: 8,
+      ...(isMobile
+        ? { borderTop: `2px solid rgba(255,255,255,0.18)`, borderBottom: `2px solid rgba(255,255,255,0.18)`, padding: '12px 0' }
+        : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', maxHeight: '76vh', overflowY: 'auto' }),
+    }}>
+      <input
+        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find…"
+        style={{ minHeight: 54, padding: '8px 12px', borderRadius: 10, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
+      />
+      {catTiles}
+    </div>
+  )
+
   const stock = (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
-      {/* Category tiles — same size as the product buttons: this till is driven
-          by thumbs on an iPad, so nothing tappable is ever pill-small. */}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
-        <input
-          value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 find…"
-          style={{ minHeight: 54, padding: '8px 12px', borderRadius: 10, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, width: '100%', boxSizing: 'border-box' }}
-        />
-        {!query && pages.map(pg => {
-          const c = pageColor(pg.name), active = pg.name === pageName
-          return (
-            <button key={pg.name} onClick={() => setPageName(pg.name)} style={{
-              minHeight: 54, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-              fontSize: 13.5, textAlign: 'left', lineHeight: 1.2,
-              background: active ? tint(c, '3D') : tint(c, '14'),
-              border: `2px solid ${active ? c : tint(c, '73')}`,
-              color: active ? c : CREAM, fontWeight: active ? 800 : 600,
-            }}>{pg.name}</button>
-          )
-        })}
-      </div>
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
         {buttons.map(b => {
           const c = pageColor(b.page)
@@ -415,6 +529,7 @@ export default function TillScreen() {
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
       {ticket}
+      {catColumn}
       {stock}
       {discPanel}
     </div>
