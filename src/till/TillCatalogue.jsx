@@ -3,6 +3,7 @@ import liveTill from './data/liveTill.json'
 import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
 import { pageColor } from './colors.js'
+import { PAGES } from './data/happyHour.js'
 import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
 
@@ -64,7 +65,7 @@ export default function TillTab() {
 function CatalogueView() {
   const [data, setData] = useState(null)     // { costs, margins }
   const [err, setErr] = useState('')
-  const pages = liveTill.pages
+  const pages = PAGES        // Happy Hour first, then the live K Series pages
   const [open, setOpen] = useState(() => new Set([pages[1]?.name]))
 
   useEffect(() => {
