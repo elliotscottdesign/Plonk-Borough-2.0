@@ -69,6 +69,7 @@ export default function TillScreen() {
   const [folder, setFolder] = useState(null)             // null | 'Spirits' — the open category folder
   const [mixerFor, setMixerFor] = useState(null)         // { b, qty } — spirit awaiting its mixer choice
   const [infoFor, setInfoFor] = useState(null)           // product shown in the long-press info popup
+  const [dealFor, setDealFor] = useState(null)           // { b, qty, cfg, picks } — deal awaiting its drink choices
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
@@ -127,15 +128,45 @@ export default function TillScreen() {
     }
   })
 
+  // Deals must record WHICH drinks are poured (founder, 20 Aug 2026) — a "2
+  // for £12" that doesn't name the cocktails can never deplete stock. Each
+  // deal opens a picker; the choices are written into the ticket line.
+  const productNamesOf = (pageNames) =>
+    pages.filter(pg => pageNames.includes(pg.name)).flatMap(pg => pg.products.map(p => p.name))
+  const dealCfg = (product) => {
+    const n = product.name.toUpperCase()
+    if (n.includes('2 FOR £12')) return { picks: 2, title: 'Which 2 cocktails?', opts: productNamesOf(['Cocktails & Warmers']) }
+    if (n.includes('SHOOTER')) return { picks: 3, title: 'Which 3 shooters?', opts: productNamesOf(['Shots']) }
+    if (n.includes('CAZCABEL')) return { picks: 3, title: 'Which 3 Cazcabels?', opts: pages.flatMap(pg => pg.products).filter(p => p.name.startsWith('Cazcabel')).map(p => p.name) }
+    if (n.includes('HAPPY HOUR COCKTAIL')) return { picks: 1, title: 'Which cocktail?', opts: productNamesOf(['Cocktails & Warmers']) }
+    if (n.includes('HAPPY HOUR SPIRITS')) return {
+      picks: 1, title: 'Which house spirit? (double)',
+      opts: pages.filter(pg => pg.name.startsWith('Spirits — '))
+        .flatMap(pg => pg.products)
+        .filter(p => p.serves.some(s => s.label === 'Single' && s.price === 6.0)).map(p => p.name),
+    }
+    if (n.includes('GAME & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Cocktails & Warmers', 'Softs & Hot Drinks']) }
+    if (n.includes('HOT DOG & DRINK') || n.includes('HOTDOG & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Softs & Hot Drinks']) }
+    return null
+  }
+
   const add = (b) => {
     const qty = Math.max(1, Math.min(99, parseInt(buf || '1', 10) || 1))
     setBuf('')
+    const cfg = dealCfg(b.product)
+    if (cfg) { setDealFor({ b, qty, cfg, picks: [] }); return }
     if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
       setMixerFor({ b, qty })                      // ask for the mixer first
       return
     }
     const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
     pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, b.page === 'Snacks & Food')
+  }
+
+  const addDeal = () => {
+    const { b, qty, picks } = dealFor
+    setDealFor(null)
+    pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${picks.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
   }
 
   const addSpirit = (mixer) => {                   // mixer = name string or null
@@ -623,6 +654,46 @@ export default function TillScreen() {
     </div>
   )
 
+  const dealPanel = dealFor && (() => {
+    const { b, qty, cfg, picks } = dealFor
+    const done = picks.length >= cfg.picks
+    return (
+      <div onClick={() => setDealFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 460, maxWidth: '94vw', maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 800, color: CREAM }}>
+            {qty > 1 ? `${qty} × ` : ''}{b.product.name} · {gbp(b.serve.price)}
+          </div>
+          <div style={{ fontSize: 13, color: picks.length < cfg.picks ? GOLD : GREEN, fontWeight: 700 }}>
+            {cfg.title} — {picks.length}/{cfg.picks} picked
+          </div>
+          {picks.length > 0 && (
+            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+              {picks.map((name, i) => (
+                <button key={i} onClick={() => setDealFor(d => ({ ...d, picks: d.picks.filter((_, j) => j !== i) }))} style={{
+                  padding: '8px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700,
+                  background: 'rgba(52,211,153,0.12)', border: `1.5px solid ${GREEN}`, color: GREEN,
+                }}>✓ {name} ✕</button>
+              ))}
+            </div>
+          )}
+          <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, paddingRight: 2 }}>
+            {cfg.opts.map(name => (
+              <button key={name} disabled={done} onClick={() => setDealFor(d => ({ ...d, picks: [...d.picks, name] }))} style={{
+                minHeight: 46, padding: '8px 10px', borderRadius: 9, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit',
+                fontSize: 12.5, fontWeight: 600, textAlign: 'left', opacity: done ? 0.4 : 1,
+                background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM,
+              }}>{name}</button>
+            ))}
+          </div>
+          <button onClick={addDeal} disabled={!done} style={{ ...bigBtn(true), width: '100%', opacity: done ? 1 : 0.45 }}>
+            ADD DEAL — {gbp(b.serve.price)}
+          </button>
+          <button onClick={() => setDealFor(null)} style={btn()}>Cancel</button>
+        </div>
+      </div>
+    )
+  })()
+
   return (
     <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
       {ticket}
@@ -631,6 +702,7 @@ export default function TillScreen() {
       {discPanel}
       {mixerPanel}
       {infoPanel}
+      {dealPanel}
     </div>
   )
 }
