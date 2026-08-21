@@ -27,6 +27,19 @@ const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', LINE = 'rgba(255,25
 
 export default function TillTab() {
   const [view, setView] = useState('till')
+  const rootRef = React.useRef(null)
+
+  // Mid olive-green ground for the whole till system (founder, 20 Aug 2026):
+  // paint the shell's scroll area olive while the Till tab is open, put it
+  // back when you leave. Keeps the header/tab rows untouched.
+  useEffect(() => {
+    let scroller = rootRef.current?.parentElement
+    while (scroller && getComputedStyle(scroller).overflowY !== 'auto') scroller = scroller.parentElement
+    if (!scroller) return
+    const prev = scroller.style.background
+    scroller.style.background = '#6B7440'
+    return () => { scroller.style.background = prev }
+  }, [])
   // While the Till is open, Add to Home Screen installs "No Dice Till".
   useEffect(() => adoptTillAppIdentity(), [])
   const tabBtn = (k, label) => (
@@ -38,7 +51,8 @@ export default function TillTab() {
     }}>{label}</button>
   )
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div ref={rootRef}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🧾 Till</div>
@@ -52,6 +66,7 @@ export default function TillTab() {
         </div>
       </div>
       {view === 'till' ? <TillScreen /> : <CatalogueView />}
+      </div>
     </div>
   )
 }
