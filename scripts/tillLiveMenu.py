@@ -320,6 +320,16 @@ def main():
     for p in products.values():
         p["serves"].sort(key=lambda s: SERVE_ORDER.get(s["label"], 5))
 
+    # Shots are shots (founder, 20 Aug 2026): no "Single" tag, no doubles —
+    # one button, one measure. (The same spirit poured as a double lives on
+    # its spirits page.)
+    for p in products.values():
+        if p["page"] == "Shots":
+            singles = [s for s in p["serves"] if s["label"] != "Double"]
+            if singles: p["serves"] = singles
+            for s in p["serves"]:
+                if s["label"] in ("Single", "Shot"): s["label"] = "Each"
+
     pages = []
     for pg in PAGE_ORDER:
         prods = [p for p in products.values() if p["page"] == pg]

@@ -1426,16 +1426,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Tequila Rose Strawberry Liqueur"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Tequila Rose Strawberry Liqueur"
       }
      ],
      "group": "Spirits/Liqueur",
@@ -1448,16 +1442,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Jägermeister"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Jägermeister"
       }
      ],
      "group": "Spirits/Aperitif",
@@ -1485,16 +1473,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 8.0,
        "ml": 25,
        "button": "25ml Pensador Mezcal"
-      },
-      {
-       "label": "Double",
-       "price": 14.0,
-       "ml": 50,
-       "button": "50ml Pensador Mezcal"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1522,16 +1504,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 4.6,
        "ml": 25,
        "button": "25ml Sourz Apple"
-      },
-      {
-       "label": "Double",
-       "price": 9.2,
-       "ml": 50,
-       "button": "50ml Sourz Apple"
       }
      ],
      "group": "Spirits/Liqueur",
@@ -1559,16 +1535,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 4.6,
        "ml": 25,
        "button": "25ml Sourz Raspberry"
-      },
-      {
-       "label": "Double",
-       "price": 9.2,
-       "ml": 50,
-       "button": "50ml Sourz Raspberry"
       }
      ],
      "group": "Spirits/Liqueur",
@@ -1596,16 +1566,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 4.7,
        "ml": 25,
        "button": "25ml Antica Classic Sambuca"
-      },
-      {
-       "label": "Double",
-       "price": 9.4,
-       "ml": 50,
-       "button": "50ml Antica Classic Sambuca"
       }
      ],
      "group": "Spirits/Aperitif",
@@ -1633,16 +1597,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 7.0,
        "ml": 25,
        "button": "25ml Vida Mezcal"
-      },
-      {
-       "label": "Double",
-       "price": 12.0,
-       "ml": 50,
-       "button": "50ml Vida Mezcal"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1655,16 +1613,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Cazcabel Blanco"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Cazcabel Blanco"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1676,16 +1628,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Cazcabel Coconut"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Cazcabel Coconut"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1697,16 +1643,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Cazcabel Coffee"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Cazcabel Coffee"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1718,16 +1658,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Cazcabel Honey"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Cazcabel Honey"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1739,16 +1673,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 5.0,
        "ml": 25,
        "button": "25ml Cazcabel Reposado"
-      },
-      {
-       "label": "Double",
-       "price": 10.0,
-       "ml": 50,
-       "button": "50ml Cazcabel Reposado"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1760,16 +1688,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 4.6,
        "ml": 25,
        "button": "25ml Lucky Sod Irish Whiskey Liqueur"
-      },
-      {
-       "label": "Double",
-       "price": 9.2,
-       "ml": 50,
-       "button": "50ml Lucky Sod Irish Whiskey Liqueur"
       }
      ],
      "group": "Spirits/Liqueur",
@@ -1781,16 +1703,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 7.0,
        "ml": 25,
        "button": "25ml Olmeca Altos Plata"
-      },
-      {
-       "label": "Double",
-       "price": 14.0,
-       "ml": 50,
-       "button": "50ml Olmeca Altos Plata"
       }
      ],
      "group": "Spirits/Absinthe - Tequila - Mezcal",
@@ -1802,16 +1718,10 @@
      "page": "Shots",
      "serves": [
       {
-       "label": "Single",
+       "label": "Each",
        "price": 4.6,
        "ml": 25,
        "button": "25ml Scorch Scotch Whiskey Liqueur"
-      },
-      {
-       "label": "Double",
-       "price": 9.2,
-       "ml": 50,
-       "button": "50ml Scorch Scotch Whiskey Liqueur"
       }
      ],
      "group": "Spirits/Liqueur",
