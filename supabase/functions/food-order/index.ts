@@ -97,7 +97,7 @@ Deno.serve(async (req) => {
     if (action === "listOrders") {
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
       const { data, error } = await sb.from("food_orders")
-        .select("*").in("status", ["new", "preparing", "ready"]).order("created_at", { ascending: true });
+        .select("*").in("status", ["new", "preparing", "ready", "card_failed"]).order("created_at", { ascending: true });
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, orders: data || [] });
     }
@@ -155,6 +155,12 @@ Deno.serve(async (req) => {
       if (!data?.customer_phone) return json({ ok: true, texted: false });
       const texted = await sendSMS(data.customer_phone, `On A Roll 🍔 Order #${data.order_no} received — we're on it! We'll text you the moment it's ready to collect.`);
       return json({ ok: true, texted });
+    }
+    if (action === "markPaidAtBar") {   // kitchen — a card-failed order was settled at the bar → make it
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data, error } = await sb.from("food_orders").update({ paid: true, status: "new" }).eq("id", clean(b.id, 40)).eq("status", "card_failed").select("*").maybeSingle();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, order: data });
     }
     if (action === "textCustomer") {   // kitchen — send a custom message (e.g. reply to a note)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);

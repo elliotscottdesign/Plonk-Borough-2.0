@@ -24,6 +24,7 @@ export const setSettings = (patch) => call({ action: 'setSettings', secret: SEND
 export const joinWaitlist = ({ phone, name }) => call({ action: 'joinWaitlist', phone, name })  // public (customer page)
 export const setOrderStatus = (id, status, by) => call({ action: 'setStatus', secret: SEND_SECRET, id, status, by })
 export const resendReady = (id) => call({ action: 'resendReady', secret: SEND_SECRET, id })
+export const markPaidAtBar = (id) => call({ action: 'markPaidAtBar', secret: SEND_SECRET, id })
 export const textCustomer = (id, message) => call({ action: 'textCustomer', secret: SEND_SECRET, id, message })
 
 // Live menu stock (limiting ingredients) — set/replenish anytime; the customer menu reads it.

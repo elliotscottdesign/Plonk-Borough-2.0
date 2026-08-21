@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer, markPaidAtBar } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -69,6 +69,7 @@ export default function KitchenTickets() {
   const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const resend = async (o) => { setBusy(true); try { const r = await resendReady(o.id); alert(r.texted ? `Re-sent the “ready” text to ${o.customer_name || 'the customer'}.` : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const reply = async (o) => { const m = prompt(`Text ${o.customer_name || 'the customer'} (Order #${o.order_no}):`, ''); if (!m || !m.trim()) return; setBusy(true); try { const r = await textCustomer(o.id, m.trim()); alert(r.texted ? 'Sent ✓' : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const paidAtBar = async (o) => { setBusy(true); try { await markPaidAtBar(o.id); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
@@ -76,7 +77,8 @@ export default function KitchenTickets() {
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
-  const active = orders.filter(o => o.status !== 'collected')
+  const failed = orders.filter(o => o.status === 'card_failed')
+  const active = orders.filter(o => o.status !== 'collected' && o.status !== 'card_failed')
   const flagged = active.filter(o => o.status !== 'ready' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
   const avgColor = stats.avgSec == null ? MUTED : stats.avgSec > 12 * 60 ? RED : stats.avgSec > 8 * 60 ? AMBER : GREEN
   return (
@@ -100,6 +102,28 @@ export default function KitchenTickets() {
           </div>
         )}
       </div>
+      {failed.length > 0 && (
+        <div style={{ border: `2px solid ${RED}`, borderRadius: 12, padding: '11px 13px', marginBottom: 12, background: 'rgba(224,35,27,0.08)' }}>
+          <div style={{ fontFamily: HEAVY, color: RED, fontSize: 18, marginBottom: 8 }}>❌ {failed.length} card {failed.length > 1 ? 'payments' : 'payment'} failed — customer thinks they've ordered</div>
+          {failed.map(o => {
+            const its = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
+            return (
+              <div key={o.id} style={{ background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 11px', marginBottom: 7, color: INK }}>
+                <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                  <span style={{ fontFamily: HEAVY, fontSize: 17, color: RED }}>#{o.order_no}</span>
+                  <span style={{ fontSize: 13.5, flex: 1, minWidth: 0 }}><b>{o.customer_name || '—'}</b> · {its || '—'} · <b>£{(o.total_pence / 100).toFixed(2)}</b></span>
+                </div>
+                {o.customer_note && <div style={{ fontSize: 12, color: BLUE, marginTop: 3 }}>📝 {o.customer_note}</div>}
+                <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                  <button disabled={busy} onClick={() => paidAtBar(o)} style={{ ...btn(GREEN, '#fff'), flex: 2, fontSize: 13, padding: '9px' }}>✓ Paid at bar — make it</button>
+                  {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 13, padding: '9px' }}>💬 Text</button>}
+                  <button disabled={busy} onClick={() => act(o, 'cancelled')} style={{ ...btn('#fff', '#8a8275', LINE), flex: 1, fontSize: 13, padding: '9px' }}>✕ Dismiss</button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
       {pause && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
