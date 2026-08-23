@@ -3,6 +3,7 @@ import liveTill from './data/liveTill.json'
 import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
 import { pageColor } from './colors.js'
+import { PAGES } from './data/happyHour.js'
 import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
 
@@ -27,6 +28,8 @@ const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', LINE = 'rgba(255,25
 
 export default function TillTab() {
   const [view, setView] = useState('till')
+  // (An olive-green till background was tried and reverted same day —
+  // founder's call, 20 Aug 2026. The till sits on the standard dark ground.)
   // While the Till is open, Add to Home Screen installs "No Dice Till".
   useEffect(() => adoptTillAppIdentity(), [])
   const tabBtn = (k, label) => (
@@ -38,7 +41,8 @@ export default function TillTab() {
     }}>{label}</button>
   )
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+    <div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🧾 Till</div>
@@ -52,6 +56,7 @@ export default function TillTab() {
         </div>
       </div>
       {view === 'till' ? <TillScreen /> : <CatalogueView />}
+      </div>
     </div>
   )
 }
@@ -60,7 +65,7 @@ export default function TillTab() {
 function CatalogueView() {
   const [data, setData] = useState(null)     // { costs, margins }
   const [err, setErr] = useState('')
-  const pages = liveTill.pages
+  const pages = PAGES        // Happy Hour first, then the live K Series pages
   const [open, setOpen] = useState(() => new Set([pages[1]?.name]))
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import liveTill from './data/liveTill.json'
+import { PAGES, HH_PAGE } from './data/happyHour.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -54,7 +54,18 @@ const orderTotal = (o) => orderSub(o) - orderDiscAmt(o)
 
 export default function TillScreen() {
   const isMobile = useIsMobile()
-  const pages = liveTill.pages
+  const pages = PAGES
+
+  // Happy hour clock (founder, 21 Aug 2026): buttons live ALL DAY Monday till
+  // 11pm, and Tue–Fri until 19:10 sharp — outside that they cannot be used.
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => { const id = setInterval(() => setNow(new Date()), 30000); return () => clearInterval(id) }, [])
+  const hhOpen = (() => {
+    const d = now.getDay(), h = now.getHours(), m = now.getMinutes()
+    if (d === 1) return h < 23                                  // Monday, all day till 11pm
+    if (d >= 2 && d <= 5) return h < 19 || (h === 19 && m < 10) // Tue–Fri till 19:10
+    return false                                                // weekend: no happy hour
+  })()
   const [orders, setOrders] = useState(loadOrders)
   const [currentId, setCurrentId] = useState(null)
   const [screen, setScreen] = useState('floor')          // 'floor' | 'ring' | 'bill'
@@ -153,6 +164,15 @@ export default function TillScreen() {
   const add = (b) => {
     const qty = Math.max(1, Math.min(99, parseInt(buf || '1', 10) || 1))
     setBuf('')
+    if (b.page === HH_PAGE) {
+      if (!hhOpen) return                          // happy hour is over — dead button
+      if (b.product.hh) {
+        setDealFor({ b, qty, cfg: { picks: 1, title: b.product.hh.title, opts: b.product.hh.opts }, picks: [], hhMixer: b.product.hh.mixer })
+        return
+      }
+      pushLine(`${b.product.sku}`, `${b.product.name} · HH`, b.serve.price, qty, false)
+      return
+    }
     const cfg = dealCfg(b.product)
     if (cfg) { setDealFor({ b, qty, cfg, picks: [] }); return }
     if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
@@ -164,21 +184,31 @@ export default function TillScreen() {
   }
 
   const addDeal = () => {
-    const { b, qty, picks } = dealFor
+    const { b, qty, picks, hhMixer } = dealFor
     setDealFor(null)
+    if (hhMixer) {
+      // £6 Double (+£1 mixer) / £7 Long Drink (mixer included) — pick the
+      // spirit first, then the usual mixer question.
+      setMixerFor({
+        qty, base: b.serve.price, mixerAdd: hhMixer === 'included' ? 0 : MIXER_PRICE,
+        b: { product: { name: `${picks[0]} · ${b.product.name}`, sku: `${b.product.sku}·${picks[0]}`, serves: [] }, serve: { label: 'Each', price: b.serve.price }, page: HH_PAGE },
+      })
+      return
+    }
     pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${picks.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
   }
 
   const addSpirit = (mixer) => {                   // mixer = name string or null
-    const { b, qty } = mixerFor
+    const { b, qty, base, mixerAdd } = mixerFor    // base/mixerAdd set on HH deals
     setMixerFor(null)
     const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
+    const start = base != null ? base : b.serve.price
     if (!mixer) {
-      pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, false)
+      pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, start, qty, false)
       return
     }
-    const deal = b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
-    const price = deal ? 10.0 : b.serve.price + MIXER_PRICE
+    const deal = base == null && b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
+    const price = deal ? 10.0 : start + (mixerAdd != null ? mixerAdd : MIXER_PRICE)
     const name = `${b.product.name}${label} + ${mixer}${deal ? ' · Double Deal' : ''}`
     pushLine(`${b.product.sku}·${b.serve.label}·${mixer}`, name, price, qty, false)
   }
@@ -564,6 +594,11 @@ export default function TillScreen() {
 
   const stock = (
     <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+      {pageName === HH_PAGE && !hhOpen && !query && (
+        <div style={{ background: 'rgba(218,27,51,0.12)', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 10, padding: '11px 14px', fontSize: 13, color: CREAM, fontWeight: 600 }}>
+          ⏰ Happy hour is OFF — these buttons can't be used right now. Monday all day till 11pm · Tue–Fri till 19:10.
+        </div>
+      )}
       <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
         {/* Spirits pages: ONE tile per spirit — tap = single, "+ Double" on the
             tile, long-press = product info (founder, 20 Aug 2026). */}
@@ -575,15 +610,16 @@ export default function TillScreen() {
             ))
           : buttons.map(b => {
               const c = pageColor(b.page)
+              const dead = b.page === HH_PAGE && !hhOpen
               return (
-                <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} style={{
-                  minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} disabled={dead} style={{
+                  minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: dead ? 'not-allowed' : 'pointer', textAlign: 'left',
                   background: tint(c, '14'), border: `1px solid ${tint(c, '73')}`, borderLeft: `4px solid ${c}`,
-                  color: CREAM, fontFamily: 'inherit',
+                  color: CREAM, fontFamily: 'inherit', opacity: dead ? 0.35 : 1,
                   display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
                 }}>
                   <span style={{ fontSize: 12.5, fontWeight: 600, lineHeight: 1.25 }}>
-                    {b.product.name}{b.serve.label && b.serve.label !== 'Each' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
+                    {b.product.name}{b.serve.label && b.serve.label !== 'Each' && b.serve.label !== 'HH' ? <span style={{ color: DIM, fontWeight: 400 }}> · {b.serve.label}</span> : null}
                   </span>
                   <span style={{ fontSize: 13.5, fontWeight: 800, color: c }}>{gbp(b.serve.price)}</span>
                 </button>
@@ -595,8 +631,10 @@ export default function TillScreen() {
   )
 
   const mixerPanel = mixerFor && (() => {
-    const { b, qty } = mixerFor
-    const deal = b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
+    const { b, qty, base, mixerAdd } = mixerFor
+    const start = base != null ? base : b.serve.price
+    const addOn = mixerAdd != null ? mixerAdd : MIXER_PRICE
+    const deal = base == null && b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
     const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
     return (
       <div onClick={() => setMixerFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -617,13 +655,13 @@ export default function TillScreen() {
                 background: 'rgba(34,211,238,0.08)', border: '1.5px solid rgba(34,211,238,0.5)', color: CREAM,
               }}>
                 {m}<div style={{ fontSize: 12, fontWeight: 800, color: deal ? GOLD : '#22D3EE', marginTop: 3 }}>
-                  {deal ? `£10.00 all in` : `+ £1.00 → ${gbp(b.serve.price + MIXER_PRICE)}`}
+                  {deal ? `£10.00 all in` : addOn === 0 ? `included → ${gbp(start)}` : `+ ${gbp(addOn)} → ${gbp(start + addOn)}`}
                 </div>
               </button>
             ))}
           </div>
           <button onClick={() => addSpirit(null)} style={{ ...bigBtn(true), width: '100%' }}>
-            NO MIXER — {gbp(b.serve.price)}
+            NO MIXER — {gbp(start)}
           </button>
           <button onClick={() => setMixerFor(null)} style={btn()}>Cancel</button>
         </div>

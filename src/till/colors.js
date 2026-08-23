@@ -5,6 +5,7 @@
 const SPIRITS = '#A78BFA'   // violet — all spirits pages share it
 
 export const PAGE_COLORS = {
+  'Happy Hour ⭐': '#FACC15',                // bright happy-hour yellow
   'Deals': '#C9A84C',                        // house gold
   'Beer & Cider': '#FB923C',                 // amber, like a pint
   'Cocktails & Warmers': '#EC4899',          // pink
