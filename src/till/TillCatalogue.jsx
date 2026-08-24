@@ -43,12 +43,16 @@ export default function TillTab() {
   return (
     <div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-      <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
-        <div>
-          <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🧾 Till</div>
-          <div style={{ fontSize: 12, color: DIM, marginTop: 2 }}>
-            Our own till, building up alongside Lightspeed. Live layout &amp; prices ({liveTill.source}).
-          </div>
+      {/* Compact header — the register needs every vertical pixel (iPad,
+          no-scroll law). The catalogue view keeps the explainer line. */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'baseline', gap: 10, minWidth: 0 }}>
+          <div className="serif" style={{ fontSize: 18, color: '#fff', whiteSpace: 'nowrap' }}>🧾 Till</div>
+          {view === 'catalogue' && (
+            <div style={{ fontSize: 11.5, color: DIM }}>
+              Our own till, building up alongside Lightspeed. Live layout &amp; prices ({liveTill.source}).
+            </div>
+          )}
         </div>
         <div style={{ display: 'flex', gap: 6 }}>
           {tabBtn('till', '🛎 Till')}

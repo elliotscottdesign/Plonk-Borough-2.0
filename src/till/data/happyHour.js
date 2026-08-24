@@ -18,11 +18,30 @@ const REMOVED = /2 FOR £12|HAPPY HOUR COCKTAIL|HAPPY HOUR SPIRITS|RHYS'S PEACHE
 const productsOf = (name) => (liveTill.pages.find(pg => pg.name === name)?.products) || []
 const spiritsProducts = () => liveTill.pages.filter(pg => pg.name.startsWith('Spirits — ')).flatMap(pg => pg.products)
 
+// Lightspeed's OWN list for a combo (mined from the export's combo→group→member
+// graph by scripts/tillLiveMenu.py) — the till never guesses what a deal
+// allows. `not` filters out helper groups (mixers) that aren't the drink list.
+const comboOpts = (comboName, not) => {
+  const c = liveTill.combos?.[comboName]
+  if (!c) return null
+  const groups = c.choices.filter(ch => !not || !not.test(ch.name))
+  const opts = groups.flatMap(ch => ch.options)
+  return opts.length ? opts : null
+}
+
 function buildHH() {
-  const pints = productsOf('Beer & Cider').filter(p => p.serves.some(s => s.label === 'Pint')).map(p => p.name)
-  const wines125 = productsOf('Wines & Prosecco').filter(p => p.serves.some(s => s.label === '125ml')).map(p => p.name)
-  const houseSpirits = spiritsProducts().filter(p => p.serves.some(s => s.label === 'Single' && s.price === 6.0)).map(p => p.name)
-  const shots = productsOf('Shots').filter(p => p.serves.some(s => s.label === 'Each') && !/FOR|TRAY/i.test(p.name)).map(p => p.name)
+  // Every list below comes from the live till's own happy-hour buttons; the
+  // expressions after || are fallbacks in case a combo is renamed in Lightspeed.
+  const pints = comboOpts('HAPPY HOUR PINTTT')
+    || productsOf('Beer & Cider').filter(p => p.serves.some(s => s.label === 'Pint')).map(p => p.name)
+  const wines125 = comboOpts('HAPPY HOUR WINE')
+    || productsOf('Wines & Prosecco').filter(p => p.serves.some(s => s.label === '125ml')).map(p => p.name)
+  const houseSpirits = comboOpts('HAPPY HOUR SPIRITS £6 DBL 🥃', /mixer/i)
+    || spiritsProducts().filter(p => p.serves.some(s => s.label === 'Single' && s.price === 6.0)).map(p => p.name)
+  const shots = comboOpts('£3 SHOT 💉')
+    || productsOf('Shots').filter(p => p.serves.some(s => s.label === 'Each') && !/FOR|TRAY/i.test(p.name)).map(p => p.name)
+  const longDrinks = comboOpts('Tall Seltz')
+    || ['Amaro', 'Campari', 'Cocchi', 'Cynar', 'El Bandaderra', 'Limoncello']
   const aperitifs = productsOf('Spirits — Aperitif & Vermouth').map(p => p.name)
 
   let n = 0
@@ -40,11 +59,8 @@ function buildHH() {
       item('£5 Wine 125ml', 5.0, { title: 'Which wine?', opts: wines125 }),
       item('£6 Double', 6.0, { title: 'Which house spirit?', opts: houseSpirits, mixer: 'paid' }),
       // "Long drinks" = the Tall Seltz section on the live till (normally £8):
-      // an aperitif served long with soda.
-      item('£7 Long Drink', 7.0, {
-        title: 'Which long drink? (Tall Seltz)',
-        opts: ['Amaro', 'Campari', 'Cocchi', 'Cynar', 'El Bandarra', 'Limoncello', 'Vermut'],
-      }),
+      // an aperitif served long with soda. List mined from the till itself.
+      item('£7 Long Drink', 7.0, { title: 'Which long drink? (Tall Seltz)', opts: longDrinks }),
       item('£3 House Shot', 3.0, { title: 'Which shot?', opts: shots }),
       item('£7 Aperitif', 7.0, { title: 'Which aperitif?', opts: aperitifs }),
       item("Rhys's Peaches", 7.0),

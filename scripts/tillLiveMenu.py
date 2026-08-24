@@ -192,9 +192,64 @@ def strip_serve(name: str):
             break
     return name.strip(" .-"), label
 
+def build_combo_graph(rows):
+    """Resolve every combo's REAL choice structure straight from the export:
+    combo → child groups → member items, with the group's Min-Max as the pick
+    count. This is Lightspeed's own definition of what each deal allows — the
+    till must never guess it."""
+    # A SKU appears twice: once as its DEFINITION (typed row) and once as a
+    # bare REFERENCE inside a parent (blank-type row). Index the definitions.
+    by_sku = {}
+    for r in rows:
+        sku = r["SKU"].strip()
+        if not sku: continue
+        if sku not in by_sku or (not by_sku[sku]["Type"] and r["Type"]):
+            by_sku[sku] = r
+    children = {}
+    for r in rows:
+        p = r["Parent SKU"].strip()
+        if p: children.setdefault(p, []).append(r["SKU"].strip())
+
+    def pick_count(minmax):
+        m = re.match(r"^(\d+)\s*-\s*(\d+)$", (minmax or "").strip())
+        if not m: return (1, 1)
+        return (int(m.group(1)), int(m.group(2)))
+
+    out = {}
+    for r in rows:
+        if r["Type"] != "combo": continue
+        cname = r["Name"].strip()
+        choices = []
+        for gsku in children.get(r["SKU"].strip(), []):
+            g = by_sku.get(gsku)
+            if not g or g["Type"] != "group": continue
+            gname = g["Name"].strip().rstrip(".")
+            lo, hi = pick_count(g["Min - Max"])
+            opts = []
+            for msku in children.get(gsku, []):
+                item = by_sku.get(msku)
+                if not item: continue
+                nm = item["Name"].strip()
+                # "Tall Seltz - Amaro" → "Amaro" when prefixed by the group/combo name
+                for prefix in (gname + " - ", cname + " - "):
+                    if nm.lower().startswith(prefix.lower()):
+                        nm = nm[len(prefix):].strip()
+                        break
+                else:
+                    nm, _ = strip_serve(nm)
+                if nm: opts.append(nm)
+            if opts:
+                choices.append({"name": gname, "min": lo, "max": hi, "options": opts})
+        price_s = (r["Default price"] or "").strip()
+        price = float(price_s) if price_s and not price_s.endswith("%") else None
+        out[cname] = {"price": price, "choices": choices}
+    return out
+
+
 def main():
     rows = list(csv.DictReader(open(SRC, encoding="utf-8-sig")))
     items = [r for r in rows if r["Type"] == "item"]
+    combo_graph = build_combo_graph(rows)
     combos = {}
     for r in rows:
         if r["Type"] == "combo":
@@ -340,6 +395,11 @@ def main():
     out = {
         "source": "K Series items export, live Hackney till — 20 Aug 2026",
         "pages": pages,
+        # Every combo's own choice rules (groups, pick counts, member drinks),
+        # straight from the export — deal pickers read THIS, never a hand-typed
+        # list. Includes combos that aren't till buttons (e.g. "£3 SHOT 💉")
+        # because they define happy-hour lists.
+        "combos": combo_graph,
     }
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1))
 

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
+import liveTill from './data/liveTill.json'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -142,20 +143,27 @@ export default function TillScreen() {
   // Deals must record WHICH drinks are poured (founder, 20 Aug 2026) — a "2
   // for £12" that doesn't name the cocktails can never deplete stock. Each
   // deal opens a picker; the choices are written into the ticket line.
+  // Deal rules come from Lightspeed's OWN combo definitions (mined into
+  // liveTill.combos by scripts/tillLiveMenu.py): the choice list and the pick
+  // count are the till's, not guessed. Single-option groups (e.g. the Tuesday
+  // deal's golf round + tokens) are auto-included, no tap needed.
   const productNamesOf = (pageNames) =>
     pages.filter(pg => pageNames.includes(pg.name)).flatMap(pg => pg.products.map(p => p.name))
   const dealCfg = (product) => {
-    const n = product.name.toUpperCase()
-    if (n.includes('2 FOR £12')) return { picks: 2, title: 'Which 2 cocktails?', opts: productNamesOf(['Cocktails & Warmers']) }
-    if (n.includes('SHOOTER')) return { picks: 3, title: 'Which 3 shooters?', opts: productNamesOf(['Shots']) }
-    if (n.includes('CAZCABEL')) return { picks: 3, title: 'Which 3 Cazcabels?', opts: pages.flatMap(pg => pg.products).filter(p => p.name.startsWith('Cazcabel')).map(p => p.name) }
-    if (n.includes('HAPPY HOUR COCKTAIL')) return { picks: 1, title: 'Which cocktail?', opts: productNamesOf(['Cocktails & Warmers']) }
-    if (n.includes('HAPPY HOUR SPIRITS')) return {
-      picks: 1, title: 'Which house spirit? (double)',
-      opts: pages.filter(pg => pg.name.startsWith('Spirits — '))
-        .flatMap(pg => pg.products)
-        .filter(p => p.serves.some(s => s.label === 'Single' && s.price === 6.0)).map(p => p.name),
+    const c = liveTill.combos && liveTill.combos[product.name]
+    if (c && c.choices && c.choices.length) {
+      const auto = c.choices.filter(ch => ch.options.length === 1 && ch.min >= 1).map(ch => ch.options[0])
+      const pickable = c.choices.filter(ch => ch.options.length > 1)
+      if (pickable.length) {
+        const g = pickable[0]
+        const picks = Math.max(1, g.max)
+        return { picks, title: `${g.name} — pick ${picks}`, opts: g.options, auto }
+      }
+      if (auto.length) return { picks: 0, title: '', opts: [], auto }
     }
+    // Fallbacks for buttons with no combo definition in the export.
+    const n = product.name.toUpperCase()
+    if (n.includes('SHOOTER')) return { picks: 3, title: 'Which 3 shooters?', opts: productNamesOf(['Shots']) }
     if (n.includes('GAME & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Cocktails & Warmers', 'Softs & Hot Drinks']) }
     if (n.includes('HOT DOG & DRINK') || n.includes('HOTDOG & DRINK')) return { picks: 1, title: 'Which drink?', opts: productNamesOf(['Beer & Cider', 'Softs & Hot Drinks']) }
     return null
@@ -174,7 +182,13 @@ export default function TillScreen() {
       return
     }
     const cfg = dealCfg(b.product)
-    if (cfg) { setDealFor({ b, qty, cfg, picks: [] }); return }
+    if (cfg) {
+      if (cfg.picks === 0) {   // fully fixed deal — everything auto-included
+        pushLine(`${b.product.sku}`, `${b.product.name} (${cfg.auto.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
+        return
+      }
+      setDealFor({ b, qty, cfg, picks: [] }); return
+    }
     if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
       setMixerFor({ b, qty })                      // ask for the mixer first
       return
@@ -195,7 +209,8 @@ export default function TillScreen() {
       })
       return
     }
-    pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${picks.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
+    const all = [...(dealFor.cfg?.auto || []), ...picks]
+    pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${all.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
   }
 
   const addSpirit = (mixer) => {                   // mixer = name string or null
@@ -251,6 +266,45 @@ export default function TillScreen() {
     }
     return out
   }, [pages, pageName, query])
+
+  // iPad law (founder, 21 Aug 2026): the till NEVER scrolls. The register
+  // measures the space it actually has (below the headers, above the shell's
+  // bottom padding) and locks itself to it; big pages flip with ◀ ▶.
+  const frameRef = React.useRef(null)
+  const [frameH, setFrameH] = useState(null)
+  useEffect(() => {
+    const fit = () => {
+      const el = frameRef.current
+      if (!el) return
+      setFrameH(Math.max(430, window.innerHeight - el.getBoundingClientRect().top - window.scrollY - 78))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [])
+  // Page size = however many tiles genuinely FIT in the measured grid box —
+  // a clipped row would make its buttons unreachable.
+  const gridRef = React.useRef(null)
+  const [pageSize, setPageSize] = useState(24)
+  React.useLayoutEffect(() => {
+    if (isMobile) { setPageSize(12); return }
+    const el = gridRef.current
+    if (!el) return
+    const fit = () => {
+      const cols = Math.max(1, Math.floor((el.clientWidth + 8) / 156))
+      const rows = Math.max(1, Math.floor((el.clientHeight + 8) / (76 + 8)))
+      setPageSize(Math.max(4, cols * rows))
+    }
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [isMobile, frameH])
+  const [gridPage, setGridPage] = useState(0)
+  useEffect(() => { setGridPage(0) }, [pageName, query, folder, pageSize])
+  const spiritsView = !query && pageName.startsWith('Spirits — ')
+  const gridList = spiritsView ? (pages.find(pg => pg.name === pageName)?.products || []) : buttons
+  const gridPages = Math.max(1, Math.ceil(gridList.length / pageSize))
+  const gridSlice = gridList.slice(gridPage * pageSize, (gridPage + 1) * pageSize)
 
   // ═══ FLOOR ════════════════════════════════════════════════════════════════
   if (screen === 'floor') {
@@ -419,7 +473,7 @@ export default function TillScreen() {
   }
 
   const ticket = (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, width: isMobile ? '100%' : 330, flexShrink: 0 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, width: isMobile ? '100%' : 330, flexShrink: 0, height: isMobile ? 'auto' : '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
         <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
@@ -429,8 +483,10 @@ export default function TillScreen() {
         <div style={{ fontSize: 12, color: GREEN }}>✓ {closed.ref} paid {gbp(closed.total)} — demo, nothing recorded.</div>
       )}
 
-      {/* the ticket lines — tap a line to select it (for line discounts) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minHeight: 60, maxHeight: isMobile ? 200 : 300, overflowY: 'auto' }}>
+      {/* the ticket lines — tap a line to select it (for line discounts).
+          The ONE place internal scrolling is allowed: a 40-line order must
+          not push the keypad off screen. */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, flex: 1, minHeight: 46, overflowY: 'auto' }}>
         {current.lines.length === 0 && <div style={{ fontSize: 12.5, color: DIM, padding: '4px 0' }}>Tap stock buttons to ring.</div>}
         {current.lines.map(l => (
           <div key={l.key} onClick={() => setSelKey(selKey === l.key ? null : l.key)} style={{
@@ -538,8 +594,8 @@ export default function TillScreen() {
   const spiritsPages = pages.filter(pg => pg.name.startsWith(SPIRITS_PREFIX))
   const catTile = (key, label, c, active, onClick) => (
     <button key={key} onClick={onClick} style={{
-      minHeight: 54, padding: '8px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-      fontSize: 13.5, textAlign: 'left', lineHeight: 1.2, flexShrink: 0,
+      minHeight: 46, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 13, textAlign: 'left', lineHeight: 1.2, flexShrink: 0,
       background: active ? tint(c, '3D') : tint(c, '14'),
       border: `2px solid ${active ? c : tint(c, '73')}`,
       color: active ? c : CREAM, fontWeight: active ? 800 : 600,
@@ -579,10 +635,10 @@ export default function TillScreen() {
   const catColumn = (
     <div style={{
       width: isMobile ? '100%' : 200, flexShrink: 0,
-      display: 'flex', flexDirection: 'column', gap: 8,
+      display: 'flex', flexDirection: 'column', gap: 6,
       ...(isMobile
         ? { borderTop: `2px solid rgba(255,255,255,0.18)`, borderBottom: `2px solid rgba(255,255,255,0.18)`, padding: '12px 0' }
-        : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', maxHeight: '76vh', overflowY: 'auto' }),
+        : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', height: '100%', boxSizing: 'border-box', overflowY: 'auto' }),
     }}>
       <input
         value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Find anything…"
@@ -593,22 +649,22 @@ export default function TillScreen() {
   )
 
   const stock = (
-    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0 }}>
+    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10, minWidth: 0, height: isMobile ? 'auto' : '100%', overflow: 'hidden' }}>
       {pageName === HH_PAGE && !hhOpen && !query && (
         <div style={{ background: 'rgba(218,27,51,0.12)', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 10, padding: '11px 14px', fontSize: 13, color: CREAM, fontWeight: 600 }}>
           ⏰ Happy hour is OFF — these buttons can't be used right now. Monday all day till 11pm · Tue–Fri till 19:10.
         </div>
       )}
-      <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gap: 8 }}>
+      <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gridAutoRows: 76, gap: 8, alignContent: 'start', flex: 1, overflow: 'hidden' }}>
         {/* Spirits pages: ONE tile per spirit — tap = single, "+ Double" on the
             tile, long-press = product info (founder, 20 Aug 2026). */}
-        {!query && pageName.startsWith('Spirits — ')
-          ? (pages.find(pg => pg.name === pageName)?.products || []).map(p => (
+        {spiritsView
+          ? gridSlice.map(p => (
               <SpiritTile key={p.sku} p={p} color={pageColor(pageName)}
                 onAdd={(serve) => add({ product: p, serve, page: pageName })}
                 onInfo={() => setInfoFor(p)} />
             ))
-          : buttons.map(b => {
+          : gridSlice.map(b => {
               const c = pageColor(b.page)
               const dead = b.page === HH_PAGE && !hhOpen
               return (
@@ -627,6 +683,15 @@ export default function TillScreen() {
             })}
         {query && buttons.length === 0 && <div style={{ fontSize: 13, color: DIM, padding: 12 }}>Nothing matches "{query}".</div>}
       </div>
+      {gridPages > 1 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <button onClick={() => setGridPage(p => Math.max(0, p - 1))} disabled={gridPage === 0}
+            style={{ ...bigBtn(false), padding: '10px 26px', opacity: gridPage === 0 ? 0.35 : 1 }}>◀</button>
+          <span style={{ fontSize: 13, fontWeight: 700, color: CREAM, minWidth: 54, textAlign: 'center' }}>{gridPage + 1} / {gridPages}</span>
+          <button onClick={() => setGridPage(p => Math.min(gridPages - 1, p + 1))} disabled={gridPage >= gridPages - 1}
+            style={{ ...bigBtn(false), padding: '10px 26px', opacity: gridPage >= gridPages - 1 ? 0.35 : 1 }}>▶</button>
+        </div>
+      )}
     </div>
   )
 
@@ -733,7 +798,12 @@ export default function TillScreen() {
   })()
 
   return (
-    <div style={{ display: 'flex', gap: 12, alignItems: 'flex-start', flexDirection: isMobile ? 'column' : 'row' }}>
+    // Locked to the screen — the page never scrolls on the iPad; big pages
+    // flip inside the grid instead.
+    <div ref={frameRef} style={{
+      display: 'flex', gap: 12, flexDirection: isMobile ? 'column' : 'row', alignItems: 'stretch',
+      ...(isMobile ? {} : { height: frameH ? `${frameH}px` : 'calc(100dvh - 260px)', minHeight: 430, overflow: 'hidden' }),
+    }}>
       {ticket}
       {catColumn}
       {stock}
