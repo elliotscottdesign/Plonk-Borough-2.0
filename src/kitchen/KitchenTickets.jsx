@@ -28,17 +28,36 @@ export default function KitchenTickets() {
   const seen = useRef(new Set())
   const soundRef = useRef(true)
   const flashRef = useRef(true)
+  const audioRef = useRef(null)
+  const acting = useRef(new Set())          // order ids mid-action → ignore rapid re-taps
+  const [soundReady, setSoundReady] = useState(false)
   useEffect(() => { soundRef.current = sound }, [sound])
   useEffect(() => { flashRef.current = flashOn }, [flashOn])
 
+  // One shared AudioContext, resumed on a user gesture — browsers keep audio
+  // SUSPENDED until the user interacts, which is why the ding wasn't firing.
+  const ensureAudio = () => {
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      const ctx = audioRef.current
+      if (ctx.state === 'suspended') ctx.resume().then(() => setSoundReady(ctx.state === 'running')).catch(() => {})
+      else setSoundReady(ctx.state === 'running')
+      return ctx
+    } catch { return null }
+  }
   const beep = () => {
     if (!soundRef.current) return
+    const ctx = ensureAudio()
+    if (!ctx || ctx.state !== 'running') return
     try {
-      const a = new (window.AudioContext || window.webkitAudioContext)()
-      const o = a.createOscillator(), g = a.createGain()
-      o.connect(g); g.connect(a.destination); o.type = 'sine'; o.frequency.value = 880
-      g.gain.setValueAtTime(0.001, a.currentTime); g.gain.exponentialRampToValueAtTime(0.4, a.currentTime + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.35); o.start(); o.stop(a.currentTime + 0.36)
+      const ping = (freq, t0, dur) => {
+        const o = ctx.createOscillator(), g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.value = freq
+        const t = ctx.currentTime + t0
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+        o.start(t); o.stop(t + dur + 0.02)
+      }
+      ping(880, 0, 0.32); ping(1245, 0.16, 0.42)   // two-tone ding-dong
     } catch { /* ignore */ }
   }
 
@@ -67,10 +86,23 @@ export default function KitchenTickets() {
     const poll = setInterval(() => { load(); loadPause() }, 10000)
     const statsPoll = setInterval(loadStats, 30000)
     const clock = setInterval(() => tick(t => t + 1), 1000)
-    return () => { clearInterval(poll); clearInterval(statsPoll); clearInterval(clock) }
+    const unlock = () => ensureAudio()   // first tap/key unlocks the ding
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => { clearInterval(poll); clearInterval(statsPoll); clearInterval(clock); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock) }
   }, [])   // eslint-disable-line
 
-  const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  // Instant, optimistic status change: update the card immediately, fire the server
+  // call in the background, and IGNORE re-taps on the same order for 600ms so a
+  // double-tap can't skip a step (e.g. collected before it's even cooked).
+  const act = (o, status) => {
+    if (acting.current.has(o.id)) return
+    acting.current.add(o.id)
+    setOrders(list => (list || []).map(x => x.id === o.id ? { ...x, status, ...(status === 'ready' ? { ready_at: new Date().toISOString() } : {}) } : x))
+    setOrderStatus(o.id, status, '')
+      .catch(e => { alert(e.message); load() })
+      .finally(() => { setTimeout(() => { acting.current.delete(o.id); load(); loadStats() }, 600) })
+  }
   const resend = async (o) => { setBusy(true); try { const r = await resendReady(o.id); alert(r.texted ? `Re-sent the “ready” text to ${o.customer_name || 'the customer'}.` : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const reply = async (o) => { const m = prompt(`Text ${o.customer_name || 'the customer'} (Order #${o.order_no}):`, ''); if (!m || !m.trim()) return; setBusy(true); try { const r = await textCustomer(o.id, m.trim()); alert(r.texted ? 'Sent ✓' : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const paidAtBar = async (o) => { setBusy(true); try { await markPaidAtBar(o.id); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
@@ -112,8 +144,11 @@ export default function KitchenTickets() {
           <button key={k} onClick={() => k === 'history' ? openHistory() : setView(k)}
             style={{ fontSize: 14, fontWeight: 800, background: view === k ? (k === 'failed' ? RED : BLUE) : 'none', border: `1px solid ${view === k ? (k === 'failed' ? RED : BLUE) : LINE}`, color: '#fff', borderRadius: 9, padding: '10px 16px', cursor: 'pointer' }}>{l}</button>
         ))}
-        <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
+        {sound && !soundReady && (
+          <button onClick={() => { ensureAudio(); setTimeout(beep, 150) }} style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, background: AMBER, color: '#1a1a1a', border: 'none', borderRadius: 9, padding: '9px 14px', cursor: 'pointer', animation: 'oarflash 1.4s infinite' }}>🔊 Tap to enable sound</button>
+        )}
+        <label style={{ marginLeft: soundReady || !sound ? 'auto' : 0, fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={sound} onChange={e => { setSound(e.target.checked); if (e.target.checked) ensureAudio() }} /> Ding on new {sound && soundReady ? '🔊' : ''}
         </label>
         <label style={{ fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
           <input type="checkbox" checked={flashOn} onChange={e => setFlashOn(e.target.checked)} /> ⚡ Flash on new
@@ -188,13 +223,23 @@ export default function KitchenTickets() {
               </div>
               <div style={{ padding: '13px 13px', display: 'flex', flexDirection: 'column', gap: 11 }}>
                 {o.order_code && <div style={{ fontSize: 12.5, fontWeight: 800, color: '#fff', background: isStaff ? STAFF : '#5B8DEF', borderRadius: 6, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎟 {o.code_label || o.order_code}{isStaff ? ' · STAFF — no rush' : ' · on tab'}</div>}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {items.map((it, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
-                      <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
-                      <span>{it.name}</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {items.map((it, i) => {
+                    const opts = Array.isArray(it.options) ? it.options : []
+                    // a "Make it a …" add-on RENAMES the dish (Chips → Cheesy Chip Butty); others are extras.
+                    const renameOpt = opts.find(o => /^make it /i.test(o.name || ''))
+                    const title = renameOpt ? (renameOpt.name || '').replace(/^make it (a |an |the )?/i, '').trim() : it.name
+                    const extras = opts.filter(o => o !== renameOpt)
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
+                          <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
+                          <span>{title}</span>
+                        </div>
+                        {extras.map((o, j) => <div key={j} style={{ marginLeft: 36, fontSize: 15, fontWeight: 600, color: '#5a6' }}>＋ {o.name}</div>)}
+                      </div>
+                    )
+                  })}
                 </div>
                 {o.allergen_note && <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: RED, borderRadius: 6, padding: '5px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚠ Allergy: {o.allergen_note}</div>}
                 {o.customer_note && <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: BLUE, borderRadius: 6, padding: '6px 9px' }}>📝 {o.customer_note}</div>}
@@ -203,12 +248,12 @@ export default function KitchenTickets() {
                       <div style={{ fontSize: 13, color: GREEN, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✓ Texted — waiting to collect</div>
                       <div style={{ display: 'flex', gap: 6 }}>
                         <button disabled={busy} onClick={() => resend(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 15, padding: '13px' }}>🔁 Resend text</button>
-                        <button disabled={busy} onClick={() => act(o, 'collected')} style={{ ...btn(INK, '#fff'), flex: 1 }}>Collected</button>
+                        <button onClick={() => act(o, 'collected')} style={{ ...btn(INK, '#fff'), flex: 1 }}>Collected</button>
                       </div>
                     </>
                   : <>
-                      {o.status !== 'preparing' && <button disabled={busy} onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
-                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
+                      {o.status !== 'preparing' && <button onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
+                      <button onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
                     </>}
                 {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ background: 'none', border: 'none', color: '#8a8275', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '2px', textDecoration: 'underline' }}>💬 Text customer</button>}
               </div>

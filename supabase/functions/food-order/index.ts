@@ -42,6 +42,30 @@ async function sendSMS(to: string, body: string): Promise<boolean> {
   }
 }
 
+// Email fallback (Resend) — for customers who leave an email instead of a phone.
+const RESEND = Deno.env.get("RESEND_API_KEY");
+async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
+  if (!RESEND || !to) return false;
+  try {
+    const r = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${RESEND}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ from: "On A Roll <elliot@nodice.bar>", to, subject, html }),
+    });
+    return r.ok;
+  } catch { return false; }
+}
+const emailShell = (heading: string, body: string) =>
+  `<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:22px;color:#15305c"><div style="font-family:Impact,sans-serif;font-size:34px;color:#e0231b;letter-spacing:.5px">On A Roll</div><h2 style="margin:10px 0 12px">${heading}</h2><div style="font-size:15px;line-height:1.6">${body}</div><p style="color:#999;font-size:12px;margin-top:22px">No Dice · London Fields</p></div>`;
+// Notify the customer by whichever channel they left: phone → SMS, else email.
+async function notifyCustomer(o: any, smsText: string, emailSubject: string, emailHtml: string): Promise<boolean> {
+  if (o.customer_phone) return await sendSMS(o.customer_phone, smsText);
+  if (o.customer_email) return await sendEmail(o.customer_email, emailSubject, emailHtml);
+  return false;
+}
+const readyEmail = (o: any) => emailShell(`Order #${o.order_no} is ready! 🍔🍟`, `Come and collect it from the van${o.customer_name ? `, ${o.customer_name}` : ""} — see you in a sec!`);
+const receivedEmail = (o: any) => emailShell(`Order #${o.order_no} received ✓`, `We're on it! We'll email you the moment it's ready to collect from the van.`);
+
 // Order page the waitlist "you can order again" text points at (update to the live URL).
 const ORDER_URL = "https://nodice.bar/onaroll";
 
@@ -132,8 +156,8 @@ Deno.serve(async (req) => {
       if (status === "ready" && !data) return json({ ok: true, order: null, texted: false, note: "already ready" });
 
       let texted = false;
-      if (status === "ready" && data?.customer_phone) {
-        texted = await sendSMS(data.customer_phone, readyMessage(data.order_no, data.customer_name));
+      if (status === "ready" && (data?.customer_phone || data?.customer_email)) {
+        texted = await notifyCustomer(data, readyMessage(data.order_no, data.customer_name), `Your On A Roll order #${data.order_no} is ready!`, readyEmail(data));
       }
       return json({ ok: true, order: data, texted });
     }
@@ -150,18 +174,18 @@ Deno.serve(async (req) => {
     }
 
     // ── Customer texts: resend "ready", "order received", or a custom reply ─────
-    if (action === "resendReady") {   // kitchen — re-send the "food ready" text
+    if (action === "resendReady") {   // kitchen — re-send the "food ready" message (SMS or email)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
-      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone").eq("id", clean(b.id, 40)).maybeSingle();
-      if (!data?.customer_phone) return json({ error: "No phone number on this order." }, 400);
-      const texted = await sendSMS(data.customer_phone, readyMessage(data.order_no, data.customer_name));
+      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone,customer_email").eq("id", clean(b.id, 40)).maybeSingle();
+      if (!data?.customer_phone && !data?.customer_email) return json({ error: "No phone or email on this order." }, 400);
+      const texted = await notifyCustomer(data, readyMessage(data.order_no, data.customer_name), `Your On A Roll order #${data.order_no} is ready!`, readyEmail(data));
       return json({ ok: true, texted });
     }
-    if (action === "notifyReceived") {   // called by the webhook on payment — one reassurance text
+    if (action === "notifyReceived") {   // called by the webhook on payment — one reassurance message
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
-      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone").eq("id", clean(b.id, 40)).maybeSingle();
-      if (!data?.customer_phone) return json({ ok: true, texted: false });
-      const texted = await sendSMS(data.customer_phone, `On A Roll 🍔 Order #${data.order_no} received — we're on it! We'll text you the moment it's ready to collect.`);
+      const { data } = await sb.from("food_orders").select("order_no,customer_name,customer_phone,customer_email").eq("id", clean(b.id, 40)).maybeSingle();
+      if (!data || (!data.customer_phone && !data.customer_email)) return json({ ok: true, texted: false });
+      const texted = await notifyCustomer(data, `On A Roll 🍔 Order #${data.order_no} received — we're on it! We'll message you the moment it's ready to collect.`, `Order #${data.order_no} received`, receivedEmail(data));
       return json({ ok: true, texted });
     }
     if (action === "markPaidAtBar") {   // kitchen — a card-failed order was settled at the bar → make it
@@ -174,12 +198,13 @@ Deno.serve(async (req) => {
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
       const cutoff = new Date(Date.now() - 3 * 60 * 1000).toISOString();   // 3 min after ready
       const { data: due } = await sb.from("food_orders")
-        .select("id,order_no,customer_phone")
+        .select("id,order_no,customer_name,customer_phone,customer_email")
         .eq("status", "ready").is("nudged_at", null).not("ready_at", "is", null).lte("ready_at", cutoff).limit(20);
       let sent = 0;
       for (const o of (due || [])) {
         await sb.from("food_orders").update({ nudged_at: new Date().toISOString() }).eq("id", o.id);   // mark first → never double-nudge
-        if (o.customer_phone) { const ok = await sendSMS(o.customer_phone, `⏰ On A Roll: Order #${o.order_no} is ready and waiting — please come to the van to collect it!`); if (ok) sent++; }
+        const ok = await notifyCustomer(o, `⏰ On A Roll: Order #${o.order_no} is ready and waiting — please come to the van to collect it!`, `Reminder — Order #${o.order_no} is ready`, emailShell(`Order #${o.order_no} is still waiting ⏰`, `Your food's ready and getting cold — please come to the van to collect it!`));
+        if (ok) sent++;
       }
       return json({ ok: true, sent });
     }
@@ -279,7 +304,10 @@ Deno.serve(async (req) => {
       const { data: codeRow } = await sb.from("order_codes").select("*").eq("code", code).maybeSingle();
       if (!codeRow || !codeRow.active) return json({ error: "That code isn't valid — check with staff." }, 403);
       const name = clean(b.name, 80), phone = clean(b.phone, 30);
+      const emailC = clean(b.email, 120);
+      const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailC) ? emailC : "";
       if (name.length < 2) return json({ error: "Please enter your name." }, 400);
+      if (!phone && !email) return json({ error: "Leave a mobile or an email so we can tell you it's ready." }, 400);
       const cart = Array.isArray(b.cart) ? b.cart.slice(0, 50) : [];
       if (!cart.length) return json({ error: "Your order is empty." }, 400);
       const eff = await getEffective(sb);
@@ -316,12 +344,12 @@ Deno.serve(async (req) => {
         }
       }
       const { data: row, error } = await sb.from("food_orders").insert({
-        customer_name: name, customer_phone: phone, customer_note: clean(b.note, 300) || null,
+        customer_name: name, customer_phone: phone || null, customer_email: email || null, customer_note: clean(b.note, 300) || null,
         items: lineItems, total_pence: total, status: "new", paid: false,
         order_code: code, allergen_note: clean(b.allergen_note, 500) || null,
       }).select("id,order_no").single();
       if (error) return json({ error: error.message }, 400);
-      if (phone) await sendSMS(phone, `On A Roll 🍔 Order #${row.order_no} received — we're on it! We'll text you the moment it's ready to collect.`);
+      await notifyCustomer({ order_no: row.order_no, customer_name: name, customer_phone: phone, customer_email: email }, `On A Roll 🍔 Order #${row.order_no} received — we're on it! We'll message you the moment it's ready to collect.`, `Order #${row.order_no} received`, receivedEmail({ order_no: row.order_no }));
       return json({ ok: true, order_id: row.id, order_no: row.order_no, code_label: codeRow.label });
     }
 

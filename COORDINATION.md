@@ -63,6 +63,19 @@ customer site (Next.js repo) took that domain; public/CNAME says **team.nodice.b
 Founder got a 404 from a link built off the stale line. Fixed the line + added a warning.
 Claimed, edited, shipped same hour.
 
+## 21 Aug 2026 — FEATURE REQUEST for the kitchen lane (founder-directed, logged by integration session)
+**On A Roll needs a daily order cutoff timer: food orders must stop going through
+automatically at 22:05 (5 past 10pm) every day.** Right now `food_settings` only has
+the manual `paused` flag and the busy `auto_pause`/`auto_threshold` — nothing
+time-of-day based, so ordering stays open all night unless someone remembers to pause.
+Founder wants it automatic. Suggested shape (kitchen lane's call): add a daily-cutoff
+setting to `food_settings` (e.g. `cutoff_enabled` + `cutoff_time` default 22:05,
+Europe/London), enforce it server-side in the `food-order` fn (`createOrder` rejects,
+`getStatus` reports closed so the customer page shows it), and surface an on/off +
+time control in the kitchen settings UI. Mind the waitlist drain cron — it must not
+text "you can order again" after cutoff. No claim on any file — this is a to-do note,
+not an edit; kitchen lane picks it up and deletes this section when done.
+
 ## Known architecture debt (all lanes — don't make it worse)
 **`SEND_SECRET` ships in the public JS bundle** (`src/marketing/data/backend.js`) — so
 every "founder-gated" edge-fn action is technically world-callable, and several source
