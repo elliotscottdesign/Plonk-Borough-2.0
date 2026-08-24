@@ -305,8 +305,38 @@ export default function TillScreen() {
   const [gridPage, setGridPage] = useState(0)
   useEffect(() => { setGridPage(0) }, [pageName, query, folder, pageSize])
   const spiritsView = !query && pageName.startsWith('Spirits — ')
-  const gridList = spiritsView ? (pages.find(pg => pg.name === pageName)?.products || []) : buttons
-  const gridPages = Math.max(1, Math.ceil(gridList.length / pageSize))
+
+  // Cocktails fit ONE screen, never a pager (founder, 21 Aug 2026): whatever
+  // fits (minus the 📁 Classics tile) stays; the rest spills into Classics at
+  // runtime, so the rule holds on any iPad orientation.
+  const COCKTAILS = 'Cocktails & Warmers', CLASSICS = 'Cocktails — Classics'
+  const entriesFor = (pgName) => {
+    const pg = pages.find(p => p.name === pgName)
+    if (!pg) return []
+    const out = []
+    for (const p of pg.products) {
+      if (p.nav) { out.push({ nav: p.nav, name: p.name, page: pgName, product: p, serve: { label: 'Each' } }); continue }
+      for (const s of p.serves) out.push({ product: p, serve: s, page: pgName })
+    }
+    return out
+  }
+  const cocktailCap = Math.max(1, pageSize - 1)   // one tile reserved for 📁 Classics
+  let gridList = spiritsView ? (pages.find(pg => pg.name === pageName)?.products || []) : buttons
+  let onePage = false
+  if (!query) {
+    if (pageName === COCKTAILS) {
+      const items = buttons.filter(b => !b.nav)
+      const navs = buttons.filter(b => b.nav)
+      gridList = [...items.slice(0, cocktailCap), ...navs]
+      onePage = true
+    } else if (pageName === CLASSICS) {
+      const overflow = entriesFor(COCKTAILS).filter(b => !b.nav).slice(cocktailCap)
+      const back = buttons.filter(b => b.nav)
+      const rest = buttons.filter(b => !b.nav)
+      gridList = [...back, ...overflow, ...rest]
+    }
+  }
+  const gridPages = onePage ? 1 : Math.max(1, Math.ceil(gridList.length / pageSize))
   const gridSlice = gridList.slice(gridPage * pageSize, (gridPage + 1) * pageSize)
 
   // ═══ FLOOR ════════════════════════════════════════════════════════════════
