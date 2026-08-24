@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { KITCHEN_TEMPLATES, templateItems, targetLabel } from '../../kitchen/templates.js'
 import { ALLERGENS, allergenLabel, STATUS_META, STATUS_ORDER, statusOf, DEFAULT_MATRIX, MATRIX_DRIVERS, PENDING } from '../../kitchen/allergens.js'
 import { kitchenRuns, kitchenReview, kitchenGetMatrix, kitchenSaveMatrix, kitchenCheckMissed, kitchenWasteLog } from '../../kitchen/api.js'
+import { useChecklistOverrides, effectiveKitchen } from '../../lib/liveChecklists.js'
 import useIsMobile from '../../lib/useIsMobile.js'
 
 const GOLD = '#C9A84C', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', BLUE = '#60A5FA'
@@ -298,12 +299,13 @@ function WasteLog() {
 // The blank checklists themselves — every task staff are asked to do, read-only.
 function Templates() {
   const [open, setOpen] = useState('opening')
+  const templates = effectiveKitchen(useChecklistOverrides())   // live founder edits, fallback to built-in
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>Exactly what the kitchen crew work through on each sheet. <strong style={{ color: RED }}>Critical</strong> items and temperature targets are marked — a temp outside target auto-fails and needs a written fix.</div>
-      {Object.keys(KITCHEN_TEMPLATES).map(k => {
-        const t = KITCHEN_TEMPLATES[k], isOpen = open === k
-        const n = templateItems(k).length
+      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', lineHeight: 1.5 }}>Exactly what the kitchen crew work through on each sheet. <strong style={{ color: RED }}>Critical</strong> items and temperature targets are marked — a temp outside target auto-fails and needs a written fix. Edit any line in the <strong style={{ color: GOLD }}>Checklist Editor</strong> tab.</div>
+      {Object.keys(templates).map(k => {
+        const t = templates[k], isOpen = open === k
+        const n = templateItems(k, templates).length
         return (
           <div key={k} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
             <button onClick={() => setOpen(isOpen ? null : k)} style={{ width: '100%', textAlign: 'left', background: 'none', border: 'none', cursor: 'pointer', color: '#fff', padding: '12px 14px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -312,7 +314,7 @@ function Templates() {
             </button>
             {isOpen && (
               <div style={{ borderTop: `1px solid ${LINE}`, padding: 14 }}>
-                {t.groups.map(g => (
+                {(t.groups || []).map(g => (
                   <div key={g.title} style={{ marginBottom: 12 }}>
                     <div style={{ fontSize: 11, fontWeight: 700, color: GOLD, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>{g.title}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>

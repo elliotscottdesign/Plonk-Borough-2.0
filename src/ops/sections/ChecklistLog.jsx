@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { rotaChecklistLog } from '../../rota/api.js'
 import { CHECKLISTS, checklistItems, checklistCount, doneCount } from '../../rota/checklists.js'
+import { useChecklistOverrides, effectiveShift } from '../../lib/liveChecklists.js'
 
 // ─── Checklist log (founder) ─────────────────────────────────────────────────
 // Shows which shift checklists have been filled in — opening / during / closing —
@@ -15,6 +16,7 @@ export default function ChecklistLog() {
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState('')
   const [open, setOpen] = useState(null)   // expanded submission id
+  const eff = effectiveShift(useChecklistOverrides())   // live founder edits, fallback to built-in
 
   const load = async () => {
     setLoading(true); setErr('')
@@ -51,11 +53,11 @@ export default function ChecklistLog() {
         <div key={date} style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(255,255,255,0.6)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>{fmtDate(date)}</div>
           {byDate[date].map(s => {
-            const c = CHECKLISTS[s.checklist_key]
-            const total = checklistCount(s.checklist_key, s.date), done = doneCount(s.checklist_key, s.items || {}, s.date)
+            const c = eff[s.checklist_key]
+            const total = checklistCount(s.checklist_key, s.date, eff), done = doneCount(s.checklist_key, s.items || {}, s.date, eff)
             const pct = total ? Math.round((done / total) * 100) : 0
             const col = done >= total ? GREEN : done > 0 ? AMBER : RED
-            const missing = checklistItems(s.checklist_key, s.date).filter(t => !(s.items || {})[t])
+            const missing = checklistItems(s.checklist_key, s.date, eff).filter(t => !(s.items || {})[t])
             const isOpen = open === s.id
             return (
               <div key={s.id} style={{ background: '#0A0A0A', border: `1px solid ${s.submitted ? 'rgba(52,211,153,0.35)' : LINE}`, borderRadius: 10, overflow: 'hidden' }}>
