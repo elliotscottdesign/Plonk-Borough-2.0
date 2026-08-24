@@ -303,12 +303,14 @@ export default function TillScreen() {
     return () => window.removeEventListener('resize', fit)
   }, [isMobile, frameH])
   const [gridPage, setGridPage] = useState(0)
-  useEffect(() => { setGridPage(0) }, [pageName, query, folder, pageSize])
+  const [overflowView, setOverflowView] = useState(false)   // inside a page's 📁 More folder
+  useEffect(() => { setGridPage(0); setOverflowView(false) }, [pageName, query, folder, pageSize])
   const spiritsView = !query && pageName.startsWith('Spirits — ')
 
-  // Cocktails fit ONE screen, never a pager (founder, 21 Aug 2026): whatever
-  // fits (minus the 📁 Classics tile) stays; the rest spills into Classics at
-  // runtime, so the rule holds on any iPad orientation.
+  // HARD LAW (founder, 21 Aug 2026): EVERY item page fits ONE screen — never a
+  // pager on a main page. Whatever fits (minus folder tiles) stays; the rest
+  // lives behind a 📁 More tile (cocktails spill into their Classics folder
+  // instead). Folders themselves may page — main screens never do.
   const COCKTAILS = 'Cocktails & Warmers', CLASSICS = 'Cocktails — Classics'
   const entriesFor = (pgName) => {
     const pg = pages.find(p => p.name === pgName)
@@ -321,20 +323,26 @@ export default function TillScreen() {
     return out
   }
   const cocktailCap = Math.max(1, pageSize - 1)   // one tile reserved for 📁 Classics
-  let gridList = spiritsView ? (pages.find(pg => pg.name === pageName)?.products || []) : buttons
+  const MORE = { navMore: true, sku: 'NAV.more', name: '📁 More' }
+  const BACK = { navBack: true, sku: 'NAV.backmore', name: '← Back' }
+  let gridList
   let onePage = false
-  if (!query) {
-    if (pageName === COCKTAILS) {
-      const items = buttons.filter(b => !b.nav)
-      const navs = buttons.filter(b => b.nav)
-      gridList = [...items.slice(0, cocktailCap), ...navs]
-      onePage = true
-    } else if (pageName === CLASSICS) {
-      const overflow = entriesFor(COCKTAILS).filter(b => !b.nav).slice(cocktailCap)
-      const back = buttons.filter(b => b.nav)
-      const rest = buttons.filter(b => !b.nav)
-      gridList = [...back, ...overflow, ...rest]
-    }
+  if (query) {
+    gridList = buttons                                       // search results may page
+  } else if (pageName === COCKTAILS) {
+    const items = buttons.filter(b => !b.nav)
+    gridList = [...items.slice(0, cocktailCap), ...buttons.filter(b => b.nav)]
+    onePage = true
+  } else if (pageName === CLASSICS) {
+    const overflow = entriesFor(COCKTAILS).filter(b => !b.nav).slice(cocktailCap)
+    gridList = [...buttons.filter(b => b.nav), ...overflow, ...buttons.filter(b => !b.nav)]
+  } else {
+    const list = spiritsView ? (pages.find(pg => pg.name === pageName)?.products || []) : buttons
+    const hidden = pages.find(pg => pg.name === pageName)?.hidden
+    if (hidden) gridList = list                              // folders may page
+    else if (overflowView) gridList = [BACK, ...list.slice(pageSize - 1)]
+    else if (list.length > pageSize) { gridList = [...list.slice(0, pageSize - 1), MORE]; onePage = true }
+    else { gridList = list; onePage = true }
   }
   const gridPages = onePage ? 1 : Math.max(1, Math.ceil(gridList.length / pageSize))
   const gridSlice = gridList.slice(gridPage * pageSize, (gridPage + 1) * pageSize)
@@ -693,12 +701,20 @@ export default function TillScreen() {
         {/* Spirits pages: ONE tile per spirit — tap = single, "+ Double" on the
             tile, long-press = product info (founder, 20 Aug 2026). */}
         {spiritsView
-          ? gridSlice.map(p => (
-              <SpiritTile key={p.sku} p={p} color={pageColor(pageName)}
-                onAdd={(serve) => add({ product: p, serve, page: pageName })}
-                onInfo={() => setInfoFor(p)} />
-            ))
+          ? gridSlice.map(p => {
+              if (p.navMore || p.navBack) return (
+                <button key={p.sku} onClick={() => setOverflowView(!!p.navMore)} style={folderTile(pageColor(pageName))}>{p.name}</button>
+              )
+              return (
+                <SpiritTile key={p.sku} p={p} color={pageColor(pageName)}
+                  onAdd={(serve) => add({ product: p, serve, page: pageName })}
+                  onInfo={() => setInfoFor(p)} />
+              )
+            })
           : gridSlice.map(b => {
+              if (b.navMore || b.navBack) return (
+                <button key={b.sku} onClick={() => setOverflowView(!!b.navMore)} style={folderTile(pageColor(pageName))}>{b.name}</button>
+              )
               const c = pageColor(b.page)
               if (b.nav) return (
                 <button key={b.product.sku} onClick={() => setPageName(b.nav)} style={{
@@ -908,6 +924,11 @@ const bigBtn = (primary) => ({
 const qtyBtn = () => ({
   width: 34, height: 34, borderRadius: 8, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.06)',
   color: CREAM, cursor: 'pointer', fontFamily: 'inherit', fontSize: 16, lineHeight: 1, flexShrink: 0,
+})
+const folderTile = (c) => ({
+  minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+  background: 'transparent', border: `2px dashed ${c}99`, color: c, fontFamily: 'inherit',
+  fontSize: 14, fontWeight: 800,
 })
 const discBtn = () => ({
   padding: '11px 8px', borderRadius: 9, border: `1.5px solid ${AMBER}`, background: 'rgba(245,158,11,0.08)',
