@@ -108,7 +108,7 @@ export default function MikeAgreement() {
         <CapTable />
 
         <P style={{ marginTop:16 }}>
-          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor subscribes for <strong style={{ color:GOLD }}>3 shares</strong> (= £3,000, 3% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000). Alongside the Investor, Leonie Sands (3 B shares) and Lee Trott (1 B share) are also confirmed in this Round.
+          The Company issues <strong style={{ color:CREAM }}>100 shares</strong> at <strong style={{ color:CREAM }}>£1,000 per share</strong> (= £100,000 post-money). The Investor subscribes for <strong style={{ color:GOLD }}>3 shares</strong> (= £3,000, 3% of the company). All external shares are <strong style={{ color:CREAM }}>B-class non-voting</strong>; the Founder holds 100% of the A-class voting shares — a total of <strong style={{ color:CREAM }}>76 A shares</strong> (51 retained from pre-money + 25 newly subscribed at £1k each for £25,000). Alongside the Investor, a further <strong style={{ color:CREAM }}>4 B-class shares</strong> are confirmed sold to other Round&nbsp;1 investors.
         </P>
       </Section>
 
@@ -379,8 +379,7 @@ function CapTable() {
     { who:'Founder — retained holdback (pre-money)', cls:'A', eq:'51%', cash:fmt(0),     status:'Not for sale' },
     { who:'Founder — additional subscription',        cls:'A', eq:'25%', cash:fmt(25000), status:'Sold (founder)' },
     { who:'Investor — Michael Taylor (this draft)',     cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold · countersignature pending', highlight:true },
-    { who:'Leonie Sands',                              cls:'B', eq:'3%',  cash:fmt(3000),  status:'Sold' },
-    { who:'Lee Trott',                                 cls:'B', eq:'1%',  cash:fmt(1000),  status:'Sold' },
+    { who:'Other Round 1 investors',                   cls:'B', eq:'4%',  cash:fmt(4000),  status:'Sold' },
     { who:'Available to new external investors',      cls:'B', eq:'17%', cash:fmt(17000), status:'For sale' },
   ]
   return (

@@ -64,6 +64,31 @@ const normalizeShiftTimes = (sv: unknown, ev: unknown): { start: number; end: nu
   return { start, end };
 };
 const cleanShiftLabel = (v: unknown, start: number, end: number) => (String(v || "").replace(/\s+/g, " ").trim().slice(0, 60)) || `${fmtMinTs(start)}–${fmtMinTs(end)}`;
+
+// -- Manager goodwill vouchers: same ND- code + email design as tournament prizes --
+function voucherCode(seed: string) {
+  const A = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  let h = 2166136261;
+  for (let i = 0; i < seed.length; i++) { h ^= seed.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  let out = "";
+  for (let i = 0; i < 6; i++) { out += A[h % 32]; h = (Math.floor(h / 32) ^ Math.imul(h, 2246822519)) >>> 0; }
+  return "ND-" + out;
+}
+const gbpV = (pence: number) => "£" + (pence / 100).toFixed(pence % 100 ? 2 : 0);
+const goodwillEmail = (name: string, amount: number, code: string, reason: string | null) =>
+  `<div style="font-family:'Helvetica Neue',Arial,sans-serif;background:#0b0713;color:#fff;padding:28px;border-radius:14px;max-width:560px;margin:auto;border:1px solid #2a1e3f">
+    <p style="font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:#A855F7;margin:0 0 14px">No Dice</p>
+    <h1 style="font-size:24px;margin:0 0 6px">A little something for you, ${esc(name)}</h1>
+    <p style="font-size:15px;line-height:1.6;color:#ddd">Here is a <strong style="color:#A855F7">${gbpV(amount)} bar tab</strong> from the team at No Dice${reason ? ` &mdash; ${esc(reason)}` : ""}.</p>
+    <div style="margin:20px 0;padding:16px;border:1px dashed #A855F7;border-radius:12px;text-align:center;background:#160e24">
+      <div style="font-size:12px;color:#b79ae0;text-transform:uppercase;letter-spacing:.1em">Your voucher</div>
+      <div style="font-size:30px;font-weight:800;color:#fff;margin:4px 0">${gbpV(amount)}</div>
+      <div style="font-size:18px;font-weight:700;letter-spacing:.14em;color:#A855F7">${code}</div>
+    </div>
+    <p style="font-size:13px;line-height:1.6;color:#aaa">Show this email at the bar to redeem. Valid on your next visit.</p>
+    <p style="font-size:11px;color:#777;margin-top:18px">No Dice &middot; 407 Mentmore Terrace, London Fields, E8 3PH</p>
+  </div>`;
+
 async function sendMail(to: string, subject: string, html: string) {
   if (!RESEND || !to) return;
   try {
@@ -85,6 +110,66 @@ const emailShell = (heading: string, bodyHtml: string, cta?: { href: string; lab
 
 const ROLES = ["Bar Staff", "Supervisor", "Asst. Manager", "Manager"];
 const clean = (v: unknown) => (typeof v === "string" ? v.trim() : v);
+
+// ── WhatsApp (Twilio) — staff shift reminders ────────────────────────────────
+// Helpers mirrored from the tournament fn (the proven reference — see
+// docs/whatsapp-staff-reminders.md). Secrets are project-wide. Sends are ALWAYS
+// best-effort: a messaging failure must never break rota flows.
+const TW_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TW_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TW_FROM = Deno.env.get("TWILIO_WA_FROM");
+const TW_CONTENT_SHIFT_REMINDER = Deno.env.get("TWILIO_CONTENT_SID_SHIFT_REMINDER");
+
+// Normalise a UK-entered phone to E.164; returns null (= skip, never misfire)
+// when the number can't be normalised confidently.
+function e164(ukPhone: string | null | undefined): string | null {
+  if (!ukPhone) return null;
+  const d = String(ukPhone).replace(/[^0-9+]/g, "");
+  if (d.startsWith("+")) return d.length > 8 ? d : null;
+  if (d.startsWith("07") && d.length === 11) return "+44" + d.slice(1);
+  if (d.startsWith("447") && d.length === 12) return "+" + d;
+  if (d.startsWith("00")) return "+" + d.slice(2);
+  return null;
+}
+
+// One shift-reminder WhatsApp. Uses the approved template when its SID is set;
+// otherwise a plain Body (only delivers inside a 24h service window — dev only).
+async function sendShiftReminderWA(to: string, vars: { name: string; time: string; mentions: string }): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN || !TW_FROM) return false;
+  const body = new URLSearchParams({ From: TW_FROM, To: `whatsapp:${to}` });
+  if (TW_CONTENT_SHIFT_REMINDER) {
+    body.set("ContentSid", TW_CONTENT_SHIFT_REMINDER);
+    body.set("ContentVariables", JSON.stringify({ "1": vars.name, "2": vars.time, "3": vars.mentions }));
+  } else {
+    body.set("Body", `⏰ Hi ${vars.name}, reminder — your No Dice shift starts at ${vars.time} (in about 2 hours).\n${vars.mentions}\nSee you there!`);
+  }
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
+
+// Parse @-mentions out of a note body against the active staff list. Tries the
+// two-word form first ("@Elliot Scott"), then first-name ("@Rhys"); unknown
+// tokens are ignored. Returns unique staff ids.
+function parseMentions(body: string, staffRows: { id: string; name: string | null; active?: boolean | null }[]): string[] {
+  const out = new Set<string>();
+  const active = (staffRows || []).filter((s) => s.active !== false && s.name);
+  const tokens = String(body || "").match(/@([A-Za-z][A-Za-z'’-]*(?:\s+[A-Za-z][A-Za-z'’-]*)?)/g) || [];
+  for (const t of tokens) {
+    const token = t.slice(1).toLowerCase();
+    const first = token.split(/\s+/)[0];
+    const full = active.find((s) => String(s.name).trim().toLowerCase() === token);
+    if (full) { out.add(full.id); continue; }
+    const byFirst = active.filter((s) => String(s.name).trim().toLowerCase().split(/\s+/)[0] === first);
+    if (byFirst.length === 1) out.add(byFirst[0].id);   // ambiguous first names are skipped, never misdirected
+  }
+  return [...out];
+}
 
 // Bar-team shift patterns — MINUTES from the shift date's midnight (next-day ends
 // exact: 00:00=1440, 01:00=1500). Mon–Thu one open-to-close; Fri/Sat/Sun split.
@@ -176,6 +261,13 @@ const SHIFT_DAY_CUTOFF = 8;   // 8am
 function londonHour(d = new Date()): number {
   const h = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", hour12: false }).format(d);
   return (parseInt(h, 10) || 0) % 24;
+}
+// Minutes since midnight in London — DST-safe (the server runs UTC; shift
+// start_min values are London wall-clock minutes, so compare apples to apples).
+function londonMinutes(d = new Date()): number {
+  const p: any = {};
+  for (const x of new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(d)) p[x.type] = x.value;
+  return ((parseInt(p.hour, 10) || 0) % 24) * 60 + (parseInt(p.minute, 10) || 0);
 }
 function londonDateISO(d = new Date()): string {
   const p: any = {};
@@ -340,8 +432,145 @@ Deno.serve(async (req) => {
       return json({ ok: true, ...data });
     }
 
+    // ── WhatsApp shift reminders (cron; every 10 min) ─────────────────────────
+    // Messages every staff member ~2h before their shift starts, including any
+    // @-mentions addressed to them in today's shift notes. Gated by CRON_SECRET
+    // (its own secret — deliberately NOT just SEND_SECRET, which ships in the
+    // client bundle; see COORDINATION.md "Known architecture debt"). The founder
+    // tier may also trigger it manually. Idempotent: shift_reminder_sent records
+    // (shift_id, staff_id) insert-first, so re-runs and overlapping crons can
+    // never double-message anyone.
+    if (action === "sendShiftReminders") {
+      const cronOk = !!Deno.env.get("CRON_SECRET") && b.cronSecret === Deno.env.get("CRON_SECRET");
+      if (!cronOk && !isAdmin()) return json({ error: "unauthorized" }, 401);
+      if (!TW_SID || !TW_TOKEN || !TW_FROM) return json({ ok: true, sent: 0, note: "Twilio not configured" });
+
+      const today = londonDateISO();
+      const nowMin = londonMinutes();
+      // Shifts starting ~2h from now: a 20-min window (110–130 min ahead) swallows
+      // cron jitter; the sent-marker table is the real double-send guard.
+      const from = nowMin + 110, to = nowMin + 130;
+      const { data: shifts } = await sb.from("staff_shifts").select("id,date,start_min,end_min,label").eq("date", today).gte("start_min", from).lt("start_min", to);
+      if (!shifts || !shifts.length) return json({ ok: true, sent: 0, checked: 0 });
+
+      const shiftIds = shifts.map((s: any) => s.id);
+      const [{ data: claims }, { data: staffRows }, { data: notes }] = await Promise.all([
+        sb.from("staff_shift_claims").select("shift_id,staff_id").in("shift_id", shiftIds),
+        sb.from("staff").select("id,name,phone,active"),
+        sb.from("shift_notes").select("author_name,body,mentions").eq("date", today),
+      ]);
+      const staffById: Record<string, any> = {};
+      for (const s of staffRows || []) staffById[s.id] = s;
+      const shiftById: Record<string, any> = {};
+      for (const s of shifts) shiftById[s.id] = s;
+
+      // Their @-mentions from today's notes → one digest line per person.
+      const digestFor = (staffId: string) => {
+        const mine = (notes || []).filter((n: any) => Array.isArray(n.mentions) && n.mentions.includes(staffId));
+        if (!mine.length) return "No messages for you today.";
+        const joined = mine.map((n: any) => `${n.author_name || "Note"}: ${String(n.body || "").trim()}`).join(" · ");
+        return ("📣 " + joined).slice(0, 600);   // stay well inside WhatsApp's variable limit
+      };
+
+      let sent = 0, skippedNoPhone = 0, already = 0;
+      for (const c of claims || []) {
+        try {
+          const st = staffById[c.staff_id], sh = shiftById[c.shift_id];
+          if (!st || !sh || st.active === false) continue;
+          const to2 = e164(st.phone);
+          if (!to2) { skippedNoPhone++; continue; }
+          // Insert-first idempotence: only the run that CREATES the marker sends.
+          const { data: marker } = await sb.from("shift_reminder_sent")
+            .upsert({ shift_id: c.shift_id, staff_id: c.staff_id }, { onConflict: "shift_id,staff_id", ignoreDuplicates: true })
+            .select("shift_id");
+          if (!marker || !marker.length) { already++; continue; }
+          const ok = await sendShiftReminderWA(to2, {
+            name: String(st.name || "there").split(" ")[0],
+            time: fmtMinTs(sh.start_min),
+            mentions: digestFor(c.staff_id),
+          });
+          if (ok) sent++;
+        } catch (_) { /* best-effort — never abort the loop */ }
+      }
+      return json({ ok: true, date: today, window: [from, to], shifts: shifts.length, sent, skippedNoPhone, already });
+    }
+
+    // ── Reservations for the team: the day's bookings + shared arrival tick-off ──
+    // Every ACTIVE staff member (token) can view + tick "they've arrived"; the
+    // founder's /ops screen uses the SEND_SECRET for the same actions, so it's ONE
+    // shared state everywhere. Reads the same tables the nodice.bar customer site
+    // writes (bar_reservations / tournament_entries / bookings — NEVER modified);
+    // ticks live in reservation_arrivals keyed (kind, ref_id); un-tick deletes.
+    if (action === "reservationsToday" || action === "reservationArrive") {
+      let who = "";
+      if (isAdmin()) who = "Manager";
+      else {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+        who = me.name || "Staff";
+      }
+
+      if (action === "reservationArrive") {
+        const kind = String(b.kind || "");
+        if (!["table", "pool", "golf", "tournament"].includes(kind)) return json({ error: "bad kind" }, 400);
+        const refId = String(b.refId || "").slice(0, 60);
+        if (!refId) return json({ error: "no booking" }, 400);
+        if (b.on) {
+          // The tick must point at a REAL booking — verify against the source table
+          // and take the booking's own date (never trust the client's), so junk rows
+          // can't accumulate in the anon-readable arrivals table.
+          let resDate: string | null = null;
+          if (kind === "table" || kind === "pool") {
+            const { data } = await sb.from("bar_reservations").select("reservation_date").eq("id", refId).maybeSingle();
+            resDate = data?.reservation_date || null;
+          } else if (kind === "tournament") {
+            const { data } = await sb.from("tournament_entries").select("tournaments!inner(event_date)").eq("id", refId).maybeSingle();
+            resDate = (data as any)?.tournaments?.event_date || null;
+          } else {
+            const { data } = await sb.from("bookings").select("booking_slots(slot_date)").eq("id", refId).maybeSingle();
+            const slots = ((data as any)?.booking_slots || []).map((s: any) => s.slot_date).sort();
+            resDate = slots[0] || null;
+          }
+          if (!resDate) return json({ error: "That booking doesn't exist — refresh." }, 404);
+          const arrived_at = new Date().toISOString();
+          const { error } = await sb.from("reservation_arrivals").upsert(
+            { kind, ref_id: refId, res_date: resDate, staff_name: who, arrived_at },
+            { onConflict: "kind,ref_id" });
+          if (error) return json({ error: error.message }, 400);
+          return json({ ok: true, arrived: { staff_name: who, arrived_at } });
+        }
+        const { error } = await sb.from("reservation_arrivals").delete().eq("kind", kind).eq("ref_id", refId);
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, arrived: null });
+      }
+
+      // reservationsToday — one operating day (8am-anchored, so after midnight the
+      // night-in-progress still shows). Normalisation mirrors /ops Reservations.
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+      const [barQ, tournQ, golfQ, arrQ] = await Promise.all([
+        sb.from("bar_reservations").select("id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes").eq("status", "confirmed").eq("reservation_date", date),
+        sb.from("tournament_entries").select("id,team_name,captain_name,captain_email,captain_phone,notes,tournaments!inner(name,event_date,start_time)").eq("status", "paid").eq("tournaments.event_date", date),
+        sb.from("bookings").select("id,reference,customer_name,customer_email,customer_phone,party_size,booking_slots!inner(slot_date,slot_time)").eq("status", "confirmed").eq("booking_slots.slot_date", date),
+        sb.from("reservation_arrivals").select("kind,ref_id,staff_name,arrived_at").eq("res_date", date),
+      ]);
+      const rows: any[] = [];
+      for (const r of barQ.data || []) rows.push({ id: String(r.id), kind: r.kind === "pool" ? "pool" : "table", time: r.start_time, party: r.party_size || 0, name: r.name || "Guest", notes: r.notes || "", email: r.email || "", phone: r.phone || "", extra: (r.kind === "pool" && r.resource_count > 1) ? `${r.resource_count} tables` : (r.duration_minutes ? `${r.duration_minutes} min` : "") });
+      for (const t of tournQ.data || []) rows.push({ id: String(t.id), kind: "tournament", time: t.tournaments?.start_time || null, party: (t.team_name && t.team_name !== t.captain_name) ? 2 : 1, name: t.team_name || t.captain_name || "Player", notes: t.notes || "", email: t.captain_email || "", phone: t.captain_phone || "", extra: t.tournaments?.name || "" });
+      for (const g of golfQ.data || []) {
+        const slots = (g.booking_slots || []).slice().sort((a: any, z: any) => `${a.slot_date}T${a.slot_time}`.localeCompare(`${z.slot_date}T${z.slot_time}`));
+        const first = slots[0];
+        if (!first) continue;
+        rows.push({ id: String(g.id), kind: "golf", time: first.slot_time, party: g.party_size || 0, name: g.customer_name || "Guest", notes: g.reference ? `Ref ${g.reference}` : "", email: g.customer_email || "", phone: g.customer_phone || "", extra: slots.length > 1 ? `${slots.length} slots` : "" });
+      }
+      rows.sort((a, z) => String(a.time || "").localeCompare(String(z.time || "")));
+      const arr: Record<string, any> = {};
+      for (const a of arrQ.data || []) arr[`${a.kind}:${a.ref_id}`] = { staff_name: a.staff_name, arrived_at: a.arrived_at };
+      return json({ ok: true, date, rows: rows.map((r) => ({ ...r, arrived: arr[`${r.kind}:${r.id}`] || null })) });
+    }
+
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -422,13 +651,102 @@ Deno.serve(async (req) => {
       }
 
       // Staff leave a handover note on a day's shift (the next team reads it).
+
+      // ── 🎟 Prize vouchers (managers only — founder brief 12 Aug 2026) ──────
+      // Managers redeem winners' bar-tab codes from their own portal, mid-shift.
+      // The redeeming manager's name is recorded automatically from their login;
+      // a code redeems ONCE (guarded update); Undo exists for mis-taps. Reads and
+      // writes the tournament engines' voucher tables directly (cross-lane by
+      // founder direction — see COORDINATION.md 12 Aug 2026).
+      const VOUCHER_TABLES: Record<string, { t: string; nest: string }> = {
+        pool: { t: "pool_vouchers", nest: "pool_tournaments" },
+        pingpong: { t: "pingpong_vouchers", nest: "pingpong_tournaments" },
+      };
+      // Manager-issued goodwill vouchers have no tournament run behind them, but
+      // share the ND- code, the email design, and this redemption flow.
+      const MANAGER_T = "manager_vouchers";
+      const MANAGER_RANK = 3;   // Asst. Manager and up
+      if (action === "listPrizeVouchers") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const out: any[] = [];
+        for (const [sport, cfg] of Object.entries(VOUCHER_TABLES)) {
+          const { data } = await sb.from(cfg.t).select(`*, ${cfg.nest}(tournaments(name, event_date))`).order("created_at", { ascending: false }).limit(150);
+          for (const v of (data || []) as any[]) {
+            const t = v[cfg.nest]?.tournaments || {};
+            const rest = { ...v }; delete rest[cfg.nest];
+            out.push({ ...rest, sport, night_name: t.name || "", night_date: t.event_date || "" });
+          }
+        }
+        const { data: mvs } = await sb.from(MANAGER_T).select("*").order("created_at", { ascending: false }).limit(150);
+        for (const v of (mvs || []) as any[]) {
+          out.push({ ...v, sport: "manager", night_name: v.reason || "Manager voucher", night_date: String(v.created_at || "").slice(0, 10) });
+        }
+        out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+        return json({ ok: true, vouchers: out });
+      }
+      if (action === "sendCustomerVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const name = String(b.name ?? "").trim().slice(0, 60);
+        const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
+        const reason = String(b.reason ?? "").trim().slice(0, 120) || null;
+        const pence = Math.round(Number(b.amountPence));
+        if (!name) return json({ error: "Customer name required." }, 400);
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Valid email required." }, 400);
+        // £1-£250: covers any goodwill gesture, small enough to stop a fat-finger.
+        if (!Number.isFinite(pence) || pence < 100 || pence > 25000) return json({ error: "Amount must be between £1 and £250." }, 400);
+        const code = voucherCode(crypto.randomUUID());
+        const { data: v, error } = await sb.from(MANAGER_T)
+          .insert({ code, display_name: name, email, amount_pence: pence, reason, issued_by: me.name })
+          .select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        await sendMail(email, `A ${gbpV(pence)} voucher from No Dice`, goodwillEmail(name, pence, code, reason));
+        return json({ ok: true, voucher: { ...v, sport: "manager", night_name: reason || "Manager voucher", night_date: String(v.created_at || "").slice(0, 10) } });
+      }
+      if (action === "redeemPrizeVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const table = String(b.sport) === "manager" ? MANAGER_T : VOUCHER_TABLES[String(b.sport)]?.t;
+        const vid = clean(b.voucherId, 40);
+        if (!table || !vid) return json({ error: "Bad request." }, 400);
+        const { data: v } = await sb.from(table).select("*").eq("id", vid).maybeSingle();
+        if (!v) return json({ error: "Voucher not found." }, 404);
+        if (v.redeemed_at) return json({ error: `Already redeemed on ${String(v.redeemed_at).slice(0, 10)}${v.redeemed_by ? " by " + v.redeemed_by : ""}.` }, 409);
+        const { data, error } = await sb.from(table)
+          .update({ redeemed_at: new Date().toISOString(), redeemed_by: me.name })
+          .eq("id", vid).is("redeemed_at", null).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, voucher: data });
+      }
+      if (action === "unredeemPrizeVoucher") {
+        if (staffRank(me.role) < MANAGER_RANK) return json({ error: "Managers only." }, 403);
+        const table = String(b.sport) === "manager" ? MANAGER_T : VOUCHER_TABLES[String(b.sport)]?.t;
+        const vid = clean(b.voucherId, 40);
+        if (!table || !vid) return json({ error: "Bad request." }, 400);
+        const { data, error } = await sb.from(table).update({ redeemed_at: null, redeemed_by: null }).eq("id", vid).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, voucher: data });
+      }
+
       if (action === "addShiftNote") {
         const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : todayISO();
         const body = String(b.body || "").trim().slice(0, 1000);
         if (!body) return json({ error: "Write a note first." }, 400);
-        const { data, error } = await sb.from("shift_notes")
-          .insert({ date, staff_id: me.id, author_name: me.name, body, kind: "handover" }).select("*").single();
+        // @-mentions: "@Rhys" / "@Elliot Scott" → staff ids, stored on the note so
+        // the 2h WhatsApp reminder can include messages addressed to that person.
+        const { data: allStaff } = await sb.from("staff").select("id,name,active");
+        const mentions = parseMentions(body, allStaff || []);
+        const base: any = { date, staff_id: me.id, author_name: me.name, body, kind: "handover" };
+        // Resilient pre-migration: if the mentions column isn't there yet, save without.
+        let ins = await sb.from("shift_notes").insert({ ...base, mentions }).select("*").single();
+        if (ins.error) ins = await sb.from("shift_notes").insert(base).select("*").single();
+        const { data, error } = ins;
         if (error) return json({ error: error.message }, 400);
+        // Every staff note lands in the founder's inbox too (founder's ask, 10 Aug
+        // 2026) — best-effort, never blocks the save.
+        await sendMail(ADMIN_EMAIL, `📝 ${me.name} left a note — ${niceDate(date)}`,
+          emailShell(`${esc(me.name)} left a shift note`,
+            `<p style="color:#999;font-size:12px;margin:0 0 10px">For <strong style="color:#fff">${esc(niceDate(date))}</strong></p>
+             <div style="background:#141414;border:1px solid #333;border-radius:10px;padding:14px 16px;color:#eee;line-height:1.6;white-space:pre-wrap">${esc(body)}</div>`,
+            { href: OPS_URL, label: "Open the rota" }));
         return json({ ok: true, note: data });
       }
       // Staff may delete their OWN note only.
@@ -884,24 +1202,29 @@ Deno.serve(async (req) => {
 
       const { data: staffRows } = await sb.from("staff").select("id,name,role,abilities").eq("active", true);
       const staffList = (staffRows || []).map((s: any) => `${s.id} · ${s.name || "Unnamed"} · ${s.role || "?"}${(s.abilities || []).includes("kitchen") ? " · kitchen-trained" : ""}`).join("\n");
-      const manualCtx = { days: rulesIn.days, stagger: rulesIn.stagger, staggerGap: rulesIn.staggerGap, earlyCutMin: rulesIn.earlyCutMin, managerMargin: rulesIn.managerMargin, requireKitchen: rulesIn.requireKitchen, requireManager: rulesIn.requireManager, strength: rulesIn.strength };
+      const manualCtx = { days: rulesIn.days, stagger: rulesIn.stagger, staggerGap: rulesIn.staggerGap, earlyCutMin: rulesIn.earlyCutMin, afterCloseMin: rulesIn.afterCloseMin, managerMargin: rulesIn.managerMargin, requireKitchen: rulesIn.requireKitchen, requireManager: rulesIn.requireManager, strength: rulesIn.strength };
       const today = new Date().toISOString().slice(0, 10);
 
       const SYSTEM = `You compile a bar founder's plain-English rota rules into strict JSON directives for a deterministic rota engine. Encode ONLY what a rule clearly states — never guess or invent. Any rule (or part of one) the engine vocabulary can't express precisely, mark status "reminder" and leave it out of the directives; the founder sees it as a checklist item instead. Be honest: "applied" means the directives fully capture the rule.
 
 ENGINE VOCABULARY (all optional; emit only what the rules state):
-- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early. kitchen:false = no kitchen-trained person needed that day; kitchen:true = one required (day-level on/off ONLY — a time-of-day kitchen rule like "kitchen from 3pm" can only be encoded as day-level; say so honestly in the note).
+- days: {"0".."6": {open?, close?, base?, eveAt?, eveAdd?, quiet?, kitchen?, kitchenStart?, kitchenEnd?}} — weekday overrides. 0=Sunday..6=Saturday. Times are MINUTES from midnight (3pm=900; past midnight adds 1440, so 1am=1500). base = total people incl. manager. quiet:true = send floor home early. kitchen:false = no kitchen-trained person needed that day; kitchen:true = one required. kitchenStart+kitchenEnd (with kitchen:true) = a DEDICATED kitchen shift with exactly those times, fillable only by kitchen-trained staff, ON TOP of the day's base staff count (kitchen does not count as one of them) — e.g. "kitchen staff 5pm–11pm" → kitchen:true, kitchenStart:1020, kitchenEnd:1380. Use these for any rule giving kitchen shift times.
 - minRestHours: minimum hours between one shift's end and the person's next shift start (e.g. "12 hours between shifts" → 12). The builder avoids too-short gaps and warns when short-staffing forces one.
+- (Built-in, not a rule to encode: kitchen-role staff never fill bar shifts; the kitchen slot takes kitchen-role staff first, then a kitchen-trained manager as cover.)
+- minShiftHours: no floor/evening shift shorter than this many hours (e.g. "minimum 6 hour shifts" → 6).
+- afterCloseMin (global) and days[w].afterClose (per weekday): minutes FLOOR staff stay on after closing time for the wind-down, so they leave with the manager. "Staff go home 30 min after close Sun–Thu, 1 hour after on Fri/Sat" → days 0,1,2,3,4 afterClose:30 and days 5,6 afterClose:60. Encode these — do NOT dismiss them as "already matches" (that only applies to the manager).
 - stagger (bool) + staggerGap (min): one person opens & one closes instead of two full shifts.
 - earlyCutMin: minutes to send the floor home early on quiet days.
-- managerMargin (min), requireKitchen (bool), requireManager (bool).
+- managerMargin (min), requireManager (bool). (Kitchen cover is per-day via days[w].kitchen — there is no global kitchen switch.)
 - strength: {staffId: 1..5} — 5 = pick first/most (prioritise), 1 = pick least. Default 3.
 - neverTogether: [[staffId, staffId], …] — never roster the pair on the same day.
 - preferDays / avoidDays: {staffId: [weekday…]} — lean toward/away from those days.
 - maxShiftsWeek: {staffId: n} — cap someone's shifts per week.
 - dateRules: {"YYYY-MM-DD": {closed?: true, open?, close?, base?, eveAt?, eveAdd?, quiet?}} — one-off dates.
 
-Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.`;
+Use ONLY staff ids from the provided list; map names case-insensitively (first names are fine if unambiguous — otherwise mark the rule "reminder" and say why). "This week" in a rule = the week containing TODAY. Notes' "understood" strings are read by a non-technical founder: short plain English, name people by name, times as 3pm not 900.
+
+CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to Sat"), the days object MUST contain an entry for EVERY weekday in that range — list them out and double-check none is skipped before answering (Mon–Fri = keys "1","2","3","4","5").`;
 
       const userMsg = `STAFF (id · name · role):\n${staffList || "(none)"}\n\nTODAY: ${today}\n\nCURRENT MANUAL SETTINGS (context so relative rules make sense):\n${JSON.stringify(manualCtx)}\n\nFOUNDER'S TYPED RULES:\n${houseRules.map((r: string, i: number) => `${i + 1}. ${r}`).join("\n")}`;
 

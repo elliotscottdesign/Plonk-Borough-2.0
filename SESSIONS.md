@@ -15,10 +15,17 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **DJs** | `Sites/nodice/team-sessions/dj` |
 | **Rota / staff** | `Sites/nodice/team-sessions/rota` |
 | **Tournaments / pool** | `Sites/nodice/team-sessions/tournament` |
-| **Ops info** (reports, docs, key dates, help-out) | `Sites/nodice/team-sessions/ops` |
+| **Till** (our own EPOS — read CLAUDE-TILL.md first) | `Sites/nodice/team-sessions/till` |
+| **Ops info** (reports, docs, key dates) | `Sites/nodice/team-sessions/ops` |
 | **Marketing** | `Sites/nodice/team-sessions/marketing` |
 | **Kitchen** | `Sites/nodice/team-sessions/kitchen` |
 | **Bar** (stock, cocktails, till) | `Sites/nodice/team-sessions/bar` |
+| **Finances** (wages, takings, costs — founder-only) | `Sites/nodice/team-sessions/finance` |
+| **Lithos handover** (plonkgolf.co.uk → Lithos Digital: handover docs, DNS cutover, SEO) | `Sites/nodice/team-sessions/lithos` |
+
+Note: the **Lithos** folder is a different codebase underneath (the Plonk Golf public
+website repo, `plonkgolf-website`) — same idea though: open a session in that folder and
+it knows it's the Lithos-handover session.
 
 The original folder — `Sites/nodice/Plonk-Borough-2.0` — is the **integration** copy
 (this is `main`, what's live). Use it for cross-cutting/admin work, or just leave it.

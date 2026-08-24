@@ -1,11 +1,13 @@
 import React from 'react'
 
 // ─── OpsBrandHeader ──────────────────────────────────────────────────
-// Shared header for every Operations sub-tool. Matches the DJ Bookings
-// brand language: No Dice wordmark on the left, red No Dice eyebrow,
-// black title, optional subtitle, and an optional right-hand action.
-// This is the visual handshake that tells the team "yes you're inside
-// the No Dice ops hub" regardless of which sub-tool they're using.
+// Shared header for every Operations sub-tool: a red eyebrow, the title,
+// an optional subtitle and an optional right-hand action.
+//
+// The wordmark was REMOVED here (Aug 2026). The app already brands itself in
+// the sticky header at the top of every screen; repeating the lockup inside
+// each sub-tool meant a phone showed the No Dice logo twice and the page title
+// twice before any content. Brand once, then get out of the way.
 // ────────────────────────────────────────────────────────────────────
 
 const ND_RED = '#DA1B33'
@@ -21,11 +23,6 @@ export default function OpsBrandHeader({
     <div className="screen-only" style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 6 }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 16, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1, minWidth: 240 }}>
-          <img
-            src="/nodice-wordmark.png"
-            alt="No Dice"
-            style={{ width: 'min(190px, 54vw)', height: 'auto', display: 'block' }}
-          />
           {eyebrow && (
             <div style={{
               fontSize: 11, letterSpacing: '0.22em', textTransform: 'uppercase',

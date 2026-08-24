@@ -72,6 +72,11 @@ export const rotaLogin = (name, password) => call({ action: 'login', name, passw
 export const rotaSignup = (name, email, password, code) => call({ action: 'signup', name, email, password, code })
 export const rotaMe = (token) => call({ action: 'me', token })
 export const rotaMyState = (token) => call({ action: 'myState', token })
+// 🎟 Prize vouchers — managers-only (rank gate enforced server-side).
+export const rotaListPrizeVouchers = (token) => call({ action: 'listPrizeVouchers', token })
+export const rotaRedeemPrizeVoucher = (token, sport, voucherId) => call({ action: 'redeemPrizeVoucher', token, sport, voucherId })
+export const rotaUnredeemPrizeVoucher = (token, sport, voucherId) => call({ action: 'unredeemPrizeVoucher', token, sport, voucherId })
+export const rotaSendCustomerVoucher = (token, d) => call({ action: 'sendCustomerVoucher', token, name: d.name, email: d.email, amountPence: d.amountPence, reason: d.reason })
 export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })
 export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data }, { keepalive: true })
 export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
@@ -79,6 +84,13 @@ export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift
 export const rotaGetChecklist = (token, date, key) => call({ action: 'getChecklist', token, date, key })
 export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })
 export const rotaSaveChecklistMeta = (token, date, key, note, submit) => call({ action: 'saveChecklist', token, date, key, note, submit })
+
+// The day's reservations (all staff) + the shared "they've arrived" tick.
+// The /ops founder screen calls the same actions with the secret instead of a
+// token, so a tick made anywhere shows everywhere.
+export const rotaReservationsToday = (token, date) => call({ action: 'reservationsToday', token, date })
+export const rotaReservationArrive = (token, kind, refId, date, on) => call({ action: 'reservationArrive', token, kind, refId, date, on })
+export const opsReservationArrive = (kind, refId, date, on) => call({ action: 'reservationArrive', secret: SEND_SECRET, kind, refId, date, on })
 
 export const rotaCompleteTraining = (token, itemKey) => call({ action: 'completeTraining', token, itemKey })
 export const rotaUncompleteTraining = (token, itemKey) => call({ action: 'uncompleteTraining', token, itemKey })

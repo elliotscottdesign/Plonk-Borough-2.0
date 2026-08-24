@@ -9,6 +9,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **The "No Dice" site is Hackney, not Borough.** Going forward, every new mention of "No Dice" as a site / venue / location / brand must reference **Hackney (London Fields, 407 Mentmore Terrace, E8 3PH)** — not Borough Market. This applies to: page titles, hero kickers, footer addresses, marketing copy, new public-facing pages, council / licensing references (Hackney Council, not Southwark), and any structured data. **Legal entity for the Hackney venue is `No Dice Hackney Ltd`** (the operating company, a wholly-owned subsidiary of No Dice Bars Ltd, trading from London Fields, E8) — use it for any new legal / financial / contract reference to the Hackney site. The legal entity "No Dice Borough Ltd" is unchanged where it already appears in legal / financial / Borough-investor-deck context (the gated `/borough` deck, the Borough 2025 till-sales tab, legal templates, i18n translations of that copy) — those surfaces specifically reflect the original Borough entity and should stay. Default ALL new copy to Hackney unless the founder says otherwise.
 - **Workbook links: always send a fresh URL** when mentioning a workbook (don't assume a previous link is still in context).
 - **Be specific in deploy steps.** "Save → Deploy → Manage deployments → ✏️ pencil → Version: New version → Deploy" — never assume the founder remembers the path.
+- **Dates are TYPED, never scroller-pickers (house rule, Aug 2026).** Anywhere the team webapp asks for a date, use the shared [src/lib/DateField.jsx](src/lib/DateField.jsx) (typed DD/MM/YYYY with auto-slashes, speaks ISO, safe against wiping a saved value) — never `<input type="date">`, whose mobile wheel-picker the founder has banned (worst case: new staff scrolling back decades to their date of birth). Pass `yearMin`/`yearMax` to fit the field (DOB = `1930` / `now−14`; defaults are ±5 years). The only exception is the Hackney investor deck's legal sign block, which predates the rule.
 
 ## Parallel sessions — stay in your lane (READ FIRST, every session)
 
@@ -23,10 +24,13 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 | `dj` | `src/dj/**`, `src/ops/sections/DJRoster.jsx`, `DJBookings.jsx`, `DJMedia.jsx`, `DJMessages.jsx` | `dj-portal`, `dj-admin`, `dj-caption`, `dj-holds-cron` |
 | `rota` | `src/rota/**`, `src/ops/sections/StaffRota.jsx`, `AiRota.jsx`, `AvailabilityOverview.jsx`, `DayRosterGrid.jsx`, `RotaCalendar.jsx`, `RotaRulesEditor.jsx`, `TrainingMatrix.jsx`, `VenueClockSettings.jsx` | `rota` |
 | `tournament` | `src/tournament/**`, `src/ops/sections/Tournament.jsx` | `tournament` |
-| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `HelpOut.jsx`, `HelpCalendar.jsx`, `WorldCup.jsx` | `events-feed`, `help-out`, `keydates` |
+| `ops` | `src/ops/OpsApp.jsx` + shell, `Reports.jsx`, `Documentation.jsx`, `KeyDates.jsx`, `src/ops/keydates/**`, `WorldCup.jsx` | `events-feed`, `keydates` |
 | `marketing` | `src/marketing/**`, `src/slides/**`, `src/borough/**` | `send-campaign`, `send-newsletter`, `confirm-optin`, `unsubscribe`, `import-subscribers` |
 | `kitchen` | `src/kitchen/**`, `src/ops/sections/Kitchen.jsx`, `ChecklistLog.jsx` | `kitchen` |
 | `bar` | `src/ops/sections/StockOrder.jsx`, `StockCheck.jsx`, `StockList.jsx`, `Suppliers.jsx`, `Consumables.jsx`, `Perishables.jsx`, `Costing.jsx`, `GlassBreakage.jsx`, `TillGuide.jsx`, `Operations.jsx`, `CocktailSpecs.jsx`, `MenuAdmin.jsx`, `src/ops/data/**`, `src/toilets/**`, `src/ops/sections/ToiletLog.jsx` | `toilet-check` |
+| `finance` | `src/finance/**`, `src/ops/sections/Finances.jsx` — **founder-only surface** (tab registered `founderOnly: true`; NEVER loosen that gate — senior management money view, hidden from team-tier logins) | `finance` (future — none deployed yet) |
+| `till` | `src/till/**` (new EPOS: catalogue, till screen, cash-up). READS the `bar_*` tables, never redefines them — those belong to the `bar` lane. Brief: [CLAUDE-TILL.md](CLAUDE-TILL.md) | `till` (future — none deployed yet) |
+| `lithos` | **A DIFFERENT REPO** — `plonkgolf-website` (worktree `../team-sessions/lithos`, branch `section/lithos`): the Lithos Digital handover (HANDOFF.md, DNS cutover, SEO redirects). Owns NOTHING in this repo — its CLAUDE.md lives in that repo. Shares the same Supabase project (site-scoped CMS), so coordinate any schema DDL in COORDINATION.md here. | *(n/a — other repo)* |
 
 **Shared files — no single lane owns these; coordinate before editing** (announce in [COORDINATION.md](COORDINATION.md) first, keep the edit minimal, and `git fetch && merge origin/main` right before): `src/App.jsx`, `src/main.jsx`, `src/ops/OpsApp.jsx` (the tab registry — adding a tab touches it), `src/index.css`, `src/data.js`, `src/marketing/data/backend.js` (API URL + secret — effectively frozen), `index.html`, `vite.config.js`, `tailwind.config.js`, `.github/workflows/**`, `package.json`, `CLAUDE.md`, `SESSIONS.md`, `COORDINATION.md`.
 
@@ -41,7 +45,7 @@ The founder runs **several Claude sessions at once**, one per area of the app. T
 
 ## Project
 
-Single-page React app deployed at **nodice.bar** (custom domain via [public/CNAME](public/CNAME)). Vite + React 18 + Tailwind 3 + Recharts + lucide-react.
+Single-page React app deployed at **team.nodice.bar** (custom domain via [public/CNAME](public/CNAME)). Vite + React 18 + Tailwind 3 + Recharts + lucide-react. **NB `nodice.bar` itself is the SEPARATE public customer site (a Next.js repo — see the `dj`/`lithos` lanes)** — links to anything in THIS repo (/ops, /rota, tournaments…) must use `team.nodice.bar`, or the founder gets the customer site's 404 (happened 20 Aug 2026).
 
 **Venue / brand:** "No Dice" is the operating venue at **Hackney — London Fields, 407 Mentmore Terrace, E8 3PH**, owned by **No Dice Hackney Ltd** (operating subsidiary of No Dice Bars Ltd). All customer-facing surfaces (the Landing page, the public World Cup bookings page at `/worldcup`, anything new) reference Hackney / London Fields. The legal entity "No Dice Borough Ltd" is retained inside the gated `/borough` investor deck and adjacent financial / legal artefacts that specifically pitch the original Borough entity — see the working-style rule above.
 

@@ -26,6 +26,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   const [busy, setBusy] = useState(false)
   const [showMatrix, setShowMatrix] = useState(false)
   const [waste, setWaste] = useState({ product: '', reason: '', quantity: '' })
+  const [savedFlash, setSavedFlash] = useState(null)   // cadence just saved-as-progress (transient ✓)
   const panelRef = useRef(null)
   const isMobile = useIsMobile()
   // Live founder edits merged over the built-in sheets (falls back to built-in).
@@ -33,11 +34,35 @@ export default function KitchenChecklists({ token, kitchen }) {
 
   const date = kitchen?.date
   const load = async () => { try { setDay(await kitchenGetDay(token, date)) } catch (e) { alert(e.message) } }
-  useEffect(() => { load() }, [])   // eslint-disable-line
+
+  // ── Live refresh (20s) — the sheet is SHARED per day, so statuses/ticks from a
+  // teammate's phone should appear without leave-and-return. Safety rules:
+  //   • a poll requested before your own latest save is discarded (stale guard)
+  //   • an open sheet you've STARTED EDITING is never touched (kitchen fields
+  //     save on Save/Submit, so a refresh mid-entry would wipe half-typed temps);
+  //     an open sheet you're only LOOKING at does live-update.
+  const dirtyRef = useRef(false)         // edited since opening the sheet?
+  const openKeyRef = useRef(null)
+  const lastMutation = useRef(0)
+  useEffect(() => { openKeyRef.current = openKey }, [openKey])
+  const refresh = async () => {
+    const startedAt = Date.now()
+    try {
+      const d = await kitchenGetDay(token, date)
+      if (startedAt < lastMutation.current) return   // our own save is newer — discard
+      setDay(d)
+      const ok = openKeyRef.current
+      if (ok && !dirtyRef.current) setLocal(seedFromRun(d?.runs?.[ok]))   // viewer only — live-merge
+    } catch { /* silent — next poll tries again */ }
+  }
+  useEffect(() => {
+    load()
+    const id = setInterval(() => { if (!document.hidden) refresh() }, 20000)
+    return () => clearInterval(id)
+  }, [])   // eslint-disable-line
 
   // Hydrate local editing state from a saved run's entries.
-  const openCadence = (k) => {
-    const run = day?.runs?.[k]
+  const seedFromRun = (run) => {
     const seed = {}
     for (const e of run?.entries || []) {
       seed[e.key] = {
@@ -48,12 +73,16 @@ export default function KitchenChecklists({ token, kitchen }) {
         corrective: e.corrective_action || '',
       }
     }
-    setLocal(seed)
+    return seed
+  }
+  const openCadence = (k) => {
+    setLocal(seedFromRun(day?.runs?.[k]))
+    dirtyRef.current = false
     setOpenKey(k)
     setTimeout(() => panelRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60)
   }
 
-  const set = (key, patch) => setLocal(s => ({ ...s, [key]: { ...(s[key] || {}), ...patch } }))
+  const set = (key, patch) => { dirtyRef.current = true; setLocal(s => ({ ...s, [key]: { ...(s[key] || {}), ...patch } })) }
 
   // Per-item state → fail? answered?
   const itemFail = (item, e) => {
@@ -92,20 +121,25 @@ export default function KitchenChecklists({ token, kitchen }) {
       if (needsNote.length) { alert(`Add a corrective-action note to each failed check (${needsNote.length}).`); return }
     }
     setBusy(true)
+    lastMutation.current = Date.now()
     try {
       await kitchenSaveRun(token, { date, cadence, entries: buildEntries(cadence), submit, shiftId: kitchen?.shiftId })
+      lastMutation.current = Date.now()   // saved — polls requested before this are stale
+      dirtyRef.current = false            // local sheet now matches the server
       await load()
       if (submit) setOpenKey(null)
+      else { setSavedFlash(cadence); setTimeout(() => setSavedFlash(f => (f === cadence ? null : f)), 2600) }
     } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
 
   const addWaste = async () => {
     const product = waste.product.trim(); if (!product) { alert('What was thrown out?'); return }
     setBusy(true)
-    try { await kitchenAddWaste(token, { date, product, reason: waste.reason.trim(), quantity: waste.quantity.trim() }); setWaste({ product: '', reason: '', quantity: '' }); await load() }
+    lastMutation.current = Date.now()
+    try { await kitchenAddWaste(token, { date, product, reason: waste.reason.trim(), quantity: waste.quantity.trim() }); lastMutation.current = Date.now(); setWaste({ product: '', reason: '', quantity: '' }); await load() }
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
-  const delWaste = async (id) => { setBusy(true); try { await kitchenDeleteWaste(token, id); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const delWaste = async (id) => { setBusy(true); lastMutation.current = Date.now(); try { await kitchenDeleteWaste(token, id); lastMutation.current = Date.now(); await load() } catch (e) { alert(e.message) } finally { setBusy(false) } }
 
   if (!day) return <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, padding: '20px 0' }}>Loading kitchen checklists…</div>
 
@@ -120,13 +154,24 @@ export default function KitchenChecklists({ token, kitchen }) {
 
   return (
     <div>
-      <div className="serif" style={{ fontSize: 18, color: '#fff' }}>🌭 Kitchen — food safety</div>
+      <div className="serif" style={{ fontSize: 18, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
       <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', margin: '3px 0 14px', lineHeight: 1.5 }}>
         Safer Food, Better Business. Complete each sheet on shift — temperatures and critical checks are logged for the EHO, and a failed check pings the manager.
       </div>
 
       <button onClick={() => setShowMatrix(m => !m)} style={pill(showMatrix)}>🥜 Allergen matrix {showMatrix ? '▲' : '▼'}</button>
-      {showMatrix && (isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />)}
+      {showMatrix && (
+        <div>
+          <button onClick={() => setShowMatrix(false)} style={{
+            position: 'sticky', top: 0, zIndex: 25, margin: '8px 0',
+            padding: '9px 14px', borderRadius: 9, cursor: 'pointer',
+            background: 'rgba(0,0,0,0.85)', border: `1px solid ${LINE}`,
+            color: '#fff', fontSize: 13, fontWeight: 600,
+            boxShadow: '0 6px 14px rgba(0,0,0,0.5)',
+          }}>‹ Close allergen matrix</button>
+          {isMobile ? <AllergenList matrix={matrix} /> : <AllergenGrid matrix={matrix} />}
+        </div>
+      )}
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
         {cadences.map(k => {
@@ -154,6 +199,16 @@ export default function KitchenChecklists({ token, kitchen }) {
 
               {openKey === k && (
                 <div ref={panelRef} style={{ border: `1px solid ${LINE}`, borderTop: 'none', borderRadius: '0 0 12px 12px', padding: 14, marginTop: -4, background: 'rgba(255,255,255,0.02)' }}>
+                  {/* An open sheet runs to 20-40 ticks. Its only close used to be the
+                      header button far above — so once you'd scrolled in, there was no
+                      way out (founder: "no page should leave you with no way out"). */}
+                  <button onClick={() => setOpenKey(null)} style={{
+                    position: 'sticky', top: 0, zIndex: 25, marginBottom: 12,
+                    padding: '9px 14px', borderRadius: 9, cursor: 'pointer',
+                    background: 'rgba(0,0,0,0.85)', border: `1px solid ${LINE}`,
+                    color: '#fff', fontSize: 13, fontWeight: 600,
+                    boxShadow: '0 6px 14px rgba(0,0,0,0.5)',
+                  }}>‹ All checklists</button>
                   {(t.groups || []).map(g => (
                     <div key={g.title} style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{g.title}</div>
@@ -173,9 +228,10 @@ export default function KitchenChecklists({ token, kitchen }) {
                     </div>
                   ))}
                   {!isGuidance && (
-                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6 }}>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 6, alignItems: 'center' }}>
                       <button onClick={() => save(k, false)} disabled={busy} style={btn('ghost')}>Save progress</button>
                       <button onClick={() => save(k, true)} disabled={busy} style={btn('red')}>Submit checklist</button>
+                      {savedFlash === k && <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ Progress saved</span>}
                     </div>
                   )}
                   {!isGuidance && done && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginTop: 8 }}>Already submitted — you can update it and submit again.</div>}

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import DJRoster, { Avatar } from './DJRoster.jsx'
 import Messages from './DJMessages.jsx'
 import DJMedia from './DJMedia.jsx'
+import DateField from '../../lib/DateField.jsx'
 import DJPayments from './DJPayments.jsx'
 import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
@@ -487,7 +488,7 @@ function Events({ data, reload, filter, setFilter }) {
                 <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                   {s.status === 'held'
                     ? <div style={lbl}>Date<div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', marginTop: 4 }}>{fmt(form.date)} <span style={{ color: '#F59E0B' }}>· can't move — the DJ is holding this date</span></div></div>
-                    : <label style={lbl}>Date<input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} style={inp(160)} /></label>}
+                    : <label style={lbl}>Date<DateField value={form.date} onChange={v => setForm(f => ({ ...f, date: v }))} style={inp(160)} /></label>}
                   <label style={lbl}>Night name<input value={form.nightName} onChange={e => setForm(f => ({ ...f, nightName: e.target.value }))} placeholder="(optional)" style={inp(190)} /></label>
                 </div>
                 {s.status !== 'held' && (

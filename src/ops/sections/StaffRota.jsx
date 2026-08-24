@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { rotaLoad, rotaAddStaff, rotaSaveStaff, rotaRemoveStaff, rotaRemindStaff, rotaGetDoc, STAFF_ROLES } from '../../rota/api.js'
 import { ABILITIES } from '../../rota/roles.js'
+import DateField from '../../lib/DateField.jsx'
 import { onboardingComplete, requiresOnboarding, onboardingMissing, SOI_VERSION } from '../../rota/statement.js'
 import { openDataUrl } from '../../rota/menuFile.js'
 import StatementDoc from '../../rota/StatementDoc.jsx'
@@ -10,6 +11,7 @@ import RotaCalendar from './RotaCalendar.jsx'
 import AiRota from './AiRota.jsx'
 import AvailabilityOverview from './AvailabilityOverview.jsx'
 import ChecklistLog from './ChecklistLog.jsx'
+import ToiletLog from './ToiletLog.jsx'
 import TrainingMatrix from './TrainingMatrix.jsx'
 import MenuAdmin from './MenuAdmin.jsx'
 import VenueClockSettings from './VenueClockSettings.jsx'
@@ -184,7 +186,9 @@ export default function StaffRota() {
           </div>
         </div>
       )}
-      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+      {/* Sticky: editing a staff profile or opening a day/statement used to bury
+          this row — the way back must stay on screen (founder, Aug 2026). */}
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
         {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
@@ -199,9 +203,9 @@ export default function StaffRota() {
       ) : view === 'availability' ? (
         <AvailabilityOverview staff={staff} availability={availability} reload={load} />
       ) : view === 'ai' ? (
-        <AiRota staff={staff} availability={availability} rules={rotaRules} reload={load} />
+        <AiRota staff={staff} availability={availability} rules={rotaRules} shifts={shifts} claims={claims} reload={load} />
       ) : view === 'checklists' ? (
-        <ChecklistLog />
+        <ChecklistsHub />
       ) : view === 'training' ? (
         <TrainingMatrix staff={staff} />
       ) : view === 'menus' ? (
@@ -321,7 +325,7 @@ export default function StaffRota() {
                     <Field label="Feedback notes" wide><textarea value={form.feedback_notes || ''} onChange={e => onField('feedback_notes', e.target.value)} rows={2} style={{ ...inp('100%'), resize: 'vertical' }} /></Field>
 
                     <div style={{ gridColumn: '1 / -1', marginTop: 4, fontSize: 10, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.06em', borderTop: '1px dashed rgba(255,255,255,0.1)', paddingTop: 10 }}>Payroll &amp; right to work</div>
-                    <Field label="Date of birth"><input type="date" value={form.dob || ''} onChange={e => onField('dob', e.target.value)} style={inp('100%')} /></Field>
+                    <Field label="Date of birth"><DateField value={form.dob || ''} onChange={v => onField('dob', v)} style={inp('100%')} yearMin={1930} yearMax={new Date().getFullYear() - 14} /></Field>
                     <Field label="National Insurance no."><input value={form.ni_number || ''} onChange={e => onField('ni_number', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Bank — account name"><input value={form.bank_name || ''} onChange={e => onField('bank_name', e.target.value)} style={inp('100%')} /></Field>
                     <Field label="Sort code"><input value={form.bank_sort || ''} onChange={e => onField('bank_sort', e.target.value)} style={inp('100%')} /></Field>
@@ -496,3 +500,27 @@ const btn = (kind) => {
   return { ...base, background: 'rgba(255,255,255,0.06)', color: '#FFFFFF', border: '1px solid rgba(255,255,255,0.18)' }
 }
 const inp = (w) => ({ width: w, minWidth: 0, padding: '8px 10px', fontSize: 13, borderRadius: 7, background: '#000000', border: '1px solid rgba(255,255,255,0.18)', color: '#FFFFFF', outline: 'none', boxSizing: 'border-box' })
+
+
+// ─── Checklists hub — every completed-checks log in one place ────────────────
+// Founder (Aug 2026): "move toilet checks into the checklist section" — toilet
+// checks ARE a checklist, so the top-level /ops tab was retired and both logs
+// now live here behind one switch.
+function ChecklistsHub() {
+  const [which, setWhich] = React.useState('shift')
+  const pill = (on) => ({
+    padding: '8px 15px', fontSize: 13, borderRadius: 8, cursor: 'pointer', whiteSpace: 'nowrap',
+    background: on ? 'rgba(218,27,51,0.15)' : 'rgba(255,255,255,0.04)',
+    border: `1px solid ${on ? '#DA1B33' : 'rgba(255,255,255,0.12)'}`,
+    color: on ? '#fff' : 'rgba(255,255,255,0.8)', fontWeight: on ? 700 : 400,
+  })
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        <button onClick={() => setWhich('shift')} style={pill(which === 'shift')}>📋 Shift checklists</button>
+        <button onClick={() => setWhich('toilets')} style={pill(which === 'toilets')}>🚻 Toilet checks</button>
+      </div>
+      {which === 'shift' ? <ChecklistLog /> : <ToiletLog />}
+    </div>
+  )
+}

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import { useTranslation } from 'react-i18next'
 import PasswordGate from './PasswordGate.jsx'
+import { applyTheme } from './lib/theme.js'
 import VenueInfo from './tabs/VenueInfo.jsx'
 import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
@@ -29,8 +30,8 @@ import DecemberSales from './borough/DecemberSales.jsx'
 import OpsApp from './ops/OpsApp.jsx'
 import MarketingApp from './marketing/MarketingApp.jsx'
 import DJPortal from './dj/DJPortal.jsx'
-import HelpOutPortal from './help/HelpOutPortal.jsx'
 import RotaPortal from './rota/RotaPortal.jsx'
+import OnARollApp from './onaroll/OnARollApp.jsx'
 import DailyHub from './rota/DailyHub.jsx'
 import ToiletChecks from './toilets/ToiletChecks.jsx'
 import LeisureWatcher from './leisure/LeisureWatcher.jsx'
@@ -87,18 +88,17 @@ const isDJPath = () =>
   typeof window !== 'undefined' &&
   /^\/dj(\/|$)/.test(window.location.pathname)
 
-// Help Out portal — public, shareable volunteer sign-up at /helpout. No gate:
-// friends getting the bar open won't have a staff code. Standalone like /dj.
-// Matches the clean /helpout AND the older /help-out so shared links still work.
-const isHelpOutPath = () =>
-  typeof window !== 'undefined' &&
-  /^\/help-?out(\/|$)/.test(window.location.pathname)
-
 // Staff Rota portal — standalone, at /rota. Staff log in with their own email +
 // password (issued a token by the rota edge fn), so no PasswordGate here — like /dj.
 const isRotaPath = () =>
   typeof window !== 'undefined' &&
   /^\/rota(\/|$)/.test(window.location.pathname)
+
+// On A Roll truck MANAGEMENT — order display + menu manager, coded entry. /onaroll on
+// team.nodice.bar (the customer order page is nodice.bar/onaroll — a different host).
+const isOnARollPath = () =>
+  typeof window !== 'undefined' &&
+  /^\/onaroll(\/|$)/.test(window.location.pathname)
 
 // Daily clock-in hub — the shared link the team opens each shift. /today.
 const isTodayPath = () =>
@@ -230,6 +230,10 @@ export default function App() {
         const code = isFounder ? '888999' : isMgmt ? 'NDTEAM' : null
         if (access && !cancelled) {
           applyAccessSession(access, code)
+          // Management flag — set from the person's own staff record (Manager /
+          // Asst. Manager), NOT from the shared NDTEAM code. It unlocks the Team
+          // section for Rhys without opening it to every staff login.
+          try { if (isMgmt || isFounder) sessionStorage.setItem('ndb_role_manager', '1'); else sessionStorage.removeItem('ndb_role_manager') } catch { /* ignore */ }
           setPlonkAccess(!!access.plonk); setHackneyAccess(!!access.hackney); setBoroughAccess(!!access.borough)
           setOpsAccess(!!access.ops); setMarketingAccess(!!access.marketing); setUnlocked(true)
         }
@@ -255,13 +259,9 @@ export default function App() {
     // Keep the day/night light theme scoped to the staff tools even across
     // in-app (pushState) navigation — mirrors the pre-render flag set in
     // main.jsx so the investor decks/public pages never pick up the light flip.
-    const STAFF_SURFACE = /^\/(ops|operations|rota|today|marketing)(\/|$)/
-    const syncTheme = () => {
-      if (STAFF_SURFACE.test(window.location.pathname))
-        document.documentElement.setAttribute('data-theme', 'auto')
-      else
-        document.documentElement.removeAttribute('data-theme')
-    }
+    // applyTheme() handles both halves: which paths get a theme at all, and
+    // which theme the person has chosen (src/lib/theme.js).
+    const syncTheme = applyTheme
     const onPath = () => { syncTheme(); setPathTick(n => n + 1) }
     syncTheme()
     window.addEventListener('popstate', onPath)
@@ -294,13 +294,17 @@ export default function App() {
   // Standalone: no team hub, no investor decks, no password gate.
   if (isDJPath()) return <DJPortal />
 
-  // Help Out portal — public volunteer sign-up. Shared by text/email with
-  // friends, so no password gate; sits before the root fallback below.
-  if (isHelpOutPath()) return <HelpOutPortal />
+  // (The Help Out volunteer portal was REMOVED from the app on 16 Aug 2026 —
+  // founder: "remove all volunteer and help out section". /helpout and /help-out
+  // now fall through to the team landing page like any other unknown path. The
+  // sign-up records in bar_helpers are untouched; the retired code is in git.)
 
   // Staff Rota portal — team members log in with their own email + password.
   // Standalone (its own login), sits before the root fallback below.
   if (isRotaPath()) return <RotaPortal />
+
+  // On A Roll truck management — order display + menu manager (coded entry). /onaroll.
+  if (isOnARollPath()) return <OnARollApp />
 
   // Daily clock-in hub — shared /today link: who's on today → tap name → clock in.
   if (isTodayPath()) return <DailyHub />
@@ -314,7 +318,7 @@ export default function App() {
   // the public site has a clean entry point. /worldcup is an exception
   // — gated below, founder-only planning sheet. /site is also excluded
   // because it's a public dev preview of the new bar website.
-  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isHelpOutPath() && !isRotaPath() && !isTodayPath() && !isLeisurePath())) {
+  if (isRootPath() || (!isHackneyPath() && !isBoroughPath() && !isWorldCupPath() && !isSiteSplashPath() && !isSiteInsidePath() && !isOpsPath() && !isMarketingPath() && !isDJPath() && !isRotaPath() && !isTodayPath() && !isLeisurePath())) {
     // This repo now lives at team.nodice.bar (the public customer site owns
     // nodice.bar). Root + any unrecognised path shows the branded team hub —
     // four gated doors: Operations, Marketing, Investors Hackney/Borough.
@@ -600,3 +604,4 @@ function BoroughShell({ topTab, setTopTab, slideIdx, setSlideIdx, topTabKeys, pl
     </div>
   )
 }
+

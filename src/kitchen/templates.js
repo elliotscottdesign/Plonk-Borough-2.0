@@ -138,8 +138,8 @@ export const KITCHEN_TEMPLATES = {
   },
 
   weekly: {
-    id: 'weekly', title: 'Monday deep clean', cadence: 'weekly', weekday: 1, icon: '🧽',
-    blurb: 'Every Monday — pull everything out and deep clean.',
+    id: 'weekly', title: 'Weekly deep clean', cadence: 'weekly', icon: '🧽',
+    blurb: 'Once a week — pull everything out and deep clean.',
     groups: [
       {
         title: 'Deep clean',

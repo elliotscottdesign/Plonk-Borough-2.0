@@ -23,7 +23,7 @@ const OPS_TOOLS = [
   { key: 'suppliers', label: 'Suppliers', icon: '📇', live: true, blurb: 'Directory of every supplier — addresses, contacts, 1-click trade portal launcher.' },
   { key: 'cocktailspecs', label: 'Cocktail Specs', icon: '🍸', live: true, blurb: 'Every house cocktail recipe — pours, glassware, build rules. Printable.' },
   { key: 'till', label: 'Till', icon: '🧾', live: true, blurb: 'How to add new products to the Lightspeed till so they ring up correctly.' },
-  { key: 'pool',  label: 'Pool Tournament Nights', icon: '🎱', live: false, blurb: 'Run the internal pool competition — brackets, live scores, leaderboard, winners.' },
+  // (Pool tournaments graduated to the Events group's Tournament tab — card removed.)
   { key: 'crm',   label: 'Community / CRM', icon: '🤝', live: false, blurb: 'Build the regulars list from Insta, Google, in-bar and events data.' },
   { key: 'help',  label: 'Daily Team Help', icon: '💬', live: false, blurb: 'Ad-hoc day-to-day help for you and the team.' },
 ]
@@ -43,7 +43,8 @@ export default function Operations() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
       {/* On phones the tool tabs are a single swipeable row instead of a 9-row
           wrapped wall that buries the content. */}
-      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0, WebkitOverflowScrolling: 'touch' }}>
+      {/* Sticky: these tools are long pages — the way back must stay on screen. */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: isMobile ? 'nowrap' : 'wrap', overflowX: isMobile ? 'auto' : 'visible', paddingBottom: isMobile ? 4 : 0, WebkitOverflowScrolling: 'touch', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6 }}>
         {OPS_TOOLS.map(t => {
           const on = tool === t.key
           return (
