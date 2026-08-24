@@ -223,13 +223,23 @@ export default function KitchenTickets() {
               </div>
               <div style={{ padding: '13px 13px', display: 'flex', flexDirection: 'column', gap: 11 }}>
                 {o.order_code && <div style={{ fontSize: 12.5, fontWeight: 800, color: '#fff', background: isStaff ? STAFF : '#5B8DEF', borderRadius: 6, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎟 {o.code_label || o.order_code}{isStaff ? ' · STAFF — no rush' : ' · on tab'}</div>}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {items.map((it, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
-                      <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
-                      <span>{it.name}</span>
-                    </div>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {items.map((it, i) => {
+                    const opts = Array.isArray(it.options) ? it.options : []
+                    // a "Make it a …" add-on RENAMES the dish (Chips → Cheesy Chip Butty); others are extras.
+                    const renameOpt = opts.find(o => /^make it /i.test(o.name || ''))
+                    const title = renameOpt ? (renameOpt.name || '').replace(/^make it (a |an |the )?/i, '').trim() : it.name
+                    const extras = opts.filter(o => o !== renameOpt)
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
+                          <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
+                          <span>{title}</span>
+                        </div>
+                        {extras.map((o, j) => <div key={j} style={{ marginLeft: 36, fontSize: 15, fontWeight: 600, color: '#5a6' }}>＋ {o.name}</div>)}
+                      </div>
+                    )
+                  })}
                 </div>
                 {o.allergen_note && <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: RED, borderRadius: 6, padding: '5px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚠ Allergy: {o.allergen_note}</div>}
                 {o.customer_note && <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: BLUE, borderRadius: 6, padding: '6px 9px' }}>📝 {o.customer_note}</div>}
