@@ -10,6 +10,7 @@ import { tipsForStaff, tipsForStaffMonth, TIPS_META } from '../finance/tipsData.
 import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
+import { useChecklistOverrides, effectiveShift } from '../lib/liveChecklists.js'
 import { rotaMenus } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
@@ -645,6 +646,7 @@ function ChecklistView({ token }) {
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
   const [savedAt, setSavedAt] = useState(false)
+  const eff = effectiveShift(useChecklistOverrides())   // live founder edits, fallback to built-in
 
   // The sheet is SHARED per day — everyone ticking the same list. Beyond loading
   // fresh on open, poll every 20s so a phone left on this tab sees teammates'
@@ -707,7 +709,7 @@ function ChecklistView({ token }) {
       <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Today · {dayName(today)} {today.slice(8)}. Tick tasks as you go — it saves automatically.</div>
         {CHECKLIST_ORDER.map(k => {
-          const c = CHECKLISTS[k], total = checklistCount(k, today), done = doneCount(k, subs[k]?.items || {}, today), sub = subs[k]?.submitted
+          const c = eff[k], total = checklistCount(k, today, eff), done = doneCount(k, subs[k]?.items || {}, today, eff), sub = subs[k]?.submitted
           return (
             <button key={k} onClick={() => open(k)} style={{ textAlign: 'left', background: CARD, border: `1px solid ${sub ? 'rgba(52,211,153,0.4)' : LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff', display: 'flex', alignItems: 'center', gap: 12 }}>
               <div style={{ fontSize: 24, flexShrink: 0 }}>{c.icon}</div>
@@ -728,7 +730,7 @@ function ChecklistView({ token }) {
   }
 
   // Open one checklist.
-  const c = CHECKLISTS[openKey], secs = checklistSections(openKey, today), total = checklistCount(openKey, today), done = doneCount(openKey, items, today)
+  const c = eff[openKey], secs = checklistSections(openKey, today, eff), total = checklistCount(openKey, today, eff), done = doneCount(openKey, items, today, eff)
   const multi = secs.length > 1
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
