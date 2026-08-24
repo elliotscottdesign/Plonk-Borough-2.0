@@ -633,10 +633,12 @@ export default function TillScreen() {
   // folder — a fresh list with a back tile, not a drop-down (founder, 20 Aug).
   const SPIRITS_PREFIX = 'Spirits — '
   const spiritsPages = pages.filter(pg => pg.name.startsWith(SPIRITS_PREFIX))
+  // Tiles FLEX to share the column exactly — the category list must fill the
+  // iPad screen with zero scrolling, whatever the orientation.
   const catTile = (key, label, c, active, onClick) => (
     <button key={key} onClick={onClick} style={{
-      minHeight: 46, padding: '7px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-      fontSize: 13, textAlign: 'left', lineHeight: 1.2, flexShrink: 0,
+      flex: '1 1 0', minHeight: 34, padding: '4px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
+      fontSize: 13, textAlign: 'left', lineHeight: 1.15, display: 'flex', alignItems: 'center',
       background: active ? tint(c, '3D') : tint(c, '14'),
       border: `2px solid ${active ? c : tint(c, '73')}`,
       color: active ? c : CREAM, fontWeight: active ? 800 : 600,
@@ -680,11 +682,11 @@ export default function TillScreen() {
       display: 'flex', flexDirection: 'column', gap: 6,
       ...(isMobile
         ? { borderTop: `2px solid rgba(255,255,255,0.18)`, borderBottom: `2px solid rgba(255,255,255,0.18)`, padding: '12px 0' }
-        : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', height: '100%', boxSizing: 'border-box', overflowY: 'auto' }),
+        : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }),
     }}>
       <input
         value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Find anything…"
-        style={{ minHeight: 72, padding: '10px 14px', borderRadius: 12, border: `2px solid ${query ? GOLD : 'rgba(255,255,255,0.25)'}`, background: 'rgba(255,255,255,0.07)', color: CREAM, fontFamily: 'inherit', fontSize: 17, fontWeight: 600, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
+        style={{ minHeight: 58, padding: '8px 14px', borderRadius: 12, border: `2px solid ${query ? GOLD : 'rgba(255,255,255,0.25)'}`, background: 'rgba(255,255,255,0.07)', color: CREAM, fontFamily: 'inherit', fontSize: 16, fontWeight: 600, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
       />
       {catTiles}
     </div>
