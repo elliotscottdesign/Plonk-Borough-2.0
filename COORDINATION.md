@@ -26,6 +26,13 @@ _(none — add a row when you start editing a shared file, remove it when you've
 
 | Lane | Shared file | What / why | Since |
 |------|-------------|-----------|-------|
+| bar | `src/ops/OpsApp.jsx` | +1 founder tab "Checklist Editor". One import + one TABS row. | 3 Aug 2026 |
+| bar | `src/kitchen/templates.js` (kitchen-owned) | Founder-asked: DB-editable checklists. `templateItems(cadence, templates=KITCHEN_TEMPLATES)` gains an OPTIONAL source arg (backward-compatible, no behaviour change unless passed). | 3 Aug 2026 |
+| bar | `src/kitchen/KitchenChecklists.jsx` (kitchen-owned) | Read live template overrides (fallback = built-in). Surgical: hook + effectiveKitchen. | 3 Aug 2026 |
+| bar | `src/ops/sections/Kitchen.jsx` (kitchen-owned) | Same live-override read for the founder "The checklists" view. | 3 Aug 2026 |
+| bar | `src/rota/checklists.js` (rota-owned) | `checklistSections/Items/Count/doneCount` gain OPTIONAL `source=CHECKLISTS` arg (backward-compatible). | 3 Aug 2026 |
+| bar | `src/rota/RotaPortal.jsx` (rota-owned) | Read live shift-checklist overrides (fallback = built-in). | 3 Aug 2026 |
+| bar | `src/ops/sections/ChecklistLog.jsx` (rota-owned) | Same live-override read for the founder log. | 3 Aug 2026 |
 
 ## Schema (DDL) changes — announce here
 One Supabase project (`rntcujcpsozvuxvmlejv`) is shared by every lane. Any
@@ -39,6 +46,7 @@ never run destructive or "today"-dated test writes on real data.
 | tournament | Added `pingpong_{tournaments,participants,rounds,matches,vouchers}` (new — mirror of `pool_*`, ping-pong trial). No change to existing tables. | ✅ done | 3 Aug 2026 |
 | tournament | `tournaments.tournament_type` CHECK widened to allow `'teams'` (was singles/doubles/special — additive, existing rows untouched). +10 new rows: "Team Ping Pong Tournament", Sundays 18:00 (9 Aug – 11 Oct), `bookable=false`/`registration_open=false` so they stay OFF the public pool booking flow. Ping pong fn lists ONLY teams rows; pool fn now excludes them. | ✅ done | 3 Aug 2026 |
 | bar | `push_subscriptions` + `toilet_checks` (NEW tables) — web-push opt-ins + 2-hourly toilet-hygiene check log. Additive only, no impact to other lanes. SQL in `supabase/toilet_hygiene.sql`; cron `toilet-hygiene-poll` `*/30 * * * *`. New `toilet-check` edge fn (deployed `--no-verify-jwt`) + VAPID_* secrets. | ✅ applied + deployed | 3 Aug 2026 |
+| bar | `checklist_templates` (NEW table) — founder-editable overrides for kitchen + shift checklists (one JSONB def per checklist_key; empty = code default). Additive, no impact to other lanes. SQL `supabase/checklist_templates.sql`. New `checklists` edge fn (list/save/reset). | pending ship | 3 Aug 2026 |
 | tournament | Doubles prize split: `tournament_entries` + `partner_name`/`partner_email` (additive); `pool_vouchers` + `pingpong_vouchers` + `recipient` col, unique(run,place) → unique(run,place,recipient). Legacy full-amount vouchers untouched. SQL in `supabase/doubles_split.sql`. | ✅ applied | 6 Aug 2026 |
 | tournament | `pool_vouchers` + `pingpong_vouchers`: `redeemed_at timestamptz` + `redeemed_by text` (additive — voucher redemption tracking). SQL in `supabase/voucher_redemption.sql`. | ✅ applied | 12 Aug 2026 |
 | tournament | NEW table `manager_vouchers` (goodwill vouchers managers send to customers from the staff portal 🎟 Prizes tab — same ND- code + email design + redemption flow as tournament prizes). Additive; RLS on, no policies (service-role only). SQL in `supabase/manager_vouchers.sql`. | ✅ applied | 12 Aug 2026 |

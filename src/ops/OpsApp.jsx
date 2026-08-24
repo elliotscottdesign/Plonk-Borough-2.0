@@ -11,6 +11,8 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import ToiletLog from './sections/ToiletLog.jsx'
+import ChecklistEditor from './sections/ChecklistEditor.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
@@ -41,12 +43,14 @@ const GROUPS = [
       { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
       // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
+      { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
     ],
   },
   {
     key: 'kitchen', label: 'Kitchen',
     tabs: [
       { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
+      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
     ],
   },
   {
