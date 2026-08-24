@@ -47,12 +47,15 @@ NAME_SERVE = [
 
 # ── Page mapping: Menu/Screen → catalogue page (keeps the till's own order) ──
 PAGE_ORDER = [
-    "Deals", "Beer & Cider", "Cocktails & Warmers", "Mocktails", "Shots",
+    "Deals", "Beer & Cider", "Cocktails & Warmers", "Cocktails — Classics", "Mocktails", "Shots",
     "Spirits — Gin", "Spirits — Vodka", "Spirits — Tequila & Mezcal", "Spirits — Rum",
     "Spirits — Whisk(e)y", "Spirits — Brandy & Cognac", "Spirits — Liqueur",
     "Spirits — Aperitif & Vermouth", "Wines & Prosecco", "Softs & Hot Drinks",
     "Snacks & Food", "Games", "More",
 ]
+# Hidden pages don't get a tile in the category column — they're reached via a
+# 📁 tile inside their parent page.
+HIDDEN_PAGES = {"Cocktails — Classics"}
 FOOD_HINT = re.compile(r"combo|chips|burger|bun|dog|fries|nachos|taco|pizza|sauce|halloumi|shroom", re.I)
 DEAL_HINT = re.compile(r"happy hour|2 for|3 for|shooters|deal|£\d", re.I)
 def page_for(screen, statgroup):
@@ -331,6 +334,7 @@ def main():
         # A row with a real screen assignment beats a sibling's fallback guess.
         if screen and p["page"] in ("More", "Deals") and page not in ("More", "Deals"):
             p["page"] = page
+        if screen: p["_screened"] = True
         p["serves"].append({
             "label": label or "Each", "price": price,
             **({"ml": ml} if ml else {}),
@@ -350,6 +354,7 @@ def main():
         products[key] = {
             "name": name, "page": page, "sku": key,
             "group": r["Statistics group"] or None,
+            **({"_screened": True} if screen else {}),
             "serves": [{"label": "Deal", "price": float(r["Default price"]),
                         "button": (r["Button name"] or name).strip()}],
         }
@@ -375,6 +380,17 @@ def main():
     for p in products.values():
         p["serves"].sort(key=lambda s: SERVE_ORDER.get(s["label"], 5))
 
+    # Cocktails not laid out on the live till's screens are the legacy tail
+    # (seasonal one-offs, retired serves) — they move behind a "Classics"
+    # folder tile so the main page is only what actually sells (founder,
+    # 21 Aug 2026). NB: proxy until receipt-level exports arrive — then this
+    # becomes a true "sold in the last 90 days" test.
+    for p in products.values():
+        if p["page"] == "Cocktails & Warmers" and not p.pop("_screened", False):
+            p["page"] = "Cocktails — Classics"
+        else:
+            p.pop("_screened", None)
+
     # Shots are shots (founder, 20 Aug 2026): no "Single" tag, no doubles —
     # one button, one measure. (The same spirit poured as a double lives on
     # its spirits page.)
@@ -390,7 +406,9 @@ def main():
         prods = [p for p in products.values() if p["page"] == pg]
         if not prods: continue
         prods.sort(key=lambda p: (-(p.get("units2025") or 0), p["name"]))
-        pages.append({"name": pg, "products": prods})
+        page = {"name": pg, "products": prods}
+        if pg in HIDDEN_PAGES: page["hidden"] = True
+        pages.append(page)
 
     out = {
         "source": "K Series items export, live Hackney till — 20 Aug 2026",

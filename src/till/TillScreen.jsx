@@ -259,9 +259,12 @@ export default function TillScreen() {
     const out = []
     for (const pg of pages) {
       if (!q && pg.name !== pageName) continue
-      for (const p of pg.products) for (const s of p.serves) {
-        if (q && !(`${p.name} ${s.label} ${s.button || ''}`.toLowerCase().includes(q))) continue
-        out.push({ product: p, serve: s, page: pg.name })
+      for (const p of pg.products) {
+        if (p.nav) { if (!q) out.push({ nav: p.nav, name: p.name, page: pg.name, product: p, serve: { label: 'Each' } }); continue }
+        for (const s of p.serves) {
+          if (q && !(`${p.name} ${s.label} ${s.button || ''}`.toLowerCase().includes(q))) continue
+          out.push({ product: p, serve: s, page: pg.name })
+        }
       }
     }
     return out
@@ -615,6 +618,7 @@ export default function TillScreen() {
     catTiles = []
     let spiritsInserted = false
     for (const pg of pages) {
+      if (pg.hidden) continue          // sub-folders (Cocktails — Classics) have no column tile
       if (pg.name.startsWith(SPIRITS_PREFIX)) {
         if (!spiritsInserted) {
           spiritsInserted = true
@@ -666,6 +670,13 @@ export default function TillScreen() {
             ))
           : gridSlice.map(b => {
               const c = pageColor(b.page)
+              if (b.nav) return (
+                <button key={b.product.sku} onClick={() => setPageName(b.nav)} style={{
+                  minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                  background: 'transparent', border: `2px dashed ${tint(c, '99')}`, color: c, fontFamily: 'inherit',
+                  fontSize: 14, fontWeight: 800,
+                }}>{b.name}</button>
+              )
               const dead = b.page === HH_PAGE && !hhOpen
               return (
                 <button key={`${b.product.sku}·${b.serve.label}·${b.page}`} onClick={() => add(b)} disabled={dead} style={{

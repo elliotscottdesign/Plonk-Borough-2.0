@@ -83,3 +83,13 @@ export const PAGES = [
     .map(pg => ({ ...pg, products: pg.products.filter(p => !REMOVED.test(p.name)) }))
     .filter(pg => pg.products.length > 0),
 ]
+
+// Folder navigation tiles: the main cocktails page ends with 📁 Classics
+// (the legacy cocktails, hidden from the category column), which starts with
+// a ← back tile.
+const cocktails = PAGES.find(pg => pg.name === 'Cocktails & Warmers')
+const classics = PAGES.find(pg => pg.name === 'Cocktails — Classics')
+if (cocktails && classics) {
+  cocktails.products = [...cocktails.products, { sku: 'NAV.classics', name: '📁 Classics', nav: 'Cocktails — Classics', serves: [] }]
+  classics.products = [{ sku: 'NAV.back', name: '← Cocktails', nav: 'Cocktails & Warmers', serves: [] }, ...classics.products]
+}

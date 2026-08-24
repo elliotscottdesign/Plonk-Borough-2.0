@@ -606,21 +606,6 @@
      "units2025": 1175
     },
     {
-     "name": "Solero Colada",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Solero Colada"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.solero colada",
-     "recipe": "Solero Colada",
-     "units2025": 348
-    },
-    {
      "name": "Negroni",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -741,21 +726,6 @@
      "units2025": 159
     },
     {
-     "name": "Cosmopolitan",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Cosmopolitan"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.cosmopolitan",
-     "recipe": "Cosmopolitan",
-     "units2025": 153
-    },
-    {
      "name": "Hugo Spritz",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -784,21 +754,6 @@
      "sku": "N.ranch water",
      "recipe": "Ranch Water",
      "units2025": 123
-    },
-    {
-     "name": "Classic Mojito",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Classic Mojito"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.classic mojito",
-     "recipe": "Classic Mojito",
-     "units2025": 119
     },
     {
      "name": "Old Fashioned",
@@ -844,21 +799,6 @@
      "sku": "N.golfstar martini",
      "recipe": "Golfstar Martini",
      "units2025": 59
-    },
-    {
-     "name": "Fields Cocktail",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Fields Cocktail"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.fields cocktail",
-     "recipe": "Fields Cocktail",
-     "units2025": 51
     },
     {
      "name": "Michelada",
@@ -951,21 +891,6 @@
      "units2025": 26
     },
     {
-     "name": "Paloma",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Paloma"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.paloma",
-     "recipe": "Paloma",
-     "units2025": 25
-    },
-    {
      "name": "Dark & Plonkie",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -1041,21 +966,6 @@
      "units2025": 5
     },
     {
-     "name": "Aperol Spritz - Jug",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 26.0,
-       "button": "Aperol Spritz - Jug"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.aperol spritz - jug",
-     "recipe": "Aperol Spritz - Jug",
-     "units2025": 3
-    },
-    {
      "name": "Pimms & Lemonade - Jug",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -1071,76 +981,6 @@
      "units2025": 2
     },
     {
-     "name": "Absinthe Sour",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Absinthe Sour"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.absinthe sour",
-     "recipe": "Absinthe Sour"
-    },
-    {
-     "name": "BLOOD MOON",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "BLOOD MOON"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.blood moon",
-     "recipe": "BLOOD MOON"
-    },
-    {
-     "name": "Bellini",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 8.0,
-       "button": "Bellini"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.bellini",
-     "recipe": "Bellini"
-    },
-    {
-     "name": "Cola Spritzer",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Cola Spritzer"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.cola spritzer",
-     "recipe": "Cola Spritzer"
-    },
-    {
-     "name": "Ginger Hot Choc",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 8.0,
-       "button": "WARMERS Ginger Hot Choc"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.ginger hot choc",
-     "recipe": "Ginger Hot Choc"
-    },
-    {
      "name": "Green Smoke",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -1153,34 +993,6 @@
      "group": null,
      "sku": "N.green smoke",
      "recipe": "Green Smoke"
-    },
-    {
-     "name": "HIBISCUS Margarita",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "HIBISCUS Margarita"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.hibiscus margarita",
-     "recipe": "HIBISCUS Margarita"
-    },
-    {
-     "name": "Hibiscus Negroni",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 11.0,
-       "button": "Hibiscus Negroni"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.hibiscus negroni",
-     "recipe": "Hibiscus Negroni"
     },
     {
      "name": "Lillet Soda",
@@ -1239,20 +1051,6 @@
      "recipe": "Royal Flush"
     },
     {
-     "name": "SYRINGE SHOT",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 6.0,
-       "button": "SYRINGE SHOT"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.syringe shot",
-     "recipe": "SYRINGE SHOT"
-    },
-    {
      "name": "Spicy Cucumber Margarita",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -1265,20 +1063,6 @@
      "group": "Drinks/Cocktails",
      "sku": "N.spicy cucumber margarita",
      "recipe": "Spicy Cucumber Margarita"
-    },
-    {
-     "name": "TSCHUNK",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 9.0,
-       "button": "TSCHUNK"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.tschunk",
-     "recipe": "TSCHUNK"
     },
     {
      "name": "Tommys Margarita",
@@ -1295,20 +1079,6 @@
      "recipe": "Tommys Margarita"
     },
     {
-     "name": "WARMERS - HOT TODDY",
-     "page": "Cocktails & Warmers",
-     "serves": [
-      {
-       "label": "Each",
-       "price": 8.0,
-       "button": "WARMERS - HOT TEDDY"
-      }
-     ],
-     "group": "Drinks/Cocktails",
-     "sku": "N.warmers - hot toddy",
-     "recipe": "WARMERS - HOT TODDY"
-    },
-    {
      "name": "Watermelon Daiquiri",
      "page": "Cocktails & Warmers",
      "serves": [
@@ -1321,10 +1091,245 @@
      "group": "Drinks/Cocktails",
      "sku": "N.watermelon daiquiri",
      "recipe": "Watermelon Daiquiri"
+    }
+   ]
+  },
+  {
+   "name": "Cocktails — Classics",
+   "products": [
+    {
+     "name": "Solero Colada",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Solero Colada"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.solero colada",
+     "recipe": "Solero Colada",
+     "units2025": 348
+    },
+    {
+     "name": "Cosmopolitan",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Cosmopolitan"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.cosmopolitan",
+     "recipe": "Cosmopolitan",
+     "units2025": 153
+    },
+    {
+     "name": "Classic Mojito",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Classic Mojito"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.classic mojito",
+     "recipe": "Classic Mojito",
+     "units2025": 119
+    },
+    {
+     "name": "Fields Cocktail",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Fields Cocktail"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.fields cocktail",
+     "recipe": "Fields Cocktail",
+     "units2025": 51
+    },
+    {
+     "name": "Paloma",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Paloma"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.paloma",
+     "recipe": "Paloma",
+     "units2025": 25
+    },
+    {
+     "name": "Aperol Spritz - Jug",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 26.0,
+       "button": "Aperol Spritz - Jug"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.aperol spritz - jug",
+     "recipe": "Aperol Spritz - Jug",
+     "units2025": 3
+    },
+    {
+     "name": "Absinthe Sour",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Absinthe Sour"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.absinthe sour",
+     "recipe": "Absinthe Sour"
+    },
+    {
+     "name": "BLOOD MOON",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "BLOOD MOON"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.blood moon",
+     "recipe": "BLOOD MOON"
+    },
+    {
+     "name": "Bellini",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 8.0,
+       "button": "Bellini"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.bellini",
+     "recipe": "Bellini"
+    },
+    {
+     "name": "Cola Spritzer",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Cola Spritzer"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.cola spritzer",
+     "recipe": "Cola Spritzer"
+    },
+    {
+     "name": "Ginger Hot Choc",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 8.0,
+       "button": "WARMERS Ginger Hot Choc"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.ginger hot choc",
+     "recipe": "Ginger Hot Choc"
+    },
+    {
+     "name": "HIBISCUS Margarita",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "HIBISCUS Margarita"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.hibiscus margarita",
+     "recipe": "HIBISCUS Margarita"
+    },
+    {
+     "name": "Hibiscus Negroni",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 11.0,
+       "button": "Hibiscus Negroni"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.hibiscus negroni",
+     "recipe": "Hibiscus Negroni"
+    },
+    {
+     "name": "SYRINGE SHOT",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 6.0,
+       "button": "SYRINGE SHOT"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.syringe shot",
+     "recipe": "SYRINGE SHOT"
+    },
+    {
+     "name": "TSCHUNK",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 9.0,
+       "button": "TSCHUNK"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.tschunk",
+     "recipe": "TSCHUNK"
+    },
+    {
+     "name": "WARMERS - HOT TODDY",
+     "page": "Cocktails — Classics",
+     "serves": [
+      {
+       "label": "Each",
+       "price": 8.0,
+       "button": "WARMERS - HOT TEDDY"
+      }
+     ],
+     "group": "Drinks/Cocktails",
+     "sku": "N.warmers - hot toddy",
+     "recipe": "WARMERS - HOT TODDY"
     },
     {
      "name": "XMAS BRAMBLE",
-     "page": "Cocktails & Warmers",
+     "page": "Cocktails — Classics",
      "serves": [
       {
        "label": "Each",
@@ -1336,7 +1341,8 @@
      "sku": "N.xmas bramble",
      "recipe": "XMAS BRAMBLE"
     }
-   ]
+   ],
+   "hidden": true
   },
   {
    "name": "Mocktails",
