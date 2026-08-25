@@ -284,16 +284,19 @@ export default function TillScreen() {
     fit()
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [])
+    // re-measure whenever the register (re)appears — it doesn't exist on the
+    // floor/bill screens, so a mount-only measure would never see it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen])
   // Page size = however many tiles genuinely FIT in the measured grid box —
   // a clipped row would make its buttons unreachable.
   const gridRef = React.useRef(null)
   const [pageSize, setPageSize] = useState(24)
   React.useLayoutEffect(() => {
     if (isMobile) { setPageSize(12); return }
-    const el = gridRef.current
-    if (!el) return
     const fit = () => {
+      const el = gridRef.current
+      if (!el) return
       const cols = Math.max(1, Math.floor((el.clientWidth + 8) / 156))
       const rows = Math.max(1, Math.floor((el.clientHeight + 8) / (76 + 8)))
       setPageSize(Math.max(4, cols * rows))
@@ -301,7 +304,10 @@ export default function TillScreen() {
     fit()
     window.addEventListener('resize', fit)
     return () => window.removeEventListener('resize', fit)
-  }, [isMobile, frameH])
+    // deps: the grid box changes size when the register appears, the frame is
+    // measured, or a page adds/removes its banner — re-fit on all of them.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile, frameH, screen, pageName, query])
   const [gridPage, setGridPage] = useState(0)
   const [overflowView, setOverflowView] = useState(false)   // inside a page's 📁 More folder
   useEffect(() => { setGridPage(0); setOverflowView(false) }, [pageName, query, folder, pageSize])
@@ -417,6 +423,7 @@ export default function TillScreen() {
           <div className="serif" style={{ fontSize: 18, color: '#fff' }}>No Dice — London Fields</div>
           <div style={{ fontSize: 10.5, color: DIM, marginBottom: 12 }}>No Dice Hackney Ltd · 407 Mentmore Terrace, E8 3PH · DEMO BILL — NOT A VAT RECEIPT</div>
           <div style={{ fontSize: 12.5, color: CREAM, marginBottom: 10, fontWeight: 700 }}>{refLabel(current)}</div>
+          <div style={{ maxHeight: '38vh', overflowY: 'auto' }}>
           {current.lines.map(l => (
             <div key={l.key} style={{ padding: '3px 0' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13 }}>
@@ -430,6 +437,7 @@ export default function TillScreen() {
               )}
             </div>
           ))}
+          </div>
           {current.disc && (
             <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 12.5, color: AMBER, borderTop: `1px solid ${LINE}`, marginTop: 8, paddingTop: 8 }}>
               <span>{current.disc.name} (whole order)</span><span>−{gbp(oDisc)}</span>
