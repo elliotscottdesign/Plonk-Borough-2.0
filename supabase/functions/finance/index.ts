@@ -158,18 +158,34 @@ function nameScore(a: string, b: string) {
  * window with nothing to separate them is NOT a match — attaching a receipt to
  * the wrong payment is worse than leaving it unattached, because it looks done.
  */
-async function findBankTx(token: string, tenant: string, r: { amount: number; spend_date: string; supplier: string }) {
+async function findBankTx(token: string, tenant: string, r: { amount: number; spend_date: string; supplier: string; kind?: string }) {
   // A card settles ON or AFTER the day you spend, never before — so the window
   // is asymmetric. One day of slack backwards for timezone and till-clock
   // drift, five forwards for a slow weekend settlement.
-  const [y1, m1, d1] = ymd(shift(r.spend_date, -1))
-  const [y2, m2, d2] = ymd(shift(r.spend_date, +5))
+  //
+  // A supplier invoice is a different animal: issued on terms and paid weeks
+  // later, so +5 days would find nothing every time. It gets a quarter either
+  // way, and leans much harder on the supplier's name to stay honest — over
+  // that span, two unrelated payments sharing an amount is likely rather than
+  // rare.
+  const invoice = r.kind === 'invoice'
+  const [y1, m1, d1] = ymd(shift(r.spend_date, invoice ? -7 : -1))
+  const [y2, m2, d2] = ymd(shift(r.spend_date, invoice ? +90 : +5))
   const where = `Type=="SPEND" AND Date>=DateTime(${y1},${m1},${d1}) AND Date<=DateTime(${y2},${m2},${d2})`
   const data = await xeroGet(`/BankTransactions?where=${encodeURIComponent(where)}`, token, tenant)
 
   const target = Math.round(Number(r.amount) * 100)
   const sameAmount = (data.BankTransactions ?? [])
     .filter((t: any) => Math.round(Number(t.Total) * 100) === target)
+
+  // Over a 90-day window a lone amount match is not enough on its own — the
+  // supplier has to agree too, or an invoice could land on a coincidence.
+  if (invoice && sameAmount.length === 1) {
+    const s0 = nameScore(r.supplier, sameAmount[0].Contact?.Name ?? '')
+    return s0 >= 0.5
+      ? { tx: sameAmount[0], why: '' }
+      : { tx: null, why: `found £${r.amount} but paid to ${sameAmount[0].Contact?.Name ?? 'someone else'}, not ${r.supplier}` }
+  }
 
   if (!sameAmount.length) {
     // An unreconciled bank line is NOT a transaction in Xero, so there is
@@ -371,6 +387,8 @@ Deno.serve(async (req) => {
 
         const row = {
           supplier, spend_date: spendDate, amount, category,
+          kind: p.kind === 'invoice' ? 'invoice' : 'receipt',
+          doc_ref: String(p.docRef || '').trim() || null,
           note: String(p.note || '').trim() || null,
           staff_id: p.staffId || null,
           staff_name: String(p.staffName || '').trim() || null,
@@ -571,7 +589,7 @@ Deno.serve(async (req) => {
 
         for (const r of pending ?? []) {
           try {
-            const { tx, why } = await findBankTx(token, row.tenant_id, r as any)
+            const { tx, why } = await findBankTx(token, row.tenant_id, r as any)   // r.kind drives the window
             if (!tx) { skipped.push({ id: r.id, supplier: r.supplier, amount: r.amount, why }); continue }
 
             // Never add a second copy. A shop emails a receipt AND you
