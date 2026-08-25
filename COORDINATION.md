@@ -26,6 +26,13 @@ _(none — add a row when you start editing a shared file, remove it when you've
 
 | Lane | Shared file | What / why | Since |
 |------|-------------|-----------|-------|
+| bar | `src/ops/OpsApp.jsx` | +1 founder tab "Checklist Editor". One import + one TABS row. | 3 Aug 2026 |
+| bar | `src/kitchen/templates.js` (kitchen-owned) | Founder-asked: DB-editable checklists. `templateItems(cadence, templates=KITCHEN_TEMPLATES)` gains an OPTIONAL source arg (backward-compatible, no behaviour change unless passed). | 3 Aug 2026 |
+| bar | `src/kitchen/KitchenChecklists.jsx` (kitchen-owned) | Read live template overrides (fallback = built-in). Surgical: hook + effectiveKitchen. | 3 Aug 2026 |
+| bar | `src/ops/sections/Kitchen.jsx` (kitchen-owned) | Same live-override read for the founder "The checklists" view. | 3 Aug 2026 |
+| bar | `src/rota/checklists.js` (rota-owned) | `checklistSections/Items/Count/doneCount` gain OPTIONAL `source=CHECKLISTS` arg (backward-compatible). | 3 Aug 2026 |
+| bar | `src/rota/RotaPortal.jsx` (rota-owned) | Read live shift-checklist overrides (fallback = built-in). | 3 Aug 2026 |
+| bar | `src/ops/sections/ChecklistLog.jsx` (rota-owned) | Same live-override read for the founder log. | 3 Aug 2026 |
 
 ## Schema (DDL) changes — announce here
 One Supabase project (`rntcujcpsozvuxvmlejv`) is shared by every lane. Any
@@ -39,11 +46,43 @@ never run destructive or "today"-dated test writes on real data.
 | tournament | Added `pingpong_{tournaments,participants,rounds,matches,vouchers}` (new — mirror of `pool_*`, ping-pong trial). No change to existing tables. | ✅ done | 3 Aug 2026 |
 | tournament | `tournaments.tournament_type` CHECK widened to allow `'teams'` (was singles/doubles/special — additive, existing rows untouched). +10 new rows: "Team Ping Pong Tournament", Sundays 18:00 (9 Aug – 11 Oct), `bookable=false`/`registration_open=false` so they stay OFF the public pool booking flow. Ping pong fn lists ONLY teams rows; pool fn now excludes them. | ✅ done | 3 Aug 2026 |
 | bar | `push_subscriptions` + `toilet_checks` (NEW tables) — web-push opt-ins + 2-hourly toilet-hygiene check log. Additive only, no impact to other lanes. SQL in `supabase/toilet_hygiene.sql`; cron `toilet-hygiene-poll` `*/30 * * * *`. New `toilet-check` edge fn (deployed `--no-verify-jwt`) + VAPID_* secrets. | ✅ applied + deployed | 3 Aug 2026 |
+| bar | `checklist_templates` (NEW table) — founder-editable overrides for kitchen + shift checklists (one JSONB def per checklist_key; empty = code default). Additive, no impact to other lanes. SQL `supabase/checklist_templates.sql`. New `checklists` edge fn (list/save/reset). | pending ship | 3 Aug 2026 |
 | tournament | Doubles prize split: `tournament_entries` + `partner_name`/`partner_email` (additive); `pool_vouchers` + `pingpong_vouchers` + `recipient` col, unique(run,place) → unique(run,place,recipient). Legacy full-amount vouchers untouched. SQL in `supabase/doubles_split.sql`. | ✅ applied | 6 Aug 2026 |
 | tournament | `pool_vouchers` + `pingpong_vouchers`: `redeemed_at timestamptz` + `redeemed_by text` (additive — voucher redemption tracking). SQL in `supabase/voucher_redemption.sql`. | ✅ applied | 12 Aug 2026 |
 | tournament | NEW table `manager_vouchers` (goodwill vouchers managers send to customers from the staff portal 🎟 Prizes tab — same ND- code + email design + redemption flow as tournament prizes). Additive; RLS on, no policies (service-role only). SQL in `supabase/manager_vouchers.sql`. | ✅ applied | 12 Aug 2026 |
 | bar (via integration session, founder-directed) | **NEW: 15 tables + 7 views — the BAR stock/cost/margin/ordering system.** `bar_suppliers`, `bar_products`, `bar_prep_recipes`, `bar_production_log`, `bar_stocktakes`, `bar_stocktake_sheets`, `bar_stocktake_lines`, `bar_orders`, `bar_order_lines`, `bar_price_history`, `bar_menu_items`, `bar_recipe_lines`, `bar_sales_daily`, `bar_covers`, `bar_waste`; views `bar_cost_base`, `bar_margins`, `bar_on_hand`, `bar_usage_actual`, `bar_usage_theoretical`, `bar_variance`, `bar_stock_value`; trigger `bar_capture_price` on `bar_order_lines`. Additive only — `bar_reservations` and `bar_helpers` untouched. RLS on, no policies (service-role only). SQL in `supabase/bar_stock_system.sql`. Dry-run in a rolled-back txn first; verified with a rolled-back fixture (Corona case-of-24 bought / bottles counted → 113 used, correct). All tables currently EMPTY — seeding is the next slice. | ✅ applied | 17 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
+
+## 20 Aug 2026 — till lane touched public/sw.js (de-facto shared: bar lane's toilet push lives in it)
+The service worker now does SAFE offline caching (the till must survive an internet
+outage): `/assets/*` + Google Fonts cache-first (Vite content-hashes them, so a cached
+copy can never be stale), everything else same-origin NETWORK-FIRST with the last good
+copy used only when the network fails, offline navigations fall back to the cached app
+shell. **The old guarantee holds: online devices always get the newest build.** Supabase
+calls untouched. Push + notificationclick handlers (toilet hygiene) preserved verbatim.
+Also new: `till-manifest.webmanifest` + till icons — the Till tab swaps the manifest in
+at runtime so Add-to-Home-Screen from the till installs "No Dice Till" (opens on the
+register); every other page still installs the staff app exactly as before.
+Bar lane: shout if push misbehaves — the handlers were not edited.
+
+## 20 Aug 2026 — till lane touched CLAUDE.md (shared file, one line)
+The "## Project" intro said the app deploys at **nodice.bar** — stale since the public
+customer site (Next.js repo) took that domain; public/CNAME says **team.nodice.bar**.
+Founder got a 404 from a link built off the stale line. Fixed the line + added a warning.
+Claimed, edited, shipped same hour.
+
+## 21 Aug 2026 — FEATURE REQUEST for the kitchen lane (founder-directed, logged by integration session)
+**On A Roll needs a daily order cutoff timer: food orders must stop going through
+automatically at 22:05 (5 past 10pm) every day.** Right now `food_settings` only has
+the manual `paused` flag and the busy `auto_pause`/`auto_threshold` — nothing
+time-of-day based, so ordering stays open all night unless someone remembers to pause.
+Founder wants it automatic. Suggested shape (kitchen lane's call): add a daily-cutoff
+setting to `food_settings` (e.g. `cutoff_enabled` + `cutoff_time` default 22:05,
+Europe/London), enforce it server-side in the `food-order` fn (`createOrder` rejects,
+`getStatus` reports closed so the customer page shows it), and surface an on/off +
+time control in the kitchen settings UI. Mind the waitlist drain cron — it must not
+text "you can order again" after cutoff. No claim on any file — this is a to-do note,
+not an edit; kitchen lane picks it up and deletes this section when done.
 
 ## Known architecture debt (all lanes — don't make it worse)
 **`SEND_SECRET` ships in the public JS bundle** (`src/marketing/data/backend.js`) — so
@@ -60,6 +99,7 @@ your lane owns, and always from the latest merged `main`. If you deploy, jot it 
 so others know the live backend moved.
 
 - **`pingpong`** edge function deployed (`--no-verify-jwt`) — 3 Aug 2026, tournament lane. New function, owned by the tournament lane alongside `tournament`.
+- **`till`** — NEW edge function (till lane, 20 Aug 2026): read-only, founder-gated; returns bar_cost_base + bar_margins for the Till catalogue tab. ⏳ NOT yet deployed — the machine's Supabase token expired; deploy `--no-verify-jwt` pending a fresh PAT from the founder. Until then the Till tab shows the layout with "couldn't load costs".
 - **`tournament` + `pingpong`** redeployed with WhatsApp up-next wiring — 11 Aug 2026, tournament lane. New project secrets: `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_WA_FROM` (sandbox sender for the trial) / `TWILIO_CONTENT_SID_UP_NEXT`. Messaging stays dormant-safe: send failures never affect tournament flow.
 
 ## 20 Aug 2026 — tournament lane touched src/ops/OpsApp.jsx (shared file)

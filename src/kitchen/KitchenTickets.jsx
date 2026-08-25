@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus, listHistory, getStatus, setSettings } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer, markPaidAtBar } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -7,7 +7,7 @@ import { listOrders, setOrderStatus, listHistory, getStatus, setSettings } from 
 // Lives in /ops → Kitchen. Polls every 10s so a fresh order shows without a reload.
 
 const BLUE = '#183fa0', RED = '#e0231b', GREEN = '#1f8a4d', INK = '#15305c', LINE = '#cabfa2', MUTED = 'rgba(255,255,255,0.55)'
-const AMBER = '#E8B84B'
+const AMBER = '#E8B84B', STAFF = '#78716c'
 const HEAVY = "Impact, 'Arial Narrow Bold', sans-serif"
 const FLAG_MS = 12 * 60 * 1000    // flag any order still open past 12 minutes
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
@@ -18,30 +18,53 @@ export default function KitchenTickets() {
   const [err, setErr] = useState('')
   const [busy, setBusy] = useState(false)
   const [sound, setSound] = useState(true)
-  const [showHistory, setShowHistory] = useState(false)
+  const [flashOn, setFlashOn] = useState(true)
+  const [view, setView] = useState('live')   // 'live' | 'history' | 'failed'
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
   const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
+  const [flash, setFlash] = useState(0)   // bumps on a new order → full-screen white flash
   const [, tick] = useState(0)
   const seen = useRef(new Set())
   const soundRef = useRef(true)
+  const flashRef = useRef(true)
+  const audioRef = useRef(null)
+  const acting = useRef(new Set())          // order ids mid-action → ignore rapid re-taps
+  const [soundReady, setSoundReady] = useState(false)
   useEffect(() => { soundRef.current = sound }, [sound])
+  useEffect(() => { flashRef.current = flashOn }, [flashOn])
 
+  // One shared AudioContext, resumed on a user gesture — browsers keep audio
+  // SUSPENDED until the user interacts, which is why the ding wasn't firing.
+  const ensureAudio = () => {
+    try {
+      if (!audioRef.current) audioRef.current = new (window.AudioContext || window.webkitAudioContext)()
+      const ctx = audioRef.current
+      if (ctx.state === 'suspended') ctx.resume().then(() => setSoundReady(ctx.state === 'running')).catch(() => {})
+      else setSoundReady(ctx.state === 'running')
+      return ctx
+    } catch { return null }
+  }
   const beep = () => {
     if (!soundRef.current) return
+    const ctx = ensureAudio()
+    if (!ctx || ctx.state !== 'running') return
     try {
-      const a = new (window.AudioContext || window.webkitAudioContext)()
-      const o = a.createOscillator(), g = a.createGain()
-      o.connect(g); g.connect(a.destination); o.type = 'sine'; o.frequency.value = 880
-      g.gain.setValueAtTime(0.001, a.currentTime); g.gain.exponentialRampToValueAtTime(0.4, a.currentTime + 0.02)
-      g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.35); o.start(); o.stop(a.currentTime + 0.36)
+      const ping = (freq, t0, dur) => {
+        const o = ctx.createOscillator(), g = ctx.createGain()
+        o.connect(g); g.connect(ctx.destination); o.type = 'sine'; o.frequency.value = freq
+        const t = ctx.currentTime + t0
+        g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(0.55, t + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + dur)
+        o.start(t); o.stop(t + dur + 0.02)
+      }
+      ping(880, 0, 0.32); ping(1245, 0.16, 0.42)   // two-tone ding-dong
     } catch { /* ignore */ }
   }
 
   const load = async () => {
     try {
       const r = await listOrders(); const list = r.orders || []
-      if (seen.current.size) { for (const o of list) { if (!seen.current.has(o.id) && o.status !== 'ready') { beep(); break } } }
+      if (seen.current.size) { for (const o of list) { if (!seen.current.has(o.id) && o.status === 'new') { beep(); if (flashRef.current) setFlash(f => f + 1); break } } }
       for (const o of list) seen.current.add(o.id)
       setOrders(list); setErr('')
     } catch (e) { setErr(e.message); setOrders(o => (o == null ? [] : o)) }
@@ -63,23 +86,41 @@ export default function KitchenTickets() {
     const poll = setInterval(() => { load(); loadPause() }, 10000)
     const statsPoll = setInterval(loadStats, 30000)
     const clock = setInterval(() => tick(t => t + 1), 1000)
-    return () => { clearInterval(poll); clearInterval(statsPoll); clearInterval(clock) }
+    const unlock = () => ensureAudio()   // first tap/key unlocks the ding
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => { clearInterval(poll); clearInterval(statsPoll); clearInterval(clock); window.removeEventListener('pointerdown', unlock); window.removeEventListener('keydown', unlock) }
   }, [])   // eslint-disable-line
 
-  const act = async (o, status) => { setBusy(true); try { await setOrderStatus(o.id, status, ''); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
-  const openHistory = async () => { setShowHistory(true); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
+  // Instant, optimistic status change: update the card immediately, fire the server
+  // call in the background, and IGNORE re-taps on the same order for 600ms so a
+  // double-tap can't skip a step (e.g. collected before it's even cooked).
+  const act = (o, status) => {
+    if (acting.current.has(o.id)) return
+    acting.current.add(o.id)
+    setOrders(list => (list || []).map(x => x.id === o.id ? { ...x, status, ...(status === 'ready' ? { ready_at: new Date().toISOString() } : {}) } : x))
+    setOrderStatus(o.id, status, '')
+      .catch(e => { alert(e.message); load() })
+      .finally(() => { setTimeout(() => { acting.current.delete(o.id); load(); loadStats() }, 600) })
+  }
+  const resend = async (o) => { setBusy(true); try { const r = await resendReady(o.id); alert(r.texted ? `Re-sent the “ready” text to ${o.customer_name || 'the customer'}.` : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const reply = async (o) => { const m = prompt(`Text ${o.customer_name || 'the customer'} (Order #${o.order_no}):`, ''); if (!m || !m.trim()) return; setBusy(true); try { const r = await textCustomer(o.id, m.trim()); alert(r.texted ? 'Sent ✓' : 'Could not send — check the number.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const paidAtBar = async (o) => { setBusy(true); try { await markPaidAtBar(o.id); await load(); loadStats() } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const openHistory = async () => { setView('history'); setHistory(null); try { const r = await listHistory(); setHistory(r.orders || []) } catch (e) { alert(e.message); setHistory([]) } }
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
   const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(0, n) })) } catch (e) { alert(e.message) } }
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
-  const active = orders.filter(o => o.status !== 'collected')
-  const flagged = active.filter(o => o.status !== 'ready' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
+  const failed = orders.filter(o => o.status === 'card_failed')
+  const active = orders.filter(o => o.status !== 'collected' && o.status !== 'card_failed')
+  const flagged = active.filter(o => o.status !== 'ready' && o.code_kind !== 'staff' && Date.now() - new Date(o.created_at).getTime() > FLAG_MS)
   const avgColor = stats.avgSec == null ? MUTED : stats.avgSec > 12 * 60 ? RED : stats.avgSec > 8 * 60 ? AMBER : GREEN
   return (
     <div>
-      <style>{`@keyframes oarflash{0%,100%{box-shadow:0 0 0 0 rgba(224,35,27,.65)}50%{box-shadow:0 0 0 5px rgba(224,35,27,0)}}`}</style>
+      <style>{`@keyframes oarflash{0%,100%{box-shadow:0 0 0 0 rgba(224,35,27,.65)}50%{box-shadow:0 0 0 5px rgba(224,35,27,0)}}@keyframes oarwhite{0%{opacity:.92}100%{opacity:0}}`}</style>
+      {flash > 0 && <div key={flash} style={{ position: 'fixed', inset: 0, background: '#fff', zIndex: 9999, pointerEvents: 'none', animation: 'oarwhite 0.55s ease-out forwards' }} />}
       <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 12 }}>
         <div style={{ flex: '1 1 190px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
           <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>⏱ Avg time to service · tonight</div>
@@ -98,6 +139,50 @@ export default function KitchenTickets() {
           </div>
         )}
       </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
+        {[['live', `🎫 Live${active.length ? ` · ${active.length}` : ''}`], ['history', '📋 History'], ...(failed.length ? [['failed', `❌ Card failed · ${failed.length}`]] : [])].map(([k, l]) => (
+          <button key={k} onClick={() => k === 'history' ? openHistory() : setView(k)}
+            style={{ fontSize: 14, fontWeight: 800, background: view === k ? (k === 'failed' ? RED : BLUE) : 'none', border: `1px solid ${view === k ? (k === 'failed' ? RED : BLUE) : LINE}`, color: '#fff', borderRadius: 9, padding: '10px 16px', cursor: 'pointer' }}>{l}</button>
+        ))}
+        {sound && !soundReady && (
+          <button onClick={() => { ensureAudio(); setTimeout(beep, 150) }} style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 800, background: AMBER, color: '#1a1a1a', border: 'none', borderRadius: 9, padding: '9px 14px', cursor: 'pointer', animation: 'oarflash 1.4s infinite' }}>🔊 Tap to enable sound</button>
+        )}
+        <label style={{ marginLeft: soundReady || !sound ? 'auto' : 0, fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={sound} onChange={e => { setSound(e.target.checked); if (e.target.checked) ensureAudio() }} /> Ding on new {sound && soundReady ? '🔊' : ''}
+        </label>
+        <label style={{ fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
+          <input type="checkbox" checked={flashOn} onChange={e => setFlashOn(e.target.checked)} /> ⚡ Flash on new
+        </label>
+      </div>
+
+      {view === 'history' && <HistoryView history={history} />}
+
+      {view === 'failed' && (
+        <div>
+          <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 10, lineHeight: 1.5 }}>Cards that declined — the customer may think they've ordered. Take the money at the bar and “make it”, text them, or dismiss.</div>
+          {failed.length === 0
+            ? <div style={{ color: MUTED, fontSize: 14, padding: '30px 0', textAlign: 'center' }}>No failed card payments right now.</div>
+            : failed.map(o => {
+                const its = (Array.isArray(o.items) ? o.items : []).map(it => `${it.qty}× ${it.name}`).join(', ')
+                return (
+                  <div key={o.id} style={{ background: '#fff', border: `2px solid ${RED}`, borderRadius: 12, padding: '13px 15px', marginBottom: 10, color: INK }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'baseline', flexWrap: 'wrap' }}>
+                      <span style={{ fontFamily: HEAVY, fontSize: 24, color: RED }}>#{o.order_no}</span>
+                      <span style={{ fontSize: 16, flex: 1, minWidth: 0 }}><b>{o.customer_name || '—'}</b> · {its || '—'} · <b>£{(o.total_pence / 100).toFixed(2)}</b></span>
+                    </div>
+                    {o.customer_note && <div style={{ fontSize: 14, color: BLUE, marginTop: 4 }}>📝 {o.customer_note}</div>}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 11 }}>
+                      <button disabled={busy} onClick={() => paidAtBar(o)} style={{ ...btn(GREEN, '#fff'), flex: 2 }}>✓ Paid at bar — make it</button>
+                      {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1 }}>💬 Text</button>}
+                      <button disabled={busy} onClick={() => act(o, 'cancelled')} style={{ ...btn('#fff', '#8a8275', LINE), flex: 1 }}>✕ Dismiss</button>
+                    </div>
+                  </div>
+                )
+              })}
+        </div>
+      )}
+
+      {view === 'live' && <>
       {pause && (
         <div style={{ marginBottom: 12 }}>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -115,54 +200,62 @@ export default function KitchenTickets() {
           )}
         </div>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-        <div style={{ fontSize: 13, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{active.length ? `${active.length} live order${active.length > 1 ? 's' : ''}` : 'No live orders'}</div>
-        <button onClick={showHistory ? () => setShowHistory(false) : openHistory} style={{ fontSize: 12, fontWeight: 700, background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 8, padding: '6px 11px', cursor: 'pointer' }}>{showHistory ? '← Live orders' : '📋 Order history'}</button>
-        <label style={{ marginLeft: 'auto', fontSize: 12, color: MUTED, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' }}>
-          <input type="checkbox" checked={sound} onChange={e => setSound(e.target.checked)} /> Ding on new
-        </label>
-      </div>
-
-      {showHistory ? <HistoryView history={history} /> : <>
       {err && <div style={{ fontSize: 12, color: RED, background: '#fff', border: `1px solid ${LINE}`, borderRadius: 10, padding: '10px 12px', marginBottom: 12, lineHeight: 1.5 }}>
         Can't reach orders yet — {err}. Orders appear here once the <code>food-order</code> backend is deployed.
       </div>}
 
       {active.length === 0 && !err && <div style={{ color: MUTED, fontSize: 14, padding: '44px 0', textAlign: 'center' }}>No orders on the go. New paid orders land here and ding. 🔔</div>}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(232px, 1fr))', gap: 14 }}>
         {active.map(o => {
           const items = Array.isArray(o.items) ? o.items : []
           const waitMs = Date.now() - new Date(o.created_at).getTime()
           const wait = mmss(waitMs)
           const ready = o.status === 'ready'
-          const overdue = !ready && waitMs > FLAG_MS
-          const headBg = overdue ? RED : ready ? GREEN : BLUE
+          const isStaff = o.code_kind === 'staff'
+          const overdue = !ready && !isStaff && waitMs > FLAG_MS
+          const headBg = overdue ? RED : ready ? GREEN : isStaff ? STAFF : BLUE
           return (
             <div key={o.id} style={{ background: '#fff', border: `2px solid ${headBg}`, borderRadius: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', animation: overdue ? 'oarflash 1.2s infinite' : 'none' }}>
-              <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '7px 12px' }}>
-                <span style={{ fontFamily: HEAVY, fontSize: 24, letterSpacing: '1px' }}>#{o.order_no}</span>
-                <span style={{ fontSize: 12, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
+              <div style={{ background: headBg, color: '#fff', display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', padding: '9px 13px' }}>
+                <span style={{ fontFamily: HEAVY, fontSize: 30, letterSpacing: '1px' }}>#{o.order_no}</span>
+                <span style={{ fontSize: 13.5, opacity: 0.95, textTransform: 'uppercase', fontWeight: overdue ? 800 : 400 }}>{o.customer_name || '—'}{o.paid ? ' · paid' : ''} · {overdue ? '⚠ ' : ''}{wait}</span>
               </div>
-              <div style={{ padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 9 }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {items.map((it, i) => (
-                    <div key={i} style={{ display: 'flex', gap: 8, fontSize: 16, fontWeight: 700, color: INK }}>
-                      <span style={{ fontFamily: HEAVY, color: RED, minWidth: 22 }}>{it.qty}×</span>
-                      <span>{it.name}</span>
-                    </div>
-                  ))}
+              <div style={{ padding: '13px 13px', display: 'flex', flexDirection: 'column', gap: 11 }}>
+                {o.order_code && <div style={{ fontSize: 12.5, fontWeight: 800, color: '#fff', background: isStaff ? STAFF : '#5B8DEF', borderRadius: 6, padding: '4px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎟 {o.code_label || o.order_code}{isStaff ? ' · STAFF — no rush' : ' · on tab'}</div>}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                  {items.map((it, i) => {
+                    const opts = Array.isArray(it.options) ? it.options : []
+                    // a "Make it a …" add-on RENAMES the dish (Chips → Cheesy Chip Butty); others are extras.
+                    const renameOpt = opts.find(o => /^make it /i.test(o.name || ''))
+                    const title = renameOpt ? (renameOpt.name || '').replace(/^make it (a |an |the )?/i, '').trim() : it.name
+                    const extras = opts.filter(o => o !== renameOpt)
+                    return (
+                      <div key={i}>
+                        <div style={{ display: 'flex', gap: 10, fontSize: 19, fontWeight: 700, color: INK }}>
+                          <span style={{ fontFamily: HEAVY, color: RED, minWidth: 26 }}>{it.qty}×</span>
+                          <span>{title}</span>
+                        </div>
+                        {extras.map((o, j) => <div key={j} style={{ marginLeft: 36, fontSize: 15, fontWeight: 600, color: '#5a6' }}>＋ {o.name}</div>)}
+                      </div>
+                    )
+                  })}
                 </div>
                 {o.allergen_note && <div style={{ fontSize: 12, fontWeight: 700, color: '#fff', background: RED, borderRadius: 6, padding: '5px 8px', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚠ Allergy: {o.allergen_note}</div>}
+                {o.customer_note && <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', background: BLUE, borderRadius: 6, padding: '6px 9px' }}>📝 {o.customer_note}</div>}
                 {ready
                   ? <>
                       <div style={{ fontSize: 13, color: GREEN, fontWeight: 700, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.5px' }}>✓ Texted — waiting to collect</div>
-                      <button disabled={busy} onClick={() => act(o, 'collected')} style={btn(INK, '#fff')}>Collected</button>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button disabled={busy} onClick={() => resend(o)} style={{ ...btn('#fff', BLUE, BLUE), flex: 1, fontSize: 15, padding: '13px' }}>🔁 Resend text</button>
+                        <button onClick={() => act(o, 'collected')} style={{ ...btn(INK, '#fff'), flex: 1 }}>Collected</button>
+                      </div>
                     </>
                   : <>
-                      {o.status !== 'preparing' && <button disabled={busy} onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
-                      <button disabled={busy} onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
+                      {o.status !== 'preparing' && <button onClick={() => act(o, 'preparing')} style={btn('#fff', BLUE, BLUE)}>Start cooking</button>}
+                      <button onClick={() => act(o, 'ready')} style={btn(GREEN, '#fff')}>✓ Ready — text customer</button>
                     </>}
+                {o.customer_phone && <button disabled={busy} onClick={() => reply(o)} style={{ background: 'none', border: 'none', color: '#8a8275', fontSize: 12, fontWeight: 700, cursor: 'pointer', padding: '2px', textDecoration: 'underline' }}>💬 Text customer</button>}
               </div>
             </div>
           )
@@ -212,4 +305,4 @@ function HistoryView({ history }) {
     </div>
   )
 }
-function btn(bg, color, border) { return { border: border ? `2px solid ${border}` : 'none', borderRadius: 9, padding: '12px', fontFamily: HEAVY, fontSize: 16, letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', background: bg, color } }
+function btn(bg, color, border) { return { border: border ? `2px solid ${border}` : 'none', borderRadius: 10, padding: '16px 12px', fontFamily: HEAVY, fontSize: 19, letterSpacing: '0.5px', textTransform: 'uppercase', cursor: 'pointer', background: bg, color } }

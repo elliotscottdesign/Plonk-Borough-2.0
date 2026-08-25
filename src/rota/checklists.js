@@ -222,8 +222,10 @@ const DAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Frid
 export const CHECKLIST_ORDER = ['opening', 'during', 'closing', 'toilet', 'foh', 'deep-clean', 'weekly']
 
 // Sections for a checklist on a given date — FOH's tasks change by weekday.
-export function checklistSections(key, dateStr) {
-  const c = CHECKLISTS[key]
+// `source` defaults to the built-in CHECKLISTS; pass a live-override map to honour
+// founder edits (see src/lib/liveChecklists.js). Backward-compatible.
+export function checklistSections(key, dateStr, source = CHECKLISTS) {
+  const c = source[key]
   if (!c) return []
   if (c.byWeekday) {
     const wd = dateStr ? new Date(dateStr + 'T00:00:00Z').getUTCDay() : new Date().getDay()
@@ -232,7 +234,7 @@ export function checklistSections(key, dateStr) {
   }
   return c.sections || []
 }
-export const checklistItems = (key, dateStr) => checklistSections(key, dateStr).flatMap(s => s.items)
-export const checklistCount = (key, dateStr) => checklistItems(key, dateStr).length
+export const checklistItems = (key, dateStr, source = CHECKLISTS) => checklistSections(key, dateStr, source).flatMap(s => s.items)
+export const checklistCount = (key, dateStr, source = CHECKLISTS) => checklistItems(key, dateStr, source).length
 // How many of a submission's items are ticked (ignores stale keys not in the template).
-export const doneCount = (key, items, dateStr) => checklistItems(key, dateStr).filter(t => items && items[t]).length
+export const doneCount = (key, items, dateStr, source = CHECKLISTS) => checklistItems(key, dateStr, source).filter(t => items && items[t]).length

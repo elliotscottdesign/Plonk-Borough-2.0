@@ -26,9 +26,9 @@ Deno.serve(async (req) => {
 
   try {
     if (action === "getMenu") {
-      const { data, error } = await sb.from("menu_catalog").select("sections,bundles,updated_at").eq("id", 1).maybeSingle();
+      const { data, error } = await sb.from("menu_catalog").select("sections,bundles,vat_registered,updated_at").eq("id", 1).maybeSingle();
       if (error) return json({ error: error.message }, 400);
-      return json({ ok: true, sections: data?.sections || [], bundles: data?.bundles || [], updated_at: data?.updated_at || null });
+      return json({ ok: true, sections: data?.sections || [], bundles: data?.bundles || [], vat_registered: !!data?.vat_registered, updated_at: data?.updated_at || null });
     }
 
     if (action === "saveMenu") {
@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
       // Basic bound: keep the doc sane (the menu is small).
       if (JSON.stringify({ sections, bundles }).length > 800_000) return json({ error: "menu too large" }, 400);
       const { error } = await sb.from("menu_catalog")
-        .upsert({ id: 1, sections, bundles, updated_at: new Date().toISOString(), updated_by: String(b.by || "").slice(0, 60) || null });
+        .upsert({ id: 1, sections, bundles, vat_registered: !!b.vat_registered, updated_at: new Date().toISOString(), updated_by: String(b.by || "").slice(0, 60) || null });
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true });
     }

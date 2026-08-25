@@ -15,6 +15,7 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **DJs** | `Sites/nodice/team-sessions/dj` |
 | **Rota / staff** | `Sites/nodice/team-sessions/rota` |
 | **Tournaments / pool** | `Sites/nodice/team-sessions/tournament` |
+| **Till** (our own EPOS — read CLAUDE-TILL.md first) | `Sites/nodice/team-sessions/till` |
 | **Ops info** (reports, docs, key dates) | `Sites/nodice/team-sessions/ops` |
 | **Marketing** | `Sites/nodice/team-sessions/marketing` |
 | **Kitchen** | `Sites/nodice/team-sessions/kitchen` |
