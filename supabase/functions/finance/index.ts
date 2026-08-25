@@ -634,6 +634,39 @@ Deno.serve(async (req) => {
         return json({ ok: true, dryRun: dry, considered: (pending ?? []).length, attached, skipped })
       }
 
+      /* ---------------------------------------------------------------- */
+      /* WHO YOUR SUPPLIERS ARE — derived, never typed                      */
+      /*                                                                    */
+      /* The invoice sweep used to run off a hand-written list of five      */
+      /* suppliers, which meant a new account was invisible until someone   */
+      /* remembered to edit the script. Xero already knows every party you  */
+      /* have ever paid, so it is the list. Add a supplier, pay them once,  */
+      /* and the sweep covers them from the next run with no code change.   */
+      /* ---------------------------------------------------------------- */
+      case 'supplierNames': {
+        const row = await xeroRow()
+        const token = await xeroAccessToken()
+        if (!token || !row?.tenant_id) return json({ error: 'Xero is not connected' }, 400)
+
+        const seen = new Map<string, { name: string; n: number; total: number; undocumented: number }>()
+        for (let pageNo = 1; pageNo <= 6; pageNo++) {
+          const data = await xeroGet(`/BankTransactions?page=${pageNo}`, token, row.tenant_id)
+          const batch = data.BankTransactions ?? []
+          for (const t of batch) {
+            if (t.Type !== 'SPEND' || t.Status === 'DELETED' || t.Status === 'VOIDED') continue
+            const nm = (t.Contact?.Name ?? '').trim()
+            if (!nm) continue
+            const e = seen.get(nm.toLowerCase()) ?? { name: nm, n: 0, total: 0, undocumented: 0 }
+            e.n++; e.total += Number(t.Total) || 0
+            if (!t.HasAttachments) e.undocumented++
+            seen.set(nm.toLowerCase(), e)
+          }
+          if (batch.length < 100) break
+        }
+        const suppliers = [...seen.values()].sort((a, b) => b.total - a.total)
+        return json({ ok: true, count: suppliers.length, suppliers })
+      }
+
       default:
         return json({ error: 'Unknown action' }, 400)
     }
