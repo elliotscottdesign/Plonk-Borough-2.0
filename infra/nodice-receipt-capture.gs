@@ -69,7 +69,59 @@ var CONFIG = {
   MAX_PER_RUN: 60,
 
   LABEL_FILED:  'Receipts/Filed',
-  LABEL_REVIEW: 'Receipts/Needs review'
+  LABEL_REVIEW: 'Receipts/Needs review',
+
+  // ── Supplier invoices ────────────────────────────────────────────────────
+  // Separate from receipts, and it goes somewhere different. A receipt is
+  // evidence for card spend; a supplier invoice is the paperwork behind a
+  // payment made on terms, often weeks later. Both end up attached to the
+  // bank payment, but the matching window is completely different, so they
+  // are marked as they are sent.
+  FINANCE_FN:   'https://rntcujcpsozvuxvmlejv.supabase.co/functions/v1/finance',
+  FINANCE_KEY:  '33394275513216b85489a6f16f61fb6646ace49365b12f74',
+  LABEL_INVOICE: 'Receipts/Invoice filed'
+};
+
+/**
+ * SUPPLIER INVOICES — who counts as a supplier is NOT typed here.
+ *
+ * The first version listed five trade accounts by hand, which meant a new
+ * account stayed invisible until someone remembered to edit this file. There
+ * are 102 suppliers in the books. Hand-maintaining that list is not a system.
+ *
+ * So the sweep asks Xero who has ever been paid, and treats that as the list.
+ * Open an account, pay them once, and they are covered from the next run with
+ * no code change and nothing to remember.
+ *
+ * These rules decide only what an INVOICE looks like, which is the same
+ * whoever sent it.
+ */
+var INVOICE_RULES = {
+
+  // Broad on purpose. Being wrong here is cheap — the supplier check and the
+  // amount check below throw out anything that isn't real.
+  queries: [
+    'has:attachment (subject:invoice OR subject:"tax invoice" OR subject:bill)',
+    'from:messaging-service@post.xero.com subject:invoice',
+    'subject:invoice has:attachment',
+    'subject:"your invoice"'
+  ],
+
+  // Never an invoice, whoever sends it. This list is the difference between a
+  // clean ledger and the ~£6,000 of fake bills August produced: an order
+  // acknowledgement, a statement and a delivery note all say "invoice"
+  // somewhere and none of them is one.
+  reject: /not an invoice|statement|order acknowledgement|order confirmation|delivery note|despatch|dispatch|quote|quotation|remittance|reminder|overdue|purchase order|credit note|receipt from|payment received|thank you for your payment/i,
+
+  // Pull an invoice number out if one is there — any sensible format.
+  ref: /(?:invoice|inv|bill)\s*(?:no\.?|number|#|:)?\s*([A-Z]{0,4}[-\/]?\d{3,}[A-Z0-9\-\/]*)/i,
+
+  // How closely the sender or subject must resemble a known supplier.
+  // 0.5 tolerates "The Drinks Club" vs "orders@thedrinksclub.com" while still
+  // refusing an unrelated company that happens to email you an invoice.
+  minNameScore: 0.5,
+
+  lookbackDays: 180
 };
 
 /**
@@ -522,6 +574,18 @@ function report_(filed, review, skipped) {
           + '<th align="right">Amount</th><th align="left">Found via</th></tr>' + rows + '</table>'
         : '<p>Nothing new.</p>')
     + (probs ? '<h3>Needs a look</h3><ul>' + probs + '</ul>' : '')
+    + (unknown.length
+        ? '<h3>Invoice-shaped, but not from anyone you have paid</h3>'
+          + '<p style="font-size:13px;color:#666">Never filed automatically. A brand new supplier will '
+          + 'appear here until you have paid them once — after that they are recognised on their own.</p><ul>'
+          + unknown.map(function (u) {
+              return '<li>' + escapeHtml_(u.from) + ' &mdash; ' + escapeHtml_(u.subject)
+                   + (u.amount ? ' (&pound;' + escapeHtml_(u.amount) + ')' : '') + '</li>';
+            }).join('') + '</ul>'
+        : '')
+    + '<p style="margin-top:20px;font-size:12px;color:#888">Checked against '
+    + (supplierCount || 0) + ' suppliers Xero knows you have paid. Nobody is listed in this script &mdash; '
+    + 'add a supplier, pay them once, and they are covered.</p>'
     + (CONFIG.DRY_RUN
         ? '<p style="margin-top:24px;padding:12px;background:#fff8e1;border-left:4px solid #f0b429">'
           + '<b>Preview only.</b> To start filing for real, set '
@@ -558,4 +622,226 @@ function resetLabels() {
     if (l) l.deleteLabel();
   });
   return 'Labels cleared — the next run will look at everything again.';
+}
+
+
+/* ------------------------------------------------------------------ */
+/* SUPPLIER INVOICES                                                   */
+/*                                                                     */
+/* Separate from receipts on purpose, and it takes a different route.  */
+/* A receipt goes to Xero's Files inbox. An invoice goes into the      */
+/* finance service, which matches it to the bank payment and attaches  */
+/* it — because an invoice is paid on TERMS, often weeks after it was  */
+/* issued, and needs a much wider search than a card receipt.          */
+/*                                                                     */
+/* Run  sweepInvoices  by hand. First run reports only; set            */
+/* INVOICE_DRY to false when the list looks right.                     */
+/* ------------------------------------------------------------------ */
+
+var INVOICE_DRY = true;
+
+function sweepInvoices() {
+  var label = ensureLabel_(CONFIG.LABEL_INVOICE);
+  var sent = [], review = [], unknown = [];
+
+  // Ask Xero who your suppliers actually are.
+  var suppliers;
+  try {
+    suppliers = financeCall_({ action: 'supplierNames' }).suppliers || [];
+  } catch (e) {
+    GmailApp.sendEmail(CONFIG.REPORT_TO, 'Supplier invoices: could not reach Xero',
+      'The sweep could not fetch the supplier list, so it stopped rather than guess.\n\n' + e);
+    return 'stopped: ' + e;
+  }
+  if (!suppliers.length) return 'no suppliers returned — stopped';
+
+  var seenIds = {};
+
+  for (var qi = 0; qi < INVOICE_RULES.queries.length; qi++) {
+    var q = INVOICE_RULES.queries[qi]
+          + ' newer_than:' + INVOICE_RULES.lookbackDays + 'd'
+          + ' -label:"' + CONFIG.LABEL_INVOICE + '"';
+
+    var threads;
+    try { threads = GmailApp.search(q, 0, 60); } catch (e) { continue; }
+
+    for (var t = 0; t < threads.length; t++) {
+      var msgs = threads[t].getMessages();
+      for (var m = 0; m < msgs.length; m++) {
+        var msg = msgs[m];
+        var id = msg.getId();
+        if (seenIds[id]) continue;          // the queries overlap by design
+        seenIds[id] = 1;
+
+        var subject = msg.getSubject() || '';
+        var from = msg.getFrom() || '';
+        if (INVOICE_RULES.reject.test(subject)) continue;
+        if (from.indexOf(CONFIG.REPORT_TO) > -1) continue;   // our own forwards
+
+        var body = safeBody_(msg);
+        if (INVOICE_RULES.reject.test(body.slice(0, 400))) continue;
+
+        var dateStr = Utilities.formatDate(msg.getDate(), 'Europe/London', 'yyyy-MM-dd');
+        var amount = pickAmount_(body, subject);
+        var refHit = subject.match(INVOICE_RULES.ref) || body.match(INVOICE_RULES.ref);
+        var ref = refHit ? tidy_(refHit[1]) : '';
+
+        // Which of YOUR suppliers is this from? Checked against the sender,
+        // the sender's domain and the subject, because an invoice might name
+        // the supplier in any of the three.
+        var haystack = from + ' ' + subject;
+        var best = null, bestScore = 0;
+        for (var si = 0; si < suppliers.length; si++) {
+          var sc = supplierScore_(suppliers[si].name, haystack);
+          if (sc > bestScore) { bestScore = sc; best = suppliers[si]; }
+        }
+
+        var item = { supplier: best ? best.name : '', from: from, subject: subject,
+                     ref: ref, date: dateStr, amount: amount, score: bestScore.toFixed(2) };
+
+        if (!best || bestScore < INVOICE_RULES.minNameScore) {
+          // Looks like an invoice but isn't from anyone you've paid. Could be a
+          // brand new supplier — or it could be a stranger's invoice. Never
+          // filed automatically; flagged so you can look.
+          item.why = 'not from a supplier in your books';
+          unknown.push(item);
+          continue;
+        }
+        if (!amount) { item.why = 'no total found in the email'; review.push(item); continue; }
+
+        var blob = null;
+        var atts = msg.getAttachments({ includeInlineImages: false });
+        for (var a = 0; a < atts.length; a++) {
+          var ct = atts[a].getContentType() || '';
+          if (ct.indexOf('pdf') > -1 || ct.indexOf('image') > -1) { blob = atts[a].copyBlob(); break; }
+        }
+        if (!blob) {
+          // Xero-to-Xero invoices arrive as a link with nothing attached.
+          blob = htmlToPdf_(msg.getBody() || ('<pre>' + escapeHtml_(body) + '</pre>'), 'invoice.pdf');
+          item.rendered = true;
+        }
+        if (!blob) { item.why = 'could not produce a document'; review.push(item); continue; }
+
+        blob.setName([best.name.replace(/[^A-Za-z0-9]+/g, ''), dateStr, amount].join('_') + '.pdf');
+
+        if (INVOICE_DRY) { sent.push(item); continue; }
+        try {
+          sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+          threads[t].addLabel(label);
+          sent.push(item);
+        } catch (e) {
+          item.why = String(e).slice(0, 160);
+          review.push(item);
+        }
+      }
+    }
+  }
+
+  invoiceReport_(sent, review, unknown, suppliers.length);
+  return 'invoices: ' + sent.length + ' sent, ' + review.length + ' to check, ' + unknown.length + ' unknown';
+}
+
+/**
+ * Does this email belong to that supplier? Compares against the sender, the
+ * sender's domain and the subject. "The Drinks Club" has to recognise
+ * accounts@thedrinksclub.com, so domains are compared with the spaces removed.
+ */
+function supplierScore_(supplierName, haystack) {
+  var norm = function (x) { return String(x || '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim(); };
+  var sup = norm(supplierName), hay = norm(haystack);
+  if (!sup || !hay) return 0;
+
+  var squashedSup = sup.replace(/ /g, '');
+  var squashedHay = hay.replace(/ /g, '');
+  if (squashedHay.indexOf(squashedSup) > -1) return 1;          // thedrinksclub
+
+  // Ignore words that describe every company rather than this one.
+  var noise = { the: 1, ltd: 1, limited: 1, company: 1, co: 1, uk: 1, group: 1, services: 1, and: 1 };
+  var words = sup.split(' ').filter(function (w) { return w.length > 2 && !noise[w]; });
+  if (!words.length) return 0;
+
+  var hit = 0;
+  for (var i = 0; i < words.length; i++) if (squashedHay.indexOf(words[i]) > -1) hit++;
+  return hit / words.length;
+}
+
+/** Upload the document, then register it so the finance service can match it. */
+function sendInvoiceToFinance_(supplier, dateStr, amount, ref, blob) {
+  var up = financeCall_({ action: 'receiptUploadUrl', filename: blob.getName() });
+
+  var putUrl = 'https://rntcujcpsozvuxvmlejv.supabase.co/storage/v1/object/upload/sign/receipts/'
+             + up.path + '?token=' + up.token;
+  var put = UrlFetchApp.fetch(putUrl, {
+    method: 'put', contentType: blob.getContentType() || 'application/pdf',
+    payload: blob.getBytes(), muteHttpExceptions: true,
+  });
+  if (put.getResponseCode() >= 300) throw new Error('upload failed ' + put.getResponseCode());
+
+  financeCall_({
+    action: 'receiptAdd', kind: 'invoice',
+    supplier: supplier, spendDate: dateStr, amount: Number(amount),
+    category: 'business', docRef: ref, imagePath: up.path,
+    note: 'Supplier invoice, filed automatically',
+  });
+}
+
+function financeCall_(payload) {
+  payload.secret = CONFIG.FINANCE_KEY;
+  var res = UrlFetchApp.fetch(CONFIG.FINANCE_FN, {
+    method: 'post', contentType: 'application/json',
+    payload: JSON.stringify(payload), muteHttpExceptions: true,
+  });
+  var body = JSON.parse(res.getContentText() || '{}');
+  if (res.getResponseCode() >= 300) throw new Error(body.error || res.getResponseCode());
+  return body;
+}
+
+function invoiceReport_(sent, review, unknown, supplierCount) {
+  unknown = unknown || [];
+  var mode = INVOICE_DRY ? 'PREVIEW — nothing sent' : 'SENT to be matched';
+  var total = 0, rows = '';
+  for (var i = 0; i < sent.length; i++) {
+    var s = sent[i];
+    total += parseFloat(s.amount || 0);
+    rows += '<tr><td>' + escapeHtml_(ukDate_(s.date)) + '</td><td>' + escapeHtml_(s.supplier) + '</td>'
+          + '<td>' + escapeHtml_(s.ref || '&mdash;') + '</td>'
+          + '<td align="right">&pound;' + escapeHtml_(s.amount) + '</td>'
+          + '<td style="color:#777">' + (s.rendered ? 'rendered from email' : 'PDF attached') + '</td></tr>';
+  }
+  var probs = '';
+  for (var j = 0; j < review.length; j++) {
+    probs += '<li>' + escapeHtml_(review[j].supplier) + ' &mdash; ' + escapeHtml_(review[j].subject || '')
+           + ' <span style="color:#a00">' + escapeHtml_(review[j].why || '') + '</span></li>';
+  }
+  var html = '<div style="font-family:Helvetica,Arial;font-size:14px;color:#111">'
+    + '<h2 style="margin-bottom:2px">Supplier invoices — ' + mode + '</h2>'
+    + '<p><b>' + sent.length + '</b> invoices' + (total ? ', <b>&pound;' + total.toFixed(2) + '</b>' : '')
+    + (review.length ? ' &middot; <b style="color:#a00">' + review.length + '</b> need a look' : '') + '</p>'
+    + (rows ? '<table cellpadding="6" style="border-collapse:collapse;font-size:13px">'
+            + '<tr style="background:#f4f4f4"><th align="left">Date</th><th align="left">Supplier</th>'
+            + '<th align="left">Ref</th><th align="right">Amount</th><th align="left">Document</th></tr>'
+            + rows + '</table>' : '<p>Nothing new.</p>')
+    + (probs ? '<h3>Needs a look</h3><ul>' + probs + '</ul>' : '')
+    + (unknown.length
+        ? '<h3>Invoice-shaped, but not from anyone you have paid</h3>'
+          + '<p style="font-size:13px;color:#666">Never filed automatically. A brand new supplier will '
+          + 'appear here until you have paid them once — after that they are recognised on their own.</p><ul>'
+          + unknown.map(function (u) {
+              return '<li>' + escapeHtml_(u.from) + ' &mdash; ' + escapeHtml_(u.subject)
+                   + (u.amount ? ' (&pound;' + escapeHtml_(u.amount) + ')' : '') + '</li>';
+            }).join('') + '</ul>'
+        : '')
+    + '<p style="margin-top:20px;font-size:12px;color:#888">Checked against '
+    + (supplierCount || 0) + ' suppliers Xero knows you have paid. Nobody is listed in this script &mdash; '
+    + 'add a supplier, pay them once, and they are covered.</p>'
+    + (INVOICE_DRY
+        ? '<p style="margin-top:24px;padding:12px;background:#fff8e1;border-left:4px solid #f0b429">'
+          + '<b>Preview only.</b> Set <code>INVOICE_DRY = false</code> to send these.</p>'
+        : '<p style="margin-top:24px;color:#666">Sent to the finance service. Each one is matched to its '
+          + 'bank payment by amount and supplier, then attached. Anything it cannot match with confidence '
+          + 'is left for review rather than guessed at.</p>')
+    + '</div>';
+  GmailApp.sendEmail(CONFIG.REPORT_TO,
+    'Supplier invoices: ' + sent.length + ' found' + (review.length ? ', ' + review.length + ' to check' : ''),
+    'See the HTML version.', { htmlBody: html, name: 'No Dice Receipt Capture' });
 }
