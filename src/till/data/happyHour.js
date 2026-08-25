@@ -81,7 +81,8 @@ export const PAGES = [
   buildHH(),
   ...liveTill.pages
     .map(pg => ({ ...pg, products: pg.products.filter(p => !REMOVED.test(p.name)) }))
-    .filter(pg => pg.products.length > 0),
+    // Mocktails page removed from the till (founder, 21 Aug 2026).
+    .filter(pg => pg.products.length > 0 && pg.name !== 'Mocktails'),
 ]
 
 // Folder navigation tiles: the main cocktails page ends with 📁 Classics
