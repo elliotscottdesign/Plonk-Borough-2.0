@@ -11,7 +11,7 @@ export const ORDER_URL = 'https://nodice.bar/onaroll'
 
 const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
-export function exportMenu(sections, mode = 'print') {
+export function exportMenu(sections, mode = 'print', vatOn = false) {
   const secs = (sections || []).filter(s => s.id !== 'bar')
   const inner = secs.map(sec => {
     const its = sec.items.filter(it => it.name)
@@ -25,7 +25,7 @@ export function exportMenu(sections, mode = 'print') {
     }).join('')
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="a5body"><div class="msub">London Fields · open til 10pm</div>${inner}</div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering · all prices inc VAT</div></div>`
+  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="a5body"><div class="msub">London Fields · open til 10pm</div>${inner}</div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering${vatOn ? ' · all prices include VAT' : ''}</div></div>`
   const isPdf = mode === 'pdf'
   const ORDER = JSON.stringify(ORDER_URL)
   const libs = isPdf

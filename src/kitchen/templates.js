@@ -222,7 +222,9 @@ export function targetLabel(target) {
 }
 
 // Flatten a template's items (across groups) — used to score completion + validate.
-export function templateItems(cadence) {
-  const t = KITCHEN_TEMPLATES[cadence]
-  return t ? t.groups.flatMap(g => g.items) : []
+// `templates` defaults to the built-in set; pass a live-override map to honour
+// founder edits (see src/lib/liveChecklists.js). Backward-compatible.
+export function templateItems(cadence, templates = KITCHEN_TEMPLATES) {
+  const t = templates[cadence]
+  return t ? (t.groups || []).flatMap(g => g.items) : []
 }

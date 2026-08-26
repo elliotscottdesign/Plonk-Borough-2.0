@@ -14,6 +14,7 @@ import {
 const GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33', PURPLE = '#A855F7', BLUE = '#60A5FA'
 // Purple league branding across the whole tournament section (cards, borders, buttons).
 const CARD = '#160e24', LINE = 'rgba(168,85,247,0.25)'
+const todayStr = () => new Date().toISOString().slice(0, 10)
 const fmtDate = (d) => d ? new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' }) : ''
 const typeBadge = (t) => t === 'doubles' ? { txt: '👥 Doubles', c: PURPLE } : t === 'singles' ? { txt: '👤 Singles', c: BLUE } : { txt: t || '—', c: 'rgba(255,255,255,0.5)' }
 // Calendar helpers (Mon-first, UK). monthMatrix → array of weeks, each 7 cells of { day, iso } | null.
@@ -204,6 +205,34 @@ export default function Tournament() {
   const undoRound = async () => { if (!window.confirm('Undo the last round? Its matches & scores are removed.')) return; await guard(() => tournDeleteLastRound(run.run.id))() }
   const reopenMatch = (m) => guard(() => tournClearScore(m.id))()
   const startKnockout = async () => { if (!window.confirm(`Cut to the knockout? The top players seed into a single-elimination bracket from the standings.\n\nMatches: race to ${koRaceTo} frames${thirdPlace ? ' · with a 3rd-place match' : ''}${finalBestOf3 ? ' · final + 3rd-place are best of 3' : ''}.`)) return; await guard(() => tournStartKnockout(run.run.id, thirdPlace, koRaceTo, finalBestOf3))() }
+  // Which league does the founder actually want to see? The one belonging to the
+  // night NEAREST to today — the one just played or the one about to be. Opening
+  // on a hard-coded 'singles' meant that after a doubles night you always landed
+  // on the wrong table and had to click across to find out (founder, 20 Aug 2026).
+  // Past and future both count; a tie goes to the upcoming night.
+  const nearestDisc = () => {
+    const today = todayStr()
+    const dated = (tourns || []).filter(t => t.event_date && ['singles', 'doubles'].includes(t.tournament_type))
+    if (!dated.length) return leagueDisc
+    const dist = (t) => {
+      const d = Math.abs((new Date(t.event_date + 'T00:00:00Z') - new Date(today + 'T00:00:00Z')) / 86400000)
+      return d * 2 + (t.event_date >= today ? 0 : 1)   // tie-break toward the upcoming night
+    }
+    return dated.reduce((best, t) => dist(t) < dist(best) ? t : best).tournament_type
+  }
+
+  // The night each discipline is anchored to, so the pill can say WHY it's the
+  // default instead of making you tap to find out.
+  const discContext = (disc) => {
+    const today = todayStr()
+    const mine = (tourns || []).filter(t => t.event_date && t.tournament_type === disc)
+    if (!mine.length) return null
+    const upcoming = mine.filter(t => t.event_date >= today).sort((a, b) => a.event_date.localeCompare(b.event_date))[0]
+    if (upcoming) return { when: 'next', date: upcoming.event_date }
+    const last = mine.sort((a, b) => b.event_date.localeCompare(a.event_date))[0]
+    return { when: 'last', date: last.event_date }
+  }
+
   const loadLeague = async (disc) => { setLeagueDisc(disc); setBusy(true); try { setLeague(await tournGetLeague(disc)) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   // 🔗 Reconnect a returning walk-in's points. Walk-ins have no booking email,
   // so their league identity is the name typed at the bar; when they come back
@@ -225,7 +254,7 @@ export default function Tournament() {
     setBusy(true)
     try { setLeague(await tournUnmergeLeague(leagueDisc, fromKey)) } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
-  const openLeague = async () => { setLeagueView(true); await loadLeague(leagueDisc) }
+  const openLeague = async () => { setLeagueView(true); await loadLeague(nearestDisc()) }
   // 🎟 Voucher redemption (founder brief 12 Aug 2026) — codes lock on redeem.
   const openVouchers = async () => {
     setVoucherView(true); setVouchers(null); setVSearch('')
@@ -357,7 +386,17 @@ export default function Tournament() {
           <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)', marginTop: 3, lineHeight: 1.5 }}>Season points across every finished night — 1st <strong style={{ color: '#fff' }}>5</strong> · 2nd <strong style={{ color: '#fff' }}>4</strong> · 3rd <strong style={{ color: '#fff' }}>3</strong> · turn up <strong style={{ color: '#fff' }}>1</strong> · top the rounds table <strong style={{ color: '#fff' }}>+1</strong>. Level on points → season frame difference. Top 8 seed the grand final. {league ? `${league.nights} night${league.nights === 1 ? '' : 's'} counted.` : ''}</div>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          {['singles', 'doubles'].map(d => <button key={d} onClick={() => loadLeague(d)} style={{ ...pill(leagueDisc === d), textTransform: 'capitalize' }}>{d}</button>)}
+          {['singles', 'doubles'].map(d => {
+            const c = discContext(d)
+            return (
+              <button key={d} onClick={() => loadLeague(d)} style={{ ...pill(leagueDisc === d), textAlign: 'left', lineHeight: 1.25 }}>
+                <span style={{ textTransform: 'capitalize', fontWeight: leagueDisc === d ? 800 : 600 }}>{d}</span>
+                {c && <span style={{ display: 'block', fontSize: 10, opacity: 0.65, fontWeight: 500 }}>
+                  {c.when === 'next' ? 'next' : 'last'} {fmtDate(c.date)}
+                </span>}
+              </button>
+            )
+          })}
         </div>
         {busy && !league ? <div style={muted}>Loading…</div> : rows.length === 0 ? <div style={muted}>No finished {leagueDisc} nights yet — the league fills in as tournaments complete.</div> : (
           <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, overflowX: 'auto' }}>

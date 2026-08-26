@@ -11,10 +11,13 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import ToiletLog from './sections/ToiletLog.jsx'
+import ChecklistEditor from './sections/ChecklistEditor.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
 import Receipts from './sections/Receipts.jsx'
+import TillCatalogue from '../till/TillCatalogue.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
@@ -34,15 +37,20 @@ const GROUPS = [
     key: 'bar', label: 'Bar',
     tabs: [
       { key: 'bar',        label: 'Bar',           Component: Bar },
+      // TILL lane, slice 1 (20 Aug 2026): read-only catalogue of our own till
+      // layout with GP per line. Money on screen → founder-only, like Finances.
+      { key: 'till',       label: 'Till',          Component: TillCatalogue, founderOnly: true },
       { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
       // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
+      { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
     ],
   },
   {
     key: 'kitchen', label: 'Kitchen',
     tabs: [
       { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
+      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
     ],
   },
   {

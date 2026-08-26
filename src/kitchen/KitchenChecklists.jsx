@@ -3,6 +3,7 @@ import { KITCHEN_CADENCES, KITCHEN_TEMPLATES, templateItems, tempFails, targetLa
 import { ALLERGENS, allergenLabel, STATUS_META, statusOf } from './allergens.js'
 import { DEFAULT_MATRIX } from './allergens.js'
 import { kitchenGetDay, kitchenSaveRun, kitchenAddWaste, kitchenDeleteWaste } from './api.js'
+import { useChecklistOverrides, effectiveKitchen } from '../lib/liveChecklists.js'
 import useIsMobile from '../lib/useIsMobile.js'
 
 const RED = '#DA1B33', GREEN = '#34D399', AMBER = '#F59E0B', BLUE = '#60A5FA'
@@ -28,6 +29,8 @@ export default function KitchenChecklists({ token, kitchen }) {
   const [savedFlash, setSavedFlash] = useState(null)   // cadence just saved-as-progress (transient ✓)
   const panelRef = useRef(null)
   const isMobile = useIsMobile()
+  // Live founder edits merged over the built-in sheets (falls back to built-in).
+  const templates = effectiveKitchen(useChecklistOverrides())
 
   const date = kitchen?.date
   const load = async () => { try { setDay(await kitchenGetDay(token, date)) } catch (e) { alert(e.message) } }
@@ -95,7 +98,7 @@ export default function KitchenChecklists({ token, kitchen }) {
     return !!e.done || !!e.issue
   }
 
-  const buildEntries = (cadence) => templateItems(cadence).map(item => {
+  const buildEntries = (cadence) => templateItems(cadence, templates).map(item => {
     const e = local[item.key] || {}
     const is_fail = itemFail(item, e)
     return {
@@ -110,7 +113,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   })
 
   const save = async (cadence, submit) => {
-    const items = templateItems(cadence)
+    const items = templateItems(cadence, templates)
     if (submit) {
       const unanswered = items.filter(it => !itemAnswered(it, local[it.key]))
       if (unanswered.length) { alert(`Answer every item first — ${unanswered.length} still to do.`); return }
@@ -145,7 +148,7 @@ export default function KitchenChecklists({ token, kitchen }) {
   // visible if a run already exists for it that day (mid-shift resume / back-fill).
   const dow = date ? new Date(date + 'T12:00:00').getDay() : null   // 0 Sun … 1 Mon … 6 Sat
   const cadences = KITCHEN_CADENCES.filter(k => {
-    const wd = KITCHEN_TEMPLATES[k].weekday
+    const wd = templates[k]?.weekday
     return wd == null || dow === wd || !!day.runs?.[k]
   })
 
@@ -172,7 +175,7 @@ export default function KitchenChecklists({ token, kitchen }) {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 14 }}>
         {cadences.map(k => {
-          const t = KITCHEN_TEMPLATES[k], run = day.runs?.[k]
+          const t = templates[k], run = day.runs?.[k]
           const isGuidance = !!t.guidance
           const done = run?.status === 'completed'
           const failed = !!run?.has_failure
@@ -206,7 +209,7 @@ export default function KitchenChecklists({ token, kitchen }) {
                     color: '#fff', fontSize: 13, fontWeight: 600,
                     boxShadow: '0 6px 14px rgba(0,0,0,0.5)',
                   }}>‹ All checklists</button>
-                  {t.groups.map(g => (
+                  {(t.groups || []).map(g => (
                     <div key={g.title} style={{ marginBottom: 14 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: BLUE, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>{g.title}</div>
                       {isGuidance ? (
