@@ -626,6 +626,9 @@ export default function PingPong() {
                   {ri === 0 && rms.filter(m => !m.is_bye && m.status === 'done').length === 0 && <button onClick={deleteCurrentRound} disabled={busy} title="Remove this round — only offered while no scores are in" style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.65)', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>🗑 Delete round</button>}
                   {ri === 0 && done < rms.length && <button onClick={() => callPlayers(null, rnd.id)} disabled={busy} title="Text everyone still to play in this round" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>📣 Call players</button>}
                   <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                  {/* ＋ = draw the next round — lives inside the current round's frame
+                      (founder direction 21 Aug 2026), replacing the big button below. */}
+                  {ri === 0 && <button onClick={nextRound} disabled={busy} title="Draw the next round" aria-label="Draw the next round" style={{ ...btn('gold'), width: 30, height: 30, padding: 0, borderRadius: 999, fontSize: 17, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>＋</button>}
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -661,10 +664,7 @@ export default function PingPong() {
                 stay out of the way. Always enabled; pairings use standings so far. */}
             {ri === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, marginBottom: 4 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
-                </div>
-                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
+                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine: ＋ in the round header draws the next round from the standings so far.</div>}
                 {callMsg && (
                   <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
                 )}
