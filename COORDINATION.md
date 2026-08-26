@@ -264,3 +264,9 @@ The card already reads finance-lane data. Nothing else in the file touched.
 Released on merge.
 
 - **16 Aug 2026 · rota lane → dj lane (FYI, done):** one-line edit in `src/dj/MonthCalendar.jsx` — the `TODAY` ring colour changed `#60A5FA` → `#FFFFFF` (founder house rule: today = white ring on ALL calendars; status colours wrap outside it). No logic touched. If the DJ session objects, revert just that constant.
+
+## admin lane — CLAIM on CLAUDE.md + SESSIONS.md, 26 Aug 2026
+
+New lane `admin`. Adding one row to the ownership map and one entry to SESSIONS.md.
+Owns `docs/admin/**` only — no app code, so it cannot collide with any other lane.
+Released on merge.
