@@ -95,6 +95,7 @@ export default function RotaPortal() {
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [kitchen, setKitchen] = useState(null)            // { isKitchen, shiftId, date } — food-safety gate
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
+  const [offCounts, setOffCounts] = useState({})          // date → how many OTHERS are off (cap = 2, first come first served)
   const availRef = useRef(availability)                   // freshest availability for debounced saves
   const saveTimers = useRef({})                           // 'YYYY-MM' -> debounce timeout id
   const saveChains = useRef({})                            // 'YYYY-MM' -> tail promise (serialises that month's saves)
@@ -163,7 +164,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setOffCounts(r.offCounts || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -235,6 +236,15 @@ export default function RotaPortal() {
   const enqueueSave = (mk, map) => {
     const prev = saveChains.current[mk] || Promise.resolve()
     const p = prev.catch(() => {}).then(() => rotaSaveAvailability(token, mk, map))
+      .then((r) => {
+        // Cap race: someone else took the last slot between our tap and the save —
+        // the server refused those dates; resync so the mark un-does itself visibly.
+        if (r?.refused?.length) {
+          alert(`Too slow, sorry — the day-off list filled up for: ${r.refused.map(d => `${d.slice(8)}/${d.slice(5, 7)}`).join(', ')} (2 people are already off). Your mark there was not saved.`)
+          if (saveChains.current[mk] === p) loadState(token)
+        }
+        return r
+      })
       // On failure resync to the server's truth — but only if no newer save is already
       // queued for this month, so we don't blank the UI while a fresher save is pending.
       .catch((e) => { handleErr(e); if (saveChains.current[mk] === p) loadState(token) })
@@ -252,10 +262,15 @@ export default function RotaPortal() {
     saveTimers.current[mk] = setTimeout(() => { delete saveTimers.current[mk]; enqueueSave(mk, availRef.current[mk] || {}) }, 1100)
   }
 
+  const offFull = (ds) => (offCounts[ds] || 0) >= 2   // day-off pot is full (2 already off)
   const toggleAvail = (ds) => {
     if (ds < todayStr) return
     const mk = ds.slice(0, 7)
     const wasOff = !!((availability[mk] || {})[ds] || {}).unavailable
+    if (!wasOff && offFull(ds)) {
+      alert(`The day-off list for ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)} is full — 2 people are already off (first come, first served, all roles in one pot).\n\nIf it's urgent, talk to your manager.`)
+      return
+    }
     if (!wasOff) {
       const booked = (shiftsByDate[ds] || []).some(s => s.mine)
       if (booked && !window.confirm(`You're booked to work ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)}.\n\nMarking yourself off won't cancel that shift — it stays booked. Let your manager know if you need cover.\n\nMark the day off anyway?`)) return
@@ -463,12 +478,13 @@ export default function RotaPortal() {
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
                     {mineN > 0 && <span style={{ fontSize: 8.5, color: GREEN, fontWeight: 700 }}>✓{mineN}</span>}
                     {off && <span style={{ fontSize: 8.5, color: RED, fontWeight: 700 }}>✕ off</span>}
+                    {!off && ds >= todayStr && offFull(ds) && <span title="Day-off list full — 2 people are already off" style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.55)' }}>🔒</span>}
                     {openN > 0 && !off && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
                   </div>
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span>
+              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 day-off list full (max 2 people, first come first served)</span>
             </div>
 
             {selDate && (() => {
@@ -481,7 +497,9 @@ export default function RotaPortal() {
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
                   {selDate >= todayStr && (avail
-                    ? <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>
+                    ? (offFull(selDate)
+                      ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>🔒 The day-off list for this day is <strong style={{ color: '#fff' }}>full</strong> — 2 people are already off (first come, first served). If it's urgent, talk to your manager.</div>
+                      : <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>)
                     : <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
                         <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>

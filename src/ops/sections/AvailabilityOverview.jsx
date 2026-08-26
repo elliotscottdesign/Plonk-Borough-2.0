@@ -57,8 +57,16 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
     return data && data[date] && data[date].unavailable ? 'unavailable' : 'available'
   }
 
+  // How many people are off on a date (across every row shown).
+  const offCountOn = (date) => rows.reduce((a, s) => a + (statusOf(s.id, date) === 'unavailable' ? 1 : 0), 0)
+
   // Tap a cell → toggle that person OFF / available for the day, debounce-save the month.
   const toggle = (staffId, date) => {
+    // Day-off cap (house rule): max 2 people off per day, first come first served.
+    // Staff are hard-blocked in their portal; you're the boss, so you get an override ask.
+    if (statusOf(staffId, date) !== 'unavailable' && offCountOn(date) >= 2) {
+      if (!window.confirm(`${offCountOn(date)} people are already off on ${date.slice(8)}/${date.slice(5, 7)} — the day-off cap is 2 (staff can't book past it themselves).\n\nOverride and mark this person off anyway?`)) return
+    }
     const month = date.slice(0, 7), key = `${staffId}|${month}`
     setAvData(prev => {
       const cur = prev[key] || {}
