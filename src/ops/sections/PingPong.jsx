@@ -83,10 +83,10 @@ export default function PingPong() {
   }
 
   const addWalkin = async () => {
-    const name = walkin.name.trim(), email = walkin.email.trim().toLowerCase(), phone = walkin.phone.replace(/\s+/g, '')
+    const name = walkin.name.trim(), email = walkin.email.trim().toLowerCase(), phone = normUkMobile(walkin.phone)
     if (!name || !run) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('Email needed — prizes and league points hang off it.')
-    if (!/^07\d{9}$/.test(phone)) return alert('UK mobile needed — 11 digits starting 07 (the up-next texts go there).')
+    if (!phone) return alert('UK mobile needed (07… or +44 7…) — the up-next texts go there.')
     await guard(async () => { await tournAddManual(run.run.id, name, email, phone); setWalkin({ name: '', email: '', phone: '' }) })()
   }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
@@ -578,7 +578,7 @@ export default function PingPong() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={walkin.name} onChange={e => setWalkin(w => ({ ...w, name: e.target.value }))} placeholder="Walk-in name / team…" disabled={full} style={{ flex: '1 1 140px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
           <input value={walkin.email} onChange={e => setWalkin(w => ({ ...w, email: e.target.value }))} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" disabled={full} style={{ flex: '1 1 150px', minWidth: 130, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
-          <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9 ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" disabled={full} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
+          <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9+ ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" disabled={full} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
           <button onClick={addWalkin} disabled={busy || !walkin.name.trim() || full} style={{ ...btn('gold'), opacity: (busy || !walkin.name.trim() || full) ? 0.5 : 1 }}>+ Add walk-in</button>
           <button onClick={refresh} disabled={busy} style={btn('ghost')} title="Re-check who's paid online">↻ Refresh</button>
         </div>
@@ -993,6 +993,16 @@ function TableBadge({ n, pending, small }) {
 // ── Add-late-team panel ─────────────────────────────────────────────────────
 // Small self-contained input + button used in the ☰ drawer while the rounds
 // run, so a late-arriving team can be added without leaving the tournament view.
+// Any real spelling of a UK mobile → canonical 07 form, or null (landlines,
+// foreign, typos). Mirrors the engines — accepting +44 keeps autofill working.
+function normUkMobile(v) {
+  let n = String(v || '').replace(/[^0-9+]/g, '')
+  if (n.startsWith('+')) n = n.slice(1)
+  if (n.startsWith('00')) n = n.slice(2)
+  if (n.startsWith('44')) n = '0' + n.slice(2)
+  return /^07\d{9}$/.test(n) ? n : null
+}
+
 function AddLatePanel({ busy, onAdd, label, hint }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -1000,8 +1010,9 @@ function AddLatePanel({ busy, onAdd, label, hint }) {
   const submit = async () => {
     const n = name.trim(); if (!n || busy) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Email needed — prizes and league points hang off it.')
-    if (!/^07\d{9}$/.test(phone.replace(/\s+/g, ''))) return alert('UK mobile needed — 11 digits starting 07.')
-    await onAdd(n, email.trim().toLowerCase(), phone.replace(/\s+/g, ''))
+    const mob = normUkMobile(phone)
+    if (!mob) return alert('UK mobile needed (07… or +44 7…).')
+    await onAdd(n, email.trim().toLowerCase(), mob)
     setName(''); setEmail(''); setPhone('')
   }
   return (
@@ -1017,7 +1028,7 @@ function AddLatePanel({ busy, onAdd, label, hint }) {
           style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
         />
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" disabled={busy} style={{ flex: '1 1 150px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
-        <input value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9 ]/g, ''))} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="Mobile (07…)" inputMode="tel" disabled={busy} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
+        <input value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9+ ]/g, ''))} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="Mobile (07…)" inputMode="tel" disabled={busy} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
         <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
       </div>
     </div>
@@ -1037,15 +1048,20 @@ function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
   const [phone, setPhone] = useState('')
   const [p2name, setP2name] = useState('')
   const [p2email, setP2email] = useState('')
+  const [p2phone, setP2phone] = useState('')
   const [note, setNote] = useState('')
-  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim())
+  // Doubles/teams walk-ups carry BOTH players' full details, like an online
+  // booking (founder rule 20 Aug 2026). The engine enforces the same rules.
+  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim()) && !!normUkMobile(phone)
+    && (!showPartner || (p2name.trim().length > 1 && /.+@.+\..+/.test(p2email.trim()) && !!normUkMobile(p2phone)))
   const inp = { padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none', minWidth: 0 }
   const submit = async () => {
     if (!valid || busy) return
-    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), partnerName: p2name.trim(), partnerEmail: p2email.trim() })
+    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: normUkMobile(phone), partnerName: p2name.trim(), partnerEmail: p2email.trim(), partnerPhone: normUkMobile(p2phone) || '' })
     if (r && r.ok) {
-      setNote(r.emailed ? `✓ ${name.trim()} is in — payment link emailed` : `✓ ${name.trim()} is in — pay-link email failed, take cash instead`)
-      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email('')
+      const how = [r.texted && 'texted', r.emailed && 'emailed'].filter(Boolean).join(' + ')
+      setNote(how ? `✓ ${name.trim()} is in — payment link ${how}` : `✓ ${name.trim()} is in — pay link couldn't send, take cash instead`)
+      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email(''); setP2phone('')
     }
   }
   return (
@@ -1055,8 +1071,9 @@ function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
       <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (optional)…" type="tel" disabled={busy} style={inp} />
       {showPartner && <>
-        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
+        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name…" disabled={busy} style={inp} />
         <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
+        <input value={p2phone} onChange={e => setP2phone(e.target.value.replace(/[^0-9+ ]/g, ''))} placeholder="Player 2 mobile (07… or +44 7…)…" type="tel" inputMode="tel" disabled={busy} style={inp} />
       </>}
       <button onClick={submit} disabled={busy || !valid} style={{ ...btn('gold'), padding: '10px', opacity: (busy || !valid) ? 0.5 : 1 }}>🚶 Sign up & email the pay link</button>
       {note && <span style={{ fontSize: 11.5, color: GREEN }}>{note}</span>}
