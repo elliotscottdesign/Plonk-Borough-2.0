@@ -665,16 +665,6 @@ export default function PingPong() {
                   <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
                 </div>
                 {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
-                {/* Add a team/player mid-tournament — was drawer-only, surfaced here
-                    on the founder's word during a live night (12 Aug 2026). They
-                    join the NEXT round's draw; take the entry fee at the bar. */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input value={walkin.name} onChange={e => setWalkin(w => ({ ...w, name: e.target.value }))} placeholder="Add a team / player…" style={{ flex: '1 1 130px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <input value={walkin.email} onChange={e => setWalkin(w => ({ ...w, email: e.target.value }))} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" style={{ flex: '1 1 140px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9 ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" style={{ flex: '1 1 110px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <button onClick={addWalkin} disabled={busy || !walkin.name.trim()} style={{ ...btn('ghost'), padding: '9px 13px', fontSize: 13, opacity: walkin.name.trim() ? 1 : 0.45 }}>＋ Add</button>
-                </div>
-                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: -3 }}>All three needed — email carries their prizes & league points, mobile gets the you're-up texts. Straight into the next round's draw; take the entry fee at the bar.</div>
                 {callMsg && (
                   <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
                 )}
