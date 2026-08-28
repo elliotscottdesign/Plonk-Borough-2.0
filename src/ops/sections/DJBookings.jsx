@@ -293,8 +293,8 @@ function Calendar({ data, reload, onJump }) {
                     {!booked && <button onClick={() => act(status === 'open' ? 'close' : 'open', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>{status === 'open' ? 'Close (remove from marketplace)' : 'Open for DJs to claim'}</button>}
                     {!booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('gold')}>{buildKey === key ? '✕ Close' : '🎛️ Build a night'}</button>}
                     {booked && <button onClick={() => setBuildKey(buildKey === key ? null : key)} disabled={busy} style={btn('ghost')}>{buildKey === key ? '✕ Close' : '✏️ Edit details'}</button>}
-                    {booked && status === 'held' && !past && <button onClick={() => act('forcePending', { date, slot: def.slot })} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
-                    {booked && status === 'pending' && !past && <button onClick={() => act('signoff', { date, slot: def.slot })} disabled={busy} style={btn('green')}>✓ Sign off</button>}
+                    {booked && status === 'held' && !past && <button onClick={() => { if (!(slot.promo_track || '').trim()) { alert('No promo track on this night — add one first (tap ✏️ Edit details). No track, no event.'); return } act('forcePending', { date, slot: def.slot }) }} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
+                    {booked && status === 'pending' && !past && <button onClick={() => { if (!(slot.promo_track || '').trim()) { alert('No promo track on this night — it can\'t go live. Add one first (tap ✏️ Edit details). No track, no event.'); return } act('signoff', { date, slot: def.slot }) }} disabled={busy} style={btn('green')}>✓ Sign off</button>}
                     {booked && status === 'confirmed' && !past && <button onClick={() => act('unconfirm', { date, slot: def.slot })} disabled={busy} style={btn('ghost')}>Un-confirm</button>}
                     {booked && <button onClick={() => act('removeBooking', { date, slot: def.slot })} disabled={busy} style={btn('red')}>Remove</button>}
                   </div>
@@ -383,6 +383,7 @@ function Events({ data, reload, filter, setFilter }) {
     setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
+    if (!(form.promoTrack || '').trim()) { alert('This night needs a promo track before it can be saved — no track, no event.'); return }
     if (looksLink(form.promoArtist) || looksLink(form.promoTrack)) { alert('No links in the promo boxes — just the artist name and the track name.'); return }
     setBusy(true)
     try {
@@ -473,8 +474,8 @@ function Events({ data, reload, filter, setFilter }) {
             {/* Manage — actions depend on the event's status */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
-              {s.status === 'held' && !past && <button onClick={() => act('forcePending', s)} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
-              {s.status === 'pending' && !past && <button onClick={() => act('signoff', s)} disabled={busy} style={btn('green')}>✓ Sign off</button>}
+              {s.status === 'held' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — add one first (✏️ Edit). No track, no event.'); return } act('forcePending', s) }} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
+              {s.status === 'pending' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — it can\'t go live. Add one first (✏️ Edit). No track, no event.'); return } act('signoff', s) }} disabled={busy} style={btn('green')}>✓ Sign off</button>}
               {s.status === 'confirmed' && !past && (sus
                 ? <button onClick={() => act('unsuspend', s)} disabled={busy} style={btn('green')}>▶️ Restore (show publicly)</button>
                 : <button onClick={() => act('suspend', s)} disabled={busy} style={btn('ghost')}>⏸ Suspend (hide publicly)</button>)}
@@ -656,6 +657,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   }
   const submit = () => {
     if (showDj && !djId) return
+    if (!(promoTrack || '').trim()) { alert('Add a promo track before booking this night — no track, no event.'); return }
     if (looksLink(promoArtist) || looksLink(promoTrack)) { alert('No links in the promo boxes — just the artist name and the track name.'); return }
     onSave({ djId, djId2: djId2 && djId2 !== djId ? djId2 : '', nightName, subgenres: genres.split(',').map(x => x.trim()).filter(Boolean).slice(0, 4), setType, promoTrack, promoArtist, imgData })
   }
