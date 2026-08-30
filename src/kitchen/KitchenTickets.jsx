@@ -188,8 +188,8 @@ export default function KitchenTickets() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={togglePause} disabled={busy} style={{ ...btn(pause.paused ? GREEN : RED, '#fff'), padding: '10px 16px' }}>{pause.paused ? '▶ Reopen orders' : '⏸ Pause orders'}</button>
             <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#fff' }}>
-              <input type="checkbox" checked={!!pause.auto_pause} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
-              <input type="number" min="0" value={pause.auto_threshold} onChange={e => setThreshold(parseInt(e.target.value, 10) || 0)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
+              <input type="checkbox" checked={!!pause.auto} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
+              <input type="number" min="0" value={pause.threshold ?? 8} onChange={e => setThreshold(parseInt(e.target.value, 10) || 0)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
             </label>
             {pause.waiting > 0 && <span style={{ fontSize: 12, color: '#E8B84B', fontWeight: 700 }}>{pause.waiting} waiting to be texted</span>}
           </div>
