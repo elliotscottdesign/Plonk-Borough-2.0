@@ -13,20 +13,24 @@ const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(
 
 export function exportMenu(sections, mode = 'print', vatOn = false) {
   const filtered = (sections || []).filter(s => s.id !== 'bar')
-  // Specials boards print FIRST, at the very top, each in a dotted box.
-  const secs = [...filtered.filter(s => s.special), ...filtered.filter(s => !s.special)]
-  const inner = secs.map(sec => {
-    const its = sec.items.filter(it => it.name)
+  const gbp = n => '£' + (n % 1 === 0 ? n : n.toFixed(2))
+  const rowHtml = it => {
+    const price = it.sell ? gbp(parseFloat(it.sell)) : ''
+    const adds = (it.addons || []).filter(a => a.name && a.name.trim())
+    const addLine = adds.length ? `<div class="mao">${adds.map(a => `${esc(a.name.trim())} +${gbp(parseFloat(a.price) || 0)}`).join(' · ')}</div>` : ''
+    return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
+  }
+  // Starred items are auto-pulled OUT of their section into a Specials box at the top.
+  const starred = filtered.flatMap(s => s.items.filter(it => it.name && it.star))
+  const specialsHtml = starred.length
+    ? `<div class="msec mspecial"><div class="mtag">⭑ Specials</div><div class="mh">Specials</div>${starred.map(rowHtml).join('')}</div>`
+    : ''
+  const sectionsHtml = filtered.map(sec => {
+    const its = sec.items.filter(it => it.name && !it.star)
     if (!its.length) return ''
-    const gbp = n => '£' + (n % 1 === 0 ? n : n.toFixed(2))
-    const rows = its.map(it => {
-      const price = it.sell ? gbp(parseFloat(it.sell)) : ''
-      const adds = (it.addons || []).filter(a => a.name && a.name.trim())
-      const addLine = adds.length ? `<div class="mao">${adds.map(a => `${esc(a.name.trim())} +${gbp(parseFloat(a.price) || 0)}`).join(' · ')}</div>` : ''
-      return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
-    }).join('')
-    return `<div class="msec${sec.special ? ' mspecial' : ''}">${sec.special ? '<div class="mtag">⭑ Specials</div>' : ''}<div class="mh">${esc(sec.name)}</div>${rows}</div>`
+    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(rowHtml).join('')}</div>`
   }).join('')
+  const inner = specialsHtml + sectionsHtml
   const a5 = `<div class="a5"><div class="a5top"><div class="a5brand"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div></div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue.</div></div></div></div><div class="a5body">${inner}</div><div class="mfoot">Please inform us of any allergies before ordering${vatOn ? ' · all prices include VAT' : ''}</div></div>`
   const isPdf = mode === 'pdf'
   const ORDER = JSON.stringify(ORDER_URL)

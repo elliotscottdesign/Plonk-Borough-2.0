@@ -37,8 +37,8 @@ const DEFAULTS = [
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', special: !!s.special, items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, special: !!s.special, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', star: !!it.star, sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, star: !!it.star, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -67,8 +67,7 @@ export default function MenuManager() {
   const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
   const delAddon = (si, ii, ai) => mutate(s => { s[si].items[ii].addons.splice(ai, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
-  const addSpecials = () => mutate(s => { s.unshift({ id: nid('sec'), name: 'Specials', special: true, items: [{ id: nid('new'), name: '', sell: '', cost: '', img: '', desc: '', addons: [], allergens: {} }] }) })
-  const toggleSpecial = si => mutate(s => { s[si].special = !s[si].special })
+  const toggleStar = (si, ii) => mutate(s => { s[si].items[ii].star = !s[si].items[ii].star })
   const delSection = si => { if (confirm('Delete this whole section?')) mutate(s => { s.splice(si, 1) }) }
 
   const pic = (si, ii, file) => {
@@ -112,33 +111,44 @@ export default function MenuManager() {
         <a href="/onaroll/print" target="_blank" rel="noreferrer" style={{ color: GOLD, fontWeight: 700 }}>team.nodice.bar/onaroll/print</a>
       </div>
       {msg && <div style={{ fontSize: 12.5, color: msg.startsWith('Saved') ? GREEN : GOLD, marginBottom: 10, lineHeight: 1.5 }}>{msg}</div>}
+      {(() => {
+        const starred = sections.flatMap(s => s.items.filter(it => it.name && it.star)).map(it => it.name)
+        return (
+          <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 12, lineHeight: 1.5, background: 'rgba(201,168,76,0.06)', border: `1px dashed ${GOLD}`, borderRadius: 10, padding: '9px 11px' }}>
+            ⭐ <b style={{ color: '#fff' }}>Specials (auto)</b> — tap <b style={{ color: GOLD }}>☆ Special</b> on any item to lift it into a dotted Specials box at the very top of the menu; untap to send it back to its section.{' '}
+            {starred.length ? <>Starred now: <b style={{ color: GOLD }}>{starred.join(', ')}</b>.</> : <span style={{ opacity: 0.8 }}>Nothing starred yet.</span>}
+          </div>
+        )
+      })()}
 
       {sections.map((sec, si) => (
-        <div key={sec.id} style={{ marginBottom: 6, ...(sec.special ? { border: `1.5px dashed ${GOLD}`, borderRadius: 12, padding: '2px 12px 10px', background: 'rgba(201,168,76,0.05)' } : {}) }}>
+        <div key={sec.id} style={{ marginBottom: 6 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, margin: '16px 0 6px' }}>
             <input value={sec.name} onChange={e => mutate(s => { s[si].name = e.target.value })}
               style={{ background: 'none', border: 'none', borderBottom: '1px dashed transparent', color: GOLD, fontSize: 17, fontWeight: 800, padding: '2px 0' }}
               onFocus={e => e.target.style.borderBottomColor = GOLD} onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
             <span style={{ fontSize: 11, color: MUTED }}>{sec.items.length} item{sec.items.length !== 1 ? 's' : ''}</span>
-            <button onClick={() => toggleSpecial(si)} title="Specials board — prints at the very top of the menu in a dotted box"
-              style={{ marginLeft: 'auto', background: sec.special ? 'rgba(201,168,76,0.16)' : 'none', border: `1px solid ${sec.special ? GOLD : LINE}`, color: sec.special ? GOLD : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12, fontWeight: 700, whiteSpace: 'nowrap' }}>
-              {sec.special ? '⭐ Specials board' : '☆ Make specials'}
-            </button>
-            <button onClick={() => delSection(si)} title="Delete section" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>🗑</button>
+            <button onClick={() => delSection(si)} title="Delete section" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>🗑</button>
           </div>
 
           {sec.items.map((it, ii) => {
             const mp = marginPct(it.sell, it.cost, vat)
             return (
-              <div key={it.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
+              <div key={it.id} style={{ background: it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
                 <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                   <label style={{ width: 56, height: 56, borderRadius: 9, background: it.img ? 'none' : '#26272b', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
                     {it.img ? <img src={it.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ opacity: 0.5 }}>📷</span>}
                     <input type="file" accept="image/*" onChange={e => pic(si, ii, e.target.files[0])} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                   </label>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
-                      style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
+                        style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
+                      <button onClick={() => toggleStar(si, ii)} title="Star → moves this item up to the Specials box at the top of the menu (unstar to send it back)"
+                        style={{ flexShrink: 0, background: it.star ? 'rgba(201,168,76,0.18)' : 'none', border: `1px solid ${it.star ? GOLD : LINE}`, color: it.star ? GOLD : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {it.star ? '★ Special' : '☆ Special'}
+                      </button>
+                    </div>
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Field label={vat ? "Sell £ inc VAT" : "Sell £"} value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
@@ -219,10 +229,7 @@ export default function MenuManager() {
           <button onClick={() => addItem(si)} style={addBtn()}>＋ Add item to {sec.name}</button>
         </div>
       ))}
-      {!sections.some(s => s.special) && (
-        <button onClick={addSpecials} style={{ ...addBtn(), borderStyle: 'dashed', borderColor: GOLD, color: GOLD, marginTop: 14, background: 'rgba(201,168,76,0.05)' }}>⭐ Add a Specials board — leftovers / BBQ (prints at the top)</button>
-      )}
-      <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 8 }}>＋ Add a new section</button>
+      <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 14 }}>＋ Add a new section</button>
 
       {/* ── Deals & bundles (beer + burger) ── */}
       <div style={{ marginTop: 30, background: 'rgba(201,168,76,0.06)', border: `1.5px solid ${GOLD}`, borderRadius: 14, padding: '16px 14px' }}>

@@ -41,7 +41,13 @@ export default function MenuPrint() {
         {err && <div style={{ background: '#fff', border: `1px solid ${RED}`, color: RED, borderRadius: 10, padding: '10px 12px', fontSize: 13.5 }}>Couldn't load the menu — {err}</div>}
         {!sections && !err && <div style={{ color: MUTED, padding: '30px 0', textAlign: 'center' }}>Loading the latest menu…</div>}
 
-        {sections && [...sections.filter(s => s.special), ...sections.filter(s => !s.special)].map(sec => (
+        {sections && (() => {
+          const starred = sections.flatMap(s => (s.items || []).filter(it => it.name && it.star))
+          const groups = [
+            ...(starred.length ? [{ id: '__specials', name: 'Specials', special: true, items: starred }] : []),
+            ...sections.map(s => ({ ...s, items: (s.items || []).filter(it => it.name && !it.star) })).filter(s => s.items.length),
+          ]
+          return groups.map(sec => (
           <div key={sec.id} style={{ marginBottom: 20, ...(sec.special ? { border: `2px dotted ${INK}`, borderRadius: 14, padding: '14px 16px 6px', background: '#fff8ec' } : {}) }}>
             {sec.special && <div style={{ fontSize: 11, fontWeight: 800, letterSpacing: '0.14em', textTransform: 'uppercase', color: RED, marginBottom: 4 }}>⭑ Specials</div>}
             <div style={{ fontFamily: HEAVY, fontSize: 22, color: BLUE, borderBottom: `2px ${sec.special ? 'dotted' : 'solid'} ${BLUE}`, paddingBottom: 4, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{sec.name}</div>
@@ -59,7 +65,8 @@ export default function MenuPrint() {
               )
             })}
           </div>
-        ))}
+          ))
+        })()}
       </div>
     </div>
   )
