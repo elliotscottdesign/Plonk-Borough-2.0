@@ -46,7 +46,7 @@ export function exportMenu(sections, mode = 'print', vatOn = false) {
     body.pdf .a4{ height:auto; overflow:visible } body.pdf .a5{ overflow:visible }
     .logo{ width:100px; height:auto; display:block }
     .a5{ flex:1; min-width:0; padding:8mm 9mm; color:#000; display:flex; flex-direction:column; overflow:hidden } .a5:first-child{ border-right:1px dashed #999 }
-    .a5top{ display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:2.5px solid #000; padding-bottom:7px; margin-bottom:13px }
+    .a5top{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; border-bottom:2.5px solid #000; padding-bottom:8px; margin-bottom:13px }
     .a5brand{ min-width:0; flex-shrink:0 }
     .a5body{ transform-origin:top left }
     .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:3px 0 0; text-transform:uppercase; letter-spacing:.09em }
@@ -59,8 +59,9 @@ export function exportMenu(sections, mode = 'print', vatOn = false) {
     .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
     .md{ font-family:Arial; font-size:16.5px; color:#1a1a1a; line-height:1.42; margin-top:3px }
     .mao{ font-family:Arial; font-size:13px; font-style:italic; color:#000; margin-top:3px }
-    .scan{ display:flex; gap:9px; align-items:center; flex-shrink:1; min-width:0; max-width:58% }
-    .qr{ width:80px; height:80px; flex-shrink:0 } .qr img,.qr canvas{ width:80px!important; height:80px!important }
+    .scan{ display:flex; flex-direction:column; align-items:flex-end; text-align:right; gap:5px; flex-shrink:0; max-width:48% }
+    .qr{ width:82px; height:82px; flex-shrink:0 } .qr img,.qr canvas{ width:82px!important; height:82px!important }
+    .scantxt{ max-width:180px }
     .scanh{ font-size:15px; color:#000; line-height:1 } .scansub{ font-family:Arial; font-size:8.5px; color:#000; margin-top:3px; line-height:1.32 }
     .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:12px; border-top:1px solid #bbb; padding-top:7px }
   </style></head><body class="${isPdf ? 'pdf' : ''}"><div class="a4">${a5}${a5}</div>
