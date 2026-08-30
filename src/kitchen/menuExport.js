@@ -12,7 +12,9 @@ export const ORDER_URL = 'https://nodice.bar/onaroll'
 const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
 export function exportMenu(sections, mode = 'print', vatOn = false) {
-  const secs = (sections || []).filter(s => s.id !== 'bar')
+  const filtered = (sections || []).filter(s => s.id !== 'bar')
+  // Specials boards print FIRST, at the very top, each in a dotted box.
+  const secs = [...filtered.filter(s => s.special), ...filtered.filter(s => !s.special)]
   const inner = secs.map(sec => {
     const its = sec.items.filter(it => it.name)
     if (!its.length) return ''
@@ -23,9 +25,9 @@ export function exportMenu(sections, mode = 'print', vatOn = false) {
       const addLine = adds.length ? `<div class="mao">${adds.map(a => `${esc(a.name.trim())} +${gbp(parseFloat(a.price) || 0)}`).join(' · ')}</div>` : ''
       return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
     }).join('')
-    return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${rows}</div>`
+    return `<div class="msec${sec.special ? ' mspecial' : ''}">${sec.special ? '<div class="mtag">⭑ Specials</div>' : ''}<div class="mh">${esc(sec.name)}</div>${rows}</div>`
   }).join('')
-  const a5 = `<div class="a5"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="a5body"><div class="msub">London Fields · open til 10pm</div>${inner}</div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue. Open til 10pm.</div></div></div><div class="mfoot">Please inform us of any allergies before ordering${vatOn ? ' · all prices include VAT' : ''}</div></div>`
+  const a5 = `<div class="a5"><div class="a5top"><div class="a5brand"><img class="logo" src="${ON_A_ROLL_LOGO_BW}" alt="On A Roll"><div class="msub">London Fields · open til 10pm</div></div><div class="scan"><div class="qr"></div><div class="scantxt"><div class="scanh">Scan to order &amp; pay</div><div class="scansub">Order on your phone — we'll text you the second it's ready. No queue.</div></div></div></div><div class="a5body">${inner}</div><div class="mfoot">Please inform us of any allergies before ordering${vatOn ? ' · all prices include VAT' : ''}</div></div>`
   const isPdf = mode === 'pdf'
   const ORDER = JSON.stringify(ORDER_URL)
   const libs = isPdf
@@ -42,20 +44,25 @@ export function exportMenu(sections, mode = 'print', vatOn = false) {
     html,body{ margin:0; padding:0; font-family:Impact,'Arial Narrow Bold',sans-serif; -webkit-print-color-adjust:exact; print-color-adjust:exact }
     .a4{ display:flex; width:283mm; height:195mm; background:#fff; overflow:hidden; page-break-inside:avoid; break-inside:avoid }
     body.pdf .a4{ height:auto; overflow:visible } body.pdf .a5{ overflow:visible }
-    .logo{ width:118px; height:auto; display:block; margin-bottom:3px }
+    .logo{ width:100px; height:auto; display:block }
     .a5{ flex:1; min-width:0; padding:8mm 9mm; color:#000; display:flex; flex-direction:column; overflow:hidden } .a5:first-child{ border-right:1px dashed #999 }
+    .a5top{ display:flex; justify-content:space-between; align-items:center; gap:10px; border-bottom:2.5px solid #000; padding-bottom:7px; margin-bottom:13px }
+    .a5brand{ min-width:0; flex-shrink:0 }
     .a5body{ transform-origin:top left }
-    .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:2px 0 14px; text-transform:uppercase; letter-spacing:.09em }
-    .msec{ margin-bottom:17px } .mh{ font-size:18px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
-    .mrow{ margin-bottom:12px }
-    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:18px; color:#000 }
+    .msub{ font-family:Arial; font-size:9.5px; color:#444; margin:3px 0 0; text-transform:uppercase; letter-spacing:.09em }
+    .msec{ margin-bottom:17px } .mh{ font-size:19px; color:#000; letter-spacing:1px; border-bottom:1.5px solid #000; padding-bottom:4px; margin-bottom:9px }
+    .mspecial{ border:2.2px dotted #000; border-radius:14px; padding:12px 15px 7px; margin-bottom:20px }
+    .mspecial .mtag{ font-family:Arial; font-weight:800; font-size:9.5px; letter-spacing:.14em; text-transform:uppercase; color:#e0231b; margin-bottom:4px }
+    .mspecial .mh{ border-bottom:1px dotted #666 }
+    .mrow{ margin-bottom:13px }
+    .mi{ display:flex; align-items:baseline; gap:5px; font-family:Impact,'Arial Narrow Bold',sans-serif; font-size:19px; color:#000 }
     .mi .dots{ flex:1; border-bottom:1px dotted #999 } .mp{ font-weight:800 }
-    .md{ font-family:Arial; font-size:12px; color:#222; line-height:1.4; margin-top:3px }
-    .mao{ font-family:Arial; font-size:11px; font-style:italic; color:#000; margin-top:3px }
-    .scan{ display:flex; gap:11px; align-items:center; margin-top:auto; border-top:2px solid #000; padding-top:10px }
-    .qr{ width:92px; height:92px; flex-shrink:0 } .qr img,.qr canvas{ width:92px!important; height:92px!important }
-    .scanh{ font-size:16px; color:#000 } .scansub{ font-family:Arial; font-size:9.5px; color:#000; margin-top:3px; line-height:1.35 }
-    .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:10px }
+    .md{ font-family:Arial; font-size:16.5px; color:#1a1a1a; line-height:1.42; margin-top:3px }
+    .mao{ font-family:Arial; font-size:13px; font-style:italic; color:#000; margin-top:3px }
+    .scan{ display:flex; gap:9px; align-items:center; flex-shrink:1; min-width:0; max-width:58% }
+    .qr{ width:80px; height:80px; flex-shrink:0 } .qr img,.qr canvas{ width:80px!important; height:80px!important }
+    .scanh{ font-size:15px; color:#000; line-height:1 } .scansub{ font-family:Arial; font-size:8.5px; color:#000; margin-top:3px; line-height:1.32 }
+    .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:12px; border-top:1px solid #bbb; padding-top:7px }
   </style></head><body class="${isPdf ? 'pdf' : ''}"><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   ${libs}
