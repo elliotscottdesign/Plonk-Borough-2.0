@@ -188,6 +188,22 @@ It changes nothing operationally and immediately shows which lines lose money.
 
 ---
 
+## Design laws (founder, 21 Aug 2026 — every future slice obeys these)
+
+1. **iPad only, and the screen NEVER scrolls.** The register measures its space and
+   locks to it; big pages flip with ◀ ▶ pagination sized to what actually fits. The
+   single exception: the ticket's own line list scrolls internally so a 40-line order
+   can't push the keypad off screen.
+2. **Lightspeed is the specification — parse it, don't ask the founder.**
+   `scripts/tillLiveMenu.py` mines the items export's combo→group→member graph into
+   `liveTill.json` (`combos`: every deal's real choice lists and pick counts, e.g.
+   3 Shooters = Baby Guinness/Pickleback/Devils Botany only; the £3 SHOT list; the
+   happy-hour pint/wine/spirit lists). Deal pickers and happy-hour lists read THAT.
+   Before asking the founder how anything behaves, check the export first — receipts
+   exports and Back Office screenshots second; questions last.
+3. A button is a serve of a stock product or a recipe; deals record the actual
+   drinks chosen. Never invent a price or a cost.
+
 ## Rules of engagement for this lane
 
 1. **Nothing replaces Lightspeed until it has run alongside it.** The first slices must be

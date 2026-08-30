@@ -9,6 +9,7 @@ export const PAGE_COLORS = {
   'Deals': '#C9A84C',                        // house gold
   'Beer & Cider': '#FB923C',                 // amber, like a pint
   'Cocktails & Warmers': '#EC4899',          // pink
+  'Cocktails — Classics': '#EC4899',         // same pink — it's a sub-folder
   'Mocktails': '#86EFAC',                    // soft green
   'Shots': '#EF4444',                        // red
   'Spirits — Gin': SPIRITS,

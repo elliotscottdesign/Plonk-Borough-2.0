@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react'
 import Operations from './sections/Operations.jsx'
 import Bar from './sections/Bar.jsx'
 import { getTheme, setTheme, nextTheme, THEME_LABEL, THEME_HINT } from '../lib/theme.js'
+import { forgetDevice } from '../lib/access.js'
 import DJBookings from './sections/DJBookings.jsx'
 import Reports from './sections/Reports.jsx'
 import Documentation from './sections/Documentation.jsx'
@@ -11,6 +12,8 @@ import Tournament from './sections/Tournament.jsx'
 import PingPong from './sections/PingPong.jsx'
 import Kitchen from './sections/Kitchen.jsx'
 import KeyDates from './sections/KeyDates.jsx'
+import ToiletLog from './sections/ToiletLog.jsx'
+import ChecklistEditor from './sections/ChecklistEditor.jsx'
 import HowItWorks from './sections/HowItWorks.jsx'
 import Reservations from './sections/Reservations.jsx'
 import Finances from './sections/Finances.jsx'
@@ -41,12 +44,14 @@ const GROUPS = [
       { key: 'operations', label: 'Old sheets',    Component: Operations, founderOnly: true },
       // The founder's system map — how every service fits together. Founder-only.
       { key: 'howitworks', label: 'How It Works',  Component: HowItWorks, founderOnly: true },
+      { key: 'toilets',    label: 'Toilet Checks', Component: ToiletLog, founderOnly: true },
     ],
   },
   {
     key: 'kitchen', label: 'Kitchen',
     tabs: [
       { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
+      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
     ],
   },
   {
@@ -246,6 +251,13 @@ export default function OpsApp() {
           {/* Appearance — Auto / Dark / Light. Before this the look was decided
               entirely by the phone's own setting, so a founder whose phone sits on
               Light never saw the dark app at all. */}
+          {/* Signing out is the ONLY way off a remembered device, so it has to be
+              findable. Everything else in this menu is navigation; this isn't. */}
+          <button onClick={() => { if (window.confirm('Sign out of this device?\n\nYou\u2019ll need your code to get back in.')) { forgetDevice(); window.location.replace('/') } }}
+            style={{ padding: '9px 12px', borderRadius: 8, cursor: 'pointer', fontSize: 12, fontWeight: 600, textAlign: 'left',
+                     background: 'transparent', color: 'rgba(255,255,255,0.45)', border: '1px solid rgba(255,255,255,0.12)', marginTop: 10 }}>
+            Sign out of this device
+          </button>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 4px 4px', borderBottom: '1px solid rgba(255,255,255,0.07)', marginBottom: 4 }}>
             <span style={{ fontSize: 10.5, color: 'var(--cream-dim)', letterSpacing: '0.14em', textTransform: 'uppercase' }}>Appearance</span>
             <button onClick={() => setThemePref(setTheme(nextTheme(themePref)))} style={{

@@ -600,6 +600,18 @@ Deno.serve(async (req) => {
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
+        // How many OTHER active staff are off each date — the portal locks a day at 2
+        // (first come, first served; one pot across managers/kitchen/bar).
+        const [{ data: allAv }, { data: activeRows }] = await Promise.all([
+          sb.from("staff_availability").select("staff_id,data").neq("staff_id", me.id),
+          sb.from("staff").select("id").eq("active", true),
+        ]);
+        const activeIds2 = new Set((activeRows || []).map((r: any) => r.id));
+        const offCounts: Record<string, number> = {};
+        for (const row of allAv || []) {
+          if (!activeIds2.has(row.staff_id)) continue;
+          for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) offCounts[d] = (offCounts[d] || 0) + 1;
+        }
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
@@ -607,7 +619,7 @@ Deno.serve(async (req) => {
         const visibleShifts = (shifts || []).filter((s: any) =>
           mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
-          ok: true, staff: publicStaff(me), availability,
+          ok: true, staff: publicStaff(me), availability, offCounts,
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
@@ -828,6 +840,26 @@ Deno.serve(async (req) => {
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
         const prevData = (prevAv?.data || {}) as Record<string, any>;
         const prevOffSet = new Set(Object.keys(prevData).filter((k) => prevData[k]?.unavailable === true));
+        // ── Day-off cap (founder rule, 19 Aug 2026): at most TWO staff — any role,
+        // one shared pot — may book the same day off. First come, first served: a NEW
+        // off-mark on a date where 2 others already are is refused (their existing
+        // marks are untouched). The founder's own tool can still override.
+        const OFF_CAP = 2;
+        const wantNew = Object.keys(data).filter((k) => !prevOffSet.has(k));
+        const refused: string[] = [];
+        if (wantNew.length > 0) {
+          const [{ data: othersAv }, { data: activeRows }] = await Promise.all([
+            sb.from("staff_availability").select("staff_id,data").eq("month", month).neq("staff_id", me.id),
+            sb.from("staff").select("id").eq("active", true),
+          ]);
+          const activeIds = new Set((activeRows || []).map((r: any) => r.id));
+          const counts: Record<string, number> = {};
+          for (const row of othersAv || []) {
+            if (!activeIds.has(row.staff_id)) continue;
+            for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) counts[d] = (counts[d] || 0) + 1;
+          }
+          for (const d of wantNew) if ((counts[d] || 0) >= OFF_CAP) { refused.push(d); delete data[d]; }
+        }
         // Availability is just "days I can't work" — purely an input the founder uses
         // when building the rota. It is independent of who's rostered, so a member can
         // freely mark/un-mark any day and it never adds or removes an actual shift.
@@ -856,7 +888,7 @@ Deno.serve(async (req) => {
               `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked ${newOff.length === 1 ? "this day" : "these days"} off — the rota builder will work around ${newOff.length === 1 ? "it" : "them"}:</p><ul style="color:#ccc;padding-left:18px;line-height:1.5">${li}</ul>`,
               { href: OPS_URL, label: "Open the rota" }));
         }
-        return json({ ok: true });
+        return json({ ok: true, refused });
       }
 
       if (action === "claimShift") {

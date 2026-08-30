@@ -53,6 +53,20 @@ for f in files:
             if want and want not in have:
                 bad.append(f"{f}: imports {{{want}}} from '{spec}' — NOT EXPORTED (has: {', '.join(sorted(have))[:90]})")
 
+# Second pass: catch identifiers that are USED but never imported/defined —
+# the class of bug a named-import check alone cannot see (a call to a helper
+# that was never imported is a runtime crash, not an import error).
+WATCH = ['restoreRememberedSession', 'forgetDevice', 'applyTheme', 'applyAccessSession',
+         'rememberDevice', 'rememberedDevice']
+for f in files:
+    s2 = open(f, encoding='utf-8').read()
+    for name in WATCH:
+        used = re.search(r'\b' + name + r'\s*\(', s2)
+        if not used: continue
+        declared = re.search(r'(import[^;\n]*\b' + name + r'\b|(?:function|const|let|var)\s+' + name + r'\b)', s2)
+        if not declared:
+            bad.append(f"{f}: calls {name}() but never imports or defines it")
+
 if bad:
     print(f"✗ {len(bad)} broken import(s):"); [print('   ', b) for b in bad]; sys.exit(1)
 print(f"✓ all imports resolve across {len(files)} files")
