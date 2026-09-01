@@ -85,6 +85,10 @@ Deno.serve(async (req) => {
       await sb.from("dj_slots").delete().eq("date", date).eq("slot", slot).eq("status", "open");
       break;
     case "signoff": {
+      // HARD RULE (founder, Aug 2026): NOTHING goes live without a promo track —
+      // by DJ, founder or anyone. No track listed → the night can't be signed off.
+      const { data: sfChk } = await sb.from("dj_slots").select("promo_track").eq("date", date).eq("slot", slot).maybeSingle();
+      if (!sfChk || !String((sfChk as any).promo_track || "").trim()) return json({ error: "No promo track on this night — it can't go live. Add the track first (no track, no event)." }, 400);
       await sb.from("dj_slots").update({ status: "confirmed", updated_at: now() }).eq("date", date).eq("slot", slot);
       // Confirmation email to the DJ.
       const { data: row } = await sb.from("dj_slots")
@@ -108,11 +112,15 @@ Deno.serve(async (req) => {
     case "unconfirm":
       await sb.from("dj_slots").update({ status: "pending", updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
-    case "forcePending":
+    case "forcePending": {
       // Founder override: push a stuck DJ draft (held) straight to pending so it can
       // be signed off — bypasses the DJ-side booking rules (cap, adjacency, etc).
+      // Still needs a promo track (no-track-no-event applies to everyone).
+      const { data: fpChk } = await sb.from("dj_slots").select("promo_track").eq("date", date).eq("slot", slot).maybeSingle();
+      if (!fpChk || !String((fpChk as any).promo_track || "").trim()) return json({ error: "No promo track on this night — add the track before pushing it through." }, 400);
       await sb.from("dj_slots").update({ status: "pending", held_at: null, reminder_sent: false, updated_at: now() }).eq("date", date).eq("slot", slot).eq("status", "held");
       break;
+    }
     case "removeBooking":
       // Free the date AND wipe all booking detail (matches the DJ portal's cancel),
       // including any in-progress 24h hold.
@@ -121,6 +129,8 @@ Deno.serve(async (req) => {
     case "editEvent": {
       // Admin edits a created event in place (Events tab). Optionally moves it to a
       // new date; keeps the genre fields + kind consistent with the date's type.
+      // HARD RULE: an event must keep a promo track — can't save one without it.
+      if (!String(promoTrack || "").trim()) return json({ error: "This night must have a promo track — add one before saving (no track, no event)." }, 400);
       const tgt = (typeof newDate === "string" && newDate) ? newDate : date;
       if (tgt !== date) {
         const { data: clash } = await sb.from("dj_slots").select("date").eq("date", tgt).eq("slot", slot).maybeSingle();
@@ -188,6 +198,8 @@ Deno.serve(async (req) => {
       await sb.from("dj_slots").update({ event_image_url: null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "book": {
+      // HARD RULE: no promo track → the night can't be booked (no track, no event).
+      if (!String(promoTrack || "").trim()) return json({ error: "Add a promo track before booking the night — no track, no event." }, 400);
       // Admin builds a night for a DJ. Uses the details from the admin form when
       // passed (so admins have the full DJ toolkit), else seeds display genres
       // from the DJ's profile. The DJ can still refine via their portal.

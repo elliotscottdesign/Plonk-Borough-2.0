@@ -112,5 +112,6 @@ export const rotaAddMenu = (title, kind, data) => call({ action: 'addMenu', secr
 export const rotaDeleteMenu = (id) => call({ action: 'deleteMenu', secret: SEND_SECRET, id })
 
 // Founder: recent checklist submissions + all training completions.
+export const rotaDjToday = (token, date) => call({ action: 'djToday', token, date })
 export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })
 export const rotaTrainingLog = () => call({ action: 'trainingLog', secret: SEND_SECRET })

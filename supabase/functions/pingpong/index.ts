@@ -292,6 +292,16 @@ function e164(ukPhone: string | null | undefined): string | null {
   return null;
 }
 
+// Any real spelling of a UK mobile → canonical 07 form, or null. Rejecting
+// the +44 spelling blocked real customers on 20 Aug 2026 — never again.
+function normUkMobile(v: unknown): string | null {
+  let n = String(v ?? "").replace(/[^0-9+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (n.startsWith("00")) n = n.slice(2);
+  if (n.startsWith("44")) n = "0" + n.slice(2);
+  return /^07\d{9}$/.test(n) ? n : null;
+}
+
 async function sendWhatsApp(to: string, vars: { name: string; table: number; opponent: string }): Promise<boolean> {
   if (!TW_SID || !TW_TOKEN || !TW_FROM) return false;
   const body = new URLSearchParams({ From: TW_FROM, To: `whatsapp:${to}` });
@@ -1043,21 +1053,31 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name, 80);
       const email = clean(b.email, 120).toLowerCase();
-      const phone = String(b.phone ?? "").replace(/\s+/g, "");
+      const phone = normUkMobile(b.phone);
       const partnerName = clean(b.partnerName, 80);
       const partnerEmail = clean(b.partnerEmail, 120).toLowerCase();
+      const partnerPhone = normUkMobile(b.partnerPhone);
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!email || !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email — the payment link goes there." }, 400);
-      // Founder rule 19 Aug 2026: UK mobile only — the pay link + up-next texts go there.
-      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07." }, 400);
+      if (!phone) return json({ error: "UK mobile needed (07… or +44 7…) — the pay link is texted there." }, 400);
       const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: t } = await sb.from("tournaments").select("*").eq("id", run.tournament_id).maybeSingle();
       if (!t) return json({ error: "Tournament not found." }, 404);
+      // Doubles/teams walk-ups carry BOTH players' full details, exactly like
+      // an online booking (founder rule 20 Aug 2026) — the partner's half of
+      // any prize needs their own email, and their up-next texts need a mobile.
+      const isPair = (run.discipline_override || t.tournament_type) === "doubles" || (run.discipline_override || t.tournament_type) === "teams";
+      if (isPair) {
+        if (!partnerName) return json({ error: "Player 2's name needed — doubles carry both players' details." }, 400);
+        if (!partnerEmail || !/.+@.+\..+/.test(partnerEmail)) return json({ error: "Player 2's email needed — their half of any prize goes there." }, 400);
+        if (!partnerPhone) return json({ error: "Player 2's UK mobile needed (07… or +44 7…)." }, 400);
+      }
       const { data: entry, error: eErr } = await sb.from("tournament_entries").insert({
         tournament_id: t.id, team_name: name, captain_name: name,
         captain_email: email, captain_phone: phone || "",
         partner_name: partnerName || null, partner_email: partnerEmail || null,
+        partner_phone: partnerPhone || null,
         status: "pending_payment", notes: "Walk-up — signed up mid-tournament from /ops",
       }).select("*").single();
       if (eErr) return json({ error: eErr.message }, 400);
@@ -1155,10 +1175,10 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name);
       const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
-      const phone = String(b.phone ?? "").replace(/\s+/g, "");
+      const phone = normUkMobile(b.phone);
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email needed — prizes and league points hang off it." }, 400);
-      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07 (the up-next texts go there)." }, 400);
+      if (!phone) return json({ error: "UK mobile needed (07… or +44 7…) — the up-next texts go there." }, 400);
       const { data: run } = await sb.from("pingpong_tournaments").select("tournament_id").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: entry, error: ee } = await sb.from("tournament_entries").insert({

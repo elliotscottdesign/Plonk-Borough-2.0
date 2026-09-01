@@ -264,3 +264,32 @@ The card already reads finance-lane data. Nothing else in the file touched.
 Released on merge.
 
 - **16 Aug 2026 · rota lane → dj lane (FYI, done):** one-line edit in `src/dj/MonthCalendar.jsx` — the `TODAY` ring colour changed `#60A5FA` → `#FFFFFF` (founder house rule: today = white ring on ALL calendars; status colours wrap outside it). No logic touched. If the DJ session objects, revert just that constant.
+
+## admin lane — CLAIM on CLAUDE.md + SESSIONS.md, 26 Aug 2026
+
+New lane `admin`. Adding one row to the ownership map and one entry to SESSIONS.md.
+Owns `docs/admin/**` only — no app code, so it cannot collide with any other lane.
+Released on merge.
+
+## 20 Aug 2026 — rota fn reads the DJ lane's tables (founder-directed)
+Founder: "in the reservation section, make it clear to see who's DJing that day and their
+contact details in case they need to get hold of them."
+
+Added a `djToday` action to `supabase/functions/rota/index.ts` (staff-token gated, same
+auth as reservationsToday) that READS `dj_slots` + `djs` — name, real name, phone, email,
+instagram — for the 8am-anchored operating day, returning only booked slots (confirmed /
+held / pending, non-suspended) and handling the b2b second DJ via `dj_id2`. **Read-only —
+nothing in the DJ lane is written.** Rendered as a card at the top of
+`src/rota/PortalReservations.jsx` with tap-to-call and tap-to-text links.
+
+Every signed-in staff member sees it, deliberately: if the DJ hasn't arrived, whoever is on
+the floor needs the phone number, not just a manager. Verified live on Sat 29 Aug — returns
+the b2b pair on `main` plus the `sat_pm` early slot; an unauthenticated call gets 401.
+
+DJ lane: `dj_slots`/`djs` are yours — shout if this read cuts across anything in flight.
+
+## finance lane — schema/cron, 2 Sep 2026
+
+Added pg_cron job `receipts-attach-hourly` (20 past the hour) calling the finance
+function xeroSweep. No schema change. Fixes an omission: the sweep was built on
+20 Aug but never scheduled, so nothing attached unless called by hand.

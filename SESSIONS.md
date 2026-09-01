@@ -22,6 +22,7 @@ All live next to this project, in `Sites/nodice/team-sessions/`:
 | **Bar** (stock, cocktails, till) | `Sites/nodice/team-sessions/bar` |
 | **Finances** (wages, takings, costs — founder-only) | `Sites/nodice/team-sessions/finance` |
 | **Lithos handover** (plonkgolf.co.uk → Lithos Digital: handover docs, DNS cutover, SEO) | `Sites/nodice/team-sessions/lithos` |
+| **Admin** (which Google account owns Cloudflare, GitHub, Supabase… and getting the company's name on them) | `Sites/nodice/team-sessions/admin` |
 
 Note: the **Lithos** folder is a different codebase underneath (the Plonk Golf public
 website repo, `plonkgolf-website`) — same idea though: open a session in that folder and
@@ -40,6 +41,14 @@ ship, so an unfinished change in one session can never leak into another.
 ## Adding a new area later
 Just tell any session: *"set up a new session lane for X"* and it'll create the folder +
 branch and add X to the ownership map in [CLAUDE.md](CLAUDE.md).
+
+## The Admin lane
+Housekeeping rather than code. Several services the business depends on — Cloudflare
+(which points nodice.bar at everything), GitHub, Resend, Twilio — are signed up under
+**elliotscottdesign@gmail.com** rather than the company. The job is not to move them,
+which breaks things, but to add **elliot@nodice.bar** as a second owner so nothing
+depends on one personal inbox. The list and the running order live in
+[docs/admin/ACCOUNTS.md](docs/admin/ACCOUNTS.md).
 
 ## The one thing still to tidy
 Kitchen and Key-Dates currently share a back-end file with Rota. Until that's split
