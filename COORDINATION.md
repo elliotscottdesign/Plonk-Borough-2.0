@@ -287,3 +287,9 @@ the floor needs the phone number, not just a manager. Verified live on Sat 29 Au
 the b2b pair on `main` plus the `sat_pm` early slot; an unauthenticated call gets 401.
 
 DJ lane: `dj_slots`/`djs` are yours — shout if this read cuts across anything in flight.
+
+## finance lane — schema/cron, 2 Sep 2026
+
+Added pg_cron job `receipts-attach-hourly` (20 past the hour) calling the finance
+function xeroSweep. No schema change. Fixes an omission: the sweep was built on
+20 Aug but never scheduled, so nothing attached unless called by hand.
