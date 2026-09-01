@@ -398,6 +398,29 @@ export default function DJPortal() {
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 170, display: 'block', margin: '0 auto 6px' }} />
         <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 18 }}>DJ Portal</div>
 
+        {/* Some of our DJs also work behind the bar (Thays, Aug 2026). If a staff
+            login exists on this device, offer the hop back to the staff portal —
+            shifts, availability, checklists. Shown only when she's actually signed
+            in over there, so a DJ who isn't staff never sees a dead end. */}
+        {(() => { try { return !!localStorage.getItem('nd_rota_token') } catch { return false } })() && (
+          <a href="/rota"
+            onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); window.location.assign('/rota') }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none', marginBottom: 14,
+              padding: '12px 14px', borderRadius: 11,
+              background: 'rgba(218,27,51,0.10)', border: '1.5px solid rgba(218,27,51,0.5)',
+              color: '#fff', cursor: 'pointer', touchAction: 'manipulation',
+              WebkitTapHighlightColor: 'rgba(218,27,51,0.4)',
+            }}>
+            <span style={{ fontSize: 20 }}><span data-keep-color>👤</span></span>
+            <span style={{ flex: 1, minWidth: 0 }}>
+              <span style={{ display: 'block', fontSize: 14, fontWeight: 800 }}>My staff profile</span>
+              <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>Shifts, availability &amp; checklists</span>
+            </span>
+            <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: RED }}>Open →</span>
+          </a>
+        )}
+
         {/* Tabs */}
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
           {[['portal', 'My nights'], ['venue', 'Venue'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
