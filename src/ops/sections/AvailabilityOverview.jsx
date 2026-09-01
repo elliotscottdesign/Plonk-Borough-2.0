@@ -57,15 +57,20 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
     return data && data[date] && data[date].unavailable ? 'unavailable' : 'available'
   }
 
-  // How many people are off on a date (across every row shown).
-  const offCountOn = (date) => rows.reduce((a, s) => a + (statusOf(s.id, date) === 'unavailable' ? 1 : 0), 0)
+  // Day-off teams + caps (house rule): bar loses max 2 a day, kitchen 1, manager 1.
+  const laneOf = (s) => (s?.role === 'Manager' || s?.role === 'Asst. Manager') ? 'manager' : s?.role === 'Kitchen / Barback' ? 'kitchen' : 'bar'
+  const LANE_CAPS = { manager: 1, kitchen: 1, bar: 2 }
+  const laneOffOn = (date, lane) => rows.reduce((a, s) => a + (laneOf(s) === lane && statusOf(s.id, date) === 'unavailable' ? 1 : 0), 0)
 
   // Tap a cell → toggle that person OFF / available for the day, debounce-save the month.
   const toggle = (staffId, date) => {
-    // Day-off cap (house rule): max 2 people off per day, first come first served.
-    // Staff are hard-blocked in their portal; you're the boss, so you get an override ask.
-    if (statusOf(staffId, date) !== 'unavailable' && offCountOn(date) >= 2) {
-      if (!window.confirm(`${offCountOn(date)} people are already off on ${date.slice(8)}/${date.slice(5, 7)} — the day-off cap is 2 (staff can't book past it themselves).\n\nOverride and mark this person off anyway?`)) return
+    // Staff are hard-blocked at their team's cap in the portal; you're the boss,
+    // so you get an override ask instead of a block.
+    const person = rows.find(s => s.id === staffId)
+    const lane = laneOf(person)
+    if (statusOf(staffId, date) !== 'unavailable' && laneOffOn(date, lane) >= LANE_CAPS[lane]) {
+      const word = lane === 'manager' ? 'manager' : lane === 'kitchen' ? 'kitchen' : 'bar'
+      if (!window.confirm(`The ${word} team is already at its day-off cap for ${date.slice(8)}/${date.slice(5, 7)} (${laneOffOn(date, lane)} off · cap ${LANE_CAPS[lane]}; staff can't book past it themselves).\n\nOverride and mark ${person?.name || 'this person'} off anyway?`)) return
     }
     const month = date.slice(0, 7), key = `${staffId}|${month}`
     setAvData(prev => {

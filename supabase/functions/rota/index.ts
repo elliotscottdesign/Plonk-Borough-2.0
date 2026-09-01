@@ -319,6 +319,10 @@ Deno.serve(async (req) => {
   const action = b.action as string;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
+  // Day-off teams + caps (founder rule): bar loses at most 2 people a day, kitchen 1,
+  // manager 1 — by JOB role (Supervisor counts as bar), first come first served.
+  const OFF_LANE_CAPS: Record<string, number> = { manager: 1, kitchen: 1, bar: 2 };
+  const offLane = (role: unknown) => role === "Manager" || role === "Asst. Manager" ? "manager" : role === "Kitchen / Barback" ? "kitchen" : "bar";
   const clientIp = callerIp(req);   // for the venue-presence (wifi) check
 
   try {
@@ -600,18 +604,21 @@ Deno.serve(async (req) => {
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
-        // How many OTHER active staff are off each date — the portal locks a day at 2
-        // (first come, first served; one pot across managers/kitchen/bar).
+        // Dates already FULL for this member's own team (bar: 2 off max · kitchen: 1 ·
+        // manager: 1; first come, first served) — the portal shows 🔒 and blocks the tap.
         const [{ data: allAv }, { data: activeRows }] = await Promise.all([
           sb.from("staff_availability").select("staff_id,data").neq("staff_id", me.id),
-          sb.from("staff").select("id").eq("active", true),
+          sb.from("staff").select("id,role").eq("active", true),
         ]);
-        const activeIds2 = new Set((activeRows || []).map((r: any) => r.id));
-        const offCounts: Record<string, number> = {};
+        const myLane2 = offLane(me.role);
+        const laneById2 = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+        const laneCounts: Record<string, number> = {};
         for (const row of allAv || []) {
-          if (!activeIds2.has(row.staff_id)) continue;
-          for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) offCounts[d] = (offCounts[d] || 0) + 1;
+          if (laneById2.get(row.staff_id) !== myLane2) continue;
+          for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) laneCounts[d] = (laneCounts[d] || 0) + 1;
         }
+        const offFull: Record<string, boolean> = {};
+        for (const [d, n] of Object.entries(laneCounts)) if (n >= OFF_LANE_CAPS[myLane2]) offFull[d] = true;
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
@@ -619,7 +626,7 @@ Deno.serve(async (req) => {
         const visibleShifts = (shifts || []).filter((s: any) =>
           mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
-          ok: true, staff: publicStaff(me), availability, offCounts,
+          ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2],
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
@@ -840,25 +847,26 @@ Deno.serve(async (req) => {
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
         const prevData = (prevAv?.data || {}) as Record<string, any>;
         const prevOffSet = new Set(Object.keys(prevData).filter((k) => prevData[k]?.unavailable === true));
-        // ── Day-off cap (founder rule, 19 Aug 2026): at most TWO staff — any role,
-        // one shared pot — may book the same day off. First come, first served: a NEW
-        // off-mark on a date where 2 others already are is refused (their existing
-        // marks are untouched). The founder's own tool can still override.
-        const OFF_CAP = 2;
+        // ── Day-off caps per TEAM (founder rule, 19 Aug 2026): a day can lose at most
+        // 2 bar people, 1 kitchen person and 1 manager. First come, first served: a NEW
+        // off-mark that would take the member's own team past its cap is refused
+        // (existing marks untouched). The founder's own tool can still override.
         const wantNew = Object.keys(data).filter((k) => !prevOffSet.has(k));
         const refused: string[] = [];
         if (wantNew.length > 0) {
+          const myLane = offLane(me.role);
+          const cap = OFF_LANE_CAPS[myLane];
           const [{ data: othersAv }, { data: activeRows }] = await Promise.all([
             sb.from("staff_availability").select("staff_id,data").eq("month", month).neq("staff_id", me.id),
-            sb.from("staff").select("id").eq("active", true),
+            sb.from("staff").select("id,role").eq("active", true),
           ]);
-          const activeIds = new Set((activeRows || []).map((r: any) => r.id));
-          const counts: Record<string, number> = {};
+          const laneById = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+          const counts: Record<string, number> = {};   // date → same-lane off count among OTHERS
           for (const row of othersAv || []) {
-            if (!activeIds.has(row.staff_id)) continue;
+            if (laneById.get(row.staff_id) !== myLane) continue;   // only my own team counts against my cap
             for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) counts[d] = (counts[d] || 0) + 1;
           }
-          for (const d of wantNew) if ((counts[d] || 0) >= OFF_CAP) { refused.push(d); delete data[d]; }
+          for (const d of wantNew) if ((counts[d] || 0) >= cap) { refused.push(d); delete data[d]; }
         }
         // Availability is just "days I can't work" — purely an input the founder uses
         // when building the rota. It is independent of who's rostered, so a member can
