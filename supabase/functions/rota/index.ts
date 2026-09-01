@@ -501,6 +501,47 @@ Deno.serve(async (req) => {
     // shared state everywhere. Reads the same tables the nodice.bar customer site
     // writes (bar_reservations / tournament_entries / bookings — NEVER modified);
     // ticks live in reservation_arrivals keyed (kind, ref_id); un-tick deletes.
+    // ── Who's DJing tonight, and how to reach them ───────────────────────────
+    // Founder, 20 Aug 2026: "make it clear to see who's DJing that day and their
+    // contact details in case they need to get hold of them." Any signed-in staff
+    // member can see this — if the DJ hasn't turned up, whoever is on the floor
+    // needs the phone number, not just the manager.
+    //
+    // Reads the DJ lane's dj_slots + djs tables (read-only; nothing is written).
+    // 8am-anchored operating day, so at 00:30 it still shows tonight's DJ.
+    // Only booked slots are returned — an 'open' slot has no DJ to call.
+    if (action === "djToday") {
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+      }
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+      const { data: slots } = await sb.from("dj_slots")
+        .select("id,date,slot,status,night_name,set_type,dj_id,dj_id2,suspended")
+        .eq("date", date).in("status", ["confirmed", "held", "pending"]);
+      const live = (slots || []).filter((s: any) => s.suspended !== true);
+      const ids = [...new Set(live.flatMap((s: any) => [s.dj_id, s.dj_id2]).filter(Boolean))];
+      const { data: djs } = ids.length
+        ? await sb.from("djs").select("id,dj_name,real_name,phone,email,instagram").in("id", ids)
+        : { data: [] };
+      const byId: Record<string, any> = {};
+      for (const d of djs || []) byId[d.id] = d;
+      const person = (id: string | null) => {
+        const d = id ? byId[id] : null;
+        return d ? { name: d.dj_name || d.real_name || "DJ", realName: d.real_name || null,
+                     phone: d.phone || null, email: d.email || null, instagram: d.instagram || null } : null;
+      };
+      return json({
+        ok: true, date,
+        slots: live.map((s: any) => ({
+          id: s.id, slot: s.slot, status: s.status,
+          nightName: s.night_name || null, setType: s.set_type || null,
+          djs: [person(s.dj_id), person(s.dj_id2)].filter(Boolean),
+        })).filter((s: any) => s.djs.length > 0),
+      });
+    }
+
     if (action === "reservationsToday" || action === "reservationArrive") {
       let who = "";
       if (isAdmin()) who = "Manager";
