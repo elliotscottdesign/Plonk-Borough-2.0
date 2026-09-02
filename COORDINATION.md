@@ -320,3 +320,9 @@ join) but never imported them, so that feature would throw a ReferenceError the 
 anyone used it. Both helpers already exist in `src/pingpong/api.js` and both actions already
 exist in the pingpong edge function — it was purely a missing import. Found by the
 pre-flight checker, not by luck. Tournament lane: one-line import, no logic touched.
+
+## finance lane — schema, 2 Sep 2026 (second)
+
+Added table `till_reports` + private bucket `till-reports`. The Apps Script pushes
+the daily Lightspeed CSVs there from Gmail so reading the till stops depending on a
+connector. Additive; nothing existing touched.
