@@ -270,3 +270,9 @@ Released on merge.
 Added pg_cron job `receipts-attach-hourly` (20 past the hour) calling the finance
 function xeroSweep. No schema change. Fixes an omission: the sweep was built on
 20 Aug but never scheduled, so nothing attached unless called by hand.
+
+## finance lane — schema, 2 Sep 2026 (second)
+
+Added table `till_reports` + private bucket `till-reports`. The Apps Script pushes
+the daily Lightspeed CSVs there from Gmail so reading the till stops depending on a
+connector. Additive; nothing existing touched.

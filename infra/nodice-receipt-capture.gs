@@ -314,6 +314,10 @@ function run(e) {
     }
   }
 
+  // The till reports ride along on the same schedule — they arrive every
+  // morning and nobody should have to remember to fetch them.
+  try { sweepTillReports(); } catch (e) { /* never let this break the receipts run */ }
+
   // Six "nothing found" emails a day is how a useful alert becomes noise you
   // stop opening. Only write when there is something to say.
   if (isManual || filed.length || review.length) report_(filed, review, skipped);
@@ -844,4 +848,105 @@ function invoiceReport_(sent, review, unknown, supplierCount) {
   GmailApp.sendEmail(CONFIG.REPORT_TO,
     'Supplier invoices: ' + sent.length + ' found' + (review.length ? ', ' + review.length + ' to check' : ''),
     'See the HTML version.', { htmlBody: html, name: 'No Dice Receipt Capture' });
+}
+
+
+/* ------------------------------------------------------------------ */
+/* LIGHTSPEED DAILY REPORTS                                            */
+/*                                                                     */
+/* The reports land at 06:30 every morning with the previous trading   */
+/* day's Payments and Transactions attached. Reading them used to mean */
+/* either dragging CSVs into a chat or a connector being alive, and    */
+/* that connector dropped four times in three weeks.                   */
+/*                                                                     */
+/* This runs inside the founder's own Google account, so it does not   */
+/* care. It hands the files to the finance service, where they can be  */
+/* read whenever.                                                      */
+/*                                                                     */
+/* Added to the 4-hourly trigger, so nobody has to remember it.        */
+/* ------------------------------------------------------------------ */
+
+var TILL_REPORT_QUERY = 'from:lightspeedhq.com has:attachment newer_than:45d';
+
+function sweepTillReports() {
+  var filed = 0, skipped = 0, already = 0, problems = [];
+  var threads;
+  try { threads = GmailApp.search(TILL_REPORT_QUERY, 0, 60); }
+  catch (e) { return 'search failed: ' + e; }
+
+  for (var t = 0; t < threads.length; t++) {
+    var msgs = threads[t].getMessages();
+    for (var m = 0; m < msgs.length; m++) {
+      var msg = msgs[m];
+      var atts = msg.getAttachments({ includeInlineImages: false });
+      if (!atts.length) continue;
+
+      for (var a = 0; a < atts.length; a++) {
+        var att = atts[a];
+        var name = att.getName() || 'report';
+        if (!/\.(csv|tsv|xlsx?|txt)$/i.test(name)) { skipped++; continue; }
+
+        try {
+          var res = financeCall_({
+            action: 'tillUploadUrl', filename: name,
+          });
+          var putUrl = 'https://rntcujcpsozvuxvmlejv.supabase.co/storage/v1/object/upload/sign/till-reports/'
+                     + res.path + '?token=' + res.token;
+          var put = UrlFetchApp.fetch(putUrl, {
+            method: 'put', contentType: att.getContentType() || 'text/csv',
+            payload: att.getBytes(), muteHttpExceptions: true,
+          });
+          if (put.getResponseCode() >= 300) throw new Error('upload ' + put.getResponseCode());
+
+          var added = financeCall_({
+            action: 'tillReportAdd',
+            kind: tillReportKind_(name),
+            coversDate: tillReportDate_(name, msg.getDate()),
+            fileName: name, filePath: res.path, bytes: att.getSize(),
+            // One id per attachment, so a re-run cannot file the same
+            // morning's report twice.
+            gmailId: msg.getId() + ':' + a,
+          });
+          if (added.duplicate) already++; else filed++;
+        } catch (e) {
+          problems.push(name + ' — ' + String(e).slice(0, 120));
+        }
+      }
+    }
+  }
+
+  var summary = 'till reports: ' + filed + ' filed, ' + already + ' already had, '
+              + skipped + ' not data files' + (problems.length ? ', ' + problems.length + ' failed' : '');
+  if (filed || problems.length) {
+    GmailApp.sendEmail(CONFIG.REPORT_TO, 'Till reports: ' + filed + ' new',
+      summary + (problems.length ? '\n\n' + problems.join('\n') : ''));
+  }
+  return summary;
+}
+
+/** Which report is it? The filename is the only reliable clue. */
+function tillReportKind_(name) {
+  var n = String(name).toLowerCase();
+  if (n.indexOf('payment') > -1) return 'payments';
+  if (n.indexOf('transaction') > -1) return 'transactions';
+  if (n.indexOf('product') > -1) return 'product';
+  if (n.indexOf('cash') > -1) return 'cashdrawer';
+  if (n.indexOf('staff') > -1) return 'staff';
+  return 'unknown';
+}
+
+/**
+ * Which trading day does it cover? Lightspeed puts dates in the filename
+ * (nodice_plonk-londonfields_transactions_20260601_20260807, or 20260823_2026...).
+ * Take the LAST date found — that is the end of the period. Fall back to the
+ * day before the email, since the report arrives the morning after.
+ */
+function tillReportDate_(name, msgDate) {
+  var hits = String(name).match(/20\d{6}/g);
+  if (hits && hits.length) {
+    var d = hits[hits.length - 1];
+    return d.slice(0, 4) + '-' + d.slice(4, 6) + '-' + d.slice(6, 8);
+  }
+  var prev = new Date(msgDate.getTime() - 86400000);
+  return Utilities.formatDate(prev, 'Europe/London', 'yyyy-MM-dd');
 }
