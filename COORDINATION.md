@@ -51,6 +51,7 @@ never run destructive or "today"-dated test writes on real data.
 | tournament | `pool_vouchers` + `pingpong_vouchers`: `redeemed_at timestamptz` + `redeemed_by text` (additive — voucher redemption tracking). SQL in `supabase/voucher_redemption.sql`. | ✅ applied | 12 Aug 2026 |
 | tournament | NEW table `manager_vouchers` (goodwill vouchers managers send to customers from the staff portal 🎟 Prizes tab — same ND- code + email design + redemption flow as tournament prizes). Additive; RLS on, no policies (service-role only). SQL in `supabase/manager_vouchers.sql`. | ✅ applied | 12 Aug 2026 |
 | bar (via integration session, founder-directed) | **NEW: 15 tables + 7 views — the BAR stock/cost/margin/ordering system.** `bar_suppliers`, `bar_products`, `bar_prep_recipes`, `bar_production_log`, `bar_stocktakes`, `bar_stocktake_sheets`, `bar_stocktake_lines`, `bar_orders`, `bar_order_lines`, `bar_price_history`, `bar_menu_items`, `bar_recipe_lines`, `bar_sales_daily`, `bar_covers`, `bar_waste`; views `bar_cost_base`, `bar_margins`, `bar_on_hand`, `bar_usage_actual`, `bar_usage_theoretical`, `bar_variance`, `bar_stock_value`; trigger `bar_capture_price` on `bar_order_lines`. Additive only — `bar_reservations` and `bar_helpers` untouched. RLS on, no policies (service-role only). SQL in `supabase/bar_stock_system.sql`. Dry-run in a rolled-back txn first; verified with a rolled-back fixture (Corona case-of-24 bought / bottles counted → 113 used, correct). All tables currently EMPTY — seeding is the next slice. | ✅ applied | 17 Aug 2026 |
+| rota (via integration session, founder-directed) | `staff.dj_id uuid references djs(id) on delete set null` — links a staff member who is also one of our DJs to their DJ record, so the two portals can hotlink both ways. Additive; dry-run in a rolled-back txn first. Set for Thays Alviano. | ✅ applied | 20 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
 ## 20 Aug 2026 — till lane touched public/sw.js (de-facto shared: bar lane's toilet push lives in it)
@@ -270,3 +271,58 @@ Released on merge.
 New lane `admin`. Adding one row to the ownership map and one entry to SESSIONS.md.
 Owns `docs/admin/**` only — no app code, so it cannot collide with any other lane.
 Released on merge.
+
+## 20 Aug 2026 — rota fn reads the DJ lane's tables (founder-directed)
+Founder: "in the reservation section, make it clear to see who's DJing that day and their
+contact details in case they need to get hold of them."
+
+Added a `djToday` action to `supabase/functions/rota/index.ts` (staff-token gated, same
+auth as reservationsToday) that READS `dj_slots` + `djs` — name, real name, phone, email,
+instagram — for the 8am-anchored operating day, returning only booked slots (confirmed /
+held / pending, non-suspended) and handling the b2b second DJ via `dj_id2`. **Read-only —
+nothing in the DJ lane is written.** Rendered as a card at the top of
+`src/rota/PortalReservations.jsx` with tap-to-call and tap-to-text links.
+
+Every signed-in staff member sees it, deliberately: if the DJ hasn't arrived, whoever is on
+the floor needs the phone number, not just a manager. Verified live on Sat 29 Aug — returns
+the b2b pair on `main` plus the `sat_pm` early slot; an unauthenticated call gets 401.
+
+DJ lane: `dj_slots`/`djs` are yours — shout if this read cuts across anything in flight.
+
+## finance lane — schema/cron, 2 Sep 2026
+
+Added pg_cron job `receipts-attach-hourly` (20 past the hour) calling the finance
+function xeroSweep. No schema change. Fixes an omission: the sweep was built on
+20 Aug but never scheduled, so nothing attached unless called by hand.
+
+## 20 Aug 2026 — staff ⇄ DJ hotlink (founder-directed)
+Founder: "Thays is one of our bartenders as well as being one of our DJs… add a hot link so
+she can get to her DJ profile via her staff profile, and vice versa."
+
+**Why an explicit link and not matching:** Thays is in both tables with a DIFFERENT email
+(none on staff, thaysalvianodj@… on the DJ record) and a DIFFERENT phone (07832064672 vs
+07551871727). Matching on contact details would have silently failed; matching on NAME would
+eventually marry up two different Charlies. So a manager sets `staff.dj_id` once.
+
+- `staff.dj_id` added (additive DDL, above) and set for Thays.
+- `rota` fn `me` now returns `dj: { name, url }` when `dj_id` is set. **The DJ token is only
+  ever returned to the holder of the staff token whose OWN record carries that dj_id** —
+  never listed or searchable. Verified: Thays's token returns her link; Jude's returns null.
+- `src/rota/RotaPortal.jsx` — "🎧 My DJ profile" card at the top of the profile.
+- `src/dj/DJPortal.jsx` — "👤 My staff profile" back to /rota, shown only when a staff login
+  exists on that device, so a DJ who isn't staff never sees a dead end.
+
+DJ lane: this reads `djs` and adds a link column to `staff`; nothing in `djs` is written.
+
+**Separately — a live crash fixed in `src/ops/sections/PingPong.jsx`:** it calls
+`tournMergeLeague` / `tournUnmergeLeague` (the ping pong league's "same player, two rows"
+join) but never imported them, so that feature would throw a ReferenceError the moment
+anyone used it. Both helpers already exist in `src/pingpong/api.js` and both actions already
+exist in the pingpong edge function — it was purely a missing import. Found by the
+pre-flight checker, not by luck. Tournament lane: one-line import, no logic touched.
+
+## finance lane — schema, 2 Sep 2026 (second)
+
+Added table `till_reports` + private bucket `till-reports`. The Apps Script pushes
+the daily Lightspeed CSVs there from Gmail so reading the till stops depending on a
+connector. Additive; nothing existing touched.

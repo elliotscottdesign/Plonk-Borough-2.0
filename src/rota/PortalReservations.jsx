@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
-import { rotaReservationsToday, rotaReservationArrive } from './api.js'
+import { rotaReservationsToday, rotaReservationArrive, rotaDjToday } from './api.js'
 
 // ─── Today's reservations — every staff member's view (rota portal) ───────────
 // The day's bookings across golf / pool / tables / tournaments, colour-coded by
@@ -26,6 +26,7 @@ export default function PortalReservations({ token }) {
   const [date, setDate] = useState('')
   const [err, setErr] = useState('')
   const [busyKey, setBusyKey] = useState('') // `${kind}:${id}` mid-toggle
+  const [dj, setDj] = useState(null)         // tonight's DJ slots (null = not loaded)
   const timer = useRef(null)
   // A poll response that was requested BEFORE the latest tick must never overwrite
   // it (it would silently un-tick the row for up to 15s). Every toggle bumps this;
@@ -39,6 +40,8 @@ export default function PortalReservations({ token }) {
       if (startedAt < lastMutation.current) return   // stale snapshot — discard
       setRows(r.rows || []); setDate(r.date || ''); setErr('')
     } catch (e) { if (!silent) setErr(e.message || 'Could not load') }
+    // The DJ is a separate, non-critical call — if it fails the bookings still show.
+    try { const d = await rotaDjToday(token); setDj(d.slots || []) } catch { /* leave as-is */ }
   }, [token])
 
   useEffect(() => {
@@ -71,6 +74,44 @@ export default function PortalReservations({ token }) {
 
   return (
     <div>
+      {/* Who's on the decks tonight, and how to reach them. Founder, 20 Aug 2026:
+          "in case they need to get hold of them" — so the phone number is a real
+          tap-to-call link, not text to copy out. Any staff member sees this. */}
+      {dj && dj.length > 0 && (
+        <div style={{ background: 'rgba(168,85,247,0.08)', border: '1px solid rgba(168,85,247,0.4)', borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
+          <div style={{ fontSize: 10.5, fontWeight: 800, color: PURPLE, textTransform: 'uppercase', letterSpacing: '0.1em', marginBottom: 8 }}>
+            🎧 On the decks tonight
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {dj.map(slot => (
+              <div key={slot.id}>
+                {slot.djs.map((p, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginTop: i ? 6 : 0 }}>
+                    <span style={{ fontSize: 14.5, fontWeight: 700, color: '#fff' }}>{p.name}</span>
+                    {p.realName && p.realName !== p.name && (
+                      <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>({p.realName})</span>
+                    )}
+                    {slot.slot === 'sat_pm' && <span style={{ fontSize: 10, fontWeight: 700, color: AMBER }}>EARLY</span>}
+                    {slot.status !== 'confirmed' && (
+                      <span style={{ fontSize: 10, fontWeight: 700, color: AMBER, textTransform: 'uppercase' }}>{slot.status}</span>
+                    )}
+                    <span style={{ display: 'flex', gap: 6, marginLeft: 'auto', flexShrink: 0 }}>
+                      {p.phone && <a href={`tel:${String(p.phone).replace(/[^0-9+]/g, '')}`}
+                        style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(52,211,153,0.14)', border: `1px solid ${GREEN}`, color: GREEN, fontSize: 12.5, fontWeight: 700, textDecoration: 'none' }}>📞 Call</a>}
+                      {p.phone && <a href={`sms:${String(p.phone).replace(/[^0-9+]/g, '')}`}
+                        style={{ padding: '7px 12px', borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, color: '#fff', fontSize: 12.5, fontWeight: 600, textDecoration: 'none' }}>💬 Text</a>}
+                    </span>
+                    {p.phone && <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', width: '100%' }}>{p.phone}{p.instagram ? ` · ${p.instagram}` : ''}</span>}
+                    {!p.phone && <span style={{ fontSize: 11.5, color: AMBER, width: '100%' }}>No phone number on file — check the DJ tab.</span>}
+                  </div>
+                ))}
+                {slot.nightName && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)', marginTop: 3 }}>{slot.nightName}{slot.setType ? ` · ${slot.setType}` : ''}</div>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📇 Today's reservations</div>
       <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.55)', margin: '3px 0 12px', lineHeight: 1.5 }}>
         Live from the website — refreshes itself. When a booking walks in, <strong style={{ color: '#fff' }}>tap ✓ Arrived</strong>; it saves for everyone (all phones + the office).
