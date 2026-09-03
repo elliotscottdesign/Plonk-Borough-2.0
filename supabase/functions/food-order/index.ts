@@ -73,13 +73,31 @@ async function activeCount(sb: any): Promise<number> {
   const { count } = await sb.from("food_orders").select("id", { count: "exact", head: true }).in("status", ["new", "preparing", "ready"]);
   return count || 0;
 }
-// Effective open/paused: paused manually, OR auto-paused when live orders hit the threshold.
+// Current wall-clock minutes-since-midnight in London (handles BST/GMT automatically).
+function londonMinutes(): number {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", hour: "2-digit", minute: "2-digit", hour12: false }).formatToParts(new Date());
+  const h = Number(p.find((x) => x.type === "hour")?.value ?? "0");
+  const m = Number(p.find((x) => x.type === "minute")?.value ?? "0");
+  return (h % 24) * 60 + m;
+}
+function hhmmToMin(s?: string | null): number | null {
+  const mt = /^(\d{1,2}):(\d{2})$/.exec(String(s || "").trim());
+  return mt ? Number(mt[1]) * 60 + Number(mt[2]) : null;
+}
+
+// Effective open/paused: closed outside service hours (default 22:00), OR paused
+// manually, OR auto-paused when live orders hit the threshold. `reason` says which.
 async function getEffective(sb: any) {
   const { data: s } = await sb.from("food_settings").select("*").eq("id", 1).maybeSingle();
   const paused = !!s?.paused, auto = !!s?.auto_pause, threshold = s?.auto_threshold ?? 8;
+  const closeStr = s?.close_hhmm || "22:00", openStr = s?.open_hhmm || "";
+  const nowMin = londonMinutes(), closeMin = hhmmToMin(closeStr), openMin = hhmmToMin(openStr);
+  const outsideHours = (closeMin != null && nowMin >= closeMin) || (openMin != null && nowMin < openMin);
   const active = await activeCount(sb);
   const autoTripped = auto && threshold >= 1 && active >= threshold;   // threshold 0 = auto-pause off
-  return { open: !(paused || autoTripped), paused, auto, threshold, active, autoTripped };
+  const open = !(outsideHours || paused || autoTripped);
+  const reason = outsideHours ? "closed" : paused ? "paused" : autoTripped ? "busy" : null;
+  return { open, paused, auto, threshold, active, autoTripped, outsideHours, reason, close_hhmm: closeStr, open_hhmm: openStr };
 }
 async function waitingCount(sb: any): Promise<number> {
   const { count } = await sb.from("food_waitlist").select("id", { count: "exact", head: true }).is("notified_at", null);
@@ -229,6 +247,8 @@ Deno.serve(async (req) => {
       if (typeof b.paused === "boolean") patch.paused = b.paused;
       if (typeof b.auto_pause === "boolean") patch.auto_pause = b.auto_pause;
       if (b.auto_threshold != null) patch.auto_threshold = Math.max(0, parseInt(b.auto_threshold, 10) || 0);   // 0 = auto-pause off
+      if (typeof b.close_hhmm === "string") patch.close_hhmm = /^\d{1,2}:\d{2}$/.test(b.close_hhmm.trim()) ? b.close_hhmm.trim() : "22:00";
+      if (typeof b.open_hhmm === "string") patch.open_hhmm = /^\d{1,2}:\d{2}$/.test(b.open_hhmm.trim()) ? b.open_hhmm.trim() : null;   // blank = no opening restriction
       const { error } = await sb.from("food_settings").update(patch).eq("id", 1);
       if (error) return json({ error: error.message }, 400);
       const e = await getEffective(sb);
