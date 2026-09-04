@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -86,6 +86,9 @@ export default function TillScreen() {
   const [vCode, setVCode] = useState('')                 // voucher code being typed
   const [vBusy, setVBusy] = useState(false)
   const [vErr, setVErr] = useState('')
+  const [vListOpen, setVListOpen] = useState(false)      // browse-all-vouchers panel
+  const [vList, setVList] = useState(null)               // loaded outstanding vouchers
+  const [vFilter, setVFilter] = useState('')
   const [folder, setFolder] = useState(null)             // null | 'Spirits' — the open category folder
   const [mixerFor, setMixerFor] = useState(null)         // { b, qty } — spirit awaiting its mixer choice
   const [infoFor, setInfoFor] = useState(null)           // product shown in the long-press info popup
@@ -119,6 +122,18 @@ export default function TillScreen() {
   }
   const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
   const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
+
+  const openVoucherBrowse = async () => {
+    setVListOpen(true); setVFilter(''); setVErr('')
+    if (!vList) {
+      try { const r = await tillVoucherList(); setVList(r.vouchers || []) }
+      catch (e) { setVErr(e.message || 'Could not load the voucher list.'); setVListOpen(false) }
+    }
+  }
+  const pickVoucher = (v) => {
+    patch(currentId, o => ({ ...o, voucher: { code: v.code, name: v.name, amount_pence: v.amount_pence, source: v.source } }))
+    setVListOpen(false)
+  }
 
   const applyVoucher = async () => {
     setVBusy(true); setVErr('')
@@ -509,6 +524,7 @@ export default function TillScreen() {
               <button onClick={applyVoucher} disabled={!vCode.trim() || vBusy} style={{ ...bigBtn(false), padding: '10px 18px', opacity: vCode.trim() && !vBusy ? 1 : 0.45 }}>
                 {vBusy ? 'Checking…' : 'APPLY'}
               </button>
+              <button onClick={openVoucherBrowse} style={{ ...bigBtn(false), padding: '10px 18px' }}>📋 BROWSE</button>
             </div>
           )}
           {vErr && <div style={{ fontSize: 12.5, color: RED, fontWeight: 600 }}>{vErr}</div>}
@@ -571,6 +587,36 @@ export default function TillScreen() {
           )}
         </div>
         <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square per share. Demo: it just closes the order.</div>
+
+        {/* 📋 Browse all outstanding vouchers — pick one to apply it */}
+        {vListOpen && (
+          <div onClick={() => setVListOpen(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+            <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 440, maxWidth: '94vw', maxHeight: '82vh', display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 14.5, fontWeight: 800, color: CREAM }}>🎟 Outstanding vouchers</div>
+              <input value={vFilter} onChange={e => setVFilter(e.target.value)} placeholder="🔍 filter by name or code…"
+                style={{ minHeight: 44, padding: '8px 12px', borderRadius: 9, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, boxSizing: 'border-box' }} />
+              <div style={{ overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {vList === null && <div style={{ fontSize: 13, color: DIM, padding: 8 }}>Loading…</div>}
+                {vList && vList
+                  .filter(v => !vFilter.trim() || `${v.name} ${v.code}`.toLowerCase().includes(vFilter.trim().toLowerCase()))
+                  .map(v => (
+                    <button key={v.source + v.code} onClick={() => pickVoucher(v)} style={{
+                      display: 'flex', alignItems: 'center', gap: 10, padding: '12px 13px', borderRadius: 10, cursor: 'pointer',
+                      fontFamily: 'inherit', textAlign: 'left', background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM,
+                    }}>
+                      <span style={{ flex: 1, minWidth: 0 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>{v.name || '(no name)'}</span>
+                        <span style={{ fontSize: 11.5, color: DIM }}> · {v.code} · {v.source === 'manager' ? 'goodwill' : v.source === 'pool' ? 'pool prize' : 'ping pong prize'}</span>
+                      </span>
+                      <span style={{ fontSize: 15, fontWeight: 800, color: GREEN, whiteSpace: 'nowrap' }}>{gbp(v.amount_pence / 100)}</span>
+                    </button>
+                  ))}
+                {vList && vList.length === 0 && <div style={{ fontSize: 13, color: DIM, padding: 8 }}>No outstanding vouchers.</div>}
+              </div>
+              <button onClick={() => setVListOpen(false)} style={btn()}>Cancel</button>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

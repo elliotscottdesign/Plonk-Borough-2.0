@@ -17,6 +17,7 @@ async function call(body) {
 }
 
 export const tillCatalogueCosts = () => call({ action: 'catalogue' })
+export const tillVoucherList = () => call({ action: 'voucherList' })
 export const tillVoucherLookup = (code) => call({ action: 'voucherLookup', code })
 export const tillVoucherRedeem = (code, by) => call({ action: 'voucherRedeem', code, by })
 export const tillVoucherUnredeem = (code) => call({ action: 'voucherUnredeem', code })

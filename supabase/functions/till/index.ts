@@ -66,6 +66,24 @@ Deno.serve(async (req) => {
       return null;
     };
 
+    // Every OUTSTANDING voucher (not yet redeemed), newest first — the till
+    // shows the list with owners' names so staff can pick instead of typing.
+    if (action === "voucherList") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const out: any[] = [];
+      for (const [source, table] of Object.entries(VOUCHER_TABLES)) {
+        const { data } = await sb.from(table)
+          .select("code,display_name,amount_pence,created_at")
+          .is("redeemed_at", null)
+          .order("created_at", { ascending: false }).limit(200);
+        for (const v of data || []) {
+          out.push({ code: v.code, name: v.display_name || "", amount_pence: v.amount_pence, source, created_at: v.created_at });
+        }
+      }
+      out.sort((a, b) => String(b.created_at).localeCompare(String(a.created_at)));
+      return json({ ok: true, vouchers: out });
+    }
+
     if (action === "voucherLookup") {
       if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
       const hit = await findVoucher(b.code);
