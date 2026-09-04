@@ -112,6 +112,9 @@ export default function TillScreen() {
   const [mixerFor, setMixerFor] = useState(null)         // { b, qty } — spirit awaiting its mixer choice
   const [infoFor, setInfoFor] = useState(null)           // product shown in the long-press info popup
   const [dealFor, setDealFor] = useState(null)           // { b, qty, cfg, picks } — deal awaiting its drink choices
+  // Flipping to another menu dismisses any open chooser (founder, 4 Sep 2026:
+  // "if you click to a new menu the items should change with it").
+  const closeChoosers = () => { setDealFor(null); setMixerFor(null) }
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify(orders)) } catch { /* private mode */ }
@@ -1081,10 +1084,10 @@ export default function TillScreen() {
   if (folder === 'Spirits') {
     const violet = pageColor('Spirits — Gin')
     catTiles = [
-      catTile('back', '← All categories', '#9CA3AF', false, () => setFolder(null)),
+      catTile('back', '← All categories', '#9CA3AF', false, () => { closeChoosers(); setFolder(null) }),
       ...spiritsPages.map(pg =>
         catTile(pg.name, pg.name.slice(SPIRITS_PREFIX.length), violet, !query && pg.name === pageName,
-          () => { setQuery(''); setPageName(pg.name) })),
+          () => { closeChoosers(); setQuery(''); setPageName(pg.name) })),
     ]
   } else {
     catTiles = []
@@ -1097,14 +1100,14 @@ export default function TillScreen() {
           const violet = pageColor(pg.name)
           const active = !query && pageName.startsWith(SPIRITS_PREFIX)
           catTiles.push(catTile('spirits-folder', 'Spirits 🥃', violet, active, () => {
-            setFolder('Spirits'); setQuery('')
+            closeChoosers(); setFolder('Spirits'); setQuery('')
             if (!pageName.startsWith(SPIRITS_PREFIX)) setPageName(spiritsPages[0]?.name)
           }))
         }
         continue
       }
       catTiles.push(catTile(pg.name, pg.name, pageColor(pg.name), !query && pg.name === pageName,
-        () => { setFolder(null); setQuery(''); setPageName(pg.name) }))
+        () => { closeChoosers(); setFolder(null); setQuery(''); setPageName(pg.name) }))
     }
   }
 
@@ -1117,7 +1120,7 @@ export default function TillScreen() {
         : { borderLeft: `2px solid rgba(255,255,255,0.18)`, borderRight: `2px solid rgba(255,255,255,0.18)`, padding: '0 12px', height: '100%', boxSizing: 'border-box', overflow: 'hidden' }),
     }}>
       <input
-        value={query} onChange={e => setQuery(e.target.value)} placeholder="🔍 Find anything…"
+        value={query} onChange={e => { closeChoosers(); setQuery(e.target.value) }} placeholder="🔍 Find anything…"
         style={{ minHeight: 58, padding: '8px 14px', borderRadius: 12, border: `2px solid ${query ? GOLD : 'rgba(255,255,255,0.25)'}`, background: 'rgba(255,255,255,0.07)', color: CREAM, fontFamily: 'inherit', fontSize: 16, fontWeight: 600, width: '100%', boxSizing: 'border-box', flexShrink: 0 }}
       />
       {catTiles}
