@@ -110,6 +110,7 @@ export default function KitchenTickets() {
   const togglePause = async () => { setBusy(true); try { setPause(await setSettings({ paused: !pause?.paused })) } catch (e) { alert(e.message) } finally { setBusy(false) } }
   const setAuto = async (on) => { try { setPause(await setSettings({ auto_pause: on })) } catch (e) { alert(e.message) } }
   const setThreshold = async (n) => { try { setPause(await setSettings({ auto_threshold: Math.max(0, n) })) } catch (e) { alert(e.message) } }
+  const setCloseTime = async (v) => { try { setPause(await setSettings({ close_hhmm: v })) } catch (e) { alert(e.message) } }
 
   if (orders == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading orders…</div>
 
@@ -188,14 +189,20 @@ export default function KitchenTickets() {
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
             <button onClick={togglePause} disabled={busy} style={{ ...btn(pause.paused ? GREEN : RED, '#fff'), padding: '10px 16px' }}>{pause.paused ? '▶ Reopen orders' : '⏸ Pause orders'}</button>
             <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#fff' }}>
-              <input type="checkbox" checked={!!pause.auto_pause} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
-              <input type="number" min="0" value={pause.auto_threshold} onChange={e => setThreshold(parseInt(e.target.value, 10) || 0)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
+              <input type="checkbox" checked={!!pause.auto} onChange={e => setAuto(e.target.checked)} /> Auto-pause at
+              <input type="number" min="0" value={pause.threshold ?? 8} onChange={e => setThreshold(parseInt(e.target.value, 10) || 0)} style={{ width: 52, background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 6px', textAlign: 'center' }} /> live orders
+            </label>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 7, fontSize: 13, color: '#fff' }}>
+              🌙 Auto-close at
+              <input type="time" value={pause.close_hhmm || '22:00'} onChange={e => setCloseTime(e.target.value)} style={{ background: '#0e0e10', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 6, padding: '5px 8px' }} />
             </label>
             {pause.waiting > 0 && <span style={{ fontSize: 12, color: '#E8B84B', fontWeight: 700 }}>{pause.waiting} waiting to be texted</span>}
           </div>
           {!pause.open && (
             <div style={{ marginTop: 8, background: RED, color: '#fff', borderRadius: 10, padding: '10px 12px', fontWeight: 800, fontSize: 13, textTransform: 'uppercase', letterSpacing: '0.3px' }}>
-              ⏸ Ordering paused{pause.autoTripped ? ` — auto (busy: ${pause.active} live)` : ''}. Customers see “a few orders ahead”. Reopen to text {pause.waiting} waiting {pause.waiting === 1 ? 'person' : 'people'} (1 a minute).
+              {pause.reason === 'closed'
+                ? `🌙 Closed for the night (after ${pause.close_hhmm || '22:00'}). Customers can't order or pay — they see a "closed til tomorrow" message. Reopens automatically inside service hours.`
+                : <>⏸ Ordering paused{pause.autoTripped ? ` — auto (busy: ${pause.active} live)` : ''}. Customers see “a few orders ahead”. Reopen to text {pause.waiting} waiting {pause.waiting === 1 ? 'person' : 'people'} (1 a minute).</>}
             </div>
           )}
         </div>

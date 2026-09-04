@@ -319,6 +319,10 @@ Deno.serve(async (req) => {
   const action = b.action as string;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
+  // Day-off teams + caps (founder rule): bar loses at most 2 people a day, kitchen 1,
+  // manager 1 — by JOB role (Supervisor counts as bar), first come first served.
+  const OFF_LANE_CAPS: Record<string, number> = { manager: 1, kitchen: 1, bar: 2 };
+  const offLane = (role: unknown) => role === "Manager" || role === "Asst. Manager" ? "manager" : role === "Kitchen / Barback" ? "kitchen" : "bar";
   const clientIp = callerIp(req);   // for the venue-presence (wifi) check
 
   try {
@@ -407,7 +411,22 @@ Deno.serve(async (req) => {
       // Server-authoritative active gate (a deactivated account's token must not resolve —
       // clients rely on `me` for the single-sign-on hub bridge, so enforce it here too).
       if (s.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
-      return json({ ok: true, staff: publicStaff(s) });
+
+      // Some of the team also DJ for us (Thays, 20 Aug 2026). If a manager has
+      // linked this staff record to a DJ record, hand back the DJ's own portal
+      // link so she can hop straight across without digging out the emailed URL.
+      //
+      // The DJ token is ONLY ever returned to the holder of the staff token whose
+      // OWN record carries that dj_id — it is never listed, searchable or exposed
+      // to anyone else. Linking is deliberately explicit rather than matched on
+      // email/phone: Thays has a different email AND a different phone on each
+      // record, so inference would have failed silently.
+      let dj = null;
+      if (s.dj_id) {
+        const { data: d } = await sb.from("djs").select("id,dj_name,real_name,token").eq("id", s.dj_id).maybeSingle();
+        if (d?.token) dj = { name: d.dj_name || d.real_name || "DJ", url: `/dj?t=${encodeURIComponent(d.token)}` };
+      }
+      return json({ ok: true, staff: publicStaff(s), dj });
     }
 
     // ── Training doc override for a module (founder edits). Not sensitive; the
@@ -501,6 +520,47 @@ Deno.serve(async (req) => {
     // shared state everywhere. Reads the same tables the nodice.bar customer site
     // writes (bar_reservations / tournament_entries / bookings — NEVER modified);
     // ticks live in reservation_arrivals keyed (kind, ref_id); un-tick deletes.
+    // ── Who's DJing tonight, and how to reach them ───────────────────────────
+    // Founder, 20 Aug 2026: "make it clear to see who's DJing that day and their
+    // contact details in case they need to get hold of them." Any signed-in staff
+    // member can see this — if the DJ hasn't turned up, whoever is on the floor
+    // needs the phone number, not just the manager.
+    //
+    // Reads the DJ lane's dj_slots + djs tables (read-only; nothing is written).
+    // 8am-anchored operating day, so at 00:30 it still shows tonight's DJ.
+    // Only booked slots are returned — an 'open' slot has no DJ to call.
+    if (action === "djToday") {
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+      }
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+      const { data: slots } = await sb.from("dj_slots")
+        .select("id,date,slot,status,night_name,set_type,dj_id,dj_id2,suspended")
+        .eq("date", date).in("status", ["confirmed", "held", "pending"]);
+      const live = (slots || []).filter((s: any) => s.suspended !== true);
+      const ids = [...new Set(live.flatMap((s: any) => [s.dj_id, s.dj_id2]).filter(Boolean))];
+      const { data: djs } = ids.length
+        ? await sb.from("djs").select("id,dj_name,real_name,phone,email,instagram").in("id", ids)
+        : { data: [] };
+      const byId: Record<string, any> = {};
+      for (const d of djs || []) byId[d.id] = d;
+      const person = (id: string | null) => {
+        const d = id ? byId[id] : null;
+        return d ? { name: d.dj_name || d.real_name || "DJ", realName: d.real_name || null,
+                     phone: d.phone || null, email: d.email || null, instagram: d.instagram || null } : null;
+      };
+      return json({
+        ok: true, date,
+        slots: live.map((s: any) => ({
+          id: s.id, slot: s.slot, status: s.status,
+          nightName: s.night_name || null, setType: s.set_type || null,
+          djs: [person(s.dj_id), person(s.dj_id2)].filter(Boolean),
+        })).filter((s: any) => s.djs.length > 0),
+      });
+    }
+
     if (action === "reservationsToday" || action === "reservationArrive") {
       let who = "";
       if (isAdmin()) who = "Manager";
@@ -600,6 +660,21 @@ Deno.serve(async (req) => {
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
+        // Dates already FULL for this member's own team (bar: 2 off max · kitchen: 1 ·
+        // manager: 1; first come, first served) — the portal shows 🔒 and blocks the tap.
+        const [{ data: allAv }, { data: activeRows }] = await Promise.all([
+          sb.from("staff_availability").select("staff_id,data").neq("staff_id", me.id),
+          sb.from("staff").select("id,role").eq("active", true),
+        ]);
+        const myLane2 = offLane(me.role);
+        const laneById2 = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+        const laneCounts: Record<string, number> = {};
+        for (const row of allAv || []) {
+          if (laneById2.get(row.staff_id) !== myLane2) continue;
+          for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) laneCounts[d] = (laneCounts[d] || 0) + 1;
+        }
+        const offFull: Record<string, boolean> = {};
+        for (const [d, n] of Object.entries(laneCounts)) if (n >= OFF_LANE_CAPS[myLane2]) offFull[d] = true;
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
@@ -607,7 +682,7 @@ Deno.serve(async (req) => {
         const visibleShifts = (shifts || []).filter((s: any) =>
           mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
-          ok: true, staff: publicStaff(me), availability,
+          ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2],
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
@@ -828,6 +903,27 @@ Deno.serve(async (req) => {
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
         const prevData = (prevAv?.data || {}) as Record<string, any>;
         const prevOffSet = new Set(Object.keys(prevData).filter((k) => prevData[k]?.unavailable === true));
+        // ── Day-off caps per TEAM (founder rule, 19 Aug 2026): a day can lose at most
+        // 2 bar people, 1 kitchen person and 1 manager. First come, first served: a NEW
+        // off-mark that would take the member's own team past its cap is refused
+        // (existing marks untouched). The founder's own tool can still override.
+        const wantNew = Object.keys(data).filter((k) => !prevOffSet.has(k));
+        const refused: string[] = [];
+        if (wantNew.length > 0) {
+          const myLane = offLane(me.role);
+          const cap = OFF_LANE_CAPS[myLane];
+          const [{ data: othersAv }, { data: activeRows }] = await Promise.all([
+            sb.from("staff_availability").select("staff_id,data").eq("month", month).neq("staff_id", me.id),
+            sb.from("staff").select("id,role").eq("active", true),
+          ]);
+          const laneById = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+          const counts: Record<string, number> = {};   // date → same-lane off count among OTHERS
+          for (const row of othersAv || []) {
+            if (laneById.get(row.staff_id) !== myLane) continue;   // only my own team counts against my cap
+            for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) counts[d] = (counts[d] || 0) + 1;
+          }
+          for (const d of wantNew) if ((counts[d] || 0) >= cap) { refused.push(d); delete data[d]; }
+        }
         // Availability is just "days I can't work" — purely an input the founder uses
         // when building the rota. It is independent of who's rostered, so a member can
         // freely mark/un-mark any day and it never adds or removes an actual shift.
@@ -856,7 +952,7 @@ Deno.serve(async (req) => {
               `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked ${newOff.length === 1 ? "this day" : "these days"} off — the rota builder will work around ${newOff.length === 1 ? "it" : "them"}:</p><ul style="color:#ccc;padding-left:18px;line-height:1.5">${li}</ul>`,
               { href: OPS_URL, label: "Open the rota" }));
         }
-        return json({ ok: true });
+        return json({ ok: true, refused });
       }
 
       if (action === "claimShift") {

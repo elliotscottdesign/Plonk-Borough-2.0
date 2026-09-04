@@ -53,6 +53,18 @@ for f in files:
             if want and want not in have:
                 bad.append(f"{f}: imports {{{want}}} from '{spec}' — NOT EXPORTED (has: {', '.join(sorted(have))[:90]})")
 
+# Second pass: catch project helpers that are CALLED but never imported or
+# defined — a runtime crash a named-import check cannot see. This has bitten
+# twice now (restoreRememberedSession, then rotaMe), so it is checked properly.
+WATCH_RE = re.compile(r'\b((?:rota|bar|dj|tourn|kitchen)[A-Z]\w+|restoreRememberedSession|forgetDevice|applyTheme|applyAccessSession)\s*\(')
+for f in files:
+    s2 = open(f, encoding='utf-8').read()
+    for name in sorted(set(WATCH_RE.findall(s2))):
+        declared = re.search(
+            r'(import\s*\{[^}]*\b' + name + r'\b[^}]*\}|import[^\n]*\b' + name + r'\b|(?:function|const|let|var)\s+' + name + r'\b|' + name + r'\s*[:=])', s2, re.S)
+        if not declared:
+            bad.append(f"{f}: calls {name}() but never imports or defines it")
+
 if bad:
     print(f"✗ {len(bad)} broken import(s):"); [print('   ', b) for b in bad]; sys.exit(1)
 print(f"✓ all imports resolve across {len(files)} files")

@@ -57,8 +57,21 @@ export default function AvailabilityOverview({ staff = [], availability = [], re
     return data && data[date] && data[date].unavailable ? 'unavailable' : 'available'
   }
 
+  // Day-off teams + caps (house rule): bar loses max 2 a day, kitchen 1, manager 1.
+  const laneOf = (s) => (s?.role === 'Manager' || s?.role === 'Asst. Manager') ? 'manager' : s?.role === 'Kitchen / Barback' ? 'kitchen' : 'bar'
+  const LANE_CAPS = { manager: 1, kitchen: 1, bar: 2 }
+  const laneOffOn = (date, lane) => rows.reduce((a, s) => a + (laneOf(s) === lane && statusOf(s.id, date) === 'unavailable' ? 1 : 0), 0)
+
   // Tap a cell → toggle that person OFF / available for the day, debounce-save the month.
   const toggle = (staffId, date) => {
+    // Staff are hard-blocked at their team's cap in the portal; you're the boss,
+    // so you get an override ask instead of a block.
+    const person = rows.find(s => s.id === staffId)
+    const lane = laneOf(person)
+    if (statusOf(staffId, date) !== 'unavailable' && laneOffOn(date, lane) >= LANE_CAPS[lane]) {
+      const word = lane === 'manager' ? 'manager' : lane === 'kitchen' ? 'kitchen' : 'bar'
+      if (!window.confirm(`The ${word} team is already at its day-off cap for ${date.slice(8)}/${date.slice(5, 7)} (${laneOffOn(date, lane)} off · cap ${LANE_CAPS[lane]}; staff can't book past it themselves).\n\nOverride and mark ${person?.name || 'this person'} off anyway?`)) return
+    }
     const month = date.slice(0, 7), key = `${staffId}|${month}`
     setAvData(prev => {
       const cur = prev[key] || {}

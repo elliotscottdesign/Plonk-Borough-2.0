@@ -3,7 +3,8 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound, tournSetSignups} from '../../pingpong/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound, tournSetSignups,
+  tournMergeLeague, tournUnmergeLeague} from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
 // Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
@@ -83,10 +84,10 @@ export default function PingPong() {
   }
 
   const addWalkin = async () => {
-    const name = walkin.name.trim(), email = walkin.email.trim().toLowerCase(), phone = walkin.phone.replace(/\s+/g, '')
+    const name = walkin.name.trim(), email = walkin.email.trim().toLowerCase(), phone = normUkMobile(walkin.phone)
     if (!name || !run) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return alert('Email needed — prizes and league points hang off it.')
-    if (!/^07\d{9}$/.test(phone)) return alert('UK mobile needed — 11 digits starting 07 (the up-next texts go there).')
+    if (!phone) return alert('UK mobile needed (07… or +44 7…) — the up-next texts go there.')
     await guard(async () => { await tournAddManual(run.run.id, name, email, phone); setWalkin({ name: '', email: '', phone: '' }) })()
   }
   const saveRename = async (id) => { const name = editVal.trim(); if (!name) { setEditing(null); return } await guard(async () => { await tournRename(id, name); setEditing(null) })() }
@@ -578,7 +579,7 @@ export default function PingPong() {
         <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
           <input value={walkin.name} onChange={e => setWalkin(w => ({ ...w, name: e.target.value }))} placeholder="Walk-in name / team…" disabled={full} style={{ flex: '1 1 140px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
           <input value={walkin.email} onChange={e => setWalkin(w => ({ ...w, email: e.target.value }))} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" disabled={full} style={{ flex: '1 1 150px', minWidth: 130, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
-          <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9 ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" disabled={full} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
+          <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9+ ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" disabled={full} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none', opacity: full ? 0.5 : 1 }} />
           <button onClick={addWalkin} disabled={busy || !walkin.name.trim() || full} style={{ ...btn('gold'), opacity: (busy || !walkin.name.trim() || full) ? 0.5 : 1 }}>+ Add walk-in</button>
           <button onClick={refresh} disabled={busy} style={btn('ghost')} title="Re-check who's paid online">↻ Refresh</button>
         </div>
@@ -626,6 +627,9 @@ export default function PingPong() {
                   {ri === 0 && rms.filter(m => !m.is_bye && m.status === 'done').length === 0 && <button onClick={deleteCurrentRound} disabled={busy} title="Remove this round — only offered while no scores are in" style={{ background: 'none', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.65)', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>🗑 Delete round</button>}
                   {ri === 0 && done < rms.length && <button onClick={() => callPlayers(null, rnd.id)} disabled={busy} title="Text everyone still to play in this round" style={{ background: 'none', border: `1px solid ${LINE}`, color: '#fff', borderRadius: 7, padding: '4px 9px', fontSize: 11.5, fontWeight: 700, cursor: 'pointer' }}>📣 Call players</button>}
                   <div style={{ fontSize: 11, color: done === rms.length ? GREEN : AMBER, fontWeight: 700 }}>{done}/{rms.length} played</div>
+                  {/* ＋ = draw the next round — lives inside the current round's frame
+                      (founder direction 21 Aug 2026), replacing the big button below. */}
+                  {ri === 0 && <button onClick={nextRound} disabled={busy} title="Draw the next round" aria-label="Draw the next round" style={{ ...btn('gold'), width: 30, height: 30, padding: 0, borderRadius: 999, fontSize: 17, fontWeight: 800, lineHeight: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>＋</button>}
                 </div>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
@@ -661,20 +665,7 @@ export default function PingPong() {
                 stay out of the way. Always enabled; pairings use standings so far. */}
             {ri === 0 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 4, marginBottom: 4 }}>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={nextRound} disabled={busy} style={{ ...btn('gold'), padding: '12px 18px', fontSize: 14 }}>+ Add another round</button>
-                </div>
-                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine, the next round pairs from the standings you have so far.</div>}
-                {/* Add a team/player mid-tournament — was drawer-only, surfaced here
-                    on the founder's word during a live night (12 Aug 2026). They
-                    join the NEXT round's draw; take the entry fee at the bar. */}
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
-                  <input value={walkin.name} onChange={e => setWalkin(w => ({ ...w, name: e.target.value }))} placeholder="Add a team / player…" style={{ flex: '1 1 130px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <input value={walkin.email} onChange={e => setWalkin(w => ({ ...w, email: e.target.value }))} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" style={{ flex: '1 1 140px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <input value={walkin.phone} onChange={e => setWalkin(w => ({ ...w, phone: e.target.value.replace(/[^0-9 ]/g, '') }))} onKeyDown={e => { if (e.key === 'Enter') addWalkin() }} placeholder="Mobile (07…)" inputMode="tel" style={{ flex: '1 1 110px', minWidth: 0, padding: '9px 10px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
-                  <button onClick={addWalkin} disabled={busy || !walkin.name.trim()} style={{ ...btn('ghost'), padding: '9px 13px', fontSize: 13, opacity: walkin.name.trim() ? 1 : 0.45 }}>＋ Add</button>
-                </div>
-                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: -3 }}>All three needed — email carries their prizes & league points, mobile gets the you're-up texts. Straight into the next round's draw; take the entry fee at the bar.</div>
+                {!curDone && <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Round {curRound?.ordinal} still has open matches — that's fine: ＋ in the round header draws the next round from the standings so far.</div>}
                 {callMsg && (
                   <div onClick={() => setCallMsg(null)} title="tap to dismiss" style={{ fontSize: 12, lineHeight: 1.5, color: '#fff', background: 'rgba(255,255,255,0.06)', border: `1px solid ${LINE}`, borderRadius: 8, padding: '8px 10px', cursor: 'pointer' }}>{callMsg}</div>
                 )}
@@ -884,11 +875,23 @@ export default function PingPong() {
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>first to {koWin} · deuce past {koWin - 1}–{koWin - 1}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}{run.run?.settings?.finalBestOf3 ? ' · best-of-3 final' : ''}</span>
             </div>
-            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
+            {/* Bracket tree: all columns stretch to the same height and every
+                match sits in an equal flex slot — a round with half the matches
+                gets slots twice as tall, so each tie is vertically CENTRED
+                between the two matches that feed it (founder, 2 Sep 2026: the
+                drifting columns confused players). Labels live outside the
+                slot area so they line up across the top. */}
+            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
-                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: r === totalRounds ? 'center' : 'space-around' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{roundLabel(r)}</div>
-                  {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => <React.Fragment key={m.id}>{BracketMatch({ m })}</React.Fragment>)}
+                <div key={r} style={{ display: 'flex', flexDirection: 'column', minWidth: 190, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8, height: 16 }}>{roundLabel(r)}</div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => (
+                      <div key={m.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '5px 0' }}>
+                        {BracketMatch({ m })}
+                      </div>
+                    ))}
+                  </div>
                   {r === totalRounds && tpm && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8 }}>3rd-place play-off</div>
@@ -1003,6 +1006,16 @@ function TableBadge({ n, pending, small }) {
 // ── Add-late-team panel ─────────────────────────────────────────────────────
 // Small self-contained input + button used in the ☰ drawer while the rounds
 // run, so a late-arriving team can be added without leaving the tournament view.
+// Any real spelling of a UK mobile → canonical 07 form, or null (landlines,
+// foreign, typos). Mirrors the engines — accepting +44 keeps autofill working.
+function normUkMobile(v) {
+  let n = String(v || '').replace(/[^0-9+]/g, '')
+  if (n.startsWith('+')) n = n.slice(1)
+  if (n.startsWith('00')) n = n.slice(2)
+  if (n.startsWith('44')) n = '0' + n.slice(2)
+  return /^07\d{9}$/.test(n) ? n : null
+}
+
 function AddLatePanel({ busy, onAdd, label, hint }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
@@ -1010,8 +1023,9 @@ function AddLatePanel({ busy, onAdd, label, hint }) {
   const submit = async () => {
     const n = name.trim(); if (!n || busy) return
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) return alert('Email needed — prizes and league points hang off it.')
-    if (!/^07\d{9}$/.test(phone.replace(/\s+/g, ''))) return alert('UK mobile needed — 11 digits starting 07.')
-    await onAdd(n, email.trim().toLowerCase(), phone.replace(/\s+/g, ''))
+    const mob = normUkMobile(phone)
+    if (!mob) return alert('UK mobile needed (07… or +44 7…).')
+    await onAdd(n, email.trim().toLowerCase(), mob)
     setName(''); setEmail(''); setPhone('')
   }
   return (
@@ -1027,7 +1041,7 @@ function AddLatePanel({ busy, onAdd, label, hint }) {
           style={{ flex: '1 1 160px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }}
         />
         <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email" type="email" inputMode="email" autoCapitalize="none" disabled={busy} style={{ flex: '1 1 150px', minWidth: 120, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
-        <input value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9 ]/g, ''))} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="Mobile (07…)" inputMode="tel" disabled={busy} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
+        <input value={phone} onChange={e => setPhone(e.target.value.replace(/[^0-9+ ]/g, ''))} onKeyDown={e => { if (e.key === 'Enter') submit() }} placeholder="Mobile (07…)" inputMode="tel" disabled={busy} style={{ flex: '1 1 120px', minWidth: 110, padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none' }} />
         <button onClick={submit} disabled={busy || !name.trim()} style={{ ...btn('gold'), padding: '9px 14px', opacity: (busy || !name.trim()) ? 0.5 : 1 }}>+ Add</button>
       </div>
     </div>
@@ -1047,15 +1061,20 @@ function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
   const [phone, setPhone] = useState('')
   const [p2name, setP2name] = useState('')
   const [p2email, setP2email] = useState('')
+  const [p2phone, setP2phone] = useState('')
   const [note, setNote] = useState('')
-  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim())
+  // Doubles/teams walk-ups carry BOTH players' full details, like an online
+  // booking (founder rule 20 Aug 2026). The engine enforces the same rules.
+  const valid = name.trim().length > 1 && /.+@.+\..+/.test(email.trim()) && !!normUkMobile(phone)
+    && (!showPartner || (p2name.trim().length > 1 && /.+@.+\..+/.test(p2email.trim()) && !!normUkMobile(p2phone)))
   const inp = { padding: '9px 11px', fontSize: 14, borderRadius: 8, background: '#000', border: '1px solid rgba(168,85,247,0.35)', color: '#fff', outline: 'none', minWidth: 0 }
   const submit = async () => {
     if (!valid || busy) return
-    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: phone.trim(), partnerName: p2name.trim(), partnerEmail: p2email.trim() })
+    const r = await onAdd({ name: name.trim(), email: email.trim(), phone: normUkMobile(phone), partnerName: p2name.trim(), partnerEmail: p2email.trim(), partnerPhone: normUkMobile(p2phone) || '' })
     if (r && r.ok) {
-      setNote(r.emailed ? `✓ ${name.trim()} is in — payment link emailed` : `✓ ${name.trim()} is in — pay-link email failed, take cash instead`)
-      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email('')
+      const how = [r.texted && 'texted', r.emailed && 'emailed'].filter(Boolean).join(' + ')
+      setNote(how ? `✓ ${name.trim()} is in — payment link ${how}` : `✓ ${name.trim()} is in — pay link couldn't send, take cash instead`)
+      setName(''); setEmail(''); setPhone(''); setP2name(''); setP2email(''); setP2phone('')
     }
   }
   return (
@@ -1065,8 +1084,9 @@ function WalkupPanel({ busy, onAdd, nameLabel, showPartner }) {
       <input value={email} onChange={e => setEmail(e.target.value)} placeholder="Email (payment link goes here)…" type="email" disabled={busy} style={inp} />
       <input value={phone} onChange={e => setPhone(e.target.value)} placeholder="Phone (optional)…" type="tel" disabled={busy} style={inp} />
       {showPartner && <>
-        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name (optional)…" disabled={busy} style={inp} />
+        <input value={p2name} onChange={e => setP2name(e.target.value)} placeholder="Player 2 name…" disabled={busy} style={inp} />
         <input value={p2email} onChange={e => setP2email(e.target.value)} placeholder="Player 2 email (their half of any prize)…" type="email" disabled={busy} style={inp} />
+        <input value={p2phone} onChange={e => setP2phone(e.target.value.replace(/[^0-9+ ]/g, ''))} placeholder="Player 2 mobile (07… or +44 7…)…" type="tel" inputMode="tel" disabled={busy} style={inp} />
       </>}
       <button onClick={submit} disabled={busy || !valid} style={{ ...btn('gold'), padding: '10px', opacity: (busy || !valid) ? 0.5 : 1 }}>🚶 Sign up & email the pay link</button>
       {note && <span style={{ fontSize: 11.5, color: GREEN }}>{note}</span>}

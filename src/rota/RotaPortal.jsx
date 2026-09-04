@@ -11,7 +11,7 @@ import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { useChecklistOverrides, effectiveShift } from '../lib/liveChecklists.js'
-import { rotaMenus } from './api.js'
+import { rotaMenus, rotaMe } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
@@ -85,6 +85,7 @@ const Avatar = ({ name, size = 34 }) => {
 export default function RotaPortal() {
   const [token, setToken] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null))
   const [staff, setStaff] = useState(null)
+  const [djLink, setDjLink] = useState(null)   // set when this staff member is also one of our DJs
   const [shifts, setShifts] = useState([])
   const [training, setTraining] = useState([])            // completed item_keys
   const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
@@ -96,6 +97,8 @@ export default function RotaPortal() {
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [kitchen, setKitchen] = useState(null)            // { isKitchen, shiftId, date } — food-safety gate
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
+  const [offFull, setOffFull] = useState({})              // dates already full for MY team (bar 2 · kitchen 1 · manager 1 off max)
+  const [offCapInfo, setOffCapInfo] = useState({ lane: 'bar', cap: 2 })
   const availRef = useRef(availability)                   // freshest availability for debounced saves
   const saveTimers = useRef({})                           // 'YYYY-MM' -> debounce timeout id
   const saveChains = useRef({})                            // 'YYYY-MM' -> tail promise (serialises that month's saves)
@@ -164,7 +167,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setOffFull(r.offFull || {}); setOffCapInfo({ lane: r.offLane || 'bar', cap: r.offCap || 2 }); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -236,6 +239,15 @@ export default function RotaPortal() {
   const enqueueSave = (mk, map) => {
     const prev = saveChains.current[mk] || Promise.resolve()
     const p = prev.catch(() => {}).then(() => rotaSaveAvailability(token, mk, map))
+      .then((r) => {
+        // Cap race: someone else took the last slot between our tap and the save —
+        // the server refused those dates; resync so the mark un-does itself visibly.
+        if (r?.refused?.length) {
+          alert(`Too slow, sorry — your team's day-off slots filled up for: ${r.refused.map(d => `${d.slice(8)}/${d.slice(5, 7)}`).join(', ')}. Your mark there was not saved.`)
+          if (saveChains.current[mk] === p) loadState(token)
+        }
+        return r
+      })
       // On failure resync to the server's truth — but only if no newer save is already
       // queued for this month, so we don't blank the UI while a fresher save is pending.
       .catch((e) => { handleErr(e); if (saveChains.current[mk] === p) loadState(token) })
@@ -253,10 +265,16 @@ export default function RotaPortal() {
     saveTimers.current[mk] = setTimeout(() => { delete saveTimers.current[mk]; enqueueSave(mk, availRef.current[mk] || {}) }, 1100)
   }
 
+  const isOffFull = (ds) => !!offFull[ds]   // my team's day-off slots are gone for this date
+  const laneWord = offCapInfo.lane === 'manager' ? 'manager' : offCapInfo.lane === 'kitchen' ? 'kitchen team' : 'bar team'
   const toggleAvail = (ds) => {
     if (ds < todayStr) return
     const mk = ds.slice(0, 7)
     const wasOff = !!((availability[mk] || {})[ds] || {}).unavailable
+    if (!wasOff && isOffFull(ds)) {
+      alert(`The ${laneWord}'s day-off slot${offCapInfo.cap === 1 ? '' : 's'} for ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)} ${offCapInfo.cap === 1 ? 'is' : 'are'} taken — max ${offCapInfo.cap} off per day (bar 2 · kitchen 1 · manager 1), first come first served.\n\nIf it's urgent, talk to your manager.`)
+      return
+    }
     if (!wasOff) {
       const booked = (shiftsByDate[ds] || []).some(s => s.mine)
       if (booked && !window.confirm(`You're booked to work ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)}.\n\nMarking yourself off won't cancel that shift — it stays booked. Let your manager know if you need cover.\n\nMark the day off anyway?`)) return
@@ -270,6 +288,16 @@ export default function RotaPortal() {
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const claim = (id) => act(async () => { await flushAllSaves(); await rotaClaimShift(token, id) })
   const release = (id) => act(() => rotaReleaseShift(token, id))
+  // Some of the team also DJ for us. If a manager has linked this staff record to
+  // a DJ record, the rota fn hands back that DJ's own portal link so she can hop
+  // straight across instead of hunting for the emailed URL (founder, 20 Aug 2026).
+  useEffect(() => {
+    if (!token) { setDjLink(null); return }
+    let live = true
+    rotaMe(token).then(r => { if (live) setDjLink(r.dj || null) }).catch(() => { /* never block the portal */ })
+    return () => { live = false }
+  }, [token])
+
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const doClockIn = async () => {
     setBusy(true); setClockMsg('')
@@ -464,12 +492,13 @@ export default function RotaPortal() {
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
                     {mineN > 0 && <span style={{ fontSize: 8.5, color: GREEN, fontWeight: 700 }}>✓{mineN}</span>}
                     {off && <span style={{ fontSize: 8.5, color: RED, fontWeight: 700 }}>✕ off</span>}
+                    {!off && ds >= todayStr && isOffFull(ds) && <span title={`Your team's day-off slots are taken (bar 2 · kitchen 1 · manager 1 per day)`} style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.55)' }}>🔒</span>}
                     {openN > 0 && !off && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
                   </div>
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span>
+              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
             </div>
 
             {selDate && (() => {
@@ -482,7 +511,9 @@ export default function RotaPortal() {
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
                   {selDate >= todayStr && (avail
-                    ? <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>
+                    ? (isOffFull(selDate)
+                      ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>🔒 Your {laneWord}'s day-off slot{offCapInfo.cap === 1 ? ' is' : 's are'} <strong style={{ color: '#fff' }}>taken</strong> for this day — max {offCapInfo.cap} off (bar 2 · kitchen 1 · manager 1), first come first served. If it's urgent, talk to your manager.</div>
+                      : <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>)
                     : <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
                         <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>
@@ -566,7 +597,7 @@ export default function RotaPortal() {
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} reload={() => loadState(token)} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} djLink={djLink} reload={() => loadState(token)} />
         )}
       </div>
 
@@ -844,7 +875,7 @@ function DobInput({ value, onChange, style }) {
   return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
 }
 
-function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
+function ProfileView({ staff, onSave, busy, token, docs, clocks = [], djLink = null, reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
@@ -865,6 +896,30 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Some of the team also DJ for us (Thays, Aug 2026). One tap across to her
+          own DJ profile — her set dates, fee, promo track and payment details —
+          without hunting for the private link that was emailed to her months ago.
+          Only ever shown when a manager has linked the two records. */}
+      {djLink && (
+        <a href={djLink.url}
+          onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); window.location.assign(djLink.url) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+            padding: '13px 14px', borderRadius: 11,
+            background: 'rgba(168,85,247,0.10)', border: '1.5px solid rgba(168,85,247,0.55)',
+            color: '#fff', cursor: 'pointer', touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'rgba(168,85,247,0.45)',
+          }}>
+          <span style={{ fontSize: 21 }}><span data-keep-color>🎧</span></span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, fontWeight: 800 }}>My DJ profile</span>
+            <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+              {djLink.name} — set dates, fee &amp; payment details
+            </span>
+          </span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#A855F7' }}>Open →</span>
+        </a>
+      )}
       {/* Managers/Asst Managers: jump straight to the /ops team hub (or the DJ section). */}
       {['Manager', 'Asst. Manager'].includes(staff.role) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
