@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillFloorGet, tillFloorSave, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -97,6 +97,7 @@ export default function TillScreen() {
   const [query, setQuery] = useState('')
   const [closed, setClosed] = useState(null)
   const [selKey, setSelKey] = useState(null)             // selected ticket line
+  const [padOpen, setPadOpen] = useState(false)          // keypad hidden until asked for
   const [buf, setBuf] = useState('')                     // keypad buffer
   const [discOpen, setDiscOpen] = useState(false)
   const [splitN, setSplitN] = useState(0)                // 0 = no split
@@ -130,6 +131,33 @@ export default function TillScreen() {
   const [editRoom, setEditRoom] = useState(false)
   const [selTable, setSelTable] = useState(null)         // selected table id (edit mode)
   const [moveOrderId, setMoveOrderId] = useState(null)   // order being re-homed via the floor
+
+  // ── Reservations dropped onto tables (founder, 21 Aug 2026) ──────────────
+  // Today's bookings load from bar_reservations; tap one, then tap table(s) to
+  // hold them under the booking's name. Tapping a held table when the group
+  // arrives seats them: the order opens pre-named and the holds clear.
+  const HOLDS_STORE = 'nd_till_holds_v1'
+  const [holds, setHolds] = useState(() => {
+    try { const h = JSON.parse(localStorage.getItem(HOLDS_STORE)); if (h && h.map) return h } catch { /* fresh */ }
+    return { date: null, map: {} }
+  })
+  const [resList, setResList] = useState(null)
+  const [resDay, setResDay] = useState(null)
+  const [resDropId, setResDropId] = useState(null)       // reservation being placed
+  const saveHolds = (h) => { setHolds(h); try { localStorage.setItem(HOLDS_STORE, JSON.stringify(h)) } catch { /* private mode */ } }
+  useEffect(() => {
+    if (screen !== 'floor') return
+    let stop = false
+    const load = () => tillReservationsToday().then(r => {
+      if (stop) return
+      setResList(r.list); setResDay(r.day)
+      setHolds(h => h.date === r.day ? h : { date: r.day, map: {} })   // yesterday's holds expire
+    }).catch(() => { if (!stop) setResList([]) })
+    load()
+    const id = setInterval(load, 60000)
+    return () => { stop = true; clearInterval(id) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [screen])
   const dragRef = React.useRef(null)
   const canvasRef = React.useRef(null)
   useEffect(() => {   // pull the shared room once the fn is live; silent until then
@@ -486,6 +514,24 @@ export default function TillScreen() {
     const tapTable = (t) => {
       if (editRoom) { setSelTable(selTable === t.id ? null : t.id); return }
       if (moveOrderId) { moveOrderToTable(t.name); return }
+      if (resDropId) {                                  // placing a booking: toggle the hold
+        const r = (resList || []).find(x => x.id === resDropId)
+        if (!r) { setResDropId(null); return }
+        const map = { ...holds.map }
+        if (map[t.name]?.resId === resDropId) delete map[t.name]
+        else map[t.name] = { resId: r.id, name: r.name || 'Guest', time: (r.start_time || '').slice(0, 5), party: r.party_size || 0 }
+        saveHolds({ date: resDay || holds.date, map })
+        return
+      }
+      const hold = holds.map[t.name]
+      if (hold && !tableOrder(t.name)) {                // they've arrived — seat them
+        if (confirm(`Seat ${hold.name}${hold.party ? ` (party of ${hold.party})` : ''} at ${t.name}?`)) {
+          const map = Object.fromEntries(Object.entries(holds.map).filter(([, v]) => v.resId !== hold.resId))
+          saveHolds({ ...holds, map })
+          start('table', t.name, hold.name)
+        }
+        return
+      }
       start('table', t.name)
     }
     const addTable = () => {
@@ -517,7 +563,14 @@ export default function TillScreen() {
             ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo only.
           </div>
         )}
-        {moving ? (
+        {resDropId ? (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: '#60A5FA' }}>
+              📅 Placing {(resList || []).find(r => r.id === resDropId)?.name || 'booking'} — tap table(s) to hold them (tap again to unhold)
+            </span>
+            <button onClick={() => setResDropId(null)} style={{ ...bigBtn(true), padding: '10px 22px' }}>DONE</button>
+          </div>
+        ) : moving ? (
           <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
             <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>⇄ Moving {refLabel(moving)} ({gbp(orderTotal(moving))}) — tap a table…</span>
             <button onClick={moveOrderToTab} style={bigBtn(false)}>…or make it a NAMED TAB</button>
@@ -552,6 +605,7 @@ export default function TillScreen() {
           <div ref={canvasRef} style={{ flex: 1, position: 'relative', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: 'rgba(255,255,255,0.02)', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
             {floorPlan.tables.map(t => {
               const o = tableOrder(t.name)
+              const hold = !o && holds.map[t.name]
               const sel = editRoom && selTable === t.id
               return (
                 <div key={t.id}
@@ -560,17 +614,20 @@ export default function TillScreen() {
                   style={{
                     position: 'absolute', left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%`,
                     borderRadius: 12, cursor: editRoom ? 'grab' : 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
-                    background: o ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.05)',
-                    border: `2px solid ${sel ? '#22D3EE' : o ? GOLD : moveOrderId ? 'rgba(52,211,153,0.6)' : LINE}`,
+                    background: o ? 'rgba(201,168,76,0.16)' : hold ? 'rgba(96,165,250,0.1)' : 'rgba(255,255,255,0.05)',
+                    border: hold ? '2px dashed #60A5FA'
+                      : `2px solid ${sel ? '#22D3EE' : o ? GOLD : (moveOrderId || resDropId) ? 'rgba(52,211,153,0.6)' : LINE}`,
                     color: CREAM, padding: '7px 9px', boxSizing: 'border-box', overflow: 'hidden',
                     display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   }}>
-                  <span style={{ fontSize: 13, fontWeight: 800, color: o ? GOLD : CREAM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                    {t.name}{o?.name ? <span style={{ fontWeight: 500 }}> · {o.name}</span> : null}
+                  <span style={{ fontSize: 13, fontWeight: 800, color: o ? GOLD : hold ? '#60A5FA' : CREAM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {t.name}{o?.name ? <span style={{ fontWeight: 500 }}> · {o.name}</span> : hold ? <span style={{ fontWeight: 500 }}> · {hold.name}</span> : null}
                   </span>
                   {o
                     ? <span style={{ fontSize: 11.5 }}>{o.lines.reduce((s, l) => s + l.qty, 0)} items · <b>{gbp(orderTotal(o))}</b>{unsentOf(o) > 0 ? <span style={{ color: AMBER }}> ·!</span> : null}</span>
-                    : <span style={{ fontSize: 10.5, color: DIM }}>free</span>}
+                    : hold
+                      ? <span style={{ fontSize: 10.5, color: '#60A5FA' }}>📅 {hold.time}{hold.party ? ` · ${hold.party} ppl` : ''}</span>
+                      : <span style={{ fontSize: 10.5, color: DIM }}>free</span>}
                 </div>
               )
             })}
@@ -581,7 +638,7 @@ export default function TillScreen() {
             <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, flexShrink: 0 }}>✍️ Tabs — {tabs.length} open</div>
             {tabs.length === 0 && <div style={{ fontSize: 12, color: DIM }}>No tabs. "✍️ Open a tab" signs someone in.</div>}
             {tabs.map(o => (
-              <button key={o.id} onClick={() => { if (!moveOrderId) { setCurrentId(o.id); setScreen('ring') } }} style={{
+              <button key={o.id} onClick={() => { if (!moveOrderId && !resDropId) { setCurrentId(o.id); setScreen('ring') } }} style={{
                 borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', padding: '11px 12px', textAlign: 'left',
                 background: 'rgba(201,168,76,0.1)', border: `1.5px solid ${GOLD}`, color: CREAM, flexShrink: 0,
               }}>
@@ -590,6 +647,30 @@ export default function TillScreen() {
                 <div style={{ fontSize: 12.5, fontWeight: 700, color: GOLD }}>{gbp(orderTotal(o))}</div>
               </button>
             ))}
+
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, flexShrink: 0, marginTop: 10 }}>
+              📅 Bookings today{resList ? ` — ${resList.length}` : ''}
+            </div>
+            {resList === null && <div style={{ fontSize: 12, color: DIM }}>Loading…</div>}
+            {resList && resList.length === 0 && <div style={{ fontSize: 12, color: DIM }}>No bookings today.</div>}
+            {(resList || []).map(r => {
+              const heldAt = Object.entries(holds.map).filter(([, v]) => v.resId === r.id).map(([k]) => k)
+              const active = resDropId === r.id
+              return (
+                <button key={r.id} onClick={() => setResDropId(active ? null : r.id)} style={{
+                  borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', padding: '11px 12px', textAlign: 'left',
+                  background: active ? 'rgba(96,165,250,0.18)' : 'rgba(96,165,250,0.07)',
+                  border: `1.5px ${heldAt.length ? 'solid' : 'dashed'} #60A5FA`, color: CREAM, flexShrink: 0,
+                }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: '#60A5FA' }}>{(r.start_time || '').slice(0, 5)}</span>
+                  <span style={{ fontSize: 13, fontWeight: 700 }}> {r.name || 'Guest'}</span>
+                  <span style={{ fontSize: 11.5, color: DIM }}>{r.party_size ? ` · ${r.party_size} ppl` : ''}{r.kind ? ` · ${r.kind}` : ''}</span>
+                  <div style={{ fontSize: 11, color: heldAt.length ? '#60A5FA' : DIM }}>
+                    {heldAt.length ? `→ ${heldAt.join(', ')}` : active ? 'tap tables on the room…' : 'tap to place on the room'}
+                  </div>
+                </button>
+              )
+            })}
           </div>
         </div>
         <div style={{ fontSize: 10.5, color: DIM, flexShrink: 0 }}>
@@ -825,26 +906,45 @@ export default function TillScreen() {
         <span className="serif" style={{ fontSize: 26, color: '#fff' }}>{gbp(total)}</span>
       </div>
 
-      {/* keypad — type a number, tap a product: 3 → Corona = 3 × Corona */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, flex: 1 }}>
-          {keypadKeys.map(k => (
-            <button key={k} onClick={() => pressKey(k)} style={{
-              padding: '13px 0', borderRadius: 8, border: `1px solid ${LINE}`, cursor: 'pointer', fontFamily: 'inherit',
-              background: 'rgba(255,255,255,0.05)', color: CREAM, fontSize: 16, fontWeight: 600,
-            }}>{k}</button>
-          ))}
-        </div>
-        <div style={{ width: 86, display: 'flex', flexDirection: 'column', gap: 5 }}>
-          <div style={{ flex: 1, borderRadius: 8, border: `1px solid ${buf ? GOLD : LINE}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20, fontWeight: 800, color: buf ? GOLD : DIM, background: 'rgba(255,255,255,0.03)' }}>
-            {buf ? `×${buf}` : '×1'}
+      {/* Keypad lives behind a button (founder, 21 Aug 2026) — the primary
+          view is the ticket; open the pad only when you need ×qty or a custom
+          discount number. */}
+      {padOpen ? (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 5, flex: 1 }}>
+            {keypadKeys.map(k => (
+              <button key={k} onClick={() => pressKey(k)} style={{
+                padding: '13px 0', borderRadius: 8, border: `1px solid ${LINE}`, cursor: 'pointer', fontFamily: 'inherit',
+                background: 'rgba(255,255,255,0.05)', color: CREAM, fontSize: 16, fontWeight: 600,
+              }}>{k}</button>
+            ))}
           </div>
+          <div style={{ width: 96, display: 'flex', flexDirection: 'column', gap: 5 }}>
+            {/* The multiplier readout: type 3, tap a drink → 3 × that drink. */}
+            <div style={{ flex: 1, borderRadius: 8, border: `1px solid ${buf ? GOLD : LINE}`, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, background: 'rgba(255,255,255,0.03)', padding: '6px 4px', textAlign: 'center' }}>
+              <span style={{ fontSize: 9.5, letterSpacing: '0.14em', color: DIM }}>QUANTITY</span>
+              <span style={{ fontSize: 20, fontWeight: 800, color: buf ? GOLD : DIM }}>{buf ? `×${buf}` : '×1'}</span>
+              <span style={{ fontSize: 9, color: DIM, lineHeight: 1.3 }}>type a number,<br />then tap a drink</span>
+            </div>
+            <button onClick={() => setPadOpen(false)} style={{ ...btn(), padding: '8px 0', textAlign: 'center', fontSize: 12 }}>▾ hide</button>
+            <button onClick={() => setDiscOpen(true)} disabled={current.lines.length === 0} style={{
+              padding: '10px 0', borderRadius: 8, border: `1.5px solid ${AMBER}`, cursor: 'pointer', fontFamily: 'inherit',
+              background: 'rgba(245,158,11,0.1)', color: AMBER, fontSize: 12.5, fontWeight: 800, opacity: current.lines.length ? 1 : 0.45,
+            }}>DISC</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={() => setPadOpen(true)} style={{
+            flex: 1, padding: '12px 0', borderRadius: 8, border: `1px solid ${buf ? GOLD : LINE}`, cursor: 'pointer',
+            fontFamily: 'inherit', background: 'rgba(255,255,255,0.05)', color: buf ? GOLD : CREAM, fontSize: 13.5, fontWeight: 700,
+          }}>🔢 Keypad{buf ? ` · ×${buf}` : ''}</button>
           <button onClick={() => setDiscOpen(true)} disabled={current.lines.length === 0} style={{
-            padding: '10px 0', borderRadius: 8, border: `1.5px solid ${AMBER}`, cursor: 'pointer', fontFamily: 'inherit',
-            background: 'rgba(245,158,11,0.1)', color: AMBER, fontSize: 12.5, fontWeight: 800, opacity: current.lines.length ? 1 : 0.45,
+            flex: 1, padding: '12px 0', borderRadius: 8, border: `1.5px solid ${AMBER}`, cursor: 'pointer', fontFamily: 'inherit',
+            background: 'rgba(245,158,11,0.1)', color: AMBER, fontSize: 13, fontWeight: 800, opacity: current.lines.length ? 1 : 0.45,
           }}>DISC</button>
         </div>
-      </div>
+      )}
 
       {/* function row */}
       <div style={{ display: 'flex', gap: 8 }}>
