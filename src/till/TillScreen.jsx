@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
+import { tillVoucherLookup, tillVoucherRedeem } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -52,6 +53,10 @@ const orderDiscAmt = (o) => !o.disc ? 0
   : o.disc.kind === 'pct' ? orderSub(o) * o.disc.value / 100
   : Math.min(o.disc.value, orderSub(o))
 const orderTotal = (o) => orderSub(o) - orderDiscAmt(o)
+// What's left to pay after an applied voucher (never below zero — no change
+// given on a voucher).
+const voucherAmt = (o) => o.voucher ? Math.min(o.voucher.amount_pence / 100, orderTotal(o)) : 0
+const orderDue = (o) => +(orderTotal(o) - voucherAmt(o)).toFixed(2)
 
 export default function TillScreen() {
   const isMobile = useIsMobile()
@@ -78,6 +83,9 @@ export default function TillScreen() {
   const [discOpen, setDiscOpen] = useState(false)
   const [splitN, setSplitN] = useState(0)                // 0 = no split
   const [sharesPaid, setSharesPaid] = useState([])       // one bool per share
+  const [vCode, setVCode] = useState('')                 // voucher code being typed
+  const [vBusy, setVBusy] = useState(false)
+  const [vErr, setVErr] = useState('')
   const [folder, setFolder] = useState(null)             // null | 'Spirits' — the open category folder
   const [mixerFor, setMixerFor] = useState(null)         // { b, qty } — spirit awaiting its mixer choice
   const [infoFor, setInfoFor] = useState(null)           // product shown in the long-press info popup
@@ -110,7 +118,19 @@ export default function TillScreen() {
     setCurrentId(o.id); setScreen('ring')
   }
   const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
-  const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]) }
+  const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
+
+  const applyVoucher = async () => {
+    setVBusy(true); setVErr('')
+    try {
+      const r = await tillVoucherLookup(vCode)
+      const v = r.voucher
+      if (v.redeemed_at) { setVErr(`Already redeemed${v.redeemed_by ? ` by ${v.redeemed_by}` : ''} on ${String(v.redeemed_at).slice(0, 10)}.`); setVBusy(false); return }
+      patch(currentId, o => ({ ...o, voucher: { code: v.code, name: v.name, amount_pence: v.amount_pence, source: v.source } }))
+      setVCode('')
+    } catch (e) { setVErr(e.message || 'Could not check that code.') }
+    setVBusy(false)
+  }
   const chooseSplit = (n) => { setSplitN(n); setSharesPaid(n > 0 ? Array(n).fill(false) : []) }
 
   const toFloor = () => {
@@ -233,9 +253,22 @@ export default function TillScreen() {
       .filter(l => l.qty > 0),
   }))
   const send = () => patch(currentId, o => ({ ...o, lines: o.lines.map(l => ({ ...l, sentQty: l.qty })) }))
-  const pay = () => {
+  const [paying, setPaying] = useState(false)
+  const pay = async () => {
     const o = orders[currentId]
-    setClosed({ ref: refLabel(o), total: orderTotal(o) })
+    // The one REAL action in the demo till: an applied voucher is redeemed in
+    // the live voucher system (same rows the staff-portal Prizes flow marks).
+    if (o.voucher) {
+      setPaying(true)
+      try { await tillVoucherRedeem(o.voucher.code, 'Till') }
+      catch (e) {
+        setPaying(false)
+        alert(`Voucher NOT redeemed — ${e.message || 'no connection'}. Remove the voucher or try again.`)
+        return
+      }
+      setPaying(false)
+    }
+    setClosed({ ref: refLabel(o), total: orderDue(o), voucher: o.voucher || null })
     resetRingUi()
     // Straight into the next sale — a fresh Quick Sale register, K Series style.
     const fresh = newOrder('quick', null)
@@ -417,6 +450,7 @@ export default function TillScreen() {
   // ═══ ADDITION (the bill) ══════════════════════════════════════════════════
   if (screen === 'bill') {
     const sub = orderSub(current), oDisc = orderDiscAmt(current), total = orderTotal(current)
+    const vAmt = voucherAmt(current), due = orderDue(current)
     return (
       <div style={{ maxWidth: 430, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 12 }}>
         <div style={{ background: 'rgba(255,255,255,0.04)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 18 }}>
@@ -448,6 +482,37 @@ export default function TillScreen() {
             <span className="serif" style={{ fontSize: 24, color: '#fff' }}>{gbp(total)}</span>
           </div>
           <div style={{ fontSize: 10.5, color: DIM, marginTop: 2 }}>includes VAT {gbp(total - total / 1.2)} @ 20%{sub !== total ? ` · before discounts ${gbp(sub + 0)}` : ''}</div>
+          {current.voucher && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, fontSize: 13, color: GREEN, borderTop: `1px solid ${LINE}`, marginTop: 8, paddingTop: 8 }}>
+              <span>🎟 Voucher {current.voucher.code}{current.voucher.name ? ` (${current.voucher.name})` : ''}</span>
+              <span style={{ fontWeight: 800 }}>−{gbp(vAmt)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* 🎟 Pay with a voucher — tournament prizes & goodwill vouchers, the
+            same codes the staff portal redeems. Marked redeemed FOR REAL the
+            moment PAY is hit. */}
+        <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, letterSpacing: '0.12em', textTransform: 'uppercase', color: DIM }}>🎟 Voucher</div>
+          {current.voucher ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 13.5, color: GREEN, fontWeight: 700 }}>
+                {current.voucher.code} · {gbp(current.voucher.amount_pence / 100)}{current.voucher.name ? ` · ${current.voucher.name}` : ''}
+              </span>
+              <button onClick={() => patch(currentId, o => ({ ...o, voucher: null }))} style={{ ...btn(), marginLeft: 'auto' }}>Remove</button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <input value={vCode} onChange={e => setVCode(e.target.value)} placeholder="Voucher code (e.g. ND-…)"
+                style={{ flex: 1, minWidth: 160, minHeight: 46, padding: '8px 12px', borderRadius: 9, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 14, boxSizing: 'border-box' }} />
+              <button onClick={applyVoucher} disabled={!vCode.trim() || vBusy} style={{ ...bigBtn(false), padding: '10px 18px', opacity: vCode.trim() && !vBusy ? 1 : 0.45 }}>
+                {vBusy ? 'Checking…' : 'APPLY'}
+              </button>
+            </div>
+          )}
+          {vErr && <div style={{ fontSize: 12.5, color: RED, fontWeight: 600 }}>{vErr}</div>}
+          <div style={{ fontSize: 10.5, color: DIM }}>Works with tournament prize codes and manager goodwill vouchers. The code is redeemed for real when you hit PAY — no change given.</div>
         </div>
         {/* Split the bill — ÷2 / ÷3 / ÷4 or any number. Real version runs one
             card checkout per share (Square's Terminal API can't split one
@@ -469,8 +534,8 @@ export default function TillScreen() {
             }}>{splitN > 4 ? `÷ ${splitN}` : 'Custom…'}</button>
           </div>
           {splitN > 1 && (() => {
-            const share = Math.floor((total / splitN) * 100) / 100
-            const last = +(total - share * (splitN - 1)).toFixed(2)
+            const share = Math.floor((due / splitN) * 100) / 100
+            const last = +(due - share * (splitN - 1)).toFixed(2)
             return (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 {Array.from({ length: splitN }, (_, i) => {
@@ -496,11 +561,13 @@ export default function TillScreen() {
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setScreen('ring')} style={btn()}>← Back to order</button>
           {splitN > 1 ? (
-            <button onClick={pay} disabled={!sharesPaid.every(Boolean)} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) ? 1 : 0.45 }}>
-              CLOSE — {sharesPaid.filter(Boolean).length}/{splitN} shares paid
+            <button onClick={pay} disabled={!sharesPaid.every(Boolean) || paying} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) && !paying ? 1 : 0.45 }}>
+              {paying ? 'Redeeming voucher…' : `CLOSE — ${sharesPaid.filter(Boolean).length}/${splitN} shares paid`}
             </button>
           ) : (
-            <button onClick={pay} style={{ ...bigBtn(true), flex: 1 }}>PAY {gbp(total)} — close (demo)</button>
+            <button onClick={pay} disabled={paying} style={{ ...bigBtn(true), flex: 1, opacity: paying ? 0.6 : 1 }}>
+              {paying ? 'Redeeming voucher…' : due === 0 && current.voucher ? 'PAID BY VOUCHER — close' : `PAY ${gbp(due)} — close (demo)`}
+            </button>
           )}
         </div>
         <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square per share. Demo: it just closes the order.</div>
@@ -529,7 +596,9 @@ export default function TillScreen() {
       </div>
 
       {closed && current.lines.length === 0 && (
-        <div style={{ fontSize: 12, color: GREEN }}>✓ {closed.ref} paid {gbp(closed.total)} — demo, nothing recorded.</div>
+        <div style={{ fontSize: 12, color: GREEN }}>
+          ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo order, {closed.voucher ? 'voucher redemption was real' : 'nothing recorded'}.
+        </div>
       )}
 
       {/* the ticket lines — tap a line to select it (for line discounts).

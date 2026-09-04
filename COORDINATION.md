@@ -53,6 +53,15 @@ never run destructive or "today"-dated test writes on real data.
 | bar (via integration session, founder-directed) | **NEW: 15 tables + 7 views — the BAR stock/cost/margin/ordering system.** `bar_suppliers`, `bar_products`, `bar_prep_recipes`, `bar_production_log`, `bar_stocktakes`, `bar_stocktake_sheets`, `bar_stocktake_lines`, `bar_orders`, `bar_order_lines`, `bar_price_history`, `bar_menu_items`, `bar_recipe_lines`, `bar_sales_daily`, `bar_covers`, `bar_waste`; views `bar_cost_base`, `bar_margins`, `bar_on_hand`, `bar_usage_actual`, `bar_usage_theoretical`, `bar_variance`, `bar_stock_value`; trigger `bar_capture_price` on `bar_order_lines`. Additive only — `bar_reservations` and `bar_helpers` untouched. RLS on, no policies (service-role only). SQL in `supabase/bar_stock_system.sql`. Dry-run in a rolled-back txn first; verified with a rolled-back fixture (Corona case-of-24 bought / bottles counted → 113 used, correct). All tables currently EMPTY — seeding is the next slice. | ✅ applied | 17 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
+## 21 Aug 2026 — till lane: vouchers redeemable at the till (touches tournament-lane tables, no DDL)
+The `till` edge fn gains `voucherLookup` / `voucherRedeem` / `voucherUnredeem` (SEND_SECRET-
+gated): the till's ADDITION screen takes an ND- code, knocks the value off the bill, and on
+PAY sets `redeemed_at`/`redeemed_by` on the SAME rows the rota-portal Prizes flow uses
+(`pool_vouchers`, `pingpong_vouchers`, `manager_vouchers`). Additive behaviour only — no
+schema change, same columns the rota fn writes, `redeemed_by='Till'` so the source is
+visible in the portal list. ⏳ fn deploy pending a fresh Supabase PAT from the founder.
+Tournament lane: shout if this crosses anything mid-flight.
+
 ## 20 Aug 2026 — till lane touched public/sw.js (de-facto shared: bar lane's toilet push lives in it)
 The service worker now does SAFE offline caching (the till must survive an internet
 outage): `/assets/*` + Google Fonts cache-first (Vite content-hashes them, so a cached

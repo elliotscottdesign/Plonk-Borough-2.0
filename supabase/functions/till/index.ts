@@ -46,6 +46,58 @@ Deno.serve(async (req) => {
       return json({ ok: true, costs: costs || [], margins: margins || [] });
     }
 
+    // ── Vouchers at the till (founder, 21 Aug 2026): customers pay with prize
+    //    / goodwill vouchers, redeemed right at the till. Reads and updates the
+    //    SAME rows the staff-portal Prizes flow uses (pool_vouchers,
+    //    pingpong_vouchers, manager_vouchers) — no schema change, redeemed_at/
+    //    redeemed_by set exactly as the rota fn sets them. ───────────────────
+    const VOUCHER_TABLES: Record<string, string> = {
+      pool: "pool_vouchers", pingpong: "pingpong_vouchers", manager: "manager_vouchers",
+    };
+    const findVoucher = async (rawCode: string) => {
+      const code = String(rawCode || "").trim();
+      if (!code) return null;
+      for (const [source, table] of Object.entries(VOUCHER_TABLES)) {
+        const { data } = await sb.from(table)
+          .select("id,code,display_name,amount_pence,redeemed_at,redeemed_by,created_at")
+          .ilike("code", code).limit(1);
+        if (data && data[0]) return { source, table, v: data[0] };
+      }
+      return null;
+    };
+
+    if (action === "voucherLookup") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const hit = await findVoucher(b.code);
+      if (!hit) return json({ ok: false, error: "No voucher with that code." }, 404);
+      const { v, source } = hit;
+      return json({ ok: true, voucher: {
+        code: v.code, name: v.display_name || "", amount_pence: v.amount_pence,
+        source, redeemed_at: v.redeemed_at, redeemed_by: v.redeemed_by,
+      } });
+    }
+
+    if (action === "voucherRedeem") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const hit = await findVoucher(b.code);
+      if (!hit) return json({ ok: false, error: "No voucher with that code." }, 404);
+      if (hit.v.redeemed_at) {
+        return json({ ok: false, error: `Already redeemed${hit.v.redeemed_by ? ` by ${hit.v.redeemed_by}` : ""} on ${String(hit.v.redeemed_at).slice(0, 10)}.` }, 409);
+      }
+      await sb.from(hit.table)
+        .update({ redeemed_at: new Date().toISOString(), redeemed_by: String(b.by || "Till").slice(0, 80) })
+        .eq("id", hit.v.id);
+      return json({ ok: true, code: hit.v.code, amount_pence: hit.v.amount_pence });
+    }
+
+    if (action === "voucherUnredeem") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const hit = await findVoucher(b.code);
+      if (!hit) return json({ ok: false, error: "No voucher with that code." }, 404);
+      await sb.from(hit.table).update({ redeemed_at: null, redeemed_by: null }).eq("id", hit.v.id);
+      return json({ ok: true });
+    }
+
     return json({ ok: false, error: `Unknown action: ${action}` }, 400);
   } catch (e) {
     return json({ ok: false, error: String((e as Error)?.message || e) }, 500);
