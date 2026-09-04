@@ -614,13 +614,11 @@ export default function TillScreen() {
         )}
 
         <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
-          {/* THE ROOM — the real Hackney floorplan (from the investor pages),
-              landscape, with the tables drawn on top of it. Fixed aspect ratio
-              so table positions line up with the plan on every device. */}
+          {/* THE ROOM — landscape canvas, fixed aspect so table positions hold
+              on every device. (The floorplan image was tried as a background
+              and removed — founder's call, 4 Sep 2026.) */}
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div ref={canvasRef} style={{ position: 'relative', height: '100%', maxWidth: '100%', aspectRatio: '2480 / 1753', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: '#e9e6df', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
-            <img src="/hackney/floorplan_1.png" alt="" draggable={false}
-              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', opacity: 0.92, pointerEvents: 'none', userSelect: 'none' }} />
+          <div ref={canvasRef} style={{ position: 'relative', height: '100%', maxWidth: '100%', aspectRatio: '2480 / 1753', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: 'rgba(255,255,255,0.02)', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
             {floorPlan.tables.map(t => {
               const o = tableOrder(t.name)
               const hold = !o && holds.map[t.name]
