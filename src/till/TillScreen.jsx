@@ -489,18 +489,30 @@ export default function TillScreen() {
       const r = canvasRef.current.getBoundingClientRect()
       return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }
     }
-    const beginDrag = (e, t) => {
+    // One pointer engine, two modes: drag a table to place it, drag the ◢
+    // corner handle to size it — draw the room right on the venue plan.
+    const beginPointer = (e, t, mode) => {
       if (!editRoom) return
       e.preventDefault()
+      if (mode === 'resize') e.stopPropagation()
       const p = pctFromEvent(e)
-      dragRef.current = { id: t.id, dx: p.x - t.x, dy: p.y - t.y, moved: false }
+      dragRef.current = { id: t.id, mode, moved: false, sx: p.x, sy: p.y, x0: t.x, y0: t.y, w0: t.w, h0: t.h }
       const onMove = (ev) => {
         const d = dragRef.current
         if (!d) return
         const q = pctFromEvent(ev)
         d.moved = true
-        setFloorPlan(fp => ({ ...fp, tables: fp.tables.map(x => x.id === d.id
-          ? { ...x, x: Math.min(100 - x.w, Math.max(0, q.x - d.dx)), y: Math.min(100 - x.h, Math.max(0, q.y - d.dy)) } : x) }))
+        setFloorPlan(fp => ({ ...fp, tables: fp.tables.map(x => {
+          if (x.id !== d.id) return x
+          if (d.mode === 'resize') {
+            return { ...x,
+              w: Math.min(60, Math.max(4, d.w0 + (q.x - d.sx))),
+              h: Math.min(60, Math.max(4, d.h0 + (q.y - d.sy))) }
+          }
+          return { ...x,
+            x: Math.min(100 - x.w, Math.max(0, d.x0 + (q.x - d.sx))),
+            y: Math.min(100 - x.h, Math.max(0, d.y0 + (q.y - d.sy))) }
+        }) }))
       }
       const onUp = () => {
         window.removeEventListener('pointermove', onMove)
@@ -511,6 +523,7 @@ export default function TillScreen() {
       window.addEventListener('pointermove', onMove)
       window.addEventListener('pointerup', onUp)
     }
+    const beginDrag = (e, t) => beginPointer(e, t, 'move')
     const tapTable = (t) => {
       if (editRoom) { setSelTable(selTable === t.id ? null : t.id); return }
       if (moveOrderId) { moveOrderToTable(t.name); return }
@@ -534,20 +547,16 @@ export default function TillScreen() {
       }
       start('table', t.name)
     }
-    const addTable = () => {
+    const addTable = (w, h) => {
       const name = prompt('Name for the new table? (e.g. "T9", "Golf sofa")')
       if (!name?.trim()) return
-      const nt = { id: 'u' + Date.now(), name: name.trim(), x: 40, y: 40, w: 15, h: 14 }
+      const nt = { id: 'u' + Date.now(), name: name.trim(), x: 42, y: 42, w, h }
       saveFloor({ ...floorPlan, tables: [...floorPlan.tables, nt] }); setSelTable(nt.id)
     }
     const renameTable = () => {
       const t = floorPlan.tables.find(x => x.id === selTable); if (!t) return
       const name = prompt('Rename table:', t.name); if (!name?.trim()) return
       saveFloor({ ...floorPlan, tables: floorPlan.tables.map(x => x.id === selTable ? { ...x, name: name.trim() } : x) })
-    }
-    const resizeTable = (dw, dh) => {
-      saveFloor({ ...floorPlan, tables: floorPlan.tables.map(x => x.id === selTable
-        ? { ...x, w: Math.min(60, Math.max(8, x.w + dw)), h: Math.min(50, Math.max(8, x.h + dh)) } : x) })
     }
     const deleteTable = () => {
       const t = floorPlan.tables.find(x => x.id === selTable); if (!t) return
@@ -587,22 +596,25 @@ export default function TillScreen() {
         )}
         {editRoom && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
-            <button onClick={addTable} style={btn()}>➕ Add table</button>
+            <button onClick={() => addTable(8, 9)} style={btn()}>➕ Small table</button>
+            <button onClick={() => addTable(14, 13)} style={btn()}>➕ Table</button>
+            <button onClick={() => addTable(22, 18)} style={btn()}>➕ Large table</button>
             {selTable && (<>
               <button onClick={renameTable} style={btn()}>Rename</button>
-              <button onClick={() => resizeTable(3, 0)} style={btn()}>↔ Wider</button>
-              <button onClick={() => resizeTable(-3, 0)} style={btn()}>Narrower</button>
-              <button onClick={() => resizeTable(0, 3)} style={btn()}>↕ Taller</button>
-              <button onClick={() => resizeTable(0, -3)} style={btn()}>Shorter</button>
               <button onClick={deleteTable} style={{ ...btn(), color: RED, borderColor: RED }}>Delete</button>
             </>)}
-            <span style={{ fontSize: 11.5, color: DIM }}>{selTable ? 'Drag the selected table to place it.' : 'Tap a table to select it, then drag to place.'}</span>
+            <span style={{ fontSize: 11.5, color: DIM }}>{selTable ? 'Drag to place · drag the ◢ corner to size it.' : 'Tap a table to select, drag anywhere to place it on the plan.'}</span>
           </div>
         )}
 
         <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
-          {/* THE ROOM — tables where they really are */}
-          <div ref={canvasRef} style={{ flex: 1, position: 'relative', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: 'rgba(255,255,255,0.02)', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
+          {/* THE ROOM — the real Hackney floorplan (from the investor pages),
+              landscape, with the tables drawn on top of it. Fixed aspect ratio
+              so table positions line up with the plan on every device. */}
+          <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div ref={canvasRef} style={{ position: 'relative', height: '100%', maxWidth: '100%', aspectRatio: '2480 / 1753', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: '#e9e6df', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
+            <img src="/hackney/floorplan_1.png" alt="" draggable={false}
+              style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'fill', opacity: 0.92, pointerEvents: 'none', userSelect: 'none' }} />
             {floorPlan.tables.map(t => {
               const o = tableOrder(t.name)
               const hold = !o && holds.map[t.name]
@@ -613,11 +625,12 @@ export default function TillScreen() {
                   onClick={() => { if (!dragRef.current?.moved) tapTable(t) }}
                   style={{
                     position: 'absolute', left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%`,
-                    borderRadius: 12, cursor: editRoom ? 'grab' : 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
-                    background: o ? 'rgba(201,168,76,0.16)' : hold ? 'rgba(96,165,250,0.1)' : 'rgba(255,255,255,0.05)',
+                    borderRadius: 10, cursor: editRoom ? 'grab' : 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
+                    // Solid fills so tables read clearly on the white plan.
+                    background: o ? 'rgba(58,48,18,0.96)' : hold ? 'rgba(17,34,58,0.96)' : 'rgba(22,22,26,0.88)',
                     border: hold ? '2px dashed #60A5FA'
-                      : `2px solid ${sel ? '#22D3EE' : o ? GOLD : (moveOrderId || resDropId) ? 'rgba(52,211,153,0.6)' : LINE}`,
-                    color: CREAM, padding: '7px 9px', boxSizing: 'border-box', overflow: 'hidden',
+                      : `2px solid ${sel ? '#22D3EE' : o ? GOLD : (moveOrderId || resDropId) ? 'rgba(52,211,153,0.9)' : 'rgba(255,255,255,0.35)'}`,
+                    color: CREAM, padding: '6px 8px', boxSizing: 'border-box', overflow: 'hidden',
                     display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
                   }}>
                   <span style={{ fontSize: 13, fontWeight: 800, color: o ? GOLD : hold ? '#60A5FA' : CREAM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -628,9 +641,17 @@ export default function TillScreen() {
                     : hold
                       ? <span style={{ fontSize: 10.5, color: '#60A5FA' }}>📅 {hold.time}{hold.party ? ` · ${hold.party} ppl` : ''}</span>
                       : <span style={{ fontSize: 10.5, color: DIM }}>free</span>}
+                  {sel && (
+                    <div onPointerDown={(e) => beginPointer(e, t, 'resize')} style={{
+                      position: 'absolute', right: -2, bottom: -2, width: 26, height: 26, borderRadius: '10px 0 8px 0',
+                      background: '#22D3EE', color: '#08222a', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontSize: 15, fontWeight: 900, cursor: 'nwse-resize', touchAction: 'none',
+                    }}>◢</div>
+                  )}
                 </div>
               )
             })}
+          </div>
           </div>
 
           {/* THE TAB LIST — who owes us, wherever they've wandered */}
