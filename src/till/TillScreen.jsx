@@ -263,8 +263,10 @@ export default function TillScreen() {
   const productNamesOf = (pageNames) =>
     pages.filter(pg => pageNames.includes(pg.name)).flatMap(pg => pg.products.map(p => p.name))
   const dealCfg = (product) => {
+    // Only PRICED combos are deals — spirits also have £0 combo definitions in
+    // the export (their mixer pickers); those must never hijack a spirit tap.
     const c = liveTill.combos && liveTill.combos[product.name]
-    if (c && c.choices && c.choices.length) {
+    if (c && c.price > 0 && c.choices && c.choices.length) {
       const auto = c.choices.filter(ch => ch.options.length === 1 && ch.min >= 1).map(ch => ch.options[0])
       const pickable = c.choices.filter(ch => ch.options.length > 1)
       if (pickable.length) {
@@ -294,6 +296,10 @@ export default function TillScreen() {
       pushLine(`${b.product.sku}`, `${b.product.name} · HH`, b.serve.price, qty, false)
       return
     }
+    if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
+      setMixerFor({ b, qty })                      // ask for the mixer first
+      return
+    }
     const cfg = dealCfg(b.product)
     if (cfg) {
       if (cfg.picks === 0) {   // fully fixed deal — everything auto-included
@@ -301,10 +307,6 @@ export default function TillScreen() {
         return
       }
       setDealFor({ b, qty, cfg, picks: [] }); return
-    }
-    if (b.page.startsWith('Spirits — ') && b.serve.label !== 'Bottle') {
-      setMixerFor({ b, qty })                      // ask for the mixer first
-      return
     }
     const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
     pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, b.page === 'Snacks & Food')
@@ -443,6 +445,7 @@ export default function TillScreen() {
   const [gridPage, setGridPage] = useState(0)
   const [overflowView, setOverflowView] = useState(false)   // inside a page's 📁 More folder
   useEffect(() => { setGridPage(0); setOverflowView(false) }, [pageName, query, folder, pageSize])
+  useEffect(() => { setGridPage(0) }, [!!dealFor, !!mixerFor])
   const spiritsView = !query && pageName.startsWith('Spirits — ')
 
   // HARD LAW (founder, 21 Aug 2026): EVERY item page fits ONE screen — never a
@@ -463,9 +466,48 @@ export default function TillScreen() {
   const cocktailCap = Math.max(1, pageSize - 1)   // one tile reserved for 📁 Classics
   const MORE = { navMore: true, sku: 'NAV.more', name: '📁 More' }
   const BACK = { navBack: true, sku: 'NAV.backmore', name: '← Back' }
+
+  // ── In-place choosers (founder, 4 Sep 2026): NO pop-ups. Picking a mixer or
+  //    a deal's drinks flips the product grid to the options, with ← Back
+  //    above — like turning to another menu page. ──────────────────────────
+  let chooserHeader = null
+  let chooserItems = null
+  if (dealFor) {
+    const d = dealFor
+    chooserHeader = {
+      title: `${d.qty > 1 ? `${d.qty} × ` : ''}${d.b.product.name} · ${gbp(d.b.serve.price)} — ${d.cfg.title}`,
+      note: d.cfg.picks > 1 ? `${d.picks.length}/${d.cfg.picks} picked` : 'every tap adds one to the order',
+      added: d.added || 0, picks: d.cfg.picks > 1 ? d.picks : null,
+      back: () => setDealFor(null),
+    }
+    chooserItems = [...new Set(d.cfg.opts)].map(name => ({
+      key: 'd·' + name, label: name, onPick: () => pickDealOption(name), color: pageColor(d.b.page),
+    }))
+  } else if (mixerFor) {
+    const m = mixerFor
+    const startP = m.base != null ? m.base : m.b.serve.price
+    const addOn = m.mixerAdd != null ? m.mixerAdd : MIXER_PRICE
+    const mDeal = m.base == null && m.b.serve.label === 'Double' && isDoubleDealSpirit(m.b.product)
+    const lbl = m.b.serve.label && m.b.serve.label !== 'Each' ? ` — ${m.b.serve.label}` : ''
+    chooserHeader = {
+      title: `${m.qty > 1 ? `${m.qty} × ` : ''}${m.b.product.name}${lbl} — add a mixer?`,
+      note: mDeal ? '⭐ Double Deal — double + any dash £10.00' : `dash +${gbp(addOn)}`,
+      back: () => setMixerFor(null),
+    }
+    chooserItems = [
+      ...MIXERS.map(x => ({
+        key: 'm·' + x, label: x, sub: mDeal ? '£10.00 all in' : `${gbp(startP + addOn)}`,
+        onPick: () => addSpirit(x), color: '#22D3EE',
+      })),
+      { key: 'm·none', label: 'NO MIXER', sub: gbp(startP), onPick: () => addSpirit(null), color: GOLD },
+    ]
+  }
+
   let gridList
   let onePage = false
-  if (query) {
+  if (chooserItems) {
+    gridList = chooserItems                                  // the menu has flipped to the options
+  } else if (query) {
     gridList = buttons                                       // search results may page
   } else if (pageName === COCKTAILS) {
     const items = buttons.filter(b => !b.nav)
@@ -1089,10 +1131,40 @@ export default function TillScreen() {
           ⏰ Happy hour is OFF — these buttons can't be used right now. Monday all day till 11pm · Tue–Fri till 19:10.
         </div>
       )}
+      {chooserHeader && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', flexShrink: 0 }}>
+          <button onClick={chooserHeader.back} style={{ ...bigBtn(false), padding: '11px 20px' }}>← Back</button>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 14, fontWeight: 800, color: CREAM }}>{chooserHeader.title}</div>
+            <div style={{ fontSize: 11.5, color: GOLD, fontWeight: 700 }}>
+              {chooserHeader.note}
+              {chooserHeader.added > 0 && <span style={{ color: GREEN }}> · ✓ {chooserHeader.added} on the order</span>}
+            </div>
+          </div>
+          {chooserHeader.picks && chooserHeader.picks.map((name, i) => (
+            <button key={i} onClick={() => setDealFor(d => ({ ...d, picks: d.picks.filter((_, j) => j !== i) }))} style={{
+              padding: '8px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12, fontWeight: 700,
+              background: 'rgba(52,211,153,0.12)', border: `1.5px solid ${GREEN}`, color: GREEN,
+            }}>✓ {name} ✕</button>
+          ))}
+        </div>
+      )}
       <div ref={gridRef} style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 140 : 148}px, 1fr))`, gridAutoRows: 76, gap: 8, alignContent: 'start', flex: 1, overflow: 'hidden' }}>
         {/* Spirits pages: ONE tile per spirit — tap = single, "+ Double" on the
             tile, long-press = product info (founder, 20 Aug 2026). */}
-        {spiritsView
+        {chooserItems
+          ? gridSlice.map(c => (
+              <button key={c.key} onClick={c.onPick} style={{
+                minHeight: 62, padding: '8px 10px', borderRadius: 10, cursor: 'pointer', textAlign: 'left',
+                background: tint(c.color, '14'), border: `1px solid ${tint(c.color, '73')}`, borderLeft: `4px solid ${c.color}`,
+                color: CREAM, fontFamily: 'inherit',
+                display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
+              }}>
+                <span style={{ fontSize: 13, fontWeight: 700, lineHeight: 1.25 }}>{c.label}</span>
+                {c.sub && <span style={{ fontSize: 13, fontWeight: 800, color: c.color }}>{c.sub}</span>}
+              </button>
+            ))
+          : spiritsView
           ? gridSlice.map(p => {
               if (p.navMore || p.navBack) return (
                 <button key={p.sku} onClick={() => setOverflowView(!!p.navMore)} style={folderTile(pageColor(pageName))}>{p.name}</button>
@@ -1144,44 +1216,6 @@ export default function TillScreen() {
     </div>
   )
 
-  const mixerPanel = mixerFor && (() => {
-    const { b, qty, base, mixerAdd } = mixerFor
-    const start = base != null ? base : b.serve.price
-    const addOn = mixerAdd != null ? mixerAdd : MIXER_PRICE
-    const deal = base == null && b.serve.label === 'Double' && isDoubleDealSpirit(b.product)
-    const label = b.serve.label && b.serve.label !== 'Each' ? ` — ${b.serve.label}` : ''
-    return (
-      <div onClick={() => setMixerFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 360, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 14, fontWeight: 800, color: CREAM }}>
-            {qty > 1 ? `${qty} × ` : ''}{b.product.name}{label} <span style={{ color: DIM, fontWeight: 400 }}>· add a mixer?</span>
-          </div>
-          {deal && (
-            <div style={{ fontSize: 12, fontWeight: 700, color: GOLD, background: 'rgba(201,168,76,0.1)', border: `1px solid ${GOLD}`, borderRadius: 9, padding: '8px 11px' }}>
-              ⭐ Double Deal — double + any dash £10.00
-            </div>
-          )}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 7 }}>
-            {MIXERS.map(m => (
-              <button key={m} onClick={() => addSpirit(m)} style={{
-                minHeight: 56, padding: '10px 12px', borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 14, fontWeight: 700, textAlign: 'left',
-                background: 'rgba(34,211,238,0.08)', border: '1.5px solid rgba(34,211,238,0.5)', color: CREAM,
-              }}>
-                {m}<div style={{ fontSize: 12, fontWeight: 800, color: deal ? GOLD : '#22D3EE', marginTop: 3 }}>
-                  {deal ? `£10.00 all in` : addOn === 0 ? `included → ${gbp(start)}` : `+ ${gbp(addOn)} → ${gbp(start + addOn)}`}
-                </div>
-              </button>
-            ))}
-          </div>
-          <button onClick={() => addSpirit(null)} style={{ ...bigBtn(true), width: '100%' }}>
-            NO MIXER — {gbp(start)}
-          </button>
-          <button onClick={() => setMixerFor(null)} style={btn()}>Cancel</button>
-        </div>
-      </div>
-    )
-  })()
 
   const infoPanel = infoFor && (
     <div onClick={() => setInfoFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
@@ -1206,47 +1240,6 @@ export default function TillScreen() {
     </div>
   )
 
-  const dealPanel = dealFor && (() => {
-    const { b, qty, cfg, picks, added } = dealFor
-    const multi = cfg.picks > 1
-    return (
-      <div onClick={() => setDealFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-        <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 460, maxWidth: '94vw', maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ fontSize: 14.5, fontWeight: 800, color: CREAM }}>
-            {qty > 1 ? `${qty} × ` : ''}{b.product.name} · {gbp(b.serve.price)}
-          </div>
-          <div style={{ fontSize: 13, color: GOLD, fontWeight: 700 }}>
-            {cfg.title}{multi ? ` — ${picks.length}/${cfg.picks} picked` : ' — every tap adds one to the order'}
-          </div>
-          {added > 0 && (
-            <div style={{ fontSize: 12.5, color: GREEN, fontWeight: 700 }}>✓ {added} on the order — keep tapping for more</div>
-          )}
-          {multi && picks.length > 0 && (
-            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-              {picks.map((name, i) => (
-                <button key={i} onClick={() => setDealFor(d => ({ ...d, picks: d.picks.filter((_, j) => j !== i) }))} style={{
-                  padding: '8px 12px', borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', fontSize: 12.5, fontWeight: 700,
-                  background: 'rgba(52,211,153,0.12)', border: `1.5px solid ${GREEN}`, color: GREEN,
-                }}>✓ {name} ✕</button>
-              ))}
-            </div>
-          )}
-          <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, paddingRight: 2 }}>
-            {cfg.opts.map(name => (
-              <button key={name} onClick={() => pickDealOption(name)} style={{
-                minHeight: 52, padding: '8px 10px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
-                fontSize: 12.5, fontWeight: 600, textAlign: 'left',
-                background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM,
-              }}>{name}</button>
-            ))}
-          </div>
-          <button onClick={() => setDealFor(null)} style={{ ...bigBtn(true), width: '100%' }}>
-            {added > 0 ? `DONE — ${added} added` : 'DONE'}
-          </button>
-        </div>
-      </div>
-    )
-  })()
 
   return (
     // Locked to the screen — the page never scrolls on the iPad; big pages
@@ -1259,9 +1252,7 @@ export default function TillScreen() {
       {catColumn}
       {stock}
       {discPanel}
-      {mixerPanel}
       {infoPanel}
-      {dealPanel}
     </div>
   )
 }
