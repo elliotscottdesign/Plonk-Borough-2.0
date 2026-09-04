@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillFloorGet, tillFloorSave, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -27,19 +27,37 @@ import useIsMobile from '../lib/useIsMobile.js'
 const CREAM = 'var(--cream)', DIM = 'rgba(255,255,255,0.55)', GOLD = 'var(--gold)'
 const LINE = 'rgba(255,255,255,0.12)', GREEN = '#34D399', AMBER = '#F59E0B', RED = '#DA1B33'
 
-const FLOOR = [
-  { zone: 'Booths', spots: ['Booth 1', 'Booth 2', 'Booth 3', 'Booth 4'] },
-  { zone: 'Tables', spots: ['T1', 'T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'T8'] },
-  { zone: 'Bar', spots: ['Bar 1', 'Bar 2'] },
-]
+// ── The drawn room ───────────────────────────────────────────────────────────
+// Tables live at % coordinates so the same room fits any iPad. Editable in
+// place (✏️ Edit room); synced through till_settings once the fn is deployed,
+// localStorage until then. Seeded with a plausible room — the founder redraws
+// it to match the venue. LATER STAGE (founder, 21 Aug 2026): reservations from
+// the booking system get dropped onto tables to hold them under the booking's
+// name — the `note` field on a table is the landing slot for that.
+const FLOOR_STORE = 'nd_till_floor_v1'
+const DEFAULT_FLOOR = { tables: [
+  { id: 't1', name: 'Booth 1', x: 3, y: 4, w: 20, h: 17 },
+  { id: 't2', name: 'Booth 2', x: 26, y: 4, w: 20, h: 17 },
+  { id: 't3', name: 'Booth 3', x: 49, y: 4, w: 20, h: 17 },
+  { id: 't4', name: 'Booth 4', x: 72, y: 4, w: 20, h: 17 },
+  { id: 't5', name: 'T1', x: 3, y: 30, w: 14, h: 15 }, { id: 't6', name: 'T2', x: 20, y: 30, w: 14, h: 15 },
+  { id: 't7', name: 'T3', x: 37, y: 30, w: 14, h: 15 }, { id: 't8', name: 'T4', x: 54, y: 30, w: 14, h: 15 },
+  { id: 't9', name: 'T5', x: 3, y: 50, w: 14, h: 15 }, { id: 't10', name: 'T6', x: 20, y: 50, w: 14, h: 15 },
+  { id: 't11', name: 'T7', x: 37, y: 50, w: 14, h: 15 }, { id: 't12', name: 'T8', x: 54, y: 50, w: 14, h: 15 },
+  { id: 't13', name: 'Bar 1', x: 3, y: 72, w: 30, h: 16 }, { id: 't14', name: 'Bar 2', x: 38, y: 72, w: 30, h: 16 },
+] }
+const loadFloor = () => {
+  try { const f = JSON.parse(localStorage.getItem(FLOOR_STORE)); if (f && Array.isArray(f.tables)) return f } catch { /* fresh */ }
+  return DEFAULT_FLOOR
+}
 
 const STORE = 'nd_till_demo_orders_v1'
 const loadOrders = () => {
   try { return JSON.parse(localStorage.getItem(STORE)) || {} } catch { return {} }
 }
 let nextId = Date.now()
-const newOrder = (kind, ref) => ({
-  id: 'o' + (nextId++), kind, ref, lines: [], disc: null, openedAt: new Date().toISOString(), status: 'open',
+const newOrder = (kind, ref, name) => ({
+  id: 'o' + (nextId++), kind, ref, name: name || null, lines: [], disc: null, openedAt: new Date().toISOString(), status: 'open',
 })
 
 // ── discount arithmetic (all inc-VAT money) ──────────────────────────────────
@@ -107,18 +125,50 @@ export default function TillScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
+  // ── The room + the tab list ──────────────────────────────────────────────
+  const [floorPlan, setFloorPlan] = useState(loadFloor)
+  const [editRoom, setEditRoom] = useState(false)
+  const [selTable, setSelTable] = useState(null)         // selected table id (edit mode)
+  const [moveOrderId, setMoveOrderId] = useState(null)   // order being re-homed via the floor
+  const dragRef = React.useRef(null)
+  const canvasRef = React.useRef(null)
+  useEffect(() => {   // pull the shared room once the fn is live; silent until then
+    tillFloorGet().then(r => { if (r.floor) { setFloorPlan(r.floor); try { localStorage.setItem(FLOOR_STORE, JSON.stringify(r.floor)) } catch {} } }).catch(() => {})
+  }, [])
+  const saveFloor = (plan) => {
+    setFloorPlan(plan)
+    try { localStorage.setItem(FLOOR_STORE, JSON.stringify(plan)) } catch { /* private mode */ }
+    tillFloorSave(plan).catch(() => { /* syncs when the fn is deployed */ })
+  }
+
   const open = Object.values(orders).filter(o => o.status === 'open')
   const orderFor = (kind, ref) => open.find(o => o.kind === kind && o.ref === ref)
   const current = currentId ? orders[currentId] : null
   const unsentOf = (o) => o.lines.reduce((s, l) => s + Math.max(0, l.qty - (l.sentQty || 0)), 0)
-  const refLabel = (o) => o.kind === 'table' ? o.ref : o.kind === 'tab' ? `Tab · ${o.ref}` : 'Quick sale'
+  const refLabel = (o) => o.kind === 'table' ? (o.name ? `${o.ref} · ${o.name}` : o.ref)
+    : o.kind === 'tab' ? `Tab · ${o.name || o.ref}` : 'Quick sale'
 
-  const start = (kind, ref) => {
+  const start = (kind, ref, name) => {
     const existing = orderFor(kind, ref)
     if (existing) { setCurrentId(existing.id); setScreen('ring'); return }
-    const o = newOrder(kind, ref)
+    const o = newOrder(kind, ref, name)
     setOrders(prev => ({ ...prev, [o.id]: o }))
     setCurrentId(o.id); setScreen('ring')
+  }
+
+  // Re-home an order: onto a table, or off the floor into the named-tab list.
+  const moveOrderToTable = (tableName) => {
+    const clash = open.find(o => o.kind === 'table' && o.ref === tableName && o.id !== moveOrderId)
+    if (clash) { alert(`${tableName} already has an open order (${gbp(orderTotal(clash))}).`) ; return }
+    patch(moveOrderId, o => ({ ...o, kind: 'table', ref: tableName }))
+    setCurrentId(moveOrderId); setMoveOrderId(null); setScreen('ring')
+  }
+  const moveOrderToTab = () => {
+    const o = orders[moveOrderId]
+    const name = prompt('Name for the tab?', o?.name || '')
+    if (!name?.trim()) return
+    patch(moveOrderId, x => ({ ...x, kind: 'tab', ref: name.trim(), name: name.trim() }))
+    setCurrentId(moveOrderId); setMoveOrderId(null); setScreen('ring')
   }
   const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
   const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
@@ -401,60 +451,149 @@ export default function TillScreen() {
   const gridPages = onePage ? 1 : Math.max(1, Math.ceil(gridList.length / pageSize))
   const gridSlice = gridList.slice(gridPage * pageSize, (gridPage + 1) * pageSize)
 
-  // ═══ FLOOR ════════════════════════════════════════════════════════════════
+  // ═══ FLOOR — the drawn room + the tab list ════════════════════════════════
   if (screen === 'floor') {
-    const tabs = open.filter(o => o.kind === 'tab')
+    const tabs = open.filter(o => o.kind === 'tab' || o.name)
+    const tableOrder = (name) => open.find(o => o.kind === 'table' && o.ref === name)
+    const moving = moveOrderId ? orders[moveOrderId] : null
+
+    const pctFromEvent = (e) => {
+      const r = canvasRef.current.getBoundingClientRect()
+      return { x: ((e.clientX - r.left) / r.width) * 100, y: ((e.clientY - r.top) / r.height) * 100 }
+    }
+    const beginDrag = (e, t) => {
+      if (!editRoom) return
+      e.preventDefault()
+      const p = pctFromEvent(e)
+      dragRef.current = { id: t.id, dx: p.x - t.x, dy: p.y - t.y, moved: false }
+      const onMove = (ev) => {
+        const d = dragRef.current
+        if (!d) return
+        const q = pctFromEvent(ev)
+        d.moved = true
+        setFloorPlan(fp => ({ ...fp, tables: fp.tables.map(x => x.id === d.id
+          ? { ...x, x: Math.min(100 - x.w, Math.max(0, q.x - d.dx)), y: Math.min(100 - x.h, Math.max(0, q.y - d.dy)) } : x) }))
+      }
+      const onUp = () => {
+        window.removeEventListener('pointermove', onMove)
+        window.removeEventListener('pointerup', onUp)
+        if (dragRef.current?.moved) setFloorPlan(fp => { saveFloor(fp); return fp })
+        dragRef.current = null
+      }
+      window.addEventListener('pointermove', onMove)
+      window.addEventListener('pointerup', onUp)
+    }
+    const tapTable = (t) => {
+      if (editRoom) { setSelTable(selTable === t.id ? null : t.id); return }
+      if (moveOrderId) { moveOrderToTable(t.name); return }
+      start('table', t.name)
+    }
+    const addTable = () => {
+      const name = prompt('Name for the new table? (e.g. "T9", "Golf sofa")')
+      if (!name?.trim()) return
+      const nt = { id: 'u' + Date.now(), name: name.trim(), x: 40, y: 40, w: 15, h: 14 }
+      saveFloor({ ...floorPlan, tables: [...floorPlan.tables, nt] }); setSelTable(nt.id)
+    }
+    const renameTable = () => {
+      const t = floorPlan.tables.find(x => x.id === selTable); if (!t) return
+      const name = prompt('Rename table:', t.name); if (!name?.trim()) return
+      saveFloor({ ...floorPlan, tables: floorPlan.tables.map(x => x.id === selTable ? { ...x, name: name.trim() } : x) })
+    }
+    const resizeTable = (dw, dh) => {
+      saveFloor({ ...floorPlan, tables: floorPlan.tables.map(x => x.id === selTable
+        ? { ...x, w: Math.min(60, Math.max(8, x.w + dw)), h: Math.min(50, Math.max(8, x.h + dh)) } : x) })
+    }
+    const deleteTable = () => {
+      const t = floorPlan.tables.find(x => x.id === selTable); if (!t) return
+      if (tableOrder(t.name)) { alert('That table has an open order — close or move it first.'); return }
+      if (!confirm(`Remove "${t.name}" from the room?`)) return
+      saveFloor({ ...floorPlan, tables: floorPlan.tables.filter(x => x.id !== selTable) }); setSelTable(null)
+    }
+
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 10, ...(isMobile ? {} : { height: frameH ? `${frameH + 40}px` : 'calc(100dvh - 220px)', minHeight: 460, overflow: 'hidden' }) }}>
         {closed && (
-          <div style={{ fontSize: 13, color: GREEN, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '10px 14px' }}>
-            ✓ {closed.ref} paid {gbp(closed.total)} — demo only, nothing recorded. Ring it on Lightspeed for real.
+          <div style={{ fontSize: 13, color: GREEN, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '8px 12px', flexShrink: 0 }}>
+            ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo only.
           </div>
         )}
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <button onClick={() => start('quick', null)} style={bigBtn(true)}>⚡ Quick sale</button>
-          <button onClick={() => { const name = prompt('Name for the tab? (e.g. "Sarah — blue jacket")'); if (name?.trim()) start('tab', name.trim()) }} style={bigBtn(false)}>➕ Open a tab</button>
-        </div>
-        {FLOOR.map(z => (
-          <div key={z.zone}>
-            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, marginBottom: 8 }}>{z.zone}</div>
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fill, minmax(${isMobile ? 100 : 120}px, 1fr))`, gap: 8 }}>
-              {z.spots.map(ref => {
-                const o = orderFor('table', ref)
-                return (
-                  <button key={ref} onClick={() => start('table', ref)} style={{
-                    minHeight: 74, borderRadius: 12, cursor: 'pointer', fontFamily: 'inherit', textAlign: 'left', padding: '10px 12px',
-                    background: o ? 'rgba(201,168,76,0.13)' : 'rgba(255,255,255,0.04)',
-                    border: `1.5px solid ${o ? GOLD : LINE}`, color: CREAM,
-                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 4,
-                  }}>
-                    <span style={{ fontSize: 14, fontWeight: 700, color: o ? GOLD : CREAM }}>{ref}</span>
-                    {o
-                      ? <span style={{ fontSize: 12 }}>{o.lines.reduce((s, l) => s + l.qty, 0)} items · <b>{gbp(orderTotal(o))}</b>{unsentOf(o) > 0 && <span style={{ color: AMBER }}> · unsent</span>}</span>
-                      : <span style={{ fontSize: 11.5, color: DIM }}>free</span>}
-                  </button>
-                )
-              })}
-            </div>
+        {moving ? (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+            <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>⇄ Moving {refLabel(moving)} ({gbp(orderTotal(moving))}) — tap a table…</span>
+            <button onClick={moveOrderToTab} style={bigBtn(false)}>…or make it a NAMED TAB</button>
+            <button onClick={() => { setCurrentId(moveOrderId); setMoveOrderId(null); setScreen('ring') }} style={btn()}>Cancel</button>
           </div>
-        ))}
-        <div>
-          <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, marginBottom: 8 }}>Open tabs</div>
-          {tabs.length === 0 && <div style={{ fontSize: 12.5, color: DIM }}>No tabs open.</div>}
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        ) : (
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', flexShrink: 0 }}>
+            <button onClick={() => start('quick', null)} style={bigBtn(true)}>⚡ Quick sale</button>
+            <button onClick={() => { const name = prompt('Name for the tab? (e.g. "Sarah — blue jacket")'); if (name?.trim()) start('tab', name.trim(), name.trim()) }} style={bigBtn(false)}>✍️ Open a tab</button>
+            <button onClick={() => { setEditRoom(!editRoom); setSelTable(null) }} style={{ ...bigBtn(false), marginLeft: 'auto', ...(editRoom ? { background: GOLD, color: '#141414', border: 'none' } : {}) }}>
+              {editRoom ? '✓ DONE EDITING' : '✏️ Edit room'}
+            </button>
+          </div>
+        )}
+        {editRoom && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', flexShrink: 0 }}>
+            <button onClick={addTable} style={btn()}>➕ Add table</button>
+            {selTable && (<>
+              <button onClick={renameTable} style={btn()}>Rename</button>
+              <button onClick={() => resizeTable(3, 0)} style={btn()}>↔ Wider</button>
+              <button onClick={() => resizeTable(-3, 0)} style={btn()}>Narrower</button>
+              <button onClick={() => resizeTable(0, 3)} style={btn()}>↕ Taller</button>
+              <button onClick={() => resizeTable(0, -3)} style={btn()}>Shorter</button>
+              <button onClick={deleteTable} style={{ ...btn(), color: RED, borderColor: RED }}>Delete</button>
+            </>)}
+            <span style={{ fontSize: 11.5, color: DIM }}>{selTable ? 'Drag the selected table to place it.' : 'Tap a table to select it, then drag to place.'}</span>
+          </div>
+        )}
+
+        <div style={{ display: 'flex', gap: 12, flex: 1, minHeight: 0 }}>
+          {/* THE ROOM — tables where they really are */}
+          <div ref={canvasRef} style={{ flex: 1, position: 'relative', border: `2px solid rgba(255,255,255,0.18)`, borderRadius: 14, background: 'rgba(255,255,255,0.02)', overflow: 'hidden', touchAction: editRoom ? 'none' : 'auto' }}>
+            {floorPlan.tables.map(t => {
+              const o = tableOrder(t.name)
+              const sel = editRoom && selTable === t.id
+              return (
+                <div key={t.id}
+                  onPointerDown={(e) => beginDrag(e, t)}
+                  onClick={() => { if (!dragRef.current?.moved) tapTable(t) }}
+                  style={{
+                    position: 'absolute', left: `${t.x}%`, top: `${t.y}%`, width: `${t.w}%`, height: `${t.h}%`,
+                    borderRadius: 12, cursor: editRoom ? 'grab' : 'pointer', userSelect: 'none', WebkitUserSelect: 'none',
+                    background: o ? 'rgba(201,168,76,0.16)' : 'rgba(255,255,255,0.05)',
+                    border: `2px solid ${sel ? '#22D3EE' : o ? GOLD : moveOrderId ? 'rgba(52,211,153,0.6)' : LINE}`,
+                    color: CREAM, padding: '7px 9px', boxSizing: 'border-box', overflow: 'hidden',
+                    display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
+                  }}>
+                  <span style={{ fontSize: 13, fontWeight: 800, color: o ? GOLD : CREAM, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {t.name}{o?.name ? <span style={{ fontWeight: 500 }}> · {o.name}</span> : null}
+                  </span>
+                  {o
+                    ? <span style={{ fontSize: 11.5 }}>{o.lines.reduce((s, l) => s + l.qty, 0)} items · <b>{gbp(orderTotal(o))}</b>{unsentOf(o) > 0 ? <span style={{ color: AMBER }}> ·!</span> : null}</span>
+                    : <span style={{ fontSize: 10.5, color: DIM }}>free</span>}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* THE TAB LIST — who owes us, wherever they've wandered */}
+          <div style={{ width: isMobile ? 180 : 250, flexShrink: 0, display: 'flex', flexDirection: 'column', gap: 6, overflowY: 'auto' }}>
+            <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: DIM, flexShrink: 0 }}>✍️ Tabs — {tabs.length} open</div>
+            {tabs.length === 0 && <div style={{ fontSize: 12, color: DIM }}>No tabs. "✍️ Open a tab" signs someone in.</div>}
             {tabs.map(o => (
-              <button key={o.id} onClick={() => { setCurrentId(o.id); setScreen('ring') }} style={{
-                borderRadius: 999, cursor: 'pointer', fontFamily: 'inherit', padding: '10px 16px',
-                background: 'rgba(201,168,76,0.13)', border: `1.5px solid ${GOLD}`, color: CREAM, fontSize: 13,
+              <button key={o.id} onClick={() => { if (!moveOrderId) { setCurrentId(o.id); setScreen('ring') } }} style={{
+                borderRadius: 10, cursor: 'pointer', fontFamily: 'inherit', padding: '11px 12px', textAlign: 'left',
+                background: 'rgba(201,168,76,0.1)', border: `1.5px solid ${GOLD}`, color: CREAM, flexShrink: 0,
               }}>
-                🍺 <b>{o.ref}</b> · {gbp(orderTotal(o))}
+                <span style={{ fontSize: 13.5, fontWeight: 800 }}>{o.name || o.ref}</span>
+                <span style={{ fontSize: 11.5, color: DIM }}> {o.kind === 'table' ? `· at ${o.ref}` : ''}</span>
+                <div style={{ fontSize: 12.5, fontWeight: 700, color: GOLD }}>{gbp(orderTotal(o))}</div>
               </button>
             ))}
           </div>
         </div>
-        <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>
-          Demo till — orders live only in this browser; no sale is recorded anywhere. Lightspeed is still the till of
-          record. Table names are placeholders until the venue's real floor plan goes in.
+        <div style={{ fontSize: 10.5, color: DIM, flexShrink: 0 }}>
+          Demo till — orders live in this browser only. ✏️ Edit room to draw YOUR venue (drag, rename, resize) — the layout syncs to every till once the back end is live. Later: reservations drop onto tables from the booking system.
         </div>
       </div>
     )
@@ -637,8 +776,11 @@ export default function TillScreen() {
   const ticket = (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, width: isMobile ? '100%' : 330, flexShrink: 0, height: isMobile ? 'auto' : '100%', boxSizing: 'border-box' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
-        <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD }}>{refLabel(current)}</span>
-        <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
+        <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{refLabel(current)}</span>
+        <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={() => { setMoveOrderId(currentId); setScreen('floor') }} title="Move to a table or make it a tab" style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⇄ Move</button>
+          <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
+        </span>
       </div>
 
       {closed && current.lines.length === 0 && (

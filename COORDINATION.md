@@ -54,6 +54,12 @@ never run destructive or "today"-dated test writes on real data.
 | rota (via integration session, founder-directed) | `staff.dj_id uuid references djs(id) on delete set null` — links a staff member who is also one of our DJs to their DJ record, so the two portals can hotlink both ways. Additive; dry-run in a rolled-back txn first. Set for Thays Alviano. | ✅ applied | 20 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
+## 21 Aug 2026 — till lane DDL STAGED: `till_settings`
+NEW table `till_settings` (key text pk, value jsonb, updated_at) — till configuration,
+first key 'floor' = the drawn room layout shared across till iPads. Additive, RLS on, no
+policies (service-role via the `till` fn only). SQL in `supabase/till_settings.sql`.
+⏳ awaiting a fresh founder PAT to apply (same token unblocks the till fn redeploy).
+
 ## 21 Aug 2026 — till lane: vouchers redeemable at the till (touches tournament-lane tables, no DDL)
 The `till` edge fn gains `voucherLookup` / `voucherRedeem` / `voucherUnredeem` (SEND_SECRET-
 gated): the till's ADDITION screen takes an ND- code, knocks the value off the bill, and on

@@ -84,6 +84,19 @@ Deno.serve(async (req) => {
       return json({ ok: true, vouchers: out });
     }
 
+    // ── The drawn room (till_settings key 'floor') — shared across tills ────
+    if (action === "floorGet") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const { data } = await sb.from("till_settings").select("value,updated_at").eq("key", "floor").maybeSingle();
+      return json({ ok: true, floor: data?.value || null, updated_at: data?.updated_at || null });
+    }
+    if (action === "floorSave") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      if (!b.floor || !Array.isArray(b.floor.tables)) return json({ ok: false, error: "Bad floor plan" }, 400);
+      await sb.from("till_settings").upsert({ key: "floor", value: b.floor, updated_at: new Date().toISOString() });
+      return json({ ok: true });
+    }
+
     if (action === "voucherLookup") {
       if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
       const hit = await findVoucher(b.code);
