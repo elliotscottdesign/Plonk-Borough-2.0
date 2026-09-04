@@ -310,20 +310,26 @@ export default function TillScreen() {
     pushLine(`${b.product.sku}·${b.serve.label}`, `${b.product.name}${label}`, b.serve.price, qty, b.page === 'Snacks & Food')
   }
 
-  const addDeal = () => {
-    const { b, qty, picks, hhMixer } = dealFor
-    setDealFor(null)
-    if (hhMixer) {
-      // £6 Double (+£1 mixer) / £7 Long Drink (mixer included) — pick the
-      // spirit first, then the usual mixer question.
+  // No ADD button (founder, 4 Sep 2026): tapping options adds straight to the
+  // basket. A completed set commits itself and the panel stays open, so
+  // tapping "Camden Hells" three times = three £5 pints on the ticket.
+  const pickDealOption = (name) => {
+    const d = dealFor
+    const picks = [...d.picks, name]
+    if (picks.length < d.cfg.picks) { setDealFor({ ...d, picks }); return }
+    if (d.hhMixer) {
+      // £6 Double (+£1 mixer) / £7 Long Drink (mixer included) — spirit picked,
+      // now the usual mixer question takes over.
+      setDealFor(null)
       setMixerFor({
-        qty, base: b.serve.price, mixerAdd: hhMixer === 'included' ? 0 : MIXER_PRICE,
-        b: { product: { name: `${picks[0]} · ${b.product.name}`, sku: `${b.product.sku}·${picks[0]}`, serves: [] }, serve: { label: 'Each', price: b.serve.price }, page: HH_PAGE },
+        qty: d.qty, base: d.b.serve.price, mixerAdd: d.hhMixer === 'included' ? 0 : MIXER_PRICE,
+        b: { product: { name: `${picks[0]} · ${d.b.product.name}`, sku: `${d.b.product.sku}·${picks[0]}`, serves: [] }, serve: { label: 'Each', price: d.b.serve.price }, page: HH_PAGE },
       })
       return
     }
-    const all = [...(dealFor.cfg?.auto || []), ...picks]
-    pushLine(`${b.product.sku}·${picks.join('+')}`, `${b.product.name} (${all.join(', ')})`, b.serve.price, qty, b.page === 'Snacks & Food')
+    const all = [...(d.cfg.auto || []), ...picks]
+    pushLine(`${d.b.product.sku}·${picks.join('+')}`, `${d.b.product.name} (${all.join(', ')})`, d.b.serve.price, d.qty, d.b.page === 'Snacks & Food')
+    setDealFor({ ...d, picks: [], added: (d.added || 0) + 1 })
   }
 
   const addSpirit = (mixer) => {                   // mixer = name string or null
@@ -1203,18 +1209,21 @@ export default function TillScreen() {
   )
 
   const dealPanel = dealFor && (() => {
-    const { b, qty, cfg, picks } = dealFor
-    const done = picks.length >= cfg.picks
+    const { b, qty, cfg, picks, added } = dealFor
+    const multi = cfg.picks > 1
     return (
       <div onClick={() => setDealFor(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
         <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 460, maxWidth: '94vw', maxHeight: '84vh', display: 'flex', flexDirection: 'column', gap: 10 }}>
           <div style={{ fontSize: 14.5, fontWeight: 800, color: CREAM }}>
             {qty > 1 ? `${qty} × ` : ''}{b.product.name} · {gbp(b.serve.price)}
           </div>
-          <div style={{ fontSize: 13, color: picks.length < cfg.picks ? GOLD : GREEN, fontWeight: 700 }}>
-            {cfg.title} — {picks.length}/{cfg.picks} picked
+          <div style={{ fontSize: 13, color: GOLD, fontWeight: 700 }}>
+            {cfg.title}{multi ? ` — ${picks.length}/${cfg.picks} picked` : ' — every tap adds one to the order'}
           </div>
-          {picks.length > 0 && (
+          {added > 0 && (
+            <div style={{ fontSize: 12.5, color: GREEN, fontWeight: 700 }}>✓ {added} on the order — keep tapping for more</div>
+          )}
+          {multi && picks.length > 0 && (
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
               {picks.map((name, i) => (
                 <button key={i} onClick={() => setDealFor(d => ({ ...d, picks: d.picks.filter((_, j) => j !== i) }))} style={{
@@ -1226,17 +1235,16 @@ export default function TillScreen() {
           )}
           <div style={{ overflowY: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 6, paddingRight: 2 }}>
             {cfg.opts.map(name => (
-              <button key={name} disabled={done} onClick={() => setDealFor(d => ({ ...d, picks: [...d.picks, name] }))} style={{
-                minHeight: 46, padding: '8px 10px', borderRadius: 9, cursor: done ? 'default' : 'pointer', fontFamily: 'inherit',
-                fontSize: 12.5, fontWeight: 600, textAlign: 'left', opacity: done ? 0.4 : 1,
+              <button key={name} onClick={() => pickDealOption(name)} style={{
+                minHeight: 52, padding: '8px 10px', borderRadius: 9, cursor: 'pointer', fontFamily: 'inherit',
+                fontSize: 12.5, fontWeight: 600, textAlign: 'left',
                 background: 'rgba(255,255,255,0.05)', border: `1px solid ${LINE}`, color: CREAM,
               }}>{name}</button>
             ))}
           </div>
-          <button onClick={addDeal} disabled={!done} style={{ ...bigBtn(true), width: '100%', opacity: done ? 1 : 0.45 }}>
-            ADD DEAL — {gbp(b.serve.price)}
+          <button onClick={() => setDealFor(null)} style={{ ...bigBtn(true), width: '100%' }}>
+            {added > 0 ? `DONE — ${added} added` : 'DONE'}
           </button>
-          <button onClick={() => setDealFor(null)} style={btn()}>Cancel</button>
         </div>
       </div>
     )
