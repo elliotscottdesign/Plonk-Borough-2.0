@@ -37,8 +37,8 @@ const DEFAULTS = [
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', star: !!it.star, sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, star: !!it.star, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', star: !!it.star, archived: !!it.archived, sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, star: !!it.star, archived: !!it.archived, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -68,6 +68,7 @@ export default function MenuManager() {
   const delAddon = (si, ii, ai) => mutate(s => { s[si].items[ii].addons.splice(ai, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
   const toggleStar = (si, ii) => mutate(s => { s[si].items[ii].star = !s[si].items[ii].star })
+  const toggleArchive = (si, ii) => mutate(s => { const it = s[si].items[ii]; it.archived = !it.archived; if (it.archived) it.star = false })
   const delSection = si => { if (confirm('Delete this whole section?')) mutate(s => { s.splice(si, 1) }) }
 
   const pic = (si, ii, file) => {
@@ -134,7 +135,7 @@ export default function MenuManager() {
           {sec.items.map((it, ii) => {
             const mp = marginPct(it.sell, it.cost, vat)
             return (
-              <div key={it.id} style={{ background: it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
+              <div key={it.id} style={{ background: it.archived ? 'rgba(218,27,51,0.06)' : it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.archived ? 'rgba(218,27,51,0.5)' : it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8, opacity: it.archived ? 0.62 : 1 }}>
                 <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                   <label style={{ width: 56, height: 56, borderRadius: 9, background: it.img ? 'none' : '#26272b', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
                     {it.img ? <img src={it.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ opacity: 0.5 }}>📷</span>}
@@ -143,12 +144,19 @@ export default function MenuManager() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                       <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
-                        style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
-                      <button onClick={() => toggleStar(si, ii)} title="Star → moves this item up to the Specials box at the top of the menu (unstar to send it back)"
-                        style={{ flexShrink: 0, background: it.star ? 'rgba(201,168,76,0.18)' : 'none', border: `1px solid ${it.star ? GOLD : LINE}`, color: it.star ? GOLD : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
-                        {it.star ? '★ Special' : '☆ Special'}
+                        style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', color: it.archived ? MUTED : '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px', textDecoration: it.archived ? 'line-through' : 'none' }} />
+                      {!it.archived && (
+                        <button onClick={() => toggleStar(si, ii)} title="Star → moves this item up to the Specials box at the top of the menu (unstar to send it back)"
+                          style={{ flexShrink: 0, background: it.star ? 'rgba(201,168,76,0.18)' : 'none', border: `1px solid ${it.star ? GOLD : LINE}`, color: it.star ? GOLD : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {it.star ? '★ Special' : '☆ Special'}
+                        </button>
+                      )}
+                      <button onClick={() => toggleArchive(si, ii)} title="Archive → instantly hides this item from the customer menu, the printed menu and ordering. It's not deleted — Restore it anytime (e.g. when tacos are back)."
+                        style={{ flexShrink: 0, background: it.archived ? 'rgba(52,211,153,0.16)' : 'none', border: `1px solid ${it.archived ? GREEN : LINE}`, color: it.archived ? GREEN : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {it.archived ? '↩ Restore' : '🗄 Archive'}
                       </button>
                     </div>
+                    {it.archived && <div style={{ fontSize: 11.5, color: RED, fontWeight: 700, marginTop: 3 }}>Archived — hidden from customers &amp; the printed menu, and can't be ordered. Save to apply.</div>}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Field label={vat ? "Sell £ inc VAT" : "Sell £"} value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />

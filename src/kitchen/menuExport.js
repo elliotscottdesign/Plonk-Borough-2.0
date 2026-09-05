@@ -21,12 +21,13 @@ export function exportMenu(sections, mode = 'print', vatOn = false) {
     return `<div class="mrow"><div class="mi"><span class="mn">${esc(it.name)}</span><span class="dots"></span><span class="mp">${price}</span></div>${it.desc ? `<div class="md">${esc(it.desc)}</div>` : ''}${addLine}</div>`
   }
   // Starred items are auto-pulled OUT of their section into a Specials box at the top.
-  const starred = filtered.flatMap(s => s.items.filter(it => it.name && it.star))
+  // Archived items are hidden everywhere.
+  const starred = filtered.flatMap(s => s.items.filter(it => it.name && it.star && !it.archived))
   const specialsHtml = starred.length
     ? `<div class="msec mspecial"><div class="mtag">⭑ Specials</div><div class="mh">Specials</div>${starred.map(rowHtml).join('')}</div>`
     : ''
   const sectionsHtml = filtered.map(sec => {
-    const its = sec.items.filter(it => it.name && !it.star)
+    const its = sec.items.filter(it => it.name && !it.star && !it.archived)
     if (!its.length) return ''
     return `<div class="msec"><div class="mh">${esc(sec.name)}</div>${its.map(rowHtml).join('')}</div>`
   }).join('')
