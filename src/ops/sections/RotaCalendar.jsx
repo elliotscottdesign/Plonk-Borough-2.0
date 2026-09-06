@@ -4,7 +4,7 @@ import { eventsList, eventsForDate, catMeta } from '../keydates/events.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
-import { withDefaults, applyCompiled } from '../../rota/rotaEngine.js'
+import { withDefaults, applyCompiled, SCHOOL_HOLIDAYS } from '../../rota/rotaEngine.js'
 import useIsMobile from '../../lib/useIsMobile.js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 
@@ -363,6 +363,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const isSel = selDate === dateStr
             const isToday = dateStr === todayStr
             const evs = eventsForDate(keyEvents, dateStr)
+            const hol = schoolHoliday(dateStr)
+            const occ = occasionOf(dateStr)
             const mine = focusId ? (focusByDate[dateStr] || []) : null
             const mineOff = focusId ? focusOff.has(dateStr) : false
             const focusC = GREEN   // founder rule: green = on shift, red = booked off
@@ -370,7 +372,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
                 style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
+                  <span title={hol || undefined} style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : hol ? '#FBBF24' : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                     {/* Bookings overlay — customer bookings from nodice.bar. Only
                         renders when the day has bookings so the tile stays clean
@@ -387,6 +389,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                         </span>
                       )
                     })()}
+                    {occ && <span title={occ[1]} style={{ fontSize: 11, lineHeight: 1 }}>{occ[0]}</span>}
+                    {isFullMoon(dateStr) && <span title="Full moon" style={{ fontSize: 10, lineHeight: 1 }}>🌕</span>}
+                    {isPayFriday(dateStr) && <span title="Payday — last Friday of the month" style={{ fontSize: 9, fontWeight: 800, color: GREEN, border: `1px solid ${GREEN}66`, background: `${GREEN}1a`, borderRadius: 4, padding: '1px 3px', lineHeight: 1 }}>£</span>}
                     {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
                   </span>
                 </span>
@@ -421,6 +426,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: RED }}>■</span> open, empty</span>
           <span><span style={{ color: GREY }}>▢</span> not released yet</span>
           <span><span style={{ color: TODAY }}>▣</span> today</span>
+          <span><span style={{ color: '#FBBF24' }}>15</span> school holiday</span>
+          <span><span style={{ color: GREEN, fontWeight: 800 }}>£</span> payday (last Friday)</span>
+          <span>🌕 full moon</span>
+          <span>🎃🎆🎄 occasions</span>
         </div>
       </div>
 
@@ -713,6 +722,21 @@ function DayBookings({ date }) {
     </details>
   )
 }
+
+// ── Calendar garnish: holidays, occasions, payday, full moon ─────────────────
+// School holidays: the built-in UK London list (visual highlight only — the
+// builder's holiday HOURS still come from the founder's ⚙️ Holidays table).
+const schoolHoliday = (d) => { for (const [a, b, n] of SCHOOL_HOLIDAYS) if (d >= a && d <= b) return n; return null }
+// Fixed-date occasions a bar cares about.
+const OCCASIONS = { '10-31': ['🎃', 'Halloween'], '11-05': ['🎆', 'Fireworks Night'], '12-24': ['🎄', 'Christmas Eve'], '12-25': ['🎄', 'Christmas Day'], '12-26': ['🎁', 'Boxing Day'], '12-31': ['🎉', "New Year's Eve"], '01-01': ['🎉', "New Year's Day"], '02-14': ['❤️', "Valentine's Day"], '03-17': ['☘️', "St Patrick's Day"] }
+const occasionOf = (d) => OCCASIONS[d.slice(5)] || null
+// Payday: the last Friday of each month.
+const isPayFriday = (d) => { const dt = new Date(d + 'T00:00:00Z'); if (dt.getUTCDay() !== 5) return false; const nx = new Date(dt); nx.setUTCDate(nx.getUTCDate() + 7); return nx.getUTCMonth() !== dt.getUTCMonth() }
+// Full moon: synodic-cycle approximation, reference tuned against the 2026–27
+// almanac (23/25 dates exact, the rest one day out) — plenty for a pub calendar.
+const SYNODIC = 29.53058867
+const FULL_REF = Date.UTC(2000, 0, 21, 2, 40)
+const isFullMoon = (d) => { const t = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12); const ph = (((t - FULL_REF) / 86400000) % SYNODIC + SYNODIC) % SYNODIC; return ph < 0.5 || ph > SYNODIC - 0.5 }
 
 const addDaysISO = (d, n) => { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
 const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
