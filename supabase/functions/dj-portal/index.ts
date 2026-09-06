@@ -286,6 +286,10 @@ async function state(sb: any, id: string) {
   // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
   const pastBookings = (past || []).map(withPartner);
+  // One-click broadcast — the founder posts a message from admin (dj_templates
+  // key='banner') and it shows as a header in EVERY DJ's portal. Empty = none.
+  const { data: bannerRow } = await sb.from("dj_templates").select("body").eq("key", "banner").maybeSingle();
+  const banner = String(bannerRow?.body || "").trim();
 
   // ── Payments: expense receipts the DJ has logged. Session fees vary per DJ and
   // are handled off-system, so no fee value is computed or returned here.
@@ -294,7 +298,7 @@ async function state(sb: any, id: string) {
   const receipts = (rcpts || []).map((r: any) => ({ id: r.id, receipt_date: r.receipt_date, category: r.category || "other", amount: Number(r.amount) || 0, note: r.note || null, image_url: r.image_url, created_at: r.created_at }));
   const receiptsTotal = receipts.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
   const payments = { vinyl: playsVinyl(me), drinksMax: DRINKS_MAX, receipts, receiptsTotal };
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments });
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments, banner });
 }
 
 Deno.serve(async (req) => {

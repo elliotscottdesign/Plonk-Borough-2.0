@@ -223,8 +223,35 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   const filtered = inTab.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
   const ready = inTab.filter(complete).length
 
+  // ── Broadcast banner — one message that shows as a header in EVERY DJ's portal
+  // (stored as dj_templates key='banner'). One-click; no per-DJ WhatsApp needed.
+  const liveBanner = tplBody(templates, 'banner')
+  const [bcast, setBcast] = useState(liveBanner)
+  const postBanner = async () => {
+    const body = (bcast || '').trim()
+    if (body && !window.confirm('Post this to EVERY DJ\'s portal as a header banner?')) return
+    setBusy(true)
+    try { await djAdmin('saveTemplate', { key: 'banner', body }); await reload(); alert(body ? 'Posted to all DJ portals ✓' : 'Banner cleared.') }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const clearBanner = async () => { setBcast(''); setBusy(true); try { await djAdmin('saveTemplate', { key: 'banner', body: '' }); await reload(); alert('Banner cleared — it\'s gone from every portal.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Broadcast to all DJ portals */}
+      <div style={{ background: '#0A0A0A', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 12, padding: 16 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>📣 Message all DJs</div>
+          {liveBanner && <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: '#34D399', border: '1px solid rgba(52,211,153,0.5)', borderRadius: 999, padding: '1px 8px' }}>Live now</span>}
+        </div>
+        <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>One click — this shows as a red header banner at the top of <strong style={{ color: '#fff' }}>every DJ's portal</strong>. Great for "new month is live — book now". Clear it when it's old.</div>
+        <textarea value={bcast} onChange={e => setBcast(e.target.value)} rows={2} placeholder="e.g. October dates are live — book your nights now!" style={{ ...inp('100%'), resize: 'vertical', boxSizing: 'border-box' }} />
+        <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
+          <button onClick={postBanner} disabled={busy || !(bcast || '').trim()} style={btn('gold')}>📣 Post to all DJ portals</button>
+          {liveBanner && <button onClick={clearBanner} disabled={busy} style={btn('ghost')}>Clear banner</button>}
+        </div>
+      </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
         <div>
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>

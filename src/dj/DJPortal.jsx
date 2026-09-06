@@ -48,6 +48,7 @@ export default function DJPortal() {
   const [viewM, setViewM] = useState(now.getMonth())
   const [tab, setTab] = useState('nights')   // profile · nights (calendar) · payments · messages · rules · venue
   const [menuOpen, setMenuOpen] = useState(false)   // top nav dropdown
+  const [dismissedBanner, setDismissedBanner] = useState(() => { try { return localStorage.getItem('nd_dj_banner_seen') || '' } catch { return '' } })
   const [showPast, setShowPast] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
   const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
@@ -404,6 +405,16 @@ export default function DJPortal() {
       <div style={{ maxWidth: 520, margin: '0 auto' }}>
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 170, display: 'block', margin: '0 auto 6px' }} />
         <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 18 }}>DJ Portal</div>
+
+        {/* Broadcast banner — a single message the founder posts to EVERY DJ's
+            portal (one-click, no per-DJ WhatsApp). Dismissible per message. */}
+        {st.banner && st.banner !== dismissedBanner && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: RED, color: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16, boxShadow: '0 4px 18px rgba(218,27,51,0.35)' }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📣</span>
+            <div style={{ flex: 1, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontWeight: 600 }}>{st.banner}</div>
+            <button onClick={() => { try { localStorage.setItem('nd_dj_banner_seen', st.banner) } catch { /* noop */ } setDismissedBanner(st.banner) }} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', fontSize: 18, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: 0 }}>✕</button>
+          </div>
+        )}
 
         {/* Some of our DJs also work behind the bar (Thays, Aug 2026). If a staff
             login exists on this device, offer the hop back to the staff portal —
