@@ -79,6 +79,16 @@ TO CONFIRM with the founder: the exact printer models at the venue (look for
 
 ## 5. Tabs & tables
 
+**One order system, two lenses (founder design session, 21 Aug 2026):** the drawn ROOM
+answers "where is the order?"; the TAB LIST answers "who owes us?". Any order can carry a
+place (a table on the floor plan) and/or a signed name; ⇄ Move re-homes an order between
+table / named tab / quick sale, keeping the name. The room is drawn in the till itself
+(✏️ Edit room: add/drag/resize/rename), stored in `till_settings.floor`, shared by every
+till point. **Later stage — reservations:** today's bookings (the existing bar_reservations
+the /ops Reservations tab reads) appear as a list beside the room; dropping one onto
+table(s) holds them under the booking's name/time, and tapping a held table when the group
+arrives opens the order pre-named.
+
 - Tables: simple named grid first (the venue is not table-service-heavy); move
   order to another table/tab = one action, audited.
 - Tabs: named tab, optional £X pre-auth on the Square terminal later (hardest

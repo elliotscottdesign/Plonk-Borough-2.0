@@ -667,6 +667,58 @@ Deno.serve(async (req) => {
         return json({ ok: true, count: suppliers.length, suppliers })
       }
 
+      /* ---------------------------------------------------------------- */
+      /* LIGHTSPEED DAILY REPORTS                                           */
+      /*                                                                    */
+      /* The Apps Script pushes them here from Gmail, so reading the till   */
+      /* no longer depends on a connector or on anyone dragging a file      */
+      /* into a chat.                                                       */
+      /* ---------------------------------------------------------------- */
+
+      case 'tillUploadUrl': {
+        const safe = String(p.filename || 'report.csv').replace(/[^A-Za-z0-9._-]/g, '_').slice(-80)
+        const path = `${new Date().toISOString().slice(0, 10)}/${crypto.randomUUID()}_${safe}`
+        const { data, error } = await db.storage.from('till-reports').createSignedUploadUrl(path)
+        if (error) throw error
+        return json({ ok: true, path, signedUrl: data.signedUrl, token: data.token })
+      }
+
+      case 'tillReportAdd': {
+        if (!p.filePath || !p.fileName) return json({ error: 'Need the file' }, 400)
+        // gmail_id is unique, so a re-run silently does nothing rather than
+        // filing the same morning's report a second time.
+        const { data, error } = await db.from('till_reports')
+          .upsert({
+            report_kind: String(p.kind || 'unknown'),
+            covers_date: /^\d{4}-\d{2}-\d{2}$/.test(String(p.coversDate || '')) ? p.coversDate : null,
+            file_name: String(p.fileName), storage_path: String(p.filePath),
+            bytes: Number(p.bytes) || null, gmail_id: String(p.gmailId || crypto.randomUUID()),
+          }, { onConflict: 'gmail_id', ignoreDuplicates: true })
+          .select().maybeSingle()
+        if (error) throw error
+        return json({ ok: true, report: data, duplicate: !data })
+      }
+
+      case 'tillReportsList': {
+        const { data, error } = await db.from('till_reports')
+          .select('*').order('created_at', { ascending: false }).limit(Math.min(Number(p.limit) || 60, 200))
+        if (error) throw error
+        // Short-lived links so the reports can be read without the service key.
+        const rows = await Promise.all((data ?? []).map(async (r: any) => {
+          const { data: s } = await db.storage.from('till-reports').createSignedUrl(r.storage_path, 3600)
+          return { ...r, url: s?.signedUrl ?? null }
+        }))
+        return json({ ok: true, count: rows.length, reports: rows })
+      }
+
+      case 'tillReportDone': {
+        if (!p.id) return json({ error: 'Which one?' }, 400)
+        const { error } = await db.from('till_reports')
+          .update({ processed_at: new Date().toISOString() }).eq('id', p.id)
+        if (error) throw error
+        return json({ ok: true })
+      }
+
       default:
         return json({ error: 'Unknown action' }, 400)
     }

@@ -3,7 +3,8 @@ import {
   tournList, tournOpen, tournAddManual, tournAddWalkup, tournRename, tournReplace, tournRemove, tournRestore, tournDeleteRun,
   tournStartRounds, tournNextRound, tournEnterScore, tournEnterGames, tournClearScore, tournDeleteLastRound,
   tournStartKnockout, tournGetLeague, tournFinalize, tournSeedFromLeague,
-  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound, tournSetSignups} from '../../pingpong/api.js'
+  tournListVouchers, tournRedeemVoucher, tournUnredeemVoucher, tournCallPlayers, tournCallRound, tournSetSignups,
+  tournMergeLeague, tournUnmergeLeague} from '../../pingpong/api.js'
 
 // ─── Ping pong tournaments (founder) ──────────────────────────────────────────────
 // Sundays from 6pm, ALWAYS teams (founder rule 3 Aug 2026) — no singles/doubles split,
@@ -874,11 +875,23 @@ export default function PingPong() {
               <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>🎯 Knockout bracket</div>
               <span style={{ fontSize: 11, fontWeight: 700, color: '#fff', background: 'rgba(168,85,247,0.15)', border: `1px solid ${LINE}`, borderRadius: 999, padding: '3px 10px' }}>first to {koWin} · deuce past {koWin - 1}–{koWin - 1}{run.run?.settings?.thirdPlaceMatch ? ' · 3rd-place match' : ''}{run.run?.settings?.finalBestOf3 ? ' · best-of-3 final' : ''}</span>
             </div>
-            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8 }}>
+            {/* Bracket tree: all columns stretch to the same height and every
+                match sits in an equal flex slot — a round with half the matches
+                gets slots twice as tall, so each tie is vertically CENTRED
+                between the two matches that feed it (founder, 2 Sep 2026: the
+                drifting columns confused players). Labels live outside the
+                slot area so they line up across the top. */}
+            <div style={{ display: 'flex', gap: 14, overflowX: 'auto', paddingBottom: 8, alignItems: 'stretch' }}>
               {Array.from({ length: totalRounds }, (_, i) => i + 1).map(r => (
-                <div key={r} style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 190, justifyContent: r === totalRounds ? 'center' : 'space-around' }}>
-                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center' }}>{roundLabel(r)}</div>
-                  {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => <React.Fragment key={m.id}>{BracketMatch({ m })}</React.Fragment>)}
+                <div key={r} style={{ display: 'flex', flexDirection: 'column', minWidth: 190, flexShrink: 0 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8, height: 16 }}>{roundLabel(r)}</div>
+                  <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                    {bmatches.filter(m => m.bracket_round === r).sort((a, b) => (a.bracket_slot || 0) - (b.bracket_slot || 0)).map(m => (
+                      <div key={m.id} style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '5px 0' }}>
+                        {BracketMatch({ m })}
+                      </div>
+                    ))}
+                  </div>
                   {r === totalRounds && tpm && (
                     <div style={{ marginTop: 10 }}>
                       <div style={{ fontSize: 11, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', marginBottom: 8 }}>3rd-place play-off</div>

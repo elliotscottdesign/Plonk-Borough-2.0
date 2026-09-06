@@ -11,7 +11,7 @@ import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { useChecklistOverrides, effectiveShift } from '../lib/liveChecklists.js'
-import { rotaMenus } from './api.js'
+import { rotaMenus, rotaMe } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
@@ -85,6 +85,7 @@ const Avatar = ({ name, size = 34 }) => {
 export default function RotaPortal() {
   const [token, setToken] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null))
   const [staff, setStaff] = useState(null)
+  const [djLink, setDjLink] = useState(null)   // set when this staff member is also one of our DJs
   const [shifts, setShifts] = useState([])
   const [training, setTraining] = useState([])            // completed item_keys
   const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
@@ -287,6 +288,16 @@ export default function RotaPortal() {
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const claim = (id) => act(async () => { await flushAllSaves(); await rotaClaimShift(token, id) })
   const release = (id) => act(() => rotaReleaseShift(token, id))
+  // Some of the team also DJ for us. If a manager has linked this staff record to
+  // a DJ record, the rota fn hands back that DJ's own portal link so she can hop
+  // straight across instead of hunting for the emailed URL (founder, 20 Aug 2026).
+  useEffect(() => {
+    if (!token) { setDjLink(null); return }
+    let live = true
+    rotaMe(token).then(r => { if (live) setDjLink(r.dj || null) }).catch(() => { /* never block the portal */ })
+    return () => { live = false }
+  }, [token])
+
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const doClockIn = async () => {
     setBusy(true); setClockMsg('')
@@ -586,7 +597,7 @@ export default function RotaPortal() {
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} reload={() => loadState(token)} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} djLink={djLink} reload={() => loadState(token)} />
         )}
       </div>
 
@@ -864,7 +875,7 @@ function DobInput({ value, onChange, style }) {
   return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
 }
 
-function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
+function ProfileView({ staff, onSave, busy, token, docs, clocks = [], djLink = null, reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
@@ -885,6 +896,30 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Some of the team also DJ for us (Thays, Aug 2026). One tap across to her
+          own DJ profile — her set dates, fee, promo track and payment details —
+          without hunting for the private link that was emailed to her months ago.
+          Only ever shown when a manager has linked the two records. */}
+      {djLink && (
+        <a href={djLink.url}
+          onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); window.location.assign(djLink.url) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+            padding: '13px 14px', borderRadius: 11,
+            background: 'rgba(168,85,247,0.10)', border: '1.5px solid rgba(168,85,247,0.55)',
+            color: '#fff', cursor: 'pointer', touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'rgba(168,85,247,0.45)',
+          }}>
+          <span style={{ fontSize: 21 }}><span data-keep-color>🎧</span></span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, fontWeight: 800 }}>My DJ profile</span>
+            <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+              {djLink.name} — set dates, fee &amp; payment details
+            </span>
+          </span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#A855F7' }}>Open →</span>
+        </a>
+      )}
       {/* Managers/Asst Managers: jump straight to the /ops team hub (or the DJ section). */}
       {['Manager', 'Asst. Manager'].includes(staff.role) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

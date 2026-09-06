@@ -53,17 +53,15 @@ for f in files:
             if want and want not in have:
                 bad.append(f"{f}: imports {{{want}}} from '{spec}' — NOT EXPORTED (has: {', '.join(sorted(have))[:90]})")
 
-# Second pass: catch identifiers that are USED but never imported/defined —
-# the class of bug a named-import check alone cannot see (a call to a helper
-# that was never imported is a runtime crash, not an import error).
-WATCH = ['restoreRememberedSession', 'forgetDevice', 'applyTheme', 'applyAccessSession',
-         'rememberDevice', 'rememberedDevice']
+# Second pass: catch project helpers that are CALLED but never imported or
+# defined — a runtime crash a named-import check cannot see. This has bitten
+# twice now (restoreRememberedSession, then rotaMe), so it is checked properly.
+WATCH_RE = re.compile(r'\b((?:rota|bar|dj|tourn|kitchen)[A-Z]\w+|restoreRememberedSession|forgetDevice|applyTheme|applyAccessSession)\s*\(')
 for f in files:
     s2 = open(f, encoding='utf-8').read()
-    for name in WATCH:
-        used = re.search(r'\b' + name + r'\s*\(', s2)
-        if not used: continue
-        declared = re.search(r'(import[^;\n]*\b' + name + r'\b|(?:function|const|let|var)\s+' + name + r'\b)', s2)
+    for name in sorted(set(WATCH_RE.findall(s2))):
+        declared = re.search(
+            r'(import\s*\{[^}]*\b' + name + r'\b[^}]*\}|import[^\n]*\b' + name + r'\b|(?:function|const|let|var)\s+' + name + r'\b|' + name + r'\s*[:=])', s2, re.S)
         if not declared:
             bad.append(f"{f}: calls {name}() but never imports or defines it")
 

@@ -42,10 +42,10 @@ export default function MenuPrint() {
         {!sections && !err && <div style={{ color: MUTED, padding: '30px 0', textAlign: 'center' }}>Loading the latest menu…</div>}
 
         {sections && (() => {
-          const starred = sections.flatMap(s => (s.items || []).filter(it => it.name && it.star))
+          const starred = sections.flatMap(s => (s.items || []).filter(it => it.name && it.star && !it.archived))
           const groups = [
             ...(starred.length ? [{ id: '__specials', name: 'Specials', special: true, items: starred }] : []),
-            ...sections.map(s => ({ ...s, items: (s.items || []).filter(it => it.name && !it.star) })).filter(s => s.items.length),
+            ...sections.map(s => ({ ...s, items: (s.items || []).filter(it => it.name && !it.star && !it.archived) })).filter(s => s.items.length),
           ]
           return groups.map(sec => (
           <div key={sec.id} style={{ marginBottom: 20, ...(sec.special ? { border: `2px dotted ${INK}`, borderRadius: 14, padding: '14px 16px 6px', background: '#fff8ec' } : {}) }}>

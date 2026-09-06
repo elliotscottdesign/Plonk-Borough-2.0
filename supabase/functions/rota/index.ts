@@ -411,7 +411,22 @@ Deno.serve(async (req) => {
       // Server-authoritative active gate (a deactivated account's token must not resolve —
       // clients rely on `me` for the single-sign-on hub bridge, so enforce it here too).
       if (s.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
-      return json({ ok: true, staff: publicStaff(s) });
+
+      // Some of the team also DJ for us (Thays, 20 Aug 2026). If a manager has
+      // linked this staff record to a DJ record, hand back the DJ's own portal
+      // link so she can hop straight across without digging out the emailed URL.
+      //
+      // The DJ token is ONLY ever returned to the holder of the staff token whose
+      // OWN record carries that dj_id — it is never listed, searchable or exposed
+      // to anyone else. Linking is deliberately explicit rather than matched on
+      // email/phone: Thays has a different email AND a different phone on each
+      // record, so inference would have failed silently.
+      let dj = null;
+      if (s.dj_id) {
+        const { data: d } = await sb.from("djs").select("id,dj_name,real_name,token").eq("id", s.dj_id).maybeSingle();
+        if (d?.token) dj = { name: d.dj_name || d.real_name || "DJ", url: `/dj?t=${encodeURIComponent(d.token)}` };
+      }
+      return json({ ok: true, staff: publicStaff(s), dj });
     }
 
     // ── Training doc override for a module (founder edits). Not sensitive; the

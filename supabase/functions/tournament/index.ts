@@ -634,6 +634,15 @@ async function computeLeague(sb: any, discipline: string) {
       add(placings.first, 5, "wins"); add(placings.second, 4, "seconds"); add(placings.third, 3, "thirds");
     }
   }
+  // Founder point rulings (half-splits etc.) — applied after the nights are
+  // tallied, resolved through the merge map so they follow later merges.
+  const { data: adjs } = await sb.from("league_adjustments").select("key, display_name, pts").eq("sport", "pool").eq("discipline", discipline);
+  for (const a of adjs || []) {
+    const k = resolve(String(a.key || "").trim().toLowerCase());
+    if (!k) continue;
+    const e = (table[k] ||= { key: k, name: a.display_name || a.key, pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0, alsoKnownAs: [] });
+    e.pts += Number(a.pts) || 0;
+  }
   const arr = (Object.values(table) as any[]).sort((a, b) => b.pts - a.pts || b.frameDiff - a.frameDiff || String(a.name).localeCompare(String(b.name))).map((r, i) => ({ ...r, rank: i + 1, qualifies: i < 8 }));
   return { discipline, nights: relevant.length, table: arr };
 }
