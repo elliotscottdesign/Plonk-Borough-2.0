@@ -113,6 +113,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   }, [viewY, viewM])
   const [selDate, setSelDate] = useState(null)
   const [focusId, setFocusId] = useState(null)   // tap a team chip → the month shows just their shifts
+  const [copyOpen, setCopyOpen] = useState(false)          // 📋 duplicate-week panel
+  const [copyTarget, setCopyTarget] = useState(null)       // target Monday (default: next week)
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -230,12 +232,56 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{fmtDay(weekStart)} – {fmtDayMon(weekEnd)}</div>
             <button onClick={() => setWeekStart(w => addDaysISO(w, 7))} style={weekNav}>▶</button>
             <button onClick={() => setWeekStart(mondayOf(todayStr))} style={{ ...btn('ghost'), padding: '4px 9px', fontSize: 11 }}>This week</button>
+            <button onClick={() => { setCopyTarget(t => t || addDaysISO(weekStart, 7)); setCopyOpen(o => !o) }} title="Duplicate this week's whole rota onto another week" style={{ ...btn('ghost'), padding: '4px 9px', fontSize: 11, ...(copyOpen ? { borderColor: '#60A5FA', color: '#60A5FA' } : {}) }}>📋 Copy week</button>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wage spend this week</div>
             <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{isFounderTier() ? <>{gbp(totalSpend)} <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>· {totalHours}h assigned</span></> : <>{totalHours}h <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>assigned</span></>}</div>
           </div>
         </div>
+        {copyOpen && (() => {
+          // ── Duplicate this week onto a target week ────────────────────────────
+          const tgt = copyTarget || addDaysISO(weekStart, 7)
+          const srcBlocks = weekDates.map(sd => ({
+            sd,
+            blocks: (shiftsByDate[sd] || []).flatMap(sh => (claimsByShift[sh.id] || []).map(c => ({ staffId: c.staff_id, start_min: sh.start_min, end_min: sh.end_min }))),
+          }))
+          const totalShifts = srcBlocks.reduce((a, d) => a + d.blocks.length, 0)
+          const tgtDates = weekDates.map((_, i) => addDaysISO(tgt, i))
+          const tgtExisting = tgtDates.filter(td => (shiftsByDate[td] || []).some(sh => (claimsByShift[sh.id] || []).length > 0)).length
+          // Off-day clashes: someone being copied onto a day they've booked off.
+          const offSet = new Set()
+          for (const r of availability) for (const [dt, v] of Object.entries(r.data || {})) if (v && v.unavailable) offSet.add(`${r.staff_id}|${dt}`)
+          const nameOfId = (id) => (staff.find(x => x.id === id)?.name || '?').split(' ')[0]
+          const clashes = []
+          srcBlocks.forEach((d, i) => { for (const b of d.blocks) if (offSet.has(`${b.staffId}|${tgtDates[i]}`)) clashes.push(`${nameOfId(b.staffId)} (${fmtDay(tgtDates[i])})`) })
+          const pastTgt = tgt <= todayStr
+          const doCopy = async () => {
+            const doable = srcBlocks.filter(d => d.blocks.length > 0)
+            if (doable.length === 0) { alert('Nothing to copy — no one is rostered on this week.'); return }
+            if (!window.confirm(`Copy ${totalShifts} shift${totalShifts === 1 ? '' : 's'} from ${fmtDay(weekStart)}–${fmtDayMon(weekEnd)} onto ${fmtDay(tgt)}–${fmtDayMon(addDaysISO(tgt, 6))}?\n\n${tgtExisting > 0 ? `REPLACES the roster on ${tgtExisting} day(s) that already have people on.\n` : ''}${clashes.length ? `⚠️ Booked off on the new days (copied anyway — swap them after): ${clashes.join(', ')}\n` : ''}Days with no one on are left untouched.`)) return
+            setBusy(true)
+            try {
+              for (let i = 0; i < 7; i++) if (srcBlocks[i].blocks.length > 0) await rotaSaveDayRoster(tgtDates[i], srcBlocks[i].blocks)
+              await reload(); setCopyOpen(false); setWeekStart(tgt)
+              alert(`Done — ${totalShifts} shift${totalShifts === 1 ? '' : 's'} copied to the week of ${fmtDayMon(tgt)}. You're now looking at that week; fine-tune any day from the calendar.`)
+            } catch (e) { alert(e.message) } finally { setBusy(false) }
+          }
+          return (
+            <div style={{ marginTop: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#60A5FA' }}>📋 Copy this week</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{totalShifts} shift{totalShifts === 1 ? '' : 's'} → week of</span>
+              <button onClick={() => setCopyTarget(addDaysISO(tgt, -7))} style={weekNav}>◀</button>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', minWidth: 120, textAlign: 'center' }}>{fmtDay(tgt)} – {fmtDayMon(addDaysISO(tgt, 6))}</span>
+              <button onClick={() => setCopyTarget(addDaysISO(tgt, 7))} style={weekNav}>▶</button>
+              {tgtExisting > 0 && <span style={{ fontSize: 11, color: AMBER }}>⚠️ replaces {tgtExisting} day(s) already rostered</span>}
+              {clashes.length > 0 && <span style={{ fontSize: 11, color: '#F87171' }}>⚠️ booked off: {clashes.join(', ')}</span>}
+              {pastTgt && <span style={{ fontSize: 11, color: AMBER }}>target is in the past</span>}
+              <button onClick={doCopy} disabled={busy || totalShifts === 0 || tgt === weekStart} style={{ ...btn('gold'), marginLeft: 'auto', opacity: busy || totalShifts === 0 || tgt === weekStart ? 0.5 : 1 }}>{busy ? 'Copying…' : 'Copy →'}</button>
+              <button onClick={() => setCopyOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer', padding: 0 }}>✕</button>
+            </div>
+          )
+        })()}
         {missingRate && <div style={{ fontSize: 11, color: AMBER, marginTop: 8 }}>⚠️ Some assigned staff have no hourly rate, so their pay isn't in the total — set it in Team → Edit profile → Pay &amp; hours.</div>}
         {overviewOpen && (
           <>
