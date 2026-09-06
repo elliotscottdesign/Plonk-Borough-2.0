@@ -4,6 +4,8 @@ import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
 import { pageColor } from './colors.js'
 import { PAGES } from './data/happyHour.js'
+import costFeed from './data/costProposals.json'
+import { barSaveProduct } from '../ops/barApi.js'
 import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
 
@@ -140,6 +142,8 @@ function CatalogueView() {
         </div>
       )}
 
+      <CostsInbox costsByName={costsByName} onApplied={() => tillCatalogueCosts().then(setData).catch(() => {})} />
+
       {stats.worst.length > 0 && (
         <div style={{ background: 'rgba(218,27,51,0.07)', border: '1px solid rgba(218,27,51,0.3)', borderRadius: 12, padding: '12px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: CREAM, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -209,6 +213,92 @@ function CatalogueView() {
         product in the Bar page and GP appears here on its own. "No stock record" means the product isn't in the bar
         stock system at all yet. GP assumes 20% VAT. Nothing on this screen writes anywhere.
       </div>
+    </div>
+  )
+}
+
+// ─── 💷 Costs inbox — the invoice → cost feed's approval queue ──────────────
+// Proposed pack costs (scripts/costProposals.py: the Drinks Club 26-27 invoice
+// list where marked, ballparks flagged amber). NOTHING applies without a tap;
+// Apply writes pack_cost through the bar fn's founder-gated action, and GP
+// across the till updates itself.
+function CostsInbox({ costsByName, onApplied }) {
+  const [open, setOpen] = useState(false)
+  const [applied, setApplied] = useState(() => new Set())
+  const [busy, setBusy] = useState(false)
+  const rows = costFeed.proposals.map(p => {
+    const live = costsByName ? costsByName[p.stock.toLowerCase()] : null
+    return { ...p, product_id: live?.product_id || null, alreadyCosted: live ? live.cost_per_base != null : null }
+  })
+  const applicable = rows.filter(r => r.product_id && !applied.has(r.stock))
+  const confidentTodo = applicable.filter(r => r.confident && !r.alreadyCosted)
+
+  const applyOne = async (r) => {
+    if (!r.product_id) return
+    try {
+      await barSaveProduct({ id: r.product_id, pack_cost: r.pack_cost })
+      setApplied(prev => new Set(prev).add(r.stock))
+    } catch (e) { alert(`${r.stock}: ${e.message || 'failed'}`) }
+  }
+  const applyAll = async () => {
+    setBusy(true)
+    for (const r of confidentTodo) await applyOne(r)   // sequential, gentle
+    setBusy(false)
+    onApplied()
+  }
+
+  return (
+    <div style={{ border: `1.5px solid ${GOLD}`, borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+        background: 'rgba(201,168,76,0.08)', border: 'none', cursor: 'pointer', padding: '13px 16px', color: CREAM, fontFamily: 'inherit',
+      }}>
+        <span style={{ fontSize: 14.5, fontWeight: 800, color: GOLD }}>{open ? '▾' : '▸'} 💷 Costs inbox</span>
+        <span style={{ fontSize: 11.5, color: DIM }}>
+          {costFeed.proposals.length} proposed pack costs · {costFeed.generated}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {confidentTodo.length > 0 && (
+            <button onClick={applyAll} disabled={busy} style={{
+              alignSelf: 'flex-start', padding: '11px 18px', borderRadius: 9, border: 'none', cursor: 'pointer',
+              background: GOLD, color: '#141414', fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
+            }}>
+              {busy ? 'Applying…' : `APPLY ALL ${confidentTodo.length} INVOICE-LISTED COSTS`}
+            </button>
+          )}
+          {rows.map(r => {
+            const done = applied.has(r.stock)
+            return (
+              <div key={r.stock} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+                <span style={{ flex: '1 1 200px', fontSize: 13, color: CREAM, fontWeight: 600 }}>
+                  {r.stock}
+                  <span style={{ fontSize: 10.5, color: DIM, fontWeight: 400 }}> · {r.supplier || '—'} · {r.ref.slice(0, 46)}</span>
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: r.confident ? GREEN : AMBER, whiteSpace: 'nowrap' }}>
+                  {gbp(r.pack_cost)} <span style={{ fontWeight: 400, color: DIM, fontSize: 10.5 }}>{r.pack_label} ex-VAT</span>
+                </span>
+                <span style={{ fontSize: 10, color: r.confident ? GREEN : AMBER }}>{r.confident ? 'invoice list' : 'ballpark'}</span>
+                {r.alreadyCosted && !done && <span style={{ fontSize: 10, color: DIM }}>has a cost</span>}
+                {done
+                  ? <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ applied</span>
+                  : r.product_id
+                    ? <button onClick={() => { applyOne(r).then(onApplied) }} style={{
+                        padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${GOLD}`, background: 'rgba(201,168,76,0.1)',
+                        color: GOLD, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 800,
+                      }}>APPLY</button>
+                    : <span style={{ fontSize: 10.5, color: DIM }}>waiting for cost data…</span>}
+              </div>
+            )
+          })}
+          <div style={{ fontSize: 10.5, color: DIM, paddingTop: 8, lineHeight: 1.5 }}>
+            Green = the Drinks Club 26-27 wholesale list (real invoice prices, ex-VAT). Amber = industry ballpark — apply
+            only if it looks right, and replace it when the real invoice lands. Next stage: prices read straight off
+            supplier invoice PDFs (Xero bills only carry one-line totals — the detail is in the attachments).
+          </div>
+        </div>
+      )}
     </div>
   )
 }

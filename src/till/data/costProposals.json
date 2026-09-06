@@ -1,0 +1,770 @@
+{
+ "generated": "4 Sep 2026 · from src/ops/data/costing.js (Jun 2026 costing sheet; Drinks Club 26-27 list where marked)",
+ "proposals": [
+  {
+   "stock": "Agave syrup",
+   "pack_cost": 13.44,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Giffard Sirop Agave 1000ml (OTS7GIFSIAG)"
+  },
+  {
+   "stock": "Amaro Montenegro",
+   "pack_cost": 16.33,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Amaro Montenegro 700ml (VA7AMMLI)"
+  },
+  {
+   "stock": "Angostura bitters",
+   "pack_cost": 36.56,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Angostura Bitters 200ml (OTB2ANGBI)"
+  },
+  {
+   "stock": "Aperol",
+   "pack_cost": 11.25,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Aperol Aperitivo 700ml (LI7APA)"
+  },
+  {
+   "stock": "Asahi",
+   "pack_cost": 24.96,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Asahi Super Dry Glass 330ml × 24 @ £24.96 (BR3ASASDGL)"
+  },
+  {
+   "stock": "Baileys",
+   "pack_cost": 12.54,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Baileys Original Irish Cream 700ml (LI7BAIOR)"
+  },
+  {
+   "stock": "Blanco Blanco (white)",
+   "pack_cost": 11.55,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Blanco Blanco (Xarel-lo/Garnacha/Trepat) 750ml @ £11.55 ex VAT — Top Cuvée MOD-W07-9837, min order 6"
+  },
+  {
+   "stock": "Budweiser",
+   "pack_cost": 23.52,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Budweiser Glass 330ml × 24 @ £23.52 (BR3BUDGL)"
+  },
+  {
+   "stock": "Camden Hells",
+   "pack_cost": 142.28,
+   "pack_label": "per keg (50L)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Camden Hells Lager Keg 50L (BR50CAMHLKE)"
+  },
+  {
+   "stock": "Camden Stout",
+   "pack_cost": 84.42,
+   "pack_label": "per keg (30L)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Camden Ink Stout Keg 30L (BR30CAMINKE)"
+  },
+  {
+   "stock": "Campari",
+   "pack_cost": 14.47,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Campari 700ml (LI7CAM)"
+  },
+  {
+   "stock": "Cazcabel Blanco",
+   "pack_cost": 23.09,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Cazcabel Blanco 700ml (SPT7CAZBL)"
+  },
+  {
+   "stock": "Cazcabel Reposado",
+   "pack_cost": 24.51,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Cazcabel Reposado 700ml (SPT7CAZRE)"
+  },
+  {
+   "stock": "Chin Chin Vinho Verde",
+   "pack_cost": 9.0,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Noble Rot",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Chin Chin Vinho Verde 750ml — Noble Rot (supply chain being set up Jun 2026; £9.00 is a placeholder, real price TBC). NB: add Noble Rot to the supplier directory."
+  },
+  {
+   "stock": "Cocchi Americano",
+   "pack_cost": 19.43,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Cocchi Americano 750ml (AP7COCAM)"
+  },
+  {
+   "stock": "Corona",
+   "pack_cost": 27.12,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Corona Extra Glass 330ml × 24 @ £27.12 (BR3COEGL)"
+  },
+  {
+   "stock": "Corona 0%",
+   "pack_cost": 18.0,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Corona Cero 0.0% Glass 330ml × 24 @ £18.00 (BR3COC00GL)"
+  },
+  {
+   "stock": "Crisps",
+   "pack_cost": 0.56,
+   "pack_label": "per box (×1)",
+   "supplier": "Snack! (UK Bar Snacks Ltd)",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Brown Bag — 5 flavours, case of 20 × 40g @ £11.25 ex VAT (£0.56/bag)"
+  },
+  {
+   "stock": "Cynar",
+   "pack_cost": 13.39,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Cynar Liqueur 700ml (LI7CYN)"
+  },
+  {
+   "stock": "Disaronno Amaretto",
+   "pack_cost": 16.26,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Disaronno Amaretto 700ml (LI7DISAM)"
+  },
+  {
+   "stock": "Doom Juice Rosé",
+   "pack_cost": 11.9,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Doom Juice Rosé (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W03-2922, min order 6"
+  },
+  {
+   "stock": "Doom Juice Rouge",
+   "pack_cost": 11.9,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6"
+  },
+  {
+   "stock": "Eager Orange",
+   "pack_cost": 18.56,
+   "pack_label": "per case (8000ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Eager Orange Smooth case of 8 × 1L (SO1EAGOS) @ £18.56 = £2.32/L"
+  },
+  {
+   "stock": "El Bandarra Vermut",
+   "pack_cost": 15.82,
+   "pack_label": "per bottle (1000ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "El Bandarra Al Fresco 1000ml (VA7ELBAF)"
+  },
+  {
+   "stock": "Fanta",
+   "pack_cost": 14.4,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Fanta Can 330ml × 24 @ £14.40 (SO3FANC)"
+  },
+  {
+   "stock": "Five Points XPA",
+   "pack_cost": 82.42,
+   "pack_label": "per keg (30L)",
+   "supplier": "Five Points",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Five Points XPA Keg 30L @ £82.42 ex VAT (£96.96 list − 15%)"
+  },
+  {
+   "stock": "Four Roses Bourbon",
+   "pack_cost": 19.74,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Four Roses Yellow Label 700ml (SPW7FORYL)"
+  },
+  {
+   "stock": "Funkin Mango purée",
+   "pack_cost": 9.52,
+   "pack_label": "per pouch (1000ml)",
+   "supplier": "LWC",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Funkin Mango Puree 1kg pouch @ £9.52 ex VAT (LWC catalog, Jun 2026)"
+  },
+  {
+   "stock": "Grapefruit",
+   "pack_cost": 19.28,
+   "pack_label": "per each (×1)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Eager Pink Grapefruit case of 8 × 1L (SO1EAGPG) @ £19.28 = £2.41/L"
+  },
+  {
+   "stock": "Hanbury London Dry (house)",
+   "pack_cost": 64.0,
+   "pack_label": "per refill (2100ml)",
+   "supplier": "True Brew Co Ltd (Hanbury Distillery)",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Hanbury London Dry Gin Refill 2.1L (HD011) @ £64 ex VAT — INV-0395"
+  },
+  {
+   "stock": "Hanbury Spiced Cranberry",
+   "pack_cost": 65.0,
+   "pack_label": "per refill (2100ml)",
+   "supplier": "True Brew Co Ltd (Hanbury Distillery)",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Hanbury Spiced Cranberry Refill 2.1L @ £65 ex VAT — 70cl bottle HD016 @ £25 (INV-0473)"
+  },
+  {
+   "stock": "Havana Club 7yr",
+   "pack_cost": 20.96,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Havana Club 7 Year Old 700ml (SPR7HAC7)"
+  },
+  {
+   "stock": "Havana Especial",
+   "pack_cost": 15.65,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Havana Club Anejo Especial 700ml (SPR7HACAE)"
+  },
+  {
+   "stock": "House red (Kalimotxo)",
+   "pack_cost": 6.0,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Domaine de La Motte Merlot 750ml (RE7LMOME)"
+  },
+  {
+   "stock": "Jameson",
+   "pack_cost": 19.76,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Jameson 700ml (SPW7JAM)"
+  },
+  {
+   "stock": "Kahlúa",
+   "pack_cost": 12.13,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Kahlua Coffee Liqueur 700ml (LI7KAHCL)"
+  },
+  {
+   "stock": "Kraken Black Spiced",
+   "pack_cost": 21.9,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Kraken Black Spiced Rum 700ml (SPR7KRABS)"
+  },
+  {
+   "stock": "Lemon bitters",
+   "pack_cost": 74.9,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Fee Brothers Lemon Bitters 150ml (OTB1FEBLE)"
+  },
+  {
+   "stock": "Lemonade",
+   "pack_cost": 11.6,
+   "pack_label": "per BIB (7000ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Schweppes Lemonade BIB 7L (SO7SCHLEBIB) — 1:5 syrup to soda = 42L finished"
+  },
+  {
+   "stock": "Lentsch Grüner Veltliner",
+   "pack_cost": 12.9,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Good Wine Good People",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Lentsch Grüner Veltliner 750ml @ £12.90 ex VAT — Good Wine Good People (backed out of combined order: 12 Cueva Nueva + 12 Lentsch = £302.26 ex VAT, less 12 × £12.29 Cueva)"
+  },
+  {
+   "stock": "Lillet Rosé",
+   "pack_cost": 13.32,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Lillet Rose 750ml (AP7LILROS)"
+  },
+  {
+   "stock": "Limoncello",
+   "pack_cost": 14.79,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Luxardo Limoncello 700ml (LI7LUXLI)"
+  },
+  {
+   "stock": "Lucky Saint 0.5%",
+   "pack_cost": 28.32,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Lucky Saint Unfiltered Lager 0.5% Glass 330ml × 24 @ £28.20 (BR3LUSUFGL)"
+  },
+  {
+   "stock": "Madre Mezcal",
+   "pack_cost": 40.11,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Madre Mezcal Espadin 700ml (SPM7MADES)"
+  },
+  {
+   "stock": "Martini Dry",
+   "pack_cost": 9.87,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Martini Extra Dry 750ml (VE7MARED)"
+  },
+  {
+   "stock": "Monin Grenadine",
+   "pack_cost": 5.28,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Monin Grenadine 700ml (OTS7MONGR)"
+  },
+  {
+   "stock": "Monin Vanilla",
+   "pack_cost": 7.49,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Monin Vanilla 700ml (OTS7MONVA)"
+  },
+  {
+   "stock": "Nuts",
+   "pack_cost": 0.41,
+   "pack_label": "per box (×1)",
+   "supplier": "Snack! (UK Bar Snacks Ltd)",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Salty Dog Dry Roasted, case of 24 × 45g @ £9.75 ex VAT (£0.41/pack). Chilli Peanuts £11.25/case (£0.47/pack)."
+  },
+  {
+   "stock": "Old Jamaica Ginger Beer",
+   "pack_cost": 11.52,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Old Jamaican Ginger Beer Can 330ml × 24 @ £11.52 (SO3OLJGBC)"
+  },
+  {
+   "stock": "Passion Fruit Liqueur",
+   "pack_cost": 9.45,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Blend Passion Fruit Liqueur 700ml (LI7BLEPF)"
+  },
+  {
+   "stock": "Pink Ting",
+   "pack_cost": 11.52,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Ting Grapefruit Can 330ml × 24 @ £11.52 (SO3TINGGRCA)"
+  },
+  {
+   "stock": "Prosecco 750ml (NV Via Vai)",
+   "pack_cost": 6.75,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Amore della Vita Prosecco 750ml @ £6.75 ex VAT (Drinks Club Jun-26)"
+  },
+  {
+   "stock": "Red Bull",
+   "pack_cost": 23.28,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Red Bull 250ml × 24 @ £23.28 (SO2REB)"
+  },
+  {
+   "stock": "Rouge Petard",
+   "pack_cost": 10.75,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Rouge Petard (Aramon) 750ml @ £10.75 ex VAT — Top Cuvée TOP-W01-7704, min order 6"
+  },
+  {
+   "stock": "St Germain",
+   "pack_cost": 24.8,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "St Germain 700ml (LI7STG)"
+  },
+  {
+   "stock": "Top Cuvée House Orange",
+   "pack_cost": 10.35,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "House Wine Orange 750ml @ £10.35 ex VAT — Top Cuvée TOP-W04-1000"
+  },
+  {
+   "stock": "Top Cuvée Sweet Vermouth",
+   "pack_cost": 9.43,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Martini Rosso 750ml (VE7MARRO)"
+  },
+  {
+   "stock": "Triple Sec",
+   "pack_cost": 10.26,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Blend Triple Sec 700ml (LI7BLETS)"
+  },
+  {
+   "stock": "Umbrella Apple Cider (keg)",
+   "pack_cost": 118.04,
+   "pack_label": "per keg (50L)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Red Fin Fresh Apple Keg 50L (BR50REFFAKEG) — used as comparable"
+  },
+  {
+   "stock": "Velho Barreiro Cachaça",
+   "pack_cost": 16.43,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Velho Barreiro Cachaca 700ml (SPC7VEBCA)"
+  },
+  {
+   "stock": "Vida Mezcal",
+   "pack_cost": 33.5,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Del Maguey Mezcal Vida 700ml 42% (SPM7DEMVI)"
+  },
+  {
+   "stock": "Watermelon",
+   "pack_cost": 63.0,
+   "pack_label": "per case (20L)",
+   "supplier": "Brakes",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Brakes MELONS WATER 20kg @ £31.54 (code 7315) → ~£3.15/L at ~50% juice yield"
+  },
+  {
+   "stock": "Wray & Nephew Overproof",
+   "pack_cost": 25.05,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Wray & Nephew White Overproof 700ml (SPR7WRNWO)"
+  },
+  {
+   "stock": "Yellow Chartreuse",
+   "pack_cost": 35.29,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Chartreuse Yellow Liqueur 700ml 43% (LI7CHAYE)"
+  },
+  {
+   "stock": "Beaujolais Nouveau",
+   "pack_cost": 14.35,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)"
+  },
+  {
+   "stock": "Big Drop Citra IPA 0.5%",
+   "pack_cost": 43.2,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Big Drop Citra IPA 0.5%"
+  },
+  {
+   "stock": "Cherry Sour",
+   "pack_cost": 67.2,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Cloudwater Cheery Breeze Sour"
+  },
+  {
+   "stock": "Coffee extract",
+   "pack_cost": 18.75,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Coffee extract (cold brew)"
+  },
+  {
+   "stock": "Coke",
+   "pack_cost": 17.5,
+   "pack_label": "per BIB (7000ml)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Coca-Cola (bottle)"
+  },
+  {
+   "stock": "Cucumber",
+   "pack_cost": 0.04,
+   "pack_label": "per each (×1)",
+   "supplier": "Brakes",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Cucumber slice"
+  },
+  {
+   "stock": "Cueva Nueva Vermut (500ml)",
+   "pack_cost": 18.43,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Good Wine Good People",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Cueva Nueva NV vermouth 500ml @ £12.29 ex VAT — GWGP invoice GWGPT-369 (founder-confirmed 500ml bottle, not 750ml)"
+  },
+  {
+   "stock": "Devil\\'s Botany Chocolate 24%",
+   "pack_cost": 18.63,
+   "pack_label": "per bottle (700ml)",
+   "supplier": null,
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Chocolate Absinthe"
+  },
+  {
+   "stock": "Devil\\'s Botany London 40%",
+   "pack_cost": 25.3,
+   "pack_label": "per bottle (700ml)",
+   "supplier": null,
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "London Absinthe"
+  },
+  {
+   "stock": "Devil\\'s Botany Regalis 60%",
+   "pack_cost": 36.63,
+   "pack_label": "per bottle (700ml)",
+   "supplier": null,
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Absinthe Regalis"
+  },
+  {
+   "stock": "Eager Pineapple",
+   "pack_cost": 20.0,
+   "pack_label": "per case (8000ml)",
+   "supplier": "Brakes",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Pineapple juice"
+  },
+  {
+   "stock": "Favonius Orange",
+   "pack_cost": 15.0,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Favonius Orange (Fernão Pires/Arinto) 750ml — Top Cuvée; £15.00 provisional cost (founder, for now), confirm vs real invoice"
+  },
+  {
+   "stock": "Fresh Non-Alc",
+   "pack_cost": 60.0,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Cloudwater Fresh AF IPA"
+  },
+  {
+   "stock": "Funkin Passion Fruit purée",
+   "pack_cost": 9.52,
+   "pack_label": "per pouch (1000ml)",
+   "supplier": "LWC",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Funkin Passion Fruit Puree 1kg pouch @ £9.52 ex VAT (LWC — Funkin range priced flat, founder-confirmed Jun 2026)"
+  },
+  {
+   "stock": "Gilda",
+   "pack_cost": 0.55,
+   "pack_label": "per tub (×1)",
+   "supplier": "Brindisa",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Gilda (per skewer)"
+  },
+  {
+   "stock": "Havana Club 3yr",
+   "pack_cost": 14.0,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Havana Club Añejo 3 Años 700ml — £14.00 estimate, confirm price"
+  },
+  {
+   "stock": "Kombucha",
+   "pack_cost": 1.5,
+   "pack_label": "per case (×1)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Kombucha"
+  },
+  {
+   "stock": "Los Conejos Tinto (red)",
+   "pack_cost": 10.0,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Top Cuvee",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Los Conejos Malditos Tinto (Tempranillo) 750ml @ £10.00 ex VAT — Top Cuvée (menu confirms red/Tinto; £10 pegged to the TC Los Conejos list line)"
+  },
+  {
+   "stock": "Mini Prosecco 20cl",
+   "pack_cost": 9.38,
+   "pack_label": "per bottle (750ml)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Mini Prosecco 20cl"
+  },
+  {
+   "stock": "Mint",
+   "pack_cost": 5.0,
+   "pack_label": "per bunch (100ml)",
+   "supplier": "Brakes",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Mint sprig"
+  },
+  {
+   "stock": "Piccadilly Pilsner GF",
+   "pack_cost": 60.0,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Piccadilly Pilsner"
+  }
+ ]
+}
