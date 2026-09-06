@@ -292,14 +292,14 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           return (
             <div style={{ marginTop: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: '#60A5FA' }}>📋 Copy this week</span>
-              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{totalShifts} shift{totalShifts === 1 ? '' : 's'} → week of</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{totalShifts} shift{totalShifts === 1 ? '' : 's'} · paste into the week of</span>
               <button onClick={() => setCopyTarget(addDaysISO(tgt, -7))} style={weekNav}>◀</button>
               <span style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', minWidth: 120, textAlign: 'center' }}>{fmtDay(tgt)} – {fmtDayMon(addDaysISO(tgt, 6))}</span>
               <button onClick={() => setCopyTarget(addDaysISO(tgt, 7))} style={weekNav}>▶</button>
               {tgtExisting > 0 && <span style={{ fontSize: 11, color: AMBER }}>⚠️ replaces {tgtExisting} day(s) already rostered</span>}
               {clashes.length > 0 && <span style={{ fontSize: 11, color: '#F87171' }}>⚠️ booked off: {clashes.join(', ')}</span>}
               {pastTgt && <span style={{ fontSize: 11, color: AMBER }}>target is in the past</span>}
-              <button onClick={doCopy} disabled={busy || totalShifts === 0 || tgt === weekStart} style={{ ...btn('gold'), marginLeft: 'auto', opacity: busy || totalShifts === 0 || tgt === weekStart ? 0.5 : 1 }}>{busy ? 'Copying…' : 'Copy →'}</button>
+              <button onClick={doCopy} disabled={busy || totalShifts === 0 || tgt === weekStart} style={{ ...btn('gold'), marginLeft: 'auto', opacity: busy || totalShifts === 0 || tgt === weekStart ? 0.5 : 1 }}>{busy ? 'Pasting…' : '📋 Paste it there →'}</button>
               <button onClick={() => setCopyOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer', padding: 0 }}>✕</button>
             </div>
           )
