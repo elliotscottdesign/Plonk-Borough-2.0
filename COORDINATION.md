@@ -58,7 +58,7 @@ never run destructive or "today"-dated test writes on real data.
 NEW table `till_settings` (key text pk, value jsonb, updated_at) — till configuration,
 first key 'floor' = the drawn room layout shared across till iPads. Additive, RLS on, no
 policies (service-role via the `till` fn only). SQL in `supabase/till_settings.sql`.
-⏳ awaiting a fresh founder PAT to apply (same token unblocks the till fn redeploy).
+✅ APPLIED 4 Sep 2026 (founder token, revoked after).
 
 ## 21 Aug 2026 — till lane: vouchers redeemable at the till (touches tournament-lane tables, no DDL)
 The `till` edge fn gains `voucherLookup` / `voucherRedeem` / `voucherUnredeem` (SEND_SECRET-
@@ -66,7 +66,7 @@ gated): the till's ADDITION screen takes an ND- code, knocks the value off the b
 PAY sets `redeemed_at`/`redeemed_by` on the SAME rows the rota-portal Prizes flow uses
 (`pool_vouchers`, `pingpong_vouchers`, `manager_vouchers`). Additive behaviour only — no
 schema change, same columns the rota fn writes, `redeemed_by='Till'` so the source is
-visible in the portal list. ⏳ fn deploy pending a fresh Supabase PAT from the founder.
+visible in the portal list. ✅ fn DEPLOYED 4 Sep 2026 — voucher lookup/browse/redeem + floor sync live (NB: new sbp_v0 tokens need the Management API multipart deploy endpoint; both CLIs reject the format).
 Tournament lane: shout if this crosses anything mid-flight.
 
 ## 20 Aug 2026 — till lane touched public/sw.js (de-facto shared: bar lane's toilet push lives in it)
