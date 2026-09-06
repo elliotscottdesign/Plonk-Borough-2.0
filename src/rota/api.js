@@ -80,6 +80,11 @@ export const rotaSendCustomerVoucher = (token, d) => call({ action: 'sendCustome
 export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })
 export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data }, { keepalive: true })
 export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
+// 🔁 Shift swaps — offer up one of your shifts; someone intercepts; a manager approves.
+export const rotaOfferSwap = (token, shiftId) => call({ action: 'offerSwap', token, shiftId })
+export const rotaCancelSwap = (token, swapId) => call({ action: 'cancelSwap', token, swapId })
+export const rotaInterceptSwap = (token, swapId) => call({ action: 'interceptSwap', token, swapId })
+export const rotaDecideSwap = (token, swapId, approve) => call({ action: 'decideSwap', token, swapId, approve })
 export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift', token, shiftId })
 export const rotaGetChecklist = (token, date, key) => call({ action: 'getChecklist', token, date, key })
 export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })

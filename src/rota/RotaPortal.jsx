@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaOfferSwap, rotaCancelSwap, rotaInterceptSwap, rotaDecideSwap, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -98,6 +98,8 @@ export default function RotaPortal() {
   const [kitchen, setKitchen] = useState(null)            // { isKitchen, shiftId, date } — food-safety gate
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
   const [offFull, setOffFull] = useState({})              // dates already full for MY team (bar 2 · kitchen 1 · manager 1 off max)
+  const [swaps, setSwaps] = useState([])                  // 🔁 open shift-swap offers + pending approvals
+  const [armSwap, setArmSwap] = useState(null)            // swap id armed for the two-tap confirm
   const [offCapInfo, setOffCapInfo] = useState({ lane: 'bar', cap: 2 })
   const availRef = useRef(availability)                   // freshest availability for debounced saves
   const saveTimers = useRef({})                           // 'YYYY-MM' -> debounce timeout id
@@ -167,7 +169,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setOffFull(r.offFull || {}); setOffCapInfo({ lane: r.offLane || 'bar', cap: r.offCap || 2 }); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setOffFull(r.offFull || {}); setOffCapInfo({ lane: r.offLane || 'bar', cap: r.offCap || 2 }); setSwaps(r.swaps || []); setArmSwap(null); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -287,6 +289,13 @@ export default function RotaPortal() {
 
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const claim = (id) => act(async () => { await flushAllSaves(); await rotaClaimShift(token, id) })
+  // 🔁 swaps
+  const offerSwap = (shiftId) => act(() => rotaOfferSwap(token, shiftId))
+  const cancelSwap = (id) => act(() => rotaCancelSwap(token, id))
+  const interceptSwap = (id) => act(() => rotaInterceptSwap(token, id))
+  const decideSwap = (id, approve) => act(() => rotaDecideSwap(token, id, approve))
+  const workingOn = (ds) => (shiftsByDate[ds] || []).some(x => x.mine)   // already rostered that day → can't intercept
+  const myOpenSwapShiftIds = new Set(swaps.filter(w => w.from_staff === staff?.id && ['open', 'claimed'].includes(w.status)).map(w => w.shift_id))
   const release = (id) => act(() => rotaReleaseShift(token, id))
   // Some of the team also DJ for us. If a manager has linked this staff record to
   // a DJ record, the rota fn hands back that DJ's own portal link so she can hop
@@ -501,6 +510,41 @@ export default function RotaPortal() {
               <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
             </div>
 
+            {/* 🔁 Shift swaps — offers from teammates + (managers) approvals */}
+            {swaps.length > 0 && (
+              <div style={{ background: CARD, border: '1px solid rgba(96,165,250,0.4)', borderRadius: 12, padding: 14, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#60A5FA' }}>🔁 Shift swaps</div>
+                {swaps.map(w => {
+                  const sh = w.shift
+                  const when = `${dayName(sh.date)} ${sh.date.slice(8)}/${sh.date.slice(5, 7)} · ${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}`
+                  const mineOffer = w.from_staff === staff?.id
+                  const iClaimed = w.to_staff === staff?.id
+                  const cantWhy = workingOn(sh.date) ? "you're working that day" : dayOff(sh.date) ? "you're booked off that day" : !canWork(staff, sh) ? whyCantWork(staff, sh) : null
+                  return (
+                    <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderLeft: `3px solid ${w.status === 'claimed' ? '#FBBF24' : '#60A5FA'}`, paddingLeft: 10 }}>
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{mineOffer ? 'Your shift' : `${(w.from_name || '?').split(' ')[0]} can't do`} · {sh.label || 'Shift'}</div>
+                        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{when}{w.status === 'claimed' && <span style={{ color: '#FBBF24', fontWeight: 700 }}> · {iClaimed ? 'you' : (w.to_name || '?').split(' ')[0]} claimed it — waiting for a manager ✓</span>}</div>
+                      </div>
+                      {w.status === 'open' && mineOffer && <button onClick={() => cancelSwap(w.id)} disabled={busy} style={btn('ghost')}>Cancel offer</button>}
+                      {w.status === 'open' && !mineOffer && (cantWhy
+                        ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', maxWidth: 130, textAlign: 'right', lineHeight: 1.3 }}>{cantWhy}</span>
+                        : armSwap === w.id
+                          ? <button onClick={() => { setArmSwap(null); interceptSwap(w.id) }} disabled={busy} style={{ ...btn('red'), border: '1px solid #fff' }}>Tap again to confirm ✓</button>
+                          : <button onClick={() => setArmSwap(w.id)} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: 'rgba(96,165,250,0.15)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Intercept shift</button>)}
+                      {w.status === 'claimed' && managerTier && !iClaimed && (
+                        <span style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => decideSwap(w.id, true)} disabled={busy} style={btn('red')}>✓ Approve</button>
+                          <button onClick={() => decideSwap(w.id, false)} disabled={busy} style={btn('ghost')}>✗ Decline</button>
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>Offer one of your shifts from its day panel (🔁 Offer swap). Intercepting is first come, first served for anyone not already working or booked off that day — a manager then approves and the shift moves.</div>
+              </div>
+            )}
+
             {selDate && (() => {
               const rows = shiftsByDate[selDate] || []
               const avail = availOn(selDate)
@@ -532,7 +576,12 @@ export default function RotaPortal() {
                         {sh.mine
                           ? (sh.assigned
                             ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
-                            : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>)
+                            : <span style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                                <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>
+                                {myOpenSwapShiftIds.has(sh.id)
+                                  ? <span style={{ fontSize: 10, color: '#FBBF24', fontWeight: 700 }}>🔁 up for swap</span>
+                                  : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves" style={{ ...btn('ghost'), fontSize: 10.5, padding: '4px 9px' }}>🔁 Offer swap</button>}
+                              </span>)
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>
                             : !eligible
