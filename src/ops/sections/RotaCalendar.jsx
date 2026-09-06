@@ -4,6 +4,7 @@ import { eventsList, eventsForDate, catMeta } from '../keydates/events.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
+import { withDefaults, applyCompiled } from '../../rota/rotaEngine.js'
 import useIsMobile from '../../lib/useIsMobile.js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 
@@ -69,7 +70,7 @@ function WeekRow({ row }) {
 // roster and see HOURS, never rates or spend.
 const isFounderTier = () => { try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false } }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], rules = null, reload }) {
   // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
   const [keyEvents, setKeyEvents] = useState([])
   useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
@@ -196,6 +197,27 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   while (cells.length % 7) cells.push(null)
 
   const selShifts = selDate ? (shiftsByDate[selDate] || []) : []
+
+  // ── 12h-rest windows for the open day's grid ────────────────────────────────
+  // From each person's SAVED shifts either side of this day: a late finish
+  // yesterday pushes their earliest start today; an early start tomorrow pulls
+  // their latest finish today. The grid paints these as red no-go zones.
+  const minRestH = (() => { try { return applyCompiled(withDefaults(rules)).minRestHours } catch { return null } })()
+  const restWindows = {}
+  if (selDate && minRestH) {
+    const prevD = addDaysISO(selDate, -1), nextD = addDaysISO(selDate, 1)
+    const nb = {}; for (const x of shifts) if (x.date === prevD || x.date === nextD) nb[x.id] = x
+    for (const c of claims) {
+      const x = nb[c.shift_id]; if (!x) continue
+      const w = (restWindows[c.staff_id] ||= {})
+      if (x.date === nextD) w.nextStart = Math.min(w.nextStart ?? Infinity, x.start_min)
+      if (x.date === prevD) w.prevEnd = Math.max(w.prevEnd ?? -Infinity, x.end_min)
+    }
+    for (const w of Object.values(restWindows)) {
+      if (w.nextStart != null) w.maxEnd = w.nextStart + 1440 - minRestH * 60   // finish today by…
+      if (w.prevEnd != null) w.minStart = w.prevEnd - 1440 + minRestH * 60    // can't start today before…
+    }
+  }
 
   // ── Person focus (tap a chip above the month) ───────────────────────────────
   const ROLE_C = { 'Manager': PURPLE, 'Asst. Manager': '#3B82F6', 'Supervisor': '#22D3EE', 'Bar Staff': GREEN, 'Kitchen / Barback': '#FB923C' }
@@ -445,6 +467,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 dayShifts={selShifts}
                 dayClaims={dayClaims}
                 availability={availability}
+                restWindows={restWindows}
+                minRestHours={minRestH}
                 busy={busy}
                 onSave={(blocks) => saveRoster(selDate, blocks)}
               />
