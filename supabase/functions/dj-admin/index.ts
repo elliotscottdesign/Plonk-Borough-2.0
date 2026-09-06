@@ -8,6 +8,8 @@
 //   invoiceReceived {date,slot,on,amount?} → tick "invoice landed" (+ capture £)
 //   setInvoiceAmount {date,slot,amount}     → set/clear the invoiced £ on a night
 //   markPaid {date,slot,on} / invoiceSentAdmin {date,slot,on} → payment status ticks
+//   saveTemplate {key:'banner',body} → set/clear the portal broadcast banner
+//   whatsappBlast {body} → WhatsApp every DJ (Twilio dj_broadcast template)
 //   open    {date}       → open a date for booking
 //   close   {date}       → close an empty (unbooked) open date
 //   signoff {date}       → confirm a pending booking (→ main events calendar)
@@ -52,6 +54,37 @@ const emailShell = (heading: string, bodyHtml: string, token?: string) =>
     ${token ? `<p style="margin:22px 0"><a href="${PORTAL}?t=${encodeURIComponent(token)}" style="background:#DA1B33;color:#fff;text-decoration:none;padding:13px 22px;border-radius:8px;font-weight:700;display:inline-block">Open my portal</a></p>` : ""}
     <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
   </div>`;
+
+// ── WhatsApp broadcast (Twilio) ──────────────────────────────────────────────
+// Reuses the SAME Twilio account/sender as tournaments + On-A-Roll. Business-
+// initiated WhatsApp needs a Meta-APPROVED template: create `dj_broadcast`
+// (vars 1=name, 2=message) in Twilio, get it approved, then set
+// TWILIO_CONTENT_SID_DJ_BROADCAST. Until then whatsappBlast returns a clear error.
+const TW_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TW_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TW_FROM = Deno.env.get("TWILIO_WA_FROM");
+const TW_CONTENT_DJ = Deno.env.get("TWILIO_CONTENT_SID_DJ_BROADCAST");
+// UK mobile → E.164 (+447…). Returns null for anything that isn't a UK mobile.
+function waNumber(s: string): string | null {
+  let n = String(s || "").replace(/[^\d+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (n.startsWith("0044")) n = n.slice(4);
+  else if (n.startsWith("44")) n = n.slice(2);
+  else if (n.startsWith("0")) n = n.slice(1);
+  return /^7\d{9}$/.test(n) ? "+44" + n : null;
+}
+async function sendWA(to: string, name: string, message: string): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN || !TW_FROM || !TW_CONTENT_DJ) return false;
+  const body = new URLSearchParams({ From: TW_FROM as string, To: `whatsapp:${to}`, ContentSid: TW_CONTENT_DJ as string, ContentVariables: JSON.stringify({ "1": name, "2": message }) });
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
 
 async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
@@ -319,6 +352,28 @@ Deno.serve(async (req) => {
         if (++sent >= 400) break;
       }
       return json({ ok: true, sent });
+    }
+    case "whatsappBlast": {
+      // One-click WhatsApp to every DJ (recipients derived HERE from our roster,
+      // never a client list). Sends the Meta-approved `dj_broadcast` template with
+      // {1:name, 2:message}. Reuses the shared Twilio account (tournaments/On-A-Roll).
+      const message = String(body || "").trim().slice(0, 600);
+      if (!message) return json({ error: "no message" }, 400);
+      if (!TW_SID || !TW_TOKEN || !TW_FROM) return json({ error: "Twilio isn't configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WA_FROM)." }, 400);
+      if (!TW_CONTENT_DJ) return json({ error: "The DJ WhatsApp template isn't live yet. Create + get Meta-approved the 'dj_broadcast' template in Twilio, then set TWILIO_CONTENT_SID_DJ_BROADCAST. (Your portal banner + email blast still work in the meantime.)" }, 400);
+      const { data: roster } = await sb.from("djs").select("dj_name, phone, status").neq("status", "pending");
+      const seen = new Set<string>();
+      let sent = 0, skipped = 0;
+      for (const d of roster || []) {
+        const to = waNumber((d as any)?.phone || "");
+        if (!to) { skipped++; continue; }
+        if (seen.has(to)) continue;
+        seen.add(to);
+        const ok = await sendWA(to, (d as any).dj_name || "there", message);
+        ok ? sent++ : skipped++;
+        if (sent >= 400) break;
+      }
+      return json({ ok: true, sent, skipped });
     }
     case "markNoteRead":
       await sb.from("dj_notes").update({ read_at: now() }).eq("id", id);

@@ -235,6 +235,14 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const clearBanner = async () => { setBcast(''); setBusy(true); try { await djAdmin('saveTemplate', { key: 'banner', body: '' }); await reload(); alert('Banner cleared — it\'s gone from every portal.') } catch (e) { alert(e.message) } finally { setBusy(false) } }
+  const whatsappAll = async () => {
+    const msg = (bcast || '').trim()
+    if (!msg) { alert('Type a message first.'); return }
+    if (!window.confirm(`Send this to EVERY DJ on WhatsApp?\n\n"${msg}"`)) return
+    setBusy(true)
+    try { const r = await djAdmin('whatsappBlast', { body: msg }); alert(`✓ WhatsApp sent to ${r.sent} DJ${r.sent === 1 ? '' : 's'}${r.skipped ? ` · ${r.skipped} skipped (no usable mobile)` : ''}.`) }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -248,8 +256,10 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
         <textarea value={bcast} onChange={e => setBcast(e.target.value)} rows={2} placeholder="e.g. October dates are live — book your nights now!" style={{ ...inp('100%'), resize: 'vertical', boxSizing: 'border-box' }} />
         <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
           <button onClick={postBanner} disabled={busy || !(bcast || '').trim()} style={btn('gold')}>📣 Post to all DJ portals</button>
+          <button onClick={whatsappAll} disabled={busy || !(bcast || '').trim()} style={{ ...btn('gold'), background: '#25D366', borderColor: '#25D366', color: '#04240f' }}>📱 WhatsApp all DJs</button>
           {liveBanner && <button onClick={clearBanner} disabled={busy} style={btn('ghost')}>Clear banner</button>}
         </div>
+        <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.4)', marginTop: 8, lineHeight: 1.5 }}>WhatsApp uses the same Twilio as tournaments/On-A-Roll — it needs the one-off <strong style={{ color: 'rgba(255,255,255,0.6)' }}>dj_broadcast</strong> template approved first (it'll tell you if not).</div>
       </div>
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
