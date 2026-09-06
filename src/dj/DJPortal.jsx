@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
+import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash, payFriday } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import DateField from '../lib/DateField.jsx'
@@ -133,6 +133,12 @@ export default function DJPortal() {
     if (!window.confirm('Remove this receipt?')) return
     setBusy(true)
     try { refresh(await djPortal(token, 'removeReceipt', { id })); flash('Receipt removed.') }
+    catch (e) { flash(e.message) } finally { setBusy(false) }
+  }
+  // Invoice tracking — the DJ ticks when they've emailed their invoice.
+  const toggleInvoiceSent = async (b) => {
+    setBusy(true)
+    try { refresh(await djPortal(token, 'invoiceSent', { date: b.date, slot: b.slot, on: !b.invoice_sent_at })); flash(b.invoice_sent_at ? 'Unmarked.' : 'Marked invoice sent ✓') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
@@ -472,6 +478,36 @@ export default function DJPortal() {
               </div>
               <div style={liDot}>{bullet}<span>We pay invoices on <strong style={{ color: '#fff' }}>the Friday of the following week</strong>.</span></div>
             </div>
+
+            {/* Your nights & invoices — tick when you've sent your invoice; see when it's landed + paid */}
+            {(() => {
+              const nights = (st.pastBookings || []).filter(b => (b.kind || kindFor(b.date, b.slot)) === 'session' && b.status === 'confirmed')
+              if (!nights.length) return null
+              return (
+                <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+                  <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>Your nights &amp; invoices</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 14 }}>Tick when you've emailed your invoice — you'll see when we've got it and when it's paid.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {nights.map(b => {
+                      const s = sessionForSlot(b.date, b.slot); const sLab = slotLabel(b.date, b.slot)
+                      const sent = !!b.invoice_sent_at, landed = !!b.invoice_received_at, paid = !!b.paid_at
+                      return (
+                        <div key={b.date + '-' + (b.slot || 'main')} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${paid ? '#34D399' : landed ? '#FCD34D' : LINE}`, borderRadius: 10, padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day}{sLab ? ` · ${sLab}` : ''}{b.night_name ? ` · "${b.night_name}"` : ''}</span></div>
+                            {paid ? <span style={{ fontSize: 11, fontWeight: 800, color: '#34D399', whiteSpace: 'nowrap' }}>PAID ✓</span> : <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>pay by {fmtDate(payFriday(b.date))}</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button onClick={() => toggleInvoiceSent(b)} disabled={busy} style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: sent ? '#34D399' : 'transparent', color: sent ? '#04240f' : '#fff', border: `1px solid ${sent ? '#34D399' : LINE}` }}>{sent ? '✓ Invoice sent' : 'Mark invoice sent'}</button>
+                            <span style={{ fontSize: 11.5, color: landed ? '#34D399' : 'rgba(255,255,255,0.45)' }}>{landed ? '✓ We’ve got your invoice' : 'Invoice not received yet'}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Receipts & expenses */}
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
