@@ -1030,9 +1030,15 @@ Deno.serve(async (req) => {
         }
         const { data: fromClaim } = await sb.from("staff_shift_claims").select("id").eq("shift_id", sw.shift_id).eq("staff_id", sw.from_staff).maybeSingle();
         if (!fromClaim) { await sb.from("shift_swaps").update({ status: "cancelled", decided_at: new Date().toISOString() }).eq("id", sw.id); return json({ error: "The original person is no longer on that shift — swap cancelled." }, 409); }
-        const { error: insErr } = await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.to_staff, status: "claimed", source: "swap" });
-        if (insErr && !(insErr.message || "").toLowerCase().includes("duplicate")) return json({ error: "Couldn't move the shift: " + insErr.message }, 400);
+        // Order matters: the headcount trigger sees the shift as FULL while the
+        // offerer is still on it — so take them off first, then seat the claimant,
+        // and put the offerer straight back if that insert somehow fails.
         await sb.from("staff_shift_claims").delete().eq("id", fromClaim.id);
+        const { error: insErr } = await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.to_staff, status: "claimed", source: "swap" });
+        if (insErr && !(insErr.message || "").toLowerCase().includes("duplicate")) {
+          await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.from_staff, status: "claimed", source: "swap" });
+          return json({ error: "Couldn't move the shift: " + insErr.message }, 400);
+        }
         await sb.from("shift_swaps").update({ status: "approved", decided_at: new Date().toISOString(), decided_by: me.id }).eq("id", sw.id);
         return json({ ok: true });
       }
