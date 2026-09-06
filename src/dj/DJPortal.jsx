@@ -46,7 +46,8 @@ export default function DJPortal() {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
-  const [tab, setTab] = useState('portal')   // 'portal' = profile + nights · 'rules' = how it works
+  const [tab, setTab] = useState('nights')   // profile · nights (calendar) · payments · messages · rules · venue
+  const [menuOpen, setMenuOpen] = useState(false)   // top nav dropdown
   const [showPast, setShowPast] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
   const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
@@ -421,16 +422,30 @@ export default function DJPortal() {
           </a>
         )}
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-          {[['portal', 'My nights'], ['venue', 'Venue'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
-            <button key={k} onClick={() => setTab(k)} style={{
-              flex: 1, whiteSpace: 'nowrap', padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
-              background: tab === k ? RED : 'transparent', color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)',
-              border: `1px solid ${tab === k ? RED : LINE}`, fontWeight: tab === k ? 700 : 500,
-            }}>{lbl}</button>
-          ))}
-        </div>
+        {/* Top menu — one dropdown that jumps to any section, on every page so
+            you can always get back easily. */}
+        {(() => {
+          const NAV = [['profile', '👤 Profile'], ['nights', '🎧 My nights'], ['payments', '💷 Payments'], ['messages', '💬 Messages'], ['rules', 'ℹ️ How it works'], ['venue', '📍 Venue']]
+          const cur = NAV.find(([k]) => k === tab)
+          const go = (k) => { setTab(k); setMenuOpen(false); try { window.scrollTo(0, 0) } catch { /* noop */ } }
+          return (
+            <div style={{ position: 'relative', marginBottom: 18, zIndex: 60 }}>
+              <button onClick={() => setMenuOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderRadius: 10, background: RED, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700 }}>
+                <span style={{ fontSize: 17 }}>☰</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{cur ? cur[1] : 'Menu'}</span>
+                <span style={{ fontSize: 12, transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
+              </button>
+              {menuOpen && <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />}
+              {menuOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 14px 34px rgba(0,0,0,0.65)' }}>
+                  {NAV.map(([k, lbl], i) => (
+                    <button key={k} onClick={() => go(k)} style={{ width: '100%', textAlign: 'left', padding: '13px 16px', background: tab === k ? 'rgba(218,27,51,0.16)' : 'transparent', color: tab === k ? RED : '#fff', border: 'none', borderTop: i ? `1px solid ${LINE}` : 'none', cursor: 'pointer', fontSize: 15, fontWeight: tab === k ? 700 : 500 }}>{lbl}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {msg && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{msg}</div>}
 
@@ -552,7 +567,7 @@ export default function DJPortal() {
           </>)
         })()}
 
-        {tab === 'portal' && (<>
+        {tab === 'profile' && (<>
         <div style={{ marginBottom: 14 }}><DJAddToHome /></div>
         {/* Profile */}
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
@@ -604,8 +619,10 @@ export default function DJPortal() {
             <button onClick={save} disabled={busy} style={{ marginTop: 4, padding: '13px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save profile'}</button>
           </div>
         </div>
+        </>)}
 
-        {/* Message No Dice — leave a note (the inbound side of the Messages hub) */}
+        {/* Messages tab — leave a note (the inbound side of the Messages hub) */}
+        {tab === 'messages' && (
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
           <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 4 }}>Message No Dice</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>Leave a note — a question, a date you'd love, anything. We'll see it our side and usually get back to you on WhatsApp.</div>
@@ -625,7 +642,9 @@ export default function DJPortal() {
             </div>
           )}
         </div>
+        )}
 
+        {tab === 'nights' && (<>
         {/* Your booked dates */}
         {st.myBookings.length > 0 && (
           <div style={{ marginBottom: 18 }}>
@@ -761,7 +780,8 @@ export default function DJPortal() {
         <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Pick a date</div>
         {!complete ? (
           <div style={{ background: CARD, border: `1px dashed ${LINE}`, borderRadius: 12, padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6 }}>
-            🔒 Add {need.join(' + ')} above (then tap <strong style={{ color: '#fff' }}>Save profile</strong>) to unlock the calendar.
+            🔒 Finish your profile ({need.join(' + ')}) to unlock the calendar.
+            <div style={{ marginTop: 12 }}><button onClick={() => { setTab('profile'); try { window.scrollTo(0, 0) } catch { /* noop */ } }} style={{ padding: '10px 18px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go to Profile →</button></div>
           </div>
         ) : (
           <>
