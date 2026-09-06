@@ -34,6 +34,16 @@ export async function djAdmin(action, payload = {}) {
 
 export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURIComponent(token)}`
 
+// The Friday a night gets paid on — the Friday of the week AFTER the performance
+// (play any day this week → paid the following Friday). Local date maths so it
+// never rolls a day in BST.
+export const payFriday = (dateStr) => {
+  const d = new Date(dateStr + 'T00:00:00')
+  const monOffset = (d.getDay() + 6) % 7            // days since Monday
+  d.setDate(d.getDate() - monOffset + 11)           // next week's Friday
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 // ── Message templates (the WhatsApp copy the admin sends to DJs) ─────────────
 // Live bodies come from the dj_templates table (editable in /ops → DJ Bookings →
 // Messages). These DEFAULTS are the fallback before a template is saved, and the
