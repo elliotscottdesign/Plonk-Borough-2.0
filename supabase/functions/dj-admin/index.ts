@@ -5,6 +5,9 @@
 // POST { secret, action, ...payload }
 //   load                 → { djs:[...], slots:[...], receipts:[...] }  (slots include the joined DJ)
 //   deleteReceipt {id}   → remove a DJ's logged expense receipt (Payments view)
+//   invoiceReceived {date,slot,on,amount?} → tick "invoice landed" (+ capture £)
+//   setInvoiceAmount {date,slot,amount}     → set/clear the invoiced £ on a night
+//   markPaid {date,slot,on} / invoiceSentAdmin {date,slot,on} → payment status ticks
 //   open    {date}       → open a date for booking
 //   close   {date}       → close an empty (unbooked) open date
 //   signoff {date}       → confirm a pending booking (→ main events calendar)
@@ -69,7 +72,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body, subject } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body, subject, on, amount } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -325,6 +328,27 @@ Deno.serve(async (req) => {
       break;
     case "deleteNote":
       await sb.from("dj_notes").delete().eq("id", id);
+      break;
+    case "invoiceReceived": {
+      // Founder ticks that the invoice has landed (+ the £ amount off it). Gmail
+      // scan (phase 3) will set the same fields automatically.
+      const amt = amount === undefined || amount === null || amount === "" ? undefined : Math.max(0, Math.round((Number(amount) || 0) * 100) / 100);
+      const upd: Record<string, unknown> = { invoice_received_at: on ? now() : null, updated_at: now() };
+      if (amt !== undefined) upd.invoice_amount = amt;
+      if (!on) upd.invoice_amount = null;   // clearing "landed" also clears the captured amount
+      await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
+      break;
+    }
+    case "setInvoiceAmount":
+      await sb.from("dj_slots").update({ invoice_amount: (amount === "" || amount === null || amount === undefined) ? null : Math.max(0, Math.round((Number(amount) || 0) * 100) / 100), updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "markPaid":
+      // Founder marks the night paid / un-paid.
+      await sb.from("dj_slots").update({ paid_at: on ? now() : null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "invoiceSentAdmin":
+      // Founder can also tick "invoice sent" on a DJ's behalf.
+      await sb.from("dj_slots").update({ invoice_sent_at: on ? now() : null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "deleteReceipt":
       // Remove a DJ's logged expense receipt (e.g. a mistaken/duplicate one).
