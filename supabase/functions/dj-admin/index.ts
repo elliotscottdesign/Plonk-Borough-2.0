@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
   switch (action) {
     case "open": {
-      const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
+      const k = [0, 4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
       await sb.from("dj_slots").upsert({ date, slot, status: "open", kind: k }, { onConflict: "date,slot", ignoreDuplicates: true });
       break;
     }
@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
       }
       const subs = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
-      const session = [4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
+      const session = [0, 4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
       const upd: Record<string, unknown> = {
         night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_artist: (promoArtist || "").trim() || null,
         kind: session ? "session" : "opendecks", updated_at: now(),
@@ -204,7 +204,7 @@ Deno.serve(async (req) => {
       // passed (so admins have the full DJ toolkit), else seeds display genres
       // from the DJ's profile. The DJ can still refine via their portal.
       const { data: dj } = await sb.from("djs").select("genres").eq("id", djId).maybeSingle();
-      const session = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay());
+      const session = [0, 4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay());
       const passed = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
       const subs = passed.length ? passed : String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
@@ -273,7 +273,7 @@ Deno.serve(async (req) => {
         if (dateStr < today) continue;
         if (SPECIAL_DATES[dateStr]) { for (const x of SPECIAL_DATES[dateStr]) rows.push({ date: dateStr, slot: x.slot, status: "open", kind: x.kind }); continue; }
         const wd = new Date(dateStr + "T00:00:00Z").getUTCDay();
-        const session = [4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
+        const session = [0, 4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
         rows.push({ date: dateStr, slot: "main", status: "open", kind: session ? "session" : "opendecks" });
         if (wd === 6) rows.push({ date: dateStr, slot: "sat_pm", status: "open", kind: "session" });
       }

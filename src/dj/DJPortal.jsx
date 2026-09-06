@@ -269,7 +269,7 @@ export default function DJPortal() {
   // Tap a date: one open session → straight to hold; two+ (Saturdays) → pick afternoon/evening.
   const pickDate = (date) => {
     if (sessionCapped(date)) {
-      flash("You've already got a paid session booked this month — it's one paid Thu/Fri/Sat session per DJ a month. Book a paid session next month, or grab a free Open Decks night (Sun–Wed) this month 🎚️", 9000)
+      flash("You've already got a paid session booked this month — it's one paid session per DJ a month (Sun/Thu/Fri/Sat). Book a paid session next month, or grab a free Open Decks night (Mon–Wed) this month 🎚️", 9000)
       return
     }
     const slots = bookable(date)
@@ -311,7 +311,7 @@ export default function DJPortal() {
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
         {clash && <div style={{ fontSize: 12, color: '#F59E0B', lineHeight: 1.5, whiteSpace: 'pre-line', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px' }}>{clash}</div>}
-        {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Sun–Wed as you want.</div>}
+        {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
         <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
         {(st.roster || []).length > 0 && (
           <div>
