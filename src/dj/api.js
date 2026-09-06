@@ -110,10 +110,11 @@ export async function djCaption(event, avoid = '') {
 }
 
 // Weekly sessions (JS getDay: Sun=0 … Sat=6).
-//   Thu/Fri/Sat = paid DJ sessions (genre picker, adjacent-day rule, 1 per month).
-//   Sun/Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
+//   Sun/Thu/Fri/Sat = paid DJ sessions (genre picker, 1 per month). Sunday is a
+//   single 4–8pm paid session (founder, Aug 2026 — was Open Decks).
+//   Mon/Tue/Wed = Open Decks (unpaid, no genre rules, unlimited).
 export const SESSIONS = {
-  0: { day: 'Sunday', start: '19:00', end: '23:00', kind: 'opendecks' },
+  0: { day: 'Sunday', start: '16:00', end: '20:00', kind: 'session' },   // paid — single 4–8pm afternoon session
   1: { day: 'Monday', start: '19:00', end: '23:00', kind: 'opendecks' },
   2: { day: 'Tuesday', start: '19:00', end: '23:00', kind: 'opendecks' },
   3: { day: 'Wednesday', start: '19:00', end: '23:00', kind: 'opendecks' },

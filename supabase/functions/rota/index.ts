@@ -630,7 +630,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "offerSwap", "cancelSwap", "interceptSwap", "decideSwap", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -675,6 +675,18 @@ Deno.serve(async (req) => {
         }
         const offFull: Record<string, boolean> = {};
         for (const [d, n] of Object.entries(laneCounts)) if (n >= OFF_LANE_CAPS[myLane2]) offFull[d] = true;
+        // Shift-swap feed: open offers + pending approvals on future shifts.
+        const { data: swapRows } = await sb.from("shift_swaps").select("id,shift_id,from_staff,to_staff,status,created_at").in("status", ["open", "claimed"]);
+        const swapShiftIds = [...new Set((swapRows || []).map((x: any) => x.shift_id))];
+        const { data: swapShifts } = swapShiftIds.length ? await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").in("id", swapShiftIds) : { data: [] };
+        const swapNameIds = [...new Set((swapRows || []).flatMap((x: any) => [x.from_staff, x.to_staff]).filter(Boolean))];
+        const { data: swapNames } = swapNameIds.length ? await sb.from("staff").select("id,name").in("id", swapNameIds) : { data: [] };
+        const nmBy: Record<string, string> = {}; for (const x of swapNames || []) nmBy[x.id] = x.name;
+        const shBy: Record<string, any> = {}; for (const x of swapShifts || []) shBy[x.id] = x;
+        const swaps = (swapRows || [])
+          .map((x: any) => ({ ...x, shift: shBy[x.shift_id] || null, from_name: nmBy[x.from_staff] || "?", to_name: x.to_staff ? nmBy[x.to_staff] || "?" : null }))
+          .filter((x: any) => x.shift && x.shift.date > today)
+          .sort((a2: any, b2: any) => a2.shift.date.localeCompare(b2.shift.date));
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
@@ -682,7 +694,7 @@ Deno.serve(async (req) => {
         const visibleShifts = (shifts || []).filter((s: any) =>
           mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
-          ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2],
+          ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2], swaps,
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
@@ -953,6 +965,82 @@ Deno.serve(async (req) => {
               { href: OPS_URL, label: "Open the rota" }));
         }
         return json({ ok: true, refused });
+      }
+
+      // ── Shift swaps ─────────────────────────────────────────────────────────
+      // offerSwap: put one of MY future shifts up for grabs → visible to everyone.
+      // interceptSwap: an eligible member claims it (not on that day, not booked
+      // off, right ability/rank) → goes to the managers to approve.
+      // decideSwap (Asst. Manager+ or founder): approve = the claim MOVES;
+      // decline = the offer reopens for someone else.
+      if (action === "offerSwap") {
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label,start_min,end_min").eq("id", b.shiftId).maybeSingle();
+        if (!shift) return json({ error: "That shift no longer exists — refresh." }, 404);
+        if (shift.date <= shiftDayISO()) return json({ error: "Only future shifts can be swapped." }, 400);
+        const { data: myClaim } = await sb.from("staff_shift_claims").select("id").eq("shift_id", shift.id).eq("staff_id", me.id).maybeSingle();
+        if (!myClaim) return json({ error: "You're not on that shift." }, 403);
+        const { data: existing } = await sb.from("shift_swaps").select("id").eq("shift_id", shift.id).eq("from_staff", me.id).in("status", ["open", "claimed"]).maybeSingle();
+        if (existing) return json({ error: "That shift is already up for swap." }, 409);
+        const { error } = await sb.from("shift_swaps").insert({ shift_id: shift.id, from_staff: me.id, status: "open" });
+        if (error) return json({ error: "Couldn't offer the swap — has the shift-swaps SQL been run? (" + error.message + ")" }, 400);
+        return json({ ok: true });
+      }
+      if (action === "cancelSwap") {
+        const { data: sw } = await sb.from("shift_swaps").select("id,from_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.from_staff !== me.id) return json({ error: "Not your swap." }, 403);
+        if (!["open", "claimed"].includes(sw.status)) return json({ error: "That swap is already settled." }, 409);
+        await sb.from("shift_swaps").update({ status: "cancelled", decided_at: new Date().toISOString() }).eq("id", sw.id);
+        return json({ ok: true });
+      }
+      if (action === "interceptSwap") {
+        if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
+        const { data: sw } = await sb.from("shift_swaps").select("id,shift_id,from_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.status !== "open") return json({ error: "That swap has gone — someone else may have grabbed it. Refresh." }, 409);
+        if (sw.from_staff === me.id) return json({ error: "That's your own shift." }, 400);
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").eq("id", sw.shift_id).maybeSingle();
+        if (!shift || shift.date <= shiftDayISO()) return json({ error: "That shift is no longer swappable." }, 409);
+        const needAb = shift.ability || "bar";
+        if (!(me.abilities || []).includes(needAb)) return json({ error: `That shift needs ${needAb} training.` }, 403);
+        if (staffRank(me.role) < (shift.min_rank || 1)) return json({ error: "That shift is for a higher position." }, 403);
+        // Not already rostered that day (founder rule) + not booked off.
+        const { data: dayShifts } = await sb.from("staff_shifts").select("id").eq("date", shift.date);
+        const ids = (dayShifts || []).map((x: any) => x.id);
+        if (ids.length) {
+          const { data: myDay } = await sb.from("staff_shift_claims").select("id").eq("staff_id", me.id).in("shift_id", ids).limit(1);
+          if ((myDay || []).length) return json({ error: "You're already working that day — swaps are for people not on the rota that day." }, 409);
+        }
+        const { data: avRow } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", shift.date.slice(0, 7)).maybeSingle();
+        if (avRow?.data?.[shift.date]?.unavailable === true) return json({ error: "You've marked yourself off that day." }, 409);
+        const { data: upd, error } = await sb.from("shift_swaps").update({ status: "claimed", to_staff: me.id, claimed_at: new Date().toISOString() }).eq("id", sw.id).eq("status", "open").select("id");
+        if (error || !(upd || []).length) return json({ error: "Someone beat you to it — refresh." }, 409);
+        const { data: fromS } = await sb.from("staff").select("name").eq("id", sw.from_staff).maybeSingle();
+        await sendMail(ADMIN_EMAIL, `Swap to approve: ${me.name} ⇄ ${fromS?.name || "?"} — ${niceDate(shift.date)}`,
+          emailShell("Shift swap awaiting approval",
+            `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> wants to take <strong style="color:#fff">${esc(fromS?.name || "?")}</strong>'s <strong style="color:#fff">${esc(shift.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(shift.date)}</strong>. A manager can approve it in the staff portal (Shifts → Swaps).</p>`,
+            { href: OPS_URL, label: "Open the rota" }));
+        return json({ ok: true });
+      }
+      if (action === "decideSwap") {
+        if (staffRank(me.role) < staffRank("Asst. Manager")) return json({ error: "Only a manager can approve swaps." }, 403);
+        const { data: sw } = await sb.from("shift_swaps").select("id,shift_id,from_staff,to_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.status !== "claimed") return json({ error: "That swap isn't waiting for approval — refresh." }, 409);
+        if (!b.approve) {
+          await sb.from("shift_swaps").update({ status: "open", to_staff: null, claimed_at: null }).eq("id", sw.id);
+          return json({ ok: true, reopened: true });
+        }
+        const { data: fromClaim } = await sb.from("staff_shift_claims").select("id").eq("shift_id", sw.shift_id).eq("staff_id", sw.from_staff).maybeSingle();
+        if (!fromClaim) { await sb.from("shift_swaps").update({ status: "cancelled", decided_at: new Date().toISOString() }).eq("id", sw.id); return json({ error: "The original person is no longer on that shift — swap cancelled." }, 409); }
+        // Order matters: the headcount trigger sees the shift as FULL while the
+        // offerer is still on it — so take them off first, then seat the claimant,
+        // and put the offerer straight back if that insert somehow fails.
+        await sb.from("staff_shift_claims").delete().eq("id", fromClaim.id);
+        const { error: insErr } = await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.to_staff, status: "claimed", source: "swap" });
+        if (insErr && !(insErr.message || "").toLowerCase().includes("duplicate")) {
+          await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.from_staff, status: "claimed", source: "swap" });
+          return json({ error: "Couldn't move the shift: " + insErr.message }, 400);
+        }
+        await sb.from("shift_swaps").update({ status: "approved", decided_at: new Date().toISOString(), decided_by: me.id }).eq("id", sw.id);
+        return json({ ok: true });
       }
 
       if (action === "claimShift") {

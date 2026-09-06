@@ -58,7 +58,7 @@ function mergeBlocks(blocks) {
   return out
 }
 
-export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSave, busy, availability = [] }) {
+export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSave, busy, availability = [], restWindows = {}, minRestHours = null }) {
   const rows = staff.filter(s => s.active !== false)
     .sort((a, b) => roleRank(a) - roleRank(b) || String(a.name || '').localeCompare(String(b.name || '')))
   const shiftById = {}
@@ -268,6 +268,18 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                   onPointerDown={e => onDown(e, s.id)} onPointerMove={onMove} onPointerUp={onUp} onPointerCancel={onUp}
                   style={{ position: 'relative', width: trackW, height: ROW_H, backgroundImage: gridBg, backgroundColor: blk ? 'rgba(248,113,113,0.09)' : undefined, cursor: (busy || saving) ? 'default' : (blk ? 'not-allowed' : 'crosshair'), touchAction: 'none' }}
                 >
+                  {/* 12h-rest no-go zones (pale red, under the blocks): from their
+                      shifts on the days either side. Live: saving the neighbouring
+                      day re-syncs these; overlaps light up bright below. */}
+                  {(() => {
+                    const rw = restWindows[s.id]; if (!rw || !minRestHours) return null
+                    const zones = []
+                    if (rw.maxEnd != null && rw.maxEnd < WIN_END) zones.push({ a: Math.max(WIN_START, rw.maxEnd), b: WIN_END, edge: 'l', title: `Starts ${fmtMin(rw.nextStart)} tomorrow — ${minRestHours}h rest means they must finish by ${fmtMin(Math.max(WIN_START, rw.maxEnd))}` })
+                    if (rw.minStart != null && rw.minStart > WIN_START) zones.push({ a: WIN_START, b: Math.min(WIN_END, rw.minStart), edge: 'r', title: `Finished ${fmtMin(rw.prevEnd)} yesterday — ${minRestHours}h rest means they can't start before ${fmtMin(Math.min(WIN_END, rw.minStart))}` })
+                    return zones.filter(z => z.b > z.a).map((z, zi) => (
+                      <div key={'rz' + zi} title={z.title} style={{ position: 'absolute', top: 0, height: '100%', left: xOfMin(z.a), width: xOfMin(z.b) - xOfMin(z.a), background: 'rgba(248,113,113,0.15)', borderLeft: z.edge === 'l' ? '2px solid rgba(248,113,113,0.8)' : undefined, borderRight: z.edge === 'r' ? '2px solid rgba(248,113,113,0.8)' : undefined }} />
+                    ))
+                  })()}
                   {drafting && drafting.hi > drafting.lo && (
                     <div style={{ position: 'absolute', top: 5, height: ROW_H - 10, left: drafting.lo * SLOT_W, width: (drafting.hi - drafting.lo) * SLOT_W, background: `${rc}55`, border: `1px dashed ${rc}`, borderRadius: 6 }} />
                   )}
@@ -285,6 +297,18 @@ export default function DayRosterGrid({ date, staff, dayShifts, dayClaims, onSav
                       </div>
                     )
                   })}
+                  {/* Bright red = the block actually breaks the rest rule (overlap) */}
+                  {(() => {
+                    const rw = restWindows[s.id]; if (!rw || !minRestHours) return null
+                    const zs = []
+                    if (rw.maxEnd != null) zs.push([Math.max(WIN_START, rw.maxEnd), WIN_END])
+                    if (rw.minStart != null) zs.push([WIN_START, Math.min(WIN_END, rw.minStart)])
+                    const outs = []
+                    for (const b of mine) for (const [a2, z2] of zs) { const lo = Math.max(b.start, a2), hi = Math.min(b.end, z2); if (hi > lo) outs.push([lo, hi]) }
+                    return outs.map(([lo, hi], i) => (
+                      <div key={'rx' + i} title={`Breaks the ${minRestHours}h rest rule — ${fmtMin(lo)}–${fmtMin(hi)} clashes with their shift on the day ${rw.maxEnd != null && hi > (rw.maxEnd ?? -1) ? 'after' : 'before'}`} style={{ position: 'absolute', top: 5, height: ROW_H - 10, left: xOfMin(lo), width: xOfMin(hi) - xOfMin(lo), background: 'rgba(255,31,61,0.55)', border: '1.5px solid #FF5A6B', borderRadius: 6, pointerEvents: 'none', zIndex: 5 }} />
+                    ))
+                  })()}
                 </div>
               </div>
             )

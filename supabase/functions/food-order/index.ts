@@ -335,7 +335,7 @@ Deno.serve(async (req) => {
       // price from the live menu + tally limiting ingredients
       const { data: menu } = await sb.from("menu_catalog").select("sections").eq("id", 1).maybeSingle();
       const idx = new Map<string, any>();
-      for (const sec of (Array.isArray(menu?.sections) ? menu!.sections : [])) for (const it of (sec.items || [])) idx.set(String(it.id), it);
+      for (const sec of (Array.isArray(menu?.sections) ? menu!.sections : [])) for (const it of (sec.items || [])) { if (it.archived) continue; idx.set(String(it.id), it); }   // archived items can't be ordered
       const lineItems: any[] = []; let total = 0; const need: Record<string, number> = {};
       for (const line of cart) {
         const it = idx.get(String(line.id));

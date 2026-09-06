@@ -109,7 +109,10 @@ export default function Reservations() {
       // Fire the three source queries in parallel — one bad table shouldn't
       // block the good ones (Promise.allSettled), then normalise into one list.
       const [barRes, tournRes, golfRes, arrRes] = await Promise.allSettled([
-        pgGet(`bar_reservations?select=id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes,status,heard_from&status=eq.confirmed&reservation_date=gte.${from}&reservation_date=lte.${to}&order=reservation_date,start_time`),
+        // confirmed + pending: pending rows are pencilled-in enquiries the
+        // founder adds from /admin (plus not-yet-confirmed web bookings) —
+        // shown amber so staff know they're not locked in.
+        pgGet(`bar_reservations?select=id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes,status,heard_from&status=in.(confirmed,pending)&reservation_date=gte.${from}&reservation_date=lte.${to}&order=reservation_date,start_time`),
         // tournament_entries joined to tournaments for event date/name. Filter
         // the join column via PostgREST's foreign-table syntax.
         pgGet(`tournament_entries?select=id,tournament_id,team_name,captain_name,captain_email,captain_phone,notes,status,tournaments!inner(name,event_date,start_time,tournament_type)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}&order=paid_at`),
@@ -140,6 +143,7 @@ export default function Reservations() {
           email: r.email || '',
           phone: r.phone || '',
           extra: r.kind === 'pool' && r.resource_count > 1 ? `${r.resource_count} tables` : (r.duration_minutes ? `${r.duration_minutes} min` : ''),
+          pending: r.status === 'pending',
         })
       }
       for (const t of tourn) {
@@ -210,10 +214,11 @@ export default function Reservations() {
 
   // ── Summary counts ────────────────────────────────────────────────────────
   const counts = useMemo(() => {
-    const c = { total: rows.length, covers: 0, big: 0, byKind: {} }
+    const c = { total: rows.length, covers: 0, big: 0, pending: 0, byKind: {} }
     for (const r of rows) {
       c.covers += r.party
       if (r.party >= BIG_PARTY_THRESHOLD) c.big++
+      if (r.pending) c.pending++
       c.byKind[r.kind] = (c.byKind[r.kind] || 0) + 1
     }
     return c
@@ -286,6 +291,7 @@ export default function Reservations() {
         <SummaryPill label="Bookings" value={counts.total} color={GOLD} />
         <SummaryPill label="Covers" value={counts.covers} color={GREEN} />
         {counts.big > 0 && <SummaryPill label={`Big parties (${BIG_PARTY_THRESHOLD}+)`} value={counts.big} color={AMBER} />}
+        {counts.pending > 0 && <SummaryPill label="Pending (not confirmed)" value={counts.pending} color={AMBER} emoji="⏳" />}
         {Object.entries(counts.byKind).map(([k, n]) => (
           <SummaryPill key={k} label={KIND_META[k]?.label || k} value={n} color={KIND_META[k]?.color || 'rgba(255,255,255,0.4)'} emoji={KIND_META[k]?.emoji} />
         ))}
@@ -350,7 +356,7 @@ function ReservationRow({ r, className, arrived, onToggle }) {
 
   if (isMobile) {
     return (
-      <div className={className} style={{ padding: '10px 12px', background: CARD, border: `1px solid ${LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10 }}>
+      <div className={className} style={{ padding: '10px 12px', background: CARD, border: `1px solid ${LINE}`, borderLeft: r.pending ? `4px dashed ${AMBER}` : `4px solid ${meta.color}`, borderRadius: 10 }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: 15, flexShrink: 0 }}>{meta.emoji}</span>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cream)', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{fmtTime(r.time)}</span>
@@ -359,6 +365,7 @@ function ReservationRow({ r, className, arrived, onToggle }) {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
           <span style={{ fontSize: 10, fontWeight: 700, color: meta.color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>{meta.label}</span>
+          {r.pending && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.16)', border: `1.5px dashed ${AMBER}88`, borderRadius: 999, padding: '1px 7px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>⏳ Pending</span>}
           {big && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.12)', border: `1px solid ${AMBER}55`, borderRadius: 999, padding: '1px 7px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Big · {r.party}</span>}
           {r.extra && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{r.extra}</span>}
         </div>
@@ -372,7 +379,7 @@ function ReservationRow({ r, className, arrived, onToggle }) {
     <div className={className} style={{
       display: 'grid', gridTemplateColumns: 'auto 60px minmax(140px, 1fr) auto auto',
       gap: 12, alignItems: 'center', padding: '10px 14px',
-      background: CARD, border: `1px solid ${arrived ? 'rgba(52,211,153,0.4)' : LINE}`, borderLeft: `4px solid ${meta.color}`, borderRadius: 10, opacity: arrived ? 0.85 : 1,
+      background: CARD, border: `1px solid ${arrived ? 'rgba(52,211,153,0.4)' : LINE}`, borderLeft: r.pending ? `4px dashed ${AMBER}` : `4px solid ${meta.color}`, borderRadius: 10, opacity: arrived ? 0.85 : 1,
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
         <span style={{ fontSize: 18 }}>{meta.emoji}</span>
@@ -382,6 +389,7 @@ function ReservationRow({ r, className, arrived, onToggle }) {
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 14, fontWeight: 700, color: 'var(--cream)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 240 }}>{r.name}</span>
+          {r.pending && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.16)', border: `1.5px dashed ${AMBER}88`, borderRadius: 999, padding: '2px 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>⏳ Pending</span>}
           {big && <span style={{ fontSize: 10, fontWeight: 800, color: AMBER, background: 'rgba(245,158,11,0.12)', border: `1px solid ${AMBER}55`, borderRadius: 999, padding: '2px 8px', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Big · {r.party}</span>}
           {r.extra && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{r.extra}</span>}
         </div>

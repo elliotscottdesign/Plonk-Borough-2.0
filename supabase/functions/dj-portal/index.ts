@@ -41,7 +41,9 @@ const shift = (d: string, n: number) => { const dt = new Date(d + "T00:00:00Z");
 const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 // One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
 const SPECIAL_SESSION_DATES = new Set(["2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"]);
-const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
+// Sun/Thu/Fri/Sat are paid sessions (Sunday added Aug 2026 — single 4–8pm paid
+// session, counts toward the one-paid-session-per-month cap). Mon–Wed = Open Decks.
+const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [0, 4, 5, 6].includes(dow(d));
 // Genre adjacency rule — a sub-genre booked the night before/after can't be
 // played again. PAUSED 2026-08-01 so DJs can play what they want; the rule's
 // logic below is kept intact, just gated on this flag. Set DJ_ADJACENCY_RULE=on
