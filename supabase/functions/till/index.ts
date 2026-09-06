@@ -13,6 +13,8 @@ const cors = {
   "Access-Control-Allow-Headers": "authorization, content-type",
   "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 };
+const num = (v: unknown, fb = 0) => (Number.isFinite(+(v as number)) ? +(v as number) : fb);
+const str = (v: unknown, max = 200) => String(v ?? "").trim().slice(0, max);
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
@@ -95,6 +97,121 @@ Deno.serve(async (req) => {
       if (!b.floor || !Array.isArray(b.floor.tables)) return json({ ok: false, error: "Bad floor plan" }, 400);
       await sb.from("till_settings").upsert({ key: "floor", value: b.floor, updated_at: new Date().toISOString() });
       return json({ ok: true });
+    }
+
+    // ═══ REAL ORDERS — sessions, shared floor, payments, Z-reads ════════════
+    // Training mode: real shared state with money discipline, run alongside
+    // Lightspeed. Every money action also lands in the append-only till_events.
+    const logEvent = (kind: string, detail: unknown, sessionId?: string | null, orderId?: string | null) =>
+      sb.from("till_events").insert({ kind, detail, session_id: sessionId || null, order_id: orderId || null, who: str(b.by, 60) || null });
+
+    const openSession = async () => {
+      const { data } = await sb.from("till_sessions").select("*").eq("status", "open")
+        .order("opened_at", { ascending: false }).limit(1);
+      return (data || [])[0] || null;
+    };
+
+    // The whole day's state in one call: the open session + every open order.
+    if (action === "dayState") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const s = await openSession();
+      let orders: any[] = [];
+      if (s) {
+        const { data } = await sb.from("till_orders").select("*").eq("session_id", s.id).eq("status", "open");
+        orders = data || [];
+      }
+      return json({ ok: true, session: s, orders });
+    }
+
+    if (action === "openDay") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const existing = await openSession();
+      if (existing) return json({ ok: false, error: "The day is already open." }, 409);
+      const { data: sess, error } = await sb.from("till_sessions").insert({
+        opened_by: str(b.by, 60) || null, float_start_pence: Math.max(0, Math.round(num(b.float_pence))),
+      }).select().single();
+      if (error) return json({ ok: false, error: error.message }, 500);
+      await logEvent("open_day", { float_pence: sess.float_start_pence }, sess.id);
+      return json({ ok: true, session: sess });
+    }
+
+    // Push one order's working state (last write wins per order — one order is
+    // only ever rung at one till at a time in practice).
+    if (action === "saveOrder") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const o = b.order;
+      if (!o || !o.id || !o.kind) return json({ ok: false, error: "Bad order" }, 400);
+      const s = await openSession();
+      if (!s) return json({ ok: false, error: "The day isn't open." }, 409);
+      const { error } = await sb.from("till_orders").upsert({
+        id: str(o.id, 40), session_id: s.id, kind: str(o.kind, 10), ref: str(o.ref, 80) || null,
+        name: str(o.name, 80) || null, status: "open", disc: o.disc || null, voucher: o.voucher || null,
+        lines: Array.isArray(o.lines) ? o.lines : [], total_pence: Math.round(num(o.total_pence)),
+        opened_at: o.openedAt || undefined, updated_at: new Date().toISOString(),
+      });
+      if (error) return json({ ok: false, error: error.message }, 500);
+      return json({ ok: true });
+    }
+
+    // Take the money: writes the payment rows, marks the order paid, logs it.
+    if (action === "payOrder") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const s = await openSession();
+      if (!s) return json({ ok: false, error: "The day isn't open." }, 409);
+      const orderId = str(b.orderId, 40);
+      const pays = Array.isArray(b.payments) ? b.payments : [];
+      for (const p of pays) {
+        await sb.from("till_payments").insert({
+          session_id: s.id, order_id: orderId, method: str(p.method, 20) || "cash",
+          amount_pence: Math.round(num(p.amount_pence)), ref: str(p.ref, 40) || null, taken_by: str(b.by, 60) || null,
+        });
+      }
+      await sb.from("till_orders").update({
+        status: "paid", closed_at: new Date().toISOString(), total_pence: Math.round(num(b.total_pence)),
+      }).eq("id", orderId);
+      await logEvent("pay", { payments: pays, total_pence: Math.round(num(b.total_pence)) }, s.id, orderId);
+      return json({ ok: true });
+    }
+
+    if (action === "voidOrder") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const s = await openSession();
+      const orderId = str(b.orderId, 40);
+      await sb.from("till_orders").update({ status: "void", closed_at: new Date().toISOString() }).eq("id", orderId);
+      await logEvent("void", { reason: str(b.reason, 200) || null }, s?.id, orderId);
+      return json({ ok: true });
+    }
+
+    // Close the day: expected cash = float + cash taken; over/short recorded;
+    // the Z number is strictly sequential — gaps would show, which is the point.
+    if (action === "closeDay") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const s = await openSession();
+      if (!s) return json({ ok: false, error: "The day isn't open." }, 409);
+      const { data: stillOpen } = await sb.from("till_orders").select("id,ref,name,kind").eq("session_id", s.id).eq("status", "open");
+      if ((stillOpen || []).length) {
+        return json({ ok: false, error: `${stillOpen!.length} order(s) still open — pay or void them first.`, open: stillOpen }, 409);
+      }
+      const { data: pays } = await sb.from("till_payments").select("method,amount_pence").eq("session_id", s.id);
+      const sum = (m: string) => (pays || []).filter((p: any) => p.method === m).reduce((t: number, p: any) => t + p.amount_pence, 0);
+      const cash = sum("cash"), voucher = sum("voucher");
+      const counted = Math.round(num(b.counted_pence));
+      const expected = s.float_start_pence + cash;
+      const { data: zmax } = await sb.from("till_sessions").select("z_number").not("z_number", "is", null)
+        .order("z_number", { ascending: false }).limit(1);
+      const z = ((zmax || [])[0]?.z_number || 0) + 1;
+      const { data: paidOrders } = await sb.from("till_orders").select("total_pence").eq("session_id", s.id).eq("status", "paid");
+      const gross = (paidOrders || []).reduce((t: number, o: any) => t + (o.total_pence || 0), 0);
+      await sb.from("till_sessions").update({
+        status: "closed", closed_at: new Date().toISOString(), closed_by: str(b.by, 60) || null,
+        float_counted_pence: counted, expected_cash_pence: expected, over_short_pence: counted - expected, z_number: z,
+      }).eq("id", s.id);
+      await logEvent("close_day", { z, gross_pence: gross, cash_pence: cash, voucher_pence: voucher, expected_pence: expected, counted_pence: counted }, s.id);
+      return json({
+        ok: true, z, gross_pence: gross, cash_pence: cash, voucher_pence: voucher,
+        float_pence: s.float_start_pence, expected_pence: expected, counted_pence: counted,
+        over_short_pence: counted - expected, orders: (paidOrders || []).length,
+      });
     }
 
     if (action === "voucherLookup") {

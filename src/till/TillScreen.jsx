@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -92,6 +92,59 @@ export default function TillScreen() {
   })()
   const [orders, setOrders] = useState(loadOrders)
   const [currentId, setCurrentId] = useState(null)
+
+  // ── The real day: shared session + orders sync (slice 3, 4 Sep 2026) ─────
+  // Orders push to the server as they change and every till polls the day's
+  // state, so all iPads see the same floor and tabs. Offline the till keeps
+  // working locally and re-syncs when the network returns.
+  const [session, setSession] = useState(undefined)      // undefined = loading, null = day not open
+  const [zRead, setZRead] = useState(null)               // last close-day summary
+  const dirtyRef = React.useRef(new Set())               // order ids awaiting push
+  const currentIdRef = React.useRef(null)
+  useEffect(() => { currentIdRef.current = currentId }, [currentId])
+
+  const pushOrder = (o) => {
+    if (!o || o.status !== 'open') return
+    tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      .then(() => dirtyRef.current.delete(o.id))
+      .catch(() => dirtyRef.current.add(o.id))
+  }
+
+  useEffect(() => {
+    let stop = false
+    const sync = async () => {
+      try {
+        const r = await tillDayState()
+        if (stop) return
+        setSession(r.session || null)
+        // re-push anything that failed while offline
+        for (const id of [...dirtyRef.current]) { const o = ordersRef.current[id]; if (o) pushOrder(o) }
+        // merge server orders: server is the shared truth, except the order
+        // being rung on THIS till right now
+        if (r.session) {
+          setOrders(prev => {
+            const merged = {}
+            for (const so of r.orders || []) {
+              merged[so.id] = prev[so.id] && so.id === currentIdRef.current ? prev[so.id] : {
+                id: so.id, kind: so.kind, ref: so.ref, name: so.name, status: 'open',
+                openedAt: so.opened_at, disc: so.disc || null, voucher: so.voucher || null,
+                lines: Array.isArray(so.lines) ? so.lines : [],
+              }
+            }
+            // keep local-only orders (not yet pushed / offline)
+            for (const [id, o] of Object.entries(prev)) if (!merged[id] && o.status === 'open') merged[id] = o
+            return merged
+          })
+        }
+      } catch { /* offline — keep ringing locally */ }
+    }
+    sync()
+    const id = setInterval(sync, 7000)
+    return () => { stop = true; clearInterval(id) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const ordersRef = React.useRef(orders)
+  useEffect(() => { ordersRef.current = orders }, [orders])
   const [screen, setScreen] = useState('floor')          // 'floor' | 'ring' | 'bill'
   const [pageName, setPageName] = useState(pages[0]?.name)
   const [query, setQuery] = useState('')
@@ -201,7 +254,21 @@ export default function TillScreen() {
     patch(moveOrderId, x => ({ ...x, kind: 'tab', ref: name.trim(), name: name.trim() }))
     setCurrentId(moveOrderId); setMoveOrderId(null); setScreen('ring')
   }
-  const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
+  const pushTimers = React.useRef({})
+  const patch = (id, fn) => setOrders(prev => {
+    const next = { ...prev, [id]: fn(prev[id]) }
+    // every change syncs to the shared day (debounced per order)
+    clearTimeout(pushTimers.current[id])
+    pushTimers.current[id] = setTimeout(() => pushOrder(next[id]), 400)
+    return next
+  })
+  const staffName = () => {
+    try {
+      let n = localStorage.getItem('nd_till_staff')
+      if (!n) { n = prompt('Your name (for the till record)?') || ''; if (n.trim()) localStorage.setItem('nd_till_staff', n.trim()) }
+      return (n || '').trim()
+    } catch { return '' }
+  }
   const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
 
   const openVoucherBrowse = async () => {
@@ -360,18 +427,33 @@ export default function TillScreen() {
   const [paying, setPaying] = useState(false)
   const pay = async () => {
     const o = orders[currentId]
-    // The one REAL action in the demo till: an applied voucher is redeemed in
-    // the live voucher system (same rows the staff-portal Prizes flow marks).
+    const who = staffName()
+    setPaying(true)
+    // Voucher first — redeemed in the live voucher system before anything closes.
     if (o.voucher) {
-      setPaying(true)
-      try { await tillVoucherRedeem(o.voucher.code, 'Till') }
+      try { await tillVoucherRedeem(o.voucher.code, who || 'Till') }
       catch (e) {
         setPaying(false)
         alert(`Voucher NOT redeemed — ${e.message || 'no connection'}. Remove the voucher or try again.`)
         return
       }
-      setPaying(false)
     }
+    // Record the payment against the shared day (cash for the due amount,
+    // the voucher as its own payment row). If the day isn't open or we're
+    // offline, the order refuses to close — money never vanishes quietly.
+    const duePence = Math.round(orderDue(o) * 100)
+    const payments = []
+    if (o.voucher) payments.push({ method: 'voucher', amount_pence: Math.round(voucherAmt(o) * 100), ref: o.voucher.code })
+    if (duePence > 0) payments.push({ method: 'cash', amount_pence: duePence })
+    try {
+      await tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      await tillPayOrder(o.id, payments, Math.round(orderTotal(o) * 100), who)
+    } catch (e) {
+      setPaying(false)
+      alert(`Payment not recorded — ${e.message || 'no connection'}. ${String(e.message || '').includes("isn't open") ? 'Open the day on the ⊞ Floor first.' : 'Try again.'}`)
+      return
+    }
+    setPaying(false)
     setClosed({ ref: refLabel(o), total: orderDue(o), voucher: o.voucher || null })
     resetRingUi()
     // Straight into the next sale — a fresh Quick Sale register, K Series style.
@@ -616,8 +698,51 @@ export default function TillScreen() {
       saveFloor({ ...floorPlan, tables: floorPlan.tables.filter(x => x.id !== selTable) }); setSelTable(null)
     }
 
+    const openDay = async () => {
+      const who = staffName()
+      const f = prompt('Opening float in the drawer? (£)', '200')
+      if (f == null) return
+      try { const r = await tillOpenDay(who, Math.round(parseFloat(f || '0') * 100)); setSession(r.session); setZRead(null) }
+      catch (e) { alert(e.message || 'Could not open the day.') }
+    }
+    const closeDay = async () => {
+      const who = staffName()
+      const c = prompt('Counted cash in the drawer? (£)')
+      if (c == null) return
+      try { const r = await tillCloseDay(who, Math.round(parseFloat(c || '0') * 100)); setSession(null); setZRead(r) }
+      catch (e) { alert(e.message || 'Could not close the day.') }
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, ...(isMobile ? {} : { height: frameH ? `${frameH + 40}px` : 'calc(100dvh - 220px)', minHeight: 460, overflow: 'hidden' }) }}>
+        {/* The day — sessions, float, Z-read */}
+        {session === null && !zRead && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(218,27,51,0.1)', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 10, padding: '9px 13px', flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: CREAM }}>🔓 The day is NOT open — sales won't record until it is.</span>
+            <button onClick={openDay} style={{ ...bigBtn(true), padding: '9px 18px' }}>OPEN THE DAY</button>
+          </div>
+        )}
+        {session && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '7px 13px', flexShrink: 0 }}>
+            <span style={{ fontSize: 12.5, color: GREEN, fontWeight: 700 }}>
+              🔒 Day open since {String(session.opened_at || '').slice(11, 16)} · float {gbp((session.float_start_pence || 0) / 100)}{session.opened_by ? ` · ${session.opened_by}` : ''}
+            </span>
+            <button onClick={closeDay} style={{ ...btn(), marginLeft: 'auto', borderColor: GOLD, color: GOLD, fontWeight: 700 }}>CLOSE THE DAY (Z)</button>
+          </div>
+        )}
+        {zRead && (
+          <div style={{ background: 'rgba(52,211,153,0.07)', border: `1.5px solid ${GREEN}`, borderRadius: 12, padding: '11px 15px', flexShrink: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: GREEN }}>Z-READ #{zRead.z} — day closed</div>
+            <div style={{ fontSize: 12.5, color: CREAM, marginTop: 4 }}>
+              {zRead.orders} orders · gross {gbp(zRead.gross_pence / 100)} · cash {gbp(zRead.cash_pence / 100)} · vouchers {gbp(zRead.voucher_pence / 100)}
+              &nbsp;— expected in drawer {gbp(zRead.expected_pence / 100)}, counted {gbp(zRead.counted_pence / 100)},
+              <b style={{ color: zRead.over_short_pence === 0 ? GREEN : zRead.over_short_pence > 0 ? AMBER : RED }}>
+                {' '}{zRead.over_short_pence === 0 ? 'spot on' : `${zRead.over_short_pence > 0 ? 'over' : 'short'} ${gbp(Math.abs(zRead.over_short_pence) / 100)}`}
+              </b>
+            </div>
+            <button onClick={() => setZRead(null)} style={{ ...btn(), marginTop: 8 }}>Dismiss</button>
+          </div>
+        )}
         {closed && (
           <div style={{ fontSize: 13, color: GREEN, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '8px 12px', flexShrink: 0 }}>
             ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo only.
@@ -1026,7 +1151,9 @@ export default function TillScreen() {
         </button>
       </div>
       {foodUnsent > 0 && <div style={{ fontSize: 11, color: AMBER }}>SEND will fire {foodUnsent} food item{foodUnsent > 1 ? 's' : ''} to the kitchen printer (real version).</div>}
-      <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>Demo — nothing is recorded. Lightspeed is still the till of record.</div>
+      {session === null
+        ? <div style={{ fontSize: 10.5, color: RED, fontWeight: 700, lineHeight: 1.5 }}>⚠ The day is not open — PAY will refuse. Open it on ⊞ Floor.</div>
+        : <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>Training mode — orders record to the till system. Lightspeed is still the till of record.</div>}
     </div>
   )
 

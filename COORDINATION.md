@@ -54,6 +54,14 @@ never run destructive or "today"-dated test writes on real data.
 | rota (via integration session, founder-directed) | `staff.dj_id uuid references djs(id) on delete set null` — links a staff member who is also one of our DJs to their DJ record, so the two portals can hotlink both ways. Additive; dry-run in a rolled-back txn first. Set for Thays Alviano. | ✅ applied | 20 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
+## 4 Sep 2026 — till lane DDL APPLIED: the REAL order system (`till_*`)
+NEW tables `till_sessions` (day + float + sequential z_number), `till_orders` (shared
+open orders, jsonb lines), `till_payments` (cash/voucher rows), `till_events`
+(append-only audit — a trigger refuses UPDATE/DELETE). Additive; RLS on, no policies
+(service-role via the `till` fn only). SQL in `supabase/till_orders.sql`. Fn v4 deployed
+with dayState/openDay/saveOrder/payOrder/voidOrder/closeDay. Verified end-to-end live:
+Z-READ #1 = £0.10 go-live test, drawer spot-on. Training mode beside Lightspeed.
+
 ## 21 Aug 2026 — till lane DDL STAGED: `till_settings`
 NEW table `till_settings` (key text pk, value jsonb, updated_at) — till configuration,
 first key 'floor' = the drawn room layout shared across till iPads. Additive, RLS on, no
