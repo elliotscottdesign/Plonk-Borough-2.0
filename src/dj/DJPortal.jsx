@@ -536,6 +536,13 @@ export default function DJPortal() {
           const dot = <span style={{ color: RED, fontWeight: 700, flexShrink: 0 }}>·</span>
           const link = { color: RED, textDecoration: 'none', borderBottom: `1px solid ${RED}` }
           return (<>
+            {/* Curfew — licensing condition, must be unmissable */}
+            <div style={{ background: 'rgba(218,27,51,0.12)', border: `1.5px solid ${RED}`, borderRadius: 14, padding: '16px 18px', marginBottom: 18 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 6 }}>⏰ Curfew — please read</div>
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 800, lineHeight: 1.35 }}>Music must end SHARP at midnight (12am).</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, marginTop: 6 }}>It's a strict licensing condition — <strong style={{ color: '#fff' }}>no overruns</strong>. Plan your set so the last track finishes by 00:00.</div>
+            </div>
+
             {/* Equipment / the kit */}
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
               <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>The kit</div>
