@@ -116,6 +116,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const [focusId, setFocusId] = useState(null)   // tap a team chip → the month shows just their shifts
   const [copyOpen, setCopyOpen] = useState(false)          // 📋 duplicate-week panel
   const [copyTarget, setCopyTarget] = useState(null)       // target Monday (default: next week)
+  const [copyModal, setCopyModal] = useState(null)         // in-app dialog: {kind:'confirm'|'done'|'info', ...}
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -278,16 +279,10 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           const clashes = []
           srcBlocks.forEach((d, i) => { for (const b of d.blocks) if (offSet.has(`${b.staffId}|${tgtDates[i]}`)) clashes.push(`${nameOfId(b.staffId)} (${fmtDay(tgtDates[i])})`) })
           const pastTgt = tgt <= todayStr
-          const doCopy = async () => {
+          const doCopy = () => {
             const doable = srcBlocks.filter(d => d.blocks.length > 0)
-            if (doable.length === 0) { alert('Nothing to copy — no one is rostered on this week.'); return }
-            if (!window.confirm(`Copy ${totalShifts} shift${totalShifts === 1 ? '' : 's'} from ${fmtDay(weekStart)}–${fmtDayMon(weekEnd)} onto ${fmtDay(tgt)}–${fmtDayMon(addDaysISO(tgt, 6))}?\n\n${tgtExisting > 0 ? `REPLACES the roster on ${tgtExisting} day(s) that already have people on.\n` : ''}${clashes.length ? `⚠️ Booked off on the new days (copied anyway — swap them after): ${clashes.join(', ')}\n` : ''}Days with no one on are left untouched.`)) return
-            setBusy(true)
-            try {
-              for (let i = 0; i < 7; i++) if (srcBlocks[i].blocks.length > 0) await rotaSaveDayRoster(tgtDates[i], srcBlocks[i].blocks)
-              await reload(); setCopyOpen(false); setWeekStart(tgt)
-              alert(`Done — ${totalShifts} shift${totalShifts === 1 ? '' : 's'} copied to the week of ${fmtDayMon(tgt)}. You're now looking at that week; fine-tune any day from the calendar.`)
-            } catch (e) { alert(e.message) } finally { setBusy(false) }
+            if (doable.length === 0) { setCopyModal({ kind: 'info', title: 'Nothing to copy', msg: 'No one is rostered on this week — pick a week with shifts on it first.' }); return }
+            setCopyModal({ kind: 'confirm', tgt, totalShifts, tgtExisting, clashes, srcBlocks, tgtDates, srcLabel: `${fmtDay(weekStart)} – ${fmtDayMon(weekEnd)}`, tgtLabel: `${fmtDay(tgt)} – ${fmtDayMon(addDaysISO(tgt, 6))}` })
           }
           return (
             <div style={{ marginTop: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
@@ -428,6 +423,39 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: TODAY }}>▣</span> today</span>
         </div>
       </div>
+
+      {/* Copy-week dialogs — in-app, not browser popups */}
+      {copyModal && (
+        <div onClick={() => !busy && setCopyModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#0A0A0A', border: '1px solid rgba(96,165,250,0.45)', borderRadius: 14, padding: 20, maxWidth: 440, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {copyModal.kind === 'confirm' ? (<>
+              <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📋 Paste this week?</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+                <strong style={{ color: '#fff' }}>{copyModal.totalShifts} shift{copyModal.totalShifts === 1 ? '' : 's'}</strong> from <strong style={{ color: '#60A5FA' }}>{copyModal.srcLabel}</strong><br />
+                → pasted onto <strong style={{ color: '#60A5FA' }}>{copyModal.tgtLabel}</strong>
+              </div>
+              {copyModal.tgtExisting > 0 && <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 10px' }}>⚠️ Replaces the roster on {copyModal.tgtExisting} day{copyModal.tgtExisting === 1 ? '' : 's'} that already {copyModal.tgtExisting === 1 ? 'has' : 'have'} people on.</div>}
+              {copyModal.clashes.length > 0 && <div style={{ fontSize: 12, color: '#F87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '8px 10px' }}>⚠️ Booked off on the new days (pasted anyway — swap them after): {copyModal.clashes.join(', ')}</div>}
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Days with no one on are left untouched.</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={() => setCopyModal(null)} disabled={busy} style={btn('ghost')}>Cancel</button>
+                <button disabled={busy} onClick={async () => {
+                  const m = copyModal; setBusy(true)
+                  try {
+                    for (let i = 0; i < 7; i++) if (m.srcBlocks[i].blocks.length > 0) await rotaSaveDayRoster(m.tgtDates[i], m.srcBlocks[i].blocks)
+                    await reload(); setCopyOpen(false); setWeekStart(m.tgt)
+                    setCopyModal({ kind: 'done', title: '✓ Pasted', msg: `${m.totalShifts} shift${m.totalShifts === 1 ? '' : 's'} pasted onto the week of ${m.tgtLabel}. You're now looking at that week — fine-tune any day from the calendar.` })
+                  } catch (e) { setCopyModal({ kind: 'info', title: 'That didn\'t save', msg: e.message }) } finally { setBusy(false) }
+                }} style={btn('gold')}>{busy ? 'Pasting…' : '📋 Yes — paste it'}</button>
+              </div>
+            </>) : (<>
+              <div className="serif" style={{ fontSize: 18, color: copyModal.kind === 'done' ? GREEN : '#fff' }}>{copyModal.title}</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>{copyModal.msg}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button onClick={() => setCopyModal(null)} style={btn('gold')}>OK</button></div>
+            </>)}
+          </div>
+        </div>
+      )}
 
       {/* Day panel */}
       {selDate && (
