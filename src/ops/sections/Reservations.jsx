@@ -117,9 +117,16 @@ export default function Reservations() {
         // tournament_entries joined to tournaments for event date/name. Filter
         // the join column via PostgREST's foreign-table syntax.
         pgGet(`tournament_entries?select=id,tournament_id,team_name,captain_name,captain_email,captain_phone,notes,status,tournaments!inner(name,event_date,start_time,tournament_type)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}&order=paid_at`),
-        // Golf catalogue bookings — likely empty until plonkgolf.co.uk relaunch
-        // sends volume through here. Included so the pattern is in place.
-        pgGet(`bookings?select=id,reference,customer_name,customer_email,customer_phone,party_size,total_pence,status,created_at,booking_slots(slot_date,slot_time)&status=eq.confirmed&order=created_at.desc&limit=100`),
+        // Golf bookings via the staff-golf-feed edge fn. The `bookings`
+        // table (rightly) has NO anon read access — a direct PostgREST
+        // query silently returns [] under RLS, which is why golf never
+        // showed here before 2026-09-08. The fn reads with the service
+        // role and returns a sanitized list.
+        fetch(`${SUPABASE_URL}/functions/v1/staff-golf-feed`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', apikey: SUPABASE_ANON_KEY, Authorization: `Bearer ${SUPABASE_ANON_KEY}` },
+          body: JSON.stringify({ key: 'NDSTAFF-2026', from, to }),
+        }).then(r => { if (!r.ok) throw new Error(`golf feed ${r.status}`); return r.json() }).then(j => j.bookings || []),
         // Arrival ticks (shared with every staff portal) — anon key is read-only
         // on this table; ticking goes through the rota edge fn.
         pgGet(`reservation_arrivals?select=kind,ref_id,staff_name,arrived_at&res_date=gte.${from}&res_date=lte.${to}`),
@@ -165,10 +172,10 @@ export default function Reservations() {
         })
       }
       for (const g of golf) {
-        const slots = (g.booking_slots || []).slice().sort((a, b) => `${a.slot_date}T${a.slot_time}`.localeCompare(`${b.slot_date}T${b.slot_time}`))
-        // Multi-day bookings: show the first slot INSIDE the window (an earlier slot
-        // on a previous day must not hide the whole booking from this view).
-        const first = slots.find(s => s.slot_date >= from && s.slot_date <= to)
+        // staff-golf-feed returns `slots` pre-filtered to the window and
+        // pre-sorted; first entry = first slot inside the window.
+        const slots = g.slots || []
+        const first = slots[0]
         if (!first) continue
         out.push({
           id: g.id,
