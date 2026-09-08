@@ -34,6 +34,7 @@ export async function tillReservationsToday() {
 
 // Real orders — sessions, shared floor state, payments, Z-reads.
 export const tillDayState = () => call({ action: 'dayState' })
+export const tillHQ = () => call({ action: 'hq' })
 export const tillOpenDay = (by, float_pence) => call({ action: 'openDay', by, float_pence })
 export const tillCloseDay = (by, counted_pence) => call({ action: 'closeDay', by, counted_pence })
 export const tillSaveOrder = (order) => call({ action: 'saveOrder', order })

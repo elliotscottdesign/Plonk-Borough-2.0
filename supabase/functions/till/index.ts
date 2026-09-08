@@ -214,6 +214,37 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ── 📊 HQ — the one-glance day/history feed for the founder ─────────────
+    if (action === "hq") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const { data: sessions } = await sb.from("till_sessions").select("*")
+        .eq("status", "closed").order("z_number", { ascending: false }).limit(14);
+      const ids = (sessions || []).map((s: any) => s.id);
+      let payments: any[] = [];
+      if (ids.length) {
+        const { data } = await sb.from("till_payments").select("session_id,method,amount_pence").in("session_id", ids);
+        payments = data || [];
+      }
+      const zreads = (sessions || []).map((s: any) => {
+        const pays = payments.filter((p) => p.session_id === s.id);
+        const sum = (m: string) => pays.filter((p) => p.method === m).reduce((t, p) => t + p.amount_pence, 0);
+        return { z: s.z_number, closed_at: s.closed_at, closed_by: s.closed_by,
+                 cash_pence: sum("cash"), voucher_pence: sum("voucher"),
+                 gross_pence: sum("cash") + sum("voucher"),
+                 over_short_pence: s.over_short_pence, float_pence: s.float_start_pence };
+      });
+      const since = new Date(Date.now() - 14 * 86400000).toISOString();
+      const redeemed: any[] = [];
+      for (const [source, table] of Object.entries(VOUCHER_TABLES)) {
+        const { data } = await sb.from(table).select("code,display_name,amount_pence,redeemed_at,redeemed_by")
+          .not("redeemed_at", "is", null).gte("redeemed_at", since)
+          .order("redeemed_at", { ascending: false }).limit(50);
+        for (const v of data || []) redeemed.push({ ...v, source });
+      }
+      redeemed.sort((a, b) => String(b.redeemed_at).localeCompare(String(a.redeemed_at)));
+      return json({ ok: true, zreads, redeemed });
+    }
+
     if (action === "voucherLookup") {
       if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
       const hit = await findVoucher(b.code);
