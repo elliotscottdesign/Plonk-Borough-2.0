@@ -147,7 +147,12 @@ def main():
         seen.add(target["name"])
         # scale the costing rate onto THIS product's ordering pack
         if target["base_unit"] == "each":
-            pack_cost = round(ing["cost"] * target["order_to_base"], 2)
+            # costing sheets price most each-counted things per single unit
+            # (a can, a bottle) — but a pack of 2L+ is the whole case already
+            # (e.g. Eager: 8×1L @ £19.28); scaling that by the case size again
+            # would 8× the cost.
+            per_case_already = ing["packMl"] >= 2000
+            pack_cost = round(ing["cost"] if per_case_already else ing["cost"] * target["order_to_base"], 2)
             pack_label = f"per {target['order_unit']} (×{int(target['order_to_base'])})"
         else:
             pack_cost = round(ing["cost"] * target["order_to_base"] / ing["packMl"], 2)

@@ -2,6 +2,15 @@
  "generated": "4 Sep 2026 · from src/ops/data/costing.js (Jun 2026 costing sheet; Drinks Club 26-27 list where marked)",
  "proposals": [
   {
+   "stock": "Absolut Blue",
+   "pack_cost": 14.53,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Absolut Vodka Blue 700ml (SPV7ABSBL)"
+  },
+  {
    "stock": "Agave syrup",
    "pack_cost": 13.44,
    "pack_label": "per bottle (750ml)",
@@ -27,6 +36,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Angostura Bitters 200ml (OTB2ANGBI)"
+  },
+  {
+   "stock": "Antica Sambuca",
+   "pack_cost": 13.85,
+   "pack_label": "per bottle (700ml)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Antica Sambuca 700ml @ £13.85 ex VAT (Luxardo Black premium @ £17 ex VAT)"
   },
   {
    "stock": "Aperol",
@@ -200,6 +218,15 @@
    "ref": "Doom Juice Rouge (Shiraz) 750ml @ £11.90 ex VAT — Top Cuvée TOP-W01-9422, min order 6"
   },
   {
+   "stock": "Eager Grapefruit",
+   "pack_cost": 19.28,
+   "pack_label": "per case (×8)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Eager Pink Grapefruit case of 8 × 1L (SO1EAGPG) @ £19.28 = £2.41/L"
+  },
+  {
    "stock": "Eager Orange",
    "pack_cost": 18.56,
    "pack_label": "per case (8000ml)",
@@ -252,15 +279,6 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Funkin Mango Puree 1kg pouch @ £9.52 ex VAT (LWC catalog, Jun 2026)"
-  },
-  {
-   "stock": "Grapefruit",
-   "pack_cost": 19.28,
-   "pack_label": "per each (×1)",
-   "supplier": "Drinks Club",
-   "source": "Drinks Club 26-27 invoice list",
-   "confident": true,
-   "ref": "Eager Pink Grapefruit case of 8 × 1L (SO1EAGPG) @ £19.28 = £2.41/L"
   },
   {
    "stock": "Hanbury London Dry (house)",
@@ -452,15 +470,6 @@
    "ref": "Blend Passion Fruit Liqueur 700ml (LI7BLEPF)"
   },
   {
-   "stock": "Pink Ting",
-   "pack_cost": 11.52,
-   "pack_label": "per case (×24)",
-   "supplier": "Drinks Club",
-   "source": "Drinks Club 26-27 invoice list",
-   "confident": true,
-   "ref": "Ting Grapefruit Can 330ml × 24 @ £11.52 (SO3TINGGRCA)"
-  },
-  {
    "stock": "Prosecco 750ml (NV Via Vai)",
    "pack_cost": 6.75,
    "pack_label": "per bottle (750ml)",
@@ -495,6 +504,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "St Germain 700ml (LI7STG)"
+  },
+  {
+   "stock": "Ting",
+   "pack_cost": 11.52,
+   "pack_label": "per case (×24)",
+   "supplier": "Drinks Club",
+   "source": "Drinks Club 26-27 invoice list",
+   "confident": true,
+   "ref": "Ting Grapefruit Can 330ml × 24 @ £11.52 (SO3TINGGRCA)"
   },
   {
    "stock": "Top Cuvée House Orange",
@@ -711,6 +729,15 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Gilda (per skewer)"
+  },
+  {
+   "stock": "Grapefruit",
+   "pack_cost": 0.12,
+   "pack_label": "per each (×1)",
+   "supplier": "Brakes",
+   "source": "industry ballpark — confirm",
+   "confident": false,
+   "ref": "Grapefruit slice"
   },
   {
    "stock": "Havana Club 3yr",
