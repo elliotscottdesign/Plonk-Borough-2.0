@@ -1207,8 +1207,8 @@
     },
     {
      "product": "Coke",
-     "qty": 200.0,
-     "disp": "200ml"
+     "qty": 33.3,
+     "disp": "200ml poured (33.3ml syrup)"
     }
    ],
    "omitted": [],
@@ -2226,8 +2226,8 @@
     },
     {
      "product": "Lemonade",
-     "qty": 50.0,
-     "disp": "50ml"
+     "qty": 8.3,
+     "disp": "50ml poured (8.3ml syrup)"
     }
    ],
    "omitted": [
@@ -2250,8 +2250,8 @@
     },
     {
      "product": "Lemonade",
-     "qty": 100.0,
-     "disp": "100ml"
+     "qty": 16.7,
+     "disp": "100ml poured (16.7ml syrup)"
     }
    ],
    "omitted": [],
@@ -2351,8 +2351,8 @@
     },
     {
      "product": "Lemonade",
-     "qty": 500.0,
-     "disp": "500ml"
+     "qty": 83.3,
+     "disp": "500ml poured (83.3ml syrup)"
     },
     {
      "product": "Mint",

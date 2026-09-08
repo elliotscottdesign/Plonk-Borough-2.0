@@ -10,6 +10,7 @@ import { barSaveProduct } from '../ops/barApi.js'
 import { tillHQ, tillDayState, tillVoucherList } from './api.js'
 import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
+import ReceiptPreview from './ReceiptPreview.jsx'
 
 // ─── The TILL tab in /ops ────────────────────────────────────────────────────
 // (File name is the OpsApp mount point — this default export is the whole tab.)
@@ -62,9 +63,10 @@ export default function TillTab() {
           {tabBtn('till', '🛎 Till')}
           {tabBtn('catalogue', '📖 Catalogue & margins')}
           {tabBtn('hq', '📊 HQ')}
+          {tabBtn('receipts', '🧾 Receipts')}
         </div>
       </div>
-      {view === 'till' ? <TillScreen /> : view === 'hq' ? <HQView /> : <CatalogueView />}
+      {view === 'till' ? <TillScreen /> : view === 'hq' ? <HQView /> : view === 'receipts' ? <ReceiptPreview /> : <CatalogueView />}
       </div>
     </div>
   )

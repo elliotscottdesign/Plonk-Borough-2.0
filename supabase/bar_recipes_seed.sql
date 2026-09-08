@@ -509,7 +509,7 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 125.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Kalimoxto') and lower(p.name) = lower('House red (Kalimotxo)');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 200.0 from bar_menu_items m, bar_products p
+  select m.id, p.id, 33.3 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Kalimoxto') and lower(p.name) = lower('Coke');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Beericano'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
@@ -755,14 +755,14 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 5.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Lillet Spritz') and lower(p.name) = lower('Fresh lemon juice');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 50.0 from bar_menu_items m, bar_products p
+  select m.id, p.id, 8.3 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Lillet Spritz') and lower(p.name) = lower('Lemonade');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('White Wine Spritzer'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 100.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('White Wine Spritzer') and lower(p.name) = lower('Blanco Blanco (white)');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 100.0 from bar_menu_items m, bar_products p
+  select m.id, p.id, 16.7 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('White Wine Spritzer') and lower(p.name) = lower('Lemonade');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Dark & Stormy (Jug)'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)

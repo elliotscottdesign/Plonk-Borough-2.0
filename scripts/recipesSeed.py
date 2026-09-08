@@ -111,6 +111,11 @@ def main():
                     units = ing["ml"] / pack
                     qty = max(1, round(units)) if units >= 0.75 else round(units, 2)
                     disp = f"{qty:g} × unit"
+                elif prod.get("order_unit") == "BIB":
+                    # post-mix gun runs 5:1 water:syrup (founder, 9 Sep 2026) —
+                    # a poured ml is 1/6th syrup from the box, 5/6ths water.
+                    qty = round(ing["ml"] / 6, 1)
+                    disp = f"{ing['ml']:g}ml poured ({qty:g}ml syrup)"
                 else:
                     qty = round(ing["ml"], 1)
                     disp = f"{qty:g}ml"
