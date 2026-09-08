@@ -24,7 +24,7 @@ import json, re, unicodedata
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).parent))
-from costProposals import parse_seed, norm, ALIASES
+from costProposals import parse_seed, parse_ingredients, norm, ALIASES
 
 ROOT = Path(__file__).resolve().parent.parent
 COSTING = ROOT / "src/ops/data/costing.js"
@@ -34,7 +34,7 @@ JSON_OUT = ROOT / "src/till/data/recipesDraft.json"
 
 # soda-gun water and peels cost pennies a serve — omitting them is honest,
 # unlike omitting juice or syrup, which cost real money and become preps.
-OMITTABLE = re.compile(r"wedge|twist|slice|zest|peel|garnish|rim|cube|egg white|salt|tajin|tajín|mint sprig|cherry|olive brine|sprig|post-mix soda|soda water", re.I)
+OMITTABLE = re.compile(r"wedge|twist|slice|zest|peel|garnish|rim|cube|egg white|tajin|tajín|mint sprig|cocktail cherry|maraschino cherry|olive brine|sprig|post-mix soda|soda water", re.I)
 
 # The data comes from Node importing costing.js directly (scripts step below) —
 # exact values, no regex archaeology. Regenerate the dump with:
@@ -59,11 +59,17 @@ def main():
     for prep in ("Fresh lime juice", "Fresh lemon juice", "Sugar syrup 1:1"):
         seed[norm(prep)] = {"name": prep, "base_unit": "ml", "order_unit": "batch", "order_to_base": 1000}
     ing_names, recipes = load_costing()
+    # pack sizes from the costing sheet (packMl per ingredient) — the honest
+    # divisor for pours of each-counted products (a carton is 1000ml, not 330).
+    packml = {norm(i["name"]): i["packMl"] for i in parse_ingredients()}
     live = json.load(open(LIVETILL))
     live_names = {}                           # norm -> live till product name
+    live_prices = {}                          # norm -> set of live serve prices
     for pg in live["pages"]:
         for p in pg["products"]:
             live_names.setdefault(norm(p["name"]), p["name"])
+            live_prices.setdefault(norm(p["name"]), set()).update(
+                s["price"] for s in p.get("serves", []) if s.get("price"))
 
     def match_product(ing_id):
         nm = ing_names.get(ing_id)
@@ -74,20 +80,37 @@ def main():
         hits = [v for k, v in seed.items() if n and (n in k or k in n)]
         return hits[0] if len(hits) == 1 else None
 
-    drafts, sql_items = [], []
+    # The costing sheet costs hot drinks as fractions of a crisps pack — a
+    # placeholder hack, not a recipe. Never seed a cost we know is fiction.
+    def is_placeholder(r):
+        return all("crisps" in norm(ing_names.get(i["id"], "")) for i in r["ings"]) \
+               and "crisps" not in norm(r["name"]) and bool(r["ings"])
+
+    drafts, raw_items = [], []
     for r in recipes:
         lines, omitted, missing = [], [], []
+        if is_placeholder(r):
+            drafts.append({"name": r["name"], "costing_name": r["name"], "category": r["category"],
+                           "sell": r["sell"], "lines": [], "omitted": [],
+                           "missing": ["costing sheet has placeholder data, not a recipe"], "ready": False})
+            continue
         for ing in r["ings"]:
-            prod = match_product(ing["id"])
             nm = ing_names.get(ing["id"], ing["id"])
+            # garnish first: a "grapefruit slice" must never match the fruit
+            # and cost a whole grapefruit.
+            if OMITTABLE.search(nm):
+                omitted.append(nm); continue
+            prod = match_product(ing["id"])
             if prod and ing["ml"]:
                 # qty_base is in the PRODUCT'S base unit: ml products take the
-                # pour in ml; each-counted products (cans, bottles, bags) take
-                # whole units — a 440ml pour of a canned beer is 1 can, never
-                # 440 cans.
+                # pour in ml; each-counted products take units of THEIR pack
+                # size (from the costing sheet) — a 440ml pour of a 440ml can
+                # is 1 can, a 50ml splash of a 330ml bottle is 0.15 bottles.
                 if prod["base_unit"] == "each":
-                    qty = max(1, round(ing["ml"] / 330))
-                    disp = f"{qty} × unit"
+                    pack = packml.get(norm(nm)) or 330
+                    units = ing["ml"] / pack
+                    qty = max(1, round(units)) if units >= 0.75 else round(units, 2)
+                    disp = f"{qty:g} × unit"
                 else:
                     qty = round(ing["ml"], 1)
                     disp = f"{qty:g}ml"
@@ -95,23 +118,38 @@ def main():
                 # syrup twice) — the engine allows one line per product, so merge.
                 dup = next((l for l in lines if l["product"] == prod["name"]), None)
                 if dup:
-                    dup["qty"] = round(dup["qty"] + qty, 1)
-                    dup["disp"] = f"{dup['qty']:g}ml" if prod["base_unit"] != "each" else f"{dup['qty']} × unit"
+                    dup["qty"] = round(dup["qty"] + qty, 2)
+                    dup["disp"] = f"{dup['qty']:g}ml" if prod["base_unit"] != "each" else f"{dup['qty']:g} × unit"
                 else:
                     lines.append({"product": prod["name"], "qty": qty, "disp": disp})
-            elif OMITTABLE.search(nm):
-                omitted.append(nm)
             else:
                 missing.append(nm)
         # till-aligned display name (so catalogue GP joins with zero mapping)
         base = re.sub(r"\s+—\s+.*$", "", r["name"])
         till_name = live_names.get(norm(r["name"])) or live_names.get(norm(base)) or r["name"]
         ready = bool(lines) and not missing
-        drafts.append({"name": till_name, "costing_name": r["name"], "category": r["category"],
-                       "sell": r["sell"], "lines": lines, "omitted": omitted,
-                       "missing": missing, "ready": ready})
+        d = {"name": till_name, "costing_name": r["name"], "category": r["category"],
+             "sell": r["sell"], "lines": lines, "omitted": omitted,
+             "missing": missing, "ready": ready}
+        drafts.append(d)
         if ready:
-            sql_items.append((till_name, r["sell"], r["category"], lines))
+            raw_items.append(d)
+
+    # Two serve sizes of one product (Pint/Half, flute/bottle) can align to the
+    # SAME live-till name — one row would silently swallow the other. The serve
+    # whose price matches the live button keeps the till name; the rest keep
+    # their costing-sheet name (— Pint / — Bottle …).
+    by_name = {}
+    for d in raw_items:
+        by_name.setdefault(d["name"], []).append(d)
+    for name, group in by_name.items():
+        if len(group) == 1: continue
+        prices = live_prices.get(norm(name), set())
+        keeper = next((d for d in group if d["sell"] in prices), group[0])
+        for d in group:
+            if d is not keeper:
+                d["name"] = d["costing_name"]
+    sql_items = [(d["name"], d["sell"], d["category"], d["lines"]) for d in raw_items]
 
     # ── idempotent SQL ───────────────────────────────────────────────────────
     def q(s): return s.replace("'", "''")
@@ -119,6 +157,10 @@ def main():
            "-- Menu items + recipe lines for the bar costing engine, from the",
            "-- costing sheet's machine-readable recipes. Idempotent: re-running",
            "-- refreshes prices and replaces each item's lines.", "begin;",
+           "-- clean up rows an earlier run seeded from placeholder data",
+           *[f"delete from bar_recipe_lines where menu_item_id in (select id from bar_menu_items where lower(name) = lower('{d['costing_name'].replace(chr(39), chr(39)*2)}'));\n"
+             f"delete from bar_menu_items where lower(name) = lower('{d['costing_name'].replace(chr(39), chr(39)*2)}');"
+             for d in drafts if not d["ready"] and d["missing"] and "placeholder" in d["missing"][0]],
            "-- Three MADE prep products (the mechanism bar_prep_recipes exists for):",
            "-- their cost derives from what goes into a batch, never typed.",
            "insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values",

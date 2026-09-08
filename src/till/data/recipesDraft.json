@@ -66,7 +66,7 @@
    "ready": true
   },
   {
-   "name": "Camden Stout",
+   "name": "Camden Stout — Half",
    "costing_name": "Camden Stout — Half",
    "category": "draught",
    "sell": 3.6,
@@ -514,7 +514,7 @@
    "ready": true
   },
   {
-   "name": "Doom Juice Rose",
+   "name": "Doom Juice Rosé — Bottle",
    "costing_name": "Doom Juice Rosé — Bottle",
    "category": "wine",
    "sell": 39.0,
@@ -714,7 +714,7 @@
    "ready": false
   },
   {
-   "name": "Prosecco",
+   "name": "Prosecco — 125ml flute",
    "costing_name": "Prosecco — 125ml flute",
    "category": "wine",
    "sell": 7.0,
@@ -875,14 +875,10 @@
      "product": "Agave syrup",
      "qty": 12.5,
      "disp": "12.5ml"
-    },
-    {
-     "product": "Cucumber",
-     "qty": 1,
-     "disp": "1 × unit"
     }
    ],
    "omitted": [
+    "Cucumber slice",
     "Fresh chilli slice",
     "Salt rim"
    ],
@@ -1260,15 +1256,11 @@
      "product": "Prosecco 750ml (NV Via Vai)",
      "qty": 125.0,
      "disp": "125ml"
-    },
-    {
-     "product": "Mint",
-     "qty": 1.0,
-     "disp": "1ml"
     }
    ],
    "omitted": [
-    "Post-mix Soda"
+    "Post-mix Soda",
+    "Mint sprig"
    ],
    "missing": [],
    "ready": true
@@ -1372,7 +1364,7 @@
    "sell": 3.5,
    "lines": [
     {
-     "product": "Pink Ting",
+     "product": "Ting",
      "qty": 1,
      "disp": "1 × unit"
     }
@@ -1461,48 +1453,36 @@
    "costing_name": "French Press Coffee",
    "category": "soft",
    "sell": 3.0,
-   "lines": [
-    {
-     "product": "Crisps",
-     "qty": 1,
-     "disp": "1 × unit"
-    }
-   ],
+   "lines": [],
    "omitted": [],
-   "missing": [],
-   "ready": true
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
   },
   {
    "name": "Pot of Tea",
    "costing_name": "Pot of Tea",
    "category": "soft",
    "sell": 3.0,
-   "lines": [
-    {
-     "product": "Crisps",
-     "qty": 1,
-     "disp": "1 × unit"
-    }
-   ],
+   "lines": [],
    "omitted": [],
-   "missing": [],
-   "ready": true
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
   },
   {
    "name": "Hot Chocolate",
    "costing_name": "Hot Chocolate",
    "category": "soft",
    "sell": 3.0,
-   "lines": [
-    {
-     "product": "Crisps",
-     "qty": 1,
-     "disp": "1 × unit"
-    }
-   ],
+   "lines": [],
    "omitted": [],
-   "missing": [],
-   "ready": true
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
   },
   {
    "name": "Gilda (each)",
@@ -1528,8 +1508,8 @@
    "lines": [
     {
      "product": "Gilda",
-     "qty": 1,
-     "disp": "1 × unit"
+     "qty": 6,
+     "disp": "6 × unit"
     }
    ],
    "omitted": [],
@@ -1588,8 +1568,8 @@
    "lines": [
     {
      "product": "Olives",
-     "qty": 1,
-     "disp": "1 × unit"
+     "qty": 0.0,
+     "disp": "0 × unit"
     }
    ],
    "omitted": [],
@@ -1831,18 +1811,19 @@
      "disp": "10ml"
     },
     {
-     "product": "Grapefruit",
-     "qty": 2,
-     "disp": "2 × unit"
+     "product": "Eager Grapefruit",
+     "qty": 0.01,
+     "disp": "0.01 × unit"
     },
     {
-     "product": "Pink Ting",
-     "qty": 1,
-     "disp": "1 × unit"
+     "product": "Ting",
+     "qty": 0.15,
+     "disp": "0.15 × unit"
     }
    ],
    "omitted": [
-    "Salt rim"
+    "Salt rim",
+    "Grapefruit slice"
    ],
    "missing": [],
    "ready": true

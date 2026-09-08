@@ -3,6 +3,13 @@
 -- costing sheet's machine-readable recipes. Idempotent: re-running
 -- refreshes prices and replaces each item's lines.
 begin;
+-- clean up rows an earlier run seeded from placeholder data
+delete from bar_recipe_lines where menu_item_id in (select id from bar_menu_items where lower(name) = lower('French Press Coffee'));
+delete from bar_menu_items where lower(name) = lower('French Press Coffee');
+delete from bar_recipe_lines where menu_item_id in (select id from bar_menu_items where lower(name) = lower('Pot of Tea'));
+delete from bar_menu_items where lower(name) = lower('Pot of Tea');
+delete from bar_recipe_lines where menu_item_id in (select id from bar_menu_items where lower(name) = lower('Hot Chocolate'));
+delete from bar_menu_items where lower(name) = lower('Hot Chocolate');
 -- Three MADE prep products (the mechanism bar_prep_recipes exists for):
 -- their cost derives from what goes into a batch, never typed.
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
@@ -29,7 +36,7 @@ insert into bar_menu_items (name, category, sell_price) values ('Camden Hells �
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Camden Stout', 'draught', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('Camden Stout', 'draught', 3.6)
+insert into bar_menu_items (name, category, sell_price) values ('Camden Stout — Half', 'draught', 3.6)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Five Points XPA — Pint', 'draught', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
@@ -73,7 +80,7 @@ insert into bar_menu_items (name, category, sell_price) values ('Los Conejos Mal
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Doom Juice Rose', 'wine', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('Doom Juice Rose', 'wine', 39.0)
+insert into bar_menu_items (name, category, sell_price) values ('Doom Juice Rosé — Bottle', 'wine', 39.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Top Cuvee Orange — 125ml', 'wine', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
@@ -95,7 +102,7 @@ insert into bar_menu_items (name, category, sell_price) values ('Cueva Nueva Ver
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Cueva Nueva Vermut — Bottle (500ml)', 'wine', 50.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('Prosecco', 'wine', 7.0)
+insert into bar_menu_items (name, category, sell_price) values ('Prosecco — 125ml flute', 'wine', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Prosecco', 'wine', 35.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
@@ -156,12 +163,6 @@ insert into bar_menu_items (name, category, sell_price) values ('Red Bull', 'sof
 insert into bar_menu_items (name, category, sell_price) values ('Ginger Beer', 'soft', 3.5)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Fanta', 'soft', 3.0)
-  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('French Press Coffee', 'soft', 3.0)
-  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('Pot of Tea', 'soft', 3.0)
-  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
-insert into bar_menu_items (name, category, sell_price) values ('Hot Chocolate', 'soft', 3.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Gilda (each)', 'snack', 2.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
@@ -231,10 +232,10 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 568.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Camden Stout') and lower(p.name) = lower('Camden Stout');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Camden Stout'));
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Camden Stout — Half'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 284.0 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Camden Stout') and lower(p.name) = lower('Camden Stout');
+  where lower(m.name) = lower('Camden Stout — Half') and lower(p.name) = lower('Camden Stout');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Five Points XPA — Pint'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 568.0 from bar_menu_items m, bar_products p
@@ -319,10 +320,10 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 125.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Doom Juice Rose') and lower(p.name) = lower('Doom Juice Rosé');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Doom Juice Rose'));
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Doom Juice Rosé — Bottle'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 750.0 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Doom Juice Rose') and lower(p.name) = lower('Doom Juice Rosé');
+  where lower(m.name) = lower('Doom Juice Rosé — Bottle') and lower(p.name) = lower('Doom Juice Rosé');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Top Cuvee Orange — 125ml'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 125.0 from bar_menu_items m, bar_products p
@@ -363,10 +364,10 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 500.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Cueva Nueva Vermut — Bottle (500ml)') and lower(p.name) = lower('Cueva Nueva Vermut (500ml)');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Prosecco'));
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Prosecco — 125ml flute'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 125.0 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Prosecco') and lower(p.name) = lower('Prosecco 750ml (NV Via Vai)');
+  where lower(m.name) = lower('Prosecco — 125ml flute') and lower(p.name) = lower('Prosecco 750ml (NV Via Vai)');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Prosecco'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 750.0 from bar_menu_items m, bar_products p
@@ -401,9 +402,6 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 12.5 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Spicy Cucumber Margarita') and lower(p.name) = lower('Agave syrup');
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Spicy Cucumber Margarita') and lower(p.name) = lower('Cucumber');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Mezcal Martinez'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 35.0 from bar_menu_items m, bar_products p
@@ -530,9 +528,6 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 125.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Hugo Spritz') and lower(p.name) = lower('Prosecco 750ml (NV Via Vai)');
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1.0 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Hugo Spritz') and lower(p.name) = lower('Mint');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Sambuca (shot)'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 25.0 from bar_menu_items m, bar_products p
@@ -558,7 +553,7 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Ting'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Ting') and lower(p.name) = lower('Pink Ting');
+  where lower(m.name) = lower('Ting') and lower(p.name) = lower('Ting');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Red Bull'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
@@ -571,25 +566,13 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Fanta') and lower(p.name) = lower('Fanta');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('French Press Coffee'));
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('French Press Coffee') and lower(p.name) = lower('Crisps');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Pot of Tea'));
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Pot of Tea') and lower(p.name) = lower('Crisps');
-delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Hot Chocolate'));
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Hot Chocolate') and lower(p.name) = lower('Crisps');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Gilda (each)'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Gilda (each)') and lower(p.name) = lower('Gilda');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Gilda (6 for £10)'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
+  select m.id, p.id, 6 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Gilda (6 for £10)') and lower(p.name) = lower('Gilda');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Crisps'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
@@ -601,7 +584,7 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   where lower(m.name) = lower('Nuts') and lower(p.name) = lower('Nuts');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Olives'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
+  select m.id, p.id, 0.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Olives') and lower(p.name) = lower('Olives');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Espresso Martini'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
@@ -657,11 +640,11 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 10.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Agave syrup');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 2 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Grapefruit');
+  select m.id, p.id, 0.01 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Eager Grapefruit');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Pink Ting');
+  select m.id, p.id, 0.15 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Ting');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Whiskey Sour'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 50.0 from bar_menu_items m, bar_products p
