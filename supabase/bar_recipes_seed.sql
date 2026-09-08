@@ -6,11 +6,11 @@ begin;
 -- Three MADE prep products (the mechanism bar_prep_recipes exists for):
 -- their cost derives from what goes into a batch, never typed.
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
-  ('Fresh lime juice', 'ingredient', 'prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
+  ('Fresh lime juice', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
-  ('Fresh lemon juice', 'ingredient', 'prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
+  ('Fresh lemon juice', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
-  ('Sugar syrup 1:1', 'ingredient', 'prep', 'made', 'ml', 'batch', 750, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
+  ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 750, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 -- batch definitions: ~30ml juice per lime, ~35ml per lemon, 500g sugar -> 750ml syrup
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
   select p.id, i.id, 1, 30 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'
@@ -657,14 +657,11 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 10.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Agave syrup');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
+  select m.id, p.id, 2 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Grapefruit');
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Pink Ting');
-insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
-  select m.id, p.id, 1 from bar_menu_items m, bar_products p
-  where lower(m.name) = lower('Paloma') and lower(p.name) = lower('Grapefruit');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Whiskey Sour'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 50.0 from bar_menu_items m, bar_products p

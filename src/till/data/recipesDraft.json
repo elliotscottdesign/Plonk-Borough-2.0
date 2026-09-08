@@ -1832,16 +1832,11 @@
     },
     {
      "product": "Grapefruit",
-     "qty": 1,
-     "disp": "1 × unit"
+     "qty": 2,
+     "disp": "2 × unit"
     },
     {
      "product": "Pink Ting",
-     "qty": 1,
-     "disp": "1 × unit"
-    },
-    {
-     "product": "Grapefruit",
      "qty": 1,
      "disp": "1 × unit"
     }
