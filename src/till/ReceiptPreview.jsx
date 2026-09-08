@@ -6,10 +6,11 @@ import React, { useEffect, useRef, useState } from 'react'
 //   • BAR SEND TICKET  — what SEND fires to the bar printer: big, no prices
 // The printer renders the QR itself (ePOS addSymbol) from a URL string, and the
 // logo goes down as a 1-bit raster — so what prints is exactly this, sharper.
-// The QR points at REVIEW_URL below; swap in the Google review link (or stand
-// up nodice.bar/review as a redirect we control, so old receipts never die).
+// The QR opens Google's write-a-review sheet for the venue directly (founder
+// chose the direct link, 9 Sep 2026). Place ID pulled from the live No Dice
+// listing (407 Mentmore Terrace, E8 3PH) and verified to resolve back to it.
 
-export const REVIEW_URL = 'https://nodice.bar/review'
+export const REVIEW_URL = 'https://search.google.com/local/writereview?placeid=ChIJ2YUuF90ddkgR4tSpN2B8JmA'
 
 const PAPER = {
   width: 300, background: '#fff', color: '#111', borderRadius: 4,
@@ -127,9 +128,10 @@ export default function ReceiptPreview() {
         <div style={{ color: 'var(--gold)', fontWeight: 700 }}>How this prints</div>
         <div>These are drawn at real 80mm till-roll proportions. The venue's Epson printers render the logo as crisp 1-bit black and draw the QR code themselves — no ink, no colour, so what you see here is the design, and the paper version is sharper.</div>
         <div>The SEND ticket is what fires to the bar printer when staff hit SEND — big type, no prices, built to be read at arm's length over a busy bar.</div>
-        <div style={{ color: 'var(--gold)', fontWeight: 700 }}>Two things needed to finish</div>
-        <div>① The review QR currently points at <b>nodice.bar/review</b> — send me the Google review link (or we make that address redirect to it, which means receipts never go stale if the link changes).</div>
-        <div>② The VAT line shows the maths but not a VAT registration number yet — send it over when you have it and it goes under the address.</div>
+        <div style={{ color: 'var(--gold)', fontWeight: 700 }}>Review QR — live</div>
+        <div>Scanning opens Google's write-a-review box for No Dice directly (the venue's real listing — 5.0★ from 10 reviews as of Sep 2026). Try it with your phone camera on this screen.</div>
+        <div style={{ color: 'var(--gold)', fontWeight: 700 }}>One thing needed to finish</div>
+        <div>The VAT line shows the maths but not a VAT registration number yet — send it over when you have it and it goes under the address.</div>
       </div>
     </div>
   )
