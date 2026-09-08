@@ -109,10 +109,11 @@ export default function Reservations() {
       // Fire the three source queries in parallel — one bad table shouldn't
       // block the good ones (Promise.allSettled), then normalise into one list.
       const [barRes, tournRes, golfRes, arrRes] = await Promise.allSettled([
-        // confirmed + pending: pending rows are pencilled-in enquiries the
-        // founder adds from /admin (plus not-yet-confirmed web bookings) —
-        // shown amber so staff know they're not locked in.
-        pgGet(`bar_reservations?select=id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes,status,heard_from&status=in.(confirmed,pending)&reservation_date=gte.${from}&reservation_date=lte.${to}&order=reservation_date,start_time`),
+        // confirmed + paid + pending: 'paid' is a Stripe-charged web booking
+        // (as confirmed as it gets — founder rule 2026-09-08); pending rows
+        // are pencilled-in enquiries / unfinished checkouts, shown amber so
+        // staff know they're not locked in.
+        pgGet(`bar_reservations?select=id,kind,reservation_date,start_time,duration_minutes,party_size,resource_count,name,email,phone,notes,status,heard_from&status=in.(confirmed,paid,pending)&reservation_date=gte.${from}&reservation_date=lte.${to}&order=reservation_date,start_time`),
         // tournament_entries joined to tournaments for event date/name. Filter
         // the join column via PostgREST's foreign-table syntax.
         pgGet(`tournament_entries?select=id,tournament_id,team_name,captain_name,captain_email,captain_phone,notes,status,tournaments!inner(name,event_date,start_time,tournament_type)&status=eq.paid&tournaments.event_date=gte.${from}&tournaments.event_date=lte.${to}&order=paid_at`),
