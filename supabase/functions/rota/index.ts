@@ -529,6 +529,91 @@ Deno.serve(async (req) => {
     // Reads the DJ lane's dj_slots + djs tables (read-only; nothing is written).
     // 8am-anchored operating day, so at 00:30 it still shows tonight's DJ.
     // Only booked slots are returned — an 'open' slot has no DJ to call.
+    // ── 4am sweep: bar & venue checklists left unfinished ────────────────────
+    // Founder, 9 Sep 2026: "bar and venue checklists - make them as unfinished at
+    // 4am", flagged to Elliot and Rhys with the date, the checklist and who started
+    // it. 22 rows were sitting half-done when this was written, the oldest nine days
+    // old — nothing was ever going to catch them.
+    //
+    // WHY 4am is the right hour and not 8am: the operating day rolls at 8am, so a
+    // closing checklist finished at 02:30 is still filed under LAST night. Sweeping
+    // at 4am catches the night that has just ended, an hour or two after close,
+    // while never touching a checklist someone is still legitimately working on.
+    //
+    // Idempotent: only rows with flagged_at IS NULL are touched, so an hourly cron,
+    // a retry or an overlapping run can never double-flag or double-email.
+    // Kitchen has its own sweep (kitchen fn) against kitchen_checklist_runs.
+    if (action === "checklistSweep") {
+      const cronOk = !!Deno.env.get("CRON_SECRET") && b.cronSecret === Deno.env.get("CRON_SECRET");
+      if (!cronOk && !isAdmin()) return json({ error: "unauthorized" }, 401);
+
+      // The cron runs hourly; only the 4am London pass does the work, so British
+      // Summer Time can't shift it an hour. `force` lets the founder run it by hand.
+      const hour = londonHour();
+      if (hour !== 4 && b.force !== true) return json({ ok: true, skipped: `not 4am (London hour ${hour})` });
+
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+
+      // NEVER flag the operating day that is still running. At 4am shiftDayISO()
+      // is already the night that just ended, so the normal path is safe — but a
+      // manual run with an explicit date could otherwise mark a checklist someone
+      // is halfway through. (I did exactly that while testing this, on Elliot's
+      // own live opening list, and had to undo it.)
+      if (date >= shiftDayISO()) {
+        return json({ ok: true, date, flagged: 0, skipped: "that operating day is still running" });
+      }
+
+      const { data: open } = await sb.from("checklist_submissions")
+        .select("id,date,checklist_key,staff_id,items,note")
+        .eq("date", date).eq("submitted", false).is("flagged_at", null);
+      if (!open || !open.length) return json({ ok: true, date, flagged: 0 });
+
+      const ids = [...new Set(open.map((r: any) => r.staff_id).filter(Boolean))];
+      const { data: people } = ids.length ? await sb.from("staff").select("id,name").in("id", ids) : { data: [] };
+      const nameOf: Record<string, string> = {};
+      for (const p of people || []) nameOf[p.id] = p.name;
+
+      const now = new Date().toISOString();
+      await sb.from("checklist_submissions")
+        .update({ unfinished: true, flagged_at: now })
+        .in("id", open.map((r: any) => r.id));
+
+      // To the founder AND every active manager — whoever opens the venue next
+      // needs to know what was left, not just Elliot.
+      const { data: mgrs } = await sb.from("staff")
+        .select("email,role,active").in("role", ["Manager", "Asst. Manager"]);
+      const to = [...new Set([ADMIN_EMAIL, ...(mgrs || [])
+        .filter((m: any) => m.active !== false && m.email)
+        .map((m: any) => String(m.email).trim())])].filter(Boolean);
+
+      const rows = open.map((r: any) => {
+        const total = Object.keys(r.items || {}).length;
+        const done = Object.values(r.items || {}).filter(Boolean).length;
+        return `<tr>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#fff">${esc(r.checklist_key)}</td>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#ccc">${esc(nameOf[r.staff_id] || "Unknown")}</td>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#999;text-align:right">${done}/${total} ticked</td>
+        </tr>`;
+      }).join("");
+
+      if (RESEND && to.length && b.quiet !== true) {
+        for (const addr of to) {
+          await sendMail(addr, `⚠️ ${open.length} checklist${open.length === 1 ? "" : "s"} left unfinished — ${date}`,
+            emailShell("Checklists left unfinished",
+              `<p style="color:#ccc;line-height:1.6">These were started on <strong style="color:#fff">${esc(date)}</strong> but never submitted, and have been marked <strong style="color:#DA1B33">unfinished</strong>.</p>
+               <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px">
+                 <tr style="color:#777;font-size:11px;text-transform:uppercase;letter-spacing:.06em">
+                   <th style="text-align:left;padding:0 10px 4px">Checklist</th>
+                   <th style="text-align:left;padding:0 10px 4px">Started by</th>
+                   <th style="text-align:right;padding:0 10px 4px">Progress</th>
+                 </tr>${rows}
+               </table>`,
+              { href: `${OPS_URL}?tab=rota`, label: "Open the checklist log" }));
+        }
+      }
+      return json({ ok: true, date, flagged: open.length, emailed: b.quiet === true ? [] : to });
+    }
+
     if (action === "djToday") {
       if (!isAdmin()) {
         const me = await staffByToken(sb, b.token);
