@@ -48,6 +48,10 @@ export const tillVoucherLookup = (code) => call({ action: 'voucherLookup', code 
 export const tillVoucherRedeem = (code, by) => call({ action: 'voucherRedeem', code, by })
 export const tillVoucherUnredeem = (code) => call({ action: 'voucherUnredeem', code })
 
+// 👤 Staff sign-in — names from the rota's staff table; events into till_events
+export const tillStaffList = () => call({ action: 'staffList' })
+export const tillStaffEvent = (kind, name, extra = {}) => call({ action: 'staffEvent', kind, name, ...extra })
+
 // 💳 Square Terminal — card payments (sandbox first, production by secret swap)
 export const tillSqStatus = () => call({ action: 'sqStatus' })
 export const tillSqPairCode = () => call({ action: 'sqPairCode' })
