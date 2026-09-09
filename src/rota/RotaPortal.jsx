@@ -562,6 +562,27 @@ export default function RotaPortal() {
                         <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
                         <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>
                       </div>)}
+                  {/* 👥 Who's on this day — everyone across the day's shifts, you first.
+                      Helps spot who could cover you or take a swap. */}
+                  {(() => {
+                    const onDay = []
+                    for (const sh of rows) for (const w of (sh.who || [])) onDay.push({ ...w, t: `${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}` })
+                    if (onDay.length === 0) return <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No one is rostered on this day yet.</div>
+                    onDay.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0) || a.name.localeCompare(b.name))
+                    const icon = (r) => r === 'Manager' || r === 'Asst. Manager' ? '👔' : r === 'Kitchen / Barback' ? '🍳' : '🍺'
+                    return (
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px' }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>👥 Working this day</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {onDay.map((w, i) => (
+                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, fontSize: 11.5, background: w.me ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${w.me ? GREEN : 'rgba(255,255,255,0.15)'}`, color: w.me ? '#fff' : 'rgba(255,255,255,0.8)' }}>
+                              {icon(w.role)} <strong style={{ color: '#fff' }}>{w.me ? 'You' : w.name}</strong> <span style={{ color: 'rgba(255,255,255,0.5)' }}>{w.t}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need

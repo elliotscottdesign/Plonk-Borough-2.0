@@ -658,6 +658,13 @@ Deno.serve(async (req) => {
           : { data: [] };
         const filled: Record<string, number> = {}; const mine = new Set<string>(); const mineAdmin = new Set<string>();
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
+        // Who's on each shift (first name + role) — so the portal's day panel can
+        // show "you're working with…" and help people find cover / swaps.
+        const claimStaffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
+        const { data: mates } = claimStaffIds.length ? await sb.from("staff").select("id,name,role").in("id", claimStaffIds) : { data: [] };
+        const mateBy: Record<string, any> = {}; for (const x of mates || []) mateBy[x.id] = x;
+        const whoBy: Record<string, any[]> = {};
+        for (const c of claims || []) { const p2 = mateBy[c.staff_id]; if (p2) (whoBy[c.shift_id] ||= []).push({ name: (p2.name || "?").split(" ")[0], role: p2.role || "", me: c.staff_id === me.id }); }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
         // Dates already FULL for this member's own team (bar: 2 off max · kitchen: 1 ·
@@ -695,7 +702,7 @@ Deno.serve(async (req) => {
           mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
         return json({
           ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2], swaps,
-          shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
+          shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id), who: whoBy[s.id] || [] })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
