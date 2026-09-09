@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer, markPaidAtBar } from './foodOrders.js'
+import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer, markPaidAtBar, tipLedger } from './foodOrders.js'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -12,6 +12,7 @@ const HEAVY = "Impact, 'Arial Narrow Bold', sans-serif"
 const FLAG_MS = 12 * 60 * 1000    // flag any order still open past 12 minutes
 const mmss = ms => { const s = Math.max(0, Math.floor(ms / 1000)); return `${String(Math.floor(s / 60)).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}` }
 const sameDay = (a, b) => a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate()
+const fmtNight = iso => { const [y, m, d] = String(iso).split('-').map(Number); return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) }
 
 export default function KitchenTickets() {
   const [orders, setOrders] = useState(null)
@@ -23,6 +24,8 @@ export default function KitchenTickets() {
   const [history, setHistory] = useState(null)
   const [pause, setPause] = useState(null)
   const [stats, setStats] = useState({ avgSec: null, count: 0, tipsPence: 0 })
+  const [ledger, setLedger] = useState(null)   // running tip total, banked by night
+  const [showLedger, setShowLedger] = useState(false)
   const [flash, setFlash] = useState(0)   // bumps on a new order → full-screen white flash
   const [, tick] = useState(0)
   const seen = useRef(new Set())
@@ -81,10 +84,11 @@ export default function KitchenTickets() {
       setStats({ avgSec, count: done.length, tipsPence })
     } catch { /* ignore */ }
   }
+  const loadLedger = async () => { try { setLedger(await tipLedger()) } catch { /* ignore */ } }
   useEffect(() => {
-    load(); loadPause(); loadStats()
+    load(); loadPause(); loadStats(); loadLedger()
     const poll = setInterval(() => { load(); loadPause() }, 10000)
-    const statsPoll = setInterval(loadStats, 30000)
+    const statsPoll = setInterval(() => { loadStats(); loadLedger() }, 30000)
     const clock = setInterval(() => tick(t => t + 1), 1000)
     const unlock = () => ensureAudio()   // first tap/key unlocks the ding
     window.addEventListener('pointerdown', unlock)
@@ -128,10 +132,13 @@ export default function KitchenTickets() {
           <div style={{ fontFamily: HEAVY, fontSize: 36, color: avgColor, lineHeight: 1.05 }}>{stats.avgSec == null ? '—' : mmss(stats.avgSec * 1000)}</div>
           <div style={{ fontSize: 11.5, color: MUTED }}>{stats.count ? `${stats.count} order${stats.count > 1 ? 's' : ''} served · target under 12:00` : 'no orders served yet'}</div>
         </div>
-        <div style={{ flex: '1 1 150px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
-          <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💛 Tips tonight · kitchen</div>
-          <div style={{ fontFamily: HEAVY, fontSize: 36, color: GREEN, lineHeight: 1.05 }}>£{(stats.tipsPence / 100).toFixed(2)}</div>
-          <div style={{ fontSize: 11.5, color: MUTED }}>100% to the kitchen team</div>
+        <div style={{ flex: '1 1 190px', background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 14px' }}>
+          <div style={{ fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💛 Tips · On A Roll kitchen</div>
+          <div style={{ fontFamily: HEAVY, fontSize: 36, color: GREEN, lineHeight: 1.05 }}>£{((((ledger && ledger.tonight_pence) ?? stats.tipsPence) || 0) / 100).toFixed(2)}<span style={{ fontSize: 13, color: MUTED, fontWeight: 400, fontFamily: 'inherit' }}> tonight</span></div>
+          <div style={{ fontSize: 11.5, color: MUTED }}>
+            Banked all-time <b style={{ color: '#fff' }}>£{(((ledger && ledger.total_pence) || 0) / 100).toFixed(2)}</b>{ledger && ledger.night_count ? ` · ${ledger.night_count} night${ledger.night_count > 1 ? 's' : ''}` : ''} · 100% to the kitchen
+            {ledger && ledger.nights && ledger.nights.length > 0 && <> · <button onClick={() => setShowLedger(v => !v)} style={{ background: 'none', border: 'none', color: AMBER, cursor: 'pointer', fontSize: 11.5, fontWeight: 800, padding: 0 }}>{showLedger ? 'hide' : 'by night ▾'}</button></>}
+          </div>
         </div>
         {flagged.length > 0 && (
           <div style={{ flex: '1 1 190px', background: RED, borderRadius: 12, padding: '10px 14px', color: '#fff', display: 'flex', flexDirection: 'column', justifyContent: 'center', animation: 'oarflash 1.2s infinite' }}>
@@ -140,6 +147,25 @@ export default function KitchenTickets() {
           </div>
         )}
       </div>
+      {showLedger && ledger && Array.isArray(ledger.nights) && (
+        <div style={{ background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 12, padding: '12px 14px', marginBottom: 12 }}>
+          <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+            <div style={{ fontSize: 12, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.5px' }}>💛 Tips by night · On A Roll kitchen</div>
+            <div style={{ fontSize: 12.5, color: MUTED }}>All-time <b style={{ color: GREEN }}>£{((ledger.total_pence || 0) / 100).toFixed(2)}</b></div>
+          </div>
+          {ledger.nights.length === 0 ? <div style={{ fontSize: 13, color: MUTED, padding: '8px 0' }}>No tips banked yet.</div> : (
+            <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+              {ledger.nights.map(n => (
+                <div key={n.date} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 0', borderBottom: `1px solid ${LINE}` }}>
+                  <span style={{ flex: 1, fontSize: 13.5, color: '#fff', fontWeight: 700 }}>{fmtNight(n.date)}</span>
+                  <span style={{ fontSize: 12, color: MUTED }}>{n.orders} order{n.orders !== 1 ? 's' : ''}</span>
+                  <span style={{ fontFamily: HEAVY, fontSize: 19, color: GREEN, minWidth: 68, textAlign: 'right' }}>£{((n.pence || 0) / 100).toFixed(2)}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
         {[['live', `🎫 Live${active.length ? ` · ${active.length}` : ''}`], ['history', '📋 History'], ...(failed.length ? [['failed', `❌ Card failed · ${failed.length}`]] : [])].map(([k, l]) => (
           <button key={k} onClick={() => k === 'history' ? openHistory() : setView(k)}

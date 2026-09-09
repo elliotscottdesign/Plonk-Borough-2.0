@@ -191,6 +191,27 @@ Deno.serve(async (req) => {
       return json({ ok: true, orders: data || [] });
     }
 
+    // ── Tip ledger: running total of On A Roll card tips, banked by service night ─
+    // Every paid order carries tip_pence (100% to the kitchen). We group by the
+    // London calendar date (the truck closes at 10pm, so a night = one date), so
+    // the total accumulates night after night and never resets.
+    if (action === "tipLedger") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data, error } = await sb.from("food_orders").select("created_at, tip_pence").eq("paid", true).gt("tip_pence", 0);
+      if (error) return json({ error: error.message }, 400);
+      const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" });
+      const byDate: Record<string, { pence: number; orders: number }> = {};
+      let total = 0;
+      for (const o of (data || [])) {
+        const d = fmt.format(new Date(o.created_at));
+        (byDate[d] ||= { pence: 0, orders: 0 });
+        byDate[d].pence += o.tip_pence || 0; byDate[d].orders += 1; total += o.tip_pence || 0;
+      }
+      const today = fmt.format(new Date());
+      const nights = Object.entries(byDate).map(([date, v]) => ({ date, pence: v.pence, orders: v.orders })).sort((a, b) => a.date < b.date ? 1 : -1);
+      return json({ ok: true, total_pence: total, night_count: nights.length, tonight_pence: byDate[today]?.pence || 0, tonight_orders: byDate[today]?.orders || 0, nights: nights.slice(0, 90) });
+    }
+
     // ── Customer texts: resend "ready", "order received", or a custom reply ─────
     if (action === "resendReady") {   // kitchen — re-send the "food ready" message (SMS or email)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);

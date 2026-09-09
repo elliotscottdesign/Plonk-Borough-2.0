@@ -17,6 +17,7 @@ async function call(payload) {
 // Kitchen display (staff on the /ops Kitchen tab)
 export const listOrders = () => call({ action: 'listOrders', secret: SEND_SECRET })
 export const listHistory = () => call({ action: 'listHistory', secret: SEND_SECRET })
+export const tipLedger = () => call({ action: 'tipLedger', secret: SEND_SECRET })   // running tip total, banked by night
 
 // Pause / auto-pause / waitlist
 export const getStatus = () => call({ action: 'getStatus' })                       // public
