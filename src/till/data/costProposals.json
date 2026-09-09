@@ -137,6 +137,15 @@
    "ref": "Cazcabel Reposado 700ml (SPT7CAZRE)"
   },
   {
+   "stock": "Celery",
+   "pack_cost": 1.28,
+   "pack_label": "per each (×1)",
+   "supplier": "Valimex",
+   "source": "supplier invoice — inv 1475183 (28/08/26) — @ £1.28 ea",
+   "confident": true,
+   "ref": "inv 1475183 (28/08/26) — @ £1.28 ea"
+  },
+  {
    "stock": "Chin Chin Vinho Verde",
    "pack_cost": 9.0,
    "pack_label": "per bottle (750ml)",
@@ -306,6 +315,24 @@
    "source": "supplier invoice — inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea",
    "confident": true,
    "ref": "inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea"
+  },
+  {
+   "stock": "Green Chartreuse",
+   "pack_cost": 40.81,
+   "pack_label": "per bottle",
+   "supplier": "supplier portal",
+   "source": "supplier invoice — founder screenshot 9 Sep 2026 — 700ml @ £40.81 ex-VAT",
+   "confident": true,
+   "ref": "founder screenshot 9 Sep 2026 — 700ml @ £40.81 ex-VAT"
+  },
+  {
+   "stock": "Guilty Pleasure (can)",
+   "pack_cost": 39.36,
+   "pack_label": "per case (×24)",
+   "supplier": "Fine Cider Co",
+   "source": "supplier invoice — INV-33054 (16 Jul 2026) — 330ml can @ £1.64 ex-VAT",
+   "confident": true,
+   "ref": "INV-33054 (16 Jul 2026) — 330ml can @ £1.64 ex-VAT"
   },
   {
    "stock": "Hanbury London Dry (house)",
@@ -533,6 +560,24 @@
    "ref": "INV-34131 (22 Aug 2026) — Gold Rush #11 330ml @ £1.94/btl ex-VAT"
   },
   {
+   "stock": "Oliver's Fine Perry (bottle)",
+   "pack_cost": 47.52,
+   "pack_label": "per case (×24)",
+   "supplier": "Fine Cider Co",
+   "source": "supplier invoice — INV-33054 (16 Jul 2026) — 330ml @ £1.98 ex-VAT",
+   "confident": true,
+   "ref": "INV-33054 (16 Jul 2026) — 330ml @ £1.98 ex-VAT"
+  },
+  {
+   "stock": "Pago Tomato Juice (200ml)",
+   "pack_cost": 11.28,
+   "pack_label": "per case (×12)",
+   "supplier": "supplier portal",
+   "source": "supplier invoice — founder screenshot 9 Sep 2026 — case of 12 @ £11.28 ex-VAT",
+   "confident": true,
+   "ref": "founder screenshot 9 Sep 2026 — case of 12 @ £11.28 ex-VAT"
+  },
+  {
    "stock": "Passion Fruit Liqueur",
    "pack_cost": 9.45,
    "pack_label": "per bottle (700ml)",
@@ -569,6 +614,15 @@
    "ref": "INV-11750 (16 Jun 2026) — Aramon @ £10.75/btl ex-VAT"
   },
   {
+   "stock": "Soy sauce",
+   "pack_cost": 4.54,
+   "pack_label": "per bottle",
+   "supplier": "Amazon UK",
+   "source": "supplier invoice — Kikkoman 1L @ £5.45 inc VAT = £4.54 ex (founder-sanctioned, 9 Sep 2026)",
+   "confident": true,
+   "ref": "Kikkoman 1L @ £5.45 inc VAT = £4.54 ex (founder-sanctioned, 9 Sep 2026)"
+  },
+  {
    "stock": "St Germain",
    "pack_cost": 24.8,
    "pack_label": "per bottle (700ml)",
@@ -576,6 +630,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "St Germain 700ml (LI7STG)"
+  },
+  {
+   "stock": "Tabasco",
+   "pack_cost": 2.07,
+   "pack_label": "per bottle",
+   "supplier": "Amazon UK",
+   "source": "supplier invoice — 57ml @ £2.48 inc VAT = £2.07 ex (founder-sanctioned, 9 Sep 2026)",
+   "confident": true,
+   "ref": "57ml @ £2.48 inc VAT = £2.07 ex (founder-sanctioned, 9 Sep 2026)"
   },
   {
    "stock": "Ting",
@@ -632,6 +695,15 @@
    "ref": "invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT"
   },
   {
+   "stock": "Valentina Hot Sauce",
+   "pack_cost": 1.79,
+   "pack_label": "per bottle",
+   "supplier": "Amazon UK",
+   "source": "supplier invoice — 370ml @ £2.15 inc VAT = £1.79 ex (founder-sanctioned, 9 Sep 2026)",
+   "confident": true,
+   "ref": "370ml @ £2.15 inc VAT = £1.79 ex (founder-sanctioned, 9 Sep 2026)"
+  },
+  {
    "stock": "Velho Barreiro Cachaça",
    "pack_cost": 16.43,
    "pack_label": "per bottle (700ml)",
@@ -657,6 +729,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Brakes MELONS WATER 20kg @ £31.54 (code 7315) → ~£3.15/L at ~50% juice yield"
+  },
+  {
+   "stock": "Worcestershire sauce",
+   "pack_cost": 5.38,
+   "pack_label": "per bottle",
+   "supplier": "Amazon UK",
+   "source": "supplier invoice — L&P 568ml @ £5.38 ex-VAT (founder-sanctioned Amazon pricing, 9 Sep 2026)",
+   "confident": true,
+   "ref": "L&P 568ml @ £5.38 ex-VAT (founder-sanctioned Amazon pricing, 9 Sep 2026)"
   },
   {
    "stock": "Wray & Nephew Overproof",

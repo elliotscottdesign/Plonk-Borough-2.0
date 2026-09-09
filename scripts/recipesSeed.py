@@ -85,6 +85,8 @@ def main():
     OVERRIDES = {  # (recipe name, ingredient substring) -> (product, qty base units, note)
         ("Spicy Cucumber Margarita", "cucumber"): ("Cucumber", 0.13, "1 inch ≈ ⅛ cucumber (founder, 9 Sep 2026)"),
         ("Bloody Mary", "lemon juice"): ("Fresh lemon juice", 25, "25ml (founder, 9 Sep 2026 — sheet said 20)"),
+        ("Bloody Mary", "big tom"): ("Pago Tomato Juice (200ml)", 0.38, "75ml = 0.38 × 200ml Pago carton (Big Tom alternative, founder 9 Sep 2026)"),
+        ("Bloody Mary", "celery"): ("Celery", 0.13, "1 stick ≈ ⅛ head"),
     }
     # Lines the costing sheet is missing outright (founder-stated).
     ADDITIONS = {  # recipe name -> [(product, qty base units, note)]

@@ -845,6 +845,11 @@
      "disp": "35ml"
     },
     {
+     "product": "Green Chartreuse",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
      "product": "Fresh lemon juice",
      "qty": 25.0,
      "disp": "25ml"
@@ -858,10 +863,8 @@
    "omitted": [
     "Lemon twist"
    ],
-   "missing": [
-    "Green Chartreuse"
-   ],
-   "ready": false
+   "missing": [],
+   "ready": true
   },
   {
    "name": "Spicy Cucumber Margarita",
@@ -1993,21 +1996,36 @@
      "disp": "50ml"
     },
     {
+     "product": "Pago Tomato Juice (200ml)",
+     "qty": 0.38,
+     "disp": "75ml = 0.38 × 200ml Pago carton (Big Tom alternative, founder 9 Sep 2026)"
+    },
+    {
      "product": "Fresh lemon juice",
      "qty": 25,
      "disp": "25ml (founder, 9 Sep 2026 — sheet said 20)"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Tabasco",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Celery",
+     "qty": 0.13,
+     "disp": "1 stick ≈ ⅛ head"
     }
    ],
    "omitted": [
     "Salt rim"
    ],
-   "missing": [
-    "Big Tom Spiced Tomato",
-    "Worcestershire sauce",
-    "Tabasco hot sauce",
-    "Celery stick"
-   ],
-   "ready": false
+   "missing": [],
+   "ready": true
   },
   {
    "name": "Fields",
@@ -2153,6 +2171,16 @@
      "disp": "25ml"
     },
     {
+     "product": "Valentina Hot Sauce",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
      "product": "Camden Hells",
      "qty": 200.0,
      "disp": "200ml"
@@ -2162,11 +2190,8 @@
     "Tajín rim",
     "Lime slice"
    ],
-   "missing": [
-    "Valentina Hot Sauce",
-    "Worcestershire sauce"
-   ],
-   "ready": false
+   "missing": [],
+   "ready": true
   },
   {
    "name": "Old Fashioned",
@@ -2280,15 +2305,27 @@
      "product": "Fresh lime juice",
      "qty": 15.0,
      "disp": "15ml"
+    },
+    {
+     "product": "Tabasco",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 1.0,
+     "disp": "1ml"
+    },
+    {
+     "product": "Soy sauce",
+     "qty": 1.0,
+     "disp": "1ml"
     }
    ],
    "omitted": [
     "Tajín rim"
    ],
    "missing": [
-    "Tabasco hot sauce",
-    "Worcestershire sauce",
-    "Soy sauce",
     "Sol Mexican Lager 330ml"
    ],
    "ready": false

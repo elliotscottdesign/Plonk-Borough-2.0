@@ -127,6 +127,8 @@ insert into bar_menu_items (name, category, sell_price) values ('Lentsch Grüner
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Lentsch Grüner Veltliner — Bottle', 'wine', 40.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
+insert into bar_menu_items (name, category, sell_price) values ('Green Smoke', 'cocktail', 12.0)
+  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Spicy Cucumber Margarita', 'cocktail', 11.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Mezcal Martinez', 'cocktail', 12.0)
@@ -203,11 +205,15 @@ insert into bar_menu_items (name, category, sell_price) values ('Negroni', 'cock
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Classic / Dirty Martini', 'cocktail', 11.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
+insert into bar_menu_items (name, category, sell_price) values ('Bloody Mary', 'cocktail', 11.0)
+  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Cola Soda / Spritzer', 'cocktail', 11.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Mango Mojito', 'cocktail', 11.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Classic Mojito', 'cocktail', 11.0)
+  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
+insert into bar_menu_items (name, category, sell_price) values ('Michelada (Full)', 'cocktail', 10.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Old Fashioned', 'cocktail', 11.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
@@ -411,6 +417,19 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 750.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Lentsch Grüner Veltliner — Bottle') and lower(p.name) = lower('Lentsch Grüner Veltliner');
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Green Smoke'));
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 35.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Green Smoke') and lower(p.name) = lower('Vida Mezcal');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 25.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Green Smoke') and lower(p.name) = lower('Green Chartreuse');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 25.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Green Smoke') and lower(p.name) = lower('Fresh lemon juice');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 1.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Green Smoke') and lower(p.name) = lower('Ms Better''s Foamer');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Spicy Cucumber Margarita'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 50.0 from bar_menu_items m, bar_products p
@@ -713,6 +732,25 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 10.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Classic / Dirty Martini') and lower(p.name) = lower('Martini Dry');
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Bloody Mary'));
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 50.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Absolut Blue');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 0.38 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Pago Tomato Juice (200ml)');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 25 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Fresh lemon juice');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 2.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Worcestershire sauce');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 2.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Tabasco');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 0.13 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Bloody Mary') and lower(p.name) = lower('Celery');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Cola Soda / Spritzer'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 15.0 from bar_menu_items m, bar_products p
@@ -752,6 +790,22 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 7.0 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Classic Mojito') and lower(p.name) = lower('Mint');
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Michelada (Full)'));
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 25.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Michelada (Full)') and lower(p.name) = lower('Cazcabel Blanco');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 25.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Michelada (Full)') and lower(p.name) = lower('Fresh lime juice');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 12.5 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Michelada (Full)') and lower(p.name) = lower('Valentina Hot Sauce');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 12.5 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Michelada (Full)') and lower(p.name) = lower('Worcestershire sauce');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 200.0 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Michelada (Full)') and lower(p.name) = lower('Camden Hells');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Old Fashioned'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 50.0 from bar_menu_items m, bar_products p

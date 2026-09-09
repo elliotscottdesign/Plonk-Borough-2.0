@@ -150,6 +150,15 @@ EXTRA_INVOICED = [
     ("Doom Juice Rouge", 11.90, "Top Cuvée", "INV-11750 (16 Jun 2026) — Shiraz @ £11.90/btl ex-VAT"),
     ("Top Cuvée House Orange", 10.35, "Top Cuvée", "INV-11750 (16 Jun 2026) — @ £10.35/btl ex-VAT"),
     ("Rouge Petard", 10.75, "Top Cuvée", "INV-11750 (16 Jun 2026) — Aramon @ £10.75/btl ex-VAT"),
+    ("Worcestershire sauce", 5.38, "Amazon UK", "L&P 568ml @ £5.38 ex-VAT (founder-sanctioned Amazon pricing, 9 Sep 2026)"),
+    ("Tabasco", 2.07, "Amazon UK", "57ml @ £2.48 inc VAT = £2.07 ex (founder-sanctioned, 9 Sep 2026)"),
+    ("Valentina Hot Sauce", 1.79, "Amazon UK", "370ml @ £2.15 inc VAT = £1.79 ex (founder-sanctioned, 9 Sep 2026)"),
+    ("Soy sauce", 4.54, "Amazon UK", "Kikkoman 1L @ £5.45 inc VAT = £4.54 ex (founder-sanctioned, 9 Sep 2026)"),
+    ("Green Chartreuse", 40.81, "supplier portal", "founder screenshot 9 Sep 2026 — 700ml @ £40.81 ex-VAT"),
+    ("Pago Tomato Juice (200ml)", 0.94, "supplier portal", "founder screenshot 9 Sep 2026 — case of 12 @ £11.28 ex-VAT"),
+    ("Celery", 1.28, "Valimex", "inv 1475183 (28/08/26) — @ £1.28 ea"),
+    ("Guilty Pleasure (can)", 1.64, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml can @ £1.64 ex-VAT"),
+    ("Oliver's Fine Perry (bottle)", 1.98, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml @ £1.98 ex-VAT"),
     ("Cueva Nueva Vermut (500ml)", 12.29, "Good Wine Good People", "GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)"),
 ]
 
