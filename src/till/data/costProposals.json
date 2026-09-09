@@ -641,6 +641,15 @@
    "ref": "St Germain 700ml (LI7STG)"
   },
   {
+   "stock": "Sugar (for house syrup)",
+   "pack_cost": 12.98,
+   "pack_label": "per drum",
+   "supplier": "Amazon",
+   "source": "supplier invoice — Tate & Lyle caster 3kg drum @ £12.98 (zero-VAT food) — founder screenshot 10 Sep 2026",
+   "confident": true,
+   "ref": "Tate & Lyle caster 3kg drum @ £12.98 (zero-VAT food) — founder screenshot 10 Sep 2026"
+  },
+  {
    "stock": "Tabasco",
    "pack_cost": 2.07,
    "pack_label": "per bottle",
@@ -998,7 +1007,7 @@
   {
    "stock": "Funkin Passion Fruit purée",
    "pack_cost": 47.7,
-   "pack_label": "per pouch (1000ml)",
+   "pack_label": "per pouch (1000g)",
    "supplier": "previous supplier",
    "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
    "confident": false,
@@ -1333,15 +1342,6 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Gilda (per skewer)"
-  },
-  {
-   "stock": "Sugar (for house syrup)",
-   "pack_cost": 1.1,
-   "pack_label": "per bag (1kg)",
-   "supplier": "supermarket",
-   "source": "ballpark — supermarket granulated ~£1.10/kg; replace with a real bill",
-   "confident": false,
-   "ref": "founder asked to work syrup cost out, 9 Sep 2026"
   }
  ]
 }

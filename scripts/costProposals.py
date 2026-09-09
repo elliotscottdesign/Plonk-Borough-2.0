@@ -159,6 +159,7 @@ EXTRA_INVOICED = [
     ("Celery", 1.28, "Valimex", "inv 1475183 (28/08/26) — @ £1.28 ea"),
     ("Guilty Pleasure (can)", 1.64, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml can @ £1.64 ex-VAT"),
     ("Oliver's Fine Perry (bottle)", 1.98, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml @ £1.98 ex-VAT"),
+    ("Sugar (for house syrup)", 12.98, "Amazon", "Tate & Lyle caster 3kg drum @ £12.98 (zero-VAT food) — founder screenshot 10 Sep 2026"),
     ("Wyborowa Vodka", 15.77, "supplier portal", "founder screenshot 10 Sep 2026 — Wyborowa Blue 700ml @ £15.77 ex-VAT"),
     ("Mint", 0.00, "the garden", "picked from the garden — costs nothing (founder, 10 Sep 2026)"),
     ("Cueva Nueva Vermut (500ml)", 12.29, "Good Wine Good People", "GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)"),
@@ -300,7 +301,7 @@ def main():
         if target["base_unit"] == "each":
             pack_label = f"per {target['order_unit']} (×{int(target['order_to_base'])})"
         else:
-            unit = f"{int(target['order_to_base'])}ml" if target["order_to_base"] < 10000 else f"{target['order_to_base']/1000:.0f}L"
+            unit = f"{int(target['order_to_base'])}{'g' if target['base_unit'] == 'g' else 'ml'}" if target["order_to_base"] < 10000 else f"{target['order_to_base']/1000:.0f}L"
             pack_label = f"per {target['order_unit']} ({unit})"
         # a real (if old) supplier price beats an industry ballpark
         proposals[:] = [p for p in proposals if p["stock"] != target["name"]]
