@@ -31,9 +31,9 @@ insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base
   select p.id, i.id, 3, 100 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'
   on conflict do nothing;
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
-  select p.id, i.id, 500, 1000 from bar_products p, bar_products i where lower(p.name)='sugar syrup 1:1' and lower(i.name)='sugar (for house syrup)'
+  select p.id, i.id, 1000, 1000 from bar_products p, bar_products i where lower(p.name)='sugar syrup 1:1' and lower(i.name)='sugar (for house syrup)'
   on conflict do nothing;
-update bar_prep_recipes set makes_base = 1000 where product_id = (select id from bar_products where lower(name)='sugar syrup 1:1');
+update bar_prep_recipes set qty_base = 1000, makes_base = 1000 where product_id = (select id from bar_products where lower(name)='sugar syrup 1:1');
 update bar_products set order_to_base = 1000 where lower(name) = 'sugar syrup 1:1';
 insert into bar_menu_items (name, category, sell_price) values ('Camden Hells — Pint', 'draught', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;

@@ -515,6 +515,15 @@
    "ref": "Martini Extra Dry 750ml (VE7MARED)"
   },
   {
+   "stock": "Mint",
+   "pack_cost": 0.0,
+   "pack_label": "per bunch",
+   "supplier": "the garden",
+   "source": "supplier invoice — picked from the garden — costs nothing (founder, 10 Sep 2026)",
+   "confident": true,
+   "ref": "picked from the garden — costs nothing (founder, 10 Sep 2026)"
+  },
+  {
    "stock": "Monin Grenadine",
    "pack_cost": 5.28,
    "pack_label": "per bottle (750ml)",
@@ -1308,24 +1317,6 @@
    "ref": "Woodford Reserve"
   },
   {
-   "stock": "Beaujolais Nouveau",
-   "pack_cost": 14.35,
-   "pack_label": "per bottle (750ml)",
-   "supplier": "Top Cuvee",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Beaujolais Nouveau (Gamay) 750ml @ £14.35 ex VAT — Top Cuvée (founder-confirmed Nouveau; pegged to the TC Beaujolais line TOP-W01-6351, refine if the Nouveau invoices at a different price)"
-  },
-  {
-   "stock": "Big Drop Citra IPA 0.5%",
-   "pack_cost": 43.2,
-   "pack_label": "per case (×24)",
-   "supplier": "Drinks Club",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Big Drop Citra IPA 0.5%"
-  },
-  {
    "stock": "Gilda",
    "pack_cost": 0.55,
    "pack_label": "per tub (×1)",
@@ -1333,15 +1324,6 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Gilda (per skewer)"
-  },
-  {
-   "stock": "Mint",
-   "pack_cost": 5.0,
-   "pack_label": "per bunch (100ml)",
-   "supplier": "Brakes",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Mint sprig"
   },
   {
    "stock": "Sugar (for house syrup)",
