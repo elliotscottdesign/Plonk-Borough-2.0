@@ -80,6 +80,17 @@ def main():
         hits = [v for k, v in seed.items() if n and (n in k or k in n)]
         return hits[0] if len(hits) == 1 else None
 
+    # Founder-stated portions that beat both the costing sheet's guess and the
+    # garnish rule — checked FIRST (the muddled cucumber is real cost, not garnish).
+    OVERRIDES = {  # (recipe name, ingredient substring) -> (product, qty base units, note)
+        ("Spicy Cucumber Margarita", "cucumber"): ("Cucumber", 0.13, "1 inch ≈ ⅛ cucumber (founder, 9 Sep 2026)"),
+        ("Bloody Mary", "lemon juice"): ("Fresh lemon juice", 25, "25ml (founder, 9 Sep 2026 — sheet said 20)"),
+    }
+    # Lines the costing sheet is missing outright (founder-stated).
+    ADDITIONS = {  # recipe name -> [(product, qty base units, note)]
+        "Rhys Peaches": [("Fresh lemon juice", 25, "25ml lemon (founder, 9 Sep 2026 — not on the costing sheet)")],
+    }
+
     # The costing sheet costs hot drinks as fractions of a crisps pack — a
     # placeholder hack, not a recipe. Never seed a cost we know is fiction.
     def is_placeholder(r):
@@ -96,6 +107,10 @@ def main():
             continue
         for ing in r["ings"]:
             nm = ing_names.get(ing["id"], ing["id"])
+            ov = next((v for (rn, sub), v in OVERRIDES.items() if rn == r["name"] and sub in norm(nm)), None)
+            if ov:
+                pname, qty, note = ov
+                lines.append({"product": pname, "qty": qty, "disp": note}); continue
             # garnish first: a "grapefruit slice" must never match the fruit
             # and cost a whole grapefruit.
             if OMITTABLE.search(nm):
@@ -129,6 +144,9 @@ def main():
                     lines.append({"product": prod["name"], "qty": qty, "disp": disp})
             else:
                 missing.append(nm)
+        for pname, qty, note in ADDITIONS.get(r["name"], []):
+            if not any(l["product"] == pname for l in lines):
+                lines.append({"product": pname, "qty": qty, "disp": note})
         # till-aligned display name (so catalogue GP joins with zero mapping)
         base = re.sub(r"\s+—\s+.*$", "", r["name"])
         till_name = live_names.get(norm(r["name"])) or live_names.get(norm(base)) or r["name"]
@@ -174,10 +192,12 @@ def main():
            "  ('Fresh lemon juice', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;",
            "insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values",
            "  ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 750, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;",
-           "-- batch definitions: ~30ml juice per lime, ~35ml per lemon, 500g sugar -> 750ml syrup",
+           "-- batch definitions: 25ml juice per lime (founder, 9 Sep 2026: a box of",
+           "-- 60 makes 1.5L), ~35ml per lemon, 500g sugar -> 750ml syrup",
            "insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)",
-           "  select p.id, i.id, 1, 30 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'",
+           "  select p.id, i.id, 1, 25 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'",
            "  on conflict do nothing;",
+           "update bar_prep_recipes set makes_base = 25 where product_id = (select id from bar_products where lower(name)='fresh lime juice');",
            "insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)",
            "  select p.id, i.id, 1, 35 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'",
            "  on conflict do nothing;",

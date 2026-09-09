@@ -182,6 +182,15 @@
    "ref": "Brown Bag — 5 flavours, case of 20 × 40g @ £11.25 ex VAT (£0.56/bag)"
   },
   {
+   "stock": "Cucumber",
+   "pack_cost": 0.98,
+   "pack_label": "per each (×1)",
+   "supplier": "Valimex",
+   "source": "supplier invoice — inv 1472073 (22/08/26) — @ £0.98 ea",
+   "confident": true,
+   "ref": "inv 1472073 (22/08/26) — @ £0.98 ea"
+  },
+  {
    "stock": "Cynar",
    "pack_cost": 13.39,
    "pack_label": "per bottle (700ml)",
@@ -279,6 +288,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Funkin Mango Puree 1kg pouch @ £9.52 ex VAT (LWC catalog, Jun 2026)"
+  },
+  {
+   "stock": "Grapefruit",
+   "pack_cost": 0.78,
+   "pack_label": "per each (×1)",
+   "supplier": "Valimex",
+   "source": "supplier invoice — inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea",
+   "confident": true,
+   "ref": "inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea"
   },
   {
    "stock": "Hanbury London Dry (house)",
@@ -387,6 +405,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Lillet Rose 750ml (AP7LILROS)"
+  },
+  {
+   "stock": "Limes",
+   "pack_cost": 12.0,
+   "pack_label": "per case (×60)",
+   "supplier": "Valimex",
+   "source": "supplier invoice — inv 1472073 (22/08/26) — box of 60 @ £12.00 (zero-VAT produce)",
+   "confident": true,
+   "ref": "inv 1472073 (22/08/26) — box of 60 @ £12.00 (zero-VAT produce)"
   },
   {
    "stock": "Limoncello",
@@ -1122,15 +1149,6 @@
    "ref": "Cloudwater Cheery Breeze Sour"
   },
   {
-   "stock": "Cucumber",
-   "pack_cost": 0.04,
-   "pack_label": "per each (×1)",
-   "supplier": "Brakes",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Cucumber slice"
-  },
-  {
    "stock": "Cueva Nueva Vermut (500ml)",
    "pack_cost": 18.43,
    "pack_label": "per bottle (750ml)",
@@ -1174,15 +1192,6 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Gilda (per skewer)"
-  },
-  {
-   "stock": "Grapefruit",
-   "pack_cost": 0.12,
-   "pack_label": "per each (×1)",
-   "supplier": "Brakes",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Grapefruit slice"
   },
   {
    "stock": "Mint",

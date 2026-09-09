@@ -18,10 +18,12 @@ insert into bar_products (name, kind, category, source, base_unit, order_unit, o
   ('Fresh lemon juice', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
   ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 750, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
--- batch definitions: ~30ml juice per lime, ~35ml per lemon, 500g sugar -> 750ml syrup
+-- batch definitions: 25ml juice per lime (founder, 9 Sep 2026: a box of
+-- 60 makes 1.5L), ~35ml per lemon, 500g sugar -> 750ml syrup
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
-  select p.id, i.id, 1, 30 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'
+  select p.id, i.id, 1, 25 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'
   on conflict do nothing;
+update bar_prep_recipes set makes_base = 25 where product_id = (select id from bar_products where lower(name)='fresh lime juice');
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
   select p.id, i.id, 1, 35 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'
   on conflict do nothing;
@@ -402,6 +404,9 @@ insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 12.5 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Spicy Cucumber Margarita') and lower(p.name) = lower('Agave syrup');
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 0.13 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Spicy Cucumber Margarita') and lower(p.name) = lower('Cucumber');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Mezcal Martinez'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 35.0 from bar_menu_items m, bar_products p

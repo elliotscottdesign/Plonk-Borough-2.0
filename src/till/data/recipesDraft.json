@@ -875,10 +875,14 @@
      "product": "Agave syrup",
      "qty": 12.5,
      "disp": "12.5ml"
+    },
+    {
+     "product": "Cucumber",
+     "qty": 0.13,
+     "disp": "1 inch ≈ ⅛ cucumber (founder, 9 Sep 2026)"
     }
    ],
    "omitted": [
-    "Cucumber slice",
     "Fresh chilli slice",
     "Salt rim"
    ],
@@ -1982,8 +1986,8 @@
     },
     {
      "product": "Fresh lemon juice",
-     "qty": 20.0,
-     "disp": "20ml"
+     "qty": 25,
+     "disp": "25ml (founder, 9 Sep 2026 — sheet said 20)"
     }
    ],
    "omitted": [

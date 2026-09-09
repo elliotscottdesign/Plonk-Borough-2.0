@@ -134,6 +134,10 @@ EXTRA_INVOICED = [
     # (seed product name, per-unit £ ex-VAT, supplier, invoice ref)
     ("Oliver's Fine Cider (bottle)", 1.94, "Fine Cider Co",
      "INV-34131 (22 Aug 2026) — Gold Rush #11 330ml @ £1.94/btl ex-VAT"),
+    ("Limes", 0.20, "Valimex",
+     "inv 1472073 (22/08/26) — box of 60 @ £12.00 (zero-VAT produce)"),
+    ("Grapefruit", 0.78, "Valimex", "inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea"),
+    ("Cucumber", 0.98, "Valimex", "inv 1472073 (22/08/26) — @ £0.98 ea"),
 ]
 
 # ─── Previous-supplier prices (founder's "HACKNEY PLONK WET STOCK" sheet, ────
