@@ -127,6 +127,51 @@ def parse_seed():
         rows[norm(name)] = {"name": name, "base_unit": m.group(2), "order_unit": m.group(3), "order_to_base": float(m.group(4))}
     return rows
 
+# ─── Previous-supplier prices (founder's "HACKNEY PLONK WET STOCK" sheet, ────
+# Sep 2026). Founder's rule: use ONLY for drinks the Drinks Club invoice list
+# hasn't priced — Drinks Club always wins; these get updated as orders shift
+# to current wholesalers. Prices are ex-VAT off the sheet: per BOTTLE / keg /
+# BIB for ml products (that IS the ordering pack), per single CAN for
+# each-counted ones (scaled by the case size below).
+WETSTOCK = [
+    # spirits & liqueurs — per bottle
+    ("Beefeater London Dry", 14.91), ("Absolut Blue", 15.46), ("Grey Goose", 33.01),
+    ("Havana Club 3yr", 18.05), ("Havana Especial", 17.24), ("Havana Club 7", 21.56),
+    ("Cut spiced rum", 20.89), ("Havana spiced", 18.80), ("Wray & Nephew", 25.18),
+    ("Velho Barreiro Cachaca", 18.97), ("Olmeca Altos Reposado", 32.50),
+    ("Cazcabel Blanco", 23.23), ("Cazcabel Reposado", 24.67), ("Cazcabel Coffee", 22.44),
+    ("Cazcabel Honey", 22.44), ("Cazcabel Coconut", 22.44),
+    ("Four Roses Bourbon", 20.71), ("Woodford Reserve", 26.74), ("Monkey Shoulder", 23.48),
+    ("Jameson", 20.52), ("Nikka From The Barrel", 35.82), ("Jack Daniel's", 20.36),
+    ("Courvoisier", 24.83), ("Bulleit", 25.63), ("Hennessy", 30.63), ("Chivas", 24.39),
+    ("Vida Mezcal", 30.75), ("Madre Mezcal", 42.12), ("Monkey 47", 32.90),
+    ("Malfy Gin Rosa", 23.89), ("Malfy Limone", 23.90),
+    ("Campari", 15.73), ("Top Cuvee Sweet Vermouth", 15.46), ("El Bandarra", 20.28),
+    ("Cocchi Americano", 23.54), ("Martini Dry", 9.92), ("Martini Rosso", 9.92), ("Cynar", 15.60),
+    ("Montenegro", 18.04), ("Kahlua", 13.96), ("Archers", 11.54), ("Velvet Falernum", 13.21),
+    ("Yellow Chartreuse", 37.38), ("Lillet", 15.18), ("Aperol", 11.98), ("Pimm's", 12.95),
+    ("Fernet Branca", 19.60), ("Passion fruit liqueur", 9.51), ("Triple Sec", 11.73),
+    ("King's Ginger Liqueur", 20.30), ("Disaronno", 18.25), ("Baileys", 12.76), ("Jagermeister", 17.88),
+    ("Sourz Raspberry", 9.15), ("Sourz Apple", 9.15), ("Tequila Rose", 14.43),
+    ("Limoncello", 17.45), ("Cointreau", 20.19), ("St Germain", 27.31),
+    ("Devil's Botany Chocolate", 18.63), ("Devil's Botany London", 25.30), ("Devil's Botany Regalis", 36.63),
+    # cocktail larder — per bottle / tub
+    ("Agave syrup", 12.28), ("Monin Gomme", 4.60), ("Monin Grenadine", 4.87),
+    ("Monin Vanilla", 6.81), ("Monin Passion Fruit", 7.66), ("Monin Ginger", 8.70),
+    ("Belvoir Elderflower Cordial", 14.96), ("Funkin Passion Fruit purée", 47.70),
+    ("Funkin Mango", 47.00), ("Lemon bitters", 16.01), ("Grapefruit bitters", 15.26),
+    ("Angostura Bitters", 10.27), ("Ms Better's Foamer", 19.99), ("Coffee extract", 61.18),
+    # wine — per bottle
+    ("Prosecco 750ml (NV Via Vai)", 6.80), ("Doom Juice Rose", 12.35), ("Doom Juice Rouge", 12.35), ("Blanco Blanco", 11.55), ("Los Conejos Tinto", 10.00),
+    ("House red (Kalimotxo)", 7.32), ("Top Cuvee House Orange", 10.35),
+    # kegs & post-mix — per keg / BIB (the ordering pack)
+    ("Camden Hells", 85.39), ("Camden Stout", 84.35), ("Umbrella Apple Cider (keg)", 97.00),
+    ("Lemonade", 65.39), ("Coke Zero", 59.78), ("Coke", 74.52), ("Schweppes Tonic", 68.47),
+    # each-counted — per single can/bottle, scaled to the case
+    ("Mini Prosecco 20cl", 2.12, "unit"), ("Kombucha", 1.01, "unit"),
+    ("Piccadilly Pilsner GF", 2.08, "unit"),
+]
+
 def main():
     ings = parse_ingredients()
     seed = parse_seed()
@@ -168,14 +213,45 @@ def main():
             "confident": invoice_listed,
             "ref": ing["supplierProduct"] or ing["name"],
         })
-    proposals.sort(key=lambda p: (not p["confident"], p["stock"]))
+    # ── previous-supplier fill-in (Drinks Club always wins) ──────────────────
+    confident_stocks = {p["stock"] for p in proposals if p["confident"]}
+    wet_unmatched = []
+    for entry in WETSTOCK:
+        name, price, per = entry[0], entry[1], (entry[2] if len(entry) > 2 else "pack")
+        n = norm(name)
+        target = seed.get(n)
+        if not target and n in ALIASES and norm(ALIASES[n]) in seed: target = seed[norm(ALIASES[n])]
+        if not target:
+            hits = [v for k, v in seed.items() if n and (n in k or k in n)]
+            if len(hits) == 1: target = hits[0]
+        if not target:
+            wet_unmatched.append(name); continue
+        if target["name"] in confident_stocks: continue      # invoice price wins
+        pack_cost = round(price * target["order_to_base"], 2) if per == "unit" else round(price, 2)
+        if target["base_unit"] == "each":
+            pack_label = f"per {target['order_unit']} (×{int(target['order_to_base'])})"
+        else:
+            unit = f"{int(target['order_to_base'])}ml" if target["order_to_base"] < 10000 else f"{target['order_to_base']/1000:.0f}L"
+            pack_label = f"per {target['order_unit']} ({unit})"
+        # a real (if old) supplier price beats an industry ballpark
+        proposals[:] = [p for p in proposals if p["stock"] != target["name"]]
+        proposals.append({
+            "stock": target["name"], "pack_cost": pack_cost, "pack_label": pack_label,
+            "supplier": "previous supplier",
+            "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
+            "confident": False, "wet": True, "ref": name,
+        })
+
+    proposals.sort(key=lambda p: (not p["confident"], not p.get("wet"), p["stock"]))
     OUT.write_text(json.dumps({
-        "generated": "4 Sep 2026 · from src/ops/data/costing.js (Jun 2026 costing sheet; Drinks Club 26-27 list where marked)",
+        "generated": "9 Sep 2026 · Drinks Club 26-27 invoice list + previous-supplier wet stock sheet + ballparks",
         "proposals": proposals,
     }, ensure_ascii=False, indent=1))
-    print(f"proposals={len(proposals)} (invoice-listed={sum(1 for p in proposals if p['confident'])}, ballpark={sum(1 for p in proposals if not p['confident'])})")
+    print(f"proposals={len(proposals)} (invoice-listed={sum(1 for p in proposals if p['confident'])}, previous-supplier={sum(1 for p in proposals if p.get('wet'))}, ballpark={sum(1 for p in proposals if not p['confident'] and not p.get('wet'))})")
     print("unmatched ingredients:", len(unmatched))
     for u in unmatched[:40]: print("  -", u)
+    print("wet stock rows with no stock product:", len(wet_unmatched))
+    for u in wet_unmatched: print("  ~", u)
 
 if __name__ == "__main__":
     main()

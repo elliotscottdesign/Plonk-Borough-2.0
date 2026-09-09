@@ -324,6 +324,7 @@ function CostsInbox({ costsByName, onApplied }) {
   })
   const applicable = rows.filter(r => r.product_id && !applied.has(r.stock))
   const confidentTodo = applicable.filter(r => r.confident && !r.alreadyCosted)
+  const wetTodo = applicable.filter(r => r.wet && !r.alreadyCosted)
 
   const applyOne = async (r) => {
     if (!r.product_id) return
@@ -332,9 +333,9 @@ function CostsInbox({ costsByName, onApplied }) {
       setApplied(prev => new Set(prev).add(r.stock))
     } catch (e) { alert(`${r.stock}: ${e.message || 'failed'}`) }
   }
-  const applyAll = async () => {
+  const applyAll = async (list) => {
     setBusy(true)
-    for (const r of confidentTodo) await applyOne(r)   // sequential, gentle
+    for (const r of list) await applyOne(r)   // sequential, gentle
     setBusy(false)
     onApplied()
   }
@@ -352,14 +353,25 @@ function CostsInbox({ costsByName, onApplied }) {
       </button>
       {open && (
         <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {confidentTodo.length > 0 && (
-            <button onClick={applyAll} disabled={busy} style={{
-              alignSelf: 'flex-start', padding: '11px 18px', borderRadius: 9, border: 'none', cursor: 'pointer',
-              background: GOLD, color: '#141414', fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
-            }}>
-              {busy ? 'Applying…' : `APPLY ALL ${confidentTodo.length} INVOICE-LISTED COSTS`}
-            </button>
-          )}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {confidentTodo.length > 0 && (
+              <button onClick={() => applyAll(confidentTodo)} disabled={busy} style={{
+                padding: '11px 18px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                background: GOLD, color: '#141414', fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
+              }}>
+                {busy ? 'Applying…' : `APPLY ALL ${confidentTodo.length} INVOICE-LISTED COSTS`}
+              </button>
+            )}
+            {wetTodo.length > 0 && (
+              <button onClick={() => applyAll(wetTodo)} disabled={busy} style={{
+                padding: '11px 18px', borderRadius: 9, cursor: 'pointer',
+                border: `1.5px solid ${GOLD}`, background: 'rgba(201,168,76,0.1)',
+                color: GOLD, fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
+              }}>
+                {busy ? 'Applying…' : `APPLY ALL ${wetTodo.length} PREVIOUS-SUPPLIER COSTS`}
+              </button>
+            )}
+          </div>
           {rows.map(r => {
             const done = applied.has(r.stock)
             return (
@@ -371,7 +383,7 @@ function CostsInbox({ costsByName, onApplied }) {
                 <span style={{ fontSize: 13, fontWeight: 800, color: r.confident ? GREEN : AMBER, whiteSpace: 'nowrap' }}>
                   {gbp(r.pack_cost)} <span style={{ fontWeight: 400, color: DIM, fontSize: 10.5 }}>{r.pack_label} ex-VAT</span>
                 </span>
-                <span style={{ fontSize: 10, color: r.confident ? GREEN : AMBER }}>{r.confident ? 'invoice list' : 'ballpark'}</span>
+                <span style={{ fontSize: 10, color: r.confident ? GREEN : r.wet ? GOLD : AMBER }}>{r.confident ? 'invoice list' : r.wet ? 'previous supplier' : 'ballpark'}</span>
                 {r.alreadyCosted && !done && <span style={{ fontSize: 10, color: DIM }}>has a cost</span>}
                 {done
                   ? <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ applied</span>
@@ -385,9 +397,10 @@ function CostsInbox({ costsByName, onApplied }) {
             )
           })}
           <div style={{ fontSize: 10.5, color: DIM, paddingTop: 8, lineHeight: 1.5 }}>
-            Green = the Drinks Club 26-27 wholesale list (real invoice prices, ex-VAT). Amber = industry ballpark — apply
-            only if it looks right, and replace it when the real invoice lands. Next stage: prices read straight off
-            supplier invoice PDFs (Xero bills only carry one-line totals — the detail is in the attachments).
+            Green = the Drinks Club 26-27 wholesale list (real invoice prices, ex-VAT). Gold = the previous supplier's
+            price off the wet stock sheet — real money once paid, used only where Drinks Club hasn't priced it yet, and
+            replaced as orders move to current wholesalers. Amber = industry ballpark — apply only if it looks right.
+            Next stage: prices read straight off supplier invoice PDFs (Xero bills only carry one-line totals).
           </div>
         </div>
       )}
