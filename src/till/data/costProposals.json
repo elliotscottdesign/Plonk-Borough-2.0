@@ -12,12 +12,12 @@
   },
   {
    "stock": "Agave syrup",
-   "pack_cost": 13.33,
+   "pack_cost": 12.29,
    "pack_label": "per bottle",
-   "supplier": "Amazon (founder)",
-   "source": "supplier invoice — £16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'",
+   "supplier": "Amazon",
+   "source": "supplier invoice — Monin Agave 70cl case of 6 @ £88.47 inc VAT, delivered 18 Aug 2026 = £12.29/btl ex-VAT",
    "confident": true,
-   "ref": "£16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'"
+   "ref": "Monin Agave 70cl case of 6 @ £88.47 inc VAT, delivered 18 Aug 2026 = £12.29/btl ex-VAT"
   },
   {
    "stock": "Amaro Montenegro",

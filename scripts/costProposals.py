@@ -143,7 +143,7 @@ EXTRA_INVOICED = [
     ("Lowrise Hazy Pale (keg)", 95.00, "Lowrise Brewery", "INV-0863/0891 (Aug–Sep 2026) — 30L keg @ £95 ex-VAT"),
     ("Umbrella Apple Cider (keg)", 95.00, "Umbrella", "invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT"),
     ("Umbrella Alcoholic Ginger Beer", 1.4167, "Umbrella", "invoice 12565 (24 Jul 2026) — 330ml×12 case @ £17 ex-VAT"),
-    ("Agave syrup", 13.33, "Amazon (founder)", "£16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'"),
+    ("Agave syrup", 12.29, "Amazon", "Monin Agave 70cl case of 6 @ £88.47 inc VAT, delivered 18 Aug 2026 = £12.29/btl ex-VAT"),
 ]
 
 # Founder-sanctioned ballpark for the one larder item with no invoice anywhere:
