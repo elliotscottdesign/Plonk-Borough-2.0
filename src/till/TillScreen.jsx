@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem, tillSqCharge, tillSqCheck, tillSqCancel } from './api.js'
+import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem, tillSqCharge, tillSqCheck, tillSqCancel, tillStaffList, tillStaffEvent } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -262,12 +262,32 @@ export default function TillScreen() {
     pushTimers.current[id] = setTimeout(() => pushOrder(next[id]), 400)
     return next
   })
-  const staffName = () => {
-    try {
-      let n = localStorage.getItem('nd_till_staff')
-      if (!n) { n = prompt('Your name (for the till record)?') || ''; if (n.trim()) localStorage.setItem('nd_till_staff', n.trim()) }
-      return (n || '').trim()
-    } catch { return '' }
+  // 👤 who's signed in on THIS till (per device). Signing in is picking your
+  // name from the rota's staff list; signing out asks the shift debrief —
+  // 5 stars, a weather pick, a comment — recorded in till_events.
+  const [tillWho, setTillWho] = useState(() => { try { return localStorage.getItem('nd_till_staff') || '' } catch { return '' } })
+  const staffName = () => tillWho
+  const [staffPanel, setStaffPanel] = useState(null)      // 'in' pick name · 'out' debrief
+  const [staffRoster, setStaffRoster] = useState(null)
+  const [staffErr, setStaffErr] = useState('')
+  const [debrief, setDebrief] = useState({ stars: 0, weather: '', comment: '' })
+  const WEATHER = [['☀️', 'sunny'], ['🌤️', 'sunny spells'], ['☁️', 'overcast'], ['🌧️', 'rain'], ['⛈️', 'storm']]
+  const openSignIn = async () => {
+    setStaffPanel('in'); setStaffErr('')
+    if (!staffRoster) {
+      try { const r = await tillStaffList(); setStaffRoster(r.staff || []) }
+      catch (e) { setStaffErr(e.message || 'Could not load the staff list — check the connection.') }
+    }
+  }
+  const pickStaff = (name) => {
+    try { localStorage.setItem('nd_till_staff', name) } catch { /* private mode */ }
+    setTillWho(name); setStaffPanel(null)
+    tillStaffEvent('in', name).catch(() => { /* offline — the sale records still carry the name */ })
+  }
+  const signOut = async () => {
+    try { await tillStaffEvent('out', tillWho, debrief) } catch { /* offline — don't trap them on the till */ }
+    try { localStorage.removeItem('nd_till_staff') } catch { /* fine */ }
+    setTillWho(''); setStaffPanel(null); setDebrief({ stars: 0, weather: '', comment: '' })
   }
   const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
 
@@ -432,6 +452,7 @@ export default function TillScreen() {
   const pay = async (method = 'cash', cardRef = null) => {
     const o = orders[currentId]
     const who = staffName()
+    if (!who) { openSignIn(); return }        // money always has a name on it
     setPaying(true)
     // Voucher first — redeemed in the live voucher system before anything closes.
     if (o.voucher) {
@@ -470,6 +491,7 @@ export default function TillScreen() {
   // taps, then close the order exactly like a cash payment (method 'card').
   const cardPay = async () => {
     const o = orders[currentId]
+    if (!staffName()) { openSignIn(); return }
     const duePence = Math.round(orderDue(o) * 100)
     if (duePence <= 0) return pay('cash')
     setCardState({ starting: true, amount: duePence })
@@ -1115,6 +1137,10 @@ export default function TillScreen() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{refLabel(current)}</span>
         <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={() => tillWho ? setStaffPanel('out') : openSignIn()} title={tillWho ? 'Sign out of the till' : 'Sign in to the till'}
+            style={{ ...btn(), padding: '5px 10px', fontSize: 11.5, color: tillWho ? GREEN : GOLD, borderColor: tillWho ? GREEN : GOLD }}>
+            👤 {tillWho || 'SIGN IN'}
+          </button>
           <button onClick={() => { setMoveOrderId(currentId); setScreen('floor') }} title="Move to a table or make it a tab" style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⇄ Move</button>
           <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
         </span>
@@ -1123,6 +1149,63 @@ export default function TillScreen() {
       {closed && current.lines.length === 0 && (
         <div style={{ fontSize: 12, color: GREEN }}>
           ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo order, {closed.voucher ? 'voucher redemption was real' : 'nothing recorded'}.
+        </div>
+      )}
+
+      {/* 👤 sign in — pick your name off the rota */}
+      {staffPanel === 'in' && (
+        <div onClick={() => setStaffPanel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 520, maxWidth: '94vw', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: GOLD }}>👤 Who's on the till?</div>
+            {staffErr && <div style={{ fontSize: 12, color: RED }}>{staffErr}</div>}
+            {!staffRoster && !staffErr && <div style={{ fontSize: 12.5, color: DIM }}>Loading the staff list…</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {(staffRoster || []).map(s => (
+                <button key={s.id} onClick={() => pickStaff(s.name)} style={{ ...btn(), padding: '16px 10px', fontSize: 14, fontWeight: 700 }}>{s.name}</button>
+              ))}
+            </div>
+            <button onClick={() => setStaffPanel(null)} style={{ ...btn(), alignSelf: 'flex-start' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* 👤 sign out — the shift debrief: stars, weather, a line for the log */}
+      {staffPanel === 'out' && (
+        <div onClick={() => setStaffPanel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 520, maxWidth: '94vw', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: GOLD }}>👋 Signing out, {tillWho}</div>
+            <div>
+              <div style={{ fontSize: 12, color: DIM, marginBottom: 6 }}>How was the shift?</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setDebrief(d => ({ ...d, stars: n }))} style={{
+                    ...btn(), flex: 1, padding: '14px 0', fontSize: 22, lineHeight: 1,
+                    borderColor: debrief.stars >= n ? GOLD : LINE, background: debrief.stars >= n ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+                  }}>{debrief.stars >= n ? '★' : '☆'}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: DIM, marginBottom: 6 }}>What was the weather like?</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {WEATHER.map(([sym, label]) => (
+                  <button key={label} onClick={() => setDebrief(d => ({ ...d, weather: label }))} title={label} style={{
+                    ...btn(), flex: 1, padding: '12px 0', fontSize: 24, lineHeight: 1,
+                    borderColor: debrief.weather === label ? GOLD : LINE, background: debrief.weather === label ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+                  }}>{sym}</button>
+                ))}
+              </div>
+            </div>
+            <input value={debrief.comment} onChange={e => setDebrief(d => ({ ...d, comment: e.target.value.slice(0, 300) }))}
+              placeholder="Anything worth noting? (optional)"
+              style={{ padding: '12px 13px', borderRadius: 9, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 13.5 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setStaffPanel(null)} style={btn()}>Stay signed in</button>
+              <button onClick={signOut} disabled={!debrief.stars || !debrief.weather} style={{ ...bigBtn(true), flex: 1, opacity: debrief.stars && debrief.weather ? 1 : 0.45 }}>
+                SIGN OUT{debrief.stars && debrief.weather ? '' : ' — pick stars & weather'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
