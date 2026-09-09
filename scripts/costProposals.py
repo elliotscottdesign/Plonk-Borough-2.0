@@ -138,7 +138,17 @@ EXTRA_INVOICED = [
      "inv 1472073 (22/08/26) — box of 60 @ £12.00 (zero-VAT produce)"),
     ("Grapefruit", 0.78, "Valimex", "inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea"),
     ("Cucumber", 0.98, "Valimex", "inv 1472073 (22/08/26) — @ £0.98 ea"),
+    ("Lemons", 0.28, "Valimex", "inv 1475183 (28/08/26) — @ £0.28 ea (zero-VAT produce)"),
+    ("Agave syrup", 13.33, "Amazon (founder)", "£16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'"),
 ]
+
+# Founder-sanctioned ballpark for the one larder item with no invoice anywhere:
+# supermarket granulated sugar. Clearly marked; replaced when a real bill lands.
+SUGAR_BALLPARK = {
+    "stock": "Sugar (for house syrup)", "pack_cost": 1.10, "pack_label": "per bag (1kg)",
+    "supplier": "supermarket", "source": "ballpark — supermarket granulated ~£1.10/kg; replace with a real bill",
+    "confident": False, "ref": "founder asked to work syrup cost out, 9 Sep 2026",
+}
 
 # ─── Previous-supplier prices (founder's "HACKNEY PLONK WET STOCK" sheet, ────
 # Sep 2026). Founder's rule: use ONLY for drinks the Drinks Club invoice list
@@ -238,6 +248,9 @@ def main():
             "supplier": supplier, "source": f"supplier invoice — {ref}",
             "confident": True, "ref": ref,
         })
+
+    if not any(p["stock"] == SUGAR_BALLPARK["stock"] for p in proposals):
+        proposals.append(dict(SUGAR_BALLPARK))
 
     # ── previous-supplier fill-in (Drinks Club always wins) ──────────────────
     confident_stocks = {p["stock"] for p in proposals if p["confident"]}

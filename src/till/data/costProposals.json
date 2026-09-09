@@ -12,12 +12,12 @@
   },
   {
    "stock": "Agave syrup",
-   "pack_cost": 13.44,
-   "pack_label": "per bottle (750ml)",
-   "supplier": "Drinks Club",
-   "source": "Drinks Club 26-27 invoice list",
+   "pack_cost": 13.33,
+   "pack_label": "per bottle",
+   "supplier": "Amazon (founder)",
+   "source": "supplier invoice — £16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'",
    "confident": true,
-   "ref": "Giffard Sirop Agave 1000ml (OTS7GIFSIAG)"
+   "ref": "£16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'"
   },
   {
    "stock": "Amaro Montenegro",
@@ -387,6 +387,15 @@
    "source": "Drinks Club 26-27 invoice list",
    "confident": true,
    "ref": "Schweppes Lemonade BIB 7L (SO7SCHLEBIB) — 1:5 syrup to soda = 42L finished"
+  },
+  {
+   "stock": "Lemons",
+   "pack_cost": 8.4,
+   "pack_label": "per case (×30)",
+   "supplier": "Valimex",
+   "source": "supplier invoice — inv 1475183 (28/08/26) — @ £0.28 ea (zero-VAT produce)",
+   "confident": true,
+   "ref": "inv 1475183 (28/08/26) — @ £0.28 ea (zero-VAT produce)"
   },
   {
    "stock": "Lentsch Grüner Veltliner",
@@ -1201,6 +1210,15 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Mint sprig"
+  },
+  {
+   "stock": "Sugar (for house syrup)",
+   "pack_cost": 1.1,
+   "pack_label": "per bag (1kg)",
+   "supplier": "supermarket",
+   "source": "ballpark — supermarket granulated ~£1.10/kg; replace with a real bill",
+   "confident": false,
+   "ref": "founder asked to work syrup cost out, 9 Sep 2026"
   }
  ]
 }

@@ -17,9 +17,10 @@ insert into bar_products (name, kind, category, source, base_unit, order_unit, o
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
   ('Fresh lemon juice', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
-  ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 750, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
+  ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 -- batch definitions: 25ml juice per lime (founder, 9 Sep 2026: a box of
--- 60 makes 1.5L), ~35ml per lemon, 500g sugar -> 750ml syrup
+-- 60 makes 1.5L), ~35ml per lemon; syrup is TRUE 1:1 (founder, 9 Sep 2026):
+-- 500g sugar + 500ml water -> 1L of syrup
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
   select p.id, i.id, 1, 25 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'
   on conflict do nothing;
@@ -28,8 +29,10 @@ insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base
   select p.id, i.id, 1, 35 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'
   on conflict do nothing;
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
-  select p.id, i.id, 500, 750 from bar_products p, bar_products i where lower(p.name)='sugar syrup 1:1' and lower(i.name)='sugar (for house syrup)'
+  select p.id, i.id, 500, 1000 from bar_products p, bar_products i where lower(p.name)='sugar syrup 1:1' and lower(i.name)='sugar (for house syrup)'
   on conflict do nothing;
+update bar_prep_recipes set makes_base = 1000 where product_id = (select id from bar_products where lower(name)='sugar syrup 1:1');
+update bar_products set order_to_base = 1000 where lower(name) = 'sugar syrup 1:1';
 insert into bar_menu_items (name, category, sell_price) values ('Camden Hells — Pint', 'draught', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Camden Hells — Half', 'draught', 3.6)
