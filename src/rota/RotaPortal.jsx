@@ -621,10 +621,12 @@ export default function RotaPortal() {
               if (!past.length) return null
               const clockByDate = {}; for (const c of clocks) clockByDate[c.date] = c
               return (
-                <div style={{ marginTop: 22 }}>
-                  <div className="serif" style={{ fontSize: 17, color: '#fff' }}>Past shifts</div>
-                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', margin: '2px 0 12px' }}>Your rostered times, alongside what you actually clocked.</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <details style={{ marginTop: 22, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '0 12px' }}>
+                  <summary style={{ cursor: 'pointer', padding: '12px 0' }}>
+                    <span className="serif" style={{ fontSize: 16, color: '#fff' }}>Past shifts</span>
+                    <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginLeft: 8 }}>· {past.length} shift{past.length === 1 ? '' : 's'} · rostered vs clocked · tap to open</span>
+                  </summary>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12 }}>
                     {past.map(sh => {
                       const clk = clockByDate[sh.date]
                       const inT = fmtClockTime(clk?.clock_in), outT = fmtClockTime(clk?.clock_out)
@@ -645,7 +647,7 @@ export default function RotaPortal() {
                       )
                     })}
                   </div>
-                </div>
+                </details>
               )
             })()}
           </>
