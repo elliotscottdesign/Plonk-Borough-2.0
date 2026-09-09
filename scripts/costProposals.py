@@ -144,6 +144,12 @@ EXTRA_INVOICED = [
     ("Umbrella Apple Cider (keg)", 95.00, "Umbrella", "invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT"),
     ("Umbrella Alcoholic Ginger Beer", 1.4167, "Umbrella", "invoice 12565 (24 Jul 2026) — 330ml×12 case @ £17 ex-VAT"),
     ("Agave syrup", 12.29, "Amazon", "Monin Agave 70cl case of 6 @ £88.47 inc VAT, delivered 18 Aug 2026 = £12.29/btl ex-VAT"),
+    # Top Cuvée (Shop Cuvée) INV-11750, 16 Jun 2026 — founder-supplied PDF
+    ("Blanco Blanco (white)", 11.55, "Top Cuvée", "INV-11750 (16 Jun 2026) — Xarel-lo/Garnacha/Trepat @ £11.55/btl ex-VAT"),
+    ("Doom Juice Rosé", 11.90, "Top Cuvée", "INV-11750 (16 Jun 2026) — Shiraz rosé @ £11.90/btl ex-VAT"),
+    ("Doom Juice Rouge", 11.90, "Top Cuvée", "INV-11750 (16 Jun 2026) — Shiraz @ £11.90/btl ex-VAT"),
+    ("Top Cuvée House Orange", 10.35, "Top Cuvée", "INV-11750 (16 Jun 2026) — @ £10.35/btl ex-VAT"),
+    ("Rouge Petard", 10.75, "Top Cuvée", "INV-11750 (16 Jun 2026) — Aramon @ £10.75/btl ex-VAT"),
 ]
 
 # Founder-sanctioned ballpark for the one larder item with no invoice anywhere:
@@ -194,9 +200,11 @@ WETSTOCK = [
     # kegs & post-mix — per keg / BIB (the ordering pack)
     ("Camden Hells", 85.39), ("Camden Stout", 84.35), ("Umbrella Apple Cider (keg)", 97.00),
     ("Lemonade", 65.39), ("Coke Zero", 59.78), ("Coke", 74.52), ("Schweppes Tonic", 68.47),
+    ("Favonius Orange", 13.50), ("Eager Pineapple", 20.87),
     # each-counted — per single can/bottle, scaled to the case
     ("Mini Prosecco 20cl", 2.12, "unit"), ("Kombucha", 1.01, "unit"),
-    ("Piccadilly Pilsner GF", 2.08, "unit"),
+    ("Cherry Sour", 2.71, "unit"), ("Fresh Non-Alc", 2.04, "unit"),
+ ("Piccadilly Pilsner GF", 2.08, "unit"),
 ]
 
 def main():
