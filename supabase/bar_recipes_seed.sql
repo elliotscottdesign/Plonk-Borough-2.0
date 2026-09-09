@@ -19,14 +19,16 @@ insert into bar_products (name, kind, category, source, base_unit, order_unit, o
 insert into bar_products (name, kind, category, source, base_unit, order_unit, order_to_base, count_unit, count_to_base, count_area, counted) values
   ('Sugar syrup 1:1', 'prep', 'Prep', 'made', 'ml', 'batch', 1000, 'ml', 1, 'Back bar', false) on conflict ((lower(name))) do nothing;
 -- batch definitions: 25ml juice per lime (founder, 9 Sep 2026: a box of
--- 60 makes 1.5L), ~35ml per lemon; syrup is TRUE 1:1 (founder, 9 Sep 2026):
+-- 60 makes 1.5L), 3 lemons -> 100ml (founder: 0.75 lemons per 25ml);
+-- syrup is TRUE 1:1 (founder, 9 Sep 2026):
 -- 500g sugar + 500ml water -> 1L of syrup
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
   select p.id, i.id, 1, 25 from bar_products p, bar_products i where lower(p.name)='fresh lime juice' and lower(i.name)='limes'
   on conflict do nothing;
 update bar_prep_recipes set makes_base = 25 where product_id = (select id from bar_products where lower(name)='fresh lime juice');
+update bar_prep_recipes set qty_base = 3, makes_base = 100 where product_id = (select id from bar_products where lower(name)='fresh lemon juice');
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
-  select p.id, i.id, 1, 35 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'
+  select p.id, i.id, 3, 100 from bar_products p, bar_products i where lower(p.name)='fresh lemon juice' and lower(i.name)='lemons'
   on conflict do nothing;
 insert into bar_prep_recipes (product_id, input_product_id, qty_base, makes_base)
   select p.id, i.id, 500, 1000 from bar_products p, bar_products i where lower(p.name)='sugar syrup 1:1' and lower(i.name)='sugar (for house syrup)'
