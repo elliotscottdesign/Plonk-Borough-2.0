@@ -54,6 +54,14 @@ never run destructive or "today"-dated test writes on real data.
 | rota (via integration session, founder-directed) | `staff.dj_id uuid references djs(id) on delete set null` — links a staff member who is also one of our DJs to their DJ record, so the two portals can hotlink both ways. Additive; dry-run in a rolled-back txn first. Set for Thays Alviano. | ✅ applied | 20 Aug 2026 |
 | rota | `shift_notes` + `mentions uuid[]` (additive) and NEW table `shift_reminder_sent` (WhatsApp 2h shift reminders — idempotence marker). SQL staged in `supabase/staff_shift_reminders.sql`; also a NEW `CRON_SECRET` project secret + cron `staff-shift-reminders` (*/10). | ⏳ staged — awaiting fresh PAT (all revoked 11 Aug) | 11 Aug 2026 |
 
+## 9 Sep 2026 — till lane appended 3 products to supabase/bar_seed.sql + DB (data only)
+`Lowrise Lager (keg)` + `Lowrise Hazy Pale (keg)` (30L kegs — the live till sells them
+but the stock sheet never listed them; prices off Lowrise invoices INV-0856/0863/0891 in
+the founder's Gmail) and `Umbrella Alcoholic Ginger Beer` (330ml×12, Umbrella invoice
+12565) + a matching bar_menu_items row. Additive inserts at the end of the seed file,
+same format, `on conflict do nothing` — ✅ applied live same day. Bar lane: your file —
+shout if you'd rather these live elsewhere.
+
 ## 8 Sep 2026 — till lane seeded BAR-lane tables: recipes into the costing engine (data only, no DDL)
 `supabase/bar_recipes_seed.sql` ✅ APPLIED (founder token, revoked after): 94 rows into
 `bar_menu_items` + their `bar_recipe_lines` (every line joined to a real `bar_products`

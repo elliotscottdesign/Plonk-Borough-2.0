@@ -139,6 +139,10 @@ EXTRA_INVOICED = [
     ("Grapefruit", 0.78, "Valimex", "inv 1472073 (22/08/26) — pink grapefruit @ £0.78 ea"),
     ("Cucumber", 0.98, "Valimex", "inv 1472073 (22/08/26) — @ £0.98 ea"),
     ("Lemons", 0.28, "Valimex", "inv 1475183 (28/08/26) — @ £0.28 ea (zero-VAT produce)"),
+    ("Lowrise Lager (keg)", 89.00, "Lowrise Brewery", "INV-0856 (17 Aug 2026) — 30L keg @ £89 ex-VAT"),
+    ("Lowrise Hazy Pale (keg)", 95.00, "Lowrise Brewery", "INV-0863/0891 (Aug–Sep 2026) — 30L keg @ £95 ex-VAT"),
+    ("Umbrella Apple Cider (keg)", 95.00, "Umbrella", "invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT"),
+    ("Umbrella Alcoholic Ginger Beer", 1.4167, "Umbrella", "invoice 12565 (24 Jul 2026) — 330ml×12 case @ £17 ex-VAT"),
     ("Agave syrup", 13.33, "Amazon (founder)", "£16 inc VAT / 750ml bottle, 9 Sep 2026 — founder: 'insanely expensive atm'"),
 ]
 

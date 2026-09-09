@@ -434,6 +434,24 @@
    "ref": "Luxardo Limoncello 700ml (LI7LUXLI)"
   },
   {
+   "stock": "Lowrise Hazy Pale (keg)",
+   "pack_cost": 95.0,
+   "pack_label": "per keg",
+   "supplier": "Lowrise Brewery",
+   "source": "supplier invoice — INV-0863/0891 (Aug–Sep 2026) — 30L keg @ £95 ex-VAT",
+   "confident": true,
+   "ref": "INV-0863/0891 (Aug–Sep 2026) — 30L keg @ £95 ex-VAT"
+  },
+  {
+   "stock": "Lowrise Lager (keg)",
+   "pack_cost": 89.0,
+   "pack_label": "per keg",
+   "supplier": "Lowrise Brewery",
+   "source": "supplier invoice — INV-0856 (17 Aug 2026) — 30L keg @ £89 ex-VAT",
+   "confident": true,
+   "ref": "INV-0856 (17 Aug 2026) — 30L keg @ £89 ex-VAT"
+  },
+  {
    "stock": "Lucky Saint 0.5%",
    "pack_cost": 28.32,
    "pack_label": "per case (×24)",
@@ -587,13 +605,22 @@
    "ref": "Blend Triple Sec 700ml (LI7BLETS)"
   },
   {
-   "stock": "Umbrella Apple Cider (keg)",
-   "pack_cost": 118.04,
-   "pack_label": "per keg (50L)",
-   "supplier": "Drinks Club",
-   "source": "Drinks Club 26-27 invoice list",
+   "stock": "Umbrella Alcoholic Ginger Beer",
+   "pack_cost": 17.0,
+   "pack_label": "per case (×12)",
+   "supplier": "Umbrella",
+   "source": "supplier invoice — invoice 12565 (24 Jul 2026) — 330ml×12 case @ £17 ex-VAT",
    "confident": true,
-   "ref": "Red Fin Fresh Apple Keg 50L (BR50REFFAKEG) — used as comparable"
+   "ref": "invoice 12565 (24 Jul 2026) — 330ml×12 case @ £17 ex-VAT"
+  },
+  {
+   "stock": "Umbrella Apple Cider (keg)",
+   "pack_cost": 95.0,
+   "pack_label": "per keg",
+   "supplier": "Umbrella",
+   "source": "supplier invoice — invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT",
+   "confident": true,
+   "ref": "invoice 12565 (24 Jul 2026) — 50L keg @ £95 ex-VAT"
   },
   {
    "stock": "Velho Barreiro Cachaça",
