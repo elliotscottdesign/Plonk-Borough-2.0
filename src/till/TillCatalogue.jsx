@@ -320,11 +320,17 @@ function CostsInbox({ costsByName, onApplied }) {
   const [busy, setBusy] = useState(false)
   const rows = costFeed.proposals.map(p => {
     const live = costsByName ? costsByName[p.stock.toLowerCase()] : null
-    return { ...p, product_id: live?.product_id || null, alreadyCosted: live ? live.cost_per_base != null : null }
+    // A row counts as APPLIED when the live per-unit cost matches this very
+    // proposal — read from the database, so ✓ survives reloads and devices.
+    const liveCost = live?.cost_per_base
+    const expected = p.pack_units ? p.pack_cost / p.pack_units : null
+    const matches = liveCost != null && expected != null &&
+      Math.abs(liveCost - expected) <= Math.max(expected * 0.01, 0.001)
+    return { ...p, product_id: live?.product_id || null, alreadyCosted: live ? liveCost != null : null, matches }
   })
-  const applicable = rows.filter(r => r.product_id && !applied.has(r.stock))
-  const confidentTodo = applicable.filter(r => r.confident && !r.alreadyCosted)
-  const wetTodo = applicable.filter(r => r.wet && !r.alreadyCosted)
+  const applicable = rows.filter(r => r.product_id && !applied.has(r.stock) && !r.matches)
+  const confidentTodo = applicable.filter(r => r.confident)
+  const wetTodo = applicable.filter(r => r.wet)
 
   const applyOne = async (r) => {
     if (!r.product_id) return
@@ -373,7 +379,7 @@ function CostsInbox({ costsByName, onApplied }) {
             )}
           </div>
           {rows.map(r => {
-            const done = applied.has(r.stock)
+            const done = applied.has(r.stock) || r.matches
             return (
               <div key={r.stock} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
                 <span style={{ flex: '1 1 200px', fontSize: 13, color: CREAM, fontWeight: 600 }}>
@@ -384,7 +390,7 @@ function CostsInbox({ costsByName, onApplied }) {
                   {gbp(r.pack_cost)} <span style={{ fontWeight: 400, color: DIM, fontSize: 10.5 }}>{r.pack_label} ex-VAT</span>
                 </span>
                 <span style={{ fontSize: 10, color: r.confident ? GREEN : r.wet ? GOLD : AMBER }}>{r.confident ? 'invoice list' : r.wet ? 'previous supplier' : 'ballpark'}</span>
-                {r.alreadyCosted && !done && <span style={{ fontSize: 10, color: DIM }}>has a cost</span>}
+                {r.alreadyCosted && !done && <span style={{ fontSize: 10, color: AMBER }}>has a DIFFERENT cost — apply to update</span>}
                 {done
                   ? <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ applied</span>
                   : r.product_id

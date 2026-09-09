@@ -170,7 +170,7 @@ EXTRA_INVOICED = [
 SUGAR_BALLPARK = {
     "stock": "Sugar (for house syrup)", "pack_cost": 1.10, "pack_label": "per bag (1kg)",
     "supplier": "supermarket", "source": "ballpark — supermarket granulated ~£1.10/kg; replace with a real bill",
-    "confident": False, "ref": "founder asked to work syrup cost out, 9 Sep 2026",
+    "confident": False, "pack_units": 3000, "ref": "founder asked to work syrup cost out, 9 Sep 2026",
 }
 
 # ─── Previous-supplier prices (founder's "HACKNEY PLONK WET STOCK" sheet, ────
@@ -260,6 +260,7 @@ def main():
             "supplier": ing["supplier"],
             "source": "Drinks Club 26-27 invoice list" if invoice_listed else "industry ballpark — confirm",
             "confident": invoice_listed,
+            "pack_units": target["order_to_base"],
             "ref": ing["supplierProduct"] or ing["name"],
         })
     # ── real-invoice extras (from supplier invoices in the founder's Gmail) ──
@@ -272,12 +273,12 @@ def main():
             "stock": target["name"], "pack_cost": pack_cost,
             "pack_label": f"per {target['order_unit']} (×{int(target['order_to_base'])})" if target["base_unit"] == "each" else f"per {target['order_unit']}",
             "supplier": supplier, "source": f"supplier invoice — {ref}",
-            "confident": True, "ref": ref,
+            "confident": True, "pack_units": target["order_to_base"], "ref": ref,
         })
 
     # Founder-confirmed dead lines (10 Sep 2026): Big Drop no longer stocked,
     # Beaujolais is a seasonal one-off — no standing price needed.
-    DISCONTINUED = {"Big Drop Citra IPA 0.5%", "Beaujolais Nouveau"}
+    DISCONTINUED = {"Big Drop Citra IPA 0.5%", "Beaujolais Nouveau", "Kombucha"}  # Kombucha = Equinox, no longer stocked
     proposals[:] = [p for p in proposals if p["stock"] not in DISCONTINUED]
 
     if not any(p["stock"] == SUGAR_BALLPARK["stock"] for p in proposals):
@@ -307,7 +308,7 @@ def main():
         proposals[:] = [p for p in proposals if p["stock"] != target["name"]]
         proposals.append({
             "stock": target["name"], "pack_cost": pack_cost, "pack_label": pack_label,
-            "supplier": "previous supplier",
+            "supplier": "previous supplier", "pack_units": target["order_to_base"],
             "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
             "confident": False, "wet": True, "ref": name,
         })
