@@ -214,6 +214,30 @@ Deno.serve(async (req) => {
       });
     }
 
+    // ═══ 👤 STAFF SIGN-IN — who's on the till, with a shift-end debrief ═════
+    // Names come from the rota system's staff table (read-only, same pattern
+    // as vouchers). Sign-ins/outs land in till_events; the sign-out carries
+    // the 5-star impression, a weather pick, and a comment — takings vs
+    // weather vs vibe, for HQ to chew on later.
+    if (action === "staffList") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const { data } = await sb.from("staff").select("id,name,role").order("name");
+      return json({ ok: true, staff: (data || []).map((s: any) => ({ id: s.id, name: s.name, role: s.role })) });
+    }
+
+    if (action === "staffEvent") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      const kind = str(b.kind, 10) === "out" ? "out" : "in";
+      const s = await openSession();
+      await logEvent("staff_" + kind, {
+        name: str(b.name, 60),
+        stars: kind === "out" ? Math.max(0, Math.min(5, Math.round(num(b.stars)))) : undefined,
+        weather: kind === "out" ? str(b.weather, 20) || undefined : undefined,
+        comment: kind === "out" ? str(b.comment, 300) || undefined : undefined,
+      }, s?.id);
+      return json({ ok: true });
+    }
+
     // ═══ 💳 SQUARE TERMINAL — card payments via the Terminal API ════════════
     // The till sends a checkout to the Square Terminal on the bar; the customer
     // taps; the till polls until it completes, then records a 'card' payment
