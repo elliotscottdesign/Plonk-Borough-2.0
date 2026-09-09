@@ -127,6 +127,15 @@ def parse_seed():
         rows[norm(name)] = {"name": name, "base_unit": m.group(2), "order_unit": m.group(3), "order_to_base": float(m.group(4))}
     return rows
 
+# ─── Prices read off REAL supplier invoices in the founder's Gmail ───────────
+# (per single unit ex-VAT; scaled to the ordering pack like everything else).
+# Full invoice-tier confidence — same standing as the Drinks Club list.
+EXTRA_INVOICED = [
+    # (seed product name, per-unit £ ex-VAT, supplier, invoice ref)
+    ("Oliver's Fine Cider (bottle)", 1.94, "Fine Cider Co",
+     "INV-34131 (22 Aug 2026) — Gold Rush #11 330ml @ £1.94/btl ex-VAT"),
+]
+
 # ─── Previous-supplier prices (founder's "HACKNEY PLONK WET STOCK" sheet, ────
 # Sep 2026). Founder's rule: use ONLY for drinks the Drinks Club invoice list
 # hasn't priced — Drinks Club always wins; these get updated as orders shift
@@ -213,6 +222,19 @@ def main():
             "confident": invoice_listed,
             "ref": ing["supplierProduct"] or ing["name"],
         })
+    # ── real-invoice extras (from supplier invoices in the founder's Gmail) ──
+    for name, unit_cost, supplier, ref in EXTRA_INVOICED:
+        target = seed.get(norm(name))
+        if not target: print("EXTRA_INVOICED name not in seed:", name); continue
+        pack_cost = round(unit_cost * target["order_to_base"], 2) if target["base_unit"] == "each" else round(unit_cost, 2)
+        proposals[:] = [p for p in proposals if p["stock"] != target["name"]]
+        proposals.append({
+            "stock": target["name"], "pack_cost": pack_cost,
+            "pack_label": f"per {target['order_unit']} (×{int(target['order_to_base'])})" if target["base_unit"] == "each" else f"per {target['order_unit']}",
+            "supplier": supplier, "source": f"supplier invoice — {ref}",
+            "confident": True, "ref": ref,
+        })
+
     # ── previous-supplier fill-in (Drinks Club always wins) ──────────────────
     confident_stocks = {p["stock"] for p in proposals if p["confident"]}
     wet_unmatched = []
