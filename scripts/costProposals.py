@@ -159,6 +159,7 @@ EXTRA_INVOICED = [
     ("Celery", 1.28, "Valimex", "inv 1475183 (28/08/26) — @ £1.28 ea"),
     ("Guilty Pleasure (can)", 1.64, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml can @ £1.64 ex-VAT"),
     ("Oliver's Fine Perry (bottle)", 1.98, "Fine Cider Co", "INV-33054 (16 Jul 2026) — 330ml @ £1.98 ex-VAT"),
+    ("Wyborowa Vodka", 15.77, "supplier portal", "founder screenshot 10 Sep 2026 — Wyborowa Blue 700ml @ £15.77 ex-VAT"),
     ("Mint", 0.00, "the garden", "picked from the garden — costs nothing (founder, 10 Sep 2026)"),
     ("Cueva Nueva Vermut (500ml)", 12.29, "Good Wine Good People", "GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)"),
 ]

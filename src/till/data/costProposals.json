@@ -758,6 +758,15 @@
    "ref": "Wray & Nephew White Overproof 700ml (SPR7WRNWO)"
   },
   {
+   "stock": "Wyborowa Vodka",
+   "pack_cost": 15.77,
+   "pack_label": "per bottle",
+   "supplier": "supplier portal",
+   "source": "supplier invoice — founder screenshot 10 Sep 2026 — Wyborowa Blue 700ml @ £15.77 ex-VAT",
+   "confident": true,
+   "ref": "founder screenshot 10 Sep 2026 — Wyborowa Blue 700ml @ £15.77 ex-VAT"
+  },
+  {
    "stock": "Yellow Chartreuse",
    "pack_cost": 35.29,
    "pack_label": "per bottle (700ml)",
