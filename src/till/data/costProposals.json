@@ -191,6 +191,15 @@
    "ref": "inv 1472073 (22/08/26) — @ £0.98 ea"
   },
   {
+   "stock": "Cueva Nueva Vermut (500ml)",
+   "pack_cost": 12.29,
+   "pack_label": "per bottle",
+   "supplier": "Good Wine Good People",
+   "source": "supplier invoice — GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)",
+   "confident": true,
+   "ref": "GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)"
+  },
+  {
    "stock": "Cynar",
    "pack_cost": 13.39,
    "pack_label": "per bottle (700ml)",
@@ -898,6 +907,16 @@
    "ref": "Funkin Passion Fruit purée"
   },
   {
+   "stock": "Fuzzy Hazy Pale",
+   "pack_cost": 54.0,
+   "pack_label": "per case (×24)",
+   "supplier": "previous supplier",
+   "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
+   "confident": false,
+   "wet": true,
+   "ref": "Fuzzy Hazy Pale"
+  },
+  {
    "stock": "Grapefruit bitters",
    "pack_cost": 15.26,
    "pack_label": "per bottle (750ml)",
@@ -916,6 +935,16 @@
    "confident": false,
    "wet": true,
    "ref": "Grey Goose"
+  },
+  {
+   "stock": "Happy! Easy Pale",
+   "pack_cost": 49.92,
+   "pack_label": "per case (×24)",
+   "supplier": "previous supplier",
+   "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
+   "confident": false,
+   "wet": true,
+   "ref": "Happy! Easy Pale"
   },
   {
    "stock": "Havana Club 3yr",
@@ -1214,15 +1243,6 @@
    "source": "industry ballpark — confirm",
    "confident": false,
    "ref": "Big Drop Citra IPA 0.5%"
-  },
-  {
-   "stock": "Cueva Nueva Vermut (500ml)",
-   "pack_cost": 18.43,
-   "pack_label": "per bottle (750ml)",
-   "supplier": "Good Wine Good People",
-   "source": "industry ballpark — confirm",
-   "confident": false,
-   "ref": "Cueva Nueva NV vermouth 500ml @ £12.29 ex VAT — GWGP invoice GWGPT-369 (founder-confirmed 500ml bottle, not 750ml)"
   },
   {
    "stock": "Gilda",

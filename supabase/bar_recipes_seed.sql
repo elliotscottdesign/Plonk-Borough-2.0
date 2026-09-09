@@ -73,6 +73,10 @@ insert into bar_menu_items (name, category, sell_price) values ('Cheery Breeze S
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Piccadilly Pilsner 4.2%', 'craft', 7.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
+insert into bar_menu_items (name, category, sell_price) values ('Fuzzy Hazy Pale 4.2%', 'craft', 7.0)
+  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
+insert into bar_menu_items (name, category, sell_price) values ('Happy! Easy Pale 3.4%', 'craft', 7.0)
+  on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Fresh AF Hazy IPA 0.5%', 'craft', 6.0)
   on conflict ((lower(name))) do update set sell_price = excluded.sell_price, category = excluded.category, active = true;
 insert into bar_menu_items (name, category, sell_price) values ('Big Drop Paradiso Citra 0.5%', 'craft', 5.5)
@@ -299,6 +303,14 @@ delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p
   where lower(m.name) = lower('Piccadilly Pilsner 4.2%') and lower(p.name) = lower('Piccadilly Pilsner GF');
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Fuzzy Hazy Pale 4.2%'));
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 1 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Fuzzy Hazy Pale 4.2%') and lower(p.name) = lower('Fuzzy Hazy Pale');
+delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Happy! Easy Pale 3.4%'));
+insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
+  select m.id, p.id, 1 from bar_menu_items m, bar_products p
+  where lower(m.name) = lower('Happy! Easy Pale 3.4%') and lower(p.name) = lower('Happy! Easy Pale');
 delete from bar_recipe_lines where menu_item_id = (select id from bar_menu_items where lower(name) = lower('Fresh AF Hazy IPA 0.5%'));
 insert into bar_recipe_lines (menu_item_id, product_id, qty_base)
   select m.id, p.id, 1 from bar_menu_items m, bar_products p

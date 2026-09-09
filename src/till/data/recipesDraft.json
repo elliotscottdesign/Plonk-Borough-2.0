@@ -358,24 +358,32 @@
    "costing_name": "Fuzzy Hazy Pale 4.2%",
    "category": "craft",
    "sell": 7.0,
-   "lines": [],
-   "omitted": [],
-   "missing": [
-    "Fuzzy Hazy Pale"
+   "lines": [
+    {
+     "product": "Fuzzy Hazy Pale",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
    ],
-   "ready": false
+   "omitted": [],
+   "missing": [],
+   "ready": true
   },
   {
    "name": "Happy! Easy Pale 3.4%",
    "costing_name": "Happy! Easy Pale 3.4%",
    "category": "craft",
    "sell": 7.0,
-   "lines": [],
-   "omitted": [],
-   "missing": [
-    "Happy! Easy Pale"
+   "lines": [
+    {
+     "product": "Happy! Easy Pale",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
    ],
-   "ready": false
+   "omitted": [],
+   "missing": [],
+   "ready": true
   },
   {
    "name": "Piccadilly Porter 4.5%",

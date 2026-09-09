@@ -150,6 +150,7 @@ EXTRA_INVOICED = [
     ("Doom Juice Rouge", 11.90, "Top Cuvée", "INV-11750 (16 Jun 2026) — Shiraz @ £11.90/btl ex-VAT"),
     ("Top Cuvée House Orange", 10.35, "Top Cuvée", "INV-11750 (16 Jun 2026) — @ £10.35/btl ex-VAT"),
     ("Rouge Petard", 10.75, "Top Cuvée", "INV-11750 (16 Jun 2026) — Aramon @ £10.75/btl ex-VAT"),
+    ("Cueva Nueva Vermut (500ml)", 12.29, "Good Wine Good People", "GWGPT-369 (24 Feb 2026) — @ £12.29/btl ex-VAT (invoice says 750ml case format)"),
 ]
 
 # Founder-sanctioned ballpark for the one larder item with no invoice anywhere:
@@ -204,6 +205,7 @@ WETSTOCK = [
     # each-counted — per single can/bottle, scaled to the case
     ("Mini Prosecco 20cl", 2.12, "unit"), ("Kombucha", 1.01, "unit"),
     ("Cherry Sour", 2.71, "unit"), ("Fresh Non-Alc", 2.04, "unit"),
+    ("Fuzzy Hazy Pale", 2.25, "unit"), ("Happy! Easy Pale", 2.08, "unit"),
  ("Piccadilly Pilsner GF", 2.08, "unit"),
 ]
 
