@@ -595,14 +595,14 @@ export default function RotaPortal() {
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h · {sh.filled}/{need} filled{hasReq ? ` · ${abilityIcon(sh.ability || 'bar')} ${abilityLabel(sh.ability || 'bar')}${sh.min_rank > 1 ? ` · ${rankLabel(sh.min_rank)}+` : ''}` : ''}</div>
                         </div>
                         {sh.mine
-                          ? (sh.assigned
-                            ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
-                            : <span style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
-                                <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>
-                                {myOpenSwapShiftIds.has(sh.id)
-                                  ? <span style={{ fontSize: 10, color: '#FBBF24', fontWeight: 700 }}>🔁 up for swap</span>
-                                  : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves" style={{ ...btn('ghost'), fontSize: 10.5, padding: '4px 9px' }}>🔁 Offer swap</button>}
-                              </span>)
+                          ? <span style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                              {sh.assigned
+                                ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
+                                : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>}
+                              {selDate > todayStr && (myOpenSwapShiftIds.has(sh.id)
+                                ? <span style={{ fontSize: 10, color: '#FBBF24', fontWeight: 700 }}>🔁 up for swap</span>
+                                : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves the swap" style={{ padding: '5px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 11, fontWeight: 700, background: 'rgba(96,165,250,0.12)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Offer swap</button>)}
+                            </span>
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>
                             : !eligible
