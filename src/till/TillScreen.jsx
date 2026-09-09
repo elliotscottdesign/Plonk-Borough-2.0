@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem, tillSqCharge, tillSqCheck, tillSqCancel } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -425,7 +425,11 @@ export default function TillScreen() {
   }))
   const send = () => patch(currentId, o => ({ ...o, lines: o.lines.map(l => ({ ...l, sentQty: l.qty })) }))
   const [paying, setPaying] = useState(false)
-  const pay = async () => {
+  // 💳 in-flight card charge: {checkoutId, amount} while the terminal waits,
+  // or {error} after a failure. Shown in place on the addition — no popups.
+  const [cardState, setCardState] = useState(null)
+  const cardPollRef = useRef(null)
+  const pay = async (method = 'cash', cardRef = null) => {
     const o = orders[currentId]
     const who = staffName()
     setPaying(true)
@@ -444,7 +448,7 @@ export default function TillScreen() {
     const duePence = Math.round(orderDue(o) * 100)
     const payments = []
     if (o.voucher) payments.push({ method: 'voucher', amount_pence: Math.round(voucherAmt(o) * 100), ref: o.voucher.code })
-    if (duePence > 0) payments.push({ method: 'cash', amount_pence: duePence })
+    if (duePence > 0) payments.push({ method, amount_pence: duePence, ref: cardRef || undefined })
     try {
       await tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
       await tillPayOrder(o.id, payments, Math.round(orderTotal(o) * 100), who)
@@ -460,6 +464,44 @@ export default function TillScreen() {
     const fresh = newOrder('quick', null)
     setOrders(prev => { const n = { ...prev }; delete n[currentId]; n[fresh.id] = fresh; return n })
     setCurrentId(fresh.id); setScreen('ring')
+  }
+
+  // 💳 Send the due amount to the Square Terminal, poll until the customer
+  // taps, then close the order exactly like a cash payment (method 'card').
+  const cardPay = async () => {
+    const o = orders[currentId]
+    const duePence = Math.round(orderDue(o) * 100)
+    if (duePence <= 0) return pay('cash')
+    setCardState({ starting: true, amount: duePence })
+    try {
+      await tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      const r = await tillSqCharge(duePence, o.id, localStorage.getItem('nd_till_sq_device') || undefined)
+      setCardState({ checkoutId: r.checkout_id, amount: duePence })
+      const started = Date.now()
+      cardPollRef.current = setInterval(async () => {
+        try {
+          const c = await tillSqCheck(r.checkout_id)
+          if (c.status === 'COMPLETED') {
+            clearInterval(cardPollRef.current); setCardState(null)
+            pay('card', r.checkout_id)
+          } else if (c.status === 'CANCELED' || c.status === 'CANCEL_REQUESTED') {
+            clearInterval(cardPollRef.current)
+            setCardState({ error: 'Cancelled on the terminal.' })
+          } else if (Date.now() - started > 120000) {
+            clearInterval(cardPollRef.current)
+            setCardState({ error: "The terminal didn't answer in 2 minutes — take cash or try again." })
+          }
+        } catch { /* transient — keep polling */ }
+      }, 2500)
+    } catch (e) {
+      setCardState({ error: e.message || 'Could not reach the card terminal.' })
+    }
+  }
+  const cardCancel = async () => {
+    if (cardPollRef.current) clearInterval(cardPollRef.current)
+    const id = cardState?.checkoutId
+    setCardState(null)
+    if (id) { try { await tillSqCancel(id) } catch { /* already done */ } }
   }
 
   // ── discounts ─────────────────────────────────────────────────────────────
@@ -734,7 +776,7 @@ export default function TillScreen() {
           <div style={{ background: 'rgba(52,211,153,0.07)', border: `1.5px solid ${GREEN}`, borderRadius: 12, padding: '11px 15px', flexShrink: 0 }}>
             <div style={{ fontSize: 13.5, fontWeight: 800, color: GREEN }}>Z-READ #{zRead.z} — day closed</div>
             <div style={{ fontSize: 12.5, color: CREAM, marginTop: 4 }}>
-              {zRead.orders} orders · gross {gbp(zRead.gross_pence / 100)} · cash {gbp(zRead.cash_pence / 100)} · vouchers {gbp(zRead.voucher_pence / 100)}
+              {zRead.orders} orders · gross {gbp(zRead.gross_pence / 100)} · cash {gbp(zRead.cash_pence / 100)} · card {gbp((zRead.card_pence || 0) / 100)} · vouchers {gbp(zRead.voucher_pence / 100)}
               &nbsp;— expected in drawer {gbp(zRead.expected_pence / 100)}, counted {gbp(zRead.counted_pence / 100)},
               <b style={{ color: zRead.over_short_pence === 0 ? GREEN : zRead.over_short_pence > 0 ? AMBER : RED }}>
                 {' '}{zRead.over_short_pence === 0 ? 'spot on' : `${zRead.over_short_pence > 0 ? 'over' : 'short'} ${gbp(Math.abs(zRead.over_short_pence) / 100)}`}
@@ -989,19 +1031,38 @@ export default function TillScreen() {
             )
           })()}
         </div>
+        {/* 💳 live card charge — in place, no popup: the terminal is waiting */}
+        {cardState && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10,
+            border: `1.5px solid ${cardState.error ? RED : GOLD}`, background: cardState.error ? 'rgba(218,27,51,0.08)' : 'rgba(201,168,76,0.08)' }}>
+            <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: cardState.error ? RED : GOLD }}>
+              {cardState.error ? `💳 ${cardState.error}` : cardState.starting ? '💳 Contacting the card terminal…' : `💳 ${gbp(cardState.amount / 100)} on the terminal — waiting for the tap…`}
+            </span>
+            <button onClick={cardCancel} style={btn()}>{cardState.error ? 'OK' : 'CANCEL'}</button>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setScreen('ring')} style={btn()}>← Back to order</button>
           {splitN > 1 ? (
-            <button onClick={pay} disabled={!sharesPaid.every(Boolean) || paying} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) && !paying ? 1 : 0.45 }}>
-              {paying ? 'Redeeming voucher…' : `CLOSE — ${sharesPaid.filter(Boolean).length}/${splitN} shares paid`}
+            <button onClick={() => pay('cash')} disabled={!sharesPaid.every(Boolean) || paying} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) && !paying ? 1 : 0.45 }}>
+              {paying ? 'Closing…' : `CLOSE — ${sharesPaid.filter(Boolean).length}/${splitN} shares paid`}
+            </button>
+          ) : due === 0 && current.voucher ? (
+            <button onClick={() => pay('cash')} disabled={paying} style={{ ...bigBtn(true), flex: 1, opacity: paying ? 0.6 : 1 }}>
+              {paying ? 'Redeeming voucher…' : 'PAID BY VOUCHER — close'}
             </button>
           ) : (
-            <button onClick={pay} disabled={paying} style={{ ...bigBtn(true), flex: 1, opacity: paying ? 0.6 : 1 }}>
-              {paying ? 'Redeeming voucher…' : due === 0 && current.voucher ? 'PAID BY VOUCHER — close' : `PAY ${gbp(due)} — close (demo)`}
-            </button>
+            <>
+              <button onClick={() => pay('cash')} disabled={paying || !!cardState} style={{ ...bigBtn(true), flex: 1, opacity: paying || cardState ? 0.5 : 1 }}>
+                {paying ? 'Closing…' : `💷 CASH ${gbp(due)}`}
+              </button>
+              <button onClick={cardPay} disabled={paying || !!cardState} style={{ ...bigBtn(true), flex: 1, opacity: paying || cardState ? 0.5 : 1 }}>
+                💳 CARD {gbp(due)}
+              </button>
+            </>
           )}
         </div>
-        <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square per share. Demo: it just closes the order.</div>
+        <div style={{ fontSize: 10.5, color: DIM }}>CARD sends the amount to the Square Terminal on the bar; the order closes itself the moment the customer taps. Splits: take each share cash or card on the terminal, tick them off, then CLOSE.</div>
 
         {/* 📋 Browse all outstanding vouchers — pick one to apply it */}
         {vListOpen && (

@@ -194,7 +194,7 @@ Deno.serve(async (req) => {
       }
       const { data: pays } = await sb.from("till_payments").select("method,amount_pence").eq("session_id", s.id);
       const sum = (m: string) => (pays || []).filter((p: any) => p.method === m).reduce((t: number, p: any) => t + p.amount_pence, 0);
-      const cash = sum("cash"), voucher = sum("voucher");
+      const cash = sum("cash"), voucher = sum("voucher"), card = sum("card");
       const counted = Math.round(num(b.counted_pence));
       const expected = s.float_start_pence + cash;
       const { data: zmax } = await sb.from("till_sessions").select("z_number").not("z_number", "is", null)
@@ -206,12 +206,95 @@ Deno.serve(async (req) => {
         status: "closed", closed_at: new Date().toISOString(), closed_by: str(b.by, 60) || null,
         float_counted_pence: counted, expected_cash_pence: expected, over_short_pence: counted - expected, z_number: z,
       }).eq("id", s.id);
-      await logEvent("close_day", { z, gross_pence: gross, cash_pence: cash, voucher_pence: voucher, expected_pence: expected, counted_pence: counted }, s.id);
+      await logEvent("close_day", { z, gross_pence: gross, cash_pence: cash, card_pence: card, voucher_pence: voucher, expected_pence: expected, counted_pence: counted }, s.id);
       return json({
-        ok: true, z, gross_pence: gross, cash_pence: cash, voucher_pence: voucher,
+        ok: true, z, gross_pence: gross, cash_pence: cash, card_pence: card, voucher_pence: voucher,
         float_pence: s.float_start_pence, expected_pence: expected, counted_pence: counted,
         over_short_pence: counted - expected, orders: (paidOrders || []).length,
       });
+    }
+
+    // ═══ 💳 SQUARE TERMINAL — card payments via the Terminal API ════════════
+    // The till sends a checkout to the Square Terminal on the bar; the customer
+    // taps; the till polls until it completes, then records a 'card' payment
+    // row like any other. Sandbox first (SQUARE_ENV=sandbox, test money), the
+    // same code goes live by swapping the secrets to production ones.
+    const SQ_TOKEN = Deno.env.get("SQUARE_ACCESS_TOKEN") || "";
+    const SQ_ENV = (Deno.env.get("SQUARE_ENV") || "sandbox").toLowerCase();
+    const SQ_BASE = SQ_ENV === "production" ? "https://connect.squareup.com" : "https://connect.squareupsandbox.com";
+    const sqCall = async (path: string, method = "GET", body?: unknown) => {
+      const r = await fetch(SQ_BASE + path, {
+        method,
+        headers: { Authorization: `Bearer ${SQ_TOKEN}`, "Content-Type": "application/json", "Square-Version": "2024-01-18" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d?.errors?.[0]?.detail || d?.errors?.[0]?.code || `Square error ${r.status}`);
+      return d;
+    };
+
+    if (action === "sqStatus") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      if (!SQ_TOKEN) return json({ ok: true, configured: false, env: SQ_ENV });
+      try {
+        const [loc, dev] = await Promise.all([sqCall("/v2/locations"), sqCall("/v2/devices?limit=20")]);
+        return json({
+          ok: true, configured: true, env: SQ_ENV,
+          locations: (loc.locations || []).map((l: any) => ({ id: l.id, name: l.name })),
+          devices: (dev.devices || []).map((d: any) => ({ id: d.id, name: d.attributes?.name, type: d.attributes?.type, status: d.status?.category })),
+          default_device: Deno.env.get("SQUARE_DEVICE_ID") || null,
+        });
+      } catch (e) { return json({ ok: false, error: (e as Error).message }, 502); }
+    }
+
+    // One-time pairing: staff type this code into the Square Terminal's
+    // "Sign in → Use a device code" screen and it binds to our account.
+    if (action === "sqPairCode") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      try {
+        const d = await sqCall("/v2/devices/codes", "POST", {
+          idempotency_key: crypto.randomUUID(),
+          device_code: { name: "No Dice Till", product_type: "TERMINAL_API" },
+        });
+        return json({ ok: true, code: d.device_code?.code, device_code_id: d.device_code?.id });
+      } catch (e) { return json({ ok: false, error: (e as Error).message }, 502); }
+    }
+
+    if (action === "sqCharge") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      if (!SQ_TOKEN) return json({ ok: false, error: "Square isn't set up yet." }, 409);
+      const amount = Math.round(num(b.amount_pence));
+      if (amount <= 0) return json({ ok: false, error: "Nothing to charge." }, 400);
+      const device = str(b.device_id, 60) || Deno.env.get("SQUARE_DEVICE_ID") || "";
+      if (!device) return json({ ok: false, error: "No card terminal paired yet." }, 409);
+      try {
+        const d = await sqCall("/v2/terminals/checkouts", "POST", {
+          idempotency_key: crypto.randomUUID(),
+          checkout: {
+            amount_money: { amount, currency: "GBP" },
+            device_options: { device_id: device },
+            reference_id: (str(b.orderId, 40) || undefined),
+            note: "No Dice",
+          },
+        });
+        return json({ ok: true, checkout_id: d.checkout?.id, status: d.checkout?.status });
+      } catch (e) { return json({ ok: false, error: (e as Error).message }, 502); }
+    }
+
+    if (action === "sqCheck") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      try {
+        const d = await sqCall(`/v2/terminals/checkouts/${str(b.checkout_id, 60)}`);
+        return json({ ok: true, status: d.checkout?.status, payment_ids: d.checkout?.payment_ids || [] });
+      } catch (e) { return json({ ok: false, error: (e as Error).message }, 502); }
+    }
+
+    if (action === "sqCancel") {
+      if (!isAdmin) return json({ ok: false, error: "Not allowed" }, 403);
+      try {
+        const d = await sqCall(`/v2/terminals/checkouts/${str(b.checkout_id, 60)}/cancel`, "POST", {});
+        return json({ ok: true, status: d.checkout?.status });
+      } catch (e) { return json({ ok: false, error: (e as Error).message }, 502); }
     }
 
     // ── 📊 HQ — the one-glance day/history feed for the founder ─────────────
@@ -229,8 +312,8 @@ Deno.serve(async (req) => {
         const pays = payments.filter((p) => p.session_id === s.id);
         const sum = (m: string) => pays.filter((p) => p.method === m).reduce((t, p) => t + p.amount_pence, 0);
         return { z: s.z_number, closed_at: s.closed_at, closed_by: s.closed_by,
-                 cash_pence: sum("cash"), voucher_pence: sum("voucher"),
-                 gross_pence: sum("cash") + sum("voucher"),
+                 cash_pence: sum("cash"), card_pence: sum("card"), voucher_pence: sum("voucher"),
+                 gross_pence: sum("cash") + sum("card") + sum("voucher"),
                  over_short_pence: s.over_short_pence, float_pence: s.float_start_pence };
       });
       const since = new Date(Date.now() - 14 * 86400000).toISOString();
