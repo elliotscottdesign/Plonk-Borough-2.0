@@ -5,6 +5,11 @@
 // POST { secret, action, ...payload }
 //   load                 → { djs:[...], slots:[...], receipts:[...] }  (slots include the joined DJ)
 //   deleteReceipt {id}   → remove a DJ's logged expense receipt (Payments view)
+//   invoiceReceived {date,slot,on,amount?} → tick "invoice landed" (+ capture £)
+//   setInvoiceAmount {date,slot,amount}     → set/clear the invoiced £ on a night
+//   markPaid {date,slot,on} / invoiceSentAdmin {date,slot,on} → payment status ticks
+//   saveTemplate {key:'banner',body} → set/clear the portal broadcast banner
+//   whatsappBlast {body} → WhatsApp every DJ (Twilio dj_broadcast template)
 //   open    {date}       → open a date for booking
 //   close   {date}       → close an empty (unbooked) open date
 //   signoff {date}       → confirm a pending booking (→ main events calendar)
@@ -50,6 +55,37 @@ const emailShell = (heading: string, bodyHtml: string, token?: string) =>
     <p style="font-size:11px;color:#777;margin-top:18px">No Dice · 407 Mentmore Terrace, London Fields, E8 3PH</p>
   </div>`;
 
+// ── WhatsApp broadcast (Twilio) ──────────────────────────────────────────────
+// Reuses the SAME Twilio account/sender as tournaments + On-A-Roll. Business-
+// initiated WhatsApp needs a Meta-APPROVED template: create `dj_broadcast`
+// (vars 1=name, 2=message) in Twilio, get it approved, then set
+// TWILIO_CONTENT_SID_DJ_BROADCAST. Until then whatsappBlast returns a clear error.
+const TW_SID = Deno.env.get("TWILIO_ACCOUNT_SID");
+const TW_TOKEN = Deno.env.get("TWILIO_AUTH_TOKEN");
+const TW_FROM = Deno.env.get("TWILIO_WA_FROM");
+const TW_CONTENT_DJ = Deno.env.get("TWILIO_CONTENT_SID_DJ_BROADCAST");
+// UK mobile → E.164 (+447…). Returns null for anything that isn't a UK mobile.
+function waNumber(s: string): string | null {
+  let n = String(s || "").replace(/[^\d+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (n.startsWith("0044")) n = n.slice(4);
+  else if (n.startsWith("44")) n = n.slice(2);
+  else if (n.startsWith("0")) n = n.slice(1);
+  return /^7\d{9}$/.test(n) ? "+44" + n : null;
+}
+async function sendWA(to: string, name: string, message: string): Promise<boolean> {
+  if (!TW_SID || !TW_TOKEN || !TW_FROM || !TW_CONTENT_DJ) return false;
+  const body = new URLSearchParams({ From: TW_FROM as string, To: `whatsapp:${to}`, ContentSid: TW_CONTENT_DJ as string, ContentVariables: JSON.stringify({ "1": name, "2": message }) });
+  try {
+    const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
+      method: "POST",
+      headers: { Authorization: "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    });
+    return r.ok;
+  } catch (_) { return false; }
+}
+
 async function snapshot(sb: any) {
   const { data: djs, error } = await sb.from("djs").select("*").order("dj_name");
   if (error) return json({ error: error.message }, 500);  // e.g. tables not created yet
@@ -69,7 +105,7 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body, subject } = await req.json().catch(() => ({}));
+  const { secret, action, date, slot: slotRaw, id, profile, djId, djId2, nightName, dataUrl, list, source, newDate, subgenres, setType, promoTrack, promoArtist, promoOk, resident, month, mode, key, body, subject, on, amount } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // session-of-the-day (Saturdays: 'main' evening + 'sat_pm' afternoon)
   if (secret !== Deno.env.get("SEND_SECRET")) return json({ error: "unauthorized" }, 401);
 
@@ -77,7 +113,7 @@ Deno.serve(async (req) => {
 
   switch (action) {
     case "open": {
-      const k = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
+      const k = [0, 4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay()) ? "session" : "opendecks";
       await sb.from("dj_slots").upsert({ date, slot, status: "open", kind: k }, { onConflict: "date,slot", ignoreDuplicates: true });
       break;
     }
@@ -149,7 +185,7 @@ Deno.serve(async (req) => {
       }
       const subs = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
-      const session = [4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
+      const session = [0, 4, 5, 6].includes(new Date(tgt + "T00:00:00Z").getUTCDay());
       const upd: Record<string, unknown> = {
         night_name: nightName || null, promo_track: (promoTrack || "").trim() || null, promo_artist: (promoArtist || "").trim() || null,
         kind: session ? "session" : "opendecks", updated_at: now(),
@@ -204,7 +240,7 @@ Deno.serve(async (req) => {
       // passed (so admins have the full DJ toolkit), else seeds display genres
       // from the DJ's profile. The DJ can still refine via their portal.
       const { data: dj } = await sb.from("djs").select("genres").eq("id", djId).maybeSingle();
-      const session = [4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay());
+      const session = [0, 4, 5, 6].includes(new Date(date + "T00:00:00Z").getUTCDay());
       const passed = (Array.isArray(subgenres) ? subgenres : String(subgenres || "").split(","))
         .map((x: string) => String(x).trim()).filter(Boolean).slice(0, 4);
       const subs = passed.length ? passed : String(dj?.genres || "").split("/").map((x: string) => x.trim()).filter(Boolean).slice(0, 4);
@@ -273,7 +309,7 @@ Deno.serve(async (req) => {
         if (dateStr < today) continue;
         if (SPECIAL_DATES[dateStr]) { for (const x of SPECIAL_DATES[dateStr]) rows.push({ date: dateStr, slot: x.slot, status: "open", kind: x.kind }); continue; }
         const wd = new Date(dateStr + "T00:00:00Z").getUTCDay();
-        const session = [4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
+        const session = [0, 4, 5, 6].includes(wd);   // Thu/Fri/Sat = paid; Sun-Wed = Open Decks
         rows.push({ date: dateStr, slot: "main", status: "open", kind: session ? "session" : "opendecks" });
         if (wd === 6) rows.push({ date: dateStr, slot: "sat_pm", status: "open", kind: "session" });
       }
@@ -317,6 +353,28 @@ Deno.serve(async (req) => {
       }
       return json({ ok: true, sent });
     }
+    case "whatsappBlast": {
+      // One-click WhatsApp to every DJ (recipients derived HERE from our roster,
+      // never a client list). Sends the Meta-approved `dj_broadcast` template with
+      // {1:name, 2:message}. Reuses the shared Twilio account (tournaments/On-A-Roll).
+      const message = String(body || "").trim().slice(0, 600);
+      if (!message) return json({ error: "no message" }, 400);
+      if (!TW_SID || !TW_TOKEN || !TW_FROM) return json({ error: "Twilio isn't configured (TWILIO_ACCOUNT_SID / TWILIO_AUTH_TOKEN / TWILIO_WA_FROM)." }, 400);
+      if (!TW_CONTENT_DJ) return json({ error: "The DJ WhatsApp template isn't live yet. Create + get Meta-approved the 'dj_broadcast' template in Twilio, then set TWILIO_CONTENT_SID_DJ_BROADCAST. (Your portal banner + email blast still work in the meantime.)" }, 400);
+      const { data: roster } = await sb.from("djs").select("dj_name, phone, status").neq("status", "pending");
+      const seen = new Set<string>();
+      let sent = 0, skipped = 0;
+      for (const d of roster || []) {
+        const to = waNumber((d as any)?.phone || "");
+        if (!to) { skipped++; continue; }
+        if (seen.has(to)) continue;
+        seen.add(to);
+        const ok = await sendWA(to, (d as any).dj_name || "there", message);
+        ok ? sent++ : skipped++;
+        if (sent >= 400) break;
+      }
+      return json({ ok: true, sent, skipped });
+    }
     case "markNoteRead":
       await sb.from("dj_notes").update({ read_at: now() }).eq("id", id);
       break;
@@ -325,6 +383,27 @@ Deno.serve(async (req) => {
       break;
     case "deleteNote":
       await sb.from("dj_notes").delete().eq("id", id);
+      break;
+    case "invoiceReceived": {
+      // Founder ticks that the invoice has landed (+ the £ amount off it). Gmail
+      // scan (phase 3) will set the same fields automatically.
+      const amt = amount === undefined || amount === null || amount === "" ? undefined : Math.max(0, Math.round((Number(amount) || 0) * 100) / 100);
+      const upd: Record<string, unknown> = { invoice_received_at: on ? now() : null, updated_at: now() };
+      if (amt !== undefined) upd.invoice_amount = amt;
+      if (!on) upd.invoice_amount = null;   // clearing "landed" also clears the captured amount
+      await sb.from("dj_slots").update(upd).eq("date", date).eq("slot", slot);
+      break;
+    }
+    case "setInvoiceAmount":
+      await sb.from("dj_slots").update({ invoice_amount: (amount === "" || amount === null || amount === undefined) ? null : Math.max(0, Math.round((Number(amount) || 0) * 100) / 100), updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "markPaid":
+      // Founder marks the night paid / un-paid.
+      await sb.from("dj_slots").update({ paid_at: on ? now() : null, updated_at: now() }).eq("date", date).eq("slot", slot);
+      break;
+    case "invoiceSentAdmin":
+      // Founder can also tick "invoice sent" on a DJ's behalf.
+      await sb.from("dj_slots").update({ invoice_sent_at: on ? now() : null, updated_at: now() }).eq("date", date).eq("slot", slot);
       break;
     case "deleteReceipt":
       // Remove a DJ's logged expense receipt (e.g. a mistaken/duplicate one).

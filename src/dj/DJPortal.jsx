@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash } from './api.js'
+import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash, payFriday } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import DateField from '../lib/DateField.jsx'
@@ -46,7 +46,9 @@ export default function DJPortal() {
   const now = new Date()
   const [viewY, setViewY] = useState(now.getFullYear())
   const [viewM, setViewM] = useState(now.getMonth())
-  const [tab, setTab] = useState('portal')   // 'portal' = profile + nights · 'rules' = how it works
+  const [tab, setTab] = useState('nights')   // profile · nights (calendar) · payments · messages · rules · venue
+  const [menuOpen, setMenuOpen] = useState(false)   // top nav dropdown
+  const [dismissedBanner, setDismissedBanner] = useState(() => { try { return localStorage.getItem('nd_dj_banner_seen') || '' } catch { return '' } })
   const [showPast, setShowPast] = useState(false)
   const [showSchedule, setShowSchedule] = useState(false)
   const [panelAt, setPanelAt] = useState('bottom')   // where the booking panel renders: 'bottom' (calendar) | 'top' (Your dates)
@@ -132,6 +134,12 @@ export default function DJPortal() {
     if (!window.confirm('Remove this receipt?')) return
     setBusy(true)
     try { refresh(await djPortal(token, 'removeReceipt', { id })); flash('Receipt removed.') }
+    catch (e) { flash(e.message) } finally { setBusy(false) }
+  }
+  // Invoice tracking — the DJ ticks when they've emailed their invoice.
+  const toggleInvoiceSent = async (b) => {
+    setBusy(true)
+    try { refresh(await djPortal(token, 'invoiceSent', { date: b.date, slot: b.slot, on: !b.invoice_sent_at })); flash(b.invoice_sent_at ? 'Unmarked.' : 'Marked invoice sent ✓') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
   const MAX_SUBS = 4
@@ -268,7 +276,7 @@ export default function DJPortal() {
   // Tap a date: one open session → straight to hold; two+ (Saturdays) → pick afternoon/evening.
   const pickDate = (date) => {
     if (sessionCapped(date)) {
-      flash("You've already got a paid session booked this month — it's one paid Thu/Fri/Sat session per DJ a month. Book a paid session next month, or grab a free Open Decks night (Sun–Wed) this month 🎚️", 9000)
+      flash("You've already got a paid session booked this month — it's one paid session per DJ a month (Sun/Thu/Fri/Sat). Book a paid session next month, or grab a free Open Decks night (Mon–Wed) this month 🎚️", 9000)
       return
     }
     const slots = bookable(date)
@@ -310,7 +318,7 @@ export default function DJPortal() {
         </div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>{s?.day} · {timeLabel(s)}{session ? '' : ' · unpaid'}</div>
         {clash && <div style={{ fontSize: 12, color: '#F59E0B', lineHeight: 1.5, whiteSpace: 'pre-line', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 12px' }}>{clash}</div>}
-        {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Sun–Wed as you want.</div>}
+        {!session && <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>🎚️ <strong style={{ color: '#fff' }}>Open Decks</strong> — play whatever you like (no genre rules), unpaid, as many Mon–Wed as you want.</div>}
         <input value={night} onChange={e => setNight(e.target.value)} placeholder="Name of the night (optional)" style={inp} />
         {(st.roster || []).length > 0 && (
           <div>
@@ -398,6 +406,16 @@ export default function DJPortal() {
         <img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 170, display: 'block', margin: '0 auto 6px' }} />
         <div style={{ textAlign: 'center', fontSize: 11, letterSpacing: '0.28em', textTransform: 'uppercase', color: RED, marginBottom: 18 }}>DJ Portal</div>
 
+        {/* Broadcast banner — a single message the founder posts to EVERY DJ's
+            portal (one-click, no per-DJ WhatsApp). Dismissible per message. */}
+        {st.banner && st.banner !== dismissedBanner && (
+          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: RED, color: '#fff', borderRadius: 12, padding: '14px 16px', marginBottom: 16, boxShadow: '0 4px 18px rgba(218,27,51,0.35)' }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>📣</span>
+            <div style={{ flex: 1, fontSize: 14, lineHeight: 1.5, whiteSpace: 'pre-wrap', fontWeight: 600 }}>{st.banner}</div>
+            <button onClick={() => { try { localStorage.setItem('nd_dj_banner_seen', st.banner) } catch { /* noop */ } setDismissedBanner(st.banner) }} aria-label="Dismiss" style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.85)', fontSize: 18, cursor: 'pointer', flexShrink: 0, lineHeight: 1, padding: 0 }}>✕</button>
+          </div>
+        )}
+
         {/* Some of our DJs also work behind the bar (Thays, Aug 2026). If a staff
             login exists on this device, offer the hop back to the staff portal —
             shifts, availability, checklists. Shown only when she's actually signed
@@ -421,16 +439,30 @@ export default function DJPortal() {
           </a>
         )}
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 18 }}>
-          {[['portal', 'My nights'], ['venue', 'Venue'], ['payments', 'Payments'], ['rules', 'How it works']].map(([k, lbl]) => (
-            <button key={k} onClick={() => setTab(k)} style={{
-              flex: 1, whiteSpace: 'nowrap', padding: '11px 12px', fontSize: 13, borderRadius: 9, cursor: 'pointer',
-              background: tab === k ? RED : 'transparent', color: tab === k ? '#fff' : 'rgba(255,255,255,0.8)',
-              border: `1px solid ${tab === k ? RED : LINE}`, fontWeight: tab === k ? 700 : 500,
-            }}>{lbl}</button>
-          ))}
-        </div>
+        {/* Top menu — one dropdown that jumps to any section, on every page so
+            you can always get back easily. */}
+        {(() => {
+          const NAV = [['profile', '👤 Profile'], ['nights', '🎧 My nights'], ['payments', '💷 Payments'], ['messages', '💬 Messages'], ['rules', 'ℹ️ How it works'], ['venue', '📍 Venue']]
+          const cur = NAV.find(([k]) => k === tab)
+          const go = (k) => { setTab(k); setMenuOpen(false); try { window.scrollTo(0, 0) } catch { /* noop */ } }
+          return (
+            <div style={{ position: 'relative', marginBottom: 18, zIndex: 60 }}>
+              <button onClick={() => setMenuOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderRadius: 10, background: RED, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700 }}>
+                <span style={{ fontSize: 17 }}>☰</span>
+                <span style={{ flex: 1, textAlign: 'left' }}>{cur ? cur[1] : 'Menu'}</span>
+                <span style={{ fontSize: 12, transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
+              </button>
+              {menuOpen && <div onClick={() => setMenuOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40 }} />}
+              {menuOpen && (
+                <div style={{ position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 50, background: '#0A0A0A', border: `1px solid ${LINE}`, borderRadius: 10, overflow: 'hidden', boxShadow: '0 14px 34px rgba(0,0,0,0.65)' }}>
+                  {NAV.map(([k, lbl], i) => (
+                    <button key={k} onClick={() => go(k)} style={{ width: '100%', textAlign: 'left', padding: '13px 16px', background: tab === k ? 'rgba(218,27,51,0.16)' : 'transparent', color: tab === k ? RED : '#fff', border: 'none', borderTop: i ? `1px solid ${LINE}` : 'none', cursor: 'pointer', fontSize: 15, fontWeight: tab === k ? 700 : 500 }}>{lbl}</button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
 
         {msg && <div style={{ background: 'rgba(218,27,51,0.12)', border: `1px solid ${RED}`, borderRadius: 8, padding: '10px 14px', fontSize: 13, marginBottom: 16, textAlign: 'center' }}>{msg}</div>}
 
@@ -457,6 +489,36 @@ export default function DJPortal() {
               </div>
               <div style={liDot}>{bullet}<span>We pay invoices on <strong style={{ color: '#fff' }}>the Friday of the following week</strong>.</span></div>
             </div>
+
+            {/* Your nights & invoices — tick when you've sent your invoice; see when it's landed + paid */}
+            {(() => {
+              const nights = (st.pastBookings || []).filter(b => (b.kind || kindFor(b.date, b.slot)) === 'session' && b.status === 'confirmed')
+              if (!nights.length) return null
+              return (
+                <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
+                  <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>Your nights &amp; invoices</div>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 14 }}>Tick when you've emailed your invoice — you'll see when we've got it and when it's paid.</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {nights.map(b => {
+                      const s = sessionForSlot(b.date, b.slot); const sLab = slotLabel(b.date, b.slot)
+                      const sent = !!b.invoice_sent_at, landed = !!b.invoice_received_at, paid = !!b.paid_at
+                      return (
+                        <div key={b.date + '-' + (b.slot || 'main')} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${paid ? '#34D399' : landed ? '#FCD34D' : LINE}`, borderRadius: 10, padding: '12px 14px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', gap: 8 }}>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day}{sLab ? ` · ${sLab}` : ''}{b.night_name ? ` · "${b.night_name}"` : ''}</span></div>
+                            {paid ? <span style={{ fontSize: 11, fontWeight: 800, color: '#34D399', whiteSpace: 'nowrap' }}>PAID ✓</span> : <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>pay by {fmtDate(payFriday(b.date))}</span>}
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, marginTop: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button onClick={() => toggleInvoiceSent(b)} disabled={busy} style={{ padding: '8px 13px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: 'pointer', background: sent ? '#34D399' : 'transparent', color: sent ? '#04240f' : '#fff', border: `1px solid ${sent ? '#34D399' : LINE}` }}>{sent ? '✓ Invoice sent' : 'Mark invoice sent'}</button>
+                            <span style={{ fontSize: 11.5, color: landed ? '#34D399' : 'rgba(255,255,255,0.45)' }}>{landed ? '✓ We’ve got your invoice' : 'Invoice not received yet'}</span>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )
+            })()}
 
             {/* Receipts & expenses */}
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
@@ -521,6 +583,13 @@ export default function DJPortal() {
           const dot = <span style={{ color: RED, fontWeight: 700, flexShrink: 0 }}>·</span>
           const link = { color: RED, textDecoration: 'none', borderBottom: `1px solid ${RED}` }
           return (<>
+            {/* Curfew — licensing condition, must be unmissable */}
+            <div style={{ background: 'rgba(218,27,51,0.12)', border: `1.5px solid ${RED}`, borderRadius: 14, padding: '16px 18px', marginBottom: 18 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.14em', textTransform: 'uppercase', color: RED, fontWeight: 700, marginBottom: 6 }}>⏰ Curfew — please read</div>
+              <div style={{ fontSize: 16, color: '#fff', fontWeight: 800, lineHeight: 1.35 }}>Music must end SHARP at midnight (12am).</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.78)', lineHeight: 1.5, marginTop: 6 }}>It's a strict licensing condition — <strong style={{ color: '#fff' }}>no overruns</strong>. Plan your set so the last track finishes by 00:00.</div>
+            </div>
+
             {/* Equipment / the kit */}
             <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
               <div className="serif" style={{ fontSize: 20, color: '#fff', marginBottom: 4 }}>The kit</div>
@@ -552,7 +621,7 @@ export default function DJPortal() {
           </>)
         })()}
 
-        {tab === 'portal' && (<>
+        {tab === 'profile' && (<>
         <div style={{ marginBottom: 14 }}><DJAddToHome /></div>
         {/* Profile */}
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
@@ -604,8 +673,10 @@ export default function DJPortal() {
             <button onClick={save} disabled={busy} style={{ marginTop: 4, padding: '13px', fontSize: 14, fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>{busy ? 'Saving…' : 'Save profile'}</button>
           </div>
         </div>
+        </>)}
 
-        {/* Message No Dice — leave a note (the inbound side of the Messages hub) */}
+        {/* Messages tab — leave a note (the inbound side of the Messages hub) */}
+        {tab === 'messages' && (
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
           <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 4 }}>Message No Dice</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>Leave a note — a question, a date you'd love, anything. We'll see it our side and usually get back to you on WhatsApp.</div>
@@ -625,7 +696,9 @@ export default function DJPortal() {
             </div>
           )}
         </div>
+        )}
 
+        {tab === 'nights' && (<>
         {/* Your booked dates */}
         {st.myBookings.length > 0 && (
           <div style={{ marginBottom: 18 }}>
@@ -761,7 +834,8 @@ export default function DJPortal() {
         <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 10 }}>Pick a date</div>
         {!complete ? (
           <div style={{ background: CARD, border: `1px dashed ${LINE}`, borderRadius: 12, padding: 20, textAlign: 'center', color: 'rgba(255,255,255,0.6)', fontSize: 14, lineHeight: 1.6 }}>
-            🔒 Add {need.join(' + ')} above (then tap <strong style={{ color: '#fff' }}>Save profile</strong>) to unlock the calendar.
+            🔒 Finish your profile ({need.join(' + ')}) to unlock the calendar.
+            <div style={{ marginTop: 12 }}><button onClick={() => { setTab('profile'); try { window.scrollTo(0, 0) } catch { /* noop */ } }} style={{ padding: '10px 18px', fontSize: 13, fontWeight: 700, background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer' }}>Go to Profile →</button></div>
           </div>
         ) : (
           <>

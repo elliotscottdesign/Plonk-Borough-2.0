@@ -31,17 +31,18 @@ export default function DJRules() {
         Everything you need to know before you book a night at No Dice, London Fields.
       </div>
 
-      <Section tag="🎚️" title="Open Decks — Sun · Mon · Tue · Wed" accent="#F97316">
-        Sunday + midweek is <B>Open Decks</B>: relaxed, <B>unpaid</B>, and yours to play how you like.
+      <Section tag="🎚️" title="Open Decks — Mon · Tue · Wed" accent="#F97316">
+        Midweek is <B>Open Decks</B>: relaxed, <B>unpaid</B>, and yours to play how you like.
         <Li>Play <B>anything</B> — no genre rules at all.</Li>
-        <Li>Book <B>as many</B> Sun/Mon/Tue/Wed nights as you want.</Li>
+        <Li>Book <B>as many</B> Mon/Tue/Wed nights as you want.</Li>
         <Li>Pick a vibe: <B>full DJ set</B>, <B>record selections</B>, or an <B>album listening party</B>.</Li>
       </Section>
 
-      <Section tag="💷" title="Sessions — Thu · Fri · Sat">
-        Weekends are paid <B>Sessions</B>. A few rules keep the line-ups fresh:
+      <Section tag="💷" title="Sessions — Sun · Thu · Fri · Sat">
+        Thu/Fri/Sat + <B>Sunday</B> are paid <B>Sessions</B>. A few rules keep the line-ups fresh:
+        <Li><B>Sundays</B> are a single <B>afternoon</B> session, <B>4–8pm</B>.</Li>
         <Li><B>Saturdays have two</B> — an <B>afternoon</B> set (4–8pm) and an <B>evening</B> set (8pm–late). Tap a Saturday and pick which.</Li>
-        <Li><R>One paid session per calendar month</R> per DJ — afternoon or evening counts as your session. (Open Decks don't count — those are unlimited.)</Li>
+        <Li><R>One paid session per calendar month</R> per DJ — any of Sun/Thu/Fri/Sat counts as your session. (Open Decks Mon–Wed don't count — those are unlimited.)</Li>
         <Li>Pick <B>up to 4 sub-genres</B> you'll play on the night.</Li>
         <Li>These go out on the flyer and the listings, so choose what really represents the set.</Li>
       </Section>

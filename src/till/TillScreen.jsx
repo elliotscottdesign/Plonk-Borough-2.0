@@ -1,7 +1,7 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { PAGES, HH_PAGE } from './data/happyHour.js'
 import liveTill from './data/liveTill.json'
-import { tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem } from './api.js'
+import { tillDayState, tillOpenDay, tillCloseDay, tillSaveOrder, tillPayOrder, tillFloorGet, tillFloorSave, tillReservationsToday, tillVoucherList, tillVoucherLookup, tillVoucherRedeem, tillSqCharge, tillSqCheck, tillSqCancel, tillStaffList, tillStaffEvent } from './api.js'
 import { gbp } from './gp.js'
 import { pageColor, tint } from './colors.js'
 import useIsMobile from '../lib/useIsMobile.js'
@@ -92,6 +92,59 @@ export default function TillScreen() {
   })()
   const [orders, setOrders] = useState(loadOrders)
   const [currentId, setCurrentId] = useState(null)
+
+  // ── The real day: shared session + orders sync (slice 3, 4 Sep 2026) ─────
+  // Orders push to the server as they change and every till polls the day's
+  // state, so all iPads see the same floor and tabs. Offline the till keeps
+  // working locally and re-syncs when the network returns.
+  const [session, setSession] = useState(undefined)      // undefined = loading, null = day not open
+  const [zRead, setZRead] = useState(null)               // last close-day summary
+  const dirtyRef = React.useRef(new Set())               // order ids awaiting push
+  const currentIdRef = React.useRef(null)
+  useEffect(() => { currentIdRef.current = currentId }, [currentId])
+
+  const pushOrder = (o) => {
+    if (!o || o.status !== 'open') return
+    tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      .then(() => dirtyRef.current.delete(o.id))
+      .catch(() => dirtyRef.current.add(o.id))
+  }
+
+  useEffect(() => {
+    let stop = false
+    const sync = async () => {
+      try {
+        const r = await tillDayState()
+        if (stop) return
+        setSession(r.session || null)
+        // re-push anything that failed while offline
+        for (const id of [...dirtyRef.current]) { const o = ordersRef.current[id]; if (o) pushOrder(o) }
+        // merge server orders: server is the shared truth, except the order
+        // being rung on THIS till right now
+        if (r.session) {
+          setOrders(prev => {
+            const merged = {}
+            for (const so of r.orders || []) {
+              merged[so.id] = prev[so.id] && so.id === currentIdRef.current ? prev[so.id] : {
+                id: so.id, kind: so.kind, ref: so.ref, name: so.name, status: 'open',
+                openedAt: so.opened_at, disc: so.disc || null, voucher: so.voucher || null,
+                lines: Array.isArray(so.lines) ? so.lines : [],
+              }
+            }
+            // keep local-only orders (not yet pushed / offline)
+            for (const [id, o] of Object.entries(prev)) if (!merged[id] && o.status === 'open') merged[id] = o
+            return merged
+          })
+        }
+      } catch { /* offline — keep ringing locally */ }
+    }
+    sync()
+    const id = setInterval(sync, 7000)
+    return () => { stop = true; clearInterval(id) }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  const ordersRef = React.useRef(orders)
+  useEffect(() => { ordersRef.current = orders }, [orders])
   const [screen, setScreen] = useState('floor')          // 'floor' | 'ring' | 'bill'
   const [pageName, setPageName] = useState(pages[0]?.name)
   const [query, setQuery] = useState('')
@@ -201,7 +254,41 @@ export default function TillScreen() {
     patch(moveOrderId, x => ({ ...x, kind: 'tab', ref: name.trim(), name: name.trim() }))
     setCurrentId(moveOrderId); setMoveOrderId(null); setScreen('ring')
   }
-  const patch = (id, fn) => setOrders(prev => ({ ...prev, [id]: fn(prev[id]) }))
+  const pushTimers = React.useRef({})
+  const patch = (id, fn) => setOrders(prev => {
+    const next = { ...prev, [id]: fn(prev[id]) }
+    // every change syncs to the shared day (debounced per order)
+    clearTimeout(pushTimers.current[id])
+    pushTimers.current[id] = setTimeout(() => pushOrder(next[id]), 400)
+    return next
+  })
+  // 👤 who's signed in on THIS till (per device). Signing in is picking your
+  // name from the rota's staff list; signing out asks the shift debrief —
+  // 5 stars, a weather pick, a comment — recorded in till_events.
+  const [tillWho, setTillWho] = useState(() => { try { return localStorage.getItem('nd_till_staff') || '' } catch { return '' } })
+  const staffName = () => tillWho
+  const [staffPanel, setStaffPanel] = useState(null)      // 'in' pick name · 'out' debrief
+  const [staffRoster, setStaffRoster] = useState(null)
+  const [staffErr, setStaffErr] = useState('')
+  const [debrief, setDebrief] = useState({ stars: 0, weather: '', comment: '' })
+  const WEATHER = [['☀️', 'sunny'], ['🌤️', 'sunny spells'], ['☁️', 'overcast'], ['🌧️', 'rain'], ['⛈️', 'storm']]
+  const openSignIn = async () => {
+    setStaffPanel('in'); setStaffErr('')
+    if (!staffRoster) {
+      try { const r = await tillStaffList(); setStaffRoster(r.staff || []) }
+      catch (e) { setStaffErr(e.message || 'Could not load the staff list — check the connection.') }
+    }
+  }
+  const pickStaff = (name) => {
+    try { localStorage.setItem('nd_till_staff', name) } catch { /* private mode */ }
+    setTillWho(name); setStaffPanel(null)
+    tillStaffEvent('in', name).catch(() => { /* offline — the sale records still carry the name */ })
+  }
+  const signOut = async () => {
+    try { await tillStaffEvent('out', tillWho, debrief) } catch { /* offline — don't trap them on the till */ }
+    try { localStorage.removeItem('nd_till_staff') } catch { /* fine */ }
+    setTillWho(''); setStaffPanel(null); setDebrief({ stars: 0, weather: '', comment: '' })
+  }
   const resetRingUi = () => { setSelKey(null); setBuf(''); setDiscOpen(false); setSplitN(0); setSharesPaid([]); setVCode(''); setVErr(''); setVBusy(false) }
 
   const openVoucherBrowse = async () => {
@@ -358,26 +445,85 @@ export default function TillScreen() {
   }))
   const send = () => patch(currentId, o => ({ ...o, lines: o.lines.map(l => ({ ...l, sentQty: l.qty })) }))
   const [paying, setPaying] = useState(false)
-  const pay = async () => {
+  // 💳 in-flight card charge: {checkoutId, amount} while the terminal waits,
+  // or {error} after a failure. Shown in place on the addition — no popups.
+  const [cardState, setCardState] = useState(null)
+  const cardPollRef = useRef(null)
+  const pay = async (method = 'cash', cardRef = null) => {
     const o = orders[currentId]
-    // The one REAL action in the demo till: an applied voucher is redeemed in
-    // the live voucher system (same rows the staff-portal Prizes flow marks).
+    const who = staffName()
+    if (!who) { openSignIn(); return }        // money always has a name on it
+    setPaying(true)
+    // Voucher first — redeemed in the live voucher system before anything closes.
     if (o.voucher) {
-      setPaying(true)
-      try { await tillVoucherRedeem(o.voucher.code, 'Till') }
+      try { await tillVoucherRedeem(o.voucher.code, who || 'Till') }
       catch (e) {
         setPaying(false)
         alert(`Voucher NOT redeemed — ${e.message || 'no connection'}. Remove the voucher or try again.`)
         return
       }
-      setPaying(false)
     }
+    // Record the payment against the shared day (cash for the due amount,
+    // the voucher as its own payment row). If the day isn't open or we're
+    // offline, the order refuses to close — money never vanishes quietly.
+    const duePence = Math.round(orderDue(o) * 100)
+    const payments = []
+    if (o.voucher) payments.push({ method: 'voucher', amount_pence: Math.round(voucherAmt(o) * 100), ref: o.voucher.code })
+    if (duePence > 0) payments.push({ method, amount_pence: duePence, ref: cardRef || undefined })
+    try {
+      await tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      await tillPayOrder(o.id, payments, Math.round(orderTotal(o) * 100), who)
+    } catch (e) {
+      setPaying(false)
+      alert(`Payment not recorded — ${e.message || 'no connection'}. ${String(e.message || '').includes("isn't open") ? 'Open the day on the ⊞ Floor first.' : 'Try again.'}`)
+      return
+    }
+    setPaying(false)
     setClosed({ ref: refLabel(o), total: orderDue(o), voucher: o.voucher || null })
     resetRingUi()
     // Straight into the next sale — a fresh Quick Sale register, K Series style.
     const fresh = newOrder('quick', null)
     setOrders(prev => { const n = { ...prev }; delete n[currentId]; n[fresh.id] = fresh; return n })
     setCurrentId(fresh.id); setScreen('ring')
+  }
+
+  // 💳 Send the due amount to the Square Terminal, poll until the customer
+  // taps, then close the order exactly like a cash payment (method 'card').
+  const cardPay = async () => {
+    const o = orders[currentId]
+    if (!staffName()) { openSignIn(); return }
+    const duePence = Math.round(orderDue(o) * 100)
+    if (duePence <= 0) return pay('cash')
+    setCardState({ starting: true, amount: duePence })
+    try {
+      await tillSaveOrder({ ...o, total_pence: Math.round(orderTotal(o) * 100) })
+      const r = await tillSqCharge(duePence, o.id, localStorage.getItem('nd_till_sq_device') || undefined)
+      setCardState({ checkoutId: r.checkout_id, amount: duePence })
+      const started = Date.now()
+      cardPollRef.current = setInterval(async () => {
+        try {
+          const c = await tillSqCheck(r.checkout_id)
+          if (c.status === 'COMPLETED') {
+            clearInterval(cardPollRef.current); setCardState(null)
+            pay('card', r.checkout_id)
+          } else if (c.status === 'CANCELED' || c.status === 'CANCEL_REQUESTED') {
+            clearInterval(cardPollRef.current)
+            setCardState({ error: 'Cancelled on the terminal.' })
+          } else if (Date.now() - started > 120000) {
+            clearInterval(cardPollRef.current)
+            setCardState({ error: "The terminal didn't answer in 2 minutes — take cash or try again." })
+          }
+        } catch { /* transient — keep polling */ }
+      }, 2500)
+    } catch (e) {
+      setCardState({ error: e.message || 'Could not reach the card terminal.' })
+    }
+  }
+  const cardCancel = async () => {
+    if (cardPollRef.current) clearInterval(cardPollRef.current)
+    const id = cardState?.checkoutId
+    setCardState(null)
+    if (id) { try { await tillSqCancel(id) } catch { /* already done */ } }
   }
 
   // ── discounts ─────────────────────────────────────────────────────────────
@@ -616,8 +762,51 @@ export default function TillScreen() {
       saveFloor({ ...floorPlan, tables: floorPlan.tables.filter(x => x.id !== selTable) }); setSelTable(null)
     }
 
+    const openDay = async () => {
+      const who = staffName()
+      const f = prompt('Opening float in the drawer? (£)', '200')
+      if (f == null) return
+      try { const r = await tillOpenDay(who, Math.round(parseFloat(f || '0') * 100)); setSession(r.session); setZRead(null) }
+      catch (e) { alert(e.message || 'Could not open the day.') }
+    }
+    const closeDay = async () => {
+      const who = staffName()
+      const c = prompt('Counted cash in the drawer? (£)')
+      if (c == null) return
+      try { const r = await tillCloseDay(who, Math.round(parseFloat(c || '0') * 100)); setSession(null); setZRead(r) }
+      catch (e) { alert(e.message || 'Could not close the day.') }
+    }
+
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, ...(isMobile ? {} : { height: frameH ? `${frameH + 40}px` : 'calc(100dvh - 220px)', minHeight: 460, overflow: 'hidden' }) }}>
+        {/* The day — sessions, float, Z-read */}
+        {session === null && !zRead && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(218,27,51,0.1)', border: '1px solid rgba(218,27,51,0.45)', borderRadius: 10, padding: '9px 13px', flexShrink: 0 }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: CREAM }}>🔓 The day is NOT open — sales won't record until it is.</span>
+            <button onClick={openDay} style={{ ...bigBtn(true), padding: '9px 18px' }}>OPEN THE DAY</button>
+          </div>
+        )}
+        {session && (
+          <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', background: 'rgba(52,211,153,0.07)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '7px 13px', flexShrink: 0 }}>
+            <span style={{ fontSize: 12.5, color: GREEN, fontWeight: 700 }}>
+              🔒 Day open since {String(session.opened_at || '').slice(11, 16)} · float {gbp((session.float_start_pence || 0) / 100)}{session.opened_by ? ` · ${session.opened_by}` : ''}
+            </span>
+            <button onClick={closeDay} style={{ ...btn(), marginLeft: 'auto', borderColor: GOLD, color: GOLD, fontWeight: 700 }}>CLOSE THE DAY (Z)</button>
+          </div>
+        )}
+        {zRead && (
+          <div style={{ background: 'rgba(52,211,153,0.07)', border: `1.5px solid ${GREEN}`, borderRadius: 12, padding: '11px 15px', flexShrink: 0 }}>
+            <div style={{ fontSize: 13.5, fontWeight: 800, color: GREEN }}>Z-READ #{zRead.z} — day closed</div>
+            <div style={{ fontSize: 12.5, color: CREAM, marginTop: 4 }}>
+              {zRead.orders} orders · gross {gbp(zRead.gross_pence / 100)} · cash {gbp(zRead.cash_pence / 100)} · card {gbp((zRead.card_pence || 0) / 100)} · vouchers {gbp(zRead.voucher_pence / 100)}
+              &nbsp;— expected in drawer {gbp(zRead.expected_pence / 100)}, counted {gbp(zRead.counted_pence / 100)},
+              <b style={{ color: zRead.over_short_pence === 0 ? GREEN : zRead.over_short_pence > 0 ? AMBER : RED }}>
+                {' '}{zRead.over_short_pence === 0 ? 'spot on' : `${zRead.over_short_pence > 0 ? 'over' : 'short'} ${gbp(Math.abs(zRead.over_short_pence) / 100)}`}
+              </b>
+            </div>
+            <button onClick={() => setZRead(null)} style={{ ...btn(), marginTop: 8 }}>Dismiss</button>
+          </div>
+        )}
         {closed && (
           <div style={{ fontSize: 13, color: GREEN, background: 'rgba(52,211,153,0.08)', border: '1px solid rgba(52,211,153,0.3)', borderRadius: 10, padding: '8px 12px', flexShrink: 0 }}>
             ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo only.
@@ -864,19 +1053,38 @@ export default function TillScreen() {
             )
           })()}
         </div>
+        {/* 💳 live card charge — in place, no popup: the terminal is waiting */}
+        {cardState && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderRadius: 10,
+            border: `1.5px solid ${cardState.error ? RED : GOLD}`, background: cardState.error ? 'rgba(218,27,51,0.08)' : 'rgba(201,168,76,0.08)' }}>
+            <span style={{ flex: 1, fontSize: 13.5, fontWeight: 700, color: cardState.error ? RED : GOLD }}>
+              {cardState.error ? `💳 ${cardState.error}` : cardState.starting ? '💳 Contacting the card terminal…' : `💳 ${gbp(cardState.amount / 100)} on the terminal — waiting for the tap…`}
+            </span>
+            <button onClick={cardCancel} style={btn()}>{cardState.error ? 'OK' : 'CANCEL'}</button>
+          </div>
+        )}
         <div style={{ display: 'flex', gap: 8 }}>
           <button onClick={() => setScreen('ring')} style={btn()}>← Back to order</button>
           {splitN > 1 ? (
-            <button onClick={pay} disabled={!sharesPaid.every(Boolean) || paying} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) && !paying ? 1 : 0.45 }}>
-              {paying ? 'Redeeming voucher…' : `CLOSE — ${sharesPaid.filter(Boolean).length}/${splitN} shares paid`}
+            <button onClick={() => pay('cash')} disabled={!sharesPaid.every(Boolean) || paying} style={{ ...bigBtn(true), flex: 1, opacity: sharesPaid.every(Boolean) && !paying ? 1 : 0.45 }}>
+              {paying ? 'Closing…' : `CLOSE — ${sharesPaid.filter(Boolean).length}/${splitN} shares paid`}
+            </button>
+          ) : due === 0 && current.voucher ? (
+            <button onClick={() => pay('cash')} disabled={paying} style={{ ...bigBtn(true), flex: 1, opacity: paying ? 0.6 : 1 }}>
+              {paying ? 'Redeeming voucher…' : 'PAID BY VOUCHER — close'}
             </button>
           ) : (
-            <button onClick={pay} disabled={paying} style={{ ...bigBtn(true), flex: 1, opacity: paying ? 0.6 : 1 }}>
-              {paying ? 'Redeeming voucher…' : due === 0 && current.voucher ? 'PAID BY VOUCHER — close' : `PAY ${gbp(due)} — close (demo)`}
-            </button>
+            <>
+              <button onClick={() => pay('cash')} disabled={paying || !!cardState} style={{ ...bigBtn(true), flex: 1, opacity: paying || cardState ? 0.5 : 1 }}>
+                {paying ? 'Closing…' : `💷 CASH ${gbp(due)}`}
+              </button>
+              <button onClick={cardPay} disabled={paying || !!cardState} style={{ ...bigBtn(true), flex: 1, opacity: paying || cardState ? 0.5 : 1 }}>
+                💳 CARD {gbp(due)}
+              </button>
+            </>
           )}
         </div>
-        <div style={{ fontSize: 10.5, color: DIM }}>Real version: this prints on the receipt printer (the "addition"), then takes cash or Square per share. Demo: it just closes the order.</div>
+        <div style={{ fontSize: 10.5, color: DIM }}>CARD sends the amount to the Square Terminal on the bar; the order closes itself the moment the customer taps. Splits: take each share cash or card on the terminal, tick them off, then CLOSE.</div>
 
         {/* 📋 Browse all outstanding vouchers — pick one to apply it */}
         {vListOpen && (
@@ -929,6 +1137,10 @@ export default function TillScreen() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline' }}>
         <span style={{ fontSize: 13.5, fontWeight: 800, color: GOLD, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{refLabel(current)}</span>
         <span style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+          <button onClick={() => tillWho ? setStaffPanel('out') : openSignIn()} title={tillWho ? 'Sign out of the till' : 'Sign in to the till'}
+            style={{ ...btn(), padding: '5px 10px', fontSize: 11.5, color: tillWho ? GREEN : GOLD, borderColor: tillWho ? GREEN : GOLD }}>
+            👤 {tillWho || 'SIGN IN'}
+          </button>
           <button onClick={() => { setMoveOrderId(currentId); setScreen('floor') }} title="Move to a table or make it a tab" style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⇄ Move</button>
           <button onClick={toFloor} style={{ ...btn(), padding: '5px 10px', fontSize: 11.5 }}>⊞ Floor</button>
         </span>
@@ -937,6 +1149,63 @@ export default function TillScreen() {
       {closed && current.lines.length === 0 && (
         <div style={{ fontSize: 12, color: GREEN }}>
           ✓ {closed.ref} paid {gbp(closed.total)}{closed.voucher ? ` · 🎟 ${closed.voucher.code} REDEEMED` : ''} — demo order, {closed.voucher ? 'voucher redemption was real' : 'nothing recorded'}.
+        </div>
+      )}
+
+      {/* 👤 sign in — pick your name off the rota */}
+      {staffPanel === 'in' && (
+        <div onClick={() => setStaffPanel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 520, maxWidth: '94vw', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: GOLD }}>👤 Who's on the till?</div>
+            {staffErr && <div style={{ fontSize: 12, color: RED }}>{staffErr}</div>}
+            {!staffRoster && !staffErr && <div style={{ fontSize: 12.5, color: DIM }}>Loading the staff list…</div>}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
+              {(staffRoster || []).map(s => (
+                <button key={s.id} onClick={() => pickStaff(s.name)} style={{ ...btn(), padding: '16px 10px', fontSize: 14, fontWeight: 700 }}>{s.name}</button>
+              ))}
+            </div>
+            <button onClick={() => setStaffPanel(null)} style={{ ...btn(), alignSelf: 'flex-start' }}>Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {/* 👤 sign out — the shift debrief: stars, weather, a line for the log */}
+      {staffPanel === 'out' && (
+        <div onClick={() => setStaffPanel(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', zIndex: 60, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: 'var(--ink-2)', border: `1px solid ${LINE}`, borderRadius: 14, padding: 18, width: 520, maxWidth: '94vw', display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: GOLD }}>👋 Signing out, {tillWho}</div>
+            <div>
+              <div style={{ fontSize: 12, color: DIM, marginBottom: 6 }}>How was the shift?</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {[1, 2, 3, 4, 5].map(n => (
+                  <button key={n} onClick={() => setDebrief(d => ({ ...d, stars: n }))} style={{
+                    ...btn(), flex: 1, padding: '14px 0', fontSize: 22, lineHeight: 1,
+                    borderColor: debrief.stars >= n ? GOLD : LINE, background: debrief.stars >= n ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+                  }}>{debrief.stars >= n ? '★' : '☆'}</button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: DIM, marginBottom: 6 }}>What was the weather like?</div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {WEATHER.map(([sym, label]) => (
+                  <button key={label} onClick={() => setDebrief(d => ({ ...d, weather: label }))} title={label} style={{
+                    ...btn(), flex: 1, padding: '12px 0', fontSize: 24, lineHeight: 1,
+                    borderColor: debrief.weather === label ? GOLD : LINE, background: debrief.weather === label ? 'rgba(201,168,76,0.15)' : 'rgba(255,255,255,0.04)',
+                  }}>{sym}</button>
+                ))}
+              </div>
+            </div>
+            <input value={debrief.comment} onChange={e => setDebrief(d => ({ ...d, comment: e.target.value.slice(0, 300) }))}
+              placeholder="Anything worth noting? (optional)"
+              style={{ padding: '12px 13px', borderRadius: 9, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,0.05)', color: CREAM, fontFamily: 'inherit', fontSize: 13.5 }} />
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => setStaffPanel(null)} style={btn()}>Stay signed in</button>
+              <button onClick={signOut} disabled={!debrief.stars || !debrief.weather} style={{ ...bigBtn(true), flex: 1, opacity: debrief.stars && debrief.weather ? 1 : 0.45 }}>
+                SIGN OUT{debrief.stars && debrief.weather ? '' : ' — pick stars & weather'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -1026,7 +1295,9 @@ export default function TillScreen() {
         </button>
       </div>
       {foodUnsent > 0 && <div style={{ fontSize: 11, color: AMBER }}>SEND will fire {foodUnsent} food item{foodUnsent > 1 ? 's' : ''} to the kitchen printer (real version).</div>}
-      <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>Demo — nothing is recorded. Lightspeed is still the till of record.</div>
+      {session === null
+        ? <div style={{ fontSize: 10.5, color: RED, fontWeight: 700, lineHeight: 1.5 }}>⚠ The day is not open — PAY will refuse. Open it on ⊞ Floor.</div>
+        : <div style={{ fontSize: 10.5, color: DIM, lineHeight: 1.5 }}>Training mode — orders record to the till system. Lightspeed is still the till of record.</div>}
     </div>
   )
 

@@ -32,9 +32,29 @@ export async function tillReservationsToday() {
   return { day, list: await res.json() }
 }
 
+// Real orders — sessions, shared floor state, payments, Z-reads.
+export const tillDayState = () => call({ action: 'dayState' })
+export const tillHQ = () => call({ action: 'hq' })
+export const tillOpenDay = (by, float_pence) => call({ action: 'openDay', by, float_pence })
+export const tillCloseDay = (by, counted_pence) => call({ action: 'closeDay', by, counted_pence })
+export const tillSaveOrder = (order) => call({ action: 'saveOrder', order })
+export const tillPayOrder = (orderId, payments, total_pence, by) => call({ action: 'payOrder', orderId, payments, total_pence, by })
+export const tillVoidOrder = (orderId, reason, by) => call({ action: 'voidOrder', orderId, reason, by })
+
 export const tillFloorGet = () => call({ action: 'floorGet' })
 export const tillFloorSave = (floor) => call({ action: 'floorSave', floor })
 export const tillVoucherList = () => call({ action: 'voucherList' })
 export const tillVoucherLookup = (code) => call({ action: 'voucherLookup', code })
 export const tillVoucherRedeem = (code, by) => call({ action: 'voucherRedeem', code, by })
 export const tillVoucherUnredeem = (code) => call({ action: 'voucherUnredeem', code })
+
+// 👤 Staff sign-in — names from the rota's staff table; events into till_events
+export const tillStaffList = () => call({ action: 'staffList' })
+export const tillStaffEvent = (kind, name, extra = {}) => call({ action: 'staffEvent', kind, name, ...extra })
+
+// 💳 Square Terminal — card payments (sandbox first, production by secret swap)
+export const tillSqStatus = () => call({ action: 'sqStatus' })
+export const tillSqPairCode = () => call({ action: 'sqPairCode' })
+export const tillSqCharge = (amount_pence, orderId, device_id) => call({ action: 'sqCharge', amount_pence, orderId, device_id })
+export const tillSqCheck = (checkout_id) => call({ action: 'sqCheck', checkout_id })
+export const tillSqCancel = (checkout_id) => call({ action: 'sqCancel', checkout_id })

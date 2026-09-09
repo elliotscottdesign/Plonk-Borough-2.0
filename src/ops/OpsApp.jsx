@@ -51,7 +51,6 @@ const GROUPS = [
     key: 'kitchen', label: 'Kitchen',
     tabs: [
       { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
-      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
     ],
   },
   {
@@ -78,6 +77,10 @@ const GROUPS = [
       { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
+      // Moved out of Kitchen (founder, 9 Sep 2026) — it edits EVERY checklist, not
+      // just the kitchen's, so it belongs with the paperwork. Key unchanged so any
+      // existing ?tab=checklist-editor link still lands.
+      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
     ],
   },
@@ -96,6 +99,37 @@ const GROUPS = [
     ],
   },
 ]
+
+// ─── "My profile" — back out of the manager hub to your own staff profile ────
+// Founder, 9 Sep 2026: "Rhys and Elliot both need buttons added to the managerial
+// back end to get us back to our profiles… on the phone and desktop in the main
+// menu as the top option before Bar."
+//
+// /ops is the manager hub; /rota is where your own shifts, availability and
+// checklists live. There was a way IN (the doors on the staff profile) but no way
+// BACK, so the only route was retyping the address. One control, used by both
+// layouts, so they can't drift apart.
+function ProfileLink({ compact }) {
+  const go = (e) => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return
+    e.preventDefault(); window.location.assign('/rota')
+  }
+  return (
+    <a href="/rota" onClick={go} style={{
+      display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none',
+      padding: compact ? '7px 13px' : '11px 12px',
+      borderRadius: compact ? 999 : 8,
+      background: 'rgba(218,27,51,0.10)', border: '1px solid rgba(218,27,51,0.5)',
+      color: 'var(--cream)', fontSize: compact ? 12.5 : 13.5, fontWeight: 700,
+      whiteSpace: 'nowrap', cursor: 'pointer',
+      touchAction: 'manipulation', WebkitTapHighlightColor: 'rgba(218,27,51,0.4)',
+    }}>
+      <span style={{ fontSize: compact ? 13 : 15 }}><span data-keep-color>👤</span></span>
+      <span>My profile</span>
+      {!compact && <span style={{ marginLeft: 'auto', fontSize: 10, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'var(--cream-dim)' }}>Shifts · rota</span>}
+    </a>
+  )
+}
 
 export default function OpsApp() {
   // Founder-only sections (Staff Rota, Finances…) are hidden from team-tier
@@ -225,6 +259,7 @@ export default function OpsApp() {
         ) : (
           <>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+              <ProfileLink compact />
               {visGroups.map(g => <button key={g.key} onClick={() => pickGroup(g)} style={groupStyle(activeGroup.key === g.key)}>{g.label}</button>)}
             </div>
             <a href="/" style={{ fontSize: 11, color: 'var(--cream-dim)', letterSpacing: '0.14em', textDecoration: 'none', whiteSpace: 'nowrap' }}>← nodice.bar</a>
@@ -251,6 +286,9 @@ export default function OpsApp() {
           {/* Appearance — Auto / Dark / Light. Before this the look was decided
               entirely by the phone's own setting, so a founder whose phone sits on
               Light never saw the dark app at all. */}
+          {/* Top of the menu, before Bar — the way back to your own staff profile. */}
+          <div style={{ padding: '10px 0 4px' }}><ProfileLink /></div>
+
           {/* Signing out is the ONLY way off a remembered device, so it has to be
               findable. Everything else in this menu is navigation; this isn't. */}
           <button onClick={() => { if (window.confirm('Sign out of this device?\n\nYou\u2019ll need your code to get back in.')) { forgetDevice(); window.location.replace('/') } }}
