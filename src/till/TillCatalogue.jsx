@@ -4,8 +4,13 @@ import { tillCatalogueCosts } from './api.js'
 import { serveGP, gbp } from './gp.js'
 import { pageColor } from './colors.js'
 import { PAGES } from './data/happyHour.js'
+import costFeed from './data/costProposals.json'
+import recipesFeed from './data/recipesDraft.json'
+import { barSaveProduct } from '../ops/barApi.js'
+import { tillHQ, tillDayState, tillVoucherList } from './api.js'
 import { adoptTillAppIdentity } from './pwa.js'
 import TillScreen from './TillScreen.jsx'
+import ReceiptPreview from './ReceiptPreview.jsx'
 
 // ─── The TILL tab in /ops ────────────────────────────────────────────────────
 // (File name is the OpsApp mount point — this default export is the whole tab.)
@@ -57,10 +62,98 @@ export default function TillTab() {
         <div style={{ display: 'flex', gap: 6 }}>
           {tabBtn('till', '🛎 Till')}
           {tabBtn('catalogue', '📖 Catalogue & margins')}
+          {tabBtn('hq', '📊 HQ')}
+          {tabBtn('receipts', '🧾 Receipts')}
         </div>
       </div>
-      {view === 'till' ? <TillScreen /> : <CatalogueView />}
+      {view === 'till' ? <TillScreen /> : view === 'hq' ? <HQView /> : view === 'receipts' ? <ReceiptPreview /> : <CatalogueView />}
       </div>
+    </div>
+  )
+}
+
+// ─── 📊 HQ — the founder's one-glance morning view ──────────────────────────
+// Today's live day, the Z-read history, redeemed vouchers, and the two counts
+// that measure how ready the costing engine is. Everything read-only.
+function HQView() {
+  const [day, setDay] = useState(null)
+  const [hq, setHq] = useState(null)
+  const [hqErr, setHqErr] = useState('')
+  const [cat, setCat] = useState(null)
+  const [outstanding, setOutstanding] = useState(null)
+  useEffect(() => {
+    tillDayState().then(setDay).catch(() => {})
+    tillHQ().then(setHq).catch(e => setHqErr(e.message || 'unavailable'))
+    tillCatalogueCosts().then(setCat).catch(() => {})
+    tillVoucherList().then(r => setOutstanding((r.vouchers || []).length)).catch(() => {})
+  }, [])
+
+  const uncosted = cat ? (cat.costs || []).filter(c => c.cost_per_base == null).length : null
+  const costed = cat ? (cat.costs || []).filter(c => c.cost_per_base != null).length : null
+  const recipesIn = cat ? (cat.margins || []).filter(m => m.recipe_lines > 0).length : null
+  const openOrders = day?.orders?.length ?? 0
+  const s = day?.session
+
+  const card = (title, children) => (
+    <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 12, padding: '13px 16px' }}>
+      <div style={{ fontSize: 11, letterSpacing: '0.13em', textTransform: 'uppercase', color: DIM, marginBottom: 8 }}>{title}</div>
+      {children}
+    </div>
+  )
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {card('Today', s ? (
+        <div style={{ fontSize: 13.5, color: CREAM }}>
+          🔒 Day OPEN since {String(s.opened_at || '').slice(11, 16)}{s.opened_by ? ` (${s.opened_by})` : ''} ·
+          float {gbp((s.float_start_pence || 0) / 100)} · <b>{openOrders}</b> open order{openOrders === 1 ? '' : 's'}{' '}
+          ({gbp((day.orders || []).reduce((t, o) => t + (o.total_pence || 0), 0) / 100)} on the floor)
+        </div>
+      ) : (
+        <div style={{ fontSize: 13.5, color: DIM }}>The day isn't open. (⊞ Floor → OPEN THE DAY when service starts.)</div>
+      ))}
+
+      {card('Z-reads — the last 14 days', hqErr ? (
+        <div style={{ fontSize: 12.5, color: AMBER }}>History arrives with the next service update ({hqErr}).</div>
+      ) : !hq ? <div style={{ fontSize: 12.5, color: DIM }}>Loading…</div> : (hq.zreads || []).length === 0 ? (
+        <div style={{ fontSize: 12.5, color: DIM }}>No closed days yet — the first real Z will appear here.</div>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {hq.zreads.map(z => (
+            <div key={z.z} style={{ display: 'flex', gap: 12, fontSize: 13, flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <b style={{ color: GOLD, minWidth: 42 }}>Z #{z.z}</b>
+              <span style={{ color: DIM, minWidth: 84 }}>{String(z.closed_at || '').slice(0, 10)}</span>
+              <span style={{ color: CREAM }}>gross <b>{gbp(z.gross_pence / 100)}</b></span>
+              <span style={{ color: DIM }}>cash {gbp(z.cash_pence / 100)} · vouchers {gbp(z.voucher_pence / 100)}</span>
+              <span style={{ fontWeight: 700, color: z.over_short_pence === 0 ? GREEN : z.over_short_pence > 0 ? AMBER : RED }}>
+                {z.over_short_pence === 0 ? 'drawer spot on' : `${z.over_short_pence > 0 ? 'over' : 'short'} ${gbp(Math.abs(z.over_short_pence) / 100)}`}
+              </span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {card('Vouchers', (
+        <div style={{ fontSize: 13, color: CREAM, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <span>{outstanding == null ? '…' : <><b>{outstanding}</b> outstanding in the wild</>}</span>
+          {hq && (hq.redeemed || []).slice(0, 6).map(v => (
+            <span key={v.code} style={{ fontSize: 12, color: DIM }}>
+              ✓ {String(v.redeemed_at).slice(0, 10)} · {v.display_name || v.code} · {gbp(v.amount_pence / 100)} · by {v.redeemed_by || '—'}
+            </span>
+          ))}
+        </div>
+      ))}
+
+      {card('Costing engine readiness', (
+        <div style={{ fontSize: 13, color: CREAM }}>
+          {cat ? <>
+            <b style={{ color: GREEN }}>{costed}</b> products costed · <b style={{ color: AMBER }}>{uncosted}</b> still uncosted
+            (the 💷 Costs inbox fills these) · <b style={{ color: recipesIn ? GREEN : AMBER }}>{recipesIn}</b> recipes in the engine
+            (🧪 {recipesFeed.drafts.filter(d => d.ready).length} drafted, loading on the next service update)
+          </> : 'Loading…'}
+        </div>
+      ))}
+      <div style={{ fontSize: 10.5, color: DIM }}>Read-only. The same numbers can land in your inbox each morning — say the word.</div>
     </div>
   )
 }
@@ -140,6 +233,9 @@ function CatalogueView() {
         </div>
       )}
 
+      <CostsInbox costsByName={costsByName} onApplied={() => tillCatalogueCosts().then(setData).catch(() => {})} />
+      <RecipeDrafts marginsByName={marginsByName} />
+
       {stats.worst.length > 0 && (
         <div style={{ background: 'rgba(218,27,51,0.07)', border: '1px solid rgba(218,27,51,0.3)', borderRadius: 12, padding: '12px 16px' }}>
           <div style={{ fontSize: 12, fontWeight: 700, color: CREAM, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 8 }}>
@@ -209,6 +305,159 @@ function CatalogueView() {
         product in the Bar page and GP appears here on its own. "No stock record" means the product isn't in the bar
         stock system at all yet. GP assumes 20% VAT. Nothing on this screen writes anywhere.
       </div>
+    </div>
+  )
+}
+
+// ─── 💷 Costs inbox — the invoice → cost feed's approval queue ──────────────
+// Proposed pack costs (scripts/costProposals.py: the Drinks Club 26-27 invoice
+// list where marked, ballparks flagged amber). NOTHING applies without a tap;
+// Apply writes pack_cost through the bar fn's founder-gated action, and GP
+// across the till updates itself.
+function CostsInbox({ costsByName, onApplied }) {
+  const [open, setOpen] = useState(false)
+  const [applied, setApplied] = useState(() => new Set())
+  const [busy, setBusy] = useState(false)
+  const rows = costFeed.proposals.map(p => {
+    const live = costsByName ? costsByName[p.stock.toLowerCase()] : null
+    // A row counts as APPLIED when the live per-unit cost matches this very
+    // proposal — read from the database, so ✓ survives reloads and devices.
+    const liveCost = live?.cost_per_base
+    const expected = p.pack_units ? p.pack_cost / p.pack_units : null
+    const matches = liveCost != null && expected != null &&
+      Math.abs(liveCost - expected) <= Math.max(expected * 0.01, 0.001)
+    return { ...p, product_id: live?.product_id || null, alreadyCosted: live ? liveCost != null : null, matches }
+  })
+  const applicable = rows.filter(r => r.product_id && !applied.has(r.stock) && !r.matches)
+  const confidentTodo = applicable.filter(r => r.confident)
+  const wetTodo = applicable.filter(r => r.wet)
+
+  const applyOne = async (r) => {
+    if (!r.product_id) return
+    try {
+      await barSaveProduct({ id: r.product_id, pack_cost: r.pack_cost })
+      setApplied(prev => new Set(prev).add(r.stock))
+    } catch (e) { alert(`${r.stock}: ${e.message || 'failed'}`) }
+  }
+  const applyAll = async (list) => {
+    setBusy(true)
+    for (const r of list) await applyOne(r)   // sequential, gentle
+    setBusy(false)
+    onApplied()
+  }
+
+  return (
+    <div style={{ border: `1.5px solid ${GOLD}`, borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+        background: 'rgba(201,168,76,0.08)', border: 'none', cursor: 'pointer', padding: '13px 16px', color: CREAM, fontFamily: 'inherit',
+      }}>
+        <span style={{ fontSize: 14.5, fontWeight: 800, color: GOLD }}>{open ? '▾' : '▸'} 💷 Costs inbox</span>
+        <span style={{ fontSize: 11.5, color: DIM }}>
+          {costFeed.proposals.length} proposed pack costs · {costFeed.generated}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+            {confidentTodo.length > 0 && (
+              <button onClick={() => applyAll(confidentTodo)} disabled={busy} style={{
+                padding: '11px 18px', borderRadius: 9, border: 'none', cursor: 'pointer',
+                background: GOLD, color: '#141414', fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
+              }}>
+                {busy ? 'Applying…' : `APPLY ALL ${confidentTodo.length} INVOICE-LISTED COSTS`}
+              </button>
+            )}
+            {wetTodo.length > 0 && (
+              <button onClick={() => applyAll(wetTodo)} disabled={busy} style={{
+                padding: '11px 18px', borderRadius: 9, cursor: 'pointer',
+                border: `1.5px solid ${GOLD}`, background: 'rgba(201,168,76,0.1)',
+                color: GOLD, fontFamily: 'inherit', fontSize: 13, fontWeight: 800, opacity: busy ? 0.6 : 1,
+              }}>
+                {busy ? 'Applying…' : `APPLY ALL ${wetTodo.length} PREVIOUS-SUPPLIER COSTS`}
+              </button>
+            )}
+          </div>
+          {rows.map(r => {
+            const done = applied.has(r.stock) || r.matches
+            return (
+              <div key={r.stock} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+                <span style={{ flex: '1 1 200px', fontSize: 13, color: CREAM, fontWeight: 600 }}>
+                  {r.stock}
+                  <span style={{ fontSize: 10.5, color: DIM, fontWeight: 400 }}> · {r.supplier || '—'} · {r.ref.slice(0, 46)}</span>
+                </span>
+                <span style={{ fontSize: 13, fontWeight: 800, color: r.confident ? GREEN : AMBER, whiteSpace: 'nowrap' }}>
+                  {gbp(r.pack_cost)} <span style={{ fontWeight: 400, color: DIM, fontSize: 10.5 }}>{r.pack_label} ex-VAT</span>
+                </span>
+                <span style={{ fontSize: 10, color: r.confident ? GREEN : r.wet ? GOLD : AMBER }}>{r.confident ? 'invoice list' : r.wet ? 'previous supplier' : 'ballpark'}</span>
+                {r.alreadyCosted && !done && <span style={{ fontSize: 10, color: AMBER }}>has a DIFFERENT cost — apply to update</span>}
+                {done
+                  ? <span style={{ fontSize: 12, fontWeight: 700, color: GREEN }}>✓ applied</span>
+                  : r.product_id
+                    ? <button onClick={() => { applyOne(r).then(onApplied) }} style={{
+                        padding: '7px 14px', borderRadius: 8, border: `1.5px solid ${GOLD}`, background: 'rgba(201,168,76,0.1)',
+                        color: GOLD, cursor: 'pointer', fontFamily: 'inherit', fontSize: 11.5, fontWeight: 800,
+                      }}>APPLY</button>
+                    : <span style={{ fontSize: 10.5, color: DIM }}>waiting for cost data…</span>}
+              </div>
+            )
+          })}
+          <div style={{ fontSize: 10.5, color: DIM, paddingTop: 8, lineHeight: 1.5 }}>
+            Green = the Drinks Club 26-27 wholesale list (real invoice prices, ex-VAT). Gold = the previous supplier's
+            price off the wet stock sheet — real money once paid, used only where Drinks Club hasn't priced it yet, and
+            replaced as orders move to current wholesalers. Amber = industry ballpark — apply only if it looks right.
+            Next stage: prices read straight off supplier invoice PDFs (Xero bills only carry one-line totals).
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ─── 🧪 Recipe drafts — the recipes sprint's review sheet ───────────────────
+// 97 recipes drafted from the costing sheet (every line joined to a real
+// stock product; garnish/soda omissions and skips shown honestly). They load
+// into the costing engine on the next service update — this is the founder's
+// eyeball pass.
+function RecipeDrafts({ marginsByName }) {
+  const [open, setOpen] = useState(false)
+  const drafts = recipesFeed.drafts
+  const ready = drafts.filter(d => d.ready)
+  const inEngine = (name) => marginsByName && marginsByName[name.toLowerCase()]?.recipe_lines > 0
+  return (
+    <div style={{ border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+      <button onClick={() => setOpen(!open)} style={{
+        width: '100%', textAlign: 'left', display: 'flex', alignItems: 'baseline', gap: 10, flexWrap: 'wrap',
+        background: 'rgba(255,255,255,0.03)', border: 'none', cursor: 'pointer', padding: '13px 16px', color: CREAM, fontFamily: 'inherit',
+      }}>
+        <span style={{ fontSize: 14.5, fontWeight: 700 }}>{open ? '▾' : '▸'} 🧪 Recipe drafts</span>
+        <span style={{ fontSize: 11.5, color: DIM }}>
+          {ready.length} ready of {drafts.length} · {recipesFeed.generated}
+        </span>
+      </button>
+      {open && (
+        <div style={{ padding: '4px 16px 14px', display: 'flex', flexDirection: 'column' }}>
+          {drafts.map(d => (
+            <div key={d.costing_name} style={{ display: 'flex', gap: 10, padding: '6px 0', borderTop: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap', alignItems: 'baseline' }}>
+              <span style={{ flex: '1 1 180px', fontSize: 13, fontWeight: 600, color: d.ready ? CREAM : DIM }}>
+                {d.name} <span style={{ fontSize: 10.5, color: DIM, fontWeight: 400 }}>· {gbp(d.sell)}</span>
+                {inEngine(d.name) && <span style={{ fontSize: 10.5, color: GREEN }}> · in the engine ✓</span>}
+              </span>
+              <span style={{ flex: '2 1 300px', fontSize: 11.5, color: d.ready ? DIM : AMBER }}>
+                {d.ready
+                  ? d.lines.map(l => `${l.disp} ${l.product}`).join(' + ') + (d.omitted.length ? `  (omits: ${d.omitted.join(', ')})` : '')
+                  : `SKIPPED — not in the stock system: ${d.missing.join(', ')}`}
+              </span>
+            </div>
+          ))}
+          <div style={{ fontSize: 10.5, color: DIM, paddingTop: 8, lineHeight: 1.5 }}>
+            Drafted from the costing sheet's own recipes. Garnish and gun-soda are omitted (pennies a serve); fresh
+            lime/lemon juice and sugar syrup become proper "made" prep products costed from limes, lemons and sugar.
+            Skipped recipes name products the stock system doesn't carry yet. Spot anything wrong? Say so — one line
+            fixes it before the load.
+          </div>
+        </div>
+      )}
     </div>
   )
 }

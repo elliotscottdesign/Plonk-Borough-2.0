@@ -1,5 +1,5 @@
 import React, { useState } from 'react'
-import { djAdmin, kindFor, fmtDate, sessionForSlot, slotLabel } from '../../dj/api.js'
+import { djAdmin, kindFor, fmtDate, sessionForSlot, slotLabel, payFriday } from '../../dj/api.js'
 import { Avatar } from './DJRoster.jsx'
 
 // DJ Payments (admin) — per-DJ sessions played + logged expense receipts, to
@@ -47,26 +47,44 @@ export default function DJPayments({ djs = [], slots = [], receipts = [], reload
 
   const grandReceipts = rows.reduce((s, r) => s + r.receiptsTotal, 0)
   const grandSessions = rows.reduce((s, r) => s + r.past.length, 0)
+  // Invoices landed but not yet paid — the £ you still owe on fees.
+  const grandOutstanding = rows.reduce((sum, r) => sum + r.past.reduce((a, s) => a + (s.invoice_received_at && !s.paid_at ? (Number(s.invoice_amount) || 0) : 0), 0), 0)
 
+  const [amtDraft, setAmtDraft] = useState({})   // per-slot £ amount while typing
   const toggle = (id) => setExpanded(p => { const n = new Set(p); n.has(id) ? n.delete(id) : n.add(id); return n })
   const del = async (id) => {
     if (!window.confirm('Delete this receipt? (This removes it from the DJ too.)')) return
     setBusy(true)
     try { await djAdmin('deleteReceipt', { id }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
   }
+  const amtFor = (s) => { const k = s.date + '|' + (s.slot || 'main'); return amtDraft[k] !== undefined ? amtDraft[k] : (s.invoice_amount ?? '') }
+  const setRecv = async (s, onVal) => {
+    setBusy(true)
+    try { await djAdmin('invoiceReceived', { date: s.date, slot: s.slot || 'main', on: onVal, amount: onVal ? amtFor(s) : undefined }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const saveAmt = async (s) => {
+    setBusy(true)
+    try { await djAdmin('setInvoiceAmount', { date: s.date, slot: s.slot || 'main', amount: amtFor(s) }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const setPaid = async (s, onVal) => {
+    setBusy(true)
+    try { await djAdmin('markPaid', { date: s.date, slot: s.slot || 'main', on: onVal }); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+  const pill = (on, c) => ({ padding: '6px 11px', borderRadius: 999, fontSize: 12, fontWeight: 700, cursor: busy ? 'default' : 'pointer', background: on ? c : 'transparent', color: on ? '#04240f' : '#fff', border: `1px solid ${on ? c : LINE}` })
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
       <div>
         <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>💷 DJ Payments</div>
         <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2, lineHeight: 1.5 }}>
-          Sessions played + logged receipts. Session fees are agreed per DJ (off-system) — pay each DJ their rate × sessions, plus receipts.
+          Per DJ: their nights, invoices &amp; receipts. Tick <strong style={{ color: '#fff' }}>Invoice landed</strong> (+ the £ off it) when it arrives, then <strong style={{ color: '#fff' }}>Paid</strong> on the Friday after they played. Fees come off each DJ's invoice.
         </div>
       </div>
 
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-        <Stat label="Paid sessions played" value={String(grandSessions)} color="#fff" />
-        <Stat label="Receipts to reimburse" value={money(grandReceipts)} color={YELLOW} strong />
+        <Stat label="Invoices to pay (landed)" value={money(grandOutstanding)} color={GREEN} strong />
+        <Stat label="Receipts to reimburse" value={money(grandReceipts)} color={YELLOW} />
+        <Stat label="Paid sessions played" value={String(grandSessions)} color="rgba(255,255,255,0.85)" />
       </div>
 
       {rows.length === 0 ? (
@@ -101,12 +119,23 @@ export default function DJPayments({ djs = [], slots = [], receipts = [], reload
                   {r.past.length === 0 ? (
                     <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No played sessions yet.</div>
                   ) : (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       {r.past.map((s, i) => {
                         const sess = sessionForSlot(s.date, s.slot); const sLab = slotLabel(s.date, s.slot)
+                        const landed = !!s.invoice_received_at, paid = !!s.paid_at, sent = !!s.invoice_sent_at
                         return (
-                          <div key={s.date + '-' + (s.slot || 'main') + i} style={{ fontSize: 13, color: 'rgba(255,255,255,0.85)' }}>
-                            {fmtDate(s.date)} <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11 }}>· {sess?.day}{sLab ? ` · ${sLab}` : ''}{s.night_name ? ` · "${s.night_name}"` : ''}{s.dj_id2 && s.dj_id !== r.id ? ' · (b2b)' : ''}</span>
+                          <div key={s.date + '-' + (s.slot || 'main') + i} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderLeft: `3px solid ${paid ? GREEN : landed ? YELLOW : LINE}`, borderRadius: 9, padding: '10px 12px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'baseline' }}>
+                              <div style={{ fontSize: 13, fontWeight: 600 }}>{fmtDate(s.date)} <span style={{ color: 'rgba(255,255,255,0.4)', fontWeight: 400, fontSize: 11 }}>· {sess?.day}{sLab ? ` · ${sLab}` : ''}{s.night_name ? ` · "${s.night_name}"` : ''}{s.dj_id2 && s.dj_id !== r.id ? ' · (b2b)' : ''}</span></div>
+                              <span style={{ fontSize: 10.5, color: paid ? GREEN : 'rgba(255,255,255,0.5)', whiteSpace: 'nowrap' }}>{paid ? 'paid ✓' : `pay by ${fmtDate(payFriday(s.date))}`}</span>
+                            </div>
+                            <div style={{ fontSize: 10.5, color: sent ? GREEN : 'rgba(255,255,255,0.4)', marginTop: 3 }}>{sent ? '✓ DJ marked invoice sent' : 'DJ hasn’t ticked invoice sent'}</div>
+                            <div style={{ display: 'flex', gap: 8, marginTop: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.5)' }}>£</span>
+                              <input inputMode="decimal" value={amtFor(s)} onChange={e => { const v = e.target.value.replace(/[^0-9.]/g, ''); setAmtDraft(d => ({ ...d, [s.date + '|' + (s.slot || 'main')]: v })) }} onBlur={() => saveAmt(s)} placeholder="amount" style={{ width: 84, padding: '6px 8px', fontSize: 13, borderRadius: 7, background: '#000', border: `1px solid ${LINE}`, color: '#fff' }} />
+                              <button onClick={() => setRecv(s, !landed)} disabled={busy} style={pill(landed, YELLOW)}>{landed ? '✓ Invoice landed' : 'Mark landed'}</button>
+                              <button onClick={() => setPaid(s, !paid)} disabled={busy} style={pill(paid, GREEN)}>{paid ? '✓ Paid' : 'Mark paid'}</button>
+                            </div>
                           </div>
                         )
                       })}
