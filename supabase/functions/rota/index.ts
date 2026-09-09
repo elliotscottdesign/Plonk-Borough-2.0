@@ -698,8 +698,9 @@ Deno.serve(async (req) => {
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
         const clockList = clocks || [];
-        const visibleShifts = (shifts || []).filter((s: any) =>
-          mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
+        // Everyone sees ALL future shifts (incl. full ones held by teammates) so the
+        // day panel can show who you're working with; past days stay yours-only.
+        const visibleShifts = (shifts || []).filter((s: any) => mine.has(s.id) || s.date >= today);
         return json({
           ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2], swaps,
           shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id), who: whoBy[s.id] || [] })),
