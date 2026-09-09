@@ -24,17 +24,31 @@ const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const clean = (v: unknown, n = 200) => (v == null ? "" : String(v)).slice(0, n).trim();
 
+// UK/international mobile → E.164 for Twilio. Leaves an already-+ number (e.g.
+// Ukraine +380…) alone; turns a bare UK 07… into +44…. Twilio rejects numbers
+// without a country code ("not a valid phone number"), so every send goes
+// through this first.
+function normalisePhone(raw: string): string {
+  const s = String(raw || "").replace(/[^\d+]/g, "");
+  if (s.startsWith("+")) return s;
+  if (s.startsWith("07") && s.length === 11) return "+44" + s.slice(1);
+  if (s.startsWith("447")) return "+" + s;
+  if (s.startsWith("44")) return "+" + s;
+  return s;
+}
+
 // The pre-programmed "food ready" message (founder brief Aug 2026).
 const readyMessage = (orderNo: number, name?: string | null) =>
   `On A Roll 🍔🍟 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
 
 async function sendSMS(to: string, body: string): Promise<boolean> {
-  if (!TW_SID || !TW_TOKEN || !to) return false;
+  const To = normalisePhone(to);   // rescue any raw 07… stored before we normalised at intake
+  if (!TW_SID || !TW_TOKEN || !To) return false;
   try {
     const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
       method: "POST",
       headers: { "Authorization": "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body }),
+      body: new URLSearchParams({ From: TW_SMS_FROM, To, Body: body }),
     });
     return r.ok;
   } catch {
@@ -121,7 +135,7 @@ Deno.serve(async (req) => {
       if (!eff0.open) return json({ error: "Ordering is paused right now — please try again shortly.", open: false }, 409);
       const row = {
         customer_name: clean(b.name, 80) || null,
-        customer_phone: clean(b.phone, 30) || null,
+        customer_phone: normalisePhone(clean(b.phone, 30)) || null,
         items,
         total_pence: Math.max(0, parseInt(b.total_pence, 10) || 0),
         paid: !!b.payment_ref,
@@ -344,7 +358,7 @@ Deno.serve(async (req) => {
       const code = clean(b.code, 40).toUpperCase();
       const { data: codeRow } = await sb.from("order_codes").select("*").eq("code", code).maybeSingle();
       if (!codeRow || !codeRow.active) return json({ error: "That code isn't valid — check with staff." }, 403);
-      const name = clean(b.name, 80), phone = clean(b.phone, 30);
+      const name = clean(b.name, 80), phone = normalisePhone(clean(b.phone, 30));
       const emailC = clean(b.email, 120);
       const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailC) ? emailC : "";
       if (name.length < 2) return json({ error: "Please enter your name." }, 400);
