@@ -1235,17 +1235,6 @@
    "ref": "King's Ginger Liqueur"
   },
   {
-   "stock": "Kombucha",
-   "pack_cost": 1.01,
-   "pack_label": "per case (×1)",
-   "supplier": "previous supplier",
-   "pack_units": 1.0,
-   "source": "previous supplier — wet stock sheet (Sep 2026); update on next wholesaler order",
-   "confident": false,
-   "wet": true,
-   "ref": "Kombucha"
-  },
-  {
    "stock": "Los Conejos Tinto (red)",
    "pack_cost": 10.0,
    "pack_label": "per bottle (750ml)",

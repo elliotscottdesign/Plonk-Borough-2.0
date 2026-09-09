@@ -215,7 +215,7 @@ WETSTOCK = [
     ("Lemonade", 65.39), ("Coke Zero", 59.78), ("Coke", 74.52), ("Schweppes Tonic", 68.47),
     ("Favonius Orange", 13.50), ("Eager Pineapple", 20.87),
     # each-counted — per single can/bottle, scaled to the case
-    ("Mini Prosecco 20cl", 2.12, "unit"), ("Kombucha", 1.01, "unit"),
+    ("Mini Prosecco 20cl", 2.12, "unit"),
     ("Cherry Sour", 2.71, "unit"), ("Fresh Non-Alc", 2.04, "unit"),
     ("Fuzzy Hazy Pale", 2.25, "unit"), ("Happy! Easy Pale", 2.08, "unit"),
  ("Piccadilly Pilsner GF", 2.08, "unit"),
