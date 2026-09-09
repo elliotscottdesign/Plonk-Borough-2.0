@@ -2364,7 +2364,7 @@
    "ready": true
   },
   {
-   "name": "Aperol Spritz - Jug",
+   "name": "Aperol Spritz (Jug)",
    "costing_name": "Aperol Spritz (Jug)",
    "category": "jug",
    "sell": 30.0,
@@ -2525,6 +2525,219 @@
     {
      "product": "Monin Grenadine",
      "qty": 15.0,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dirty Martini",
+   "costing_name": "Dirty Martini",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Wyborowa Vodka",
+     "qty": 60,
+     "disp": "60ml"
+    },
+    {
+     "product": "Cocchi Americano",
+     "qty": 5,
+     "disp": "5ml (bar spoon)"
+    }
+   ],
+   "omitted": [
+    "Olive brine 15ml — poured from the olive jar, no marginal cost"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dark & Plonkie",
+   "costing_name": "Dark & Plonkie",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Havana Club 7yr",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 15,
+     "disp": "15ml"
+    },
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 0.51,
+     "disp": "167ml = 0.51 can (jug spec ÷ 3)"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 1,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dark & Plonkie - Jug",
+   "costing_name": "Dark & Plonkie - Jug",
+   "category": "founder recipe",
+   "sell": 26.0,
+   "lines": [
+    {
+     "product": "Havana Club 7yr",
+     "qty": 150,
+     "disp": "150ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 45,
+     "disp": "45ml"
+    },
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 1.52,
+     "disp": "500ml = 1.52 cans"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 3,
+     "disp": "3ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedges"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "London Ting",
+   "costing_name": "London Ting",
+   "category": "founder recipe",
+   "sell": 8.0,
+   "lines": [
+    {
+     "product": "Ting",
+     "qty": 1,
+     "disp": "1 × can"
+    },
+    {
+     "product": "Devil's Botany London 40%",
+     "qty": 25,
+     "disp": "25ml shot"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mezcal Sour",
+   "costing_name": "Mezcal Sour",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25,
+     "disp": "25ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 15,
+     "disp": "15ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 1,
+     "disp": "1ml (dashes)"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz",
+   "costing_name": "Aperol Spritz",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 125,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [
+    "Soda top (gun)"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz - Jug",
+   "costing_name": "Aperol Spritz - Jug",
+   "category": "founder recipe",
+   "sell": 26.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 150,
+     "disp": "150ml (3 × single, derived)"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 375,
+     "disp": "375ml"
+    }
+   ],
+   "omitted": [
+    "Soda top (gun)"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Tommys Margarita",
+   "costing_name": "Tommys Margarita",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Reposado",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25,
+     "disp": "25ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 15,
      "disp": "15ml"
     }
    ],

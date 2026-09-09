@@ -88,6 +88,42 @@ def main():
         ("Bloody Mary", "big tom"): ("Pago Tomato Juice (200ml)", 0.38, "75ml = 0.38 × 200ml Pago carton (Big Tom alternative, founder 9 Sep 2026)"),
         ("Bloody Mary", "celery"): ("Celery", 0.13, "1 stick ≈ ⅛ head"),
     }
+    # Whole recipes straight from the founder (9 Sep 2026) — drinks the costing
+    # sheet never had. Sell prices are the live till buttons'.
+    FOUNDER_RECIPES = [
+        # (till button name, sell, lines[(product, qty, disp)], omitted[])
+        ("Dirty Martini", 11.00,
+         [("Wyborowa Vodka", 60, "60ml"), ("Cocchi Americano", 5, "5ml (bar spoon)")],
+         ["Olive brine 15ml — poured from the olive jar, no marginal cost"]),
+        ("Dark & Plonkie", 11.00,
+         [("Havana Club 7yr", 50, "50ml"), ("Fresh lime juice", 15, "15ml"),
+          ("Old Jamaica Ginger Beer", 0.51, "167ml = 0.51 can (jug spec ÷ 3)"),
+          ("Angostura bitters", 1, "1ml")],
+         ["Lime wedge"]),
+        ("Dark & Plonkie - Jug", 26.00,
+         [("Havana Club 7yr", 150, "150ml"), ("Fresh lime juice", 45, "45ml"),
+          ("Old Jamaica Ginger Beer", 1.52, "500ml = 1.52 cans"),
+          ("Angostura bitters", 3, "3ml")],
+         ["Lime wedges"]),
+        ("London Ting", 8.00,
+         [("Ting", 1, "1 × can"), ("Devil\'s Botany London 40%", 25, "25ml shot")],
+         []),
+        ("Mezcal Sour", 11.00,
+         [("Vida Mezcal", 50, "50ml"), ("Fresh lemon juice", 25, "25ml"),
+          ("Agave syrup", 15, "15ml"), ("Ms Better's Foamer", 1, "1ml (dashes)")],
+         []),
+        ("Aperol Spritz", 11.00,
+         [("Aperol", 50, "50ml"), ("Prosecco 750ml (NV Via Vai)", 125, "125ml")],
+         ["Soda top (gun)"]),
+        ("Aperol Spritz - Jug", 26.00,
+         [("Aperol", 150, "150ml (3 × single, derived)"), ("Prosecco 750ml (NV Via Vai)", 375, "375ml")],
+         ["Soda top (gun)"]),
+        ("Tommys Margarita", 11.00,
+         [("Cazcabel Reposado", 50, "50ml"), ("Fresh lime juice", 25, "25ml"),
+          ("Agave syrup", 15, "15ml")],
+         []),
+    ]
+
     # Lines the costing sheet is missing outright (founder-stated).
     ADDITIONS = {  # recipe name -> [(product, qty base units, note)]
         "Rhys Peaches": [("Fresh lemon juice", 25, "25ml lemon (founder, 9 Sep 2026 — not on the costing sheet)")],
@@ -159,6 +195,12 @@ def main():
         drafts.append(d)
         if ready:
             raw_items.append(d)
+
+    for name, sell, ls, om in FOUNDER_RECIPES:
+        d = {"name": name, "costing_name": name, "category": "founder recipe",
+             "sell": sell, "lines": [{"product": a, "qty": b, "disp": c} for a, b, c in ls],
+             "omitted": om, "missing": [], "ready": True}
+        drafts.append(d); raw_items.append(d)
 
     # Two serve sizes of one product (Pint/Half, flute/bottle) can align to the
     # SAME live-till name — one row would silently swallow the other. The serve
