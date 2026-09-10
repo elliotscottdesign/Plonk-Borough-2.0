@@ -574,7 +574,11 @@ async function finalizeTournament(sb: any, run: any) {
     const phones = await phonesForParticipant(sb, p);
     const { data: existing } = await sb.from("pool_vouchers").select("*").eq("pool_tournament_id", run.id).eq("place", place).order("recipient");
     const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
-    const shares = (split && !legacyFull)
+    // Split only when we HOLD the partner's email (10 Sep 2026: the shortened
+    // doubles form no longer collects partner details online, so a partner-less
+    // team gets ONE full voucher to the captain instead of a stranded half).
+    // Walk-ups at the bar still collect both players, and still split.
+    const shares = (split && !legacyFull && emails.partner)
       ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain, phone: phones.captain },
          { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner, phone: phones.partner }]
       : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain, phone: phones.captain }];
