@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
 import { ALLERGENS } from './allergens.js'
-import { exportMenu, ORDER_URL } from './menuExport.js'
-import { sendMenuToStaff, todayMenuTitle } from './menuToStaff.js'
+import { exportMenu, ORDER_URL, todayMenuTitle } from './menuExport.js'
 
 // Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
 const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
@@ -48,7 +47,6 @@ export default function MenuManager() {
   const [bundles, setBundles] = useState([])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [sendingStaff, setSendingStaff] = useState(false)
   const [showArchived, setShowArchived] = useState(false)
   const [msg, setMsg] = useState('')
   const [vat, setVat] = useState(false)   // VAT registered? drives margin maths + labels
@@ -93,21 +91,17 @@ export default function MenuManager() {
     setSaving(true); setMsg('')
     try {
       await saveMenu(toDoc(sections), bundlesToDoc(bundles), vat); setDirty(false)
-      setMsg('Saved ✓ — the order page & kitchen screen now use this menu.')
-      // Auto-file a dated PDF into the staff Menus tab. Fire-and-forget so it never
-      // holds up the save; the "Send to staff Menus" button is the manual fallback.
-      sendMenuToStaff(sections, vat)
-        .then(r => setMsg(`Saved ✓ · filed to staff Menus as “${r.title}”.`))
-        .catch(() => { /* leave the "Saved ✓" message; staff-file can be retried with the button */ })
+      setMsg('Saved ✓ — the order page & kitchen screen now use this menu. Tap 📤 Force send to profiles to push it to staff.')
     }
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
   }
 
-  const sendStaff = async () => {
-    setSendingStaff(true); setMsg('')
-    try { const r = await sendMenuToStaff(sections, vat); setMsg(`📤 Filed to staff Menus as “${r.title}” — staff can open it in their portal.`) }
-    catch (e) { setMsg('Couldn’t file to staff Menus — ' + e.message) }
-    finally { setSendingStaff(false) }
+  // Reliable send: reuses the Download-PDF popup engine (works on the kitchen
+  // iPad) and uploads the PDF to the staff Menus store. The popup confirms.
+  const sendStaff = () => {
+    const title = todayMenuTitle()
+    exportMenu(sections, 'send', vat, title)
+    setMsg(`📤 Force-sending “${title}” to staff profiles — a tab opens and confirms when it’s filed. (Allow pop-ups.)`)
   }
 
   if (sections == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading menu…</div>
@@ -120,7 +114,7 @@ export default function MenuManager() {
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
         <button onClick={() => exportMenu(sections, 'print', vat)} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
         <button onClick={() => exportMenu(sections, 'pdf', vat)} style={pill(false)}>⬇ Download PDF</button>
-        <button onClick={sendStaff} disabled={sendingStaff} title={`Files a dated PDF into the staff Menus tab (as “${todayMenuTitle()}”). Also happens automatically each time you save.`} style={{ ...pill(false), opacity: sendingStaff ? 0.6 : 1 }}>{sendingStaff ? 'Sending…' : '📤 Send to staff Menus'}</button>
+        <button onClick={sendStaff} title={`Files a dated PDF (“${todayMenuTitle()}”) into every staff profile's Menus tab. Opens a tab that confirms when it's filed.`} style={{ ...pill(true), borderColor: GREEN, color: GREEN }}>📤 Force send to profiles</button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: vat ? GOLD : MUTED, cursor: 'pointer', border: `1px solid ${vat ? GOLD : LINE}`, borderRadius: 8, padding: '7px 11px' }}>
           <input type="checkbox" checked={vat} onChange={e => { setVat(e.target.checked); setDirty(true) }} /> VAT registered (20%)
         </label>
