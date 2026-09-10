@@ -1,4 +1,5 @@
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
+import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 
 // Shared "On A Roll" branded-menu export — used by the Menu manager AND the public
 // live printable menu page (/onaroll/print). One A4 = two identical A5 halves (cut
@@ -9,10 +10,16 @@ import { ON_A_ROLL_LOGO_BW } from './logo.js'
 // Where the printed QR points (the live customer order page).
 export const ORDER_URL = 'https://nodice.bar/onaroll'
 
+// UK-format dated title for a filed menu, e.g. "On a Roll Menu 09.09.26".
+export function todayMenuTitle(d = new Date()) {
+  const p = n => String(n).padStart(2, '0')
+  return `On a Roll Menu ${p(d.getDate())}.${p(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`
+}
+
 const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
 
 // One A5 half of the branded menu (two of these = one A4 sheet). Shared by the
-// print/PDF popup AND the "send to staff Menus" in-page capture (menuToStaff.js),
+// print/PDF popup AND the 'send' mode that files the menu to staff profiles,
 // so the staff copy is byte-for-byte the same layout as what customers see.
 export function buildA5(sections, vatOn = false) {
   const filtered = (sections || []).filter(s => s.id !== 'bar')
@@ -75,26 +82,33 @@ export const MENU_CSS = `
     .mfoot{ font-family:Arial; font-size:8.5px; color:#444; margin-top:12px; border-top:1px solid #bbb; padding-top:7px }
 `
 
-export function exportMenu(sections, mode = 'print', vatOn = false) {
+// mode: 'print' | 'pdf' | 'send'. 'send' captures the same PDF and uploads it to
+// the staff Menus store (rota addMenu) instead of downloading — runs in this
+// popup, which is the SAME engine as Download PDF (proven to work on the kitchen
+// iPad, unlike in-page capture), so "Force send to profiles" is reliable.
+export function exportMenu(sections, mode = 'print', vatOn = false, title = 'On a Roll Menu') {
   const a5 = buildA5(sections, vatOn)
-  const isPdf = mode === 'pdf'
+  const isPdf = mode === 'pdf', isSend = mode === 'send', needsPdf = isPdf || isSend
   const ORDER = JSON.stringify(ORDER_URL)
-  const libs = isPdf
+  const libs = needsPdf
     ? `<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>`
     : ''
-  // Both modes: draw QR → fitA5() locks each half to the page → then print or
-  // capture. The A4 is a fixed 283×195mm box, so the PDF captures exactly one
-  // A4-landscape sheet and print emits exactly one page.
+  // Both PDF paths: draw QR → fitA5() locks each half to the page → capture → jsPDF.
+  // Then either save the file (pdf) or upload it to staff Menus (send).
   const qrJS = `try{document.querySelectorAll('.qr').forEach(function(el){new QRCode(el,{text:${ORDER},width:88,height:88,colorDark:'#000',colorLight:'#fff',correctLevel:QRCode.CorrectLevel.M})})}catch(e){}`
-  const runScript = isPdf
-    ? `${FIT_JS}window.addEventListener('load',function(){${qrJS}setTimeout(function(){fitA5();setTimeout(function(){var el=document.querySelector('.a4');html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){try{var J=(window.jspdf||{}).jsPDF;var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});var pw=297,ph=210,m=7,aw=pw-2*m,ah=ph-2*m,iw=canvas.width,ih=canvas.height,r=Math.min(aw/iw,ah/ih),w=iw*r,h=ih*r;pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,(ph-h)/2,w,h);pdf.save('On A Roll Menu.pdf');document.body.innerHTML="<div style='font-family:sans-serif;padding:48px;text-align:center;color:#111'><h2 style='color:#e0231b'>&#10003; PDF downloaded</h2><p>Saved as <b>On A Roll Menu.pdf</b> — check your Downloads folder. You can close this tab.</p></div>";}catch(e){document.body.innerHTML="<div style='font-family:sans-serif;padding:48px'>Sorry, the PDF didn't generate: "+e+". Try the Print button and choose \\"Save as PDF\\".</div>";}},150)},450)});`
-    : `${FIT_JS}window.addEventListener('load',function(){${qrJS}setTimeout(function(){fitA5();setTimeout(function(){window.print()},250)},400)});`
+  const ROTA = JSON.stringify(`${SUPABASE_URL}/functions/v1/rota`), SEC = JSON.stringify(SEND_SECRET), TITLE = JSON.stringify(title)
+  const afterPdf = isSend
+    ? `var out=String(pdf.output('datauristring'));var data='data:application/pdf;base64,'+out.slice(out.indexOf('base64,')+7);document.body.innerHTML="<div style='font-family:sans-serif;padding:48px;text-align:center;color:#111'><h2>Sending to staff profiles…</h2></div>";fetch(${ROTA},{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'addMenu',secret:${SEC},title:${TITLE},kind:'pdf',data:data})}).then(function(r){return r.json()}).then(function(j){document.body.innerHTML=(j&&j.ok)?"<div style='font-family:sans-serif;padding:48px;text-align:center;color:#111'><h2 style='color:#1f8a4d'>&#10003; Sent to staff profiles</h2><p>Filed as <b>"+${TITLE}+"</b>. Staff open it in their portal &rarr; <b>Menus</b>. You can close this tab.</p></div>":"<div style='font-family:sans-serif;padding:48px'>Send failed: "+((j&&j.error)||'unknown')+". Please try again.</div>";}).catch(function(e){document.body.innerHTML="<div style='font-family:sans-serif;padding:48px'>Send failed (network): "+e+". Please try again.</div>";});`
+    : `pdf.save('On A Roll Menu.pdf');document.body.innerHTML="<div style='font-family:sans-serif;padding:48px;text-align:center;color:#111'><h2 style='color:#e0231b'>&#10003; PDF downloaded</h2><p>Saved as <b>On A Roll Menu.pdf</b> — check your Downloads folder. You can close this tab.</p></div>";`
+  const pdfRun = `${FIT_JS}window.addEventListener('load',function(){${qrJS}setTimeout(function(){fitA5();setTimeout(function(){var el=document.querySelector('.a4');html2canvas(el,{scale:3,backgroundColor:'#ffffff',useCORS:true}).then(function(canvas){try{var J=(window.jspdf||{}).jsPDF;var pdf=new J({orientation:'landscape',unit:'mm',format:'a4'});var pw=297,ph=210,m=7,aw=pw-2*m,ah=ph-2*m,iw=canvas.width,ih=canvas.height,r=Math.min(aw/iw,ah/ih),w=iw*r,h=ih*r;pdf.addImage(canvas.toDataURL('image/jpeg',0.95),'JPEG',(pw-w)/2,(ph-h)/2,w,h);${afterPdf}}catch(e){document.body.innerHTML="<div style='font-family:sans-serif;padding:48px'>Sorry, that didn't generate: "+e+".</div>";}},150)},450)});`
+  const printRun = `${FIT_JS}window.addEventListener('load',function(){${qrJS}setTimeout(function(){fitA5();setTimeout(function(){window.print()},250)},400)});`
+  const runScript = needsPdf ? pdfRun : printRun
   const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>${MENU_CSS}</style></head><body><div class="a4">${a5}${a5}</div>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"><\/script>
   ${libs}
   <script>${runScript}<\/script>
   </body></html>`
   const w = window.open('', '_blank')
-  if (!w) { alert('Allow pop-ups to print the menu.'); return }
+  if (!w) { alert('Allow pop-ups to send/print the menu.'); return }
   w.document.write(html); w.document.close()
 }
