@@ -189,44 +189,75 @@ function computeStandings(participants: any[], matches: any[], settings: any) {
 // fall back to the fewest possible rematches. Odd field -> bye to the
 // lowest-ranked player who hasn't had one, but if that bye choice forces a
 // rematch it walks up the table for a bye that doesn't.
-function pairSwiss(standings: any[], matches: any[]) {
-  const played = new Set<string>();
-  for (const m of matches) { if (m.round_id && m.p1_id && m.p2_id) { played.add(m.p1_id + "|" + m.p2_id); played.add(m.p2_id + "|" + m.p1_id); } }
-  const hadBye = new Set(matches.filter((m: any) => m.is_bye).map((m: any) => m.p1_id));
-  const all = standings.map((s: any) => s.id);
-
-  // Perfect-match `ids` (standings order) using at most `allow` rematches,
-  // backtracking; nearest-ranked partners tried first.
-  function matchUp(ids: string[], allow: number): [string, string][] | null {
-    if (!ids.length) return [];
-    const a = ids[0], rest = ids.slice(1);
-    for (let j = 0; j < rest.length; j++) {
-      const b = rest[j];
-      const cost = played.has(a + "|" + b) ? 1 : 0;
-      if (cost > allow) continue;
-      const sub = matchUp(rest.filter((_, k) => k !== j), allow - cost);
-      if (sub) return [[a, b], ...sub];
-    }
-    return null;
+// ── Round pairing: TRUE ROUND-ROBIN (circle method) ─────────────────────────
+// Founder rule 9 Sep 2026, after the D&G/Pool Bros repeat: with N teams,
+// everyone must play everyone once — N−1 rounds when N is even, N rounds with
+// a rotating bye when odd — before ANY rematch, and then the cycle restarts
+// from the beginning (round 6 of a 6-team night mirrors round 1).
+//
+// Why the old way failed: it invented each round on its own, avoiding repeats
+// only within the round being drawn. Three individually-legal rounds can
+// strand the leftovers (on 9 Sep the six unplayed pairings split the field
+// into two odd groups of three — no repeat-free round 4 existed no matter
+// what). A fixed schedule can never paint itself into that corner: the N−1
+// rotations of the circle method partition ALL pairings exactly once.
+//
+// Walk-ins joining mid-night change the roster, so instead of pinning a
+// schedule we re-derive it every round: score every rotation of the circle
+// for the CURRENT roster against what has actually been played and take the
+// best — fewest rematches first (0 whenever the schedule is intact), then
+// the rotation whose pairs met longest ago (that's what restarts the cycle
+// in order), then the fairest bye, then the lowest rotation number so the
+// draw is deterministic.
+function pairRoundRobin(activeIds: string[], matches: any[], rounds: any[]) {
+  const ordinalOf: Record<string, number> = {};
+  for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
+  const playedCount: Record<string, number> = {};
+  const lastMet: Record<string, number> = {};
+  const byeCount: Record<string, number> = {};
+  for (const m of matches || []) {
+    if (m.is_bye && m.p1_id) { byeCount[m.p1_id] = (byeCount[m.p1_id] || 0) + 1; continue; }
+    if (!m.round_id || !m.p1_id || !m.p2_id) continue;
+    const k = m.p1_id < m.p2_id ? m.p1_id + "|" + m.p2_id : m.p2_id + "|" + m.p1_id;
+    playedCount[k] = (playedCount[k] || 0) + 1;
+    lastMet[k] = Math.max(lastMet[k] || 0, ordinalOf[m.round_id] || 0);
   }
+  const curOrdinal = (rounds || []).length + 1;
 
-  // Bye candidates: bottom-up among those without a bye, then (if everyone has
-  // had one) bottom-up regardless. Even field -> single "no bye" candidate.
-  const byeCandidates: (string | null)[] = [];
-  if (all.length % 2 === 1) {
-    for (let i = all.length - 1; i >= 0; i--) if (!hadBye.has(all[i])) byeCandidates.push(all[i]);
-    for (let i = all.length - 1; i >= 0; i--) if (hadBye.has(all[i])) byeCandidates.push(all[i]);
-  } else byeCandidates.push(null);
+  const slots: (string | null)[] = activeIds.length % 2 === 1 ? [...activeIds, null] : [...activeIds];
+  const n = slots.length;
+  if (n < 2) return { pairs: [] as [string, string][], byeId: null as string | null };
+  const cycle = n - 1;
 
-  // Escalate the rematch budget from 0 so a clean pairing always wins.
-  for (let allow = 0; allow <= Math.ceil(all.length / 2); allow++) {
-    for (const byeId of byeCandidates) {
-      const pool = byeId ? all.filter((x: string) => x !== byeId) : all;
-      const pairs = matchUp(pool, allow);
-      if (pairs) return { pairs, byeId: byeId ?? null };
+  let best: { pairs: [string, string][]; byeId: string | null } | null = null;
+  let bestScore: number[] | null = null;
+  for (let k = 0; k < cycle; k++) {
+    const rest = slots.slice(1);
+    const rot = rest.map((_, i) => rest[(i - k + rest.length * 2) % rest.length]);
+    const arr = [slots[0], ...rot];
+    const pairs: [string, string][] = [];
+    let byeId: string | null = null;
+    for (let i = 0; i < n / 2; i++) {
+      const a = arr[i], b = arr[n - 1 - i];
+      if (a === null) byeId = b as string;
+      else if (b === null) byeId = a as string;
+      else pairs.push([a as string, b as string]);
     }
+    let rematches = 0, staleness = 0;
+    for (const [a, b] of pairs) {
+      const key = a < b ? a + "|" + b : b + "|" + a;
+      const c = playedCount[key] || 0;
+      rematches += c;
+      // when rematches are unavoidable, prefer the rotation whose pairs met
+      // LONGEST ago — the freshest previous meeting dominates the score.
+      if (c) staleness = Math.max(staleness, 1000 - (curOrdinal - (lastMet[key] || 0)));
+    }
+    const score = [rematches, staleness, byeId ? (byeCount[byeId] || 0) : 0, k];
+    let less = bestScore === null;
+    if (bestScore) for (let i = 0; i < score.length; i++) { if (score[i] !== bestScore[i]) { less = score[i] < bestScore[i]; break; } }
+    if (less) { best = { pairs, byeId }; bestScore = score; }
   }
-  return { pairs: [] as [string, string][], byeId: null };   // unreachable with >= 2 players
+  return best!;
 }
 
 // Load a run's roster + rounds + matches + live standings in one go.
@@ -251,9 +282,9 @@ async function generateRound(sb: any, run: any) {
   // current round has unfinished matches. Pairings for the new round are based
   // on standings-so-far (unfinished matches simply don't contribute yet).
   const ordinal = (lastRound?.ordinal || 0) + 1;
-  // Round 1 has no standings yet — pair by sign-up order; later rounds pair on standings.
-  const order = ordinal === 1 ? active.map((p: any) => ({ id: p.id, name: p.display_name })) : standings;
-  const { pairs, byeId } = pairSwiss(order, matches);
+  // Fixture order comes from SIGN-UP order (stable all night) — the schedule,
+  // not the standings, decides who meets whom; the standings still rank them.
+  const { pairs, byeId } = pairRoundRobin(active.map((p: any) => p.id), matches, rounds);
   const { data: round, error: rErr } = await sb.from("pingpong_rounds").insert({ pingpong_tournament_id: run.id, ordinal, status: "active" }).select("*").single();
   if (rErr) return { error: rErr.message };
   let slot = 1;
