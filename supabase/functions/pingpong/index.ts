@@ -209,6 +209,94 @@ function computeStandings(participants: any[], matches: any[], settings: any) {
 // the rotation whose pairs met longest ago (that's what restarts the cycle
 // in order), then the fairest bye, then the lowest rotation number so the
 // draw is deterministic.
+
+// ── Seeded pairing for BIG fields (founder rule 10 Sep 2026) ────────────────
+// More than 8 entrants can't complete a full round robin in one night, so
+// instead of fixture order the field is sorted best→worst and NEIGHBOURS
+// meet — top third v top third, bottom v bottom. Round 1 sorts by the season
+// LEAGUE (newcomers after the ranked); later rounds sort by the night's own
+// standings, so winners keep meeting winners as the rounds go off. Full
+// backtracking guarantees no rematch whenever any repeat-free pairing exists;
+// if the night runs long enough that repeats become unavoidable, the OLDEST
+// previous meeting is chosen first. Byes go bottom-of-order, never twice
+// before everyone has had one.
+function pairSeeded(orderIds: string[], matches: any[], rounds: any[]) {
+  const ordinalOf: Record<string, number> = {};
+  for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
+  const playedCount: Record<string, number> = {};
+  const lastMet: Record<string, number> = {};
+  const byeCount: Record<string, number> = {};
+  for (const m of matches || []) {
+    if (m.is_bye && m.p1_id) { byeCount[m.p1_id] = (byeCount[m.p1_id] || 0) + 1; continue; }
+    if (!m.round_id || !m.p1_id || !m.p2_id) continue;
+    const k = m.p1_id < m.p2_id ? m.p1_id + "|" + m.p2_id : m.p2_id + "|" + m.p1_id;
+    playedCount[k] = (playedCount[k] || 0) + 1;
+    lastMet[k] = Math.max(lastMet[k] || 0, ordinalOf[m.round_id] || 0);
+  }
+  const key = (a: string, b: string) => a < b ? a + "|" + b : b + "|" + a;
+
+  function matchUp(ids: string[], allow: number): [string, string][] | null {
+    if (!ids.length) return [];
+    const a = ids[0], rest = ids.slice(1);
+    // nearest-seeded first among clean pairs; forced rematches oldest-first
+    const cands = rest.map((b, j) => ({ b, j, cost: playedCount[key(a, b)] || 0, met: lastMet[key(a, b)] || 0 }))
+      .sort((x, y) => x.cost - y.cost || x.met - y.met || x.j - y.j);
+    for (const c of cands) {
+      if (c.cost > allow) break;
+      const sub = matchUp(rest.filter((_, k2) => k2 !== c.j), allow - c.cost);
+      if (sub) return [[a, c.b], ...sub];
+    }
+    return null;
+  }
+
+  const byeCandidates: (string | null)[] = [];
+  if (orderIds.length % 2 === 1) {
+    for (let i = orderIds.length - 1; i >= 0; i--) if (!byeCount[orderIds[i]]) byeCandidates.push(orderIds[i]);
+    for (let i = orderIds.length - 1; i >= 0; i--) if (byeCount[orderIds[i]]) byeCandidates.push(orderIds[i]);
+  } else byeCandidates.push(null);
+
+  for (let allow = 0; allow <= Math.ceil(orderIds.length / 2); allow++) {
+    for (const byeId of byeCandidates) {
+      const pool = byeId ? orderIds.filter((x) => x !== byeId) : orderIds;
+      const pairs = matchUp(pool, allow);
+      if (pairs) return { pairs, byeId: byeId ?? null };
+    }
+  }
+  return { pairs: [] as [string, string][], byeId: null as string | null };
+}
+
+// Round-1 seeding order for a big field: the season league best→worst, with
+// participants who have no league record after them in sign-up order.
+async function leagueSeedOrder(sb: any, run: any, active: any[]): Promise<string[]> {
+  const discipline = "teams";
+  const lg = await computeLeague(sb, discipline);
+  const rankByKey: Record<string, number> = {};
+  for (const r of lg.table || []) rankByKey[r.key] = r.rank;
+  const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pingpong").eq("discipline", discipline);
+  const mm: Record<string, string> = {};
+  for (const m of merges || []) mm[m.from_key] = m.to_key;
+  const resolve = (k: string) => { let cur = k; for (let i = 0; i < 10 && mm[cur] && mm[cur] !== cur; i++) cur = mm[cur]; return cur; };
+  const entryIds = active.filter((p: any) => p.entry_id).map((p: any) => p.entry_id);
+  const emailByEntry: Record<string, string> = {};
+  if (entryIds.length) {
+    const { data: ents } = await sb.from("tournament_entries").select("id, captain_email").in("id", entryIds);
+    for (const e of ents || []) if (e.captain_email) emailByEntry[e.id] = String(e.captain_email).trim().toLowerCase();
+  }
+  const rankOf = (p: any) => {
+    const raw = (p.entry_id && emailByEntry[p.entry_id]) || String(p.display_name || "").trim().toLowerCase();
+    return rankByKey[resolve(raw)] ?? -1;   // -1 = no league history
+  };
+  // Players with NO league history seed in the MIDDLE (founder rule 10 Sep
+  // 2026): ranked players keep league order; the unknown block is inserted at
+  // the midpoint, so proven top players stay top, proven bottom stay bottom,
+  // and newcomers earn their level from round 2 via the night's standings.
+  const tagged = active.map((p: any, i: number) => ({ p, i, r: rankOf(p) }));
+  const ranked = tagged.filter((x: any) => x.r !== -1).sort((a: any, b: any) => a.r - b.r || a.i - b.i);
+  const unknown = tagged.filter((x: any) => x.r === -1);   // sign-up order
+  const mid = Math.ceil(ranked.length / 2);
+  return [...ranked.slice(0, mid), ...unknown, ...ranked.slice(mid)].map((x: any) => x.p.id);
+}
+
 function pairRoundRobin(activeIds: string[], matches: any[], rounds: any[]) {
   const ordinalOf: Record<string, number> = {};
   for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
@@ -282,9 +370,19 @@ async function generateRound(sb: any, run: any) {
   // current round has unfinished matches. Pairings for the new round are based
   // on standings-so-far (unfinished matches simply don't contribute yet).
   const ordinal = (lastRound?.ordinal || 0) + 1;
-  // Fixture order comes from SIGN-UP order (stable all night) — the schedule,
-  // not the standings, decides who meets whom; the standings still rank them.
-  const { pairs, byeId } = pairRoundRobin(active.map((p: any) => p.id), matches, rounds);
+  // ≤8 entrants: fixture order (everyone WILL play everyone — circle method).
+  // >8 entrants: the night can't complete a round robin, so seed instead —
+  // round 1 by the season league, later rounds by the night's standings, and
+  // neighbours meet (best v best, bottom v bottom). Founder rule 10 Sep 2026.
+  let pairs: [string, string][]; let byeId: string | null;
+  if (active.length > 8) {
+    const order = ordinal === 1
+      ? await leagueSeedOrder(sb, run, active)
+      : standings.map((s2: any) => s2.id);
+    ({ pairs, byeId } = pairSeeded(order, matches, rounds));
+  } else {
+    ({ pairs, byeId } = pairRoundRobin(active.map((p: any) => p.id), matches, rounds));
+  }
   const { data: round, error: rErr } = await sb.from("pingpong_rounds").insert({ pingpong_tournament_id: run.id, ordinal, status: "active" }).select("*").single();
   if (rErr) return { error: rErr.message };
   let slot = 1;
