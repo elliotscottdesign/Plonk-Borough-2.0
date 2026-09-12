@@ -18,7 +18,20 @@ export default function MenuPrint() {
   const [err, setErr] = useState('')
   useEffect(() => {
     getMenu()
-      .then(r => { setSections((r.sections || []).filter(s => (s.items || []).some(it => it.name))); setVat(!!r.vat_registered) })
+      .then(r => {
+        // The saved menu stores prices as *_pence. Normalise to the £-string shape
+        // the preview + exporter expect, so prices actually show on the printout.
+        const p = v => (v == null || v === '' ? '' : (parseInt(v, 10) / 100).toString())
+        const secs = (r.sections || []).map(s => ({
+          ...s,
+          items: (s.items || []).map(it => ({
+            ...it,
+            sell: it.sell != null && it.sell !== '' ? it.sell : p(it.sell_pence),
+            addons: (it.addons || []).map(a => ({ ...a, price: a.price != null && a.price !== '' ? a.price : p(a.price_pence) })),
+          })),
+        })).filter(s => (s.items || []).some(it => it.name))
+        setSections(secs); setVat(!!r.vat_registered)
+      })
       .catch(e => setErr(e.message))
   }, [])
 
