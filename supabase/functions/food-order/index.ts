@@ -316,10 +316,36 @@ Deno.serve(async (req) => {
     }
     if (action === "setStockOverride") {   // kitchen — force sold_out / available / auto(null)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
-      const ing = clean(b.ingredient, 40);
+      const ing = clean(b.ingredient, 60);
       const ov = b.override === "sold_out" || b.override === "available" ? b.override : null;
       await sb.from("kitchen_stock_levels").update({ override: ov, updated_at: new Date().toISOString() }).eq("ingredient", ing);
       return json({ ok: true });
+    }
+
+    // Make sure every menu item is represented on the stock sheet. Given a list of
+    // { ingredient, label } (built from the live menu), create a stock row for any
+    // that's missing — new rows start "available" (count 0 = unlimited until staff
+    // set a count or force sold-out), so a new dish works immediately AND can be
+    // stock-controlled like every other product. Per-item rows keep their label in
+    // sync with the dish name. Idempotent.
+    if (action === "ensureStock") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const rows = Array.isArray(b.rows) ? b.rows : [];
+      const { data: existing } = await sb.from("kitchen_stock_levels").select("ingredient,label");
+      const have = new Map((existing || []).map((r: any) => [r.ingredient, r.label]));
+      let created = 0, relabelled = 0;
+      for (const r of rows) {
+        const ing = clean(r?.ingredient, 60); if (!ing) continue;
+        const label = clean(r?.label, 80) || ing;
+        if (!have.has(ing)) {
+          await sb.from("kitchen_stock_levels").insert({ ingredient: ing, label, count: 0, override: "available", updated_at: new Date().toISOString() });
+          have.set(ing, label); created++;
+        } else if (ing.startsWith("itm_") && label && have.get(ing) !== label) {
+          await sb.from("kitchen_stock_levels").update({ label, updated_at: new Date().toISOString() }).eq("ingredient", ing);
+          relabelled++;
+        }
+      }
+      return json({ ok: true, created, relabelled });
     }
 
     // ── Order codes (party tabs / staff food) — order without a card, tracked ────

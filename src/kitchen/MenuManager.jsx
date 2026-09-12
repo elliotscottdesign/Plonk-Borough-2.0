@@ -3,6 +3,7 @@ import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
 import { ALLERGENS } from './allergens.js'
 import { exportMenu, ORDER_URL, todayMenuTitle } from './menuExport.js'
+import { ensureStock } from './foodOrders.js'
 
 // Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
 const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
@@ -87,11 +88,29 @@ export default function MenuManager() {
   const delBundle = bi => mutateB(bs => { bs.splice(bi, 1) })
   const toggleDay = (bi, d) => mutateB(bs => { const set = new Set(bs[bi].days); set.has(d) ? set.delete(d) : set.add(d); bs[bi].days = [...set] })
 
+  // Every live dish must be trackable on the stock sheet. Items with no shared
+  // limiting ingredient get their OWN per-item stock line (key itm_<id>), so a new
+  // dish (e.g. Padron Peppers) can be counted / sold-out just like the others.
+  const reconcileStock = (secs) => {
+    const rows = []
+    const out = secs.map(s => ({ ...s, items: s.items.map(it => {
+      if (!it.name || !it.name.trim() || it.archived) return it
+      let keys = Array.isArray(it.stock) ? it.stock.filter(Boolean) : []
+      if (!keys.length) keys = ['itm_' + it.id]
+      keys.forEach(k => rows.push({ ingredient: k, label: String(k).startsWith('itm_') ? it.name.trim() : k }))
+      return { ...it, stock: keys }
+    }) }))
+    return { out, rows }
+  }
+
   const save = async () => {
     setSaving(true); setMsg('')
     try {
-      await saveMenu(toDoc(sections), bundlesToDoc(bundles), vat); setDirty(false)
+      const { out, rows } = reconcileStock(sections)
+      setSections(out)   // keep UI in sync with the per-item keys we just assigned
+      await saveMenu(toDoc(out), bundlesToDoc(bundles), vat); setDirty(false)
       setMsg('Saved ✓ — the order page & kitchen screen now use this menu. Tap 📤 Force send to profiles to push it to staff.')
+      ensureStock(rows).catch(() => { /* stock lines are also reconciled when the 📦 Stock tab opens */ })
     }
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
   }
