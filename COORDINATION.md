@@ -404,8 +404,12 @@ in menu section."
   "everything below is founder-only" line and given their own gate: founder secret OR a
   signed-in Manager / Asst. Manager (`staffRank >= 3`) checked against their staff record.
 
-**⚠️ The rota edge function change is NOT deployed — the Supabase PAT expired mid-session
-(Management API returns 401).** The feature still works live, because the client also sends
+**✅ DEPLOYED 13 Sep 2026** with a fresh PAT. Verified on the live function: no auth →
+refused, an ordinary staff token → "Managers only.", Rhys's Asst. Manager token → accepted
+and attributed. (The `till` function, which had also been waiting on a token, was deployed
+in the same pass.) Superseded note follows:
+~~The rota edge function change is NOT deployed — the Supabase PAT expired mid-session
+(Management API returns 401).~~ The feature still works live, because the client also sends
 SEND_SECRET, which the currently-deployed function accepts. So until someone deploys with a
 fresh token, the manager restriction is enforced by the UI only, not the server — which is
 the known SEND_SECRET-in-the-bundle debt, not a new hole. Deploy when a token exists:
