@@ -600,18 +600,11 @@ function report_(filed, review, skipped) {
           + '<th align="right">Amount</th><th align="left">Found via</th></tr>' + rows + '</table>'
         : '<p>Nothing new.</p>')
     + (probs ? '<h3>Needs a look</h3><ul>' + probs + '</ul>' : '')
-    + (unknown.length
-        ? '<h3>Invoice-shaped, but not from anyone you have paid</h3>'
-          + '<p style="font-size:13px;color:#666">Never filed automatically. A brand new supplier will '
-          + 'appear here until you have paid them once — after that they are recognised on their own.</p><ul>'
-          + unknown.map(function (u) {
-              return '<li>' + escapeHtml_(u.from) + ' &mdash; ' + escapeHtml_(u.subject)
-                   + (u.amount ? ' (&pound;' + escapeHtml_(u.amount) + ')' : '') + '</li>';
-            }).join('') + '</ul>'
-        : '')
-    + '<p style="margin-top:20px;font-size:12px;color:#888">Checked against '
-    + (supplierCount || 0) + ' suppliers Xero knows you have paid. Nobody is listed in this script &mdash; '
-    + 'add a supplier, pay them once, and they are covered.</p>'
+    // NB: the "unknown senders" and "checked against N suppliers" blocks belong
+    // to invoiceReport_, which is handed those lists. They were duplicated in
+    // here, where neither variable exists — so this function threw every time
+    // it ran, AFTER all the filing had succeeded. A summary email that crashes
+    // is worse than no summary: the work looks failed when it is done.
     + (CONFIG.DRY_RUN
         ? '<p style="margin-top:24px;padding:12px;background:#fff8e1;border-left:4px solid #f0b429">'
           + '<b>Preview only.</b> To start filing for real, set '
