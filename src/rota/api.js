@@ -113,8 +113,10 @@ export const rotaResetTrainingDoc = (moduleKey) => call({ action: 'resetTraining
 // Menus — list (light), fetch one (data); founder upload/delete.
 export const rotaMenus = () => call({ action: 'menus' })
 export const rotaGetMenu = (id) => call({ action: 'getMenu', id })
-export const rotaAddMenu = (title, kind, data) => call({ action: 'addMenu', secret: SEND_SECRET, title, kind, data })
-export const rotaDeleteMenu = (id) => call({ action: 'deleteMenu', secret: SEND_SECRET, id })
+// token as well as the secret: a Manager / Asst. Manager can now upload from
+// their own profile, authorised by their staff login (rota fn checks rank 3+).
+export const rotaAddMenu = (title, kind, data, token) => call({ action: 'addMenu', secret: SEND_SECRET, token, title, kind, data })
+export const rotaDeleteMenu = (id, token) => call({ action: 'deleteMenu', secret: SEND_SECRET, token, id })
 
 // Founder: recent checklist submissions + all training completions.
 export const rotaDjToday = (token, date) => call({ action: 'djToday', token, date })

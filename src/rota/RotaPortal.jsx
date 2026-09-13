@@ -11,7 +11,7 @@ import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { useChecklistOverrides, effectiveShift } from '../lib/liveChecklists.js'
-import { rotaMenus, rotaMe } from './api.js'
+import { rotaMenus, rotaMe, rotaAddMenu, rotaDeleteMenu } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
@@ -661,7 +661,7 @@ export default function RotaPortal() {
 
         {view === 'training' && <TrainingView token={token} training={training} onToggle={(key, on) => setTraining(prev => on ? [...new Set([...prev, key])] : prev.filter(k => k !== key))} />}
 
-        {view === 'menus' && <MenusView />}
+        {view === 'menus' && <MenusView token={token} staff={staff} />}
 
         {view === 'cocktails' && <CocktailSpecs embedded />}
 
@@ -869,28 +869,81 @@ function ChecklistView({ token }) {
   )
 }
 
-// Menus — the founder's uploaded menus; tap to open + print to the bar printer.
-function MenusView() {
+// Menus — tap to open + print to the bar printer. Management can also upload and
+// remove them here (founder, 13 Sep 2026: "the menu upload should also be possible
+// from manager / assistant manager profiles in menu section") — it used to be
+// founder-only in /ops, so a manager reprinting menus had to ask Elliot first.
+function MenusView({ token, staff }) {
   const [menus, setMenus] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { rotaMenus().then(r => setMenus(r.menus || [])).catch(() => {}).finally(() => setLoading(false)) }, [])
+  const [title, setTitle] = useState('')
+  const canEdit = ['Manager', 'Asst. Manager'].includes(staff?.role)
+
+  const load = () => rotaMenus().then(r => setMenus(r.menus || [])).catch(() => {}).finally(() => setLoading(false))
+  useEffect(() => { load() }, [])
   const open = async (id) => { setBusy(true); try { await openMenu(id) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return
+    const kind = f.type.includes('pdf') ? 'pdf' : f.type.startsWith('image/') ? 'image' : ''
+    if (!kind) { alert('Upload a PDF or an image.'); return }
+    setBusy(true)
+    try {
+      // Same reader the /ops uploader uses, so both paths behave identically.
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f)
+      })
+      await rotaAddMenu(title.trim() || f.name.replace(/\.[^.]+$/, ''), kind, dataUrl, token)
+      setTitle(''); await load()
+    } catch (er) { alert(er.message) } finally { setBusy(false) }
+  }
+  const remove = async (m) => {
+    if (!window.confirm(`Delete "${m.title}"?\n\nIt disappears from every staff profile straight away.`)) return
+    setBusy(true)
+    try { await rotaDeleteMenu(m.id, token); await load() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
   if (loading) return <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Loading menus…</div>
-  if (!menus.length) return <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '20px 16px', lineHeight: 1.6 }}>No menus up yet — check back before your shift.</div>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a menu to open it, then print from your browser to the bar printer.</div>
-      {menus.map(m => (
-        <button key={m.id} onClick={() => open(m.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff' }}>
-          <span style={{ fontSize: 24, flexShrink: 0 }}>{m.kind === 'image' ? '🖼️' : '📄'}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open &amp; print</div>
+      {canEdit && (
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Menu name (e.g. Drinks — w/c 21 Sep)"
+            style={{ flex: 1, minWidth: 160, padding: '10px 11px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <label style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(201,168,76,0.16)', border: '1px solid rgba(201,168,76,0.5)', color: 'var(--gold, #C9A84C)', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap', touchAction: 'manipulation' }}>
+            {busy ? 'Uploading…' : '⬆ Upload PDF / image'}
+            <input type="file" accept="application/pdf,image/*" onChange={onFile} disabled={busy} style={{ display: 'none' }} />
+          </label>
+          <div style={{ width: '100%', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+            Name it with the week so the team can tell versions apart — blank uses the filename.
           </div>
-          <span style={{ fontSize: 18 }}>🖨️</span>
-        </button>
-      ))}
+        </div>
+      )}
+
+      {!menus.length ? (
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '20px 16px', lineHeight: 1.6 }}>
+          {canEdit ? 'No menus up yet — upload this week\u2019s above.' : 'No menus up yet — check back before your shift.'}
+        </div>
+      ) : <>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a menu to open it, then print from your browser to the bar printer.</div>
+        {menus.map(m => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => open(m.id)} disabled={busy} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff' }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>{m.kind === 'image' ? '🖼️' : '📄'}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open &amp; print</div>
+              </div>
+              <span style={{ fontSize: 18 }}>🖨️</span>
+            </button>
+            {canEdit && (
+              <button onClick={() => remove(m)} disabled={busy} title={`Delete ${m.title}`}
+                style={{ flexShrink: 0, padding: '14px 12px', borderRadius: 10, background: 'transparent', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer' }}>🗑</button>
+            )}
+          </div>
+        ))}
+      </>}
     </div>
   )
 }

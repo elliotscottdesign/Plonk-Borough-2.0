@@ -1256,6 +1256,42 @@ Deno.serve(async (req) => {
 
     }
 
+    // ── Menus: upload / delete ────────────────────────────────────────────────
+    // Founder, 13 Sep 2026: "the menu upload should also be possible from manager /
+    // assistant manager profiles in menu section." It was founder-only, so a manager
+    // reprinting the menus still had to ask Elliot to put the new file up.
+    //
+    // Gate: the founder secret OR a signed-in Manager / Asst. Manager (rank 3+),
+    // checked against their own staff record — never the shared team code. Kept
+    // ABOVE the founder-only line below, which is what used to catch these.
+    if (action === "addMenu" || action === "deleteMenu") {
+      const MENU_RANK = 3;   // Asst. Manager and up
+      let who = "Founder";
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+        if (staffRank(me.role) < MENU_RANK) return json({ error: "Managers only." }, 403);
+        who = me.name || "Manager";
+      }
+
+      if (action === "addMenu") {
+        const title = clean(b.title);
+        const data = String(b.data || "");
+        const kind = b.kind === "image" ? "image" : "pdf";
+        if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
+        if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
+        const { error } = await sb.from("menus").insert({ title, kind, data });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, by: who });
+      }
+
+      if (!b.id) return json({ error: "no id" }, 400);
+      const { error } = await sb.from("menus").delete().eq("id", b.id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, by: who });
+    }
+
     // ── Everything below is founder-only ───────────────────────────────────────
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
@@ -1665,23 +1701,6 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
       return json({ ok: true });
     }
 
-    // ── Founder: upload / delete a menu ───────────────────────────────────────
-    if (action === "addMenu") {
-      const title = clean(b.title);
-      const data = String(b.data || "");
-      const kind = b.kind === "image" ? "image" : "pdf";
-      if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
-      if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
-      const { error } = await sb.from("menus").insert({ title, kind, data });
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
-    if (action === "deleteMenu") {
-      if (!b.id) return json({ error: "no id" }, 400);
-      const { error } = await sb.from("menus").delete().eq("id", b.id);
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
 
     // ── Founder: view a staff member's uploaded document (passport / right-to-work) ──
     if (action === "getDoc") {
