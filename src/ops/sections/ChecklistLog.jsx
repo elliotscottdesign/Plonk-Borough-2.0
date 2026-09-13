@@ -25,7 +25,7 @@ const scoreOf = (s) => {
   const done = doneCount(s.checklist_key, s.items || {}, s.date)
   return { total, done, pct: total ? Math.round((done / total) * 100) : 0 }
 }
-const colourOf = (s) => { const { done, total } = scoreOf(s); return done >= total && total > 0 ? GREEN : done > 0 ? AMBER : RED }
+const colourOf = (s) => { if (s.unfinished) return RED; const { done, total } = scoreOf(s); return done >= total && total > 0 ? GREEN : done > 0 ? AMBER : RED }
 
 export default function ChecklistLog() {
   const [subs, setSubs] = useState([])
@@ -212,12 +212,13 @@ function SubCard({ s, isOpen, onToggle }) {
   const col = colourOf(s)
   const missing = checklistItems(s.checklist_key, s.date).filter(t => !(s.items || {})[t])
   return (
-    <div style={{ background: '#0A0A0A', border: `1px solid ${s.submitted ? 'rgba(52,211,153,0.35)' : LINE}`, borderRadius: 10, overflow: 'hidden' }}>
+    <div style={{ background: '#0A0A0A', border: `1px solid ${s.submitted ? 'rgba(52,211,153,0.35)' : s.unfinished ? 'rgba(218,27,51,0.5)' : LINE}`, borderRadius: 10, overflow: 'hidden' }}>
       <button onClick={onToggle} style={{ width: '100%', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#fff' }}>
         <span style={{ fontSize: 20 }}>{c?.icon || '📋'}</span>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 14, fontWeight: 700 }}>{c?.title || s.checklist_key}
             {s.submitted ? <span style={{ fontSize: 10, color: GREEN, fontWeight: 700, marginLeft: 8 }}>✓ submitted {fmtTime(s.submitted_at)}</span>
+              : s.unfinished ? <span style={{ fontSize: 10, color: RED, fontWeight: 700, marginLeft: 8 }}>⚠ LEFT UNFINISHED</span>
               : <span style={{ fontSize: 10, color: AMBER, fontWeight: 700, marginLeft: 8 }}>in progress</span>}
           </div>
           <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{s.staff_name || 'Unknown'} · {done}/{total} done{s.note ? ' · ⚑ note' : ''}</div>

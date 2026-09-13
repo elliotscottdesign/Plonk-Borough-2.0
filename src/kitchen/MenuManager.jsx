@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
 import { ALLERGENS } from './allergens.js'
-import { exportMenu, ORDER_URL } from './menuExport.js'
+import { exportMenu, ORDER_URL, todayMenuTitle } from './menuExport.js'
+import { ensureStock } from './foodOrders.js'
 
 // Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
 const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
@@ -37,8 +38,8 @@ const DEFAULTS = [
   ] },
 ]
 
-const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
-const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const fromDoc = secs => (secs || []).map(s => ({ id: s.id || nid('sec'), name: s.name || '', items: (s.items || []).map(it => ({ id: it.id || nid('it'), name: it.name || '', star: !!it.star, archived: !!it.archived, sell: pounds(it.sell_pence), cost: pounds(it.cost_pence), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).map(a => ({ id: a.id || nid('ao'), name: a.name || '', price: pounds(a.price_pence), cost: pounds(a.cost_pence) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
+const toDoc = secs => secs.map(s => ({ id: s.id, name: s.name, items: s.items.map(it => ({ id: it.id, name: it.name, star: !!it.star, archived: !!it.archived, sell_pence: toPence(it.sell), cost_pence: toPence(it.cost), img: it.img || '', desc: it.desc || '', addons: (it.addons || []).filter(a => a.name.trim()).map(a => ({ id: a.id, name: a.name.trim(), price_pence: toPence(a.price), cost_pence: toPence(a.cost) })), allergens: it.allergens && typeof it.allergens === 'object' ? it.allergens : {}, stock: Array.isArray(it.stock) ? it.stock : [] })) }))
 const bundlesFromDoc = bs => (bs || []).map(b => ({ id: b.id || nid('bun'), name: b.name || 'Beer + Burger', burger_id: b.burger_id || '', beer: b.beer_pence != null ? pounds(b.beer_pence) : '6', price: b.price_pence != null ? pounds(b.price_pence) : '', days: Array.isArray(b.days) ? b.days : ['Tue'] }))
 const bundlesToDoc = bs => bs.map(b => ({ id: b.id, name: b.name, burger_id: b.burger_id, beer_pence: toPence(b.beer), price_pence: toPence(b.price), days: b.days }))
 
@@ -47,6 +48,7 @@ export default function MenuManager() {
   const [bundles, setBundles] = useState([])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [msg, setMsg] = useState('')
   const [vat, setVat] = useState(false)   // VAT registered? drives margin maths + labels
   const [openAllg, setOpenAllg] = useState(new Set())   // which items have the allergen editor expanded
@@ -67,6 +69,8 @@ export default function MenuManager() {
   const setAddon = (si, ii, ai, k, v) => mutate(s => { s[si].items[ii].addons[ai][k] = v })
   const delAddon = (si, ii, ai) => mutate(s => { s[si].items[ii].addons.splice(ai, 1) })
   const addSection = () => mutate(s => { s.push({ id: nid('sec'), name: 'New section', items: [] }) })
+  const toggleStar = (si, ii) => mutate(s => { s[si].items[ii].star = !s[si].items[ii].star })
+  const toggleArchive = (si, ii) => mutate(s => { const it = s[si].items[ii]; it.archived = !it.archived; if (it.archived) it.star = false })
   const delSection = si => { if (confirm('Delete this whole section?')) mutate(s => { s.splice(si, 1) }) }
 
   const pic = (si, ii, file) => {
@@ -84,10 +88,39 @@ export default function MenuManager() {
   const delBundle = bi => mutateB(bs => { bs.splice(bi, 1) })
   const toggleDay = (bi, d) => mutateB(bs => { const set = new Set(bs[bi].days); set.has(d) ? set.delete(d) : set.add(d); bs[bi].days = [...set] })
 
+  // Every live dish must be trackable on the stock sheet. Items with no shared
+  // limiting ingredient get their OWN per-item stock line (key itm_<id>), so a new
+  // dish (e.g. Padron Peppers) can be counted / sold-out just like the others.
+  const reconcileStock = (secs) => {
+    const rows = []
+    const out = secs.map(s => ({ ...s, items: s.items.map(it => {
+      if (!it.name || !it.name.trim() || it.archived) return it
+      let keys = Array.isArray(it.stock) ? it.stock.filter(Boolean) : []
+      if (!keys.length) keys = ['itm_' + it.id]
+      keys.forEach(k => rows.push({ ingredient: k, label: String(k).startsWith('itm_') ? it.name.trim() : k }))
+      return { ...it, stock: keys }
+    }) }))
+    return { out, rows }
+  }
+
   const save = async () => {
     setSaving(true); setMsg('')
-    try { await saveMenu(toDoc(sections), bundlesToDoc(bundles), vat); setDirty(false); setMsg('Saved ✓ — the order page & kitchen screen now use this menu.') }
+    try {
+      const { out, rows } = reconcileStock(sections)
+      setSections(out)   // keep UI in sync with the per-item keys we just assigned
+      await saveMenu(toDoc(out), bundlesToDoc(bundles), vat); setDirty(false)
+      setMsg('Saved ✓ — the order page & kitchen screen now use this menu. Tap 📤 Force send to profiles to push it to staff.')
+      ensureStock(rows).catch(() => { /* stock lines are also reconciled when the 📦 Stock tab opens */ })
+    }
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
+  }
+
+  // Reliable send: reuses the Download-PDF popup engine (works on the kitchen
+  // iPad) and uploads the PDF to the staff Menus store. The popup confirms.
+  const sendStaff = () => {
+    const title = todayMenuTitle()
+    exportMenu(sections, 'send', vat, title)
+    setMsg(`📤 Force-sending “${title}” to staff profiles — a tab opens and confirms when it’s filed. (Allow pop-ups.)`)
   }
 
   if (sections == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading menu…</div>
@@ -100,6 +133,7 @@ export default function MenuManager() {
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
         <button onClick={() => exportMenu(sections, 'print', vat)} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
         <button onClick={() => exportMenu(sections, 'pdf', vat)} style={pill(false)}>⬇ Download PDF</button>
+        <button onClick={sendStaff} title={`Files a dated PDF (“${todayMenuTitle()}”) into every staff profile's Menus tab. Opens a tab that confirms when it's filed.`} style={{ ...pill(true), borderColor: GREEN, color: GREEN }}>📤 Force send to profiles</button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: vat ? GOLD : MUTED, cursor: 'pointer', border: `1px solid ${vat ? GOLD : LINE}`, borderRadius: 8, padding: '7px 11px' }}>
           <input type="checkbox" checked={vat} onChange={e => { setVat(e.target.checked); setDirty(true) }} /> VAT registered (20%)
         </label>
@@ -110,6 +144,15 @@ export default function MenuManager() {
         <a href="/onaroll/print" target="_blank" rel="noreferrer" style={{ color: GOLD, fontWeight: 700 }}>team.nodice.bar/onaroll/print</a>
       </div>
       {msg && <div style={{ fontSize: 12.5, color: msg.startsWith('Saved') ? GREEN : GOLD, marginBottom: 10, lineHeight: 1.5 }}>{msg}</div>}
+      {(() => {
+        const starred = sections.flatMap(s => s.items.filter(it => it.name && it.star)).map(it => it.name)
+        return (
+          <div style={{ fontSize: 12.5, color: MUTED, marginBottom: 12, lineHeight: 1.5, background: 'rgba(201,168,76,0.06)', border: `1px dashed ${GOLD}`, borderRadius: 10, padding: '9px 11px' }}>
+            ⭐ <b style={{ color: '#fff' }}>Specials (auto)</b> — tap <b style={{ color: GOLD }}>☆ Special</b> on any item to lift it into a dotted Specials box at the very top of the menu; untap to send it back to its section.{' '}
+            {starred.length ? <>Starred now: <b style={{ color: GOLD }}>{starred.join(', ')}</b>.</> : <span style={{ opacity: 0.8 }}>Nothing starred yet.</span>}
+          </div>
+        )
+      })()}
 
       {sections.map((sec, si) => (
         <div key={sec.id} style={{ marginBottom: 6 }}>
@@ -117,22 +160,36 @@ export default function MenuManager() {
             <input value={sec.name} onChange={e => mutate(s => { s[si].name = e.target.value })}
               style={{ background: 'none', border: 'none', borderBottom: '1px dashed transparent', color: GOLD, fontSize: 17, fontWeight: 800, padding: '2px 0' }}
               onFocus={e => e.target.style.borderBottomColor = GOLD} onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
-            <span style={{ fontSize: 11, color: MUTED }}>{sec.items.length} item{sec.items.length !== 1 ? 's' : ''}</span>
+            {(() => { const live = sec.items.filter(it => !it.archived).length, arc = sec.items.length - live; return <span style={{ fontSize: 11, color: MUTED }}>{live} item{live !== 1 ? 's' : ''}{arc ? ` · ${arc} archived` : ''}</span> })()}
             <button onClick={() => delSection(si)} title="Delete section" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>🗑</button>
           </div>
 
           {sec.items.map((it, ii) => {
+            if (it.archived) return null   // archived items live in the 🗄 Archived sheet at the bottom, not inline
             const mp = marginPct(it.sell, it.cost, vat)
             return (
-              <div key={it.id} style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
+              <div key={it.id} style={{ background: it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
                 <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                   <label style={{ width: 56, height: 56, borderRadius: 9, background: it.img ? 'none' : '#26272b', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
                     {it.img ? <img src={it.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ opacity: 0.5 }}>📷</span>}
                     <input type="file" accept="image/*" onChange={e => pic(si, ii, e.target.files[0])} style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }} />
                   </label>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
-                      style={{ width: '100%', background: 'none', border: 'none', color: '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input value={it.name} placeholder="Item name…" onChange={e => setItem(si, ii, 'name', e.target.value)}
+                        style={{ flex: 1, minWidth: 0, background: 'none', border: 'none', color: it.archived ? MUTED : '#fff', fontSize: 15, fontWeight: 700, padding: '0 0 3px', textDecoration: it.archived ? 'line-through' : 'none' }} />
+                      {!it.archived && (
+                        <button onClick={() => toggleStar(si, ii)} title="Star → moves this item up to the Specials box at the top of the menu (unstar to send it back)"
+                          style={{ flexShrink: 0, background: it.star ? 'rgba(201,168,76,0.18)' : 'none', border: `1px solid ${it.star ? GOLD : LINE}`, color: it.star ? GOLD : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {it.star ? '★ Special' : '☆ Special'}
+                        </button>
+                      )}
+                      <button onClick={() => toggleArchive(si, ii)} title="Archive → instantly hides this item from the customer menu, the printed menu and ordering. It's not deleted — Restore it anytime (e.g. when tacos are back)."
+                        style={{ flexShrink: 0, background: it.archived ? 'rgba(52,211,153,0.16)' : 'none', border: `1px solid ${it.archived ? GREEN : LINE}`, color: it.archived ? GREEN : MUTED, borderRadius: 8, padding: '4px 10px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {it.archived ? '↩ Restore' : '🗄 Archive'}
+                      </button>
+                    </div>
+                    {it.archived && <div style={{ fontSize: 11.5, color: RED, fontWeight: 700, marginTop: 3 }}>Archived — hidden from customers &amp; the printed menu, and can't be ordered. Save to apply.</div>}
                     <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                       <Field label={vat ? "Sell £ inc VAT" : "Sell £"} value={it.sell} onChange={v => setItem(si, ii, 'sell', v)} />
                       <Field label="Cost £" value={it.cost} onChange={v => setItem(si, ii, 'cost', v)} />
@@ -215,6 +272,37 @@ export default function MenuManager() {
       ))}
       <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 14 }}>＋ Add a new section</button>
 
+      {/* ── 🗄 Archived sheet — items pulled off the live menu, kept for reuse ── */}
+      {(() => {
+        const archived = sections.flatMap((sec, si) => sec.items.map((it, ii) => ({ it, si, ii, section: sec.name })).filter(x => x.it.archived))
+        if (!archived.length) return null
+        return (
+          <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '12px 14px' }}>
+            <button onClick={() => setShowArchived(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>🗄 Archived</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a', background: MUTED, borderRadius: 999, padding: '1px 8px' }}>{archived.length}</span>
+              <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>hidden from the menu &amp; ordering — Restore any time</span>
+              <span style={{ fontSize: 13, color: MUTED }}>{showArchived ? '▾ hide' : '▸ show'}</span>
+            </button>
+            {showArchived && (
+              <div style={{ marginTop: 10 }}>
+                {archived.map(({ it, si, ii, section }) => (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', marginBottom: 7, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name || '(unnamed item)'}</div>
+                      <div style={{ fontSize: 11.5, color: MUTED }}>{section}{it.sell ? ` · £${it.sell}` : ''}</div>
+                    </div>
+                    <button onClick={() => toggleArchive(si, ii)} style={{ background: 'rgba(52,211,153,0.16)', border: `1px solid ${GREEN}`, color: GREEN, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>↩ Restore</button>
+                    <button onClick={() => delItem(si, ii)} title="Delete permanently" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>×</button>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11.5, color: MUTED, marginTop: 4, lineHeight: 1.4 }}>Restore drops an item back into its section. Remember to <b style={{ color: '#fff' }}>Save</b> to apply.</div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
       {/* ── Deals & bundles (beer + burger) ── */}
       <div style={{ marginTop: 30, background: 'rgba(201,168,76,0.06)', border: `1.5px solid ${GOLD}`, borderRadius: 14, padding: '16px 14px' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
@@ -248,7 +336,7 @@ export default function MenuManager() {
             </div>
           )
         })}
-        <button onClick={addBundle} style={addBtn()}>＋ Add a beer + burger bundle</button>
+        <button onClick={addBundle} style={addBtn()}>＋ Add a deal / combo</button>
       </div>
     </div>
   )

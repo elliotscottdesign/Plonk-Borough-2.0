@@ -319,6 +319,10 @@ Deno.serve(async (req) => {
   const action = b.action as string;
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
   const isAdmin = () => b.secret && b.secret === Deno.env.get("SEND_SECRET");
+  // Day-off teams + caps (founder rule): bar loses at most 2 people a day, kitchen 1,
+  // manager 1 — by JOB role (Supervisor counts as bar), first come first served.
+  const OFF_LANE_CAPS: Record<string, number> = { manager: 1, kitchen: 1, bar: 2 };
+  const offLane = (role: unknown) => role === "Manager" || role === "Asst. Manager" ? "manager" : role === "Kitchen / Barback" ? "kitchen" : "bar";
   const clientIp = callerIp(req);   // for the venue-presence (wifi) check
 
   try {
@@ -407,7 +411,22 @@ Deno.serve(async (req) => {
       // Server-authoritative active gate (a deactivated account's token must not resolve —
       // clients rely on `me` for the single-sign-on hub bridge, so enforce it here too).
       if (s.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
-      return json({ ok: true, staff: publicStaff(s) });
+
+      // Some of the team also DJ for us (Thays, 20 Aug 2026). If a manager has
+      // linked this staff record to a DJ record, hand back the DJ's own portal
+      // link so she can hop straight across without digging out the emailed URL.
+      //
+      // The DJ token is ONLY ever returned to the holder of the staff token whose
+      // OWN record carries that dj_id — it is never listed, searchable or exposed
+      // to anyone else. Linking is deliberately explicit rather than matched on
+      // email/phone: Thays has a different email AND a different phone on each
+      // record, so inference would have failed silently.
+      let dj = null;
+      if (s.dj_id) {
+        const { data: d } = await sb.from("djs").select("id,dj_name,real_name,token").eq("id", s.dj_id).maybeSingle();
+        if (d?.token) dj = { name: d.dj_name || d.real_name || "DJ", url: `/dj?t=${encodeURIComponent(d.token)}` };
+      }
+      return json({ ok: true, staff: publicStaff(s), dj });
     }
 
     // ── Training doc override for a module (founder edits). Not sensitive; the
@@ -501,6 +520,132 @@ Deno.serve(async (req) => {
     // shared state everywhere. Reads the same tables the nodice.bar customer site
     // writes (bar_reservations / tournament_entries / bookings — NEVER modified);
     // ticks live in reservation_arrivals keyed (kind, ref_id); un-tick deletes.
+    // ── Who's DJing tonight, and how to reach them ───────────────────────────
+    // Founder, 20 Aug 2026: "make it clear to see who's DJing that day and their
+    // contact details in case they need to get hold of them." Any signed-in staff
+    // member can see this — if the DJ hasn't turned up, whoever is on the floor
+    // needs the phone number, not just the manager.
+    //
+    // Reads the DJ lane's dj_slots + djs tables (read-only; nothing is written).
+    // 8am-anchored operating day, so at 00:30 it still shows tonight's DJ.
+    // Only booked slots are returned — an 'open' slot has no DJ to call.
+    // ── 4am sweep: bar & venue checklists left unfinished ────────────────────
+    // Founder, 9 Sep 2026: "bar and venue checklists - make them as unfinished at
+    // 4am", flagged to Elliot and Rhys with the date, the checklist and who started
+    // it. 22 rows were sitting half-done when this was written, the oldest nine days
+    // old — nothing was ever going to catch them.
+    //
+    // WHY 4am is the right hour and not 8am: the operating day rolls at 8am, so a
+    // closing checklist finished at 02:30 is still filed under LAST night. Sweeping
+    // at 4am catches the night that has just ended, an hour or two after close,
+    // while never touching a checklist someone is still legitimately working on.
+    //
+    // Idempotent: only rows with flagged_at IS NULL are touched, so an hourly cron,
+    // a retry or an overlapping run can never double-flag or double-email.
+    // Kitchen has its own sweep (kitchen fn) against kitchen_checklist_runs.
+    if (action === "checklistSweep") {
+      const cronOk = !!Deno.env.get("CRON_SECRET") && b.cronSecret === Deno.env.get("CRON_SECRET");
+      if (!cronOk && !isAdmin()) return json({ error: "unauthorized" }, 401);
+
+      // The cron runs hourly; only the 4am London pass does the work, so British
+      // Summer Time can't shift it an hour. `force` lets the founder run it by hand.
+      const hour = londonHour();
+      if (hour !== 4 && b.force !== true) return json({ ok: true, skipped: `not 4am (London hour ${hour})` });
+
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+
+      // NEVER flag the operating day that is still running. At 4am shiftDayISO()
+      // is already the night that just ended, so the normal path is safe — but a
+      // manual run with an explicit date could otherwise mark a checklist someone
+      // is halfway through. (I did exactly that while testing this, on Elliot's
+      // own live opening list, and had to undo it.)
+      if (date >= shiftDayISO()) {
+        return json({ ok: true, date, flagged: 0, skipped: "that operating day is still running" });
+      }
+
+      const { data: open } = await sb.from("checklist_submissions")
+        .select("id,date,checklist_key,staff_id,items,note")
+        .eq("date", date).eq("submitted", false).is("flagged_at", null);
+      if (!open || !open.length) return json({ ok: true, date, flagged: 0 });
+
+      const ids = [...new Set(open.map((r: any) => r.staff_id).filter(Boolean))];
+      const { data: people } = ids.length ? await sb.from("staff").select("id,name").in("id", ids) : { data: [] };
+      const nameOf: Record<string, string> = {};
+      for (const p of people || []) nameOf[p.id] = p.name;
+
+      const now = new Date().toISOString();
+      await sb.from("checklist_submissions")
+        .update({ unfinished: true, flagged_at: now })
+        .in("id", open.map((r: any) => r.id));
+
+      // To the founder AND every active manager — whoever opens the venue next
+      // needs to know what was left, not just Elliot.
+      const { data: mgrs } = await sb.from("staff")
+        .select("email,role,active").in("role", ["Manager", "Asst. Manager"]);
+      const to = [...new Set([ADMIN_EMAIL, ...(mgrs || [])
+        .filter((m: any) => m.active !== false && m.email)
+        .map((m: any) => String(m.email).trim())])].filter(Boolean);
+
+      const rows = open.map((r: any) => {
+        const total = Object.keys(r.items || {}).length;
+        const done = Object.values(r.items || {}).filter(Boolean).length;
+        return `<tr>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#fff">${esc(r.checklist_key)}</td>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#ccc">${esc(nameOf[r.staff_id] || "Unknown")}</td>
+          <td style="padding:7px 10px;border-top:1px solid #333;color:#999;text-align:right">${done}/${total} ticked</td>
+        </tr>`;
+      }).join("");
+
+      if (RESEND && to.length && b.quiet !== true) {
+        for (const addr of to) {
+          await sendMail(addr, `⚠️ ${open.length} checklist${open.length === 1 ? "" : "s"} left unfinished — ${date}`,
+            emailShell("Checklists left unfinished",
+              `<p style="color:#ccc;line-height:1.6">These were started on <strong style="color:#fff">${esc(date)}</strong> but never submitted, and have been marked <strong style="color:#DA1B33">unfinished</strong>.</p>
+               <table style="width:100%;border-collapse:collapse;font-size:13px;margin-top:10px">
+                 <tr style="color:#777;font-size:11px;text-transform:uppercase;letter-spacing:.06em">
+                   <th style="text-align:left;padding:0 10px 4px">Checklist</th>
+                   <th style="text-align:left;padding:0 10px 4px">Started by</th>
+                   <th style="text-align:right;padding:0 10px 4px">Progress</th>
+                 </tr>${rows}
+               </table>`,
+              { href: `${OPS_URL}?tab=rota`, label: "Open the checklist log" }));
+        }
+      }
+      return json({ ok: true, date, flagged: open.length, emailed: b.quiet === true ? [] : to });
+    }
+
+    if (action === "djToday") {
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+      }
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date || "")) ? String(b.date) : shiftDayISO();
+      const { data: slots } = await sb.from("dj_slots")
+        .select("id,date,slot,status,night_name,set_type,dj_id,dj_id2,suspended")
+        .eq("date", date).in("status", ["confirmed", "held", "pending"]);
+      const live = (slots || []).filter((s: any) => s.suspended !== true);
+      const ids = [...new Set(live.flatMap((s: any) => [s.dj_id, s.dj_id2]).filter(Boolean))];
+      const { data: djs } = ids.length
+        ? await sb.from("djs").select("id,dj_name,real_name,phone,email,instagram").in("id", ids)
+        : { data: [] };
+      const byId: Record<string, any> = {};
+      for (const d of djs || []) byId[d.id] = d;
+      const person = (id: string | null) => {
+        const d = id ? byId[id] : null;
+        return d ? { name: d.dj_name || d.real_name || "DJ", realName: d.real_name || null,
+                     phone: d.phone || null, email: d.email || null, instagram: d.instagram || null } : null;
+      };
+      return json({
+        ok: true, date,
+        slots: live.map((s: any) => ({
+          id: s.id, slot: s.slot, status: s.status,
+          nightName: s.night_name || null, setType: s.set_type || null,
+          djs: [person(s.dj_id), person(s.dj_id2)].filter(Boolean),
+        })).filter((s: any) => s.djs.length > 0),
+      });
+    }
+
     if (action === "reservationsToday" || action === "reservationArrive") {
       let who = "";
       if (isAdmin()) who = "Manager";
@@ -570,7 +715,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "offerSwap", "cancelSwap", "interceptSwap", "decideSwap", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -598,17 +743,52 @@ Deno.serve(async (req) => {
           : { data: [] };
         const filled: Record<string, number> = {}; const mine = new Set<string>(); const mineAdmin = new Set<string>();
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
+        // Who's on each shift (first name + role) — so the portal's day panel can
+        // show "you're working with…" and help people find cover / swaps.
+        const claimStaffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
+        const { data: mates } = claimStaffIds.length ? await sb.from("staff").select("id,name,role").in("id", claimStaffIds) : { data: [] };
+        const mateBy: Record<string, any> = {}; for (const x of mates || []) mateBy[x.id] = x;
+        const whoBy: Record<string, any[]> = {};
+        for (const c of claims || []) { const p2 = mateBy[c.staff_id]; if (p2) (whoBy[c.shift_id] ||= []).push({ name: (p2.name || "?").split(" ")[0], role: p2.role || "", me: c.staff_id === me.id }); }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
+        // Dates already FULL for this member's own team (bar: 2 off max · kitchen: 1 ·
+        // manager: 1; first come, first served) — the portal shows 🔒 and blocks the tap.
+        const [{ data: allAv }, { data: activeRows }] = await Promise.all([
+          sb.from("staff_availability").select("staff_id,data").neq("staff_id", me.id),
+          sb.from("staff").select("id,role").eq("active", true),
+        ]);
+        const myLane2 = offLane(me.role);
+        const laneById2 = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+        const laneCounts: Record<string, number> = {};
+        for (const row of allAv || []) {
+          if (laneById2.get(row.staff_id) !== myLane2) continue;
+          for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) laneCounts[d] = (laneCounts[d] || 0) + 1;
+        }
+        const offFull: Record<string, boolean> = {};
+        for (const [d, n] of Object.entries(laneCounts)) if (n >= OFF_LANE_CAPS[myLane2]) offFull[d] = true;
+        // Shift-swap feed: open offers + pending approvals on future shifts.
+        const { data: swapRows } = await sb.from("shift_swaps").select("id,shift_id,from_staff,to_staff,status,created_at").in("status", ["open", "claimed"]);
+        const swapShiftIds = [...new Set((swapRows || []).map((x: any) => x.shift_id))];
+        const { data: swapShifts } = swapShiftIds.length ? await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").in("id", swapShiftIds) : { data: [] };
+        const swapNameIds = [...new Set((swapRows || []).flatMap((x: any) => [x.from_staff, x.to_staff]).filter(Boolean))];
+        const { data: swapNames } = swapNameIds.length ? await sb.from("staff").select("id,name").in("id", swapNameIds) : { data: [] };
+        const nmBy: Record<string, string> = {}; for (const x of swapNames || []) nmBy[x.id] = x.name;
+        const shBy: Record<string, any> = {}; for (const x of swapShifts || []) shBy[x.id] = x;
+        const swaps = (swapRows || [])
+          .map((x: any) => ({ ...x, shift: shBy[x.shift_id] || null, from_name: nmBy[x.from_staff] || "?", to_name: x.to_staff ? nmBy[x.to_staff] || "?" : null }))
+          .filter((x: any) => x.shift && x.shift.date > today)
+          .sort((a2: any, b2: any) => a2.shift.date.localeCompare(b2.shift.date));
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
         // per-person block, which would flood the portal). Past: only their own —
         // their history, so they can see rostered vs actual clocked times.
         const clockList = clocks || [];
-        const visibleShifts = (shifts || []).filter((s: any) =>
-          mine.has(s.id) || (s.date >= today && (filled[s.id] || 0) < (s.headcount || 1)));
+        // Everyone sees ALL future shifts (incl. full ones held by teammates) so the
+        // day panel can show who you're working with; past days stay yours-only.
+        const visibleShifts = (shifts || []).filter((s: any) => mine.has(s.id) || s.date >= today);
         return json({
-          ok: true, staff: publicStaff(me), availability,
-          shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id) })),
+          ok: true, staff: publicStaff(me), availability, offFull, offLane: myLane2, offCap: OFF_LANE_CAPS[myLane2], swaps,
+          shifts: visibleShifts.map((s: any) => ({ ...s, filled: filled[s.id] || 0, mine: mine.has(s.id), assigned: mineAdmin.has(s.id), who: whoBy[s.id] || [] })),
           training: (train || []).map((t: any) => t.item_key),
           docs: { passport: docKinds.has("passport"), rtw: docKinds.has("rtw") },
           notes: notes || [],
@@ -828,6 +1008,27 @@ Deno.serve(async (req) => {
         const { data: prevAv } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", month).maybeSingle();
         const prevData = (prevAv?.data || {}) as Record<string, any>;
         const prevOffSet = new Set(Object.keys(prevData).filter((k) => prevData[k]?.unavailable === true));
+        // ── Day-off caps per TEAM (founder rule, 19 Aug 2026): a day can lose at most
+        // 2 bar people, 1 kitchen person and 1 manager. First come, first served: a NEW
+        // off-mark that would take the member's own team past its cap is refused
+        // (existing marks untouched). The founder's own tool can still override.
+        const wantNew = Object.keys(data).filter((k) => !prevOffSet.has(k));
+        const refused: string[] = [];
+        if (wantNew.length > 0) {
+          const myLane = offLane(me.role);
+          const cap = OFF_LANE_CAPS[myLane];
+          const [{ data: othersAv }, { data: activeRows }] = await Promise.all([
+            sb.from("staff_availability").select("staff_id,data").eq("month", month).neq("staff_id", me.id),
+            sb.from("staff").select("id,role").eq("active", true),
+          ]);
+          const laneById = new Map((activeRows || []).map((r: any) => [r.id, offLane(r.role)]));
+          const counts: Record<string, number> = {};   // date → same-lane off count among OTHERS
+          for (const row of othersAv || []) {
+            if (laneById.get(row.staff_id) !== myLane) continue;   // only my own team counts against my cap
+            for (const [d, v] of Object.entries(row.data || {})) if ((v as any)?.unavailable === true) counts[d] = (counts[d] || 0) + 1;
+          }
+          for (const d of wantNew) if ((counts[d] || 0) >= cap) { refused.push(d); delete data[d]; }
+        }
         // Availability is just "days I can't work" — purely an input the founder uses
         // when building the rota. It is independent of who's rostered, so a member can
         // freely mark/un-mark any day and it never adds or removes an actual shift.
@@ -856,6 +1057,82 @@ Deno.serve(async (req) => {
               `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> marked ${newOff.length === 1 ? "this day" : "these days"} off — the rota builder will work around ${newOff.length === 1 ? "it" : "them"}:</p><ul style="color:#ccc;padding-left:18px;line-height:1.5">${li}</ul>`,
               { href: OPS_URL, label: "Open the rota" }));
         }
+        return json({ ok: true, refused });
+      }
+
+      // ── Shift swaps ─────────────────────────────────────────────────────────
+      // offerSwap: put one of MY future shifts up for grabs → visible to everyone.
+      // interceptSwap: an eligible member claims it (not on that day, not booked
+      // off, right ability/rank) → goes to the managers to approve.
+      // decideSwap (Asst. Manager+ or founder): approve = the claim MOVES;
+      // decline = the offer reopens for someone else.
+      if (action === "offerSwap") {
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label,start_min,end_min").eq("id", b.shiftId).maybeSingle();
+        if (!shift) return json({ error: "That shift no longer exists — refresh." }, 404);
+        if (shift.date <= shiftDayISO()) return json({ error: "Only future shifts can be swapped." }, 400);
+        const { data: myClaim } = await sb.from("staff_shift_claims").select("id").eq("shift_id", shift.id).eq("staff_id", me.id).maybeSingle();
+        if (!myClaim) return json({ error: "You're not on that shift." }, 403);
+        const { data: existing } = await sb.from("shift_swaps").select("id").eq("shift_id", shift.id).eq("from_staff", me.id).in("status", ["open", "claimed"]).maybeSingle();
+        if (existing) return json({ error: "That shift is already up for swap." }, 409);
+        const { error } = await sb.from("shift_swaps").insert({ shift_id: shift.id, from_staff: me.id, status: "open" });
+        if (error) return json({ error: "Couldn't offer the swap — has the shift-swaps SQL been run? (" + error.message + ")" }, 400);
+        return json({ ok: true });
+      }
+      if (action === "cancelSwap") {
+        const { data: sw } = await sb.from("shift_swaps").select("id,from_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.from_staff !== me.id) return json({ error: "Not your swap." }, 403);
+        if (!["open", "claimed"].includes(sw.status)) return json({ error: "That swap is already settled." }, 409);
+        await sb.from("shift_swaps").update({ status: "cancelled", decided_at: new Date().toISOString() }).eq("id", sw.id);
+        return json({ ok: true });
+      }
+      if (action === "interceptSwap") {
+        if (me.active === false) return json({ error: "Your account is inactive — ask the manager." }, 403);
+        const { data: sw } = await sb.from("shift_swaps").select("id,shift_id,from_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.status !== "open") return json({ error: "That swap has gone — someone else may have grabbed it. Refresh." }, 409);
+        if (sw.from_staff === me.id) return json({ error: "That's your own shift." }, 400);
+        const { data: shift } = await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").eq("id", sw.shift_id).maybeSingle();
+        if (!shift || shift.date <= shiftDayISO()) return json({ error: "That shift is no longer swappable." }, 409);
+        const needAb = shift.ability || "bar";
+        if (!(me.abilities || []).includes(needAb)) return json({ error: `That shift needs ${needAb} training.` }, 403);
+        if (staffRank(me.role) < (shift.min_rank || 1)) return json({ error: "That shift is for a higher position." }, 403);
+        // Not already rostered that day (founder rule) + not booked off.
+        const { data: dayShifts } = await sb.from("staff_shifts").select("id").eq("date", shift.date);
+        const ids = (dayShifts || []).map((x: any) => x.id);
+        if (ids.length) {
+          const { data: myDay } = await sb.from("staff_shift_claims").select("id").eq("staff_id", me.id).in("shift_id", ids).limit(1);
+          if ((myDay || []).length) return json({ error: "You're already working that day — swaps are for people not on the rota that day." }, 409);
+        }
+        const { data: avRow } = await sb.from("staff_availability").select("data").eq("staff_id", me.id).eq("month", shift.date.slice(0, 7)).maybeSingle();
+        if (avRow?.data?.[shift.date]?.unavailable === true) return json({ error: "You've marked yourself off that day." }, 409);
+        const { data: upd, error } = await sb.from("shift_swaps").update({ status: "claimed", to_staff: me.id, claimed_at: new Date().toISOString() }).eq("id", sw.id).eq("status", "open").select("id");
+        if (error || !(upd || []).length) return json({ error: "Someone beat you to it — refresh." }, 409);
+        const { data: fromS } = await sb.from("staff").select("name").eq("id", sw.from_staff).maybeSingle();
+        await sendMail(ADMIN_EMAIL, `Swap to approve: ${me.name} ⇄ ${fromS?.name || "?"} — ${niceDate(shift.date)}`,
+          emailShell("Shift swap awaiting approval",
+            `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> wants to take <strong style="color:#fff">${esc(fromS?.name || "?")}</strong>'s <strong style="color:#fff">${esc(shift.label || "shift")}</strong> on <strong style="color:#fff">${niceDate(shift.date)}</strong>. A manager can approve it in the staff portal (Shifts → Swaps).</p>`,
+            { href: OPS_URL, label: "Open the rota" }));
+        return json({ ok: true });
+      }
+      if (action === "decideSwap") {
+        if (staffRank(me.role) < staffRank("Asst. Manager")) return json({ error: "Only a manager can approve swaps." }, 403);
+        const { data: sw } = await sb.from("shift_swaps").select("id,shift_id,from_staff,to_staff,status").eq("id", b.swapId).maybeSingle();
+        if (!sw || sw.status !== "claimed") return json({ error: "That swap isn't waiting for approval — refresh." }, 409);
+        if (!b.approve) {
+          await sb.from("shift_swaps").update({ status: "open", to_staff: null, claimed_at: null }).eq("id", sw.id);
+          return json({ ok: true, reopened: true });
+        }
+        const { data: fromClaim } = await sb.from("staff_shift_claims").select("id").eq("shift_id", sw.shift_id).eq("staff_id", sw.from_staff).maybeSingle();
+        if (!fromClaim) { await sb.from("shift_swaps").update({ status: "cancelled", decided_at: new Date().toISOString() }).eq("id", sw.id); return json({ error: "The original person is no longer on that shift — swap cancelled." }, 409); }
+        // Order matters: the headcount trigger sees the shift as FULL while the
+        // offerer is still on it — so take them off first, then seat the claimant,
+        // and put the offerer straight back if that insert somehow fails.
+        await sb.from("staff_shift_claims").delete().eq("id", fromClaim.id);
+        const { error: insErr } = await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.to_staff, status: "claimed", source: "swap" });
+        if (insErr && !(insErr.message || "").toLowerCase().includes("duplicate")) {
+          await sb.from("staff_shift_claims").insert({ shift_id: sw.shift_id, staff_id: sw.from_staff, status: "claimed", source: "swap" });
+          return json({ error: "Couldn't move the shift: " + insErr.message }, 400);
+        }
+        await sb.from("shift_swaps").update({ status: "approved", decided_at: new Date().toISOString(), decided_by: me.id }).eq("id", sw.id);
         return json({ ok: true });
       }
 
@@ -977,6 +1254,42 @@ Deno.serve(async (req) => {
         return json({ ok: true });
       }
 
+    }
+
+    // ── Menus: upload / delete ────────────────────────────────────────────────
+    // Founder, 13 Sep 2026: "the menu upload should also be possible from manager /
+    // assistant manager profiles in menu section." It was founder-only, so a manager
+    // reprinting the menus still had to ask Elliot to put the new file up.
+    //
+    // Gate: the founder secret OR a signed-in Manager / Asst. Manager (rank 3+),
+    // checked against their own staff record — never the shared team code. Kept
+    // ABOVE the founder-only line below, which is what used to catch these.
+    if (action === "addMenu" || action === "deleteMenu") {
+      const MENU_RANK = 3;   // Asst. Manager and up
+      let who = "Founder";
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+        if (staffRank(me.role) < MENU_RANK) return json({ error: "Managers only." }, 403);
+        who = me.name || "Manager";
+      }
+
+      if (action === "addMenu") {
+        const title = clean(b.title);
+        const data = String(b.data || "");
+        const kind = b.kind === "image" ? "image" : "pdf";
+        if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
+        if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
+        const { error } = await sb.from("menus").insert({ title, kind, data });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, by: who });
+      }
+
+      if (!b.id) return json({ error: "no id" }, 400);
+      const { error } = await sb.from("menus").delete().eq("id", b.id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, by: who });
     }
 
     // ── Everything below is founder-only ───────────────────────────────────────
@@ -1388,23 +1701,6 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
       return json({ ok: true });
     }
 
-    // ── Founder: upload / delete a menu ───────────────────────────────────────
-    if (action === "addMenu") {
-      const title = clean(b.title);
-      const data = String(b.data || "");
-      const kind = b.kind === "image" ? "image" : "pdf";
-      if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
-      if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
-      const { error } = await sb.from("menus").insert({ title, kind, data });
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
-    if (action === "deleteMenu") {
-      if (!b.id) return json({ error: "no id" }, 400);
-      const { error } = await sb.from("menus").delete().eq("id", b.id);
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
 
     // ── Founder: view a staff member's uploaded document (passport / right-to-work) ──
     if (action === "getDoc") {

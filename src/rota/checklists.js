@@ -41,7 +41,7 @@ export const CHECKLISTS = {
         items: [
           'Switch on iPads & payment devices — check connectivity & charging',
           'Switch on speakers (Bluetooth to iPad), play music (Soundtrack app)',
-          'Check the bookings to gauge how busy the shift will be',
+          'Check today\'s reservations in your profile — tables, pool, golf & who\'s DJing',
           'Switch on bar / fridge / back-bar lights & the slushie machine',
           'Switch on beer & post-mix gas',
           'Set up the glass washer — check it has enough detergent',

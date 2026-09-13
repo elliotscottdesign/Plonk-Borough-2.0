@@ -42,7 +42,7 @@ import NotesPanel from './components/NotesPanel.jsx'
 import NotesHealthBanner from './components/NotesHealthBanner.jsx'
 import { WORKBOOK_URL } from './data.js'
 import useIsMobile from './lib/useIsMobile.js'
-import { applyAccessSession, ACCESS_CODES } from './lib/access.js'
+import { applyAccessSession, ACCESS_CODES, restoreRememberedSession, forgetDevice } from './lib/access.js'
 import { rotaMe } from './rota/api.js'
 
 // Path-based deck dispatch.
@@ -189,10 +189,17 @@ export default function App() {
   // was set by the pre-per-tenant PasswordGate (which didn't store
   // ndb_access_code) — without this, their POSTs silently abort because
   // the client doesn't know which tenant slot to write to.
-  const [unlocked, setUnlocked]       = useState(() =>
-    sessionStorage.getItem('ndb_unlocked') === '1' &&
-    !!sessionStorage.getItem('ndb_access_code')
-  )
+  const [unlocked, setUnlocked]       = useState(() => {
+    // Founder, 20 Aug 2026: "No login for founder… it should automatically know
+    // it's me." sessionStorage is wiped when the tab/app closes, so every visit
+    // re-prompted. If this device has signed in before, put that session back
+    // before anything reads it — the gate then never renders at all.
+    if (!(sessionStorage.getItem('ndb_unlocked') === '1' && sessionStorage.getItem('ndb_access_code'))) {
+      restoreRememberedSession()
+    }
+    return sessionStorage.getItem('ndb_unlocked') === '1' &&
+           !!sessionStorage.getItem('ndb_access_code')
+  })
   const [plonkAccess, setPlonkAccess] = useState(() => sessionStorage.getItem('ndb_plonk_access') === '1')
   const [hackneyAccess, setHackneyAccess] = useState(() => sessionStorage.getItem('ndb_hackney_access') === '1')
   const [opsAccess, setOpsAccess] = useState(() => sessionStorage.getItem('ndb_ops_access') === '1')

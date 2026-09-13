@@ -189,44 +189,163 @@ function computeStandings(participants: any[], matches: any[], settings: any) {
 // fall back to the fewest possible rematches. Odd field -> bye to the
 // lowest-ranked player who hasn't had one, but if that bye choice forces a
 // rematch it walks up the table for a bye that doesn't.
-function pairSwiss(standings: any[], matches: any[]) {
-  const played = new Set<string>();
-  for (const m of matches) { if (m.round_id && m.p1_id && m.p2_id) { played.add(m.p1_id + "|" + m.p2_id); played.add(m.p2_id + "|" + m.p1_id); } }
-  const hadBye = new Set(matches.filter((m: any) => m.is_bye).map((m: any) => m.p1_id));
-  const all = standings.map((s: any) => s.id);
+// ── Round pairing: TRUE ROUND-ROBIN (circle method) ─────────────────────────
+// Founder rule 9 Sep 2026, after the D&G/Pool Bros repeat: with N teams,
+// everyone must play everyone once — N−1 rounds when N is even, N rounds with
+// a rotating bye when odd — before ANY rematch, and then the cycle restarts
+// from the beginning (round 6 of a 6-team night mirrors round 1).
+//
+// Why the old way failed: it invented each round on its own, avoiding repeats
+// only within the round being drawn. Three individually-legal rounds can
+// strand the leftovers (on 9 Sep the six unplayed pairings split the field
+// into two odd groups of three — no repeat-free round 4 existed no matter
+// what). A fixed schedule can never paint itself into that corner: the N−1
+// rotations of the circle method partition ALL pairings exactly once.
+//
+// Walk-ins joining mid-night change the roster, so instead of pinning a
+// schedule we re-derive it every round: score every rotation of the circle
+// for the CURRENT roster against what has actually been played and take the
+// best — fewest rematches first (0 whenever the schedule is intact), then
+// the rotation whose pairs met longest ago (that's what restarts the cycle
+// in order), then the fairest bye, then the lowest rotation number so the
+// draw is deterministic.
 
-  // Perfect-match `ids` (standings order) using at most `allow` rematches,
-  // backtracking; nearest-ranked partners tried first.
+// ── Seeded pairing for BIG fields (founder rule 10 Sep 2026) ────────────────
+// More than 8 entrants can't complete a full round robin in one night, so
+// instead of fixture order the field is sorted best→worst and NEIGHBOURS
+// meet — top third v top third, bottom v bottom. Round 1 sorts by the season
+// LEAGUE (newcomers after the ranked); later rounds sort by the night's own
+// standings, so winners keep meeting winners as the rounds go off. Full
+// backtracking guarantees no rematch whenever any repeat-free pairing exists;
+// if the night runs long enough that repeats become unavoidable, the OLDEST
+// previous meeting is chosen first. Byes go bottom-of-order, never twice
+// before everyone has had one.
+function pairSeeded(orderIds: string[], matches: any[], rounds: any[]) {
+  const ordinalOf: Record<string, number> = {};
+  for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
+  const playedCount: Record<string, number> = {};
+  const lastMet: Record<string, number> = {};
+  const byeCount: Record<string, number> = {};
+  for (const m of matches || []) {
+    if (m.is_bye && m.p1_id) { byeCount[m.p1_id] = (byeCount[m.p1_id] || 0) + 1; continue; }
+    if (!m.round_id || !m.p1_id || !m.p2_id) continue;
+    const k = m.p1_id < m.p2_id ? m.p1_id + "|" + m.p2_id : m.p2_id + "|" + m.p1_id;
+    playedCount[k] = (playedCount[k] || 0) + 1;
+    lastMet[k] = Math.max(lastMet[k] || 0, ordinalOf[m.round_id] || 0);
+  }
+  const key = (a: string, b: string) => a < b ? a + "|" + b : b + "|" + a;
+
   function matchUp(ids: string[], allow: number): [string, string][] | null {
     if (!ids.length) return [];
     const a = ids[0], rest = ids.slice(1);
-    for (let j = 0; j < rest.length; j++) {
-      const b = rest[j];
-      const cost = played.has(a + "|" + b) ? 1 : 0;
-      if (cost > allow) continue;
-      const sub = matchUp(rest.filter((_, k) => k !== j), allow - cost);
-      if (sub) return [[a, b], ...sub];
+    // nearest-seeded first among clean pairs; forced rematches oldest-first
+    const cands = rest.map((b, j) => ({ b, j, cost: playedCount[key(a, b)] || 0, met: lastMet[key(a, b)] || 0 }))
+      .sort((x, y) => x.cost - y.cost || x.met - y.met || x.j - y.j);
+    for (const c of cands) {
+      if (c.cost > allow) break;
+      const sub = matchUp(rest.filter((_, k2) => k2 !== c.j), allow - c.cost);
+      if (sub) return [[a, c.b], ...sub];
     }
     return null;
   }
 
-  // Bye candidates: bottom-up among those without a bye, then (if everyone has
-  // had one) bottom-up regardless. Even field -> single "no bye" candidate.
   const byeCandidates: (string | null)[] = [];
-  if (all.length % 2 === 1) {
-    for (let i = all.length - 1; i >= 0; i--) if (!hadBye.has(all[i])) byeCandidates.push(all[i]);
-    for (let i = all.length - 1; i >= 0; i--) if (hadBye.has(all[i])) byeCandidates.push(all[i]);
+  if (orderIds.length % 2 === 1) {
+    for (let i = orderIds.length - 1; i >= 0; i--) if (!byeCount[orderIds[i]]) byeCandidates.push(orderIds[i]);
+    for (let i = orderIds.length - 1; i >= 0; i--) if (byeCount[orderIds[i]]) byeCandidates.push(orderIds[i]);
   } else byeCandidates.push(null);
 
-  // Escalate the rematch budget from 0 so a clean pairing always wins.
-  for (let allow = 0; allow <= Math.ceil(all.length / 2); allow++) {
+  for (let allow = 0; allow <= Math.ceil(orderIds.length / 2); allow++) {
     for (const byeId of byeCandidates) {
-      const pool = byeId ? all.filter((x: string) => x !== byeId) : all;
+      const pool = byeId ? orderIds.filter((x) => x !== byeId) : orderIds;
       const pairs = matchUp(pool, allow);
       if (pairs) return { pairs, byeId: byeId ?? null };
     }
   }
-  return { pairs: [] as [string, string][], byeId: null };   // unreachable with >= 2 players
+  return { pairs: [] as [string, string][], byeId: null as string | null };
+}
+
+// Round-1 seeding order for a big field: the season league best→worst, with
+// participants who have no league record after them in sign-up order.
+async function leagueSeedOrder(sb: any, run: any, active: any[]): Promise<string[]> {
+  const discipline = "teams";
+  const lg = await computeLeague(sb, discipline);
+  const rankByKey: Record<string, number> = {};
+  for (const r of lg.table || []) rankByKey[r.key] = r.rank;
+  const { data: merges } = await sb.from("league_merges").select("from_key,to_key").eq("sport", "pingpong").eq("discipline", discipline);
+  const mm: Record<string, string> = {};
+  for (const m of merges || []) mm[m.from_key] = m.to_key;
+  const resolve = (k: string) => { let cur = k; for (let i = 0; i < 10 && mm[cur] && mm[cur] !== cur; i++) cur = mm[cur]; return cur; };
+  const entryIds = active.filter((p: any) => p.entry_id).map((p: any) => p.entry_id);
+  const emailByEntry: Record<string, string> = {};
+  if (entryIds.length) {
+    const { data: ents } = await sb.from("tournament_entries").select("id, captain_email").in("id", entryIds);
+    for (const e of ents || []) if (e.captain_email) emailByEntry[e.id] = String(e.captain_email).trim().toLowerCase();
+  }
+  const rankOf = (p: any) => {
+    const raw = (p.entry_id && emailByEntry[p.entry_id]) || String(p.display_name || "").trim().toLowerCase();
+    return rankByKey[resolve(raw)] ?? -1;   // -1 = no league history
+  };
+  // Players with NO league history seed in the MIDDLE (founder rule 10 Sep
+  // 2026): ranked players keep league order; the unknown block is inserted at
+  // the midpoint, so proven top players stay top, proven bottom stay bottom,
+  // and newcomers earn their level from round 2 via the night's standings.
+  const tagged = active.map((p: any, i: number) => ({ p, i, r: rankOf(p) }));
+  const ranked = tagged.filter((x: any) => x.r !== -1).sort((a: any, b: any) => a.r - b.r || a.i - b.i);
+  const unknown = tagged.filter((x: any) => x.r === -1);   // sign-up order
+  const mid = Math.ceil(ranked.length / 2);
+  return [...ranked.slice(0, mid), ...unknown, ...ranked.slice(mid)].map((x: any) => x.p.id);
+}
+
+function pairRoundRobin(activeIds: string[], matches: any[], rounds: any[]) {
+  const ordinalOf: Record<string, number> = {};
+  for (const r of rounds || []) ordinalOf[r.id] = r.ordinal ?? 0;
+  const playedCount: Record<string, number> = {};
+  const lastMet: Record<string, number> = {};
+  const byeCount: Record<string, number> = {};
+  for (const m of matches || []) {
+    if (m.is_bye && m.p1_id) { byeCount[m.p1_id] = (byeCount[m.p1_id] || 0) + 1; continue; }
+    if (!m.round_id || !m.p1_id || !m.p2_id) continue;
+    const k = m.p1_id < m.p2_id ? m.p1_id + "|" + m.p2_id : m.p2_id + "|" + m.p1_id;
+    playedCount[k] = (playedCount[k] || 0) + 1;
+    lastMet[k] = Math.max(lastMet[k] || 0, ordinalOf[m.round_id] || 0);
+  }
+  const curOrdinal = (rounds || []).length + 1;
+
+  const slots: (string | null)[] = activeIds.length % 2 === 1 ? [...activeIds, null] : [...activeIds];
+  const n = slots.length;
+  if (n < 2) return { pairs: [] as [string, string][], byeId: null as string | null };
+  const cycle = n - 1;
+
+  let best: { pairs: [string, string][]; byeId: string | null } | null = null;
+  let bestScore: number[] | null = null;
+  for (let k = 0; k < cycle; k++) {
+    const rest = slots.slice(1);
+    const rot = rest.map((_, i) => rest[(i - k + rest.length * 2) % rest.length]);
+    const arr = [slots[0], ...rot];
+    const pairs: [string, string][] = [];
+    let byeId: string | null = null;
+    for (let i = 0; i < n / 2; i++) {
+      const a = arr[i], b = arr[n - 1 - i];
+      if (a === null) byeId = b as string;
+      else if (b === null) byeId = a as string;
+      else pairs.push([a as string, b as string]);
+    }
+    let rematches = 0, staleness = 0;
+    for (const [a, b] of pairs) {
+      const key = a < b ? a + "|" + b : b + "|" + a;
+      const c = playedCount[key] || 0;
+      rematches += c;
+      // when rematches are unavoidable, prefer the rotation whose pairs met
+      // LONGEST ago — the freshest previous meeting dominates the score.
+      if (c) staleness = Math.max(staleness, 1000 - (curOrdinal - (lastMet[key] || 0)));
+    }
+    const score = [rematches, staleness, byeId ? (byeCount[byeId] || 0) : 0, k];
+    let less = bestScore === null;
+    if (bestScore) for (let i = 0; i < score.length; i++) { if (score[i] !== bestScore[i]) { less = score[i] < bestScore[i]; break; } }
+    if (less) { best = { pairs, byeId }; bestScore = score; }
+  }
+  return best!;
 }
 
 // Load a run's roster + rounds + matches + live standings in one go.
@@ -251,9 +370,19 @@ async function generateRound(sb: any, run: any) {
   // current round has unfinished matches. Pairings for the new round are based
   // on standings-so-far (unfinished matches simply don't contribute yet).
   const ordinal = (lastRound?.ordinal || 0) + 1;
-  // Round 1 has no standings yet — pair by sign-up order; later rounds pair on standings.
-  const order = ordinal === 1 ? active.map((p: any) => ({ id: p.id, name: p.display_name })) : standings;
-  const { pairs, byeId } = pairSwiss(order, matches);
+  // ≤8 entrants: fixture order (everyone WILL play everyone — circle method).
+  // >8 entrants: the night can't complete a round robin, so seed instead —
+  // round 1 by the season league, later rounds by the night's standings, and
+  // neighbours meet (best v best, bottom v bottom). Founder rule 10 Sep 2026.
+  let pairs: [string, string][]; let byeId: string | null;
+  if (active.length > 8) {
+    const order = ordinal === 1
+      ? await leagueSeedOrder(sb, run, active)
+      : standings.map((s2: any) => s2.id);
+    ({ pairs, byeId } = pairSeeded(order, matches, rounds));
+  } else {
+    ({ pairs, byeId } = pairRoundRobin(active.map((p: any) => p.id), matches, rounds));
+  }
   const { data: round, error: rErr } = await sb.from("pingpong_rounds").insert({ pingpong_tournament_id: run.id, ordinal, status: "active" }).select("*").single();
   if (rErr) return { error: rErr.message };
   let slot = 1;
@@ -290,6 +419,16 @@ function e164(ukPhone: string | null | undefined): string | null {
   if (d.startsWith("447") && d.length === 12) return "+" + d;
   if (d.startsWith("00")) return "+" + d.slice(2);
   return null;
+}
+
+// Any real spelling of a UK mobile → canonical 07 form, or null. Rejecting
+// the +44 spelling blocked real customers on 20 Aug 2026 — never again.
+function normUkMobile(v: unknown): string | null {
+  let n = String(v ?? "").replace(/[^0-9+]/g, "");
+  if (n.startsWith("+")) n = n.slice(1);
+  if (n.startsWith("00")) n = n.slice(2);
+  if (n.startsWith("44")) n = "0" + n.slice(2);
+  return /^07\d{9}$/.test(n) ? n : null;
 }
 
 async function sendWhatsApp(to: string, vars: { name: string; table: number; opponent: string }): Promise<boolean> {
@@ -552,7 +691,11 @@ async function finalizeTournament(sb: any, run: any) {
     const phones = await phonesForParticipant(sb, p);
     const { data: existing } = await sb.from("pingpong_vouchers").select("*").eq("pingpong_tournament_id", run.id).eq("place", place).order("recipient");
     const legacyFull = split && (existing || []).some((x: any) => (x.recipient ?? 1) === 1 && x.amount_pence === VOUCHER_PENCE[place]);
-    const shares = (split && !legacyFull)
+    // Split only when we HOLD the partner's email (10 Sep 2026: the shortened
+    // doubles form no longer collects partner details online, so a partner-less
+    // team gets ONE full voucher to the captain instead of a stranded half).
+    // Walk-ups at the bar still collect both players, and still split.
+    const shares = (split && !legacyFull && emails.partner)
       ? [{ recipient: 1, amount: VOUCHER_PENCE[place] / 2, email: emails.captain, phone: phones.captain },
          { recipient: 2, amount: VOUCHER_PENCE[place] / 2, email: emails.partner, phone: phones.partner }]
       : [{ recipient: 1, amount: VOUCHER_PENCE[place], email: emails.captain, phone: phones.captain }];
@@ -642,6 +785,15 @@ async function computeLeague(sb: any, discipline: string) {
       const add = (pid: string | null, pts: number, f: string) => { if (!pid || nulled.has(pid)) return; const e = table[keyOf(pid)]; if (e) { e.pts += pts; e[f]++; } };
       add(placings.first, 5, "wins"); add(placings.second, 4, "seconds"); add(placings.third, 3, "thirds");
     }
+  }
+  // Founder point rulings (half-splits etc.) — applied after the nights are
+  // tallied, resolved through the merge map so they follow later merges.
+  const { data: adjs } = await sb.from("league_adjustments").select("key, display_name, pts").eq("sport", "pingpong").eq("discipline", discipline);
+  for (const a of adjs || []) {
+    const k = resolve(String(a.key || "").trim().toLowerCase());
+    if (!k) continue;
+    const e = (table[k] ||= { key: k, name: a.display_name || a.key, pts: 0, frameDiff: 0, nights: 0, wins: 0, seconds: 0, thirds: 0, alsoKnownAs: [] });
+    e.pts += Number(a.pts) || 0;
   }
   const arr = (Object.values(table) as any[]).sort((a, b) => b.pts - a.pts || b.frameDiff - a.frameDiff || String(a.name).localeCompare(String(b.name))).map((r, i) => ({ ...r, rank: i + 1, qualifies: i < 8 }));
   return { discipline, nights: relevant.length, table: arr };
@@ -1043,21 +1195,31 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name, 80);
       const email = clean(b.email, 120).toLowerCase();
-      const phone = String(b.phone ?? "").replace(/\s+/g, "");
+      const phone = normUkMobile(b.phone);
       const partnerName = clean(b.partnerName, 80);
       const partnerEmail = clean(b.partnerEmail, 120).toLowerCase();
+      const partnerPhone = normUkMobile(b.partnerPhone);
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!email || !/.+@.+\..+/.test(email)) return json({ error: "Enter a valid email — the payment link goes there." }, 400);
-      // Founder rule 19 Aug 2026: UK mobile only — the pay link + up-next texts go there.
-      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07." }, 400);
+      if (!phone) return json({ error: "UK mobile needed (07… or +44 7…) — the pay link is texted there." }, 400);
       const { data: run } = await sb.from("pingpong_tournaments").select("*").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: t } = await sb.from("tournaments").select("*").eq("id", run.tournament_id).maybeSingle();
       if (!t) return json({ error: "Tournament not found." }, 404);
+      // Doubles/teams walk-ups carry BOTH players' full details, exactly like
+      // an online booking (founder rule 20 Aug 2026) — the partner's half of
+      // any prize needs their own email, and their up-next texts need a mobile.
+      const isPair = (run.discipline_override || t.tournament_type) === "doubles" || (run.discipline_override || t.tournament_type) === "teams";
+      if (isPair) {
+        if (!partnerName) return json({ error: "Player 2's name needed — doubles carry both players' details." }, 400);
+        if (!partnerEmail || !/.+@.+\..+/.test(partnerEmail)) return json({ error: "Player 2's email needed — their half of any prize goes there." }, 400);
+        if (!partnerPhone) return json({ error: "Player 2's UK mobile needed (07… or +44 7…)." }, 400);
+      }
       const { data: entry, error: eErr } = await sb.from("tournament_entries").insert({
         tournament_id: t.id, team_name: name, captain_name: name,
         captain_email: email, captain_phone: phone || "",
         partner_name: partnerName || null, partner_email: partnerEmail || null,
+        partner_phone: partnerPhone || null,
         status: "pending_payment", notes: "Walk-up — signed up mid-tournament from /ops",
       }).select("*").single();
       if (eErr) return json({ error: eErr.message }, 400);
@@ -1155,10 +1317,10 @@ Deno.serve(async (req) => {
       const runId = clean(b.runId, 40);
       const name = clean(b.name);
       const email = String(b.email ?? "").trim().toLowerCase().slice(0, 120);
-      const phone = String(b.phone ?? "").replace(/\s+/g, "");
+      const phone = normUkMobile(b.phone);
       if (!runId || !name) return json({ error: "Enter a name." }, 400);
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: "Email needed — prizes and league points hang off it." }, 400);
-      if (!/^07\d{9}$/.test(phone)) return json({ error: "UK mobile needed — 11 digits starting 07 (the up-next texts go there)." }, 400);
+      if (!phone) return json({ error: "UK mobile needed (07… or +44 7…) — the up-next texts go there." }, 400);
       const { data: run } = await sb.from("pingpong_tournaments").select("tournament_id").eq("id", runId).maybeSingle();
       if (!run) return json({ error: "Run not found." }, 404);
       const { data: entry, error: ee } = await sb.from("tournament_entries").insert({

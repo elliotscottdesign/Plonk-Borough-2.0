@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaOfferSwap, rotaCancelSwap, rotaInterceptSwap, rotaDecideSwap, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -11,7 +11,7 @@ import { tipsMine, tipConfirm } from '../finance/tipsApi.js'
 import { canWork, whyCantWork, abilityLabel, abilityIcon, rankLabel, ABILITIES } from './roles.js'
 import { CHECKLISTS, CHECKLIST_ORDER, checklistSections, checklistCount, doneCount } from './checklists.js'
 import { useChecklistOverrides, effectiveShift } from '../lib/liveChecklists.js'
-import { rotaMenus } from './api.js'
+import { rotaMenus, rotaMe, rotaAddMenu, rotaDeleteMenu } from './api.js'
 import { openMenu } from './menuFile.js'
 import TrainingView from './TrainingView.jsx'
 import CocktailSpecs from '../ops/sections/CocktailSpecs.jsx'
@@ -85,6 +85,7 @@ const Avatar = ({ name, size = 34 }) => {
 export default function RotaPortal() {
   const [token, setToken] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem(TOKEN_KEY) : null))
   const [staff, setStaff] = useState(null)
+  const [djLink, setDjLink] = useState(null)   // set when this staff member is also one of our DJs
   const [shifts, setShifts] = useState([])
   const [training, setTraining] = useState([])            // completed item_keys
   const [notes, setNotes] = useState([])                  // shift notes (briefings + handovers)
@@ -96,6 +97,10 @@ export default function RotaPortal() {
   const [docs, setDocs] = useState({})                    // { passport: bool, rtw: bool }
   const [kitchen, setKitchen] = useState(null)            // { isKitchen, shiftId, date } — food-safety gate
   const [availability, setAvailability] = useState({})   // { 'YYYY-MM': { 'YYYY-MM-DD': {...} } }
+  const [offFull, setOffFull] = useState({})              // dates already full for MY team (bar 2 · kitchen 1 · manager 1 off max)
+  const [swaps, setSwaps] = useState([])                  // 🔁 open shift-swap offers + pending approvals
+  const [armSwap, setArmSwap] = useState(null)            // swap id armed for the two-tap confirm
+  const [offCapInfo, setOffCapInfo] = useState({ lane: 'bar', cap: 2 })
   const availRef = useRef(availability)                   // freshest availability for debounced saves
   const saveTimers = useRef({})                           // 'YYYY-MM' -> debounce timeout id
   const saveChains = useRef({})                            // 'YYYY-MM' -> tail promise (serialises that month's saves)
@@ -164,7 +169,7 @@ export default function RotaPortal() {
   const loadState = async (t) => {
     try {
       const r = await rotaMyState(t)
-      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
+      setStaff(r.staff); setShifts(r.shifts || []); setAvailability(r.availability || {}); setOffFull(r.offFull || {}); setOffCapInfo({ lane: r.offLane || 'bar', cap: r.offCap || 2 }); setSwaps(r.swaps || []); setArmSwap(null); setTraining(r.training || []); setDocs(r.docs || {}); setNotes(r.notes || []); setClock(r.clock || null); setClocks(r.clocks || []); setRosteredToday(!!r.rosteredToday); setKitchen(r.kitchen || null); setErr('')
       // Pop up today's management briefings the member hasn't dismissed yet.
       const today = new Date().toISOString().slice(0, 10)
       let seen = []; try { seen = JSON.parse(localStorage.getItem('nd_notes_seen') || '[]') } catch { seen = [] }
@@ -236,6 +241,15 @@ export default function RotaPortal() {
   const enqueueSave = (mk, map) => {
     const prev = saveChains.current[mk] || Promise.resolve()
     const p = prev.catch(() => {}).then(() => rotaSaveAvailability(token, mk, map))
+      .then((r) => {
+        // Cap race: someone else took the last slot between our tap and the save —
+        // the server refused those dates; resync so the mark un-does itself visibly.
+        if (r?.refused?.length) {
+          alert(`Too slow, sorry — your team's day-off slots filled up for: ${r.refused.map(d => `${d.slice(8)}/${d.slice(5, 7)}`).join(', ')}. Your mark there was not saved.`)
+          if (saveChains.current[mk] === p) loadState(token)
+        }
+        return r
+      })
       // On failure resync to the server's truth — but only if no newer save is already
       // queued for this month, so we don't blank the UI while a fresher save is pending.
       .catch((e) => { handleErr(e); if (saveChains.current[mk] === p) loadState(token) })
@@ -253,10 +267,16 @@ export default function RotaPortal() {
     saveTimers.current[mk] = setTimeout(() => { delete saveTimers.current[mk]; enqueueSave(mk, availRef.current[mk] || {}) }, 1100)
   }
 
+  const isOffFull = (ds) => !!offFull[ds]   // my team's day-off slots are gone for this date
+  const laneWord = offCapInfo.lane === 'manager' ? 'manager' : offCapInfo.lane === 'kitchen' ? 'kitchen team' : 'bar team'
   const toggleAvail = (ds) => {
     if (ds < todayStr) return
     const mk = ds.slice(0, 7)
     const wasOff = !!((availability[mk] || {})[ds] || {}).unavailable
+    if (!wasOff && isOffFull(ds)) {
+      alert(`The ${laneWord}'s day-off slot${offCapInfo.cap === 1 ? '' : 's'} for ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)} ${offCapInfo.cap === 1 ? 'is' : 'are'} taken — max ${offCapInfo.cap} off per day (bar 2 · kitchen 1 · manager 1), first come first served.\n\nIf it's urgent, talk to your manager.`)
+      return
+    }
     if (!wasOff) {
       const booked = (shiftsByDate[ds] || []).some(s => s.mine)
       if (booked && !window.confirm(`You're booked to work ${dayName(ds)} ${ds.slice(8)}/${ds.slice(5, 7)}.\n\nMarking yourself off won't cancel that shift — it stays booked. Let your manager know if you need cover.\n\nMark the day off anyway?`)) return
@@ -269,7 +289,24 @@ export default function RotaPortal() {
 
   const act = async (fn) => { setBusy(true); try { await fn(); await loadState(token) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const claim = (id) => act(async () => { await flushAllSaves(); await rotaClaimShift(token, id) })
+  // 🔁 swaps
+  const offerSwap = (shiftId) => act(() => rotaOfferSwap(token, shiftId))
+  const cancelSwap = (id) => act(() => rotaCancelSwap(token, id))
+  const interceptSwap = (id) => act(() => rotaInterceptSwap(token, id))
+  const decideSwap = (id, approve) => act(() => rotaDecideSwap(token, id, approve))
+  const workingOn = (ds) => (shiftsByDate[ds] || []).some(x => x.mine)   // already rostered that day → can't intercept
+  const myOpenSwapShiftIds = new Set(swaps.filter(w => w.from_staff === staff?.id && ['open', 'claimed'].includes(w.status)).map(w => w.shift_id))
   const release = (id) => act(() => rotaReleaseShift(token, id))
+  // Some of the team also DJ for us. If a manager has linked this staff record to
+  // a DJ record, the rota fn hands back that DJ's own portal link so she can hop
+  // straight across instead of hunting for the emailed URL (founder, 20 Aug 2026).
+  useEffect(() => {
+    if (!token) { setDjLink(null); return }
+    let live = true
+    rotaMe(token).then(r => { if (live) setDjLink(r.dj || null) }).catch(() => { /* never block the portal */ })
+    return () => { live = false }
+  }, [token])
+
   const saveProfile = async (patch) => { setBusy(true); try { const r = await rotaSaveProfile(token, patch); setStaff(r.staff) } catch (e) { handleErr(e) } finally { setBusy(false) } }
   const doClockIn = async () => {
     setBusy(true); setClockMsg('')
@@ -464,13 +501,49 @@ export default function RotaPortal() {
                   <div style={{ display: 'flex', gap: 3, flexWrap: 'wrap', alignItems: 'flex-end', flex: 1 }}>
                     {mineN > 0 && <span style={{ fontSize: 8.5, color: GREEN, fontWeight: 700 }}>✓{mineN}</span>}
                     {off && <span style={{ fontSize: 8.5, color: RED, fontWeight: 700 }}>✕ off</span>}
+                    {!off && ds >= todayStr && isOffFull(ds) && <span title={`Your team's day-off slots are taken (bar 2 · kitchen 1 · manager 1 per day)`} style={{ fontSize: 8.5, color: 'rgba(255,255,255,0.55)' }}>🔒</span>}
                     {openN > 0 && !off && <span style={{ width: 6, height: 6, borderRadius: '50%', background: RED }} />}
                   </div>
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span>
+              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
             </div>
+
+            {/* 🔁 Shift swaps — offers from teammates + (managers) approvals */}
+            {swaps.length > 0 && (
+              <div style={{ background: CARD, border: '1px solid rgba(96,165,250,0.4)', borderRadius: 12, padding: 14, marginTop: 14, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#60A5FA' }}>🔁 Shift swaps</div>
+                {swaps.map(w => {
+                  const sh = w.shift
+                  const when = `${dayName(sh.date)} ${sh.date.slice(8)}/${sh.date.slice(5, 7)} · ${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}`
+                  const mineOffer = w.from_staff === staff?.id
+                  const iClaimed = w.to_staff === staff?.id
+                  const cantWhy = workingOn(sh.date) ? "you're working that day" : dayOff(sh.date) ? "you're booked off that day" : !canWork(staff, sh) ? whyCantWork(staff, sh) : null
+                  return (
+                    <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderLeft: `3px solid ${w.status === 'claimed' ? '#FBBF24' : '#60A5FA'}`, paddingLeft: 10 }}>
+                      <div style={{ flex: 1, minWidth: 160 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{mineOffer ? 'Your shift' : `${(w.from_name || '?').split(' ')[0]} can't do`} · {sh.label || 'Shift'}</div>
+                        <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{when}{w.status === 'claimed' && <span style={{ color: '#FBBF24', fontWeight: 700 }}> · {iClaimed ? 'you' : (w.to_name || '?').split(' ')[0]} claimed it — waiting for a manager ✓</span>}</div>
+                      </div>
+                      {w.status === 'open' && mineOffer && <button onClick={() => cancelSwap(w.id)} disabled={busy} style={btn('ghost')}>Cancel offer</button>}
+                      {w.status === 'open' && !mineOffer && (cantWhy
+                        ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', maxWidth: 130, textAlign: 'right', lineHeight: 1.3 }}>{cantWhy}</span>
+                        : armSwap === w.id
+                          ? <button onClick={() => { setArmSwap(null); interceptSwap(w.id) }} disabled={busy} style={{ ...btn('red'), border: '1px solid #fff' }}>Tap again to confirm ✓</button>
+                          : <button onClick={() => setArmSwap(w.id)} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: 'rgba(96,165,250,0.15)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Intercept shift</button>)}
+                      {w.status === 'claimed' && managerTier && !iClaimed && (
+                        <span style={{ display: 'flex', gap: 6 }}>
+                          <button onClick={() => decideSwap(w.id, true)} disabled={busy} style={btn('red')}>✓ Approve</button>
+                          <button onClick={() => decideSwap(w.id, false)} disabled={busy} style={btn('ghost')}>✗ Decline</button>
+                        </span>
+                      )}
+                    </div>
+                  )
+                })}
+                <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', lineHeight: 1.5 }}>Offer one of your shifts from its day panel (🔁 Offer swap). Intercepting is first come, first served for anyone not already working or booked off that day — a manager then approves and the shift moves.</div>
+              </div>
+            )}
 
             {selDate && (() => {
               const rows = shiftsByDate[selDate] || []
@@ -482,11 +555,34 @@ export default function RotaPortal() {
                     <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
                   </div>
                   {selDate >= todayStr && (avail
-                    ? <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>
+                    ? (isOffFull(selDate)
+                      ? <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)' }}>🔒 Your {laneWord}'s day-off slot{offCapInfo.cap === 1 ? ' is' : 's are'} <strong style={{ color: '#fff' }}>taken</strong> for this day — max {offCapInfo.cap} off (bar 2 · kitchen 1 · manager 1), first come first served. If it's urgent, talk to your manager.</div>
+                      : <button onClick={() => toggleAvail(selDate)} style={{ alignSelf: 'flex-start', padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(248,113,113,0.08)', border: `1px solid ${RED}55`, color: RED }}>✕ Mark me off this day</button>)
                     : <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
                         <span style={{ fontSize: 12, color: RED, fontWeight: 700 }}>✕ You've marked yourself off this day.</span>
                         <button onClick={() => toggleAvail(selDate)} style={{ padding: '7px 12px', fontSize: 12, fontWeight: 700, borderRadius: 8, cursor: 'pointer', background: 'rgba(52,211,153,0.08)', border: `1px solid ${GREEN}55`, color: GREEN }}>✓ Clear it — I can work</button>
                       </div>)}
+                  {/* 👥 Who's on this day — everyone across the day's shifts, you first.
+                      Helps spot who could cover you or take a swap. */}
+                  {(() => {
+                    const onDay = []
+                    for (const sh of rows) for (const w of (sh.who || [])) onDay.push({ ...w, t: `${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}` })
+                    if (onDay.length === 0) return <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.45)' }}>No one is rostered on this day yet.</div>
+                    onDay.sort((a, b) => (b.me ? 1 : 0) - (a.me ? 1 : 0) || a.name.localeCompare(b.name))
+                    const icon = (r) => r === 'Manager' || r === 'Asst. Manager' ? '👔' : r === 'Kitchen / Barback' ? '🍳' : '🍺'
+                    return (
+                      <div style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${LINE}`, borderRadius: 10, padding: '9px 12px' }}>
+                        <div style={{ fontSize: 10.5, fontWeight: 700, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>👥 Working this day</div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {onDay.map((w, i) => (
+                            <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, fontSize: 11.5, background: w.me ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${w.me ? GREEN : 'rgba(255,255,255,0.15)'}`, color: w.me ? '#fff' : 'rgba(255,255,255,0.8)' }}>
+                              {icon(w.role)} <strong style={{ color: '#fff' }}>{w.me ? 'You' : w.name}</strong> <span style={{ color: 'rgba(255,255,255,0.5)' }}>{w.t}</span>
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                   {rows.map(sh => {
                     const need = sh.headcount ?? 1
                     const full = sh.filled >= need
@@ -499,9 +595,14 @@ export default function RotaPortal() {
                           <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>{shiftHours(sh)}h · {sh.filled}/{need} filled{hasReq ? ` · ${abilityIcon(sh.ability || 'bar')} ${abilityLabel(sh.ability || 'bar')}${sh.min_rank > 1 ? ` · ${rankLabel(sh.min_rank)}+` : ''}` : ''}</div>
                         </div>
                         {sh.mine
-                          ? (sh.assigned
-                            ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
-                            : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>)
+                          ? <span style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end' }}>
+                              {sh.assigned
+                                ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
+                                : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>}
+                              {selDate > todayStr && (myOpenSwapShiftIds.has(sh.id)
+                                ? <span style={{ fontSize: 10, color: '#FBBF24', fontWeight: 700 }}>🔁 up for swap</span>
+                                : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves the swap" style={{ padding: '5px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 11, fontWeight: 700, background: 'rgba(96,165,250,0.12)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Offer swap</button>)}
+                            </span>
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>
                             : !eligible
@@ -520,10 +621,12 @@ export default function RotaPortal() {
               if (!past.length) return null
               const clockByDate = {}; for (const c of clocks) clockByDate[c.date] = c
               return (
-                <div style={{ marginTop: 22 }}>
-                  <div className="serif" style={{ fontSize: 17, color: '#fff' }}>Past shifts</div>
-                  <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', margin: '2px 0 12px' }}>Your rostered times, alongside what you actually clocked.</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <details style={{ marginTop: 22, background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '0 12px' }}>
+                  <summary style={{ cursor: 'pointer', padding: '12px 0' }}>
+                    <span className="serif" style={{ fontSize: 16, color: '#fff' }}>Past shifts</span>
+                    <span style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)', marginLeft: 8 }}>· {past.length} shift{past.length === 1 ? '' : 's'} · rostered vs clocked · tap to open</span>
+                  </summary>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingBottom: 12 }}>
                     {past.map(sh => {
                       const clk = clockByDate[sh.date]
                       const inT = fmtClockTime(clk?.clock_in), outT = fmtClockTime(clk?.clock_out)
@@ -544,7 +647,7 @@ export default function RotaPortal() {
                       )
                     })}
                   </div>
-                </div>
+                </details>
               )
             })()}
           </>
@@ -558,7 +661,7 @@ export default function RotaPortal() {
 
         {view === 'training' && <TrainingView token={token} training={training} onToggle={(key, on) => setTraining(prev => on ? [...new Set([...prev, key])] : prev.filter(k => k !== key))} />}
 
-        {view === 'menus' && <MenusView />}
+        {view === 'menus' && <MenusView token={token} staff={staff} />}
 
         {view === 'cocktails' && <CocktailSpecs embedded />}
 
@@ -566,7 +669,7 @@ export default function RotaPortal() {
         {view === 'notes' && <NotesView token={token} notes={notes} staffId={staff?.id} reload={() => loadState(token)} />}
 
         {view === 'profile' && (
-          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} reload={() => loadState(token)} />
+          <ProfileView staff={staff} onSave={saveProfile} busy={busy} token={token} docs={docs} clocks={clocks} djLink={djLink} reload={() => loadState(token)} />
         )}
       </div>
 
@@ -766,28 +869,81 @@ function ChecklistView({ token }) {
   )
 }
 
-// Menus — the founder's uploaded menus; tap to open + print to the bar printer.
-function MenusView() {
+// Menus — tap to open + print to the bar printer. Management can also upload and
+// remove them here (founder, 13 Sep 2026: "the menu upload should also be possible
+// from manager / assistant manager profiles in menu section") — it used to be
+// founder-only in /ops, so a manager reprinting menus had to ask Elliot first.
+function MenusView({ token, staff }) {
   const [menus, setMenus] = useState([])
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
-  useEffect(() => { rotaMenus().then(r => setMenus(r.menus || [])).catch(() => {}).finally(() => setLoading(false)) }, [])
+  const [title, setTitle] = useState('')
+  const canEdit = ['Manager', 'Asst. Manager'].includes(staff?.role)
+
+  const load = () => rotaMenus().then(r => setMenus(r.menus || [])).catch(() => {}).finally(() => setLoading(false))
+  useEffect(() => { load() }, [])
   const open = async (id) => { setBusy(true); try { await openMenu(id) } catch (e) { alert(e.message) } finally { setBusy(false) } }
+
+  const onFile = async (e) => {
+    const f = e.target.files?.[0]; e.target.value = ''; if (!f) return
+    const kind = f.type.includes('pdf') ? 'pdf' : f.type.startsWith('image/') ? 'image' : ''
+    if (!kind) { alert('Upload a PDF or an image.'); return }
+    setBusy(true)
+    try {
+      // Same reader the /ops uploader uses, so both paths behave identically.
+      const dataUrl = await new Promise((res, rej) => {
+        const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(f)
+      })
+      await rotaAddMenu(title.trim() || f.name.replace(/\.[^.]+$/, ''), kind, dataUrl, token)
+      setTitle(''); await load()
+    } catch (er) { alert(er.message) } finally { setBusy(false) }
+  }
+  const remove = async (m) => {
+    if (!window.confirm(`Delete "${m.title}"?\n\nIt disappears from every staff profile straight away.`)) return
+    setBusy(true)
+    try { await rotaDeleteMenu(m.id, token); await load() } catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
+
   if (loading) return <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, padding: '20px 0', textAlign: 'center' }}>Loading menus…</div>
-  if (!menus.length) return <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '20px 16px', lineHeight: 1.6 }}>No menus up yet — check back before your shift.</div>
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-      <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a menu to open it, then print from your browser to the bar printer.</div>
-      {menus.map(m => (
-        <button key={m.id} onClick={() => open(m.id)} disabled={busy} style={{ display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff' }}>
-          <span style={{ fontSize: 24, flexShrink: 0 }}>{m.kind === 'image' ? '🖼️' : '📄'}</span>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
-            <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open &amp; print</div>
+      {canEdit && (
+        <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Menu name (e.g. Drinks — w/c 21 Sep)"
+            style={{ flex: 1, minWidth: 160, padding: '10px 11px', fontSize: 13.5, borderRadius: 8, background: '#000', border: `1px solid ${LINE}`, color: '#fff', outline: 'none' }} />
+          <label style={{ padding: '10px 14px', borderRadius: 8, background: 'rgba(201,168,76,0.16)', border: '1px solid rgba(201,168,76,0.5)', color: 'var(--gold, #C9A84C)', fontSize: 13, fontWeight: 700, cursor: busy ? 'default' : 'pointer', whiteSpace: 'nowrap', touchAction: 'manipulation' }}>
+            {busy ? 'Uploading…' : '⬆ Upload PDF / image'}
+            <input type="file" accept="application/pdf,image/*" onChange={onFile} disabled={busy} style={{ display: 'none' }} />
+          </label>
+          <div style={{ width: '100%', fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>
+            Name it with the week so the team can tell versions apart — blank uses the filename.
           </div>
-          <span style={{ fontSize: 18 }}>🖨️</span>
-        </button>
-      ))}
+        </div>
+      )}
+
+      {!menus.length ? (
+        <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', textAlign: 'center', padding: '20px 16px', lineHeight: 1.6 }}>
+          {canEdit ? 'No menus up yet — upload this week\u2019s above.' : 'No menus up yet — check back before your shift.'}
+        </div>
+      ) : <>
+        <div style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>Tap a menu to open it, then print from your browser to the bar printer.</div>
+        {menus.map(m => (
+          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <button onClick={() => open(m.id)} disabled={busy} style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: 12, textAlign: 'left', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: 14, cursor: 'pointer', color: '#fff' }}>
+              <span style={{ fontSize: 24, flexShrink: 0 }}>{m.kind === 'image' ? '🖼️' : '📄'}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 15, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.title}</div>
+                <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)' }}>Open &amp; print</div>
+              </div>
+              <span style={{ fontSize: 18 }}>🖨️</span>
+            </button>
+            {canEdit && (
+              <button onClick={() => remove(m)} disabled={busy} title={`Delete ${m.title}`}
+                style={{ flexShrink: 0, padding: '14px 12px', borderRadius: 10, background: 'transparent', border: `1px solid ${LINE}`, color: 'rgba(255,255,255,0.45)', fontSize: 15, cursor: 'pointer' }}>🗑</button>
+            )}
+          </div>
+        ))}
+      </>}
     </div>
   )
 }
@@ -844,7 +1000,7 @@ function DobInput({ value, onChange, style }) {
   return <DateField value={value} onChange={onChange} style={style} yearMin={1930} yearMax={new Date().getFullYear() - 14} autoComplete="bday" />
 }
 
-function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) {
+function ProfileView({ staff, onSave, busy, token, docs, clocks = [], djLink = null, reload }) {
   const [f, setF] = useState({
     name: staff.name || '', phone: staff.phone || '', email: staff.email || '', address: staff.address || '',
     emergency_name: staff.emergency_name || '', emergency_phone: staff.emergency_phone || '', emergency_relation: staff.emergency_relation || '',
@@ -865,6 +1021,30 @@ function ProfileView({ staff, onSave, busy, token, docs, clocks = [], reload }) 
   }
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Some of the team also DJ for us (Thays, Aug 2026). One tap across to her
+          own DJ profile — her set dates, fee, promo track and payment details —
+          without hunting for the private link that was emailed to her months ago.
+          Only ever shown when a manager has linked the two records. */}
+      {djLink && (
+        <a href={djLink.url}
+          onClick={(e) => { if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return; e.preventDefault(); window.location.assign(djLink.url) }}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none',
+            padding: '13px 14px', borderRadius: 11,
+            background: 'rgba(168,85,247,0.10)', border: '1.5px solid rgba(168,85,247,0.55)',
+            color: '#fff', cursor: 'pointer', touchAction: 'manipulation',
+            WebkitTapHighlightColor: 'rgba(168,85,247,0.45)',
+          }}>
+          <span style={{ fontSize: 21 }}><span data-keep-color>🎧</span></span>
+          <span style={{ flex: 1, minWidth: 0 }}>
+            <span style={{ display: 'block', fontSize: 14, fontWeight: 800 }}>My DJ profile</span>
+            <span style={{ display: 'block', fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
+              {djLink.name} — set dates, fee &amp; payment details
+            </span>
+          </span>
+          <span style={{ fontSize: 10.5, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: '#A855F7' }}>Open →</span>
+        </a>
+      )}
       {/* Managers/Asst Managers: jump straight to the /ops team hub (or the DJ section). */}
       {['Manager', 'Asst. Manager'].includes(staff.role) && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>

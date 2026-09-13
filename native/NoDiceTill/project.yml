@@ -1,0 +1,32 @@
+# XcodeGen spec — regenerate the Xcode project with:  xcodegen generate
+# (Claude runs this; the founder just opens NoDiceTill.xcodeproj in Xcode.)
+name: NoDiceTill
+options:
+  bundleIdPrefix: bar.nodice
+  deploymentTarget:
+    iOS: "16.0"
+targets:
+  NoDiceTill:
+    type: application
+    platform: iOS
+    sources: [Sources]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: bar.nodice.till
+        PRODUCT_NAME: No Dice Till
+        TARGETED_DEVICE_FAMILY: "2"          # iPad only — the till law
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_UIStatusBarHidden: YES
+        INFOPLIST_KEY_UIRequiresFullScreen: YES
+        INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad: "UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown"
+        CODE_SIGN_STYLE: Automatic
+    info:
+      path: Info.plist
+      properties:
+        UIStatusBarHidden: true
+        UIRequiresFullScreen: true
+        # App-Bound Domains: lets the service worker run inside the web view,
+        # which is what makes the till open and ring OFFLINE.
+        WKAppBoundDomains:
+          - team.nodice.bar

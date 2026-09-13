@@ -1,0 +1,2749 @@
+{
+ "generated": "8 Sep 2026 · from src/ops/data/costing.js recipes",
+ "drafts": [
+  {
+   "name": "Camden Hells — Pint",
+   "costing_name": "Camden Hells — Pint",
+   "category": "draught",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Camden Hells",
+     "qty": 568.0,
+     "disp": "568ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Camden Hells — Half",
+   "costing_name": "Camden Hells — Half",
+   "category": "draught",
+   "sell": 3.6,
+   "lines": [
+    {
+     "product": "Camden Hells",
+     "qty": 284.0,
+     "disp": "284ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Camden Hells — Jug",
+   "costing_name": "Camden Hells — Jug",
+   "category": "draught",
+   "sell": 27.0,
+   "lines": [
+    {
+     "product": "Camden Hells",
+     "qty": 2272.0,
+     "disp": "2272ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Camden Stout",
+   "costing_name": "Camden Stout — Pint",
+   "category": "draught",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Camden Stout",
+     "qty": 568.0,
+     "disp": "568ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Camden Stout — Half",
+   "costing_name": "Camden Stout — Half",
+   "category": "draught",
+   "sell": 3.6,
+   "lines": [
+    {
+     "product": "Camden Stout",
+     "qty": 284.0,
+     "disp": "284ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Five Points XPA — Pint",
+   "costing_name": "Five Points XPA — Pint",
+   "category": "draught",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Five Points XPA",
+     "qty": 568.0,
+     "disp": "568ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Five Points XPA — Half",
+   "costing_name": "Five Points XPA — Half",
+   "category": "draught",
+   "sell": 3.6,
+   "lines": [
+    {
+     "product": "Five Points XPA",
+     "qty": 284.0,
+     "disp": "284ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Umbrella Cider — Pint",
+   "costing_name": "Umbrella Cider — Pint",
+   "category": "draught",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Umbrella Apple Cider (keg)",
+     "qty": 568.0,
+     "disp": "568ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Umbrella Cider — Half",
+   "costing_name": "Umbrella Cider — Half",
+   "category": "draught",
+   "sell": 3.6,
+   "lines": [
+    {
+     "product": "Umbrella Apple Cider (keg)",
+     "qty": 284.0,
+     "disp": "284ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Corona",
+   "costing_name": "Corona",
+   "category": "bottle",
+   "sell": 4.8,
+   "lines": [
+    {
+     "product": "Corona",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Asahi",
+   "costing_name": "Asahi",
+   "category": "bottle",
+   "sell": 4.8,
+   "lines": [
+    {
+     "product": "Asahi",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Budweiser",
+   "costing_name": "Budweiser",
+   "category": "bottle",
+   "sell": 4.8,
+   "lines": [
+    {
+     "product": "Budweiser",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lowrise Lager GF",
+   "costing_name": "Lowrise Lager GF",
+   "category": "bottle",
+   "sell": 5.5,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Lowrise Lager GF"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Lowrise IPA GF",
+   "costing_name": "Lowrise IPA GF",
+   "category": "bottle",
+   "sell": 5.5,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Lowrise IPA GF"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Corona 0%",
+   "costing_name": "Corona 0%",
+   "category": "bottle",
+   "sell": 4.0,
+   "lines": [
+    {
+     "product": "Corona 0%",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Big Drop Citra IPA 0.5%",
+   "costing_name": "Big Drop Citra IPA 0.5%",
+   "category": "bottle",
+   "sell": 4.8,
+   "lines": [
+    {
+     "product": "Big Drop Citra IPA 0.5%",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lucky Saint 0.5%",
+   "costing_name": "Lucky Saint 0.5%",
+   "category": "bottle",
+   "sell": 4.8,
+   "lines": [
+    {
+     "product": "Lucky Saint 0.5%",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Cloudwater Fresh AF 0.5%",
+   "costing_name": "Cloudwater Fresh AF 0.5%",
+   "category": "bottle",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Fresh Non-Alc",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Strawberry & Lime Cider 0%",
+   "costing_name": "Strawberry & Lime Cider 0%",
+   "category": "bottle",
+   "sell": 5.2,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Strawberry & Lime 0%"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Rekorderlig Strawb & Lime",
+   "costing_name": "Rekorderlig Strawb & Lime",
+   "category": "bottle",
+   "sell": 6.5,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Rekorderlig Strawb&Lime"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Oliver's Fine Cider",
+   "costing_name": "Oliver's Fine Cider",
+   "category": "bottle",
+   "sell": 6.5,
+   "lines": [
+    {
+     "product": "Oliver's Fine Cider (bottle)",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Cheery Breeze Sour 4.5%",
+   "costing_name": "Cheery Breeze Sour 4.5%",
+   "category": "craft",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Cherry Sour",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Piccadilly Pilsner 4.2%",
+   "costing_name": "Piccadilly Pilsner 4.2%",
+   "category": "craft",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Piccadilly Pilsner GF",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Fuzzy Hazy Pale 4.2%",
+   "costing_name": "Fuzzy Hazy Pale 4.2%",
+   "category": "craft",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Fuzzy Hazy Pale",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Happy! Easy Pale 3.4%",
+   "costing_name": "Happy! Easy Pale 3.4%",
+   "category": "craft",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Happy! Easy Pale",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Piccadilly Porter 4.5%",
+   "costing_name": "Piccadilly Porter 4.5%",
+   "category": "craft",
+   "sell": 7.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Piccadilly Porter"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Fresh AF Hazy IPA 0.5%",
+   "costing_name": "Fresh AF Hazy IPA 0.5%",
+   "category": "craft",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Fresh Non-Alc",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lowrise Lager 4%",
+   "costing_name": "Lowrise Lager 4%",
+   "category": "craft",
+   "sell": 5.5,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Lowrise Lager GF"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Big Drop Paradiso Citra 0.5%",
+   "costing_name": "Big Drop Paradiso Citra 0.5%",
+   "category": "craft",
+   "sell": 5.5,
+   "lines": [
+    {
+     "product": "Big Drop Citra IPA 0.5%",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Blanco Blanco — 125ml",
+   "costing_name": "Blanco Blanco — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Blanco Blanco (white)",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Blanco Blanco — Bottle",
+   "costing_name": "Blanco Blanco — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Blanco Blanco (white)",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Los Conejos Malditos — 125ml",
+   "costing_name": "Los Conejos Malditos — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Los Conejos Tinto (red)",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Los Conejos Malditos — Bottle",
+   "costing_name": "Los Conejos Malditos — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Los Conejos Tinto (red)",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Doom Juice Rose",
+   "costing_name": "Doom Juice Rosé — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Doom Juice Rosé",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Doom Juice Rosé — Bottle",
+   "costing_name": "Doom Juice Rosé — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Doom Juice Rosé",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Top Cuvee Orange — 125ml",
+   "costing_name": "Top Cuvee Orange — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Top Cuvée House Orange",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Top Cuvee Orange — Bottle",
+   "costing_name": "Top Cuvee Orange — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Top Cuvée House Orange",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Favonius Orange — Bottle",
+   "costing_name": "Favonius Orange — Bottle",
+   "category": "wine",
+   "sell": 45.0,
+   "lines": [
+    {
+     "product": "Favonius Orange",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Doom Juice Rouge — 125ml",
+   "costing_name": "Doom Juice Rouge — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Doom Juice Rouge",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Doom Juice Rouge — Bottle",
+   "costing_name": "Doom Juice Rouge — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Doom Juice Rouge",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Beaujolais Nouveau",
+   "costing_name": "Beaujolais Nouveau — Bottle",
+   "category": "wine",
+   "sell": 45.0,
+   "lines": [
+    {
+     "product": "Beaujolais Nouveau",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Chin Chin Vinho Verde — 125ml",
+   "costing_name": "Chin Chin Vinho Verde — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Chin Chin Vinho Verde",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Chin Chin Vinho Verde — Bottle",
+   "costing_name": "Chin Chin Vinho Verde — Bottle",
+   "category": "wine",
+   "sell": 35.0,
+   "lines": [
+    {
+     "product": "Chin Chin Vinho Verde",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Cueva Nueva Vermut — Double (50ml)",
+   "costing_name": "Cueva Nueva Vermut — Double (50ml)",
+   "category": "wine",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Cueva Nueva Vermut (500ml)",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Cueva Nueva Vermut — Bottle (500ml)",
+   "costing_name": "Cueva Nueva Vermut — Bottle (500ml)",
+   "category": "wine",
+   "sell": 50.0,
+   "lines": [
+    {
+     "product": "Cueva Nueva Vermut (500ml)",
+     "qty": 500.0,
+     "disp": "500ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Vigna Rose Pet Nat — 125ml flute",
+   "costing_name": "Vigna Rose Pet Nat — 125ml flute",
+   "category": "wine",
+   "sell": 8.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Vigna Rose Pet Nat"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Vigna Rose Pet Nat — Bottle",
+   "costing_name": "Vigna Rose Pet Nat — Bottle",
+   "category": "wine",
+   "sell": 40.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Vigna Rose Pet Nat"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Prosecco — 125ml flute",
+   "costing_name": "Prosecco — 125ml flute",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Prosecco",
+   "costing_name": "Prosecco — Bottle",
+   "category": "wine",
+   "sell": 35.0,
+   "lines": [
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mini Prosecco 20cl",
+   "costing_name": "Mini Prosecco 20cl",
+   "category": "wine",
+   "sell": 8.5,
+   "lines": [
+    {
+     "product": "Mini Prosecco 20cl",
+     "qty": 200.0,
+     "disp": "200ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Rouge Petard (Aramon) — 125ml",
+   "costing_name": "Rouge Petard (Aramon) — 125ml",
+   "category": "wine",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Rouge Petard",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Rouge Petard (Aramon) — Bottle",
+   "costing_name": "Rouge Petard (Aramon) — Bottle",
+   "category": "wine",
+   "sell": 39.0,
+   "lines": [
+    {
+     "product": "Rouge Petard",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lentsch Grüner Veltliner — 125ml",
+   "costing_name": "Lentsch Grüner Veltliner — 125ml",
+   "category": "wine",
+   "sell": 8.0,
+   "lines": [
+    {
+     "product": "Lentsch Grüner Veltliner",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lentsch Grüner Veltliner — Bottle",
+   "costing_name": "Lentsch Grüner Veltliner — Bottle",
+   "category": "wine",
+   "sell": 40.0,
+   "lines": [
+    {
+     "product": "Lentsch Grüner Veltliner",
+     "qty": 750.0,
+     "disp": "750ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Green Smoke",
+   "costing_name": "Green Smoke",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "Green Chartreuse",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 1.0,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Lemon twist"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Spicy Cucumber Margarita",
+   "costing_name": "Spicy Cucumber Margarita",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Reposado",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Cucumber",
+     "qty": 0.13,
+     "disp": "1 inch ≈ ⅛ cucumber (founder, 9 Sep 2026)"
+    }
+   ],
+   "omitted": [
+    "Fresh chilli slice",
+    "Salt rim"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mezcal Martinez",
+   "costing_name": "Mezcal Martinez",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "Amaro Montenegro",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Top Cuvée Sweet Vermouth",
+     "qty": 5.0,
+     "disp": "5ml"
+    }
+   ],
+   "omitted": [
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Caipirinha",
+   "costing_name": "Caipirinha",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Velho Barreiro Cachaça",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Royal Flush",
+   "costing_name": "Royal Flush",
+   "category": "cocktail",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Havana Especial",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Triple Sec",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Wray & Nephew Overproof",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Eager Pineapple",
+     "qty": 150.0,
+     "disp": "150ml"
+    },
+    {
+     "product": "Monin Grenadine",
+     "qty": 10.0,
+     "disp": "10ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Watermelon Daiquiri",
+   "costing_name": "Watermelon Daiquiri",
+   "category": "cocktail",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Watermelon",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 20.0,
+     "disp": "20ml"
+    },
+    {
+     "product": "Havana Club 3yr",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 1.0,
+     "disp": "1ml"
+    },
+    {
+     "product": "Mint",
+     "qty": 3.0,
+     "disp": "3ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lagerita / Tequila Michelada",
+   "costing_name": "Lagerita / Tequila Michelada",
+   "category": "cocktail",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Cazcabel Blanco",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Camden Hells",
+     "qty": 284.0,
+     "disp": "284ml"
+    }
+   ],
+   "omitted": [
+    "Salt rim",
+    "Tajín rim"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Any Classic (avg)",
+   "costing_name": "Any Classic (avg)",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Jameson",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 15.0,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Vermut + Soda (double, tall)",
+   "costing_name": "Vermut + Soda (double, tall)",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "El Bandarra Vermut",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Lemon twist"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Cynar + Soda",
+   "costing_name": "Cynar + Soda",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Cynar",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Amaro + Soda",
+   "costing_name": "Amaro + Soda",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Amaro Montenegro",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Campari + Soda",
+   "costing_name": "Campari + Soda",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Campari",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Limoncello + Soda",
+   "costing_name": "Limoncello + Soda",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Limoncello",
+     "qty": 50.0,
+     "disp": "50ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Lemon twist"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Ranch Water",
+   "costing_name": "Ranch Water",
+   "category": "spritz",
+   "sell": 7.0,
+   "lines": [
+    {
+     "product": "Cazcabel Blanco",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Salt rim"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Kalimoxto",
+   "costing_name": "Kalimoxto",
+   "category": "spritz",
+   "sell": 8.0,
+   "lines": [
+    {
+     "product": "House red (Kalimotxo)",
+     "qty": 125.0,
+     "disp": "125ml"
+    },
+    {
+     "product": "Coke",
+     "qty": 33.3,
+     "disp": "200ml poured (33.3ml syrup)"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Beericano",
+   "costing_name": "Beericano",
+   "category": "spritz",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Camden Hells",
+     "qty": 284.0,
+     "disp": "284ml"
+    },
+    {
+     "product": "Campari",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "El Bandarra Vermut",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Hugo Spritz",
+   "costing_name": "Hugo Spritz",
+   "category": "spritz",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "St Germain",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 125.0,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Mint sprig"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Sambuca (shot)",
+   "costing_name": "Sambuca (shot)",
+   "category": "shot",
+   "sell": 4.0,
+   "lines": [
+    {
+     "product": "Antica Sambuca",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Pickleback",
+   "costing_name": "Pickleback",
+   "category": "shot",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Four Roses Bourbon",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [
+    "Pickle juice (chaser)"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Devils Lobotomy",
+   "costing_name": "Devils Lobotomy",
+   "category": "shot",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Devil\\'s Botany Chocolate 24%",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Camden Stout",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Baby Guinness",
+   "costing_name": "Baby Guinness",
+   "category": "shot",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Kahlúa",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Baileys",
+     "qty": 10.0,
+     "disp": "10ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Kombucha",
+   "costing_name": "Kombucha",
+   "category": "soft",
+   "sell": 4.0,
+   "lines": [
+    {
+     "product": "Kombucha",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Ting",
+   "costing_name": "Ting",
+   "category": "soft",
+   "sell": 3.5,
+   "lines": [
+    {
+     "product": "Ting",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Red Bull",
+   "costing_name": "Red Bull",
+   "category": "soft",
+   "sell": 3.5,
+   "lines": [
+    {
+     "product": "Red Bull",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Ginger Beer",
+   "costing_name": "Ginger Beer",
+   "category": "soft",
+   "sell": 3.5,
+   "lines": [
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Fanta",
+   "costing_name": "Fanta",
+   "category": "soft",
+   "sell": 3.0,
+   "lines": [
+    {
+     "product": "Fanta",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Juice / mixer",
+   "costing_name": "Juice / mixer",
+   "category": "soft",
+   "sell": 3.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Juice (assorted)"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Homemade Soda",
+   "costing_name": "Homemade Soda",
+   "category": "soft",
+   "sell": 5.0,
+   "lines": [],
+   "omitted": [
+    "Post-mix Soda",
+    "Lime wedge"
+   ],
+   "missing": [
+    "House syrup batch"
+   ],
+   "ready": false
+  },
+  {
+   "name": "French Press Coffee",
+   "costing_name": "French Press Coffee",
+   "category": "soft",
+   "sell": 3.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Pot of Tea",
+   "costing_name": "Pot of Tea",
+   "category": "soft",
+   "sell": 3.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Hot Chocolate",
+   "costing_name": "Hot Chocolate",
+   "category": "soft",
+   "sell": 3.0,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "costing sheet has placeholder data, not a recipe"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Gilda (each)",
+   "costing_name": "Gilda (each)",
+   "category": "snack",
+   "sell": 2.0,
+   "lines": [
+    {
+     "product": "Gilda",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Gilda (6 for £10)",
+   "costing_name": "Gilda (6 for £10)",
+   "category": "snack",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Gilda",
+     "qty": 6,
+     "disp": "6 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Crisps",
+   "costing_name": "Crisps",
+   "category": "snack",
+   "sell": 1.7,
+   "lines": [
+    {
+     "product": "Crisps",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Nuts",
+   "costing_name": "Nuts",
+   "category": "snack",
+   "sell": 1.5,
+   "lines": [
+    {
+     "product": "Nuts",
+     "qty": 1,
+     "disp": "1 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Salami Snacks",
+   "costing_name": "Salami Snacks",
+   "category": "snack",
+   "sell": 3.5,
+   "lines": [],
+   "omitted": [],
+   "missing": [
+    "Serious Pig Snackalami 30g"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Olives",
+   "costing_name": "Olives",
+   "category": "snack",
+   "sell": 3.5,
+   "lines": [
+    {
+     "product": "Olives",
+     "qty": 0.0,
+     "disp": "0 × unit"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Espresso Martini",
+   "costing_name": "Espresso Martini",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Absolut Blue",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Kahlúa",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Coffee extract",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 7.0,
+     "disp": "7ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Classic Margarita",
+   "costing_name": "Classic Margarita",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Blanco",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Triple Sec",
+     "qty": 20.0,
+     "disp": "20ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [
+    "Salt rim"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Tommy's Margarita",
+   "costing_name": "Tommy's Margarita",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Reposado",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 40.0,
+     "disp": "40ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 15.0,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mezcal Margarita",
+   "costing_name": "Mezcal Margarita",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "Triple Sec",
+     "qty": 15.0,
+     "disp": "15ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Sage smash",
+   "costing_name": "Sage Smash",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Four Roses Bourbon",
+     "qty": 40.0,
+     "disp": "40ml"
+    },
+    {
+     "product": "Yellow Chartreuse",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [
+    "Honey syrup (house)",
+    "Sage leaf (each)"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Penicillin 2.0",
+   "costing_name": "Penicillin 2.0",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 35.0,
+     "disp": "35ml"
+    },
+    {
+     "product": "King's Ginger Liqueur",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Amaro Montenegro",
+     "qty": 5.0,
+     "disp": "5ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [
+    "Honey syrup (house)"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Golfstar Martini",
+   "costing_name": "Golfstar Martini",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Passion Fruit Liqueur",
+     "qty": 20.0,
+     "disp": "20ml"
+    },
+    {
+     "product": "Funkin Passion Fruit purée",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Monin Vanilla",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 20.0,
+     "disp": "20ml"
+    }
+   ],
+   "omitted": [
+    "Cocktail cherry"
+   ],
+   "missing": [
+    "Vanilla Vodka"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Paloma",
+   "costing_name": "Paloma",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Blanco",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Eager Grapefruit",
+     "qty": 0.01,
+     "disp": "0.01 × unit"
+    },
+    {
+     "product": "Ting",
+     "qty": 0.15,
+     "disp": "0.15 × unit"
+    }
+   ],
+   "omitted": [
+    "Salt rim",
+    "Grapefruit slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Whiskey Sour",
+   "costing_name": "Whiskey Sour",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Four Roses Bourbon",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 0.5,
+     "disp": "0.5ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 2.0,
+     "disp": "2ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Amaretto Sour",
+   "costing_name": "Amaretto Sour",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Disaronno Amaretto",
+     "qty": 75.0,
+     "disp": "75ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 0.5,
+     "disp": "0.5ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 2.0,
+     "disp": "2ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Solero Colada",
+   "costing_name": "Solero Colada",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Eager Pineapple",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Funkin Passion Fruit purée",
+     "qty": 15.0,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [
+    "Spiced Rum (Cut)",
+    "Coconut cream",
+    "Pineapple leaf"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Negroni",
+   "costing_name": "Negroni",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Hanbury London Dry (house)",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Campari",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Cocchi Americano",
+     "qty": 25.0,
+     "disp": "25ml"
+    }
+   ],
+   "omitted": [
+    "Orange peel"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Classic / Dirty Martini",
+   "costing_name": "Classic / Dirty Martini",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Absolut Blue",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Martini Dry",
+     "qty": 10.0,
+     "disp": "10ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Bloody Mary",
+   "costing_name": "Bloody Mary",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Absolut Blue",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Pago Tomato Juice (200ml)",
+     "qty": 0.38,
+     "disp": "75ml = 0.38 × 200ml Pago carton (Big Tom alternative, founder 9 Sep 2026)"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25,
+     "disp": "25ml (founder, 9 Sep 2026 — sheet said 20)"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Tabasco",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Celery",
+     "qty": 0.13,
+     "disp": "1 stick ≈ ⅛ head"
+    }
+   ],
+   "omitted": [
+    "Salt rim"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Fields",
+   "costing_name": "Fields",
+   "category": "cocktail",
+   "sell": 12.0,
+   "lines": [
+    {
+     "product": "Top Cuvée Sweet Vermouth",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Lemon bitters",
+     "qty": 1.0,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Lemon twist"
+   ],
+   "missing": [
+    "Akashi-Tai Plum Sake"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Cola Soda / Spritzer",
+   "costing_name": "Cola Soda / Spritzer",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Kraken Black Spiced",
+     "qty": 15.0,
+     "disp": "15ml"
+    },
+    {
+     "product": "Velvet Falernum",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Amaro Montenegro",
+     "qty": 30.0,
+     "disp": "30ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 75.0,
+     "disp": "75ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mango Mojito",
+   "costing_name": "Mango Mojito",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Havana Especial",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Funkin Mango purée",
+     "qty": 40.0,
+     "disp": "40ml"
+    },
+    {
+     "product": "Funkin Passion Fruit purée",
+     "qty": 5.0,
+     "disp": "5ml"
+    },
+    {
+     "product": "Mint",
+     "qty": 7.0,
+     "disp": "7ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge",
+    "Post-mix Soda"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Classic Mojito",
+   "costing_name": "Classic Mojito",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Havana Especial",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Mint",
+     "qty": 7.0,
+     "disp": "7ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge",
+    "Post-mix Soda"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Michelada (Full)",
+   "costing_name": "Michelada (Full)",
+   "category": "cocktail",
+   "sell": 10.0,
+   "lines": [
+    {
+     "product": "Cazcabel Blanco",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25.0,
+     "disp": "25ml"
+    },
+    {
+     "product": "Valentina Hot Sauce",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 12.5,
+     "disp": "12.5ml"
+    },
+    {
+     "product": "Camden Hells",
+     "qty": 200.0,
+     "disp": "200ml"
+    }
+   ],
+   "omitted": [
+    "Tajín rim",
+    "Lime slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Old Fashioned",
+   "costing_name": "Old Fashioned",
+   "category": "cocktail",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Four Roses Bourbon",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 1.0,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Orange peel"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz (single)",
+   "costing_name": "Aperol Spritz (single)",
+   "category": "spritz",
+   "sell": 9.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 75.0,
+     "disp": "75ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Lillet Spritz",
+   "costing_name": "Lillet Spritz",
+   "category": "spritz",
+   "sell": 9.0,
+   "lines": [
+    {
+     "product": "Lillet Rosé",
+     "qty": 70.0,
+     "disp": "70ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 5.0,
+     "disp": "5ml"
+    },
+    {
+     "product": "Lemonade",
+     "qty": 8.3,
+     "disp": "50ml poured (8.3ml syrup)"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Lemon twist"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "White Wine Spritzer",
+   "costing_name": "White Wine Spritzer",
+   "category": "spritz",
+   "sell": 8.0,
+   "lines": [
+    {
+     "product": "Blanco Blanco (white)",
+     "qty": 100.0,
+     "disp": "100ml"
+    },
+    {
+     "product": "Lemonade",
+     "qty": 16.7,
+     "disp": "100ml poured (16.7ml syrup)"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Michelada (Sol)",
+   "costing_name": "Michelada (Sol)",
+   "category": "spritz",
+   "sell": 9.0,
+   "lines": [
+    {
+     "product": "Fresh lime juice",
+     "qty": 15.0,
+     "disp": "15ml"
+    },
+    {
+     "product": "Tabasco",
+     "qty": 2.0,
+     "disp": "2ml"
+    },
+    {
+     "product": "Worcestershire sauce",
+     "qty": 1.0,
+     "disp": "1ml"
+    },
+    {
+     "product": "Soy sauce",
+     "qty": 1.0,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Tajín rim"
+   ],
+   "missing": [
+    "Sol Mexican Lager 330ml"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Dark & Stormy (Jug)",
+   "costing_name": "Dark & Stormy (Jug)",
+   "category": "jug",
+   "sell": 28.0,
+   "lines": [
+    {
+     "product": "Havana Club 7yr",
+     "qty": 150.0,
+     "disp": "150ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 45.0,
+     "disp": "45ml"
+    },
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 2,
+     "disp": "2 × unit"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 3.0,
+     "disp": "3ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz (Jug)",
+   "costing_name": "Aperol Spritz (Jug)",
+   "category": "jug",
+   "sell": 30.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 150.0,
+     "disp": "150ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 500.0,
+     "disp": "500ml"
+    }
+   ],
+   "omitted": [
+    "Post-mix Soda",
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Pimm's (Jug)",
+   "costing_name": "Pimm's (Jug)",
+   "category": "jug",
+   "sell": 28.0,
+   "lines": [
+    {
+     "product": "Pimm's",
+     "qty": 150.0,
+     "disp": "150ml"
+    },
+    {
+     "product": "Lemonade",
+     "qty": 83.3,
+     "disp": "500ml poured (83.3ml syrup)"
+    },
+    {
+     "product": "Mint",
+     "qty": 6.0,
+     "disp": "6ml"
+    }
+   ],
+   "omitted": [
+    "Lemon twist",
+    "Orange slice"
+   ],
+   "missing": [
+    "Strawberry"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Royal Flush (Jug)",
+   "costing_name": "Royal Flush (Jug)",
+   "category": "jug",
+   "sell": 32.0,
+   "lines": [
+    {
+     "product": "Havana Especial",
+     "qty": 120.0,
+     "disp": "120ml"
+    },
+    {
+     "product": "Triple Sec",
+     "qty": 60.0,
+     "disp": "60ml"
+    },
+    {
+     "product": "Eager Pineapple",
+     "qty": 100.0,
+     "disp": "100ml"
+    },
+    {
+     "product": "Eager Orange",
+     "qty": 100.0,
+     "disp": "100ml"
+    },
+    {
+     "product": "Monin Grenadine",
+     "qty": 30.0,
+     "disp": "30ml"
+    }
+   ],
+   "omitted": [
+    "Orange slice"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mocktail Mojito",
+   "costing_name": "Mocktail Mojito",
+   "category": "mocktail",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Fresh lime juice",
+     "qty": 50.0,
+     "disp": "50ml"
+    },
+    {
+     "product": "Sugar syrup 1:1",
+     "qty": 10.0,
+     "disp": "10ml"
+    },
+    {
+     "product": "Mint",
+     "qty": 7.0,
+     "disp": "7ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge",
+    "Post-mix Soda"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mocktail Banana Colada",
+   "costing_name": "Mocktail Banana Colada",
+   "category": "mocktail",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Eager Pineapple",
+     "qty": 100.0,
+     "disp": "100ml"
+    }
+   ],
+   "omitted": [
+    "Cocktail cherry"
+   ],
+   "missing": [
+    "Coconut cream",
+    "Banana syrup"
+   ],
+   "ready": false
+  },
+  {
+   "name": "Mocktail Royal Flush",
+   "costing_name": "Mocktail Royal Flush",
+   "category": "mocktail",
+   "sell": 6.0,
+   "lines": [
+    {
+     "product": "Eager Pineapple",
+     "qty": 100.0,
+     "disp": "100ml"
+    },
+    {
+     "product": "Eager Orange",
+     "qty": 100.0,
+     "disp": "100ml"
+    },
+    {
+     "product": "Monin Grenadine",
+     "qty": 15.0,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dirty Martini",
+   "costing_name": "Dirty Martini",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Wyborowa Vodka",
+     "qty": 60,
+     "disp": "60ml"
+    },
+    {
+     "product": "Cocchi Americano",
+     "qty": 5,
+     "disp": "5ml (bar spoon)"
+    }
+   ],
+   "omitted": [
+    "Olive brine 15ml — poured from the olive jar, no marginal cost"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dark & Plonkie",
+   "costing_name": "Dark & Plonkie",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Havana Club 7yr",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 15,
+     "disp": "15ml"
+    },
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 0.51,
+     "disp": "167ml = 0.51 can (jug spec ÷ 3)"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 1,
+     "disp": "1ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedge"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Dark & Plonkie - Jug",
+   "costing_name": "Dark & Plonkie - Jug",
+   "category": "founder recipe",
+   "sell": 26.0,
+   "lines": [
+    {
+     "product": "Havana Club 7yr",
+     "qty": 150,
+     "disp": "150ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 45,
+     "disp": "45ml"
+    },
+    {
+     "product": "Old Jamaica Ginger Beer",
+     "qty": 1.52,
+     "disp": "500ml = 1.52 cans"
+    },
+    {
+     "product": "Angostura bitters",
+     "qty": 3,
+     "disp": "3ml"
+    }
+   ],
+   "omitted": [
+    "Lime wedges"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "London Ting",
+   "costing_name": "London Ting",
+   "category": "founder recipe",
+   "sell": 8.0,
+   "lines": [
+    {
+     "product": "Ting",
+     "qty": 1,
+     "disp": "1 × can"
+    },
+    {
+     "product": "Devil's Botany London 40%",
+     "qty": 25,
+     "disp": "25ml shot"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Mezcal Sour",
+   "costing_name": "Mezcal Sour",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Vida Mezcal",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lemon juice",
+     "qty": 25,
+     "disp": "25ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 15,
+     "disp": "15ml"
+    },
+    {
+     "product": "Ms Better's Foamer",
+     "qty": 1,
+     "disp": "1ml (dashes)"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz",
+   "costing_name": "Aperol Spritz",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 125,
+     "disp": "125ml"
+    }
+   ],
+   "omitted": [
+    "Soda top (gun)"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Aperol Spritz - Jug",
+   "costing_name": "Aperol Spritz - Jug",
+   "category": "founder recipe",
+   "sell": 26.0,
+   "lines": [
+    {
+     "product": "Aperol",
+     "qty": 150,
+     "disp": "150ml (3 × single, derived)"
+    },
+    {
+     "product": "Prosecco 750ml (NV Via Vai)",
+     "qty": 375,
+     "disp": "375ml"
+    }
+   ],
+   "omitted": [
+    "Soda top (gun)"
+   ],
+   "missing": [],
+   "ready": true
+  },
+  {
+   "name": "Tommys Margarita",
+   "costing_name": "Tommys Margarita",
+   "category": "founder recipe",
+   "sell": 11.0,
+   "lines": [
+    {
+     "product": "Cazcabel Reposado",
+     "qty": 50,
+     "disp": "50ml"
+    },
+    {
+     "product": "Fresh lime juice",
+     "qty": 25,
+     "disp": "25ml"
+    },
+    {
+     "product": "Agave syrup",
+     "qty": 15,
+     "disp": "15ml"
+    }
+   ],
+   "omitted": [],
+   "missing": [],
+   "ready": true
+  }
+ ]
+}

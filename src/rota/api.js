@@ -80,6 +80,11 @@ export const rotaSendCustomerVoucher = (token, d) => call({ action: 'sendCustome
 export const rotaSaveProfile = (token, patch) => call({ action: 'saveProfile', token, ...patch })
 export const rotaSaveAvailability = (token, month, data) => call({ action: 'saveAvailability', token, month, data }, { keepalive: true })
 export const rotaClaimShift = (token, shiftId) => call({ action: 'claimShift', token, shiftId })
+// 🔁 Shift swaps — offer up one of your shifts; someone intercepts; a manager approves.
+export const rotaOfferSwap = (token, shiftId) => call({ action: 'offerSwap', token, shiftId })
+export const rotaCancelSwap = (token, swapId) => call({ action: 'cancelSwap', token, swapId })
+export const rotaInterceptSwap = (token, swapId) => call({ action: 'interceptSwap', token, swapId })
+export const rotaDecideSwap = (token, swapId, approve) => call({ action: 'decideSwap', token, swapId, approve })
 export const rotaReleaseShift = (token, shiftId) => call({ action: 'releaseShift', token, shiftId })
 export const rotaGetChecklist = (token, date, key) => call({ action: 'getChecklist', token, date, key })
 export const rotaToggleChecklist = (token, date, key, item, on) => call({ action: 'saveChecklist', token, date, key, toggle: { item, on } })
@@ -108,9 +113,12 @@ export const rotaResetTrainingDoc = (moduleKey) => call({ action: 'resetTraining
 // Menus — list (light), fetch one (data); founder upload/delete.
 export const rotaMenus = () => call({ action: 'menus' })
 export const rotaGetMenu = (id) => call({ action: 'getMenu', id })
-export const rotaAddMenu = (title, kind, data) => call({ action: 'addMenu', secret: SEND_SECRET, title, kind, data })
-export const rotaDeleteMenu = (id) => call({ action: 'deleteMenu', secret: SEND_SECRET, id })
+// token as well as the secret: a Manager / Asst. Manager can now upload from
+// their own profile, authorised by their staff login (rota fn checks rank 3+).
+export const rotaAddMenu = (title, kind, data, token) => call({ action: 'addMenu', secret: SEND_SECRET, token, title, kind, data })
+export const rotaDeleteMenu = (id, token) => call({ action: 'deleteMenu', secret: SEND_SECRET, token, id })
 
 // Founder: recent checklist submissions + all training completions.
+export const rotaDjToday = (token, date) => call({ action: 'djToday', token, date })
 export const rotaChecklistLog = (days) => call({ action: 'checklistLog', secret: SEND_SECRET, days })
 export const rotaTrainingLog = () => call({ action: 'trainingLog', secret: SEND_SECRET })

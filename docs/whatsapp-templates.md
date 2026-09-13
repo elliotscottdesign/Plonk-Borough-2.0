@@ -16,6 +16,16 @@ these templates are for **business-initiated** messages.
 
 ## DJs
 
+**dj_broadcast** — MARKETING — vars: 1=name, 2=message  ← **the one to approve for "WhatsApp all DJs"**
+> Hi {{1}}, a message from No Dice 🎧
+> {{2}}
+> (Reply STOP to opt out.)
+*Trigger: the **📱 WhatsApp all DJs** button in DJ Roster. Generic — the founder
+types any announcement and it fills {{2}}. Create it in Twilio Console → Content
+Template Builder, submit for Meta approval, then set its Content SID as the edge-fn
+secret **`TWILIO_CONTENT_SID_DJ_BROADCAST`**. Reuses the existing Twilio account +
+`TWILIO_WA_FROM` sender.*
+
 **dj_dates_open** — MARKETING — vars: 1=name, 2=month, 3=link
 > Hi {{1}}, the {{2}} dates at No Dice are now open 🎧 Grab a night before they go:
 > {{3}}

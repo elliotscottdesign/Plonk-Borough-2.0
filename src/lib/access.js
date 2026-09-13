@@ -46,4 +46,51 @@ export function applyAccessSession(access, accessCode) {
   if (access.marketing) sessionStorage.setItem('ndb_marketing_access', '1'); else sessionStorage.removeItem('ndb_marketing_access')
   if (access.borough)   sessionStorage.setItem('ndb_borough_access', '1');  else sessionStorage.removeItem('ndb_borough_access')
   sessionStorage.setItem('ndb_role', access.role || 'investor')
+  // Remember this device so the next visit needs no code at all.
+  if (accessCode) rememberDevice(access, accessCode)
+}
+
+// ─── Remember this device ────────────────────────────────────────────────────
+// Founder, 20 Aug 2026: "No login for founder. I can't be fucked to enter the
+// codes to get into my own app… it should automatically know it's me."
+//
+// Everything above writes to sessionStorage, which the browser throws away the
+// moment the tab or the installed app is closed — so every single visit meant
+// typing the code again. This mirrors the unlock into localStorage, which
+// survives, and restores it on the next visit. Sign in once per device, ever.
+//
+// Security posture is unchanged in kind: these codes already ship in the public
+// JS bundle and are documented as a speed bump, not a lock. What DOES change is
+// that whoever holds an unlocked phone is inside without typing anything — so
+// "Sign out" (forgetDevice) must stay visible and easy to reach.
+export const REMEMBER_KEY = 'ndb_device_v1'
+
+export function rememberDevice(access, accessCode) {
+  try { localStorage.setItem(REMEMBER_KEY, JSON.stringify({ access, accessCode, at: Date.now() })) }
+  catch { /* private mode — this visit stays session-only */ }
+}
+
+export function forgetDevice() {
+  try { localStorage.removeItem(REMEMBER_KEY) } catch {}
+  try { sessionStorage.clear() } catch {}
+}
+
+export function rememberedDevice() {
+  try {
+    const r = JSON.parse(localStorage.getItem(REMEMBER_KEY) || 'null')
+    // Re-validate against the live code table, so retiring a code in
+    // ACCESS_CODES logs that device out instead of leaving it grandfathered in.
+    if (!r || !r.accessCode) return null
+    const live = ACCESS_CODES[r.accessCode]
+    return live ? { access: live, accessCode: r.accessCode } : null
+  } catch { return null }
+}
+
+// Put a remembered device straight back into the session. Returns true if it
+// restored something, so the caller can skip the gate entirely.
+export function restoreRememberedSession() {
+  const r = rememberedDevice()
+  if (!r) return false
+  applyAccessSession(r.access, r.accessCode)
+  return true
 }

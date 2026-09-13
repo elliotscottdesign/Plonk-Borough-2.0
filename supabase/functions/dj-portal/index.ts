@@ -41,7 +41,9 @@ const shift = (d: string, n: number) => { const dt = new Date(d + "T00:00:00Z");
 const dow = (d: string) => new Date(d + "T00:00:00Z").getUTCDay();
 // One-off dates run as a paid session outside the usual Thu/Fri/Sat (e.g. a bank-holiday Sunday).
 const SPECIAL_SESSION_DATES = new Set(["2026-08-30", "2026-09-06", "2026-09-13", "2026-09-20", "2026-09-27"]);
-const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [4, 5, 6].includes(dow(d));
+// Sun/Thu/Fri/Sat are paid sessions (Sunday added Aug 2026 — single 4–8pm paid
+// session, counts toward the one-paid-session-per-month cap). Mon–Wed = Open Decks.
+const isSession = (d: string) => SPECIAL_SESSION_DATES.has(d) || [0, 4, 5, 6].includes(dow(d));
 // Genre adjacency rule — a sub-genre booked the night before/after can't be
 // played again. PAUSED 2026-08-01 so DJs can play what they want; the rule's
 // logic below is kept intact, just gated on this flag. Set DJ_ADJACENCY_RULE=on
@@ -250,7 +252,7 @@ async function state(sb: any, id: string) {
   const openSlots = (openRows || []).map((s: any) => ({
     date: s.date, slot: s.slot || "main", kind: s.kind || (isSession(s.date) ? "session" : "opendecks"), blocked: neighBlocked(s.date),
   }));
-  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_artist,promo_ok,set_type,held_at,event_image_url,dj_id,dj_id2";
+  const cols = "date,slot,status,night_name,genres,subgenres,kind,promo_track,promo_artist,promo_ok,set_type,held_at,event_image_url,dj_id,dj_id2,invoice_sent_at,invoice_received_at,invoice_amount,paid_at";
   // Include nights where this DJ is the back-to-back partner (dj_id2), not just primary.
   const meFilter = `dj_id.eq.${id},dj_id2.eq.${id}`;
   const { data: mine } = await sb.from("dj_slots").select(cols).or(meFilter).gte("date", today).order("date");
@@ -284,6 +286,10 @@ async function state(sb: any, id: string) {
   // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
   const pastBookings = (past || []).map(withPartner);
+  // One-click broadcast — the founder posts a message from admin (dj_templates
+  // key='banner') and it shows as a header in EVERY DJ's portal. Empty = none.
+  const { data: bannerRow } = await sb.from("dj_templates").select("body").eq("key", "banner").maybeSingle();
+  const banner = String(bannerRow?.body || "").trim();
 
   // ── Payments: expense receipts the DJ has logged. Session fees vary per DJ and
   // are handled off-system, so no fee value is computed or returned here.
@@ -292,14 +298,14 @@ async function state(sb: any, id: string) {
   const receipts = (rcpts || []).map((r: any) => ({ id: r.id, receipt_date: r.receipt_date, category: r.category || "other", amount: Number(r.amount) || 0, note: r.note || null, image_url: r.image_url, created_at: r.created_at }));
   const receiptsTotal = receipts.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
   const payments = { vinyl: playsVinyl(me), drinksMax: DRINKS_MAX, receipts, receiptsTotal };
-  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments });
+  return json({ dj: pub(me), complete: isComplete(me), openSlots, myBookings, pastBookings, schedule, notes: myNotes || [], roster: roster || [], payments, banner });
 }
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   if (req.method !== "POST") return json({ error: "method not allowed" }, 405);
 
-  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2, id, receiptDate, category, amount, note } = await req.json().catch(() => ({}));
+  const { token, action, profile, dataUrl, joinCode, date, slot: slotRaw, nightName, genres, subgenres, promoTrack, promoArtist, promoOk, setType, body, dj_id2, id, receiptDate, category, amount, note, on } = await req.json().catch(() => ({}));
   const slot = slotRaw || "main";   // which session-of-the-day (Saturdays have 'main' evening + 'sat_pm' afternoon)
 
   const sb = createClient(Deno.env.get("SUPABASE_URL")!, Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!);
@@ -543,6 +549,22 @@ Deno.serve(async (req) => {
     // Delete one of the DJ's own receipts (scoped to dj_id so they can't touch others').
     if (!id) return json({ error: "missing id" }, 400);
     await sb.from("dj_receipts").delete().eq("id", id).eq("dj_id", dj.id);
+    return state(sb, dj.id);
+  }
+
+  if (action === "invoiceSent") {
+    // DJ ticks that they've emailed their invoice for a night they played.
+    if (!date) return json({ error: "missing date" }, 400);
+    await sb.from("dj_slots").update({ invoice_sent_at: on ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+      .eq("date", date).eq("slot", slot).eq("dj_id", dj.id);
+    return state(sb, dj.id);
+  }
+
+  if (action === "markPaid") {
+    // Mark a night paid / un-paid (both the DJ and the founder can set this).
+    if (!date) return json({ error: "missing date" }, 400);
+    await sb.from("dj_slots").update({ paid_at: on ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
+      .eq("date", date).eq("slot", slot).eq("dj_id", dj.id);
     return state(sb, dj.id);
   }
 

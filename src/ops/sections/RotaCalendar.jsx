@@ -4,6 +4,7 @@ import { eventsList, eventsForDate, catMeta } from '../keydates/events.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import { presenceBadge } from '../../rota/geo.js'
 import DayRosterGrid from './DayRosterGrid.jsx'
+import { withDefaults, applyCompiled, SCHOOL_HOLIDAYS } from '../../rota/rotaEngine.js'
 import useIsMobile from '../../lib/useIsMobile.js'
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../../marketing/data/backend.js'
 
@@ -69,7 +70,7 @@ function WeekRow({ row }) {
 // roster and see HOURS, never rates or spend.
 const isFounderTier = () => { try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false } }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], rules = null, reload }) {
   // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
   const [keyEvents, setKeyEvents] = useState([])
   useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
@@ -113,6 +114,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   }, [viewY, viewM])
   const [selDate, setSelDate] = useState(null)
   const [focusId, setFocusId] = useState(null)   // tap a team chip → the month shows just their shifts
+  const [copyOpen, setCopyOpen] = useState(false)          // 📋 duplicate-week panel
+  const [copyTarget, setCopyTarget] = useState(null)       // target Monday (default: next week)
+  const [copyModal, setCopyModal] = useState(null)         // in-app dialog: {kind:'confirm'|'done'|'info', ...}
   const [busy, setBusy] = useState(false)
   const [weekStart, setWeekStart] = useState(() => mondayOf(iso(now.getFullYear(), now.getMonth(), now.getDate())))   // week-overview Monday
   const [overviewOpen, setOverviewOpen] = useState(true)
@@ -195,6 +199,27 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
 
   const selShifts = selDate ? (shiftsByDate[selDate] || []) : []
 
+  // ── 12h-rest windows for the open day's grid ────────────────────────────────
+  // From each person's SAVED shifts either side of this day: a late finish
+  // yesterday pushes their earliest start today; an early start tomorrow pulls
+  // their latest finish today. The grid paints these as red no-go zones.
+  const minRestH = (() => { try { return applyCompiled(withDefaults(rules)).minRestHours } catch { return null } })()
+  const restWindows = {}
+  if (selDate && minRestH) {
+    const prevD = addDaysISO(selDate, -1), nextD = addDaysISO(selDate, 1)
+    const nb = {}; for (const x of shifts) if (x.date === prevD || x.date === nextD) nb[x.id] = x
+    for (const c of claims) {
+      const x = nb[c.shift_id]; if (!x) continue
+      const w = (restWindows[c.staff_id] ||= {})
+      if (x.date === nextD) w.nextStart = Math.min(w.nextStart ?? Infinity, x.start_min)
+      if (x.date === prevD) w.prevEnd = Math.max(w.prevEnd ?? -Infinity, x.end_min)
+    }
+    for (const w of Object.values(restWindows)) {
+      if (w.nextStart != null) w.maxEnd = w.nextStart + 1440 - minRestH * 60   // finish today by…
+      if (w.prevEnd != null) w.minStart = w.prevEnd - 1440 + minRestH * 60    // can't start today before…
+    }
+  }
+
   // ── Person focus (tap a chip above the month) ───────────────────────────────
   const ROLE_C = { 'Manager': PURPLE, 'Asst. Manager': '#3B82F6', 'Supervisor': '#22D3EE', 'Bar Staff': GREEN, 'Kitchen / Barback': '#FB923C' }
   const roleC = (st) => ROLE_C[st?.role] || 'rgba(255,255,255,0.6)'
@@ -230,12 +255,50 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', minWidth: 150, textAlign: 'center' }}>{fmtDay(weekStart)} – {fmtDayMon(weekEnd)}</div>
             <button onClick={() => setWeekStart(w => addDaysISO(w, 7))} style={weekNav}>▶</button>
             <button onClick={() => setWeekStart(mondayOf(todayStr))} style={{ ...btn('ghost'), padding: '4px 9px', fontSize: 11 }}>This week</button>
+            <button onClick={() => { setCopyTarget(t => t || addDaysISO(weekStart, 7)); setCopyOpen(o => !o) }} title="Duplicate this week's whole rota onto another week" style={{ ...btn('ghost'), padding: '4px 9px', fontSize: 11, ...(copyOpen ? { borderColor: '#60A5FA', color: '#60A5FA' } : {}) }}>📋 Copy week</button>
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Wage spend this week</div>
             <div style={{ fontSize: 21, fontWeight: 800, color: '#fff', lineHeight: 1.1 }}>{isFounderTier() ? <>{gbp(totalSpend)} <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>· {totalHours}h assigned</span></> : <>{totalHours}h <span style={{ fontSize: 12, fontWeight: 400, color: 'rgba(255,255,255,0.5)' }}>assigned</span></>}</div>
           </div>
         </div>
+        {copyOpen && (() => {
+          // ── Duplicate this week onto a target week ────────────────────────────
+          const tgt = copyTarget || addDaysISO(weekStart, 7)
+          const srcBlocks = weekDates.map(sd => ({
+            sd,
+            blocks: (shiftsByDate[sd] || []).flatMap(sh => (claimsByShift[sh.id] || []).map(c => ({ staffId: c.staff_id, start_min: sh.start_min, end_min: sh.end_min }))),
+          }))
+          const totalShifts = srcBlocks.reduce((a, d) => a + d.blocks.length, 0)
+          const tgtDates = weekDates.map((_, i) => addDaysISO(tgt, i))
+          const tgtExisting = tgtDates.filter(td => (shiftsByDate[td] || []).some(sh => (claimsByShift[sh.id] || []).length > 0)).length
+          // Off-day clashes: someone being copied onto a day they've booked off.
+          const offSet = new Set()
+          for (const r of availability) for (const [dt, v] of Object.entries(r.data || {})) if (v && v.unavailable) offSet.add(`${r.staff_id}|${dt}`)
+          const nameOfId = (id) => (staff.find(x => x.id === id)?.name || '?').split(' ')[0]
+          const clashes = []
+          srcBlocks.forEach((d, i) => { for (const b of d.blocks) if (offSet.has(`${b.staffId}|${tgtDates[i]}`)) clashes.push(`${nameOfId(b.staffId)} (${fmtDay(tgtDates[i])})`) })
+          const pastTgt = tgt <= todayStr
+          const doCopy = () => {
+            const doable = srcBlocks.filter(d => d.blocks.length > 0)
+            if (doable.length === 0) { setCopyModal({ kind: 'info', title: 'Nothing to copy', msg: 'No one is rostered on this week — pick a week with shifts on it first.' }); return }
+            setCopyModal({ kind: 'confirm', tgt, totalShifts, tgtExisting, clashes, srcBlocks, tgtDates, srcLabel: `${fmtDay(weekStart)} – ${fmtDayMon(weekEnd)}`, tgtLabel: `${fmtDay(tgt)} – ${fmtDayMon(addDaysISO(tgt, 6))}` })
+          }
+          return (
+            <div style={{ marginTop: 10, background: 'rgba(96,165,250,0.06)', border: '1px solid rgba(96,165,250,0.35)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#60A5FA' }}>📋 Copy this week</span>
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)' }}>{totalShifts} shift{totalShifts === 1 ? '' : 's'} · paste into the week of</span>
+              <button onClick={() => setCopyTarget(addDaysISO(tgt, -7))} style={weekNav}>◀</button>
+              <span style={{ fontSize: 12.5, fontWeight: 700, color: '#fff', minWidth: 120, textAlign: 'center' }}>{fmtDay(tgt)} – {fmtDayMon(addDaysISO(tgt, 6))}</span>
+              <button onClick={() => setCopyTarget(addDaysISO(tgt, 7))} style={weekNav}>▶</button>
+              {tgtExisting > 0 && <span style={{ fontSize: 11, color: AMBER }}>⚠️ replaces {tgtExisting} day(s) already rostered</span>}
+              {clashes.length > 0 && <span style={{ fontSize: 11, color: '#F87171' }}>⚠️ booked off: {clashes.join(', ')}</span>}
+              {pastTgt && <span style={{ fontSize: 11, color: AMBER }}>target is in the past</span>}
+              <button onClick={doCopy} disabled={busy || totalShifts === 0 || tgt === weekStart} style={{ ...btn('gold'), marginLeft: 'auto', opacity: busy || totalShifts === 0 || tgt === weekStart ? 0.5 : 1 }}>{busy ? 'Pasting…' : '📋 Paste it there →'}</button>
+              <button onClick={() => setCopyOpen(false)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 14, cursor: 'pointer', padding: 0 }}>✕</button>
+            </div>
+          )
+        })()}
         {missingRate && <div style={{ fontSize: 11, color: AMBER, marginTop: 8 }}>⚠️ Some assigned staff have no hourly rate, so their pay isn't in the total — set it in Team → Edit profile → Pay &amp; hours.</div>}
         {overviewOpen && (
           <>
@@ -300,6 +363,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const isSel = selDate === dateStr
             const isToday = dateStr === todayStr
             const evs = eventsForDate(keyEvents, dateStr)
+            const hol = schoolHoliday(dateStr)
+            const occ = occasionOf(dateStr)
             const mine = focusId ? (focusByDate[dateStr] || []) : null
             const mineOff = focusId ? focusOff.has(dateStr) : false
             const focusC = GREEN   // founder rule: green = on shift, red = booked off
@@ -307,7 +372,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
                 style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
-                  <span style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : '#fff' }}>{d}</span>
+                  <span title={hol || undefined} style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : hol ? '#FBBF24' : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
                     {/* Bookings overlay — customer bookings from nodice.bar. Only
                         renders when the day has bookings so the tile stays clean
@@ -324,6 +389,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                         </span>
                       )
                     })()}
+                    {occ && <span title={occ[1]} style={{ fontSize: 11, lineHeight: 1 }}>{occ[0]}</span>}
+                    {isFullMoon(dateStr) && <span title="Full moon" style={{ fontSize: 10, lineHeight: 1 }}>🌕</span>}
+                    {isPayFriday(dateStr) && <span title="Payday — last Friday of the month" style={{ fontSize: 9, fontWeight: 800, color: GREEN, border: `1px solid ${GREEN}66`, background: `${GREEN}1a`, borderRadius: 4, padding: '1px 3px', lineHeight: 1 }}>£</span>}
                     {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
                   </span>
                 </span>
@@ -358,8 +426,45 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: RED }}>■</span> open, empty</span>
           <span><span style={{ color: GREY }}>▢</span> not released yet</span>
           <span><span style={{ color: TODAY }}>▣</span> today</span>
+          <span><span style={{ color: '#FBBF24' }}>15</span> school holiday</span>
+          <span><span style={{ color: GREEN, fontWeight: 800 }}>£</span> payday (last Friday)</span>
+          <span>🌕 full moon</span>
+          <span>🎃🎆🎄 occasions</span>
         </div>
       </div>
+
+      {/* Copy-week dialogs — in-app, not browser popups */}
+      {copyModal && (
+        <div onClick={() => !busy && setCopyModal(null)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div onClick={e => e.stopPropagation()} style={{ background: '#0A0A0A', border: '1px solid rgba(96,165,250,0.45)', borderRadius: 14, padding: 20, maxWidth: 440, width: '100%', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {copyModal.kind === 'confirm' ? (<>
+              <div className="serif" style={{ fontSize: 18, color: '#fff' }}>📋 Paste this week?</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>
+                <strong style={{ color: '#fff' }}>{copyModal.totalShifts} shift{copyModal.totalShifts === 1 ? '' : 's'}</strong> from <strong style={{ color: '#60A5FA' }}>{copyModal.srcLabel}</strong><br />
+                → pasted onto <strong style={{ color: '#60A5FA' }}>{copyModal.tgtLabel}</strong>
+              </div>
+              {copyModal.tgtExisting > 0 && <div style={{ fontSize: 12, color: AMBER, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 8, padding: '8px 10px' }}>⚠️ Replaces the roster on {copyModal.tgtExisting} day{copyModal.tgtExisting === 1 ? '' : 's'} that already {copyModal.tgtExisting === 1 ? 'has' : 'have'} people on.</div>}
+              {copyModal.clashes.length > 0 && <div style={{ fontSize: 12, color: '#F87171', background: 'rgba(248,113,113,0.08)', border: '1px solid rgba(248,113,113,0.3)', borderRadius: 8, padding: '8px 10px' }}>⚠️ Booked off on the new days (pasted anyway — swap them after): {copyModal.clashes.join(', ')}</div>}
+              <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.5)' }}>Days with no one on are left untouched.</div>
+              <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                <button onClick={() => setCopyModal(null)} disabled={busy} style={btn('ghost')}>Cancel</button>
+                <button disabled={busy} onClick={async () => {
+                  const m = copyModal; setBusy(true)
+                  try {
+                    for (let i = 0; i < 7; i++) if (m.srcBlocks[i].blocks.length > 0) await rotaSaveDayRoster(m.tgtDates[i], m.srcBlocks[i].blocks)
+                    await reload(); setCopyOpen(false); setWeekStart(m.tgt)
+                    setCopyModal({ kind: 'done', title: '✓ Pasted', msg: `${m.totalShifts} shift${m.totalShifts === 1 ? '' : 's'} pasted onto the week of ${m.tgtLabel}. You're now looking at that week — fine-tune any day from the calendar.` })
+                  } catch (e) { setCopyModal({ kind: 'info', title: 'That didn\'t save', msg: e.message }) } finally { setBusy(false) }
+                }} style={btn('gold')}>{busy ? 'Pasting…' : '📋 Yes — paste it'}</button>
+              </div>
+            </>) : (<>
+              <div className="serif" style={{ fontSize: 18, color: copyModal.kind === 'done' ? GREEN : '#fff' }}>{copyModal.title}</div>
+              <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.8)', lineHeight: 1.6 }}>{copyModal.msg}</div>
+              <div style={{ display: 'flex', justifyContent: 'flex-end' }}><button onClick={() => setCopyModal(null)} style={btn('gold')}>OK</button></div>
+            </>)}
+          </div>
+        </div>
+      )}
 
       {/* Day panel */}
       {selDate && (
@@ -399,6 +504,8 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                 dayShifts={selShifts}
                 dayClaims={dayClaims}
                 availability={availability}
+                restWindows={restWindows}
+                minRestHours={minRestH}
                 busy={busy}
                 onSave={(blocks) => saveRoster(selDate, blocks)}
               />
@@ -615,6 +722,21 @@ function DayBookings({ date }) {
     </details>
   )
 }
+
+// ── Calendar garnish: holidays, occasions, payday, full moon ─────────────────
+// School holidays: the built-in UK London list (visual highlight only — the
+// builder's holiday HOURS still come from the founder's ⚙️ Holidays table).
+const schoolHoliday = (d) => { for (const [a, b, n] of SCHOOL_HOLIDAYS) if (d >= a && d <= b) return n; return null }
+// Fixed-date occasions a bar cares about.
+const OCCASIONS = { '10-31': ['🎃', 'Halloween'], '11-05': ['🎆', 'Fireworks Night'], '12-24': ['🎄', 'Christmas Eve'], '12-25': ['🎄', 'Christmas Day'], '12-26': ['🎁', 'Boxing Day'], '12-31': ['🎉', "New Year's Eve"], '01-01': ['🎉', "New Year's Day"], '02-14': ['❤️', "Valentine's Day"], '03-17': ['☘️', "St Patrick's Day"] }
+const occasionOf = (d) => OCCASIONS[d.slice(5)] || null
+// Payday: the last Friday of each month.
+const isPayFriday = (d) => { const dt = new Date(d + 'T00:00:00Z'); if (dt.getUTCDay() !== 5) return false; const nx = new Date(dt); nx.setUTCDate(nx.getUTCDate() + 7); return nx.getUTCMonth() !== dt.getUTCMonth() }
+// Full moon: synodic-cycle approximation, reference tuned against the 2026–27
+// almanac (23/25 dates exact, the rest one day out) — plenty for a pub calendar.
+const SYNODIC = 29.53058867
+const FULL_REF = Date.UTC(2000, 0, 21, 2, 40)
+const isFullMoon = (d) => { const t = Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8, 10), 12); const ph = (((t - FULL_REF) / 86400000) % SYNODIC + SYNODIC) % SYNODIC; return ph < 0.5 || ph > SYNODIC - 0.5 }
 
 const addDaysISO = (d, n) => { const dt = new Date(d + 'T00:00:00Z'); dt.setUTCDate(dt.getUTCDate() + n); return dt.toISOString().slice(0, 10) }
 const mondayOf = (d) => addDaysISO(d, -((new Date(d + 'T00:00:00Z').getUTCDay() + 6) % 7))
