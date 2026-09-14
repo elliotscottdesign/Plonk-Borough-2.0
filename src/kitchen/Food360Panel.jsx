@@ -210,7 +210,7 @@ export default function Food360Panel() {
                     <Stat label="👨‍🍳 Kitchen labour" value={noShifts ? 'none' : labour ? gbp(labour.labour_pence) : '…'} sub={noShifts ? 'no rota kitchen shifts' : labour ? `${Math.round(labour.paid_min / 60 * 10) / 10}h paid (rota)` : 'from the rota'} color={AMBER} />
                     <Stat label={noShifts ? '📈 Contribution (pre-wages)' : '✅ Kitchen contribution'} value={labour ? gbp(rep.money.gross_margin_pence - labour.labour_pence) : '…'} sub={noShifts ? 'wages not yet counted' : 'margin − kitchen wages'} color={labour && (rep.money.gross_margin_pence - labour.labour_pence) >= 0 ? GREEN : RED} big />
                   </div>
-                  {noShifts && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>ℹ No kitchen shifts on the rota for this period (all shifts are rostered as “bar”), so no wage cost is deducted yet. If chefs are invoiced separately, that cost lands in a later phase; to count wages here, roster kitchen shifts with the kitchen ability.</div>}
+                  {noShifts && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>ℹ No kitchen-team (“orange” Kitchen / Barback staff) worked in this period, so no kitchen wage is deducted. Add chefs to the rota as Kitchen / Barback with their rate and their wages count here automatically.</div>}
                   {!noShifts && labour?.unrated > 0 && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>⚠ {labour.unrated} kitchen shift(s) worked by someone with no hourly rate set — labour is understated. Set their rate on the rota.</div>}
                 </>)
               })()}
@@ -235,7 +235,7 @@ export default function Food360Panel() {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages (from the rota, ability = kitchen, via the payroll pay rules). ~ = cost estimated from today's menu. Till-sales merge (Lightspeed downtime) and staff-meal / chef costs come in the next phases.</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the “orange” <b style={{ color: '#fff' }}>Kitchen / Barback</b> team's paid hours from the rota, via the real payroll rules. Those staff also cover the bar, so this is their <b style={{ color: '#fff' }}>full wage</b>, not just On A Roll cooking time — read it as “what the kitchen crew costs vs what the food makes”. ~ = cost estimated from today's menu. Till-sales merge &amp; staff-meal costs come next.</div>
             </div>
           )}
         </div>

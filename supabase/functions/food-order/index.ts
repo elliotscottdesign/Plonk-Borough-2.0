@@ -168,6 +168,27 @@ function londonHourDow(d: Date): [number, number] {
 }
 const lineRev = (li: any) => ((parseInt(li.price_pence, 10) || 0) + (Array.isArray(li.options) ? li.options.reduce((s: number, o: any) => s + (parseInt(o.price_pence, 10) || 0), 0) : 0)) * (parseInt(li.qty, 10) || 1);
 
+// The "orange" kitchen crew: staff by ROLE, not by shift. Every shift is rostered
+// "bar", but Kitchen / Barback people (and anyone kitchen-abled who isn't a
+// manager) are the kitchen team — the founder's orange labels. Their rostered/
+// clocked hours are what we count as kitchen labour + the heatmap overlay.
+async function kitchenStaffIds(sb: any): Promise<string[]> {
+  const { data } = await sb.from("staff").select("id, role, abilities");
+  return (data || []).filter((s: any) =>
+    s.role === "Kitchen / Barback" ||
+    (Array.isArray(s.abilities) && s.abilities.includes("kitchen") && s.role !== "Manager" && s.role !== "Asst. Manager")
+  ).map((s: any) => s.id);
+}
+// Shifts in [f,t] that a kitchen-team member actually claimed (any shift label).
+async function kitchenClaimedShifts(sb: any, f: string, t: string, kIds: string[]) {
+  if (!kIds.length) return { shifts: [], claims: [] };
+  const { data: all } = await sb.from("staff_shifts").select("id, date, start_min, end_min").gte("date", f).lte("date", t);
+  const ids = (all || []).map((s: any) => s.id);
+  const { data: claims } = ids.length ? await sb.from("staff_shift_claims").select("shift_id, staff_id, status").in("shift_id", ids).in("staff_id", kIds) : { data: [] };
+  const claimed = new Set((claims || []).map((c: any) => c.shift_id));
+  return { shifts: (all || []).filter((s: any) => claimed.has(s.id)), claims: claims || [] };
+}
+
 // Food 360 — the rich report. Speed + peaks always; money block only when asked
 // (the client asks after the 888999 gate). Money uses per-item cost SNAPSHOTS
 // stamped at order time (Phase 1); pre-snapshot lines fall back to the current
@@ -199,12 +220,13 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   const byHour = Array(24).fill(0);
   const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
   for (const o of real) { const [dow, hr] = londonHourDow(new Date(o.created_at)); byHour[hr]++; heat[dow][hr]++; }
-  // Rostered KITCHEN coverage for the overlay — shift TIMES only (ability='kitchen',
-  // the kitchen-checklist precedent), no pay data, so it stays operational-tier.
+  // Rostered KITCHEN coverage for the overlay — shifts worked by the kitchen team
+  // (Kitchen / Barback role, the founder's "orange" staff), TIMES only (no pay), so
+  // it stays operational-tier. Every shift is labelled "bar", so we go by the person.
   const dowOfYmd = (ymd: string) => { const [y, mo, da] = ymd.split("-").map(Number); return (new Date(Date.UTC(y, mo - 1, da)).getUTCDay() + 6) % 7; };
-  const { data: kshifts } = await sb.from("staff_shifts").select("date, start_min, end_min").eq("ability", "kitchen").gte("date", fromYmd).lte("date", toYmd);
+  const { shifts: kshifts } = await kitchenClaimedShifts(sb, fromYmd, toYmd, await kitchenStaffIds(sb));
   const rostered = Array.from({ length: 7 }, () => Array(24).fill(0));
-  for (const s of (kshifts || [])) {
+  for (const s of kshifts) {
     const dow = dowOfYmd(s.date);
     const h0 = Math.max(0, Math.floor((s.start_min ?? 0) / 60)), h1 = Math.min(23, Math.ceil((s.end_min ?? 0) / 60) - 1);
     for (let h = h0; h <= h1; h++) rostered[dow][h]++;
@@ -443,19 +465,19 @@ Deno.serve(async (req) => {
 
     // Raw rota data for the MONEY tier's kitchen-labour calc. The client runs the
     // pay maths through src/rota/pay.js (single source of truth — never reimplement:
-    // the Finances WagesLive shortcut disagrees with payroll). ability='kitchen'.
+    // the Finances WagesLive shortcut disagrees with payroll). Kitchen labour = the
+    // shifts CLAIMED BY the kitchen team (Kitchen / Barback role, the "orange" staff),
+    // since every shift is labelled "bar" — so we identify by the person, not the shift.
     if (action === "kitchenHours") {   // kitchen (money tier)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
       const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
       const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
       const [f, t] = from <= to ? [from, to] : [to, from];
-      const { data: shifts } = await sb.from("staff_shifts").select("id, date, start_min, end_min").eq("ability", "kitchen").gte("date", f).lte("date", t);
-      const shiftIds = (shifts || []).map((s: any) => s.id);
-      const { data: claims } = shiftIds.length ? await sb.from("staff_shift_claims").select("shift_id, staff_id, status").in("shift_id", shiftIds) : { data: [] };
-      const staffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
-      const { data: clocks } = staffIds.length ? await sb.from("shift_clock").select("staff_id, date, clock_in, clock_out").in("staff_id", staffIds).gte("date", f).lte("date", t) : { data: [] };
-      const { data: staff } = staffIds.length ? await sb.from("staff").select("id, name, hourly_rate").in("id", staffIds) : { data: [] };
-      return json({ ok: true, from: f, to: t, shifts: shifts || [], claims: claims || [], clocks: clocks || [], staff: staff || [] });
+      const kIds = await kitchenStaffIds(sb);
+      const { shifts, claims } = await kitchenClaimedShifts(sb, f, t, kIds);
+      const { data: clocks } = kIds.length ? await sb.from("shift_clock").select("staff_id, date, clock_in, clock_out").in("staff_id", kIds).gte("date", f).lte("date", t) : { data: [] };
+      const { data: staff } = kIds.length ? await sb.from("staff").select("id, name, hourly_rate").in("id", kIds) : { data: [] };
+      return json({ ok: true, from: f, to: t, shifts, claims, clocks: clocks || [], staff: staff || [] });
     }
 
     // ── Daily / weekly report EMAIL to the founder (cron-triggered) ──────────────
