@@ -235,7 +235,7 @@ export default function Food360Panel() {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the “orange” <b style={{ color: '#fff' }}>Kitchen / Barback</b> team's paid hours from the rota, via the real payroll rules. Those staff also cover the bar, so this is their <b style={{ color: '#fff' }}>full wage</b>, not just On A Roll cooking time — read it as “what the kitchen crew costs vs what the food makes”. ~ = cost estimated from today's menu. Till-sales merge &amp; staff-meal costs come next.</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules (they work kitchen only, so it's all kitchen labour). ~ = cost estimated from today's menu. Till-sales merge &amp; staff-meal costs come next.</div>
             </div>
           )}
         </div>
