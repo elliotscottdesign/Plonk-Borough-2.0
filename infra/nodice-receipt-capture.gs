@@ -793,18 +793,33 @@ function sweepInvoices() {
           unknown.push(item);
           continue;
         }
-        if (!amount) { item.why = 'no total found in the email'; review.push(item); continue; }
+        // NOTE: no amount is required any more. We used to refuse an invoice we
+        // could not price, then price it wrongly anyway — four Drinks Club
+        // statements at £5,000 because that was the credit limit. Xero reads
+        // the PDF itself and reads it well: the drafts the old forwarder left
+        // behind carried correct references, dates and totals. Competing with
+        // extraction we already pay for was the mistake.
 
+        // The document is the ATTACHMENT, not the covering email. Filenames
+        // announce what they are, so a delivery note or a price list is thrown
+        // out before Xero ever sees it.
+        var FILE_REJECT = /delivery|despatch|dispatch|statement|remittance|catalogue|catalog|brochure|price ?list|terms|proforma/i;
         var blob = null;
         var atts = msg.getAttachments({ includeInlineImages: false });
         for (var a = 0; a < atts.length; a++) {
           var ct = atts[a].getContentType() || '';
+          var fn = atts[a].getName() || '';
+          if (FILE_REJECT.test(fn)) continue;
           if (ct.indexOf('pdf') > -1 || ct.indexOf('image') > -1) { blob = atts[a].copyBlob(); break; }
         }
         if (!blob) {
-          // Xero-to-Xero invoices arrive as a link with nothing attached.
-          blob = htmlToPdf_(msg.getBody() || ('<pre>' + escapeHtml_(body) + '</pre>'), 'invoice.pdf');
-          item.rendered = true;
+          // Nothing worth OCR-ing. A Xero-to-Xero invoice arrives as a link
+          // with no attachment; rendering the covering email gives Xero a page
+          // of marketing to read, which is how junk drafts are born. Flag it
+          // for a human instead.
+          item.why = 'no invoice document attached';
+          review.push(item);
+          continue;
         }
         if (!blob) { item.why = 'could not produce a document'; review.push(item); continue; }
 
@@ -812,31 +827,31 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
-          // Searching by supplier finds far more than searching by subject
-          // word, so the gate moves here: capture everything that passes the
-          // checks, but only let something BECOME A BILL if it carries an
-          // invoice reference or says so in the subject.
+          // Hand the PDF to Xero and let it do the reading. Everything that
+          // reaches here has already passed four checks: the sender is a
+          // supplier you have actually paid, the subject is not a statement or
+          // an acknowledgement, the attachment's own filename does not say
+          // delivery note, and the thread has not been through before.
           //
-          // A real invoice has a number. A delivery note, a shipping update or
-          // a marketing PDF from the same supplier usually doesn't. That one
-          // test is what stops a wider net refilling the drafts we just spent
-          // an afternoon deleting.
-          var looksBillable = !!ref || /invoice|bill/i.test(subject);
+          // Xero puts it in Bills to pay as a DRAFT with the PDF attached and
+          // the figures filled in. Nothing reaches the ledger until you approve
+          // it, and Xero flags duplicates itself. That queue is the review step
+          // every product in this space has, and it already exists.
+          GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+            attachments: [blob], name: 'No Dice Receipt Capture',
+          });
+          item.how = 'sent to Bills to pay';
 
-          if (looksBillable) {
-            // Becomes a draft bill with the PDF attached: the liability
-            // appears, and the payment has something to match against.
-            GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
-              attachments: [blob], name: 'No Dice Receipt Capture',
-            });
+          // Keep our own copy ONLY when the email stated a total plainly
+          // enough to trust. That copy exists to attach to a bank payment
+          // matching to the penny — the freelancers and one-off contractors —
+          // and a wrong figure there files a document against the wrong
+          // payment. No figure is better than a guess.
+          if (amount) {
+            sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+            item.how += ' + attach';
           }
 
-          // Always keep our own copy. It attaches to the bank payment when one
-          // matches to the penny — freelancers and contractors paid on the
-          // nose — and it feeds the missing-documents report either way.
-          sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
-
-          item.how = looksBillable ? 'bill + attach' : 'attach only (no invoice number)';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
