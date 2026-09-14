@@ -352,7 +352,18 @@ function Events({ data, reload, filter, setFilter }) {
   const [editing, setEditing] = useState(null)   // ckey currently being edited
   const [form, setForm] = useState({})
   const [busy, setBusy] = useState(false)
+  const [msgOpen, setMsgOpen] = useState(null)   // ckey whose "message the DJ" box is open
+  const [msgDraft, setMsgDraft] = useState('')
   const ckey = (s) => s.date + '-' + (s.slot || 'main')
+  const notes = data.notes || []
+  // Comment on this night → lands on the DJ's portal. b2b partner is messaged too
+  // (handled server-side). The reply comes back under 💬 Messages → Inbox.
+  const sendComment = async (s) => {
+    const t = msgDraft.trim(); if (!t) return
+    setBusy(true)
+    try { await djAdmin('commentEvent', { date: s.date, slot: s.slot || 'main', body: t }); setMsgDraft(''); setMsgOpen(null); await reload() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(ckey(s)); setTimeout(() => setCopied(null), 1800) }
 
   const aiRewrite = async (s) => {
@@ -475,6 +486,7 @@ function Events({ data, reload, filter, setFilter }) {
             {/* Manage — actions depend on the event's status */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
+              <button onClick={() => { setMsgOpen(msgOpen === k ? null : k); setMsgDraft('') }} disabled={busy} style={btn(msgOpen === k ? 'gold' : 'ghost')}>{msgOpen === k ? '✕ Close' : '💬 Message DJ'}</button>
               {s.status === 'held' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — add one first (✏️ Edit). No track, no event.'); return } act('forcePending', s) }} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
               {s.status === 'pending' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — it can\'t go live. Add one first (✏️ Edit). No track, no event.'); return } act('signoff', s) }} disabled={busy} style={btn('green')}>✓ Sign off</button>}
               {s.status === 'confirmed' && !past && (sus
@@ -515,6 +527,32 @@ function Events({ data, reload, filter, setFilter }) {
                 {form.date !== s.date && <div style={{ fontSize: 11, color: '#FCD34D' }}>Moving this event to {fmt(form.date)}.</div>}
               </div>
             )}
+
+            {msgOpen === k && (() => {
+              const evNotes = notes.filter(n => n.date === s.date && (n.slot || 'main') === (s.slot || 'main')).sort((x, y) => (x.created_at || '').localeCompare(y.created_at || ''))
+              const to = b2bName ? `${s.dj?.dj_name || 'DJ'} & ${b2bName}` : (s.dj?.dj_name || 'the DJ')
+              return (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>💬 Message <strong style={{ color: '#fff' }}>{to}</strong> about this night — it shows on their DJ portal (they get a badge), and any reply lands in <strong style={{ color: '#fff' }}>Messages → Inbox</strong>.</div>
+                  {evNotes.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {evNotes.map(n => (
+                        <div key={n.id} style={{ fontSize: 12.5, color: '#ddd', background: n.from_admin ? 'rgba(218,27,51,0.10)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '7px 10px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: n.from_admin ? '#DA1B33' : 'rgba(255,255,255,0.5)', marginRight: 6 }}>{n.from_admin ? 'You' : (s.dj?.dj_name || 'DJ')}</span>
+                          <span style={{ whiteSpace: 'pre-wrap' }}>{n.body}</span>
+                          {n.from_admin && <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>{n.dj_read_at ? '✓ read' : 'sent'}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)} rows={3} placeholder={`Message ${to}…  e.g. "Can you start at 4pm sharp?" or "Send your flyer over when you can"`} style={ta} />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setMsgOpen(null); setMsgDraft('') }} disabled={busy} style={btn('ghost')}>Cancel</button>
+                    <button onClick={() => sendComment(s)} disabled={busy || !msgDraft.trim()} style={{ ...btn('gold'), opacity: (busy || !msgDraft.trim()) ? 0.5 : 1 }}>{busy ? 'Sending…' : 'Send to DJ'}</button>
+                  </div>
+                </div>
+              )
+            })()}
 
             {showCap && (a.text || a.error) && (
               <div style={{ background: a.error ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${a.error ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
