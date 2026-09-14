@@ -416,3 +416,13 @@ the known SEND_SECRET-in-the-bundle debt, not a new hole. Deploy when a token ex
 `supabase functions deploy rota --no-verify-jwt --project-ref rntcujcpsozvuxvmlejv`.
 
 - **14 Sep 2026 · rota lane → dj lane (FYI, done):** `src/dj/MonthCalendar.jsx` — selected-day colour changed RED → #60A5FA (founder house rule: blue = selected on ALL calendars; red was clashing with day-off/status reds). Style-only, no logic.
+
+---
+## Food 360 report build (kitchen lane) — 14 Sep 2026
+- **DDL (additive, non-destructive):** `food_orders` gains `preparing_at timestamptz`
+  (stamped when a ticket is tapped to "preparing" — lets the report split queue time
+  vs cook time). No other schema change; item `cost_pence` snapshots live inside the
+  existing `items` jsonb (no column). Owned by the kitchen lane (`food-order` fn).
+- No other lane's tables touched. Rota read-only (kitchen-hours join copies the
+  `kitchen` fn shape + imports `src/rota/pay.js`). Finance `receipts`/`till_reports`
+  read-only — chef-invoice tagging convention to be agreed here before Phase 4.

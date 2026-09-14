@@ -258,6 +258,9 @@ Deno.serve(async (req) => {
         return json({ error: "bad request" }, 400);
 
       const patch: any = { status };
+      // Stamp preparing_at the first time a ticket is tapped to "preparing" so the
+      // report can split QUEUE time (order → started) from COOK time (started → ready).
+      if (status === "preparing") patch.preparing_at = new Date().toISOString();
       if (status === "ready") { patch.ready_at = new Date().toISOString(); patch.ready_by = clean(b.by, 60) || null; }
       if (status === "collected") patch.collected_at = new Date().toISOString();
 
@@ -508,11 +511,12 @@ Deno.serve(async (req) => {
         if (!it) return json({ error: "That menu has just changed — please refresh." }, 409);
         const qty = Math.min(20, Math.max(1, parseInt(String(line.qty), 10) || 1));
         const chosen = (it.addons || []).filter((a: any) => (Array.isArray(line.addon_ids) ? line.addon_ids.map(String) : []).includes(String(a.id)));
-        const options = chosen.map((a: any) => ({ name: a.name, price_pence: parseInt(a.price_pence, 10) || 0 }));
+        // Stamp cost_pence at order time (snapshot) so realised margin is exact even if the menu is re-priced later.
+        const options = chosen.map((a: any) => ({ name: a.name, price_pence: parseInt(a.price_pence, 10) || 0, cost_pence: parseInt(a.cost_pence, 10) || 0 }));
         const stock = Array.isArray(it.stock) ? it.stock : [];
         total += ((parseInt(it.sell_pence, 10) || 0) + options.reduce((s: number, o: any) => s + o.price_pence, 0)) * qty;
         for (const ing of stock) need[ing] = (need[ing] || 0) + qty;
-        lineItems.push({ name: it.name, qty, price_pence: parseInt(it.sell_pence, 10) || 0, options, stock });
+        lineItems.push({ name: it.name, qty, price_pence: parseInt(it.sell_pence, 10) || 0, cost_pence: parseInt(it.cost_pence, 10) || 0, options, stock });
       }
       // never oversell + draw down (order is confirmed on placement — no card step)
       if (Object.keys(need).length) {
