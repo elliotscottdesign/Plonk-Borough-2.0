@@ -199,6 +199,16 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   const byHour = Array(24).fill(0);
   const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
   for (const o of real) { const [dow, hr] = londonHourDow(new Date(o.created_at)); byHour[hr]++; heat[dow][hr]++; }
+  // Rostered KITCHEN coverage for the overlay — shift TIMES only (ability='kitchen',
+  // the kitchen-checklist precedent), no pay data, so it stays operational-tier.
+  const dowOfYmd = (ymd: string) => { const [y, mo, da] = ymd.split("-").map(Number); return (new Date(Date.UTC(y, mo - 1, da)).getUTCDay() + 6) % 7; };
+  const { data: kshifts } = await sb.from("staff_shifts").select("date, start_min, end_min").eq("ability", "kitchen").gte("date", fromYmd).lte("date", toYmd);
+  const rostered = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const s of (kshifts || [])) {
+    const dow = dowOfYmd(s.date);
+    const h0 = Math.max(0, Math.floor((s.start_min ?? 0) / 60)), h1 = Math.min(23, Math.ceil((s.end_min ?? 0) / 60) - 1);
+    for (let h = h0; h <= h1; h++) rostered[dow][h]++;
+  }
 
   const revenue = card.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
   const tips = card.reduce((s: number, o: any) => s + (o.tip_pence || 0), 0);
@@ -215,7 +225,7 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
       queue_avg_sec: avg(queueSecs), cook_avg_sec: avg(cookOnlySecs), split_n: prep.length,
       per_item: perItemCook,
     },
-    peaks: { by_hour: byHour, heat },
+    peaks: { by_hour: byHour, heat, rostered },
   };
   if (!withMoney) return base;
 
@@ -250,10 +260,17 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   return base;
 }
 
-function reportEmailHtml(r: any, title: string): string {
+function reportEmailHtml(r: any, title: string, money?: any): string {
   const mmss = (s: number | null) => s == null ? "—" : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
   const rowsHtml = r.items.map((it: any) => `<tr><td style="padding:4px 10px 4px 0">${it.qty}×</td><td style="padding:4px 10px 4px 0">${it.name}</td><td style="padding:4px 0;text-align:right">${gbp(it.pence)}</td></tr>`).join("");
   const daysHtml = r.days.length > 1 ? `<h3 style="margin:18px 0 6px;font-size:14px">By day</h3><table style="font-size:13px;border-collapse:collapse">${r.days.map((d: any) => `<tr><td style="padding:3px 12px 3px 0">${d.date}</td><td style="padding:3px 0;text-align:right">${d.orders} orders · ${gbp(d.pence)}</td></tr>`).join("")}</table>` : "";
+  // Money block — emails go to the founder only, so full margin detail is fine here.
+  const moneyHtml = money ? `<h3 style="margin:18px 0 6px;font-size:14px">💷 Margin</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr><td style="padding:5px 0">Revenue ${money.vat_registered ? "(ex-VAT)" : ""} · food only</td><td style="text-align:right;font-weight:700">${gbp(money.revenue_ex_vat_pence)}</td></tr>
+      <tr><td style="padding:5px 0">Food cost (COGS)</td><td style="text-align:right">${gbp(money.cogs_pence)}</td></tr>
+      <tr><td style="padding:5px 0">Gross margin</td><td style="text-align:right;font-weight:800;color:#1f8a4d">${gbp(money.gross_margin_pence)} (${money.gross_margin_pct}%)</td></tr>
+    </table>${money.estimated_lines ? `<div style="color:#b8860b;font-size:11px;margin-top:4px">${money.estimated_lines} older line(s) use today's menu cost (estimated).</div>` : ""}` : "";
   return `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;color:#111">
     <h2 style="margin:0 0 2px;color:#e0231b">On A Roll — ${title}</h2>
     <div style="color:#666;font-size:13px;margin-bottom:14px">${r.from === r.to ? r.from : `${r.from} → ${r.to}`}</div>
@@ -267,6 +284,7 @@ function reportEmailHtml(r: any, title: string): string {
       <tr><td style="padding:6px 0">🛒 Abandoned checkouts</td><td style="text-align:right">${r.abandoned}</td></tr>
       <tr><td style="padding:6px 0">❌ Card failed</td><td style="text-align:right">${r.card_failed}</td></tr>
     </table>
+    ${moneyHtml}
     <h3 style="margin:18px 0 6px;font-size:14px">What sold</h3>
     <table style="font-size:14px;border-collapse:collapse">${rowsHtml || '<tr><td style="color:#888">No sales.</td></tr>'}</table>
     ${daysHtml}
@@ -423,6 +441,23 @@ Deno.serve(async (req) => {
       return json({ ok: true, report: r });
     }
 
+    // Raw rota data for the MONEY tier's kitchen-labour calc. The client runs the
+    // pay maths through src/rota/pay.js (single source of truth — never reimplement:
+    // the Finances WagesLive shortcut disagrees with payroll). ability='kitchen'.
+    if (action === "kitchenHours") {   // kitchen (money tier)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const [f, t] = from <= to ? [from, to] : [to, from];
+      const { data: shifts } = await sb.from("staff_shifts").select("id, date, start_min, end_min").eq("ability", "kitchen").gte("date", f).lte("date", t);
+      const shiftIds = (shifts || []).map((s: any) => s.id);
+      const { data: claims } = shiftIds.length ? await sb.from("staff_shift_claims").select("shift_id, staff_id, status").in("shift_id", shiftIds) : { data: [] };
+      const staffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
+      const { data: clocks } = staffIds.length ? await sb.from("shift_clock").select("staff_id, date, clock_in, clock_out").in("staff_id", staffIds).gte("date", f).lte("date", t) : { data: [] };
+      const { data: staff } = staffIds.length ? await sb.from("staff").select("id, name, hourly_rate").in("id", staffIds) : { data: [] };
+      return json({ ok: true, from: f, to: t, shifts: shifts || [], claims: claims || [], clocks: clocks || [], staff: staff || [] });
+    }
+
     // ── Daily / weekly report EMAIL to the founder (cron-triggered) ──────────────
     if (action === "emailReport") {   // cron
       const period = b.period === "week" ? "week" : "day";
@@ -430,9 +465,10 @@ Deno.serve(async (req) => {
       const from = period === "week" ? addDaysYmd(today, -6) : today;
       const r = await buildReport(sb, from, today);
       if (r.orders === 0 && r.tab_orders === 0 && r.abandoned === 0) return json({ ok: true, skipped: "no activity" });
+      const money = (await buildReport360(sb, from, today, true)).money;   // founder-only email → full margin detail is fine
       const title = period === "week" ? "This week" : "Today";
-      const subj = `On A Roll — ${title}: ${gbp(r.revenue_pence)} · ${r.orders} orders${r.avg_cook_sec != null ? ` · avg ${Math.round(r.avg_cook_sec / 60)}m cook` : ""}`;
-      const sent = await sendEmail("elliot@nodice.bar", subj, reportEmailHtml(r, title));
+      const subj = `On A Roll — ${title}: ${gbp(r.revenue_pence)} · ${r.orders} orders${money ? ` · ${money.gross_margin_pct}% GM` : ""}${r.avg_cook_sec != null ? ` · avg ${Math.round(r.avg_cook_sec / 60)}m cook` : ""}`;
+      const sent = await sendEmail("elliot@nodice.bar", subj, reportEmailHtml(r, title, money));
       return json({ ok: true, sent, period, from, to: today });
     }
 

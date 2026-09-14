@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { report360 } from './foodOrders.js'
+import { report360, kitchenHours } from './foodOrders.js'
+import { shiftPay, payFor } from '../rota/pay.js'   // single source of truth for pay — never reimplement
 import DateField from '../lib/DateField.jsx'
 
 // 📈 Food 360 — the full picture of food at No Dice. Two tiers (founder rule 14 Sep):
@@ -39,28 +40,49 @@ const Stat = ({ label, value, sub, color = '#fff', big }) => (
 )
 const H = ({ children }) => <div style={{ fontSize: 15, fontWeight: 800, color: GOLD, margin: '18px 0 8px' }}>{children}</div>
 
-// Demand heatmap: day-of-week × hour. Cell brightness = order volume.
-function Heatmap({ heat }) {
+// Demand heatmap: day-of-week × hour. Cell brightness = order volume; a blue
+// outline = the kitchen was rostered then. So: bright + outline = busy & staffed;
+// bright + NO outline = demand you're missing; dim + outline = staffed but dead.
+function Heatmap({ heat, rostered }) {
   const hours = Array.from({ length: 24 }, (_, h) => h)
-  const active = hours.filter(h => heat.some(row => row[h] > 0))
+  const ros = rostered || Array.from({ length: 7 }, () => Array(24).fill(0))
+  const active = hours.filter(h => heat.some(row => row[h] > 0) || ros.some(row => row[h] > 0))
   const lo = active.length ? Math.min(...active) : 11, hi = active.length ? Math.max(...active) : 22
   const cols = hours.filter(h => h >= lo && h <= hi)
   const max = Math.max(1, ...heat.flat())
   const cell = c => c === 0 ? 'rgba(255,255,255,0.03)' : `rgba(201,168,76,${0.2 + 0.8 * (c / max)})`
   return (
     <div style={{ overflowX: 'auto', background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, padding: '10px 12px' }}>
-      <table style={{ borderCollapse: 'collapse', fontSize: 11 }}>
+      <table style={{ borderCollapse: 'separate', borderSpacing: 2, fontSize: 11 }}>
         <thead><tr><th></th>{cols.map(h => <th key={h} style={{ color: MUTED, fontWeight: 600, padding: '0 3px 4px', minWidth: 22 }}>{h}</th>)}</tr></thead>
         <tbody>{DOW.map((d, di) => (
           <tr key={d}>
             <td style={{ color: MUTED, paddingRight: 8, fontWeight: 700 }}>{d}</td>
-            {cols.map(h => { const c = heat[di][h]; return <td key={h} title={`${d} ${h}:00 — ${c} orders`} style={{ background: cell(c), width: 24, height: 24, textAlign: 'center', color: c ? '#1a1a1a' : 'transparent', fontWeight: 800, borderRadius: 4 }}>{c || ''}</td> })}
+            {cols.map(h => { const c = heat[di][h], r = ros[di][h] > 0; return <td key={h} title={`${d} ${h}:00 — ${c} orders${r ? ' · kitchen rostered' : ''}`} style={{ background: cell(c), width: 24, height: 24, textAlign: 'center', color: c ? '#1a1a1a' : 'transparent', fontWeight: 800, borderRadius: 4, boxShadow: r ? `inset 0 0 0 2px ${BLUE}` : 'none' }}>{c || ''}</td> })}
           </tr>
         ))}</tbody>
       </table>
-      <div style={{ fontSize: 11, color: MUTED, marginTop: 6 }}>Orders by day &amp; hour (London). Brighter = busier — spot your dinner peaks and dead windows.</div>
+      <div style={{ fontSize: 11, color: MUTED, marginTop: 8, lineHeight: 1.5 }}>Orders by day &amp; hour (London). <b style={{ color: GOLD }}>Brighter = busier.</b> <span style={{ color: BLUE }}>Blue outline = kitchen rostered.</span> Bright with no outline = <b style={{ color: '#fff' }}>demand you're missing</b>; dim with an outline = <b style={{ color: '#fff' }}>staffed but dead</b>.</div>
     </div>
   )
+}
+
+// Kitchen labour for the period — run the RAW rota data through pay.js (the one
+// true pay maths: clock-rounding, 5min/hr break on 6h+, sick = half).
+function computeLabour(data) {
+  if (!data) return null
+  const claimsByShift = {}; for (const c of (data.claims || [])) (claimsByShift[c.shift_id] ||= []).push(c)
+  const clockBy = {}; for (const c of (data.clocks || [])) clockBy[`${c.staff_id}|${c.date}`] = c
+  const rateBy = {}; for (const s of (data.staff || [])) rateBy[s.id] = (s.hourly_rate == null || s.hourly_rate === '') ? null : Number(s.hourly_rate)
+  let pence = 0, paidMin = 0, unrated = 0
+  for (const sh of (data.shifts || [])) for (const c of (claimsByShift[sh.id] || [])) {
+    const p = shiftPay(sh, clockBy[`${c.staff_id}|${sh.date}`] || null, sh.date, { sick: c.status === 'sick' })
+    paidMin += p.paidMin
+    const rate = rateBy[c.staff_id]
+    if (rate != null) pence += Math.round(payFor(p.paidMin, rate) * 100)
+    else if (p.paidMin > 0) unrated++
+  }
+  return { labour_pence: pence, paid_min: paidMin, unrated }
 }
 
 function MoneyGate({ onUnlock }) {
@@ -88,6 +110,7 @@ export default function Food360Panel() {
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState('')
   const [sortKey, setSortKey] = useState('revenue_pence')
+  const [khours, setKhours] = useState(null)
   const [from, to] = range
   const thisYear = new Date().getFullYear()
 
@@ -101,6 +124,15 @@ export default function Food360Panel() {
     report360(from, to, money).then(r => { if (live) { setRep(r.report); setLoading(false) } }).catch(e => { if (live) { setErr(e.message); setLoading(false) } })
     return () => { live = false }
   }, [from, to, money])
+
+  useEffect(() => {
+    if (!money || !from || !to) { setKhours(null); return }
+    let live = true
+    kitchenHours(from, to).then(d => { if (live) setKhours(d) }).catch(() => { if (live) setKhours(null) })
+    return () => { live = false }
+  }, [from, to, money])
+
+  const labour = useMemo(() => computeLabour(khours), [khours])
 
   const items = useMemo(() => {
     const list = rep?.money?.items ? [...rep.money.items] : []
@@ -159,7 +191,7 @@ export default function Food360Panel() {
           )}
 
           <H>🔥 Peaks &amp; gaps</H>
-          <Heatmap heat={rep.peaks.heat} />
+          <Heatmap heat={rep.peaks.heat} rostered={rep.peaks.rostered} />
 
           <H>💷 Money {money ? '' : '🔒'}</H>
           {!money ? <MoneyGate onUnlock={() => setMoney(true)} /> : !rep.money ? (
@@ -171,6 +203,17 @@ export default function Food360Panel() {
                 <Stat label="🥩 Food cost (COGS)" value={gbp(rep.money.cogs_pence)} color={AMBER} />
                 <Stat label="📈 Gross margin" value={gbp(rep.money.gross_margin_pence)} sub={`${rep.money.gross_margin_pct}%`} color={GREEN} />
               </div>
+              {(() => {
+                const noShifts = khours && (khours.shifts || []).length === 0
+                return (<>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <Stat label="👨‍🍳 Kitchen labour" value={noShifts ? 'none' : labour ? gbp(labour.labour_pence) : '…'} sub={noShifts ? 'no rota kitchen shifts' : labour ? `${Math.round(labour.paid_min / 60 * 10) / 10}h paid (rota)` : 'from the rota'} color={AMBER} />
+                    <Stat label={noShifts ? '📈 Contribution (pre-wages)' : '✅ Kitchen contribution'} value={labour ? gbp(rep.money.gross_margin_pence - labour.labour_pence) : '…'} sub={noShifts ? 'wages not yet counted' : 'margin − kitchen wages'} color={labour && (rep.money.gross_margin_pence - labour.labour_pence) >= 0 ? GREEN : RED} big />
+                  </div>
+                  {noShifts && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>ℹ No kitchen shifts on the rota for this period (all shifts are rostered as “bar”), so no wage cost is deducted yet. If chefs are invoiced separately, that cost lands in a later phase; to count wages here, roster kitchen shifts with the kitchen ability.</div>}
+                  {!noShifts && labour?.unrated > 0 && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>⚠ {labour.unrated} kitchen shift(s) worked by someone with no hourly rate set — labour is understated. Set their rate on the rota.</div>}
+                </>)
+              })()}
               {rep.money.estimated_lines > 0 && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>⚠ {rep.money.estimated_lines} older line(s) use today's menu cost (estimated) — orders from 14 Sep carry an exact cost snapshot.</div>}
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', marginBottom: 6 }}>
                 <span style={{ fontSize: 12, color: MUTED }}>Sort:</span>
@@ -192,7 +235,7 @@ export default function Food360Panel() {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Kitchen labour &amp; contribution (revenue − cost − wages) are coming next, joined live from the rota. ~ = cost estimated from today's menu.</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages (from the rota, ability = kitchen, via the payroll pay rules). ~ = cost estimated from today's menu. Till-sales merge (Lightspeed downtime) and staff-meal / chef costs come in the next phases.</div>
             </div>
           )}
         </div>
