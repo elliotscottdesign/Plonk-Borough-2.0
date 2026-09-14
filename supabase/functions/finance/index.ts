@@ -406,6 +406,29 @@ Deno.serve(async (req) => {
           comp_verdict: category === 'competitor' ? (String(p.compVerdict || '').trim() || null) : null,
         }
 
+        // The same email gets found again on every sweep — a supplier now
+        // matches three search terms, and resetLabels wipes the "already done"
+        // mark, so one Drinks Club invoice arrived seven times and 81 copies
+        // built up in a day. Same supplier, same date, same amount, captured
+        // automatically: that is the same document, not a second purchase.
+        //
+        // Scoped to automatic capture only. A person photographing two
+        // identical £4.16 coffees on one morning is doing something real, and
+        // the phone screen must never silently swallow the second one.
+        const automatic = /automatically/i.test(row.note ?? '')
+        if (automatic) {
+          const { data: seen } = await db.from('receipts')
+            .select('id')
+            .eq('supplier', row.supplier)
+            .eq('spend_date', row.spend_date)
+            .eq('amount', row.amount)
+            .eq('kind', row.kind)
+            .limit(1)
+          if (seen?.length) {
+            return json({ ok: true, duplicate: true, receipt: seen[0] })
+          }
+        }
+
         const { data, error } = await db.from('receipts').insert(row).select().single()
         if (error) throw error
         return json({ ok: true, receipt: data })
