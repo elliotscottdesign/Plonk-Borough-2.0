@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash, payFriday } from './api.js'
+import { djPortal, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, sessionFor, sessionForSlot, slotLabel, fmtDate, timeLabel, kindFor, SET_TYPES, setTypeLabel, looksLink, wcClash, payFriday, asArr } from './api.js'
 import { genreOfSub } from './genres.js'
 import SubgenrePicker from './SubgenrePicker.jsx'
 import DateField from '../lib/DateField.jsx'
@@ -716,7 +716,7 @@ export default function DJPortal() {
                     <div style={{ fontWeight: 600 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.5)', fontWeight: 400, fontSize: 12 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                     {b.night_name && <div style={{ fontSize: 12, color: RED }}>"{b.night_name}"</div>}
                     {b.b2b && b.partner && <div style={{ fontSize: 12, color: RED, fontWeight: 600 }}>🔁 Back-to-back with {b.partner}</div>}
-                    {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
+                    {asArr(b.subgenres).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{asArr(b.subgenres).join(' · ')}</div>}
                     {b.kind === 'opendecks' && !held && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                     {held && <div style={{ fontSize: 11, color: '#FCD34D', marginTop: 3, fontWeight: 600 }}>⏳ Draft — finish to confirm · {holdLeft(b.held_at)}</div>}
                   </div>
@@ -788,7 +788,7 @@ export default function DJPortal() {
                           <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: e.status === 'confirmed' ? '#34D399' : '#FCD34D', whiteSpace: 'nowrap' }}>{e.status === 'confirmed' ? 'Confirmed' : 'Pencilled'}</span>
                         </div>
                         <div style={{ fontSize: 13, color: '#fff', marginTop: 2 }}>{e.dj}{e.b2b && e.dj2 ? <span style={{ color: RED }}> b2b {e.dj2}</span> : null}{e.night_name ? <span style={{ color: RED }}> · "{e.night_name}"</span> : null}</div>
-                        {e.subgenres.length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{e.subgenres.join(' · ')}</div>}
+                        {asArr(e.subgenres).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{asArr(e.subgenres).join(' · ')}</div>}
                         {!session && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{e.set_type ? ` · ${setTypeLabel(e.set_type)}` : ''}</div>}
                       </div>
                     </div>
@@ -817,7 +817,7 @@ export default function DJPortal() {
                       <div style={{ fontWeight: 600, fontSize: 13 }}>{fmtDate(b.date)} <span style={{ color: 'rgba(255,255,255,0.45)', fontWeight: 400, fontSize: 11 }}>· {s?.day} {timeLabel(s)}{sLab ? ` · ${sLab}` : ''}</span></div>
                       {b.night_name && <div style={{ fontSize: 11, color: RED }}>"{b.night_name}"</div>}
                       {b.b2b && b.partner && <div style={{ fontSize: 11, color: RED }}>🔁 b2b {b.partner}</div>}
-                      {(b.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{(b.subgenres || []).join(' · ')}</div>}
+                      {asArr(b.subgenres).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>{asArr(b.subgenres).join(' · ')}</div>}
                       {b.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginTop: 2 }}>Open Decks{b.set_type ? ` · ${setTypeLabel(b.set_type)}` : ''}</div>}
                     </div>
                   )
