@@ -69,6 +69,11 @@ export default function DJPortal() {
     djPortal(token, 'load').then(d => { setSt(d); setForm(d.dj) }).catch(e => setErr(e.message)).finally(() => setLoading(false))
   }, [])
 
+  // Opening Messages marks any No Dice → you comments as read (clears the badge).
+  useEffect(() => {
+    if (tab === 'messages' && st && (st.notes || []).some(n => n.from_admin && !n.dj_read_at)) markAdminRead()
+  }, [tab, st])
+
   const refresh = (d) => { setSt(d); setForm(d.dj) }
   const onField = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const flash = (m, ms = 3500) => { setMsg(m); setTimeout(() => setMsg(''), ms) }
@@ -84,6 +89,8 @@ export default function DJPortal() {
     try { refresh(await djPortal(token, 'leaveNote', { body: t })); setNote(''); flash('Sent to No Dice ✓') }
     catch (e) { flash(e.message) } finally { setBusy(false) }
   }
+  // Clear the "new message from No Dice" badge once the DJ opens the Messages tab.
+  const markAdminRead = async () => { try { refresh(await djPortal(token, 'markAdminNotesRead')) } catch { /* noop */ } }
   const onPhoto = async (e) => {
     const file = e.target.files?.[0]; e.target.value = ''; if (!file) return
     setBusy(true); setPhotoErr(''); setMsg('Saving photo…')
@@ -213,6 +220,8 @@ export default function DJPortal() {
   if (err) return <Center><div><img src="/nodice-wordmark.png" alt="No Dice" style={{ width: 200, marginBottom: 24 }} /><div style={{ color: 'rgba(255,255,255,0.8)' }}>{err}</div></div></Center>
 
   const complete = st.complete
+  // Unread comments from No Dice (shown as a badge on the menu + Messages item).
+  const unreadAdmin = (st.notes || []).filter(n => n.from_admin && !n.dj_read_at).length
   // What's still missing (from the SAVED profile) — drives the status text + the dates gate.
   const sdj = st.dj || form
   const genreCount = (g) => (g || '').split('/').map(x => x.trim()).filter(Boolean).length
@@ -442,13 +451,13 @@ export default function DJPortal() {
         {/* Top menu — one dropdown that jumps to any section, on every page so
             you can always get back easily. */}
         {(() => {
-          const NAV = [['profile', '👤 Profile'], ['nights', '🎧 My nights'], ['payments', '💷 Payments'], ['messages', '💬 Messages'], ['rules', 'ℹ️ How it works'], ['venue', '📍 Venue']]
+          const NAV = [['profile', '👤 Profile'], ['nights', '🎧 My nights'], ['payments', '💷 Payments'], ['messages', unreadAdmin ? `💬 Messages (${unreadAdmin})` : '💬 Messages'], ['rules', 'ℹ️ How it works'], ['venue', '📍 Venue']]
           const cur = NAV.find(([k]) => k === tab)
           const go = (k) => { setTab(k); setMenuOpen(false); try { window.scrollTo(0, 0) } catch { /* noop */ } }
           return (
             <div style={{ position: 'relative', marginBottom: 18, zIndex: 60 }}>
               <button onClick={() => setMenuOpen(o => !o)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 10, padding: '13px 16px', borderRadius: 10, background: RED, color: '#fff', border: 'none', cursor: 'pointer', fontSize: 15, fontWeight: 700 }}>
-                <span style={{ fontSize: 17 }}>☰</span>
+                <span style={{ fontSize: 17, position: 'relative' }}>☰{unreadAdmin > 0 && tab !== 'messages' && <span style={{ position: 'absolute', top: -3, right: -5, minWidth: 15, height: 15, padding: '0 3px', boxSizing: 'border-box', borderRadius: 999, background: '#fff', color: RED, fontSize: 9, fontWeight: 800, lineHeight: '15px', textAlign: 'center' }}>{unreadAdmin}</span>}</span>
                 <span style={{ flex: 1, textAlign: 'left' }}>{cur ? cur[1] : 'Menu'}</span>
                 <span style={{ fontSize: 12, transform: menuOpen ? 'rotate(180deg)' : 'none', transition: 'transform 0.15s' }}>▾</span>
               </button>
@@ -679,20 +688,26 @@ export default function DJPortal() {
         {tab === 'messages' && (
         <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 14, padding: 20, marginBottom: 18 }}>
           <div className="serif" style={{ fontSize: 18, color: '#fff', marginBottom: 4 }}>Message No Dice</div>
-          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>Leave a note — a question, a date you'd love, anything. We'll see it our side and usually get back to you on WhatsApp.</div>
+          <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', lineHeight: 1.5, marginBottom: 10 }}>Leave a note — a question, a date you'd love, anything. Messages from No Dice about your nights show up right here too.</div>
           <textarea value={note} onChange={e => setNote(e.target.value)} rows={3} placeholder="Type your message…" style={{ ...inp, resize: 'vertical' }} />
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
             <button onClick={sendNote} disabled={busy || !note.trim()} style={{ padding: '11px 20px', fontSize: 13, fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', background: RED, color: '#fff', border: 'none', borderRadius: 8, cursor: 'pointer', opacity: (busy || !note.trim()) ? 0.5 : 1 }}>{busy ? 'Sending…' : 'Send'}</button>
           </div>
           {(st.notes || []).length > 0 && (
-            <div style={{ marginTop: 14, borderTop: `1px solid ${LINE}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>Your messages</div>
-              {(st.notes || []).map(n => (
-                <div key={n.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '9px 12px' }}>
-                  <div style={{ fontSize: 13, color: '#eee', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>{fmtDate((n.created_at || '').slice(0, 10))} · {n.read_at ? '✓ seen by No Dice' : 'sent'}</div>
-                </div>
-              ))}
+            <div style={{ marginTop: 14, borderTop: `1px solid ${LINE}`, paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ fontSize: 11, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.45)' }}>Conversation</div>
+              {[...(st.notes || [])].sort((a, b) => (a.created_at || '').localeCompare(b.created_at || '')).map(n => {
+                const mine = !n.from_admin
+                return (
+                  <div key={n.id} style={{ display: 'flex', flexDirection: 'column', alignItems: mine ? 'flex-end' : 'flex-start' }}>
+                    <div style={{ maxWidth: '85%', background: mine ? 'rgba(255,255,255,0.05)' : 'rgba(218,27,51,0.14)', border: `1px solid ${mine ? 'rgba(255,255,255,0.09)' : 'rgba(218,27,51,0.4)'}`, borderRadius: 12, padding: '9px 12px' }}>
+                      <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: '0.03em', color: mine ? 'rgba(255,255,255,0.5)' : RED, marginBottom: 3 }}>{mine ? 'You' : '🎧 No Dice'}{!mine && n.date ? ` · re: ${fmtDate(n.date)}` : ''}</div>
+                      <div style={{ fontSize: 13.5, color: '#eee', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>{n.body}</div>
+                    </div>
+                    <div style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.4)', marginTop: 3, padding: '0 4px' }}>{fmtDate((n.created_at || '').slice(0, 10))}{mine ? ` · ${n.read_at ? '✓ seen' : 'sent'}` : ''}</div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

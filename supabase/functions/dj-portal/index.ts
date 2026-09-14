@@ -282,7 +282,7 @@ async function state(sb: any, id: string) {
   }));
   // The DJ's own notes to No Dice (so they can see what they've sent + whether
   // it's been read). Degrades to [] if the table isn't created yet.
-  const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at").eq("dj_id", id).order("created_at", { ascending: false }).limit(30);
+  const { data: myNotes } = await sb.from("dj_notes").select("id,body,created_at,read_at,from_admin,dj_read_at,date,slot").eq("dj_id", id).order("created_at", { ascending: false }).limit(60);
   // Roster of other vetted DJs (id + name only) so the DJ can pick a b2b partner.
   const { data: roster } = await sb.from("djs").select("id,dj_name").or("status.eq.vetted,status.is.null").neq("id", id).order("dj_name");
   const pastBookings = (past || []).map(withPartner);
@@ -565,6 +565,14 @@ Deno.serve(async (req) => {
     if (!date) return json({ error: "missing date" }, 400);
     await sb.from("dj_slots").update({ paid_at: on ? new Date().toISOString() : null, updated_at: new Date().toISOString() })
       .eq("date", date).eq("slot", slot).eq("dj_id", dj.id);
+    return state(sb, dj.id);
+  }
+
+  if (action === "markAdminNotesRead") {
+    // The DJ opened their Messages tab — mark every No Dice → DJ comment as read
+    // so the portal's unread badge clears. Only touches this DJ's own messages.
+    await sb.from("dj_notes").update({ dj_read_at: new Date().toISOString() })
+      .eq("dj_id", dj.id).eq("from_admin", true).is("dj_read_at", null);
     return state(sb, dj.id);
   }
 

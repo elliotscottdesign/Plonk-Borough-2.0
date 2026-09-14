@@ -47,6 +47,9 @@ export const rotaTodayRoster = () => call({ action: 'todayRoster' })            
 export const rotaClockLogin = (staffId, password) => call({ action: 'clockLogin', staffId, password })   // tap name + password → token
 export const rotaClockIn = (token, fix) => call({ action: 'clockIn', token, fix })    // fix = {lat,lng,accuracy} | null (venue-presence check)
 export const rotaClockOut = (token, fix) => call({ action: 'clockOut', token, fix })
+export const rotaBreakStart = (token) => call({ action: 'breakStart', token })   // ☕ tap out for the unpaid break
+export const rotaBreakEnd = (token) => call({ action: 'breakEnd', token })       // back from break
+export const rotaSetSick = (shiftId, staffId, sick) => call({ action: 'setSick', secret: SEND_SECRET, shiftId, staffId, sick })   // 🤒 half-pay sick day on a rostered shift
 export const rotaSetClock = (staffId, date, patch) => call({ action: 'setClock', secret: SEND_SECRET, staffId, date, ...patch })   // founder adjust/approve
 export const rotaCloseShift = (shiftId) => call({ action: 'closeShift', secret: SEND_SECRET, shiftId })
 export const rotaSetHeadcount = (shiftId, headcount) => call({ action: 'setHeadcount', secret: SEND_SECRET, shiftId, headcount })
