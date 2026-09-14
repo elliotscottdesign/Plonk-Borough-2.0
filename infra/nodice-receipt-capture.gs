@@ -146,7 +146,17 @@ var INVOICE_RULES = {
   // clean ledger and the ~£6,000 of fake bills August produced: an order
   // acknowledgement, a statement and a delivery note all say "invoice"
   // somewhere and none of them is one.
+  // Applied to the SUBJECT, where a document announces what it is.
   reject: /not an invoice|statement|order acknowledgement|order confirmation|delivery note|despatch|dispatch|quote|quotation|remittance|reminder|overdue|purchase order|credit note|receipt from|payment received|thank you for your payment/i,
+
+  // Applied to the BODY, and deliberately much shorter.
+  //
+  // The full list above cannot be used on body text: Valimex's invoices carry
+  // the footer "we kindly ask that all purchase orders...", and `purchase
+  // order` threw out nine genuine invoices worth £2,028.60. Boilerplate
+  // mentions everything. Only phrases that a document uses to name ITSELF
+  // belong here, and even then the subject is the better signal.
+  rejectBody: /this is not an invoice|delivery note|remittance advice|credit note/i,
 
   // Pull an invoice number out if one is there — any sensible format.
   ref: /(?:invoice|inv|bill)\s*(?:no\.?|number|#|:)?\s*([A-Z]{0,4}[-\/]?\d{3,}[A-Z0-9\-\/]*)/i,
@@ -729,7 +739,7 @@ function sweepInvoices() {
         if (from.indexOf(CONFIG.REPORT_TO) > -1) continue;   // our own forwards
 
         var body = safeBody_(msg);
-        if (INVOICE_RULES.reject.test(body.slice(0, 400))) continue;
+        if (INVOICE_RULES.rejectBody.test(body.slice(0, 400))) continue;
 
         var dateStr = Utilities.formatDate(msg.getDate(), 'Europe/London', 'yyyy-MM-dd');
         var amount = pickAmount_(body, subject);
@@ -849,9 +859,17 @@ function supplierQueries_(suppliers) {
       .replace(/\s+/g, ' ').trim();
     if (name.length < 4) continue;       // "BOC" is too generic to search
 
+    // Three shapes, because a supplier appears as all three and you cannot
+    // predict which. Valimex proved this: Xero calls them "VALIMEX IMPORT &
+    // EXPORT LIMITED", their email says only "Valimex" and comes from
+    // orders@valimex.co.uk. Searching the full phrase alone found nothing
+    // while nine invoices sat in the inbox.
     var squashed = name.replace(/ /g, '');
-    terms['"' + name + '"'] = 1;
-    if (squashed !== name) terms[squashed] = 1;
+    var first = name.split(' ')[0];
+
+    terms['"' + name + '"'] = 1;                        // the full name
+    if (squashed !== name) terms[squashed] = 1;         // the domain
+    if (first.length >= 5 && first !== name) terms[first] = 1;  // what they call themselves
   }
 
   var list = Object.keys(terms).sort();
