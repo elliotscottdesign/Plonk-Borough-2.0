@@ -51,7 +51,6 @@ const GROUPS = [
     key: 'kitchen', label: 'Kitchen',
     tabs: [
       { key: 'kitchen', label: 'Kitchen', Component: Kitchen, founderOnly: true },
-      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
     ],
   },
   {
@@ -78,6 +77,10 @@ const GROUPS = [
       { key: 'receipts',      label: 'Receipts',      Component: Receipts, founderOnly: true },
       { key: 'reports',       label: 'Reports',       Component: Reports },
       { key: 'documentation', label: 'Documentation', Component: Documentation },
+      // Moved out of Kitchen (founder, 9 Sep 2026) — it edits EVERY checklist, not
+      // just the kitchen's, so it belongs with the paperwork. Key unchanged so any
+      // existing ?tab=checklist-editor link still lands.
+      { key: 'checklist-editor', label: 'Checklist Editor', Component: ChecklistEditor, founderOnly: true },
       { key: 'finances',      label: 'Finances',      Component: Finances, founderOnly: true },
     ],
   },

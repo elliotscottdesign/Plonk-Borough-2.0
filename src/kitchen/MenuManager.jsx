@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
 import { ALLERGENS } from './allergens.js'
-import { exportMenu, ORDER_URL } from './menuExport.js'
+import { exportMenu, ORDER_URL, todayMenuTitle } from './menuExport.js'
+import { ensureStock } from './foodOrders.js'
 
 // Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
 const ALLERGEN_NEXT = { undefined: 'contains', contains: 'trace', trace: undefined }
@@ -47,6 +48,7 @@ export default function MenuManager() {
   const [bundles, setBundles] = useState([])
   const [dirty, setDirty] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [showArchived, setShowArchived] = useState(false)
   const [msg, setMsg] = useState('')
   const [vat, setVat] = useState(false)   // VAT registered? drives margin maths + labels
   const [openAllg, setOpenAllg] = useState(new Set())   // which items have the allergen editor expanded
@@ -86,10 +88,39 @@ export default function MenuManager() {
   const delBundle = bi => mutateB(bs => { bs.splice(bi, 1) })
   const toggleDay = (bi, d) => mutateB(bs => { const set = new Set(bs[bi].days); set.has(d) ? set.delete(d) : set.add(d); bs[bi].days = [...set] })
 
+  // Every live dish must be trackable on the stock sheet. Items with no shared
+  // limiting ingredient get their OWN per-item stock line (key itm_<id>), so a new
+  // dish (e.g. Padron Peppers) can be counted / sold-out just like the others.
+  const reconcileStock = (secs) => {
+    const rows = []
+    const out = secs.map(s => ({ ...s, items: s.items.map(it => {
+      if (!it.name || !it.name.trim() || it.archived) return it
+      let keys = Array.isArray(it.stock) ? it.stock.filter(Boolean) : []
+      if (!keys.length) keys = ['itm_' + it.id]
+      keys.forEach(k => rows.push({ ingredient: k, label: String(k).startsWith('itm_') ? it.name.trim() : k }))
+      return { ...it, stock: keys }
+    }) }))
+    return { out, rows }
+  }
+
   const save = async () => {
     setSaving(true); setMsg('')
-    try { await saveMenu(toDoc(sections), bundlesToDoc(bundles), vat); setDirty(false); setMsg('Saved ✓ — the order page & kitchen screen now use this menu.') }
+    try {
+      const { out, rows } = reconcileStock(sections)
+      setSections(out)   // keep UI in sync with the per-item keys we just assigned
+      await saveMenu(toDoc(out), bundlesToDoc(bundles), vat); setDirty(false)
+      setMsg('Saved ✓ — the order page & kitchen screen now use this menu. Tap 📤 Force send to profiles to push it to staff.')
+      ensureStock(rows).catch(() => { /* stock lines are also reconciled when the 📦 Stock tab opens */ })
+    }
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
+  }
+
+  // Reliable send: reuses the Download-PDF popup engine (works on the kitchen
+  // iPad) and uploads the PDF to the staff Menus store. The popup confirms.
+  const sendStaff = () => {
+    const title = todayMenuTitle()
+    exportMenu(sections, 'send', vat, title)
+    setMsg(`📤 Force-sending “${title}” to staff profiles — a tab opens and confirms when it’s filed. (Allow pop-ups.)`)
   }
 
   if (sections == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading menu…</div>
@@ -102,6 +133,7 @@ export default function MenuManager() {
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
         <button onClick={() => exportMenu(sections, 'print', vat)} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
         <button onClick={() => exportMenu(sections, 'pdf', vat)} style={pill(false)}>⬇ Download PDF</button>
+        <button onClick={sendStaff} title={`Files a dated PDF (“${todayMenuTitle()}”) into every staff profile's Menus tab. Opens a tab that confirms when it's filed.`} style={{ ...pill(true), borderColor: GREEN, color: GREEN }}>📤 Force send to profiles</button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: vat ? GOLD : MUTED, cursor: 'pointer', border: `1px solid ${vat ? GOLD : LINE}`, borderRadius: 8, padding: '7px 11px' }}>
           <input type="checkbox" checked={vat} onChange={e => { setVat(e.target.checked); setDirty(true) }} /> VAT registered (20%)
         </label>
@@ -128,14 +160,15 @@ export default function MenuManager() {
             <input value={sec.name} onChange={e => mutate(s => { s[si].name = e.target.value })}
               style={{ background: 'none', border: 'none', borderBottom: '1px dashed transparent', color: GOLD, fontSize: 17, fontWeight: 800, padding: '2px 0' }}
               onFocus={e => e.target.style.borderBottomColor = GOLD} onBlur={e => e.target.style.borderBottomColor = 'transparent'} />
-            <span style={{ fontSize: 11, color: MUTED }}>{sec.items.length} item{sec.items.length !== 1 ? 's' : ''}</span>
+            {(() => { const live = sec.items.filter(it => !it.archived).length, arc = sec.items.length - live; return <span style={{ fontSize: 11, color: MUTED }}>{live} item{live !== 1 ? 's' : ''}{arc ? ` · ${arc} archived` : ''}</span> })()}
             <button onClick={() => delSection(si)} title="Delete section" style={{ marginLeft: 'auto', background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>🗑</button>
           </div>
 
           {sec.items.map((it, ii) => {
+            if (it.archived) return null   // archived items live in the 🗄 Archived sheet at the bottom, not inline
             const mp = marginPct(it.sell, it.cost, vat)
             return (
-              <div key={it.id} style={{ background: it.archived ? 'rgba(218,27,51,0.06)' : it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.archived ? 'rgba(218,27,51,0.5)' : it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8, opacity: it.archived ? 0.62 : 1 }}>
+              <div key={it.id} style={{ background: it.star ? 'rgba(201,168,76,0.07)' : CARD, border: `1px solid ${it.star ? GOLD : LINE}`, borderRadius: 12, padding: '11px 12px', marginBottom: 8 }}>
                 <div style={{ display: 'flex', gap: 11, alignItems: 'center' }}>
                   <label style={{ width: 56, height: 56, borderRadius: 9, background: it.img ? 'none' : '#26272b', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden', cursor: 'pointer', position: 'relative' }}>
                     {it.img ? <img src={it.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : <span style={{ opacity: 0.5 }}>📷</span>}
@@ -238,6 +271,37 @@ export default function MenuManager() {
         </div>
       ))}
       <button onClick={addSection} style={{ ...addBtn(), borderColor: GOLD, color: GOLD, marginTop: 14 }}>＋ Add a new section</button>
+
+      {/* ── 🗄 Archived sheet — items pulled off the live menu, kept for reuse ── */}
+      {(() => {
+        const archived = sections.flatMap((sec, si) => sec.items.map((it, ii) => ({ it, si, ii, section: sec.name })).filter(x => x.it.archived))
+        if (!archived.length) return null
+        return (
+          <div style={{ marginTop: 22, background: 'rgba(255,255,255,0.02)', border: `1px solid ${LINE}`, borderRadius: 14, padding: '12px 14px' }}>
+            <button onClick={() => setShowArchived(v => !v)} style={{ display: 'flex', alignItems: 'center', gap: 9, width: '100%', background: 'none', border: 'none', cursor: 'pointer', padding: 0, textAlign: 'left' }}>
+              <span style={{ fontSize: 16, fontWeight: 800, color: '#fff' }}>🗄 Archived</span>
+              <span style={{ fontSize: 12, fontWeight: 700, color: '#1a1a1a', background: MUTED, borderRadius: 999, padding: '1px 8px' }}>{archived.length}</span>
+              <span style={{ fontSize: 12, color: MUTED, flex: 1 }}>hidden from the menu &amp; ordering — Restore any time</span>
+              <span style={{ fontSize: 13, color: MUTED }}>{showArchived ? '▾ hide' : '▸ show'}</span>
+            </button>
+            {showArchived && (
+              <div style={{ marginTop: 10 }}>
+                {archived.map(({ it, si, ii, section }) => (
+                  <div key={it.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 11px', marginBottom: 7, background: '#0e0e10', border: `1px solid ${LINE}`, borderRadius: 10 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{it.name || '(unnamed item)'}</div>
+                      <div style={{ fontSize: 11.5, color: MUTED }}>{section}{it.sell ? ` · £${it.sell}` : ''}</div>
+                    </div>
+                    <button onClick={() => toggleArchive(si, ii)} style={{ background: 'rgba(52,211,153,0.16)', border: `1px solid ${GREEN}`, color: GREEN, borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: 12.5, fontWeight: 700, whiteSpace: 'nowrap' }}>↩ Restore</button>
+                    <button onClick={() => delItem(si, ii)} title="Delete permanently" style={{ background: 'none', border: 'none', color: MUTED, cursor: 'pointer', fontSize: 16 }}>×</button>
+                  </div>
+                ))}
+                <div style={{ fontSize: 11.5, color: MUTED, marginTop: 4, lineHeight: 1.4 }}>Restore drops an item back into its section. Remember to <b style={{ color: '#fff' }}>Save</b> to apply.</div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* ── Deals & bundles (beer + burger) ── */}
       <div style={{ marginTop: 30, background: 'rgba(201,168,76,0.06)', border: `1.5px solid ${GOLD}`, borderRadius: 14, padding: '16px 14px' }}>

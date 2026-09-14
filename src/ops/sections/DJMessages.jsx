@@ -46,7 +46,7 @@ export default function Messages({ data, reload }) {
   const [tab, setTab] = useState('send')
   const djs = data.djs || []
   const templates = data.templates || []
-  const notes = data.notes || []
+  const notes = (data.notes || []).filter(n => !n.from_admin)   // Inbox = DJ → No Dice only (your own event comments live on the event cards)
   const unread = notes.filter(n => !n.read_at).length
   const nextMonthLabel = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })
 

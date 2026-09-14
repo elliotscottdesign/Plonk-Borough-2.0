@@ -17,6 +17,7 @@ async function call(payload) {
 // Kitchen display (staff on the /ops Kitchen tab)
 export const listOrders = () => call({ action: 'listOrders', secret: SEND_SECRET })
 export const listHistory = () => call({ action: 'listHistory', secret: SEND_SECRET })
+export const tipLedger = () => call({ action: 'tipLedger', secret: SEND_SECRET })   // running tip total, banked by night
 
 // Pause / auto-pause / waitlist
 export const getStatus = () => call({ action: 'getStatus' })                       // public
@@ -32,6 +33,7 @@ export const getStock = () => call({ action: 'getStock' })                      
 export const setStock = (levels) => call({ action: 'setStock', secret: SEND_SECRET, levels })
 export const adjustStock = (ingredient, delta) => call({ action: 'adjustStock', secret: SEND_SECRET, ingredient, delta })
 export const setStockOverride = (ingredient, override) => call({ action: 'setStockOverride', secret: SEND_SECRET, ingredient, override })
+export const ensureStock = (rows) => call({ action: 'ensureStock', secret: SEND_SECRET, rows })   // create stock lines for any menu keys missing one
 
 // Order codes (party tabs / staff food) — kitchen manages; customer orders on them.
 export const listCodes = () => call({ action: 'listCodes', secret: SEND_SECRET })

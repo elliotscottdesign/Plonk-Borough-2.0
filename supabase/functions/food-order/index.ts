@@ -24,17 +24,31 @@ const json = (b: unknown, s = 200) =>
   new Response(JSON.stringify(b), { status: s, headers: { ...cors, "Content-Type": "application/json" } });
 const clean = (v: unknown, n = 200) => (v == null ? "" : String(v)).slice(0, n).trim();
 
+// UK/international mobile → E.164 for Twilio. Leaves an already-+ number (e.g.
+// Ukraine +380…) alone; turns a bare UK 07… into +44…. Twilio rejects numbers
+// without a country code ("not a valid phone number"), so every send goes
+// through this first.
+function normalisePhone(raw: string): string {
+  const s = String(raw || "").replace(/[^\d+]/g, "");
+  if (s.startsWith("+")) return s;
+  if (s.startsWith("07") && s.length === 11) return "+44" + s.slice(1);
+  if (s.startsWith("447")) return "+" + s;
+  if (s.startsWith("44")) return "+" + s;
+  return s;
+}
+
 // The pre-programmed "food ready" message (founder brief Aug 2026).
 const readyMessage = (orderNo: number, name?: string | null) =>
   `On A Roll 🍔🍟 Order #${orderNo} is READY — come collect it from the van!${name ? ` Thanks ${name}.` : ""}`;
 
 async function sendSMS(to: string, body: string): Promise<boolean> {
-  if (!TW_SID || !TW_TOKEN || !to) return false;
+  const To = normalisePhone(to);   // rescue any raw 07… stored before we normalised at intake
+  if (!TW_SID || !TW_TOKEN || !To) return false;
   try {
     const r = await fetch(`https://api.twilio.com/2010-04-01/Accounts/${TW_SID}/Messages.json`, {
       method: "POST",
       headers: { "Authorization": "Basic " + btoa(`${TW_SID}:${TW_TOKEN}`), "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({ From: TW_SMS_FROM, To: to, Body: body }),
+      body: new URLSearchParams({ From: TW_SMS_FROM, To, Body: body }),
     });
     return r.ok;
   } catch {
@@ -121,7 +135,7 @@ Deno.serve(async (req) => {
       if (!eff0.open) return json({ error: "Ordering is paused right now — please try again shortly.", open: false }, 409);
       const row = {
         customer_name: clean(b.name, 80) || null,
-        customer_phone: clean(b.phone, 30) || null,
+        customer_phone: normalisePhone(clean(b.phone, 30)) || null,
         items,
         total_pence: Math.max(0, parseInt(b.total_pence, 10) || 0),
         paid: !!b.payment_ref,
@@ -189,6 +203,27 @@ Deno.serve(async (req) => {
         .select("*").order("created_at", { ascending: false }).limit(200);
       if (error) return json({ error: error.message }, 400);
       return json({ ok: true, orders: data || [] });
+    }
+
+    // ── Tip ledger: running total of On A Roll card tips, banked by service night ─
+    // Every paid order carries tip_pence (100% to the kitchen). We group by the
+    // London calendar date (the truck closes at 10pm, so a night = one date), so
+    // the total accumulates night after night and never resets.
+    if (action === "tipLedger") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const { data, error } = await sb.from("food_orders").select("created_at, tip_pence").eq("paid", true).gt("tip_pence", 0);
+      if (error) return json({ error: error.message }, 400);
+      const fmt = new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/London", year: "numeric", month: "2-digit", day: "2-digit" });
+      const byDate: Record<string, { pence: number; orders: number }> = {};
+      let total = 0;
+      for (const o of (data || [])) {
+        const d = fmt.format(new Date(o.created_at));
+        (byDate[d] ||= { pence: 0, orders: 0 });
+        byDate[d].pence += o.tip_pence || 0; byDate[d].orders += 1; total += o.tip_pence || 0;
+      }
+      const today = fmt.format(new Date());
+      const nights = Object.entries(byDate).map(([date, v]) => ({ date, pence: v.pence, orders: v.orders })).sort((a, b) => a.date < b.date ? 1 : -1);
+      return json({ ok: true, total_pence: total, night_count: nights.length, tonight_pence: byDate[today]?.pence || 0, tonight_orders: byDate[today]?.orders || 0, nights: nights.slice(0, 90) });
     }
 
     // ── Customer texts: resend "ready", "order received", or a custom reply ─────
@@ -281,10 +316,36 @@ Deno.serve(async (req) => {
     }
     if (action === "setStockOverride") {   // kitchen — force sold_out / available / auto(null)
       if (!isAdmin()) return json({ error: "not allowed" }, 403);
-      const ing = clean(b.ingredient, 40);
+      const ing = clean(b.ingredient, 60);
       const ov = b.override === "sold_out" || b.override === "available" ? b.override : null;
       await sb.from("kitchen_stock_levels").update({ override: ov, updated_at: new Date().toISOString() }).eq("ingredient", ing);
       return json({ ok: true });
+    }
+
+    // Make sure every menu item is represented on the stock sheet. Given a list of
+    // { ingredient, label } (built from the live menu), create a stock row for any
+    // that's missing — new rows start "available" (count 0 = unlimited until staff
+    // set a count or force sold-out), so a new dish works immediately AND can be
+    // stock-controlled like every other product. Per-item rows keep their label in
+    // sync with the dish name. Idempotent.
+    if (action === "ensureStock") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const rows = Array.isArray(b.rows) ? b.rows : [];
+      const { data: existing } = await sb.from("kitchen_stock_levels").select("ingredient,label");
+      const have = new Map((existing || []).map((r: any) => [r.ingredient, r.label]));
+      let created = 0, relabelled = 0;
+      for (const r of rows) {
+        const ing = clean(r?.ingredient, 60); if (!ing) continue;
+        const label = clean(r?.label, 80) || ing;
+        if (!have.has(ing)) {
+          await sb.from("kitchen_stock_levels").insert({ ingredient: ing, label, count: 0, override: "available", updated_at: new Date().toISOString() });
+          have.set(ing, label); created++;
+        } else if (ing.startsWith("itm_") && label && have.get(ing) !== label) {
+          await sb.from("kitchen_stock_levels").update({ label, updated_at: new Date().toISOString() }).eq("ingredient", ing);
+          relabelled++;
+        }
+      }
+      return json({ ok: true, created, relabelled });
     }
 
     // ── Order codes (party tabs / staff food) — order without a card, tracked ────
@@ -323,7 +384,7 @@ Deno.serve(async (req) => {
       const code = clean(b.code, 40).toUpperCase();
       const { data: codeRow } = await sb.from("order_codes").select("*").eq("code", code).maybeSingle();
       if (!codeRow || !codeRow.active) return json({ error: "That code isn't valid — check with staff." }, 403);
-      const name = clean(b.name, 80), phone = clean(b.phone, 30);
+      const name = clean(b.name, 80), phone = normalisePhone(clean(b.phone, 30));
       const emailC = clean(b.email, 120);
       const email = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailC) ? emailC : "";
       if (name.length < 2) return json({ error: "Please enter your name." }, 400);

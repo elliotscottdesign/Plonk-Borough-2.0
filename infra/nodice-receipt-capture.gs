@@ -3,12 +3,21 @@
  * =================================
  * Finds receipts in elliot@nodice.bar and files them into Xero as PDFs.
  *
+ * WHAT IT DOES, IN ONE LINE
+ * -------------------------
+ * Reads the mailbox, turns every receipt and supplier invoice into a PDF, and
+ * hands it to the finance service, which finds the bank payment it belongs to
+ * and ATTACHES it. Three jobs on one 4-hourly trigger — receipts, invoices,
+ * and the daily Lightspeed reports — each wrapped so one failing cannot stop
+ * the others.
+ *
  * WHAT MAKES THIS DIFFERENT FROM HUBDOC / THE OLD BILLS FORWARDER
  * --------------------------------------------------------------
- * 1. It sends to Xero's FILES inbox, not the BILLS inbox. The Files inbox
- *    parks a document and creates nothing. The Bills inbox turns every email
- *    into a draft bill — that is where ~£6,000 of fake bills came from
- *    (statements, order acknowledgements, superseded invoices).
+ * 1. It never touches Xero's BILLS inbox, which turns every email into a draft
+ *    bill — that is where ~£6,000 of fake bills came from (statements, order
+ *    acknowledgements, superseded invoices). The Files inbox is used only as a
+ *    fallback for a receipt whose total cannot be read, since without a total
+ *    nothing can be matched to a payment anyway.
  * 2. It never invents a transaction. Hubdoc publishes "spend money" out of
  *    thin air when it can't find a bank line to match, which put the bank
  *    £14.12 out on 16 Aug 2026.
@@ -27,20 +36,37 @@
  *      b) else follows the receipt link in the body and renders that page;
  *      c) else renders the email body itself.
  *
- * FIRST RUN IS SAFE: DRY_RUN is true, so it only reports what it WOULD file.
- * Nothing is sent to Xero until you set DRY_RUN to false.
- *
  * SETUP
- *   1. Save this file.
+ *   1. Paste, save.
  *   2. Run  installTrigger  once (Run menu → installTrigger). Approve access.
- *   3. Run  run  once. You'll get a preview email listing what it found.
- *   4. Happy? Set DRY_RUN to false, save, run  run  again.
+ *   3. Run  run  once to kick it off; after that the trigger handles it.
+ *
+ * To rehearse instead of filing, set DRY_RUN true (receipts) or INVOICE_DRY
+ * true (invoices) — both report by email and send nothing.
  */
 
 var CONFIG = {
 
-  // Xero → Files → "Email to Files Inbox". NOT the bills.* address.
+  // Xero → Files → "Email to Files Inbox". A document parked here creates
+  // nothing: no bill, no payment. It is a holding pen, used only for a
+  // RECEIPT whose total could not be read.
   XERO_FILES_INBOX: 'xero.inbox.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
+
+  // Xero → Bills to pay → the address on the empty-state panel. Anything sent
+  // here becomes a DRAFT BILL with the PDF attached.
+  //
+  // Only supplier INVOICES come here, and only ones that pass INVOICE_RULES —
+  // never a receipt, never a statement, never an order acknowledgement. The
+  // old "Xero Auto Emailer" forwarded indiscriminately and produced 95 drafts
+  // worth £38,402, most with no contact and six sets of duplicates; all of it
+  // was deleted on 14 Sep 2026 and its trigger removed. The filtering below is
+  // the only reason this address is safe to use again.
+  //
+  // An unpaid invoice has no bank payment to attach to — that is WHY it needs
+  // to be a bill. Of 15 invoices captured in the first month, 11 had no
+  // matching payment anywhere in the books: they were simply unpaid, £8,283.71
+  // of liability the company could not see.
+  XERO_BILLS_INBOX: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
   // Where the run report goes.
   REPORT_TO: 'elliot@nodice.bar',
@@ -291,19 +317,29 @@ function run(e) {
 
         if (!CONFIG.DRY_RUN) {
           try {
-            GmailApp.sendEmail(
-              CONFIG.XERO_FILES_INBOX,
-              item.filename,
-              'Filed automatically by No Dice receipt capture.\n\n'
-                + 'Supplier: ' + item.supplier + '\n'
-                + 'Date:     ' + item.dateStr + '\n'
-                + 'Amount:   ' + (item.amount ? '£' + item.amount : 'not detected') + '\n'
-                + 'Source:   ' + src.id + ' / ' + msg.getFrom() + '\n',
-              { attachments: [item.blob], name: 'No Dice Receipt Capture' }
-            );
+            // Straight to the finance service, which matches the receipt to
+            // its bank payment and ATTACHES it.
+            //
+            // This used to email Xero's Files inbox instead, which only ever
+            // parked the document — leaving someone to attach it by hand
+            // forever. That was the only route available before Xero was
+            // connected on 20 Aug; now there is a better one.
+            //
+            // An amount is required: without it nothing can be matched, so it
+            // would sit in the pile regardless. Those go to the Files inbox as
+            // before, where at least a human can find them.
+            if (item.amount) {
+              sendInvoiceToFinance_(item.supplier, item.dateStr, item.amount, '', item.blob, 'receipt');
+            } else {
+              GmailApp.sendEmail(CONFIG.XERO_FILES_INBOX, item.filename,
+                'No total could be read, so this cannot be matched to a payment automatically.\n\n'
+                  + 'Supplier: ' + item.supplier + '\nDate: ' + item.dateStr + '\n',
+                { attachments: [item.blob], name: 'No Dice Receipt Capture' });
+              item.how += ' (no total — parked in Files)';
+            }
             threads[t].addLabel(labelFiled);
           } catch (e) {
-            item.why = 'Send to Xero failed: ' + e;
+            item.why = 'Could not file: ' + e;
             review.push(item);
             threads[t].addLabel(labelReview);
             continue;
@@ -317,6 +353,10 @@ function run(e) {
   // The till reports ride along on the same schedule — they arrive every
   // morning and nobody should have to remember to fetch them.
   try { sweepTillReports(); } catch (e) { /* never let this break the receipts run */ }
+
+  // So do supplier invoices. Each is wrapped so a failure in one can never
+  // stop the others: three jobs, one trigger, no single point of failure.
+  try { sweepInvoices(); } catch (e) { /* same */ }
 
   // Six "nothing found" emails a day is how a useful alert becomes noise you
   // stop opening. Only write when there is something to say.
@@ -578,18 +618,11 @@ function report_(filed, review, skipped) {
           + '<th align="right">Amount</th><th align="left">Found via</th></tr>' + rows + '</table>'
         : '<p>Nothing new.</p>')
     + (probs ? '<h3>Needs a look</h3><ul>' + probs + '</ul>' : '')
-    + (unknown.length
-        ? '<h3>Invoice-shaped, but not from anyone you have paid</h3>'
-          + '<p style="font-size:13px;color:#666">Never filed automatically. A brand new supplier will '
-          + 'appear here until you have paid them once — after that they are recognised on their own.</p><ul>'
-          + unknown.map(function (u) {
-              return '<li>' + escapeHtml_(u.from) + ' &mdash; ' + escapeHtml_(u.subject)
-                   + (u.amount ? ' (&pound;' + escapeHtml_(u.amount) + ')' : '') + '</li>';
-            }).join('') + '</ul>'
-        : '')
-    + '<p style="margin-top:20px;font-size:12px;color:#888">Checked against '
-    + (supplierCount || 0) + ' suppliers Xero knows you have paid. Nobody is listed in this script &mdash; '
-    + 'add a supplier, pay them once, and they are covered.</p>'
+    // NB: the "unknown senders" and "checked against N suppliers" blocks belong
+    // to invoiceReport_, which is handed those lists. They were duplicated in
+    // here, where neither variable exists — so this function threw every time
+    // it ran, AFTER all the filing had succeeded. A summary email that crashes
+    // is worse than no summary: the work looks failed when it is done.
     + (CONFIG.DRY_RUN
         ? '<p style="margin-top:24px;padding:12px;background:#fff8e1;border-left:4px solid #f0b429">'
           + '<b>Preview only.</b> To start filing for real, set '
@@ -642,7 +675,7 @@ function resetLabels() {
 /* INVOICE_DRY to false when the list looks right.                     */
 /* ------------------------------------------------------------------ */
 
-var INVOICE_DRY = true;
+var INVOICE_DRY = false;
 
 function sweepInvoices() {
   var label = ensureLabel_(CONFIG.LABEL_INVOICE);
@@ -730,7 +763,23 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
+          // TWO destinations, doing two different jobs.
+          //
+          // 1. The bills inbox, so it becomes a draft bill you can see and
+          //    approve. This is the one that matters: it puts the liability on
+          //    the balance sheet, and when you pay it the bank line matches the
+          //    bill instead of hunting for a document.
+          GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+            attachments: [blob], name: 'No Dice Receipt Capture',
+          });
+
+          // 2. The finance service, which keeps our own copy and attaches it to
+          //    the bank payment when one matches to the penny — freelancers and
+          //    one-off contractors paid on the nose. Harmless duplication when
+          //    both fire; the alternative is losing one or the other.
           sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+
+          item.how = 'bill + attach';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
@@ -770,7 +819,7 @@ function supplierScore_(supplierName, haystack) {
 }
 
 /** Upload the document, then register it so the finance service can match it. */
-function sendInvoiceToFinance_(supplier, dateStr, amount, ref, blob) {
+function sendInvoiceToFinance_(supplier, dateStr, amount, ref, blob, kind) {
   var up = financeCall_({ action: 'receiptUploadUrl', filename: blob.getName() });
 
   var putUrl = 'https://rntcujcpsozvuxvmlejv.supabase.co/storage/v1/object/upload/sign/receipts/'
@@ -782,10 +831,11 @@ function sendInvoiceToFinance_(supplier, dateStr, amount, ref, blob) {
   if (put.getResponseCode() >= 300) throw new Error('upload failed ' + put.getResponseCode());
 
   financeCall_({
-    action: 'receiptAdd', kind: 'invoice',
+    action: 'receiptAdd', kind: (kind === 'receipt' ? 'receipt' : 'invoice'),
     supplier: supplier, spendDate: dateStr, amount: Number(amount),
     category: 'business', docRef: ref, imagePath: up.path,
-    note: 'Supplier invoice, filed automatically',
+    note: (kind === 'receipt' ? 'Emailed receipt, filed automatically'
+                              : 'Supplier invoice, filed automatically'),
   });
 }
 
