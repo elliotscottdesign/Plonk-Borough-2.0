@@ -18,6 +18,7 @@ async function call(payload) {
 export const listOrders = () => call({ action: 'listOrders', secret: SEND_SECRET })
 export const listHistory = () => call({ action: 'listHistory', secret: SEND_SECRET })
 export const tipLedger = () => call({ action: 'tipLedger', secret: SEND_SECRET })   // running tip total, banked by night
+export const getReport = (from, to) => call({ action: 'report', secret: SEND_SECRET, from, to })   // service report for a date range
 
 // Pause / auto-pause / waitlist
 export const getStatus = () => call({ action: 'getStatus' })                       // public

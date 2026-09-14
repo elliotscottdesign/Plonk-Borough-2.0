@@ -99,6 +99,89 @@ function hhmmToMin(s?: string | null): number | null {
   return mt ? Number(mt[1]) * 60 + Number(mt[2]) : null;
 }
 
+// ── Service report (used by the Report view AND the daily/weekly emails) ─────────
+const LON = { timeZone: "Europe/London" } as const;
+const ymdFmt = new Intl.DateTimeFormat("en-CA", { ...LON, year: "numeric", month: "2-digit", day: "2-digit" });
+const londonYmd = (d = new Date()) => ymdFmt.format(d);   // 'YYYY-MM-DD' in London
+// UTC instant of London-local midnight for a YYYY-MM-DD (BST/GMT-safe).
+function londonMidnightUtcMs(ymd: string): number {
+  const [y, mo, da] = ymd.split("-").map(Number);
+  const naive = Date.UTC(y, mo - 1, da, 0, 0, 0);
+  const offAt = (ms: number) => {
+    const p = new Intl.DateTimeFormat("en-GB", { ...LON, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(new Date(ms));
+    const g = (t: string) => Number(p.find((x) => x.type === t)?.value || "0");
+    return Date.UTC(g("year"), g("month") - 1, g("day"), g("hour"), g("minute"), g("second")) - ms;
+  };
+  return naive - offAt(naive - offAt(naive));
+}
+const addDaysYmd = (ymd: string, n: number) => londonYmd(new Date(londonMidnightUtcMs(ymd) + n * 86400000));
+const gbp = (p: number) => "£" + (p / 100).toFixed(2);
+
+// Aggregate every real order in [fromYmd, toYmd] (inclusive, London days).
+async function buildReport(sb: any, fromYmd: string, toYmd: string) {
+  const startMs = londonMidnightUtcMs(fromYmd);
+  const endMs = londonMidnightUtcMs(addDaysYmd(toYmd, 1));
+  const { data } = await sb.from("food_orders").select("*")
+    .gte("created_at", new Date(startMs).toISOString()).lt("created_at", new Date(endMs).toISOString());
+  const rows = data || [];
+  const card = rows.filter((o: any) => o.paid && !o.order_code);           // real Stripe sales
+  const tabs = rows.filter((o: any) => o.order_code);                       // party/staff tabs (no card)
+  const abandoned = rows.filter((o: any) => o.status === "pending" && !o.paid);   // started, never paid
+  const failed = rows.filter((o: any) => o.status === "card_failed");       // card declined
+  const real = [...card, ...tabs];
+  const revenue = card.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);   // incl tips
+  const tips = card.reduce((s: number, o: any) => s + (o.tip_pence || 0), 0);
+  const tabTotal = tabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
+  // avg cook time (created → ready) over real orders that were marked ready
+  const cooked = real.filter((o: any) => o.ready_at && o.created_at);
+  const avgCookSec = cooked.length ? Math.round(cooked.reduce((s: number, o: any) => s + (new Date(o.ready_at).getTime() - new Date(o.created_at).getTime()), 0) / cooked.length / 1000) : null;
+  // item breakdown (qty + gross incl. add-ons) across real orders
+  const items: Record<string, { qty: number; pence: number }> = {};
+  for (const o of real) for (const li of (Array.isArray(o.items) ? o.items : [])) {
+    const nm = String(li.name || "item").trim(); const qty = parseInt(li.qty, 10) || 1;
+    const unit = (parseInt(li.price_pence, 10) || 0) + (Array.isArray(li.options) ? li.options.reduce((s: number, x: any) => s + (parseInt(x.price_pence, 10) || 0), 0) : 0);
+    (items[nm] ||= { qty: 0, pence: 0 }); items[nm].qty += qty; items[nm].pence += unit * qty;
+  }
+  const itemList = Object.entries(items).map(([name, v]) => ({ name, qty: v.qty, pence: v.pence })).sort((a, b) => b.qty - a.qty);
+  // orders by London day (for multi-day ranges)
+  const byDay: Record<string, { orders: number; pence: number }> = {};
+  for (const o of card) { const d = londonYmd(new Date(o.created_at)); (byDay[d] ||= { orders: 0, pence: 0 }); byDay[d].orders++; byDay[d].pence += o.total_pence || 0; }
+  const days = Object.entries(byDay).map(([date, v]) => ({ date, ...v })).sort((a, b) => a.date < b.date ? -1 : 1);
+  return {
+    from: fromYmd, to: toYmd,
+    orders: card.length, revenue_pence: revenue, tips_pence: tips,
+    avg_order_pence: card.length ? Math.round(revenue / card.length) : 0,
+    avg_cook_sec: avgCookSec,
+    tab_orders: tabs.length, tab_total_pence: tabTotal,
+    abandoned: abandoned.length, card_failed: failed.length,
+    items: itemList, days,
+  };
+}
+
+function reportEmailHtml(r: any, title: string): string {
+  const mmss = (s: number | null) => s == null ? "—" : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
+  const rowsHtml = r.items.map((it: any) => `<tr><td style="padding:4px 10px 4px 0">${it.qty}×</td><td style="padding:4px 10px 4px 0">${it.name}</td><td style="padding:4px 0;text-align:right">${gbp(it.pence)}</td></tr>`).join("");
+  const daysHtml = r.days.length > 1 ? `<h3 style="margin:18px 0 6px;font-size:14px">By day</h3><table style="font-size:13px;border-collapse:collapse">${r.days.map((d: any) => `<tr><td style="padding:3px 12px 3px 0">${d.date}</td><td style="padding:3px 0;text-align:right">${d.orders} orders · ${gbp(d.pence)}</td></tr>`).join("")}</table>` : "";
+  return `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;color:#111">
+    <h2 style="margin:0 0 2px;color:#e0231b">On A Roll — ${title}</h2>
+    <div style="color:#666;font-size:13px;margin-bottom:14px">${r.from === r.to ? r.from : `${r.from} → ${r.to}`}</div>
+    <table style="width:100%;border-collapse:collapse;font-size:15px;margin-bottom:8px">
+      <tr><td style="padding:6px 0">💷 <b>Revenue (card)</b></td><td style="text-align:right;font-weight:800">${gbp(r.revenue_pence)}</td></tr>
+      <tr><td style="padding:6px 0">🧾 Paid orders</td><td style="text-align:right">${r.orders}</td></tr>
+      <tr><td style="padding:6px 0">📊 Average order</td><td style="text-align:right">${gbp(r.avg_order_pence)}</td></tr>
+      <tr><td style="padding:6px 0">💛 Tips (kitchen)</td><td style="text-align:right">${gbp(r.tips_pence)}</td></tr>
+      <tr><td style="padding:6px 0">⏱ Avg cook time</td><td style="text-align:right">${mmss(r.avg_cook_sec)}</td></tr>
+      ${r.tab_orders ? `<tr><td style="padding:6px 0">🎟 Tabs (party/staff)</td><td style="text-align:right">${r.tab_orders} · ${gbp(r.tab_total_pence)}</td></tr>` : ""}
+      <tr><td style="padding:6px 0">🛒 Abandoned checkouts</td><td style="text-align:right">${r.abandoned}</td></tr>
+      <tr><td style="padding:6px 0">❌ Card failed</td><td style="text-align:right">${r.card_failed}</td></tr>
+    </table>
+    <h3 style="margin:18px 0 6px;font-size:14px">What sold</h3>
+    <table style="font-size:14px;border-collapse:collapse">${rowsHtml || '<tr><td style="color:#888">No sales.</td></tr>'}</table>
+    ${daysHtml}
+    <div style="color:#999;font-size:11px;margin-top:20px">On A Roll · No Dice Hackney · automated report</div>
+  </div>`;
+}
+
 // Effective open/paused: closed outside service hours (default 22:00), OR paused
 // manually, OR auto-paused when live orders hit the threshold. `reason` says which.
 async function getEffective(sb: any) {
@@ -224,6 +307,28 @@ Deno.serve(async (req) => {
       const today = fmt.format(new Date());
       const nights = Object.entries(byDate).map(([date, v]) => ({ date, pence: v.pence, orders: v.orders })).sort((a, b) => a.date < b.date ? 1 : -1);
       return json({ ok: true, total_pence: total, night_count: nights.length, tonight_pence: byDate[today]?.pence || 0, tonight_orders: byDate[today]?.orders || 0, nights: nights.slice(0, 90) });
+    }
+
+    // ── Service report for a date range (drives the Report view in Orders) ───────
+    if (action === "report") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const r = await buildReport(sb, from <= to ? from : to, from <= to ? to : from);
+      return json({ ok: true, report: r });
+    }
+
+    // ── Daily / weekly report EMAIL to the founder (cron-triggered) ──────────────
+    if (action === "emailReport") {   // cron
+      const period = b.period === "week" ? "week" : "day";
+      const today = londonYmd();
+      const from = period === "week" ? addDaysYmd(today, -6) : today;
+      const r = await buildReport(sb, from, today);
+      if (r.orders === 0 && r.tab_orders === 0 && r.abandoned === 0) return json({ ok: true, skipped: "no activity" });
+      const title = period === "week" ? "This week" : "Today";
+      const subj = `On A Roll — ${title}: ${gbp(r.revenue_pence)} · ${r.orders} orders${r.avg_cook_sec != null ? ` · avg ${Math.round(r.avg_cook_sec / 60)}m cook` : ""}`;
+      const sent = await sendEmail("elliot@nodice.bar", subj, reportEmailHtml(r, title));
+      return json({ ok: true, sent, period, from, to: today });
     }
 
     // ── Customer texts: resend "ready", "order received", or a custom reply ─────
