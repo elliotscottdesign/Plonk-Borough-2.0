@@ -65,7 +65,9 @@ function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, click
               style={(() => {
                 const isToday = ds === todayDs
                 const sc = ringFor ? ringFor(ds) : null
-                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
+                // Colour code (founder, Sep 2026): WHITE ring = today · GREEN = you're working ·
+                // RED = your day off · BLUE = the day you've tapped (matches the swap-button blue).
+                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? '2px solid #60A5FA' : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : selected === ds ? '0 0 0 2px rgba(96,165,250,0.35)' : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
               })()}>
               {renderDay(ds, d)}
             </button>
@@ -519,7 +521,7 @@ export default function RotaPortal() {
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
+              <span><span style={{ color: '#FFFFFF', fontWeight: 700 }}>▣</span> today</span><span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: '#60A5FA', fontWeight: 700 }}>▣</span> selected day</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
             </div>
 
             {/* 🔁 Shift swaps — offers from teammates + (managers) approvals */}
