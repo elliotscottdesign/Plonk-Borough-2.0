@@ -4,7 +4,7 @@ import Messages from './DJMessages.jsx'
 import DJMedia from './DJMedia.jsx'
 import DateField from '../../lib/DateField.jsx'
 import DJPayments from './DJPayments.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink, asArr } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 import { eventsList, catMeta, eventDateLabel } from '../keydates/events.js'
 
@@ -381,7 +381,7 @@ function Events({ data, reload, filter, setFilter }) {
   }
   const startEdit = (s) => {
     setEditing(ckey(s))
-    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
+    setForm({ date: s.date, nightName: s.night_name || '', subgenres: asArr(s.subgenres).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
     if (!(form.promoTrack || '').trim()) { alert('This night needs a promo track before it can be saved — no track, no event.'); return }
@@ -458,7 +458,7 @@ function Events({ data, reload, filter, setFilter }) {
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span><span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: past ? '#9CA3AF' : meta.color, border: `1px solid ${past ? '#9CA3AF' : meta.color}66`, borderRadius: 999, padding: '1px 7px' }}>{past ? 'Past' : meta.label}</span>{sus && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
                 <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{b2bName ? <> <span style={{ color: '#DA1B33', fontWeight: 700 }}>b2b</span> <strong>{b2bName}</strong> <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#DA1B33', border: '1px solid rgba(218,27,51,0.5)', borderRadius: 999, padding: '1px 6px' }}>B2B</span></> : null}{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
-                {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
+                {asArr(s.subgenres).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{asArr(s.subgenres).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
                 {(s.promo_artist || s.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {[s.promo_artist, s.promo_track].filter(Boolean).join(' — ')}</div>}
@@ -642,7 +642,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   const [djId, setDjId] = useState(slotRow?.dj_id || '')
   const [djId2, setDjId2] = useState(slotRow?.dj_id2 || '')   // optional back-to-back partner
   const [nightName, setNightName] = useState(slotRow?.night_name || '')
-  const [genres, setGenres] = useState((slotRow?.subgenres || []).join(', '))
+  const [genres, setGenres] = useState(asArr(slotRow?.subgenres).join(', '))
   const [setType, setSetType] = useState(slotRow?.set_type || 'dj_set')
   const [promoTrack, setPromoTrack] = useState(slotRow?.promo_track || '')
   const [promoArtist, setPromoArtist] = useState(slotRow?.promo_artist || '')
