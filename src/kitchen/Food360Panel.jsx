@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react'
-import { report360, kitchenHours } from './foodOrders.js'
+import { report360, kitchenHours, tillFood } from './foodOrders.js'
 import { shiftPay, payFor } from '../rota/pay.js'   // single source of truth for pay — never reimplement
 import DateField from '../lib/DateField.jsx'
 
@@ -111,6 +111,7 @@ export default function Food360Panel() {
   const [err, setErr] = useState('')
   const [sortKey, setSortKey] = useState('revenue_pence')
   const [khours, setKhours] = useState(null)
+  const [till, setTill] = useState(null)
   const [from, to] = range
   const thisYear = new Date().getFullYear()
 
@@ -126,9 +127,10 @@ export default function Food360Panel() {
   }, [from, to, money])
 
   useEffect(() => {
-    if (!money || !from || !to) { setKhours(null); return }
+    if (!money || !from || !to) { setKhours(null); setTill(null); return }
     let live = true
     kitchenHours(from, to).then(d => { if (live) setKhours(d) }).catch(() => { if (live) setKhours(null) })
+    tillFood(from, to).then(d => { if (live) setTill(d) }).catch(() => { if (live) setTill(null) })
     return () => { live = false }
   }, [from, to, money])
 
@@ -236,7 +238,30 @@ export default function Food360Panel() {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules. Kitchen wages are counted as a <b style={{ color: '#fff' }}>separate cost</b>: bar and kitchen occasionally cover for each other, but the kitchen crew's wage is treated as the kitchen's own. Staff meals (STAFF66) are valued at cost as a perk, never as a sale. ~ = cost estimated from today's menu. Till-sales merge (Lightspeed downtime) comes next.</div>
+              {till && till.total_pence > 0 && (<>
+                <div style={{ fontSize: 14, fontWeight: 800, color: GOLD, margin: '16px 0 8px' }}>🧾 Till food sales (Lightspeed)</div>
+                <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '9px 13px', borderBottom: `1px solid ${LINE}` }}>
+                    <span style={{ flex: 1, color: '#fff', fontWeight: 700, fontSize: 14 }}>Total till food (Food + Bar Food)</span>
+                    <span style={{ fontFamily: HEAVY, fontSize: 19, color: BLUE }}>{gbp(till.total_pence)}</span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '9px 13px', borderTop: `1px solid ${LINE}`, background: 'rgba(52,211,153,0.06)' }}>
+                    <span style={{ flex: 1, color: '#fff', fontWeight: 800, fontSize: 14 }}>≡ Total food revenue <span style={{ color: MUTED, fontWeight: 400, fontSize: 11.5 }}>(On A Roll {gbp(rep.money.revenue_ex_vat_pence)} + till {gbp(till.total_pence)})</span></span>
+                    <span style={{ fontFamily: HEAVY, fontSize: 21, color: GREEN }}>{gbp(rep.money.revenue_ex_vat_pence + till.total_pence)}</span>
+                  </div>
+                  <div style={{ maxHeight: 260, overflowY: 'auto' }}>
+                    {till.days.filter(d => d.total_pence > 0).map(d => (
+                      <div key={d.date} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 13px', borderTop: `1px solid ${LINE}`, fontSize: 13 }}>
+                        <span style={{ flex: 1, color: '#fff' }}>{new Date(d.date + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })}</span>
+                        <span style={{ color: MUTED, fontSize: 11.5 }}>Food {gbp(d.food_pence)} · Bar {gbp(d.bar_food_pence)}</span>
+                        <span style={{ fontFamily: HEAVY, fontSize: 15, color: BLUE, minWidth: 60, textAlign: 'right' }}>{gbp(d.total_pence)}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6, lineHeight: 1.5 }}>Food rung through the <b style={{ color: '#fff' }}>Lightspeed till</b> (Food + Bar Food groups) — e.g. days On A Roll was down and food went through the bar. Shown <b style={{ color: '#fff' }}>separately</b> from On A Roll's own sales; no cook-time or item-cost detail for these.</div>
+              </>)}
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules. Kitchen wages are counted as a <b style={{ color: '#fff' }}>separate cost</b>: bar and kitchen occasionally cover for each other, but the kitchen crew's wage is treated as the kitchen's own. Staff meals (STAFF66) are valued at cost as a perk, never as a sale. ~ = cost estimated from today's menu.</div>
             </div>
           )}
         </div>

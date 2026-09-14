@@ -21,6 +21,7 @@ export const tipLedger = () => call({ action: 'tipLedger', secret: SEND_SECRET }
 export const getReport = (from, to) => call({ action: 'report', secret: SEND_SECRET, from, to })   // service report for a date range
 export const report360 = (from, to, money = false) => call({ action: 'report360', secret: SEND_SECRET, from, to, money })   // Food 360 (money block only when money:true)
 export const kitchenHours = (from, to) => call({ action: 'kitchenHours', secret: SEND_SECRET, from, to })   // raw rota data for kitchen-labour calc (money tier)
+export const tillFood = (from, to) => call({ action: 'tillFood', secret: SEND_SECRET, from, to })   // Lightspeed till Food + Bar Food sales per day (money tier)
 
 // Pause / auto-pause / waitlist
 export const getStatus = () => call({ action: 'getStatus' })                       // public
