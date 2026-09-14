@@ -825,39 +825,43 @@ function sweepInvoices() {
  * name score, readable total, invoice reference) were already carrying that
  * load.
  *
- * Take the FIRST significant word, not the longest — a company name leads with
- * its brand and trails off into what it does. "Storage Solutions London Ltd"
- * has to search for "storage", not "solutions"; longest-word picked the latter
- * and would have matched every consultancy in the inbox.
+ * Search the WHOLE company name as a phrase. Storage Solutions is Storage
+ * Solutions; Five Points Brewing is Five Points Brewing. Picking clever single
+ * words out of a name is how "Storage Solutions London Ltd" ends up searching
+ * for "storage" and matching every self-storage ad in the inbox.
  *
- * Where no single word is long enough — "Ice Ice Baby Ltd" — fall back to the
- * name squashed together, which is how it appears in a domain.
+ * Only two things are stripped, because they are the bits suppliers leave out
+ * of their own emails: anything in brackets, and the legal suffix. "Top Cuvee
+ * (Shop Cuvee Ltd)" signs itself Top Cuvee.
+ *
+ * Each name is searched twice — as a phrase for the body and signature, and
+ * squashed up for the domain, since thedrinksclub.com has no spaces in it.
  */
 function supplierQueries_(suppliers) {
-  var NOISE = /^(the|and|ltd|limited|llp|plc|inc|co|company|uk|gb|group|holdings|services|service|trading|supplies|supply|london|int|intl|international|import|export|imports|exports)$/;
-  var terms = {}, i, j;
+  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated|co|company)\b/g;
+  var terms = {}, i;
 
   for (i = 0; i < suppliers.length; i++) {
-    var words = String(suppliers[i] || '').toLowerCase()
-      .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/);
-    var pick = '', squashed = '';
-    for (j = 0; j < words.length; j++) {
-      var w = words[j];
-      if (!w || NOISE.test(w)) continue;
-      squashed += w;
-      if (!pick && w.length >= 5) pick = w;      // first real word wins
-    }
-    if (!pick && squashed.length >= 6) pick = squashed;   // iceicebaby
-    if (pick) terms[pick] = 1;
+    var name = String(suppliers[i] || '').toLowerCase()
+      .replace(/\(.*?\)/g, ' ')          // drop "(Shop Cuvee Ltd)"
+      .replace(SUFFIX, ' ')              // drop the legal suffix
+      .replace(/[^a-z0-9 ]/g, ' ')       // & and punctuation break phrases
+      .replace(/\s+/g, ' ').trim();
+    if (name.length < 4) continue;       // "BOC" is too generic to search
+
+    var squashed = name.replace(/ /g, '');
+    terms['"' + name + '"'] = 1;
+    if (squashed !== name) terms[squashed] = 1;
   }
 
   var list = Object.keys(terms).sort();
   var out = [], batch = [];
   for (i = 0; i < list.length; i++) {
     batch.push(list[i]);
-    // Gmail dislikes very long queries; 15 names a search keeps it safe and
-    // still covers 100 suppliers in seven searches.
-    if (batch.length === 15 || i === list.length - 1) {
+    // Twenty a search keeps 100 suppliers down to ten searches. Apps Script
+    // stops a trigger at six minutes and the receipts sweep already uses four,
+    // so the number of searches matters more than their length.
+    if (batch.length === 20 || i === list.length - 1) {
       out.push('has:attachment {' + batch.join(' ') + '}');
       batch = [];
     }
