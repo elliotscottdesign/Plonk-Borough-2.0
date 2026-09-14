@@ -158,6 +158,98 @@ async function buildReport(sb: any, fromYmd: string, toYmd: string) {
   };
 }
 
+// London weekday (Mon=0…Sun=6) + hour(0-23) for an instant.
+function londonHourDow(d: Date): [number, number] {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short", hour: "2-digit", hour12: false }).formatToParts(d);
+  const wd = p.find((x) => x.type === "weekday")?.value || "Mon";
+  const hr = Number(p.find((x) => x.type === "hour")?.value || "0") % 24;
+  const map: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  return [map[wd] ?? 0, hr];
+}
+const lineRev = (li: any) => ((parseInt(li.price_pence, 10) || 0) + (Array.isArray(li.options) ? li.options.reduce((s: number, o: any) => s + (parseInt(o.price_pence, 10) || 0), 0) : 0)) * (parseInt(li.qty, 10) || 1);
+
+// Food 360 — the rich report. Speed + peaks always; money block only when asked
+// (the client asks after the 888999 gate). Money uses per-item cost SNAPSHOTS
+// stamped at order time (Phase 1); pre-snapshot lines fall back to the current
+// menu cost, flagged "estimated".
+async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney: boolean) {
+  const startMs = londonMidnightUtcMs(fromYmd), endMs = londonMidnightUtcMs(addDaysYmd(toYmd, 1));
+  const { data } = await sb.from("food_orders").select("*").gte("created_at", new Date(startMs).toISOString()).lt("created_at", new Date(endMs).toISOString());
+  const rows = data || [];
+  const card = rows.filter((o: any) => o.paid && !o.order_code);
+  const tabs = rows.filter((o: any) => o.order_code);
+  const real = [...card, ...tabs];
+  const itemsOf = (o: any) => Array.isArray(o.items) ? o.items : [];
+
+  // ── Speed ──
+  const secsBetween = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 1000;
+  const cookRows = real.filter((o: any) => o.ready_at && o.created_at);
+  const cookSecs = cookRows.map((o: any) => secsBetween(o.created_at, o.ready_at)).filter((s: number) => s >= 0).sort((a: number, b: number) => a - b);
+  const pctl = (arr: number[], p: number) => arr.length ? arr[Math.min(arr.length - 1, Math.floor((arr.length - 1) * p))] : null;
+  const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((s, x) => s + x, 0) / arr.length) : null;
+  const prep = real.filter((o: any) => o.preparing_at && o.created_at && o.ready_at);
+  const queueSecs = prep.map((o: any) => secsBetween(o.created_at, o.preparing_at)).filter((s: number) => s >= 0);
+  const cookOnlySecs = prep.map((o: any) => secsBetween(o.preparing_at, o.ready_at)).filter((s: number) => s >= 0);
+  // per-item cook time (order cook time attributed to each item in it — approximate)
+  const ic: Record<string, { sum: number; n: number }> = {};
+  for (const o of cookRows) { const sec = secsBetween(o.created_at, o.ready_at); for (const li of itemsOf(o)) { const nm = String(li.name || "item").trim(); (ic[nm] ||= { sum: 0, n: 0 }); ic[nm].sum += sec; ic[nm].n++; } }
+  const perItemCook = Object.entries(ic).map(([name, v]) => ({ name, avg_sec: Math.round(v.sum / v.n), n: v.n })).sort((a, b) => b.avg_sec - a.avg_sec);
+
+  // ── Peaks: orders by hour + day-of-week × hour heatmap (real orders) ──
+  const byHour = Array(24).fill(0);
+  const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const o of real) { const [dow, hr] = londonHourDow(new Date(o.created_at)); byHour[hr]++; heat[dow][hr]++; }
+
+  const revenue = card.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
+  const tips = card.reduce((s: number, o: any) => s + (o.tip_pence || 0), 0);
+  const base: any = {
+    from: fromYmd, to: toYmd,
+    orders: card.length, revenue_pence: revenue, tips_pence: tips,
+    avg_order_pence: card.length ? Math.round(revenue / card.length) : 0,
+    tab_orders: tabs.length, tab_total_pence: tabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0),
+    abandoned: rows.filter((o: any) => o.status === "pending" && !o.paid).length,
+    card_failed: rows.filter((o: any) => o.status === "card_failed").length,
+    speed: {
+      served: cookRows.length,
+      cook_median_sec: pctl(cookSecs, 0.5), cook_p90_sec: pctl(cookSecs, 0.9),
+      queue_avg_sec: avg(queueSecs), cook_avg_sec: avg(cookOnlySecs), split_n: prep.length,
+      per_item: perItemCook,
+    },
+    peaks: { by_hour: byHour, heat },
+  };
+  if (!withMoney) return base;
+
+  // ── Money ──
+  const { data: menu } = await sb.from("menu_catalog").select("sections, vat_registered").eq("id", 1).maybeSingle();
+  const vat = !!menu?.vat_registered;
+  const costByName: Record<string, number> = {};
+  for (const sec of (menu?.sections || [])) for (const it of (sec.items || [])) costByName[String(it.name || "").trim()] = parseInt(it.cost_pence, 10) || 0;
+  let cogs = 0, estLines = 0;
+  const pi: Record<string, { qty: number; rev: number; cost: number; est: boolean }> = {};
+  for (const o of real) for (const li of itemsOf(o)) {
+    const nm = String(li.name || "item").trim(); const qty = parseInt(li.qty, 10) || 1;
+    const rev = lineRev(li);
+    let unitCost = li.cost_pence; let est = false;
+    if (unitCost == null) { unitCost = costByName[nm] ?? 0; est = true; estLines++; }
+    else unitCost = parseInt(unitCost, 10) || 0;
+    const optCost = Array.isArray(li.options) ? li.options.reduce((s: number, x: any) => s + (x.cost_pence != null ? (parseInt(x.cost_pence, 10) || 0) : 0), 0) : 0;
+    const cost = (unitCost + optCost) * qty;
+    cogs += cost;
+    (pi[nm] ||= { qty: 0, rev: 0, cost: 0, est: false }); pi[nm].qty += qty; pi[nm].rev += rev; pi[nm].cost += cost; if (est) pi[nm].est = true;
+  }
+  const foodRevenue = revenue - tips;                       // food only, tips aren't sales
+  const revExVat = vat ? Math.round(foodRevenue / 1.2) : foodRevenue;
+  const gm = revExVat - cogs;
+  const perItem = Object.entries(pi).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  base.money = {
+    vat_registered: vat,
+    revenue_incl_vat_pence: foodRevenue, revenue_ex_vat_pence: revExVat,
+    cogs_pence: cogs, gross_margin_pence: gm, gross_margin_pct: revExVat ? Math.round(gm / revExVat * 1000) / 10 : 0,
+    estimated_lines: estLines, items: perItem,
+  };
+  return base;
+}
+
 function reportEmailHtml(r: any, title: string): string {
   const mmss = (s: number | null) => s == null ? "—" : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
   const rowsHtml = r.items.map((it: any) => `<tr><td style="padding:4px 10px 4px 0">${it.qty}×</td><td style="padding:4px 10px 4px 0">${it.name}</td><td style="padding:4px 0;text-align:right">${gbp(it.pence)}</td></tr>`).join("");
@@ -318,6 +410,16 @@ Deno.serve(async (req) => {
       const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
       const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
       const r = await buildReport(sb, from <= to ? from : to, from <= to ? to : from);
+      return json({ ok: true, report: r });
+    }
+
+    // Food 360 — rich report. Pass money:true (client does so only after the 888999
+    // gate) to include the money block. Speed + peaks come back either way.
+    if (action === "report360") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const r = await buildReport360(sb, from <= to ? from : to, from <= to ? to : from, b.money === true);
       return json({ ok: true, report: r });
     }
 
