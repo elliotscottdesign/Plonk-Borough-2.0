@@ -197,10 +197,31 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   const startMs = londonMidnightUtcMs(fromYmd), endMs = londonMidnightUtcMs(addDaysYmd(toYmd, 1));
   const { data } = await sb.from("food_orders").select("*").gte("created_at", new Date(startMs).toISOString()).lt("created_at", new Date(endMs).toISOString());
   const rows = data || [];
+  // Split coded orders into STAFF MEALS (kind 'staff' — a perk, cost only, never a
+  // sale) vs PARTY tabs (kind party/comp — real sales settled at the bar).
+  const { data: codeRows } = await sb.from("order_codes").select("code, kind");
+  const kindByCode: Record<string, string> = {};
+  for (const c of (codeRows || [])) kindByCode[String(c.code)] = String(c.kind || "");
   const card = rows.filter((o: any) => o.paid && !o.order_code);
-  const tabs = rows.filter((o: any) => o.order_code);
-  const real = [...card, ...tabs];
+  const coded = rows.filter((o: any) => o.order_code);
+  const staffMeals = coded.filter((o: any) => kindByCode[o.order_code] === "staff");
+  const partyTabs = coded.filter((o: any) => kindByCode[o.order_code] !== "staff");
+  const tabs = partyTabs;                        // "tabs" now means party/comp only
+  const sales = [...card, ...partyTabs];         // everything that's a real sale
+  const real = [...card, ...coded];              // everything the KITCHEN cooked (for speed/heatmap)
   const itemsOf = (o: any) => Array.isArray(o.items) ? o.items : [];
+  const cogsOf = (list: any[], costByName: Record<string, number>) => {
+    let c = 0, est = 0; const pi: Record<string, { qty: number; rev: number; cost: number; est: boolean }> = {};
+    for (const o of list) for (const li of itemsOf(o)) {
+      const nm = String(li.name || "item").trim(), qty = parseInt(li.qty, 10) || 1;
+      let unit = li.cost_pence, isEst = false;
+      if (unit == null) { unit = costByName[nm] ?? 0; isEst = true; est++; } else unit = parseInt(unit, 10) || 0;
+      const optCost = Array.isArray(li.options) ? li.options.reduce((s: number, x: any) => s + (x.cost_pence != null ? (parseInt(x.cost_pence, 10) || 0) : 0), 0) : 0;
+      const cost = (unit + optCost) * qty; c += cost;
+      (pi[nm] ||= { qty: 0, rev: 0, cost: 0, est: false }); pi[nm].qty += qty; pi[nm].rev += lineRev(li); pi[nm].cost += cost; if (isEst) pi[nm].est = true;
+    }
+    return { cogs: c, est, pi };
+  };
 
   // ── Speed ──
   const secsBetween = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 1000;
@@ -238,7 +259,8 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
     from: fromYmd, to: toYmd,
     orders: card.length, revenue_pence: revenue, tips_pence: tips,
     avg_order_pence: card.length ? Math.round(revenue / card.length) : 0,
-    tab_orders: tabs.length, tab_total_pence: tabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0),
+    tab_orders: partyTabs.length, tab_total_pence: partyTabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0),
+    staff_meals: staffMeals.length,
     abandoned: rows.filter((o: any) => o.status === "pending" && !o.paid).length,
     card_failed: rows.filter((o: any) => o.status === "card_failed").length,
     speed: {
@@ -256,28 +278,19 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   const vat = !!menu?.vat_registered;
   const costByName: Record<string, number> = {};
   for (const sec of (menu?.sections || [])) for (const it of (sec.items || [])) costByName[String(it.name || "").trim()] = parseInt(it.cost_pence, 10) || 0;
-  let cogs = 0, estLines = 0;
-  const pi: Record<string, { qty: number; rev: number; cost: number; est: boolean }> = {};
-  for (const o of real) for (const li of itemsOf(o)) {
-    const nm = String(li.name || "item").trim(); const qty = parseInt(li.qty, 10) || 1;
-    const rev = lineRev(li);
-    let unitCost = li.cost_pence; let est = false;
-    if (unitCost == null) { unitCost = costByName[nm] ?? 0; est = true; estLines++; }
-    else unitCost = parseInt(unitCost, 10) || 0;
-    const optCost = Array.isArray(li.options) ? li.options.reduce((s: number, x: any) => s + (x.cost_pence != null ? (parseInt(x.cost_pence, 10) || 0) : 0), 0) : 0;
-    const cost = (unitCost + optCost) * qty;
-    cogs += cost;
-    (pi[nm] ||= { qty: 0, rev: 0, cost: 0, est: false }); pi[nm].qty += qty; pi[nm].rev += rev; pi[nm].cost += cost; if (est) pi[nm].est = true;
-  }
-  const foodRevenue = revenue - tips;                       // food only, tips aren't sales
+  const salesC = cogsOf(sales, costByName);              // COGS + per-item over SALES only (card + party tabs)
+  const staffC = cogsOf(staffMeals, costByName);         // staff meals valued at COST (a perk, not a sale)
+  const partyRevenue = partyTabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
+  const foodRevenue = (revenue - tips) + partyRevenue;   // card food (ex-tips) + party-tab sales
   const revExVat = vat ? Math.round(foodRevenue / 1.2) : foodRevenue;
-  const gm = revExVat - cogs;
-  const perItem = Object.entries(pi).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  const gm = revExVat - salesC.cogs;
+  const perItem = Object.entries(salesC.pi).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
   base.money = {
     vat_registered: vat,
     revenue_incl_vat_pence: foodRevenue, revenue_ex_vat_pence: revExVat,
-    cogs_pence: cogs, gross_margin_pence: gm, gross_margin_pct: revExVat ? Math.round(gm / revExVat * 1000) / 10 : 0,
-    estimated_lines: estLines, items: perItem,
+    cogs_pence: salesC.cogs, gross_margin_pence: gm, gross_margin_pct: revExVat ? Math.round(gm / revExVat * 1000) / 10 : 0,
+    estimated_lines: salesC.est + staffC.est, items: perItem,
+    staff_meals_count: staffMeals.length, staff_meals_cost_pence: staffC.cogs,
   };
   return base;
 }

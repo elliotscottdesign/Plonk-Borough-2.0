@@ -163,7 +163,7 @@ export default function Food360Panel() {
         <div style={{ opacity: loading ? 0.5 : 1 }}>
           {/* at-a-glance — operational only, no money */}
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-            <Stat label="🧾 Orders" value={rep.orders} sub={rep.tab_orders ? `+${rep.tab_orders} on tab` : 'card'} big />
+            <Stat label="🧾 Orders" value={rep.orders} sub={[rep.tab_orders ? `+${rep.tab_orders} tab` : '', rep.staff_meals ? `${rep.staff_meals} staff meal${rep.staff_meals !== 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'card'} big />
             <Stat label="⏱ Cook time (median)" value={mmss(sp?.cook_median_sec)} sub={`p90 ${mmss(sp?.cook_p90_sec)}`} color={sp?.cook_median_sec > 12 * 60 ? RED : sp?.cook_median_sec > 8 * 60 ? AMBER : GREEN} />
             <Stat label="🛒 Abandoned" value={rep.abandoned} sub="started, didn't pay" color={rep.abandoned ? AMBER : '#fff'} />
             <Stat label="❌ Card failed" value={rep.card_failed} color={rep.card_failed ? RED : '#fff'} />
@@ -208,6 +208,7 @@ export default function Food360Panel() {
                 return (<>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
                     <Stat label="👨‍🍳 Kitchen labour" value={noShifts ? 'none' : labour ? gbp(labour.labour_pence) : '…'} sub={noShifts ? 'no rota kitchen shifts' : labour ? `${Math.round(labour.paid_min / 60 * 10) / 10}h paid (rota)` : 'from the rota'} color={AMBER} />
+                    {rep.money.staff_meals_count > 0 && <Stat label="🍽 Staff meals (cost)" value={gbp(rep.money.staff_meals_cost_pence)} sub={`${rep.money.staff_meals_count} meal${rep.money.staff_meals_count !== 1 ? 's' : ''} · perk, not a sale`} color={AMBER} />}
                     <Stat label={noShifts ? '📈 Contribution (pre-wages)' : '✅ Kitchen contribution'} value={labour ? gbp(rep.money.gross_margin_pence - labour.labour_pence) : '…'} sub={noShifts ? 'wages not yet counted' : 'margin − kitchen wages'} color={labour && (rep.money.gross_margin_pence - labour.labour_pence) >= 0 ? GREEN : RED} big />
                   </div>
                   {noShifts && <div style={{ fontSize: 11.5, color: AMBER, marginBottom: 8 }}>ℹ No kitchen-team (“orange” Kitchen / Barback staff) worked in this period, so no kitchen wage is deducted. Add chefs to the rota as Kitchen / Barback with their rate and their wages count here automatically.</div>}
@@ -235,7 +236,7 @@ export default function Food360Panel() {
                   </div>
                 ))}
               </div>
-              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules. Kitchen wages are counted as a <b style={{ color: '#fff' }}>separate cost</b>: bar and kitchen occasionally cover for each other, but the kitchen crew's wage is treated as the kitchen's own. ~ = cost estimated from today's menu. Till-sales merge &amp; staff-meal costs come next.</div>
+              <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules. Kitchen wages are counted as a <b style={{ color: '#fff' }}>separate cost</b>: bar and kitchen occasionally cover for each other, but the kitchen crew's wage is treated as the kitchen's own. Staff meals (STAFF66) are valued at cost as a perk, never as a sale. ~ = cost estimated from today's menu. Till-sales merge (Lightspeed downtime) comes next.</div>
             </div>
           )}
         </div>
