@@ -545,7 +545,7 @@ function Events({ data, reload, filter, setFilter }) {
                       ))}
                     </div>
                   )}
-                  <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)} rows={3} placeholder={`Message ${to}…  e.g. "Can you start at 4pm sharp?" or "Send your flyer over when you can"`} style={ta} />
+                  <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)} rows={3} placeholder={`Message ${to}…  e.g. "Can you start at 4pm sharp?" or "Send your flyer over when you can"`} style={{ ...inp('100%'), boxSizing: 'border-box', resize: 'vertical', lineHeight: 1.5, fontFamily: 'inherit' }} />
                   <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
                     <button onClick={() => { setMsgOpen(null); setMsgDraft('') }} disabled={busy} style={btn('ghost')}>Cancel</button>
                     <button onClick={() => sendComment(s)} disabled={busy || !msgDraft.trim()} style={{ ...btn('gold'), opacity: (busy || !msgDraft.trim()) ? 0.5 : 1 }}>{busy ? 'Sending…' : 'Send to DJ'}</button>
