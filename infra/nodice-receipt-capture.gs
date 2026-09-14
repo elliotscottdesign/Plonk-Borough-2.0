@@ -542,25 +542,51 @@ function pickSupplier_(subject, from, src, body) {
  * Pull the amount out. Prefer an explicit total; fall back to the largest
  * figure on the page, which for a receipt is almost always the total.
  */
+/**
+ * What did this document actually come to?
+ *
+ * It used to fall back to "the biggest number on the page", which is how four
+ * Drinks Club statements filed at £5,000.00 each: that is the credit limit,
+ * printed larger than anything else and nowhere near a real order. Their
+ * actual invoices run £639 to £2,908, none of them round.
+ *
+ * The biggest number on a statement is almost never the total — it is the
+ * credit limit, the account balance or a year-to-date figure. No amount at all
+ * is a better answer than a confident wrong one: without a total the document
+ * is held for review and never becomes a bill, which is exactly right.
+ */
 function pickAmount_(body, subject) {
-  // The leading [^A-Za-z] matters: without it "Subtotal" matches "Total" and
-  // every Toast receipt files at the pre-service-charge figure (£3.90 instead
-  // of £4.39). Checked against the real E5 and Square emails.
-  var labelled = body.match(/(?:^|[^A-Za-z])(?:Amount Total|Total|Amount paid|You paid)[^\d£]{0,12}£?\s?([\d,]+\.\d{2})/i);
-  if (labelled) return labelled[1].replace(/,/g, '');
+  // Read the figure that is LABELLED as the total. The leading [^A-Za-z]
+  // matters: without it "Subtotal" matches "Total" and every Toast receipt
+  // files at the pre-service-charge figure (£3.90 instead of £4.39).
+  var LABEL = /(?:^|[^A-Za-z])(Invoice Total|Total Due|Total to Pay|Amount Due|Amount Total|Grand Total|Total|Amount paid|You paid)[^\dA-Za-z£]{0,12}£?\s?([\d,]+\.\d{2})/gi;
 
+  // ...unless the words around it say it is something else. A statement says
+  // "Total Outstanding" and "Credit Limit"; neither is what this invoice costs.
+  var NOT_A_TOTAL = /credit limit|outstanding|balance|brought forward|carried forward|year to date|ytd|overdue|limit|available|on account/i;
+
+  var m, best = '';
+  while ((m = LABEL.exec(body)) !== null) {
+    var at = m.index;
+    // Judge the LINE the label sits on, not a window of surrounding text. A
+    // statement reads "Credit Limit £5,000" then "Invoice Total £1,072.24" two
+    // lines apart: look sixty characters back and the first line poisons the
+    // second, and a real total gets thrown away. The disqualifying word is
+    // always beside the label — "Total Outstanding", "Balance brought forward
+    // Total" — so the line is the unit that matters.
+    var lineFrom = body.lastIndexOf('\n', at) + 1;
+    var line = body.slice(lineFrom, at + m[0].length);
+    if (NOT_A_TOTAL.test(line)) continue;
+    // Keep the LAST good one: an invoice states its total at the foot, after
+    // the lines, the subtotal and the VAT.
+    best = m[2].replace(/,/g, '');
+  }
+  if (best) return best;
+
+  // A subject that states the figure outright is trustworthy enough.
   var subj = subject.match(/£\s?([\d,]+\.\d{2})/);
   if (subj) return subj[1].replace(/,/g, '');
 
-  var all = body.match(/£\s?[\d,]+\.\d{2}/g);
-  if (all && all.length) {
-    var best = 0;
-    for (var i = 0; i < all.length; i++) {
-      var n = parseFloat(all[i].replace(/[£,\s]/g, ''));
-      if (n > best) best = n;
-    }
-    if (best > 0) return best.toFixed(2);
-  }
   return '';
 }
 
