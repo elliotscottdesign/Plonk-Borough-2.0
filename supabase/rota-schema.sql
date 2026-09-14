@@ -290,3 +290,9 @@ alter table public.staff enable row level security;
 alter table public.staff_shifts enable row level security;
 alter table public.staff_shift_claims enable row level security;
 alter table public.staff_availability enable row level security;
+
+-- Breaks (14 Sep 2026): one unpaid break per shift, tapped in/out on /today.
+-- Pay ALWAYS deducts 5 min per worked hour on 6h+ shifts whether or not the
+-- break was tapped — the buttons are for compliance, not the maths.
+alter table public.shift_clock add column if not exists break_start timestamptz;
+alter table public.shift_clock add column if not exists break_end timestamptz;
