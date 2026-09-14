@@ -47,8 +47,26 @@
 
 var CONFIG = {
 
-  // Xero → Files → "Email to Files Inbox". NOT the bills.* address.
+  // Xero → Files → "Email to Files Inbox". A document parked here creates
+  // nothing: no bill, no payment. It is a holding pen, used only for a
+  // RECEIPT whose total could not be read.
   XERO_FILES_INBOX: 'xero.inbox.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
+
+  // Xero → Bills to pay → the address on the empty-state panel. Anything sent
+  // here becomes a DRAFT BILL with the PDF attached.
+  //
+  // Only supplier INVOICES come here, and only ones that pass INVOICE_RULES —
+  // never a receipt, never a statement, never an order acknowledgement. The
+  // old "Xero Auto Emailer" forwarded indiscriminately and produced 95 drafts
+  // worth £38,402, most with no contact and six sets of duplicates; all of it
+  // was deleted on 14 Sep 2026 and its trigger removed. The filtering below is
+  // the only reason this address is safe to use again.
+  //
+  // An unpaid invoice has no bank payment to attach to — that is WHY it needs
+  // to be a bill. Of 15 invoices captured in the first month, 11 had no
+  // matching payment anywhere in the books: they were simply unpaid, £8,283.71
+  // of liability the company could not see.
+  XERO_BILLS_INBOX: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
   // Where the run report goes.
   REPORT_TO: 'elliot@nodice.bar',
@@ -745,7 +763,23 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
+          // TWO destinations, doing two different jobs.
+          //
+          // 1. The bills inbox, so it becomes a draft bill you can see and
+          //    approve. This is the one that matters: it puts the liability on
+          //    the balance sheet, and when you pay it the bank line matches the
+          //    bill instead of hunting for a document.
+          GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+            attachments: [blob], name: 'No Dice Receipt Capture',
+          });
+
+          // 2. The finance service, which keeps our own copy and attaches it to
+          //    the bank payment when one matches to the penny — freelancers and
+          //    one-off contractors paid on the nose. Harmless duplication when
+          //    both fire; the alternative is losing one or the other.
           sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+
+          item.how = 'bill + attach';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
