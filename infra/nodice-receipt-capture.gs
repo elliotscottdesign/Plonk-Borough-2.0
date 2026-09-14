@@ -126,6 +126,15 @@ var INVOICE_RULES = {
 
   // Broad on purpose. Being wrong here is cheap — the supplier check and the
   // amount check below throw out anything that isn't real.
+  // These four only find an invoice if the sender happened to type "invoice"
+  // or "bill" in the SUBJECT. Plenty don't: "VALIMEX 4521", "Your order",
+  // the company name and a PDF. Valimex was paid nine times, £2,028.60, and
+  // not one of those emails was ever searched — the sweep wasn't rejecting
+  // them, it was never looking at them.
+  //
+  // They are kept because they cost nothing and catch a supplier who is not
+  // yet a contact in Xero. The real net is supplierQueries_() below, which
+  // searches for YOUR suppliers by name instead of guessing at subject lines.
   queries: [
     'has:attachment (subject:invoice OR subject:"tax invoice" OR subject:bill)',
     'from:messaging-service@post.xero.com subject:invoice',
@@ -694,8 +703,12 @@ function sweepInvoices() {
 
   var seenIds = {};
 
-  for (var qi = 0; qi < INVOICE_RULES.queries.length; qi++) {
-    var q = INVOICE_RULES.queries[qi]
+  // Subject-word guesses first, then the real net: one search per batch of
+  // your actual Xero suppliers.
+  var QUERIES = INVOICE_RULES.queries.concat(supplierQueries_(suppliers));
+
+  for (var qi = 0; qi < QUERIES.length; qi++) {
+    var q = QUERIES[qi]
           + ' newer_than:' + INVOICE_RULES.lookbackDays + 'd'
           + ' -label:"' + CONFIG.LABEL_INVOICE + '"';
 
@@ -763,23 +776,31 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
-          // TWO destinations, doing two different jobs.
+          // Searching by supplier finds far more than searching by subject
+          // word, so the gate moves here: capture everything that passes the
+          // checks, but only let something BECOME A BILL if it carries an
+          // invoice reference or says so in the subject.
           //
-          // 1. The bills inbox, so it becomes a draft bill you can see and
-          //    approve. This is the one that matters: it puts the liability on
-          //    the balance sheet, and when you pay it the bank line matches the
-          //    bill instead of hunting for a document.
-          GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
-            attachments: [blob], name: 'No Dice Receipt Capture',
-          });
+          // A real invoice has a number. A delivery note, a shipping update or
+          // a marketing PDF from the same supplier usually doesn't. That one
+          // test is what stops a wider net refilling the drafts we just spent
+          // an afternoon deleting.
+          var looksBillable = !!ref || /invoice|bill/i.test(subject);
 
-          // 2. The finance service, which keeps our own copy and attaches it to
-          //    the bank payment when one matches to the penny — freelancers and
-          //    one-off contractors paid on the nose. Harmless duplication when
-          //    both fire; the alternative is losing one or the other.
+          if (looksBillable) {
+            // Becomes a draft bill with the PDF attached: the liability
+            // appears, and the payment has something to match against.
+            GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+              attachments: [blob], name: 'No Dice Receipt Capture',
+            });
+          }
+
+          // Always keep our own copy. It attaches to the bank payment when one
+          // matches to the penny — freelancers and contractors paid on the
+          // nose — and it feeds the missing-documents report either way.
           sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
 
-          item.how = 'bill + attach';
+          item.how = looksBillable ? 'bill + attach' : 'attach only (no invoice number)';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
@@ -792,6 +813,56 @@ function sweepInvoices() {
 
   invoiceReport_(sent, review, unknown, suppliers.length);
   return 'invoices: ' + sent.length + ' sent, ' + review.length + ' to check, ' + unknown.length + ' unknown';
+}
+
+/**
+ * Turn your Xero supplier list into Gmail searches.
+ *
+ * The supplier list is the strong signal — 100-odd names Xero knows you have
+ * actually paid — and it was going unused at the search step. Guessing at
+ * subject words throttled the intake instead of filtering the output, which is
+ * the wrong end to be careful at: the safeguards downstream (reject list,
+ * name score, readable total, invoice reference) were already carrying that
+ * load.
+ *
+ * Take the FIRST significant word, not the longest — a company name leads with
+ * its brand and trails off into what it does. "Storage Solutions London Ltd"
+ * has to search for "storage", not "solutions"; longest-word picked the latter
+ * and would have matched every consultancy in the inbox.
+ *
+ * Where no single word is long enough — "Ice Ice Baby Ltd" — fall back to the
+ * name squashed together, which is how it appears in a domain.
+ */
+function supplierQueries_(suppliers) {
+  var NOISE = /^(the|and|ltd|limited|llp|plc|inc|co|company|uk|gb|group|holdings|services|service|trading|supplies|supply|london|int|intl|international|import|export|imports|exports)$/;
+  var terms = {}, i, j;
+
+  for (i = 0; i < suppliers.length; i++) {
+    var words = String(suppliers[i] || '').toLowerCase()
+      .replace(/[^a-z0-9 ]/g, ' ').split(/\s+/);
+    var pick = '', squashed = '';
+    for (j = 0; j < words.length; j++) {
+      var w = words[j];
+      if (!w || NOISE.test(w)) continue;
+      squashed += w;
+      if (!pick && w.length >= 5) pick = w;      // first real word wins
+    }
+    if (!pick && squashed.length >= 6) pick = squashed;   // iceicebaby
+    if (pick) terms[pick] = 1;
+  }
+
+  var list = Object.keys(terms).sort();
+  var out = [], batch = [];
+  for (i = 0; i < list.length; i++) {
+    batch.push(list[i]);
+    // Gmail dislikes very long queries; 15 names a search keeps it safe and
+    // still covers 100 suppliers in seven searches.
+    if (batch.length === 15 || i === list.length - 1) {
+      out.push('has:attachment {' + batch.join(' ') + '}');
+      batch = [];
+    }
+  }
+  return out;
 }
 
 /**
