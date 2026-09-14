@@ -74,7 +74,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
             const bg = (st) => st === 'confirmed' ? 'rgba(52,211,153,0.10)' : st === 'pending' ? 'rgba(252,211,77,0.10)' : st === 'held' ? 'rgba(245,158,11,0.10)' : st === 'open' ? 'rgba(218,27,51,0.10)' : 'transparent'
             return (
               <button key={i} type="button" className="cal-rich-cell" disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
-                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? `2px solid ${RED}` : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? TODAY_RING : undefined, display: 'flex', flexDirection: 'column' }}>
+                style={{ borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left', background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default', border: isSel ? '2px solid #60A5FA' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? TODAY_RING : undefined, display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '3px 6px' }}>
                   <span style={{ fontSize: 11, fontWeight: 700 }}>{d}</span>
                   <span style={{ fontSize: 7.5, color: 'rgba(255,255,255,0.45)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>2 sessions</span>
@@ -112,7 +112,7 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
                 style={{
                   borderRadius: 8, padding: 0, overflow: 'hidden', textAlign: 'left',
                   background: '#000', color: '#fff', cursor: clickable ? 'pointer' : 'default',
-                  border: isSel ? `2px solid ${RED}` : `1px solid ${statusColor}`,
+                  border: isSel ? '2px solid #60A5FA' : `1px solid ${statusColor}`,
                   boxShadow: isToday ? TODAY_RING : undefined,
                   display: 'flex', flexDirection: 'column', position: 'relative',
                 }}>
@@ -142,9 +142,9 @@ export default function MonthCalendar({ year, month, onPrev, onNext, canPrev = t
             <button key={i} type="button" className={rich ? 'cal-rich-cell' : undefined} disabled={!clickable} onClick={() => clickable && onDay(dateStr)}
               style={{
                 aspectRatio: rich ? 'auto' : '1 / 1', borderRadius: 8, fontSize: 13, fontWeight: info ? 700 : 400,
-                background: isSel ? RED : (t.background || 'transparent'),
+                background: isSel ? '#60A5FA' : (t.background || 'transparent'),
                 color: isSel ? '#fff' : (isToday ? TODAY : (info ? (t.color || '#fff') : 'rgba(255,255,255,0.22)')),
-                border: isSel ? `1px solid ${RED}` : (t.border || '1px solid transparent'),
+                border: isSel ? '1px solid #60A5FA' : (t.border || '1px solid transparent'),
                 boxShadow: isToday ? TODAY_RING : undefined,
                 cursor: clickable ? 'pointer' : 'default', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 2, padding: 0, position: 'relative',
               }}>

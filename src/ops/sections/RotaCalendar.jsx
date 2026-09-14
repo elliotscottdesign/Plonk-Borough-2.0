@@ -376,7 +376,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const focusC = GREEN   // founder rule: green = on shift, red = booked off
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? '2px solid #60A5FA' : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span title={hol || undefined} style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : hol ? '#FBBF24' : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -432,6 +432,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: RED }}>■</span> open, empty</span>
           <span><span style={{ color: GREY }}>▢</span> not released yet</span>
           <span><span style={{ color: TODAY }}>▣</span> today</span>
+          <span><span style={{ color: '#60A5FA' }}>▣</span> selected day</span>
           <span><span style={{ color: '#FBBF24' }}>15</span> school holiday</span>
           <span><span style={{ color: GREEN, fontWeight: 800 }}>£</span> payday (last Friday)</span>
           <span>🌕 full moon</span>

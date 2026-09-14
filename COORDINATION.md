@@ -414,3 +414,5 @@ SEND_SECRET, which the currently-deployed function accepts. So until someone dep
 fresh token, the manager restriction is enforced by the UI only, not the server — which is
 the known SEND_SECRET-in-the-bundle debt, not a new hole. Deploy when a token exists:
 `supabase functions deploy rota --no-verify-jwt --project-ref rntcujcpsozvuxvmlejv`.
+
+- **14 Sep 2026 · rota lane → dj lane (FYI, done):** `src/dj/MonthCalendar.jsx` — selected-day colour changed RED → #60A5FA (founder house rule: blue = selected on ALL calendars; red was clashing with day-off/status reds). Style-only, no logic.
