@@ -168,6 +168,47 @@ function londonHourDow(d: Date): [number, number] {
 }
 const lineRev = (li: any) => ((parseInt(li.price_pence, 10) || 0) + (Array.isArray(li.options) ? li.options.reduce((s: number, o: any) => s + (parseInt(o.price_pence, 10) || 0), 0) : 0)) * (parseInt(li.qty, 10) || 1);
 
+// Minimal CSV → array of row objects (handles quoted fields + embedded commas).
+function parseCsv(text: string): Record<string, string>[] {
+  const t = text.replace(/^﻿/, "");
+  const rows: string[][] = []; let field = "", row: string[] = [], inQ = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inQ) { if (c === '"') { if (t[i + 1] === '"') { field += '"'; i++; } else inQ = false; } else field += c; }
+    else if (c === '"') inQ = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== "\r") field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  const header = (rows.shift() || []).map((h) => h.trim());
+  return rows.filter((r) => r.length > 1).map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
+}
+// Lightspeed line-transaction CSVs → Food + Bar Food revenue per London day.
+async function tillFoodByDay(sb: any, f: string, t: string) {
+  const { data: files } = await sb.from("till_reports").select("storage_path").eq("report_kind", "transactions").gte("covers_date", f).lte("covers_date", addDaysYmd(t, 1));
+  const byDate: Record<string, { food: number; barfood: number }> = {};
+  for (const file of (files || [])) {
+    const dl = await sb.storage.from("till-reports").download(file.storage_path);
+    if (!dl.data) continue;
+    const text = new TextDecoder("latin1").decode(new Uint8Array(await dl.data.arrayBuffer()));
+    for (const r of parseCsv(text)) {
+      if ((r["Type"] || "").trim() !== "SALE") continue;
+      const grp = (r["Group"] || "").split("(")[0].trim();
+      if (grp !== "Food" && grp !== "Bar Food") continue;
+      const m = /^(\d{2})\/(\d{2})\/(\d{2})/.exec((r["Date"] || "").trim());
+      if (!m) continue;
+      const ymd = `20${m[3]}-${m[2]}-${m[1]}`;
+      if (ymd < f || ymd > t) continue;
+      const price = parseFloat(r["FinalPrice"] || "0") || 0;
+      (byDate[ymd] ||= { food: 0, barfood: 0 });
+      if (grp === "Food") byDate[ymd].food += price; else byDate[ymd].barfood += price;
+    }
+  }
+  const days = Object.entries(byDate).map(([date, v]) => ({ date, food_pence: Math.round(v.food * 100), bar_food_pence: Math.round(v.barfood * 100), total_pence: Math.round((v.food + v.barfood) * 100) })).sort((a, b) => a.date < b.date ? -1 : 1);
+  return { days, total_pence: days.reduce((s, d) => s + d.total_pence, 0) };
+}
+
 // The "orange" kitchen crew: staff by ROLE, not by shift. Every shift is rostered
 // "bar", but Kitchen / Barback people (and anyone kitchen-abled who isn't a
 // manager) are the kitchen team — the founder's orange labels. Their rostered/
@@ -474,6 +515,18 @@ Deno.serve(async (req) => {
       const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
       const r = await buildReport360(sb, from <= to ? from : to, from <= to ? to : from, b.money === true);
       return json({ ok: true, report: r });
+    }
+
+    // Till FOOD sales (Lightspeed) for the range — Food + "Bar Food" groups parsed
+    // from the line-transaction CSVs, badged "till sales" so days On A Roll was
+    // down (food rung on the till instead) still show in the food picture.
+    if (action === "tillFood") {   // kitchen (money tier — revenue figures)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const [f, t] = from <= to ? [from, to] : [to, from];
+      const r = await tillFoodByDay(sb, f, t);
+      return json({ ok: true, from: f, to: t, ...r });
     }
 
     // Raw rota data for the MONEY tier's kitchen-labour calc. The client runs the
