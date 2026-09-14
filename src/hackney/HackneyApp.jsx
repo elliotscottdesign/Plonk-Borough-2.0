@@ -4,6 +4,7 @@ import BusinessExplorer from './tabs/BusinessExplorer.jsx'
 import Plonk from './tabs/Plonk.jsx'
 import LoanNotes from './tabs/LoanNotes.jsx'
 import Agreements from './tabs/Agreements.jsx'
+import QuarterlyReview from './tabs/QuarterlyReview.jsx'
 import NotesTab from './tabs/NotesTab.jsx'
 import Cover from './slides/Cover.jsx'
 import InvestmentSummary from './slides/InvestmentSummary.jsx'
@@ -49,16 +50,20 @@ const SLIDE_DEFS = [
 //
 // `roleOnly: '<role>'` flags a tab as gated to one specific role tag
 // (e.g. 'leonie' — set on the LEONIE access code via PasswordGate).
+// `rolesAny: [<role>, ...]` flags a tab as visible to ANY of the listed
+// roles (used for the Q1 Review + consolidated Agreements tabs that
+// span all three investors).
 // The founder role always sees role-gated tabs too so Elliot can review.
 const TOP_TABS = [
   { key:'investorDeck',      label:'Investor Deck' },
+  { key:'quarterlyReview',   label:'Q1 Review',      rolesAny:['leonie','lee','mike'] },
   { key:'businessExplorer',  label:'Business Explorer' },
   { key:'venueInfo',         label:'Venue Info' },
   { key:'loanNotes',         label:'Loan Notes' },
   // ONE Agreements page holding every Round-1 agreement as drop-down sections
   // (was three separate "Your Agreement" tabs). rolesAny: an investor role sees
   // the tab (their own agreement inside); the founder always sees it (all three).
-  { key:'agreements',        label:'Agreements', rolesAny:['leonie','lee','mike'] },
+  { key:'agreements',        label:'Agreements',     rolesAny:['leonie','lee','mike'] },
   { key:'plonk',             label:'Plonk' },
 ]
 
@@ -75,6 +80,7 @@ function deriveActivePage(topTab, slideId) {
   if (topTab === 'plonk')             return { id: 'plonk',    label: 'Plonk' }
   if (topTab === 'loanNotes')         return { id: 'loanNotes', label: 'Loan Notes' }
   if (topTab === 'agreements')        return { id: 'agreements', label: 'Agreements' }
+  if (topTab === 'quarterlyReview')   return { id: 'quarterlyReview', label: 'Q1 Review' }
   if (topTab === 'notes')             return null   // master view
   return null
 }
@@ -247,6 +253,7 @@ function HackneyShell({ topTab, setTopTab, slideIdx, setSlideIdx, go }) {
         {topTab === 'plonk' && <div style={{ flex:1, overflowY:'auto' }}><Plonk /></div>}
         {topTab === 'loanNotes' && <div style={{ flex:1, overflowY:'auto' }}><LoanNotes /></div>}
         {topTab === 'agreements' && <div style={{ flex:1, overflowY:'auto' }}><Agreements role={role} isFounder={isFounder} /></div>}
+        {topTab === 'quarterlyReview' && <div style={{ flex:1, overflowY:'auto' }}><QuarterlyReview /></div>}
         {topTab === 'notes' && <div style={{ flex:1, overflowY:'auto' }}><NotesTab /></div>}
       </div>
       <NotesPanel />
