@@ -47,8 +47,26 @@
 
 var CONFIG = {
 
-  // Xero → Files → "Email to Files Inbox". NOT the bills.* address.
+  // Xero → Files → "Email to Files Inbox". A document parked here creates
+  // nothing: no bill, no payment. It is a holding pen, used only for a
+  // RECEIPT whose total could not be read.
   XERO_FILES_INBOX: 'xero.inbox.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
+
+  // Xero → Bills to pay → the address on the empty-state panel. Anything sent
+  // here becomes a DRAFT BILL with the PDF attached.
+  //
+  // Only supplier INVOICES come here, and only ones that pass INVOICE_RULES —
+  // never a receipt, never a statement, never an order acknowledgement. The
+  // old "Xero Auto Emailer" forwarded indiscriminately and produced 95 drafts
+  // worth £38,402, most with no contact and six sets of duplicates; all of it
+  // was deleted on 14 Sep 2026 and its trigger removed. The filtering below is
+  // the only reason this address is safe to use again.
+  //
+  // An unpaid invoice has no bank payment to attach to — that is WHY it needs
+  // to be a bill. Of 15 invoices captured in the first month, 11 had no
+  // matching payment anywhere in the books: they were simply unpaid, £8,283.71
+  // of liability the company could not see.
+  XERO_BILLS_INBOX: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
   // Where the run report goes.
   REPORT_TO: 'elliot@nodice.bar',
@@ -108,6 +126,15 @@ var INVOICE_RULES = {
 
   // Broad on purpose. Being wrong here is cheap — the supplier check and the
   // amount check below throw out anything that isn't real.
+  // These four only find an invoice if the sender happened to type "invoice"
+  // or "bill" in the SUBJECT. Plenty don't: "VALIMEX 4521", "Your order",
+  // the company name and a PDF. Valimex was paid nine times, £2,028.60, and
+  // not one of those emails was ever searched — the sweep wasn't rejecting
+  // them, it was never looking at them.
+  //
+  // They are kept because they cost nothing and catch a supplier who is not
+  // yet a contact in Xero. The real net is supplierQueries_() below, which
+  // searches for YOUR suppliers by name instead of guessing at subject lines.
   queries: [
     'has:attachment (subject:invoice OR subject:"tax invoice" OR subject:bill)',
     'from:messaging-service@post.xero.com subject:invoice',
@@ -119,7 +146,17 @@ var INVOICE_RULES = {
   // clean ledger and the ~£6,000 of fake bills August produced: an order
   // acknowledgement, a statement and a delivery note all say "invoice"
   // somewhere and none of them is one.
+  // Applied to the SUBJECT, where a document announces what it is.
   reject: /not an invoice|statement|order acknowledgement|order confirmation|delivery note|despatch|dispatch|quote|quotation|remittance|reminder|overdue|purchase order|credit note|receipt from|payment received|thank you for your payment/i,
+
+  // Applied to the BODY, and deliberately much shorter.
+  //
+  // The full list above cannot be used on body text: Valimex's invoices carry
+  // the footer "we kindly ask that all purchase orders...", and `purchase
+  // order` threw out nine genuine invoices worth £2,028.60. Boilerplate
+  // mentions everything. Only phrases that a document uses to name ITSELF
+  // belong here, and even then the subject is the better signal.
+  rejectBody: /this is not an invoice|delivery note|remittance advice|credit note/i,
 
   // Pull an invoice number out if one is there — any sensible format.
   ref: /(?:invoice|inv|bill)\s*(?:no\.?|number|#|:)?\s*([A-Z]{0,4}[-\/]?\d{3,}[A-Z0-9\-\/]*)/i,
@@ -676,8 +713,12 @@ function sweepInvoices() {
 
   var seenIds = {};
 
-  for (var qi = 0; qi < INVOICE_RULES.queries.length; qi++) {
-    var q = INVOICE_RULES.queries[qi]
+  // Subject-word guesses first, then the real net: one search per batch of
+  // your actual Xero suppliers.
+  var QUERIES = INVOICE_RULES.queries.concat(supplierQueries_(suppliers));
+
+  for (var qi = 0; qi < QUERIES.length; qi++) {
+    var q = QUERIES[qi]
           + ' newer_than:' + INVOICE_RULES.lookbackDays + 'd'
           + ' -label:"' + CONFIG.LABEL_INVOICE + '"';
 
@@ -698,7 +739,7 @@ function sweepInvoices() {
         if (from.indexOf(CONFIG.REPORT_TO) > -1) continue;   // our own forwards
 
         var body = safeBody_(msg);
-        if (INVOICE_RULES.reject.test(body.slice(0, 400))) continue;
+        if (INVOICE_RULES.rejectBody.test(body.slice(0, 400))) continue;
 
         var dateStr = Utilities.formatDate(msg.getDate(), 'Europe/London', 'yyyy-MM-dd');
         var amount = pickAmount_(body, subject);
@@ -745,7 +786,31 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
+          // Searching by supplier finds far more than searching by subject
+          // word, so the gate moves here: capture everything that passes the
+          // checks, but only let something BECOME A BILL if it carries an
+          // invoice reference or says so in the subject.
+          //
+          // A real invoice has a number. A delivery note, a shipping update or
+          // a marketing PDF from the same supplier usually doesn't. That one
+          // test is what stops a wider net refilling the drafts we just spent
+          // an afternoon deleting.
+          var looksBillable = !!ref || /invoice|bill/i.test(subject);
+
+          if (looksBillable) {
+            // Becomes a draft bill with the PDF attached: the liability
+            // appears, and the payment has something to match against.
+            GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+              attachments: [blob], name: 'No Dice Receipt Capture',
+            });
+          }
+
+          // Always keep our own copy. It attaches to the bank payment when one
+          // matches to the penny — freelancers and contractors paid on the
+          // nose — and it feeds the missing-documents report either way.
           sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+
+          item.how = looksBillable ? 'bill + attach' : 'attach only (no invoice number)';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
@@ -758,6 +823,78 @@ function sweepInvoices() {
 
   invoiceReport_(sent, review, unknown, suppliers.length);
   return 'invoices: ' + sent.length + ' sent, ' + review.length + ' to check, ' + unknown.length + ' unknown';
+}
+
+/**
+ * Turn your Xero supplier list into Gmail searches.
+ *
+ * The supplier list is the strong signal — 100-odd names Xero knows you have
+ * actually paid — and it was going unused at the search step. Guessing at
+ * subject words throttled the intake instead of filtering the output, which is
+ * the wrong end to be careful at: the safeguards downstream (reject list,
+ * name score, readable total, invoice reference) were already carrying that
+ * load.
+ *
+ * Search the WHOLE company name as a phrase. Storage Solutions is Storage
+ * Solutions; Five Points Brewing is Five Points Brewing. Picking clever single
+ * words out of a name is how "Storage Solutions London Ltd" ends up searching
+ * for "storage" and matching every self-storage ad in the inbox.
+ *
+ * Only two things are stripped, because they are the bits suppliers leave out
+ * of their own emails: anything in brackets, and the legal suffix. "Top Cuvee
+ * (Shop Cuvee Ltd)" signs itself Top Cuvee.
+ *
+ * Each name is searched twice — as a phrase for the body and signature, and
+ * squashed up for the domain, since thedrinksclub.com has no spaces in it.
+ */
+function supplierQueries_(suppliers) {
+  // Only true legal suffixes. "Company" is NOT one of them — The Arch Company
+  // and The Five Points Brewing Company trade under it, and stripping it left
+  // "the arch", which is a pub.
+  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated)\b/g;
+  var terms = {}, i;
+
+  for (i = 0; i < suppliers.length; i++) {
+    // supplierNames returns OBJECTS - {name, n, total, undocumented} - not
+    // strings. String() on one of those gives "[object Object]", so every
+    // search built here was looking for the literal phrase "object object".
+    // Widening the net changed nothing because the net was searching garbage;
+    // the only invoices ever found came from the subject-word queries. The
+    // scoring loop below reads best.name and was always right.
+    var raw = suppliers[i];
+    var name = String((raw && raw.name) || raw || '').toLowerCase()
+      .replace(/\(.*?\)/g, ' ')          // drop "(Shop Cuvee Ltd)"
+      .replace(SUFFIX, ' ')              // drop the legal suffix
+      .replace(/[^a-z0-9 ]/g, ' ')       // & and punctuation break phrases
+      .replace(/\s+/g, ' ').trim();
+    if (name.length < 4) continue;       // "BOC" is too generic to search
+
+    // Three shapes, because a supplier appears as all three and you cannot
+    // predict which. Valimex proved this: Xero calls them "VALIMEX IMPORT &
+    // EXPORT LIMITED", their email says only "Valimex" and comes from
+    // orders@valimex.co.uk. Searching the full phrase alone found nothing
+    // while nine invoices sat in the inbox.
+    var squashed = name.replace(/ /g, '');
+    var first = name.split(' ')[0];
+
+    terms['"' + name + '"'] = 1;                        // the full name
+    if (squashed !== name) terms[squashed] = 1;         // the domain
+    if (first.length >= 5 && first !== name) terms[first] = 1;  // what they call themselves
+  }
+
+  var list = Object.keys(terms).sort();
+  var out = [], batch = [];
+  for (i = 0; i < list.length; i++) {
+    batch.push(list[i]);
+    // Twenty a search keeps 100 suppliers down to ten searches. Apps Script
+    // stops a trigger at six minutes and the receipts sweep already uses four,
+    // so the number of searches matters more than their length.
+    if (batch.length === 20 || i === list.length - 1) {
+      out.push('has:attachment {' + batch.join(' ') + '}');
+      batch = [];
+    }
+  }
+  return out;
 }
 
 /**

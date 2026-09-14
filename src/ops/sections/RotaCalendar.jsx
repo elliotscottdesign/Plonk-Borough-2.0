@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock } from '../../rota/api.js'
+import { rotaSaveDayRoster, rotaAddDayNote, rotaDeleteDayNote, rotaSetClock, rotaSetSick } from '../../rota/api.js'
 import { eventsList, eventsForDate, catMeta } from '../keydates/events.js'
 import { shiftsForDate, fmtMin, shiftHours, dayName, shiftTimeLabel, fmtClockTime, workedMins, hoursLabel } from '../../rota/shifts.js'
 import { presenceBadge } from '../../rota/geo.js'
@@ -51,6 +51,7 @@ function WeekRow({ row }) {
         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)', marginTop: 1 }}>
           <strong style={{ color: '#fff' }}>{hrs}h</strong>{target != null ? ` / ${target}h target` : ' · no target set'}
           {actualHrs > 0 && <span style={{ color: '#60A5FA' }}> · {actualHrs}h actual ✓</span>}
+          {row.sick && <span style={{ color: AMBER, fontWeight: 700 }}> · 🤒 {row.sick.days} sick day{row.sick.days === 1 ? '' : 's'} (half pay, +{Math.round(row.sick.hrs * 10) / 10}h)</span>}
           {target != null && hrs > target + 0.05 && <span style={{ color: PURPLE, fontWeight: 700 }}> · +{Math.round((hrs - target) * 10) / 10}h over</span>}
           {target != null && hrs < target - 0.05 && <span style={{ color: AMBER }}> · {Math.round((target - hrs) * 10) / 10}h short</span>}
           {target != null && hrs >= target - 0.05 && hrs <= target + 0.05 && <span style={{ color: GREEN }}> · on target</span>}
@@ -147,11 +148,15 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
   const weekDates = Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i))
   const weekEnd = weekDates[6]
   const weekSet = new Set(weekDates)
-  const hoursByStaff = {}   // staff_id → hours assigned this week
+  const hoursByStaff = {}   // staff_id → hours assigned this week (sick days excluded)
+  const sickByStaff = {}    // staff_id → { days, hrs } — 🤒 half-pay sick days this week
   for (const sh of shifts) {
     if (!weekSet.has(sh.date)) continue
     const hrs = shiftHours(sh)
-    for (const c of (claimsByShift[sh.id] || [])) hoursByStaff[c.staff_id] = (hoursByStaff[c.staff_id] || 0) + hrs
+    for (const c of (claimsByShift[sh.id] || [])) {
+      if (c.status === 'sick') { const w = (sickByStaff[c.staff_id] ||= { days: 0, hrs: 0 }); w.days++; w.hrs += hrs / 2 }
+      else hoursByStaff[c.staff_id] = (hoursByStaff[c.staff_id] || 0) + hrs
+    }
   }
   // Approved actual worked minutes per staffer this week (drives pay once approved).
   const actualByStaff = {}
@@ -165,8 +170,9 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     const rate = s.hourly_rate == null || s.hourly_rate === '' ? null : Number(s.hourly_rate)
     const targetN = s.target_hours == null || s.target_hours === '' ? NaN : Number(s.target_hours)
     const target = Number.isFinite(targetN) && targetN > 0 ? targetN : null   // 0 / blank = no target
-    const cost = rate != null ? Math.round(payHrs * rate * 100) / 100 : null
-    return { s, hrs, actualHrs, payHrs, rate, target, cost }
+    const sick = sickByStaff[s.id] || null
+    const cost = rate != null ? Math.round((payHrs + (sick ? sick.hrs : 0)) * rate * 100) / 100 : null
+    return { s, hrs, actualHrs, payHrs, rate, target, cost, sick }
   }).sort((a, b) => b.hrs - a.hrs || (a.s.name || '').localeCompare(b.s.name || ''))
   const totalHours = Math.round(weekRows.reduce((a, r) => a + r.hrs, 0) * 10) / 10
   const totalSpend = weekRows.reduce((a, r) => a + (r.cost || 0), 0)
@@ -179,7 +185,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
     role: (a, b) => roleRank(a.s) - roleRank(b.s) || b.hrs - a.hrs || byName(a, b),
     name: byName,
   }
-  const overviewRows = weekRows.filter(r => r.hrs > 0 || r.target != null).slice().sort(sorters[sortBy] || sorters.hours)
+  const overviewRows = weekRows.filter(r => r.hrs > 0 || r.sick || r.target != null).slice().sort(sorters[sortBy] || sorters.hours)
 
   const todayStr = iso(now.getFullYear(), now.getMonth(), now.getDate())
   const shiftMonth = (d) => { let m = viewM + d, y = viewY; if (m < 0) { m = 11; y-- } if (m > 11) { m = 0; y++ } setViewY(y); setViewM(m); setSelDate(null) }
@@ -370,7 +376,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             const focusC = GREEN   // founder rule: green = on shift, red = booked off
             return (
               <button key={i} type="button" onClick={() => setSelDate(dateStr)}
-                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? `2px solid ${RED}` : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
+                style={{ minHeight: 62, minWidth: 0, overflow: 'hidden', borderRadius: 8, padding: '3px 4px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: 'pointer', opacity: mine && mine.length === 0 && !mineOff ? 0.35 : 1, border: isSel ? '2px solid #60A5FA' : (!isToday && mine && mine.length) ? `2px solid ${focusC}` : (!isToday && mineOff) ? '2px solid #F87171' : '1px solid rgba(255,255,255,0.14)', boxShadow: isToday ? (mine && mine.length ? `0 0 0 2px ${TODAY}, 0 0 0 4px ${focusC}` : mineOff ? `0 0 0 2px ${TODAY}, 0 0 0 4px #F87171` : `0 0 0 2px ${TODAY}`) : undefined, display: 'flex', flexDirection: 'column', gap: 3 }}>
                 <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
                   <span title={hol || undefined} style={{ fontSize: 11, fontWeight: 700, color: (isToday && !isSel) ? TODAY : hol ? '#FBBF24' : '#fff' }}>{d}</span>
                   <span style={{ display: 'flex', gap: 3, alignItems: 'center' }}>
@@ -426,6 +432,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
           <span><span style={{ color: RED }}>■</span> open, empty</span>
           <span><span style={{ color: GREY }}>▢</span> not released yet</span>
           <span><span style={{ color: TODAY }}>▣</span> today</span>
+          <span><span style={{ color: '#60A5FA' }}>▣</span> selected day</span>
           <span><span style={{ color: '#FBBF24' }}>15</span> school holiday</span>
           <span><span style={{ color: GREEN, fontWeight: 800 }}>£</span> payday (last Friday)</span>
           <span>🌕 full moon</span>
@@ -552,6 +559,31 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             for (const sh of selShifts) { const hrs = (sh.end_min - sh.start_min); for (const c of (claimsByShift[sh.id] || [])) rosteredMin[c.staff_id] = (rosteredMin[c.staff_id] || 0) + hrs }
             return (
               <div style={{ borderTop: '1px dashed rgba(255,255,255,0.12)', paddingTop: 12 }}>
+                {/* 🤒 Sick marking — per rostered person: half pay, tracked, shows on the week + 💷 Pay */}
+                {(() => {
+                  const seen = new Set()
+                  const people = []
+                  for (const sh of selShifts) for (const c of (claimsByShift[sh.id] || [])) { if (!seen.has(c.staff_id)) { seen.add(c.staff_id); people.push(c) } }
+                  if (!people.length) return null
+                  return (
+                    <div style={{ marginBottom: 12 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>🤒 Sick today?</div>
+                      <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Mark anyone who called in sick — they're paid <strong style={{ color: '#fff' }}>half their rostered hours</strong> for the day, it's tracked on the week overview and the 💷 Pay invoices, and their shift stays on the rota (swap or re-cover it as usual).</div>
+                      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                        {people.map(c => {
+                          const sick = c.status === 'sick'
+                          return (
+                            <button key={c.staff_id} disabled={busy} onClick={async () => { setBusy(true); try { await rotaSetSick(c.shift_id, c.staff_id, !sick); await reload() } catch (e) { alert(e.message) } finally { setBusy(false) } }}
+                              title={sick ? 'Marked sick (half pay) — tap to clear' : 'Tap to mark sick for this day (half pay)'}
+                              style={{ padding: '5px 12px', borderRadius: 999, cursor: 'pointer', fontSize: 12, fontWeight: sick ? 700 : 400, background: sick ? 'rgba(245,158,11,0.16)' : 'rgba(255,255,255,0.04)', border: `1px solid ${sick ? AMBER : 'rgba(255,255,255,0.16)'}`, color: sick ? AMBER : 'rgba(255,255,255,0.75)' }}>
+                              {sick ? '🤒 ' : ''}{(nameById[c.staff_id] || '?').split(' ')[0]}{sick ? ' · sick (half pay)' : ''}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
                 <div style={{ fontSize: 13, fontWeight: 700, color: '#fff', marginBottom: 2 }}>⏱ Actual hours worked</div>
                 <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', marginBottom: 10 }}>From clock in/out. Approve each once you're happy — approved hours are what the week's wage total uses.</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>

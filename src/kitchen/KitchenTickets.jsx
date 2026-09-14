@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { listOrders, setOrderStatus, listHistory, getStatus, setSettings, resendReady, textCustomer, markPaidAtBar, tipLedger } from './foodOrders.js'
+import ReportsPanel from './ReportsPanel.jsx'
 
 // 🎫 Kitchen tickets / display. Live paid orders land here, ding on arrival, and
 // tapping "Ready" texts the customer (the "food ready" message, sent server-side).
@@ -167,7 +168,7 @@ export default function KitchenTickets() {
         </div>
       )}
       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12, flexWrap: 'wrap' }}>
-        {[['live', `🎫 Live${active.length ? ` · ${active.length}` : ''}`], ['history', '📋 History'], ...(failed.length ? [['failed', `❌ Card failed · ${failed.length}`]] : [])].map(([k, l]) => (
+        {[['live', `🎫 Live${active.length ? ` · ${active.length}` : ''}`], ['history', '📋 History'], ['report', '📊 Report'], ...(failed.length ? [['failed', `❌ Card failed · ${failed.length}`]] : [])].map(([k, l]) => (
           <button key={k} onClick={() => k === 'history' ? openHistory() : setView(k)}
             style={{ fontSize: 14, fontWeight: 800, background: view === k ? (k === 'failed' ? RED : BLUE) : 'none', border: `1px solid ${view === k ? (k === 'failed' ? RED : BLUE) : LINE}`, color: '#fff', borderRadius: 9, padding: '10px 16px', cursor: 'pointer' }}>{l}</button>
         ))}
@@ -183,6 +184,8 @@ export default function KitchenTickets() {
       </div>
 
       {view === 'history' && <HistoryView history={history} />}
+
+      {view === 'report' && <ReportsPanel />}
 
       {view === 'failed' && (
         <div>

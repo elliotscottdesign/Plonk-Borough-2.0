@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
-import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaOfferSwap, rotaCancelSwap, rotaInterceptSwap, rotaDecideSwap, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
+import { rotaLogin, rotaSignup, rotaMyState, rotaSaveProfile, rotaSaveAvailability, rotaClaimShift, rotaReleaseShift, rotaOfferSwap, rotaCancelSwap, rotaInterceptSwap, rotaDecideSwap, rotaGetChecklist, rotaToggleChecklist, rotaSaveChecklistMeta, rotaSignStatement, rotaUploadDoc, rotaAddShiftNote, rotaDeleteShiftNote, rotaClockIn, rotaClockOut, rotaBreakStart, rotaBreakEnd, rotaListPrizeVouchers, rotaRedeemPrizeVoucher, rotaUnredeemPrizeVoucher, rotaSendCustomerVoucher } from './api.js'
 import { calendarLocked, onboardingComplete, ONBOARDING_STEPS, requiresOnboarding } from './statement.js'
 import { fileToDataUrl } from './menuFile.js'
 import { resizeImage } from '../dj/api.js'
@@ -65,7 +65,9 @@ function MiniCal({ year, month, onPrev, onNext, canPrev, renderDay, onDay, click
               style={(() => {
                 const isToday = ds === todayDs
                 const sc = ringFor ? ringFor(ds) : null
-                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? `2px solid ${RED}` : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
+                // Colour code (founder, Sep 2026): WHITE ring = today · GREEN = you're working ·
+                // RED = your day off · BLUE = the day you've tapped (matches the swap-button blue).
+                return { minHeight: 46, borderRadius: 8, padding: '3px 3px 4px', textAlign: 'left', background: '#000', color: '#fff', cursor: ok ? 'pointer' : 'default', opacity: ok ? 1 : 0.4, border: selected === ds ? '2px solid #60A5FA' : (!isToday && sc) ? `2px solid ${sc}` : `1px solid ${LINE}`, boxShadow: isToday ? (sc ? `0 0 0 2px #FFFFFF, 0 0 0 4px ${sc}` : '0 0 0 2px #FFFFFF') : selected === ds ? '0 0 0 2px rgba(96,165,250,0.35)' : undefined, display: 'flex', flexDirection: 'column', gap: 2 }
               })()}>
               {renderDay(ds, d)}
             </button>
@@ -327,6 +329,13 @@ export default function RotaPortal() {
       setClock(r.clock)
     } catch (e) { handleErr(e) } finally { setBusy(false) }
   }
+  // ☕ Break tap-in/out — the compliance record. Pay-wise the break is deducted
+  // on 6h+ shifts either way (5 min per worked hour), so this is about the log.
+  const doBreak = async (start) => {
+    setBusy(true); setClockMsg('')
+    try { const r = start ? await rotaBreakStart(token) : await rotaBreakEnd(token); setClock(r.clock) }
+    catch (e) { handleErr(e) } finally { setBusy(false) }
+  }
 
   // ── Render states ───────────────────────────────────────────────────────────
   if (!ready) return <Center>Loading…</Center>
@@ -408,6 +417,11 @@ export default function RotaPortal() {
                       : <>You're on today — tap to clock in.</>}
                 </div>
                 {!started && <button onClick={doClockIn} disabled={busy} style={{ ...btn('red'), padding: '10px 16px' }}>{busy ? 'Checking…' : '▶ Start my shift'}</button>}
+                {started && !ended && (clock?.break_start && !clock?.break_end
+                  ? <button onClick={() => doBreak(false)} disabled={busy} style={{ ...btn('red'), padding: '10px 16px' }}>☕ I'm back — end break</button>
+                  : !clock?.break_start
+                    ? <button onClick={() => doBreak(true)} disabled={busy} title="Tap when you take your break. On 6h+ shifts the break is unpaid (5 min per hour) whether you tap it or not — tapping keeps the record straight." style={{ ...btn('ghost'), padding: '10px 16px' }}>☕ Start my break</button>
+                    : <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', alignSelf: 'center' }}>☕ break logged ✓</span>)}
                 {started && !ended && <button onClick={doClockOut} disabled={busy} style={{ ...btn('ghost'), padding: '10px 16px' }}>{busy ? 'Checking…' : '■ End my shift'}</button>}
               </div>
               {!started && <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, lineHeight: 1.45 }}>📍 When you start, we do a quick one-off location check to confirm you're at No Dice. We never track you between clock-ins.</div>}
@@ -507,7 +521,7 @@ export default function RotaPortal() {
                 </>)
               }} />
             <div style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.5)', marginTop: 8, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
-              <span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
+              <span><span style={{ color: '#FFFFFF', fontWeight: 700 }}>▣</span> today</span><span><span style={{ color: GREEN }}>✓</span> you're on</span><span><span style={{ color: RED }}>●</span> shifts you can grab</span><span><span style={{ color: '#60A5FA', fontWeight: 700 }}>▣</span> selected day</span><span><span style={{ color: RED, fontWeight: 700 }}>✕</span> your day off — tap any day to mark/clear one</span><span>🔒 your team's day-off slots taken (bar 2 · kitchen 1 · manager 1 per day, first come first served)</span>
             </div>
 
             {/* 🔁 Shift swaps — offers from teammates + (managers) approvals */}
@@ -576,7 +590,7 @@ export default function RotaPortal() {
                         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
                           {onDay.map((w, i) => (
                             <span key={i} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', borderRadius: 999, fontSize: 11.5, background: w.me ? 'rgba(52,211,153,0.14)' : 'rgba(255,255,255,0.05)', border: `1px solid ${w.me ? GREEN : 'rgba(255,255,255,0.15)'}`, color: w.me ? '#fff' : 'rgba(255,255,255,0.8)' }}>
-                              {icon(w.role)} <strong style={{ color: '#fff' }}>{w.me ? 'You' : w.name}</strong> <span style={{ color: 'rgba(255,255,255,0.5)' }}>{w.t}</span>
+                              {w.sick ? '🤒' : icon(w.role)} <strong style={{ color: '#fff' }}>{w.me ? 'You' : w.name}</strong> <span style={{ color: 'rgba(255,255,255,0.5)' }}>{w.sick ? 'off sick' : w.t}</span>
                             </span>
                           ))}
                         </div>
