@@ -245,6 +245,10 @@ export default function Food360Panel() {
                     <span style={{ flex: 1, color: '#fff', fontWeight: 700, fontSize: 14 }}>Total till food (Food + Bar Food)</span>
                     <span style={{ fontFamily: HEAVY, fontSize: 19, color: BLUE }}>{gbp(till.total_pence)}</span>
                   </div>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '9px 13px', borderTop: `1px solid ${LINE}`, background: 'rgba(52,211,153,0.06)' }}>
+                    <span style={{ flex: 1, color: '#fff', fontWeight: 800, fontSize: 14 }}>≡ Total food revenue <span style={{ color: MUTED, fontWeight: 400, fontSize: 11.5 }}>(On A Roll {gbp(rep.money.revenue_ex_vat_pence)} + till {gbp(till.total_pence)})</span></span>
+                    <span style={{ fontFamily: HEAVY, fontSize: 21, color: GREEN }}>{gbp(rep.money.revenue_ex_vat_pence + till.total_pence)}</span>
+                  </div>
                   <div style={{ maxHeight: 260, overflowY: 'auto' }}>
                     {till.days.filter(d => d.total_pence > 0).map(d => (
                       <div key={d.date} style={{ display: 'flex', gap: 10, alignItems: 'center', padding: '7px 13px', borderTop: `1px solid ${LINE}`, fontSize: 13 }}>
