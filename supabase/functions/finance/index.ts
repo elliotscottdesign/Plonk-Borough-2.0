@@ -171,11 +171,18 @@ async function findBankTx(token: string, tenant: string, r: { amount: number; sp
   const invoice = r.kind === 'invoice'
   const [y1, m1, d1] = ymd(shift(r.spend_date, invoice ? -7 : -1))
   const [y2, m2, d2] = ymd(shift(r.spend_date, invoice ? +90 : +5))
-  const where = `Type=="SPEND" AND Date>=DateTime(${y1},${m1},${d1}) AND Date<=DateTime(${y2},${m2},${d2})`
+  const where = `Type=="SPEND" AND Status=="AUTHORISED" AND Date>=DateTime(${y1},${m1},${d1}) AND Date<=DateTime(${y2},${m2},${d2})`
   const data = await xeroGet(`/BankTransactions?where=${encodeURIComponent(where)}`, token, tenant)
 
   const target = Math.round(Number(r.amount) * 100)
   const sameAmount = (data.BankTransactions ?? [])
+    // A deleted or voided entry still comes back from the API and still has an
+    // amount and a date, so it matches like any other — and a receipt filed
+    // onto one is filed onto nothing. It reads as done and isn't. The Lidl
+    // £14.12 of 6 Aug 2026 landed on exactly such a ghost: a Hubdoc invention
+    // we had already deleted. Belt as well as braces, because the `where`
+    // above is Xero's to honour and this is ours.
+    .filter((t: any) => t.Status === 'AUTHORISED')
     .filter((t: any) => Math.round(Number(t.Total) * 100) === target)
 
   // Over a 90-day window a lone amount match is not enough on its own — the

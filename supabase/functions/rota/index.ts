@@ -357,7 +357,7 @@ Deno.serve(async (req) => {
       const { data: claims } = sids.length ? await sb.from("staff_shift_claims").select("staff_id,shift_id").in("shift_id", sids) : { data: [] };
       const staffIds = [...new Set((claims || []).map((c: any) => c.staff_id))];
       const { data: staff } = staffIds.length ? await sb.from("staff").select("id,name,active").in("id", staffIds) : { data: [] };
-      const { data: clocks } = staffIds.length ? await sb.from("shift_clock").select("staff_id,clock_in,clock_out").eq("date", today).in("staff_id", staffIds) : { data: [] };
+      const { data: clocks } = staffIds.length ? await sb.from("shift_clock").select("*").eq("date", today).in("staff_id", staffIds) : { data: [] };
       const clockBy: Record<string, any> = {}; for (const c of clocks || []) clockBy[c.staff_id] = c;
       const nameBy: Record<string, any> = {}; for (const s of staff || []) if (s.active !== false) nameBy[s.id] = s.name;
       // Per staff: earliest start + latest end across their shifts today.
@@ -371,6 +371,7 @@ Deno.serve(async (req) => {
         staffId: id, name: nameBy[id], first: String(nameBy[id] || "").split(" ")[0],
         start_min: span[id].start, end_min: span[id].end,
         clockIn: clockBy[id]?.clock_in || null, clockOut: clockBy[id]?.clock_out || null,
+        breakStart: clockBy[id]?.break_start || null, breakEnd: clockBy[id]?.break_end || null,
       })).sort((a, b) => a.start_min - b.start_min || a.first.localeCompare(b.first));
       return json({ ok: true, date: today, roster });
     }
@@ -715,7 +716,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Staff portal (token-authed): the logged-in member's own view + actions ──
-    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "offerSwap", "cancelSwap", "interceptSwap", "decideSwap", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
+    if (["myState", "saveProfile", "saveAvailability", "claimShift", "releaseShift", "offerSwap", "cancelSwap", "interceptSwap", "decideSwap", "getChecklist", "saveChecklist", "completeTraining", "uncompleteTraining", "signStatement", "uploadDoc", "addShiftNote", "deleteShiftNote", "clockIn", "clockOut", "breakStart", "breakEnd", "listPrizeVouchers", "redeemPrizeVoucher", "unredeemPrizeVoucher", "sendCustomerVoucher"].includes(action)) {
       const me = await staffByToken(sb, b.token);
       if (!me) return json({ error: "Please log in again." }, 401);
       // A deactivated member's personal link must stop working too — the same
@@ -739,7 +740,7 @@ Deno.serve(async (req) => {
         const docKinds = new Set((myDocs || []).map((d: any) => d.kind));
         const ids = (shifts || []).map((s: any) => s.id);
         const { data: claims } = ids.length
-          ? await sb.from("staff_shift_claims").select("shift_id,staff_id,source").in("shift_id", ids)
+          ? await sb.from("staff_shift_claims").select("shift_id,staff_id,source,status").in("shift_id", ids)
           : { data: [] };
         const filled: Record<string, number> = {}; const mine = new Set<string>(); const mineAdmin = new Set<string>();
         for (const c of claims || []) { filled[c.shift_id] = (filled[c.shift_id] || 0) + 1; if (c.staff_id === me.id) { mine.add(c.shift_id); if (c.source === "admin") mineAdmin.add(c.shift_id); } }
@@ -749,7 +750,7 @@ Deno.serve(async (req) => {
         const { data: mates } = claimStaffIds.length ? await sb.from("staff").select("id,name,role").in("id", claimStaffIds) : { data: [] };
         const mateBy: Record<string, any> = {}; for (const x of mates || []) mateBy[x.id] = x;
         const whoBy: Record<string, any[]> = {};
-        for (const c of claims || []) { const p2 = mateBy[c.staff_id]; if (p2) (whoBy[c.shift_id] ||= []).push({ name: (p2.name || "?").split(" ")[0], role: p2.role || "", me: c.staff_id === me.id }); }
+        for (const c of claims || []) { const p2 = mateBy[c.staff_id]; if (p2) (whoBy[c.shift_id] ||= []).push({ name: (p2.name || "?").split(" ")[0], role: p2.role || "", me: c.staff_id === me.id, sick: c.status === "sick" }); }
         const availability: Record<string, any> = {};
         for (const r of av || []) availability[r.month] = r.data || {};
         // Dates already FULL for this member's own team (bar: 2 off max · kitchen: 1 ·
@@ -964,6 +965,28 @@ Deno.serve(async (req) => {
         }
         return json({ ok: true, clock: up.data, presence: pres.label });
       }
+      // ── Break tap-in / tap-out (compliance record on the OPEN shift) ─────────
+      // Pay maths does NOT depend on these: 6h+ shifts always lose 5 min per worked
+      // hour whether or not the break was tapped (founder rule, 14 Sep 2026). One
+      // break per shift; both idempotent.
+      if (action === "breakStart") {
+        const open = await openClockOf(sb, me.id);
+        if (!open) return json({ error: "Start your shift first." }, 400);
+        if (open.break_start) return json({ ok: true, clock: open, alreadyOn: true });
+        const { data, error } = await sb.from("shift_clock").update({ break_start: new Date().toISOString() }).eq("id", open.id).select("*").single();
+        if (error) return json({ error: "Breaks aren't switched on yet — run the break-columns SQL." }, 400);
+        return json({ ok: true, clock: data });
+      }
+      if (action === "breakEnd") {
+        const open = await openClockOf(sb, me.id);
+        if (!open) return json({ error: "Start your shift first." }, 400);
+        if (!open.break_start) return json({ error: "You haven't started a break." }, 400);
+        if (open.break_end) return json({ ok: true, clock: open });
+        const { data, error } = await sb.from("shift_clock").update({ break_end: new Date().toISOString() }).eq("id", open.id).select("*").single();
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, clock: data });
+      }
+
       // Clock out — closes the OPEN shift (whichever day it started), so a 2am clock-out
       // ends last night's shift, not a non-existent "today" row. Idempotent: a repeat tap
       // returns the finished row without overwriting the time or un-approving it. Records
@@ -1256,6 +1279,42 @@ Deno.serve(async (req) => {
 
     }
 
+    // ── Menus: upload / delete ────────────────────────────────────────────────
+    // Founder, 13 Sep 2026: "the menu upload should also be possible from manager /
+    // assistant manager profiles in menu section." It was founder-only, so a manager
+    // reprinting the menus still had to ask Elliot to put the new file up.
+    //
+    // Gate: the founder secret OR a signed-in Manager / Asst. Manager (rank 3+),
+    // checked against their own staff record — never the shared team code. Kept
+    // ABOVE the founder-only line below, which is what used to catch these.
+    if (action === "addMenu" || action === "deleteMenu") {
+      const MENU_RANK = 3;   // Asst. Manager and up
+      let who = "Founder";
+      if (!isAdmin()) {
+        const me = await staffByToken(sb, b.token);
+        if (!me) return json({ error: "Please log in again." }, 401);
+        if (me.active === false) return json({ error: "This account is inactive — ask the manager." }, 403);
+        if (staffRank(me.role) < MENU_RANK) return json({ error: "Managers only." }, 403);
+        who = me.name || "Manager";
+      }
+
+      if (action === "addMenu") {
+        const title = clean(b.title);
+        const data = String(b.data || "");
+        const kind = b.kind === "image" ? "image" : "pdf";
+        if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
+        if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
+        const { error } = await sb.from("menus").insert({ title, kind, data });
+        if (error) return json({ error: error.message }, 400);
+        return json({ ok: true, by: who });
+      }
+
+      if (!b.id) return json({ error: "no id" }, 400);
+      const { error } = await sb.from("menus").delete().eq("id", b.id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, by: who });
+    }
+
     // ── Everything below is founder-only ───────────────────────────────────────
     if (!isAdmin()) return json({ error: "unauthorized" }, 401);
 
@@ -1343,6 +1402,15 @@ Deno.serve(async (req) => {
     }
 
     // ── Founder: adjust / approve a person's clocked hours for a day ────────────
+    // 🤒 Mark a rostered person's day as SICK (half pay, tracked) — or clear it.
+    // Stored on the claim row's status ('sick' <-> 'claimed'). Founder-gated.
+    if (action === "setSick" && isAdmin()) {
+      const { data: claim } = await sb.from("staff_shift_claims").select("id,status").eq("shift_id", b.shiftId).eq("staff_id", b.staffId).maybeSingle();
+      if (!claim) return json({ error: "That person isn't on that shift." }, 404);
+      const { error } = await sb.from("staff_shift_claims").update({ status: b.sick ? "sick" : "claimed" }).eq("id", claim.id);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
     if (action === "setClock") {
       const staffId = String(b.staffId || "");
       const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : "";
@@ -1665,23 +1733,6 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
       return json({ ok: true });
     }
 
-    // ── Founder: upload / delete a menu ───────────────────────────────────────
-    if (action === "addMenu") {
-      const title = clean(b.title);
-      const data = String(b.data || "");
-      const kind = b.kind === "image" ? "image" : "pdf";
-      if (!title || !data.startsWith("data:")) return json({ error: "Give it a title and pick a file." }, 400);
-      if (data.length > 6_000_000) return json({ error: "That file's too big — keep menus under ~4MB." }, 413);
-      const { error } = await sb.from("menus").insert({ title, kind, data });
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
-    if (action === "deleteMenu") {
-      if (!b.id) return json({ error: "no id" }, 400);
-      const { error } = await sb.from("menus").delete().eq("id", b.id);
-      if (error) return json({ error: error.message }, 400);
-      return json({ ok: true });
-    }
 
     // ── Founder: view a staff member's uploaded document (passport / right-to-work) ──
     if (action === "getDoc") {

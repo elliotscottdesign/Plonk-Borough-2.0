@@ -34,6 +34,13 @@ export async function djAdmin(action, payload = {}) {
 
 export const inviteLink = (token) => `${window.location.origin}/dj?t=${encodeURIComponent(token)}`
 
+// Coerce a value that SHOULD be an array (subgenres/genres) into one. A legacy /
+// hand-edited slot can carry `{}` (empty object) instead of `[]`; because `{}` is
+// truthy, `(x || []).join(...)` would run `{}.join` and throw, white-screening the
+// whole page. Route every subgenres/genres read through this so bad data can never
+// crash a render — it just shows as empty.
+export const asArr = (v) => Array.isArray(v) ? v : []
+
 // The Friday a night gets paid on — the Friday of the week AFTER the performance
 // (play any day this week → paid the following Friday). Local date maths so it
 // never rolls a day in BST.
@@ -222,7 +229,7 @@ export function instagramCaption(ev) {
   const dj = ev?.dj?.dj_name || ev?.dj || 'TBA'
   const dj2 = (typeof ev?.dj2 === 'string' ? ev.dj2 : '') || ev?.dj2name || ''   // back-to-back partner
   const ig = ev?.dj?.instagram || ev?.instagram || ''
-  const subs = ev?.subgenres || ev?.genres || []
+  const subs = asArr(ev?.subgenres).length ? asArr(ev?.subgenres) : asArr(ev?.genres)
   const fmt = ev?.dj?.format || ev?.format || ''
   const s = sessionForSlot(ev.date, ev.slot)
   const dateStr = new Date(ev.date + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })

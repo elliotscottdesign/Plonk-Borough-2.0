@@ -4,7 +4,7 @@ import Messages from './DJMessages.jsx'
 import DJMedia from './DJMedia.jsx'
 import DateField from '../../lib/DateField.jsx'
 import DJPayments from './DJPayments.jsx'
-import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink } from '../../dj/api.js'
+import { djAdmin, djCaption, setTypeLabel, SET_TYPES, instagramCaption, slotsForDate, slotLabel, sessionForSlot, resizeImage, PHOTO_MAX_PX, PHOTO_QUALITY, looksLink, wcClash, inviteLink, asArr } from '../../dj/api.js'
 import MonthCalendar from '../../dj/MonthCalendar.jsx'
 import { eventsList, catMeta, eventDateLabel } from '../keydates/events.js'
 
@@ -352,7 +352,18 @@ function Events({ data, reload, filter, setFilter }) {
   const [editing, setEditing] = useState(null)   // ckey currently being edited
   const [form, setForm] = useState({})
   const [busy, setBusy] = useState(false)
+  const [msgOpen, setMsgOpen] = useState(null)   // ckey whose "message the DJ" box is open
+  const [msgDraft, setMsgDraft] = useState('')
   const ckey = (s) => s.date + '-' + (s.slot || 'main')
+  const notes = data.notes || []
+  // Comment on this night → lands on the DJ's portal. b2b partner is messaged too
+  // (handled server-side). The reply comes back under 💬 Messages → Inbox.
+  const sendComment = async (s) => {
+    const t = msgDraft.trim(); if (!t) return
+    setBusy(true)
+    try { await djAdmin('commentEvent', { date: s.date, slot: s.slot || 'main', body: t }); setMsgDraft(''); setMsgOpen(null); await reload() }
+    catch (e) { alert(e.message) } finally { setBusy(false) }
+  }
   const copyCap = (s) => { try { navigator.clipboard.writeText(instagramCaption(s)) } catch { /* ignore */ } setCopied(ckey(s)); setTimeout(() => setCopied(null), 1800) }
 
   const aiRewrite = async (s) => {
@@ -381,7 +392,7 @@ function Events({ data, reload, filter, setFilter }) {
   }
   const startEdit = (s) => {
     setEditing(ckey(s))
-    setForm({ date: s.date, nightName: s.night_name || '', subgenres: (s.subgenres || []).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
+    setForm({ date: s.date, nightName: s.night_name || '', subgenres: asArr(s.subgenres).join(', '), setType: s.set_type || 'dj_set', promoTrack: s.promo_track || '', promoArtist: s.promo_artist || '', djId: s.dj_id || '', djId2: s.dj_id2 || '' })
   }
   const saveEdit = async (s) => {
     if (!(form.promoTrack || '').trim()) { alert('This night needs a promo track before it can be saved — no track, no event.'); return }
@@ -458,7 +469,7 @@ function Events({ data, reload, filter, setFilter }) {
               <div style={{ flex: 1, minWidth: 200 }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#FFFFFF' }}>{fmt(s.date)} <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontWeight: 400 }}>· {session?.day} {timeLabel(session)}{sLab ? ` · ${sLab}` : ''}</span><span style={{ marginLeft: 8, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: past ? '#9CA3AF' : meta.color, border: `1px solid ${past ? '#9CA3AF' : meta.color}66`, borderRadius: 999, padding: '1px 7px' }}>{past ? 'Past' : meta.label}</span>{sus && <span style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.1em', color: '#9CA3AF', border: '1px solid rgba(156,163,175,0.5)', borderRadius: 999, padding: '1px 7px' }}>Suspended</span>}</div>
                 <div style={{ fontSize: 13, color: '#FFFFFF', marginTop: 2 }}><strong>{s.dj?.dj_name || 'DJ'}</strong>{b2bName ? <> <span style={{ color: '#DA1B33', fontWeight: 700 }}>b2b</span> <strong>{b2bName}</strong> <span style={{ fontSize: 9, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#DA1B33', border: '1px solid rgba(218,27,51,0.5)', borderRadius: 999, padding: '1px 6px' }}>B2B</span></> : null}{s.night_name ? <> · <em style={{ color: '#DA1B33' }}>"{s.night_name}"</em></> : null}</div>
-                {(s.subgenres || []).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{(s.subgenres || []).join(' · ')}</div>}
+                {asArr(s.subgenres).length > 0 && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>{asArr(s.subgenres).join(' · ')}</div>}
                 {s.dj?.format && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎛️ {s.dj.format}</div>}
                 {s.kind === 'opendecks' && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>Open Decks{s.set_type ? ` · ${setTypeLabel(s.set_type)}` : ''}</div>}
                 {(s.promo_artist || s.promo_track) && <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>🎵 {[s.promo_artist, s.promo_track].filter(Boolean).join(' — ')}</div>}
@@ -475,6 +486,7 @@ function Events({ data, reload, filter, setFilter }) {
             {/* Manage — actions depend on the event's status */}
             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
               <button onClick={() => editing === k ? setEditing(null) : startEdit(s)} disabled={busy} style={btn('ghost')}>{editing === k ? '✕ Close' : '✏️ Edit'}</button>
+              <button onClick={() => { setMsgOpen(msgOpen === k ? null : k); setMsgDraft('') }} disabled={busy} style={btn(msgOpen === k ? 'gold' : 'ghost')}>{msgOpen === k ? '✕ Close' : '💬 Message DJ'}</button>
               {s.status === 'held' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — add one first (✏️ Edit). No track, no event.'); return } act('forcePending', s) }} disabled={busy} style={btn('green')}>▶ Push to pending</button>}
               {s.status === 'pending' && !past && <button onClick={() => { if (!(s.promo_track || '').trim()) { alert('No promo track on this night — it can\'t go live. Add one first (✏️ Edit). No track, no event.'); return } act('signoff', s) }} disabled={busy} style={btn('green')}>✓ Sign off</button>}
               {s.status === 'confirmed' && !past && (sus
@@ -515,6 +527,32 @@ function Events({ data, reload, filter, setFilter }) {
                 {form.date !== s.date && <div style={{ fontSize: 11, color: '#FCD34D' }}>Moving this event to {fmt(form.date)}.</div>}
               </div>
             )}
+
+            {msgOpen === k && (() => {
+              const evNotes = notes.filter(n => n.date === s.date && (n.slot || 'main') === (s.slot || 'main')).sort((x, y) => (x.created_at || '').localeCompare(y.created_at || ''))
+              const to = b2bName ? `${s.dj?.dj_name || 'DJ'} & ${b2bName}` : (s.dj?.dj_name || 'the DJ')
+              return (
+                <div style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(218,27,51,0.35)', borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5 }}>💬 Message <strong style={{ color: '#fff' }}>{to}</strong> about this night — it shows on their DJ portal (they get a badge), and any reply lands in <strong style={{ color: '#fff' }}>Messages → Inbox</strong>.</div>
+                  {evNotes.length > 0 && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                      {evNotes.map(n => (
+                        <div key={n.id} style={{ fontSize: 12.5, color: '#ddd', background: n.from_admin ? 'rgba(218,27,51,0.10)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 8, padding: '7px 10px' }}>
+                          <span style={{ fontSize: 10, fontWeight: 700, color: n.from_admin ? '#DA1B33' : 'rgba(255,255,255,0.5)', marginRight: 6 }}>{n.from_admin ? 'You' : (s.dj?.dj_name || 'DJ')}</span>
+                          <span style={{ whiteSpace: 'pre-wrap' }}>{n.body}</span>
+                          {n.from_admin && <span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.4)', marginLeft: 6 }}>{n.dj_read_at ? '✓ read' : 'sent'}</span>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <textarea value={msgDraft} onChange={e => setMsgDraft(e.target.value)} rows={3} placeholder={`Message ${to}…  e.g. "Can you start at 4pm sharp?" or "Send your flyer over when you can"`} style={ta} />
+                  <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                    <button onClick={() => { setMsgOpen(null); setMsgDraft('') }} disabled={busy} style={btn('ghost')}>Cancel</button>
+                    <button onClick={() => sendComment(s)} disabled={busy || !msgDraft.trim()} style={{ ...btn('gold'), opacity: (busy || !msgDraft.trim()) ? 0.5 : 1 }}>{busy ? 'Sending…' : 'Send to DJ'}</button>
+                  </div>
+                </div>
+              )
+            })()}
 
             {showCap && (a.text || a.error) && (
               <div style={{ background: a.error ? 'rgba(248,113,113,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${a.error ? 'rgba(248,113,113,0.3)' : 'rgba(255,255,255,0.10)'}`, borderRadius: 8, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -642,7 +680,7 @@ function NightForm({ djs, slotRow, isSession, showDj, busy, onSave, onCancel }) 
   const [djId, setDjId] = useState(slotRow?.dj_id || '')
   const [djId2, setDjId2] = useState(slotRow?.dj_id2 || '')   // optional back-to-back partner
   const [nightName, setNightName] = useState(slotRow?.night_name || '')
-  const [genres, setGenres] = useState((slotRow?.subgenres || []).join(', '))
+  const [genres, setGenres] = useState(asArr(slotRow?.subgenres).join(', '))
   const [setType, setSetType] = useState(slotRow?.set_type || 'dj_set')
   const [promoTrack, setPromoTrack] = useState(slotRow?.promo_track || '')
   const [promoArtist, setPromoArtist] = useState(slotRow?.promo_artist || '')

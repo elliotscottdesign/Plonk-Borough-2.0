@@ -375,6 +375,22 @@ Deno.serve(async (req) => {
       }
       return json({ ok: true, sent, skipped });
     }
+    case "commentEvent": {
+      // Founder comments on a booked night → lands as a message on that DJ's
+      // portal (and their b2b partner's). from_admin=true; read_at is set now so
+      // it never shows as "unread" in the admin's own inbox; dj_read_at stays null
+      // until the DJ opens their Messages tab.
+      const text = String(body || "").trim();
+      if (!text) return json({ error: "Write a message first." }, 400);
+      if (!date) return json({ error: "missing date" }, 400);
+      const { data: ev } = await sb.from("dj_slots").select("dj_id, dj_id2").eq("date", date).eq("slot", slot).maybeSingle();
+      const ids = [...new Set([(ev as any)?.dj_id, (ev as any)?.dj_id2].filter(Boolean))];
+      if (!ids.length) return json({ error: "No DJ is booked on this night yet — nobody to message." }, 400);
+      const rows = ids.map((djid) => ({ dj_id: djid, from_admin: true, body: text.slice(0, 2000), date, slot, read_at: now() }));
+      const { error } = await sb.from("dj_notes").insert(rows);
+      if (error) return json({ error: error.message }, 500);
+      break;
+    }
     case "markNoteRead":
       await sb.from("dj_notes").update({ read_at: now() }).eq("id", id);
       break;

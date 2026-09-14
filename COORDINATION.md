@@ -392,3 +392,25 @@ checklists had NO sweep at all (the existing `kitchen-missed-check-daily` covers
   card, the border and the month-calendar ring — "in progress" nine days later was a lie.
 
 Kitchen lane: one status branch added to ChecklistLog.jsx, no logic touched.
+
+## 13 Sep 2026 — menu upload opened to management (founder-directed) — ⚠️ EDGE FN NOT DEPLOYED
+Founder: "the menu upload should also be possible from manager / assistant manager profiles
+in menu section."
+
+- `src/rota/RotaPortal.jsx` — the portal's 🍽️ Menus tab gains upload + delete for
+  Manager / Asst. Manager (`canEdit` on their staff role). Staff still see view + print only.
+- `src/rota/api.js` — `rotaAddMenu` / `rotaDeleteMenu` now also send the staff token.
+- `supabase/functions/rota/index.ts` — `addMenu` / `deleteMenu` MOVED above the
+  "everything below is founder-only" line and given their own gate: founder secret OR a
+  signed-in Manager / Asst. Manager (`staffRank >= 3`) checked against their staff record.
+
+**✅ DEPLOYED 13 Sep 2026** with a fresh PAT. Verified on the live function: no auth →
+refused, an ordinary staff token → "Managers only.", Rhys's Asst. Manager token → accepted
+and attributed. (The `till` function, which had also been waiting on a token, was deployed
+in the same pass.) Superseded note follows:
+~~The rota edge function change is NOT deployed — the Supabase PAT expired mid-session
+(Management API returns 401).~~ The feature still works live, because the client also sends
+SEND_SECRET, which the currently-deployed function accepts. So until someone deploys with a
+fresh token, the manager restriction is enforced by the UI only, not the server — which is
+the known SEND_SECRET-in-the-bundle debt, not a new hole. Deploy when a token exists:
+`supabase functions deploy rota --no-verify-jwt --project-ref rntcujcpsozvuxvmlejv`.
