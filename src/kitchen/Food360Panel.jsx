@@ -180,17 +180,28 @@ export default function Food360Panel() {
               ? <><Stat label="Queue (avg)" value={mmss(sp.queue_avg_sec)} sub="order → started" /><Stat label="Cook (avg)" value={mmss(sp.cook_avg_sec)} sub="started → ready" /></>
               : <Stat label="Queue vs cook" value="—" sub="builds from new orders" />}
           </div>
-          {sp?.per_item?.length > 0 && (
-            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden', marginTop: 4 }}>
-              {sp.per_item.slice(0, 12).map((it, i) => (
-                <div key={it.name} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 13px', borderTop: i ? `1px solid ${LINE}` : 'none' }}>
-                  <span style={{ flex: 1, fontSize: 13.5, color: '#fff' }}>{it.name}</span>
-                  <span style={{ fontSize: 11.5, color: MUTED }}>{it.n} served</span>
-                  <span style={{ fontFamily: HEAVY, fontSize: 15, color: it.avg_sec > 12 * 60 ? RED : '#fff', minWidth: 66, textAlign: 'right' }}>{mmss(it.avg_sec)}</span>
+          {rep.items?.length > 0 && (<>
+            <div style={{ fontSize: 12.5, color: MUTED, margin: '8px 0 6px' }}>Every dish, quantity sold across <b style={{ color: '#fff' }}>both platforms</b> — On A Roll <span style={{ color: MUTED }}>+</span> the Lightspeed till (the same cheeseburger, wherever it's rung). Cook time is On A Roll only.</div>
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', gap: 8, padding: '7px 13px', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${LINE}` }}>
+                <span style={{ flex: 1 }}>Item</span><span style={{ width: 44, textAlign: 'right' }}>Roll</span><span style={{ width: 40, textAlign: 'right' }}>Till</span><span style={{ width: 48, textAlign: 'right' }}>Total</span><span style={{ width: 70, textAlign: 'right' }}>Cook</span>
+              </div>
+              {rep.items.slice(0, 14).map((it, i) => (
+                <div key={it.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', fontSize: 13.5, borderTop: i ? `1px solid ${LINE}` : 'none' }}>
+                  <span style={{ flex: 1, color: '#fff' }}>{it.name}</span>
+                  <span style={{ width: 44, textAlign: 'right', color: MUTED }}>{it.oar_qty || '·'}</span>
+                  <span style={{ width: 40, textAlign: 'right', color: it.till_qty ? BLUE : MUTED }}>{it.till_qty || '·'}</span>
+                  <span style={{ width: 48, textAlign: 'right', fontWeight: 800, color: '#fff' }}>{it.total_qty}</span>
+                  <span style={{ width: 70, textAlign: 'right', fontFamily: HEAVY, fontSize: 15, color: it.cook_avg_sec > 12 * 60 ? RED : it.cook_avg_sec == null ? MUTED : '#fff' }}>{it.cook_avg_sec == null ? '—' : mmss(it.cook_avg_sec)}</span>
                 </div>
               ))}
             </div>
-          )}
+            {rep.till_unmatched?.length > 0 && (
+              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
+                <b style={{ color: AMBER }}>Other till items</b> (couldn't match to a menu dish, kept separate): {rep.till_unmatched.slice(0, 8).map(u => `${u.name}${u.qty ? ` ×${u.qty}` : ''}`).join(', ')}. Tell me which dish any of these is and I'll fold it in.
+              </div>
+            )}
+          </>)}
 
           <H>🔥 Peaks &amp; gaps</H>
           <Heatmap heat={rep.peaks.heat} rostered={rep.peaks.rostered} />
@@ -226,15 +237,16 @@ export default function Food360Panel() {
               </div>
               <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', gap: 8, padding: '7px 13px', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${LINE}` }}>
-                  <span style={{ flex: 1 }}>Item</span><span style={{ width: 42, textAlign: 'right' }}>Qty</span><span style={{ width: 70, textAlign: 'right' }}>Revenue</span><span style={{ width: 62, textAlign: 'right' }}>Cost</span><span style={{ width: 48, textAlign: 'right' }}>GP%</span>
+                  <span style={{ flex: 1 }}>Item</span><span style={{ width: 34, textAlign: 'right' }}>Roll</span><span style={{ width: 32, textAlign: 'right' }}>Till</span><span style={{ width: 68, textAlign: 'right' }}>Revenue</span><span style={{ width: 58, textAlign: 'right' }}>Cost</span><span style={{ width: 44, textAlign: 'right' }}>GP%</span>
                 </div>
                 {items.map(it => (
                   <div key={it.name} style={{ display: 'flex', gap: 8, alignItems: 'center', padding: '8px 13px', fontSize: 13.5, borderTop: `1px solid ${LINE}` }}>
                     <span style={{ flex: 1, color: '#fff' }}>{it.name}{it.estimated && <span title="estimated cost" style={{ color: AMBER, fontSize: 11 }}> ~</span>}</span>
-                    <span style={{ width: 42, textAlign: 'right', color: MUTED }}>{it.qty}</span>
-                    <span style={{ width: 70, textAlign: 'right', color: '#fff' }}>{gbp(it.revenue_pence)}</span>
-                    <span style={{ width: 62, textAlign: 'right', color: MUTED }}>{gbp(it.cost_pence)}</span>
-                    <span style={{ width: 48, textAlign: 'right', fontWeight: 800, color: it.gp_pct >= 65 ? GREEN : it.gp_pct >= 45 ? GOLD : RED }}>{it.gp_pct}%</span>
+                    <span style={{ width: 34, textAlign: 'right', color: MUTED }}>{it.qty}</span>
+                    <span style={{ width: 32, textAlign: 'right', color: it.till_qty ? BLUE : MUTED }}>{it.till_qty || '·'}</span>
+                    <span style={{ width: 68, textAlign: 'right', color: '#fff' }}>{gbp(it.revenue_pence)}</span>
+                    <span style={{ width: 58, textAlign: 'right', color: MUTED }}>{gbp(it.cost_pence)}</span>
+                    <span style={{ width: 44, textAlign: 'right', fontWeight: 800, color: it.gp_pct >= 65 ? GREEN : it.gp_pct >= 45 ? GOLD : RED }}>{it.gp_pct}%</span>
                   </div>
                 ))}
               </div>
