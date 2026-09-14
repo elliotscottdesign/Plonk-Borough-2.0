@@ -848,11 +848,21 @@ function sweepInvoices() {
  * squashed up for the domain, since thedrinksclub.com has no spaces in it.
  */
 function supplierQueries_(suppliers) {
-  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated|co|company)\b/g;
+  // Only true legal suffixes. "Company" is NOT one of them — The Arch Company
+  // and The Five Points Brewing Company trade under it, and stripping it left
+  // "the arch", which is a pub.
+  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated)\b/g;
   var terms = {}, i;
 
   for (i = 0; i < suppliers.length; i++) {
-    var name = String(suppliers[i] || '').toLowerCase()
+    // supplierNames returns OBJECTS - {name, n, total, undocumented} - not
+    // strings. String() on one of those gives "[object Object]", so every
+    // search built here was looking for the literal phrase "object object".
+    // Widening the net changed nothing because the net was searching garbage;
+    // the only invoices ever found came from the subject-word queries. The
+    // scoring loop below reads best.name and was always right.
+    var raw = suppliers[i];
+    var name = String((raw && raw.name) || raw || '').toLowerCase()
       .replace(/\(.*?\)/g, ' ')          // drop "(Shop Cuvee Ltd)"
       .replace(SUFFIX, ' ')              // drop the legal suffix
       .replace(/[^a-z0-9 ]/g, ' ')       // & and punctuation break phrases
