@@ -184,10 +184,12 @@ function parseCsv(text: string): Record<string, string>[] {
   const header = (rows.shift() || []).map((h) => h.trim());
   return rows.filter((r) => r.length > 1).map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
 }
-// Lightspeed line-transaction CSVs → Food + Bar Food revenue per London day.
+// Lightspeed line-transaction CSVs → Food + Bar Food revenue per London day AND
+// per ITEM (so till + On A Roll sales of the same dish combine in the report).
 async function tillFoodByDay(sb: any, f: string, t: string) {
   const { data: files } = await sb.from("till_reports").select("storage_path").eq("report_kind", "transactions").gte("covers_date", f).lte("covers_date", addDaysYmd(t, 1));
   const byDate: Record<string, { food: number; barfood: number }> = {};
+  const byItem: Record<string, { qty: number; pence: number; group: string }> = {};
   for (const file of (files || [])) {
     const dl = await sb.storage.from("till-reports").download(file.storage_path);
     if (!dl.data) continue;
@@ -201,12 +203,16 @@ async function tillFoodByDay(sb: any, f: string, t: string) {
       const ymd = `20${m[3]}-${m[2]}-${m[1]}`;
       if (ymd < f || ymd > t) continue;
       const price = parseFloat(r["FinalPrice"] || "0") || 0;
+      const qty = parseFloat(r["Qty"] || "0") || 0;
       (byDate[ymd] ||= { food: 0, barfood: 0 });
       if (grp === "Food") byDate[ymd].food += price; else byDate[ymd].barfood += price;
+      const item = (r["Item"] || "").split("(")[0].trim();
+      if (item) { (byItem[item] ||= { qty: 0, pence: 0, group: grp }); byItem[item].qty += qty; byItem[item].pence += Math.round(price * 100); }
     }
   }
   const days = Object.entries(byDate).map(([date, v]) => ({ date, food_pence: Math.round(v.food * 100), bar_food_pence: Math.round(v.barfood * 100), total_pence: Math.round((v.food + v.barfood) * 100) })).sort((a, b) => a.date < b.date ? -1 : 1);
-  return { days, total_pence: days.reduce((s, d) => s + d.total_pence, 0) };
+  const items = Object.entries(byItem).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.pence, group: v.group })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  return { days, items, total_pence: days.reduce((s, d) => s + d.total_pence, 0) };
 }
 
 // The "orange" kitchen crew: staff by ROLE, not by shift. Every shift is rostered
@@ -228,6 +234,32 @@ async function kitchenClaimedShifts(sb: any, f: string, t: string, kIds: string[
   const { data: claims } = ids.length ? await sb.from("staff_shift_claims").select("shift_id, staff_id, status").in("shift_id", ids).in("staff_id", kIds) : { data: [] };
   const claimed = new Set((claims || []).map((c: any) => c.shift_id));
   return { shifts: (all || []).filter((s: any) => claimed.has(s.id)), claims: claims || [] };
+}
+
+// The same dish is the same dish, wherever it's rung: a cheeseburger on the
+// Lightspeed till IS the On A Roll Wagyu Cheeseburger. But till names are typed
+// by hand and messy — misspellings ("PARDON PEPPERS"), emojis, "and chips"
+// suffixes, generic buttons ("Open Food"). So we map each till spelling onto the
+// canonical On A Roll menu name via substring keys, MOST SPECIFIC FIRST (chip
+// butty before chips; halloumi/cheeseburger before the bare "chips" they contain).
+// Anything we can't confidently place stays in an "Other till items" bucket —
+// never silently folded into the wrong dish. Add a new till spelling here.
+const TILL_ALIASES: [string, string[]][] = [
+  ["Cheesy Chip Butty", ["chip butty", "cheesy chip"]],
+  ["The Burger with No Name", ["no name"]],
+  ["Wagyu Cheeseburger", ["cheeseburger", "cheese burger", "smash burger", "wagyu"]],
+  ["Halloumi Burger", ["halloumi"]],
+  ["Bella Mortadella", ["mortadella"]],
+  ["3 x BBQ Chicken Taco", ["chicken taco", "bbq chicken", "taco"]],
+  ["Mumzy's Spring Rolls", ["spring roll"]],
+  ["Padron Peppers", ["padron", "pardon"]],
+  ["Chips", ["chips and sauce", "chips sauce", "cheesy chips", "chips", "fries"]],
+];
+function canonTillName(name: string): string | null {
+  const s = String(name || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  for (const [canon, keys] of TILL_ALIASES) for (const k of keys) if (s.includes(k)) return canon;
+  return null;
 }
 
 // Food 360 — the rich report. Speed + peaks always; money block only when asked
@@ -278,6 +310,30 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   for (const o of cookRows) { const sec = secsBetween(o.created_at, o.ready_at); for (const li of itemsOf(o)) { const nm = String(li.name || "item").trim(); (ic[nm] ||= { sum: 0, n: 0 }); ic[nm].sum += sec; ic[nm].n++; } }
   const perItemCook = Object.entries(ic).map(([name, v]) => ({ name, avg_sec: Math.round(v.sum / v.n), n: v.n })).sort((a, b) => b.avg_sec - a.avg_sec);
 
+  // ── Items, unified across On A Roll + the till ──
+  // Quantity SOLD per item on On A Roll (card + party tabs = real sales; staff
+  // meals aren't "sold"). Then fold in the same dish rung on the Lightspeed till
+  // so "how many chips did we sell" spans both platforms. Cook time stays On A
+  // Roll-only (the till has no timing). Operational tier — quantities, no money.
+  const oarQty: Record<string, number> = {};
+  for (const o of sales) for (const li of itemsOf(o)) { const nm = String(li.name || "item").trim(); oarQty[nm] = (oarQty[nm] || 0) + (parseInt(li.qty, 10) || 1); }
+  const tillQty: Record<string, number> = {}; const tillUnmatched: any[] = []; let tillError = false;
+  try {
+    const tf = await tillFoodByDay(sb, fromYmd, toYmd);
+    for (const it of (tf.items || [])) {
+      const canon = canonTillName(it.name);
+      if (canon) tillQty[canon] = (tillQty[canon] || 0) + it.qty;
+      else if (it.qty > 0 || it.revenue_pence > 0) tillUnmatched.push({ name: it.name, qty: it.qty, revenue_pence: it.revenue_pence, group: it.group });
+    }
+  } catch { tillError = true; }
+  const cookBy: Record<string, { avg_sec: number; n: number }> = {};
+  for (const p of perItemCook) cookBy[p.name] = { avg_sec: p.avg_sec, n: p.n };
+  const combinedItems = [...new Set([...Object.keys(oarQty), ...Object.keys(tillQty)])].map((name) => {
+    const oar = oarQty[name] || 0, till = tillQty[name] || 0, ck = cookBy[name];
+    return { name, oar_qty: oar, till_qty: till, total_qty: oar + till, cook_avg_sec: ck ? ck.avg_sec : null, cook_n: ck ? ck.n : 0 };
+  }).sort((a, b) => b.total_qty - a.total_qty);
+  tillUnmatched.sort((a, b) => b.revenue_pence - a.revenue_pence);
+
   // ── Peaks: orders by hour + day-of-week × hour heatmap (real orders) ──
   const byHour = Array(24).fill(0);
   const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
@@ -310,6 +366,9 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
       queue_avg_sec: avg(queueSecs), cook_avg_sec: avg(cookOnlySecs), split_n: prep.length,
       per_item: perItemCook,
     },
+    items: combinedItems,               // unified On A Roll + till quantities per dish
+    till_unmatched: tillUnmatched,      // till lines we couldn't place on the menu
+    till_error: tillError,
     peaks: { by_hour: byHour, heat, rostered },
   };
   if (!withMoney) return base;
@@ -325,7 +384,7 @@ async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney
   const foodRevenue = (revenue - tips) + partyRevenue;   // card food (ex-tips) + party-tab sales
   const revExVat = vat ? Math.round(foodRevenue / 1.2) : foodRevenue;
   const gm = revExVat - salesC.cogs;
-  const perItem = Object.entries(salesC.pi).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  const perItem = Object.entries(salesC.pi).map(([name, v]) => ({ name, qty: v.qty, till_qty: tillQty[name] || 0, total_qty: v.qty + (tillQty[name] || 0), revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
   base.money = {
     vat_registered: vat,
     revenue_incl_vat_pence: foodRevenue, revenue_ex_vat_pence: revExVat,
