@@ -163,49 +163,6 @@ export default function Food360Panel() {
 
       {rep && (
         <div style={{ opacity: loading ? 0.5 : 1 }}>
-          {/* at-a-glance — operational only, no money */}
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-            <Stat label="🧾 Orders" value={rep.orders} sub={[rep.tab_orders ? `+${rep.tab_orders} tab` : '', rep.staff_meals ? `${rep.staff_meals} staff meal${rep.staff_meals !== 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'card'} big />
-            <Stat label="⏱ Cook time (median)" value={mmss(sp?.cook_median_sec)} sub={`p90 ${mmss(sp?.cook_p90_sec)}`} color={sp?.cook_median_sec > 12 * 60 ? RED : sp?.cook_median_sec > 8 * 60 ? AMBER : GREEN} />
-            <Stat label="🛒 Abandoned" value={rep.abandoned} sub="started, didn't pay" color={rep.abandoned ? AMBER : '#fff'} />
-            <Stat label="❌ Card failed" value={rep.card_failed} color={rep.card_failed ? RED : '#fff'} />
-          </div>
-
-          <H>⏱ Speed</H>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
-            <Stat label="Served" value={sp?.served ?? 0} />
-            <Stat label="Median cook" value={mmss(sp?.cook_median_sec)} />
-            <Stat label="Slowest 10% (p90)" value={mmss(sp?.cook_p90_sec)} sub="averages hide these" color={AMBER} />
-            {sp?.split_n > 0
-              ? <><Stat label="Queue (avg)" value={mmss(sp.queue_avg_sec)} sub="order → started" /><Stat label="Cook (avg)" value={mmss(sp.cook_avg_sec)} sub="started → ready" /></>
-              : <Stat label="Queue vs cook" value="—" sub="builds from new orders" />}
-          </div>
-          {rep.items?.length > 0 && (<>
-            <div style={{ fontSize: 12.5, color: MUTED, margin: '8px 0 6px' }}>Every dish, quantity sold across <b style={{ color: '#fff' }}>both platforms</b> — On A Roll <span style={{ color: MUTED }}>+</span> the Lightspeed till (the same cheeseburger, wherever it's rung). Cook time is On A Roll only.</div>
-            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
-              <div style={{ display: 'flex', gap: 8, padding: '7px 13px', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${LINE}` }}>
-                <span style={{ flex: 1 }}>Item</span><span style={{ width: 44, textAlign: 'right' }}>Roll</span><span style={{ width: 40, textAlign: 'right' }}>Till</span><span style={{ width: 48, textAlign: 'right' }}>Total</span><span style={{ width: 70, textAlign: 'right' }}>Cook</span>
-              </div>
-              {rep.items.slice(0, 14).map((it, i) => (
-                <div key={it.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', fontSize: 13.5, borderTop: i ? `1px solid ${LINE}` : 'none' }}>
-                  <span style={{ flex: 1, color: '#fff' }}>{it.name}</span>
-                  <span style={{ width: 44, textAlign: 'right', color: MUTED }}>{it.oar_qty || '·'}</span>
-                  <span style={{ width: 40, textAlign: 'right', color: it.till_qty ? BLUE : MUTED }}>{it.till_qty || '·'}</span>
-                  <span style={{ width: 48, textAlign: 'right', fontWeight: 800, color: '#fff' }}>{it.total_qty}</span>
-                  <span style={{ width: 70, textAlign: 'right', fontFamily: HEAVY, fontSize: 15, color: it.cook_avg_sec > 12 * 60 ? RED : it.cook_avg_sec == null ? MUTED : '#fff' }}>{it.cook_avg_sec == null ? '—' : mmss(it.cook_avg_sec)}</span>
-                </div>
-              ))}
-            </div>
-            {rep.till_unmatched?.length > 0 && (
-              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
-                <b style={{ color: AMBER }}>Other till items</b> (couldn't match to a menu dish, kept separate): {rep.till_unmatched.slice(0, 8).map(u => `${u.name}${u.qty ? ` ×${u.qty}` : ''}`).join(', ')}. Tell me which dish any of these is and I'll fold it in.
-              </div>
-            )}
-          </>)}
-
-          <H>🔥 Peaks &amp; gaps</H>
-          <Heatmap heat={rep.peaks.heat} rostered={rep.peaks.rostered} />
-
           <H>💷 Money {money ? '' : '🔒'}</H>
           {!money ? <MoneyGate onUnlock={() => setMoney(true)} /> : !rep.money ? (
             <div style={{ color: MUTED, fontSize: 13, padding: '10px 0' }}>Loading money…</div>
@@ -276,6 +233,49 @@ export default function Food360Panel() {
               <div style={{ fontSize: 11, color: MUTED, marginTop: 10, lineHeight: 1.5 }}>Contribution = gross margin − kitchen wages — the <b style={{ color: '#fff' }}>kitchen team's</b> paid hours from the rota, via the real payroll rules. Kitchen wages are counted as a <b style={{ color: '#fff' }}>separate cost</b>: bar and kitchen occasionally cover for each other, but the kitchen crew's wage is treated as the kitchen's own. Staff meals (STAFF66) are valued at cost as a perk, never as a sale. ~ = cost estimated from today's menu.</div>
             </div>
           )}
+
+          <H>🔥 Peaks &amp; gaps</H>
+          <Heatmap heat={rep.peaks.heat} rostered={rep.peaks.rostered} />
+
+          {/* at-a-glance — operational only, no money */}
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', margin: '18px 0 6px' }}>
+            <Stat label="🧾 Orders" value={rep.orders} sub={[rep.tab_orders ? `+${rep.tab_orders} tab` : '', rep.staff_meals ? `${rep.staff_meals} staff meal${rep.staff_meals !== 1 ? 's' : ''}` : ''].filter(Boolean).join(' · ') || 'card'} big />
+            <Stat label="⏱ Cook time (median)" value={mmss(sp?.cook_median_sec)} sub={`p90 ${mmss(sp?.cook_p90_sec)}`} color={sp?.cook_median_sec > 12 * 60 ? RED : sp?.cook_median_sec > 8 * 60 ? AMBER : GREEN} />
+            <Stat label="🛒 Abandoned" value={rep.abandoned} sub="started, didn't pay" color={rep.abandoned ? AMBER : '#fff'} />
+            <Stat label="❌ Card failed" value={rep.card_failed} color={rep.card_failed ? RED : '#fff'} />
+          </div>
+
+          <H>⏱ Speed</H>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 6 }}>
+            <Stat label="Served" value={sp?.served ?? 0} />
+            <Stat label="Median cook" value={mmss(sp?.cook_median_sec)} />
+            <Stat label="Slowest 10% (p90)" value={mmss(sp?.cook_p90_sec)} sub="averages hide these" color={AMBER} />
+            {sp?.split_n > 0
+              ? <><Stat label="Queue (avg)" value={mmss(sp.queue_avg_sec)} sub="order → started" /><Stat label="Cook (avg)" value={mmss(sp.cook_avg_sec)} sub="started → ready" /></>
+              : <Stat label="Queue vs cook" value="—" sub="builds from new orders" />}
+          </div>
+          {rep.items?.length > 0 && (<>
+            <div style={{ fontSize: 12.5, color: MUTED, margin: '8px 0 6px' }}>Every dish, quantity sold across <b style={{ color: '#fff' }}>both platforms</b> — On A Roll <span style={{ color: MUTED }}>+</span> the Lightspeed till (the same cheeseburger, wherever it's rung). Cook time is On A Roll only.</div>
+            <div style={{ background: CARD, border: `1px solid ${LINE}`, borderRadius: 12, overflow: 'hidden' }}>
+              <div style={{ display: 'flex', gap: 8, padding: '7px 13px', fontSize: 11, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.04em', borderBottom: `1px solid ${LINE}` }}>
+                <span style={{ flex: 1 }}>Item</span><span style={{ width: 44, textAlign: 'right' }}>Roll</span><span style={{ width: 40, textAlign: 'right' }}>Till</span><span style={{ width: 48, textAlign: 'right' }}>Total</span><span style={{ width: 70, textAlign: 'right' }}>Cook</span>
+              </div>
+              {rep.items.slice(0, 14).map((it, i) => (
+                <div key={it.name} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 13px', fontSize: 13.5, borderTop: i ? `1px solid ${LINE}` : 'none' }}>
+                  <span style={{ flex: 1, color: '#fff' }}>{it.name}</span>
+                  <span style={{ width: 44, textAlign: 'right', color: MUTED }}>{it.oar_qty || '·'}</span>
+                  <span style={{ width: 40, textAlign: 'right', color: it.till_qty ? BLUE : MUTED }}>{it.till_qty || '·'}</span>
+                  <span style={{ width: 48, textAlign: 'right', fontWeight: 800, color: '#fff' }}>{it.total_qty}</span>
+                  <span style={{ width: 70, textAlign: 'right', fontFamily: HEAVY, fontSize: 15, color: it.cook_avg_sec > 12 * 60 ? RED : it.cook_avg_sec == null ? MUTED : '#fff' }}>{it.cook_avg_sec == null ? '—' : mmss(it.cook_avg_sec)}</span>
+                </div>
+              ))}
+            </div>
+            {rep.till_unmatched?.length > 0 && (
+              <div style={{ fontSize: 11.5, color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
+                <b style={{ color: AMBER }}>Other till items</b> (couldn't match to a menu dish, kept separate): {rep.till_unmatched.slice(0, 8).map(u => `${u.name}${u.qty ? ` ×${u.qty}` : ''}`).join(', ')}. Tell me which dish any of these is and I'll fold it in.
+              </div>
+            )}
+          </>)}
         </div>
       )}
     </div>
