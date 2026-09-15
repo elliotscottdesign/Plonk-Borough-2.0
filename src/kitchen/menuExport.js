@@ -11,10 +11,67 @@ import { SUPABASE_URL, SEND_SECRET } from '../marketing/data/backend.js'
 // Where the printed QR points (the live customer order page).
 export const ORDER_URL = 'https://nodice.bar/onaroll'
 
-// UK-format dated title for a filed menu, e.g. "On a Roll Menu 09.09.26".
+// UK-format dated title for a filed menu, e.g. "On a Roll 09.09.26" — the founder's
+// spec: the staff-profile copy is "named on a roll with the date it was created".
 export function todayMenuTitle(d = new Date()) {
   const p = n => String(n).padStart(2, '0')
-  return `On a Roll Menu ${p(d.getDate())}.${p(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`
+  return `On a Roll ${p(d.getDate())}.${p(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)}`
+}
+
+// Load html2canvas + jsPDF INTO THE APP (cached) — not into a pop-up. The old send
+// flow opened a pop-up and pulled these off a CDN there; on the kitchen iPad the
+// pop-up got blocked / the libs stalled, so the menu "failed to upload". Loading
+// them in-page removes the pop-up entirely.
+let _pdfLibs
+function loadPdfLibs() {
+  if (_pdfLibs) return _pdfLibs
+  _pdfLibs = new Promise((resolve, reject) => {
+    const srcs = []
+    if (!window.html2canvas) srcs.push('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+    if (!(window.jspdf && window.jspdf.jsPDF)) srcs.push('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+    let n = srcs.length
+    if (!n) return resolve()
+    srcs.forEach(src => {
+      const s = document.createElement('script'); s.src = src
+      s.onload = () => { if (--n === 0) resolve() }
+      s.onerror = () => reject(new Error('Could not load the menu-file tools — check the connection and try again.'))
+      document.head.appendChild(s)
+    })
+  })
+  return _pdfLibs
+}
+
+// Build the EXACT SAME one-page PDF as Download PDF (buildA5 → html2canvas → jsPDF)
+// and file it straight into the staff-profile Menus area, named "On a Roll <date>".
+// Runs entirely in-page (no pop-up) so it can't be blocked. Same file, nothing new.
+export async function sendMenuToProfiles(sections, vatOn = false) {
+  await loadPdfLibs()
+  const title = todayMenuTitle()
+  const holder = document.createElement('div')
+  holder.style.cssText = 'position:fixed;left:-10000px;top:0;background:#fff;z-index:-1'
+  holder.innerHTML = `<style>${MENU_CSS}</style><div class="a4">${buildA5(sections, vatOn)}${buildA5(sections, vatOn)}</div>`
+  document.body.appendChild(holder)
+  try {
+    await new Promise(r => setTimeout(r, 250))   // let the logo + QR (data URIs) paint
+    const el = holder.querySelector('.a4')
+    const canvas = await window.html2canvas(el, { scale: 3, backgroundColor: '#ffffff', useCORS: true })
+    const J = window.jspdf.jsPDF
+    const pdf = new J({ orientation: 'landscape', unit: 'mm', format: 'a4' })
+    const pw = 297, ph = 210, m = 7, aw = pw - 2 * m, ah = ph - 2 * m
+    const iw = canvas.width, ih = canvas.height, r = Math.min(aw / iw, ah / ih), w = iw * r, h = ih * r
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.95), 'JPEG', (pw - w) / 2, (ph - h) / 2, w, h)
+    const outStr = String(pdf.output('datauristring'))
+    const data = 'data:application/pdf;base64,' + outStr.slice(outStr.indexOf('base64,') + 7)
+    const res = await fetch(`${SUPABASE_URL}/functions/v1/rota`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'addMenu', secret: SEND_SECRET, title, kind: 'pdf', data }),
+    })
+    const j = await res.json().catch(() => ({}))
+    if (!res.ok || !j.ok) throw new Error(j.error || `Upload failed (${res.status})`)
+    return { ok: true, title }
+  } finally {
+    if (holder.parentNode) holder.parentNode.removeChild(holder)
+  }
 }
 
 const esc = s => (s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;')
