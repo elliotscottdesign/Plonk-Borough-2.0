@@ -773,11 +773,11 @@ Deno.serve(async (req) => {
         const swapShiftIds = [...new Set((swapRows || []).map((x: any) => x.shift_id))];
         const { data: swapShifts } = swapShiftIds.length ? await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").in("id", swapShiftIds) : { data: [] };
         const swapNameIds = [...new Set((swapRows || []).flatMap((x: any) => [x.from_staff, x.to_staff]).filter(Boolean))];
-        const { data: swapNames } = swapNameIds.length ? await sb.from("staff").select("id,name").in("id", swapNameIds) : { data: [] };
-        const nmBy: Record<string, string> = {}; for (const x of swapNames || []) nmBy[x.id] = x.name;
+        const { data: swapNames } = swapNameIds.length ? await sb.from("staff").select("id,name,role").in("id", swapNameIds) : { data: [] };
+        const nmBy: Record<string, string> = {}; const roleBy: Record<string, string> = {}; for (const x of swapNames || []) { nmBy[x.id] = x.name; roleBy[x.id] = x.role || ""; }
         const shBy: Record<string, any> = {}; for (const x of swapShifts || []) shBy[x.id] = x;
         const swaps = (swapRows || [])
-          .map((x: any) => ({ ...x, shift: shBy[x.shift_id] || null, from_name: nmBy[x.from_staff] || "?", to_name: x.to_staff ? nmBy[x.to_staff] || "?" : null }))
+          .map((x: any) => ({ ...x, shift: shBy[x.shift_id] || null, from_name: nmBy[x.from_staff] || "?", from_role: roleBy[x.from_staff] || "", to_name: x.to_staff ? nmBy[x.to_staff] || "?" : null }))
           .filter((x: any) => x.shift && x.shift.date > today)
           .sort((a2: any, b2: any) => a2.shift.date.localeCompare(b2.shift.date));
         // Future: their OWN shifts + genuinely-open ones (not every colleague's
@@ -1115,9 +1115,21 @@ Deno.serve(async (req) => {
         if (sw.from_staff === me.id) return json({ error: "That's your own shift." }, 400);
         const { data: shift } = await sb.from("staff_shifts").select("id,date,label,start_min,end_min,ability,min_rank").eq("id", sw.shift_id).maybeSingle();
         if (!shift || shift.date <= shiftDayISO()) return json({ error: "That shift is no longer swappable." }, 409);
-        const needAb = shift.ability || "bar";
-        if (!(me.abilities || []).includes(needAb)) return json({ error: `That shift needs ${needAb} training.` }, 403);
-        if (staffRank(me.role) < (shift.min_rank || 1)) return json({ error: "That shift is for a higher position." }, 403);
+        // Eligibility follows the LANES rule, judged by the OFFERER's team (the shift
+        // row's stored ability is 'bar' on everything the roster builder saves, which
+        // wrongly blocked kitchen↔kitchen swaps — Jude→Leonie, 15 Sep 2026):
+        //   kitchen shift → kitchen-role, or a kitchen-trained manager;
+        //   bar shift    → anyone except kitchen-role (kitchen stays in its lane);
+        //   manager shift→ Asst. Manager or above.
+        const { data: fromStaff } = await sb.from("staff").select("role").eq("id", sw.from_staff).maybeSingle();
+        const swapLane = offLane(fromStaff?.role);
+        const meMgr = staffRank(me.role) >= staffRank("Asst. Manager");
+        if (swapLane === "kitchen" && !(me.role === "Kitchen / Barback" || ((me.abilities || []).includes("kitchen") && meMgr)))
+          return json({ error: "That's a kitchen shift — only kitchen staff (or a kitchen-trained manager) can take it." }, 403);
+        if (swapLane === "bar" && me.role === "Kitchen / Barback")
+          return json({ error: "That's a bar shift — the kitchen team stays in its lane." }, 403);
+        if (swapLane === "manager" && !meMgr)
+          return json({ error: "That's a manager shift — only a manager can take it." }, 403);
         // Not already rostered that day (founder rule) + not booked off.
         const { data: dayShifts } = await sb.from("staff_shifts").select("id").eq("date", shift.date);
         const ids = (dayShifts || []).map((x: any) => x.id);
