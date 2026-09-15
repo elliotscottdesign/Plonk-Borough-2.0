@@ -4,6 +4,7 @@ import {
   receiptsList, receiptAdd, receiptUpdate, receiptVoid, receiptsStaff,
   uploadReceiptImage, CATEGORIES, categoryOf,
 } from '../../finance/receiptsApi.js'
+import HowInvoicesWork from '../../finance/HowInvoicesWork.jsx'
 
 const GOLD = '#C9A84C', LINE = 'rgba(201,168,76,0.22)', CARD = 'rgba(255,255,255,0.03)'
 const todayISO = () => new Date().toISOString().slice(0, 10)
@@ -153,6 +154,8 @@ export default function Receipts() {
           </button>
         )}
       </div>
+
+      <HowInvoicesWork />
 
       {/* ── the form ─────────────────────────────────────────────────── */}
       {form && (
