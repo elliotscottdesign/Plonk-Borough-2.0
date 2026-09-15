@@ -52,21 +52,21 @@ var CONFIG = {
   // RECEIPT whose total could not be read.
   XERO_FILES_INBOX: 'xero.inbox.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
-  // Xero → Bills to pay → the address on the empty-state panel. Anything sent
-  // here becomes a DRAFT BILL with the PDF attached.
+  // Xero → Bills to pay. NOTHING IS SENT HERE ANY MORE. Kept only so that
+  // anyone reading this knows the address exists and why it must not be used.
   //
-  // Only supplier INVOICES come here, and only ones that pass INVOICE_RULES —
-  // never a receipt, never a statement, never an order acknowledgement. The
-  // old "Xero Auto Emailer" forwarded indiscriminately and produced 95 drafts
-  // worth £38,402, most with no contact and six sets of duplicates; all of it
-  // was deleted on 14 Sep 2026 and its trigger removed. The filtering below is
-  // the only reason this address is safe to use again.
+  // A document emailed here becomes a draft bill with the PDF locked inside
+  // it, and a locked PDF can never be attached to the bank payment it belongs
+  // to — not by this script, not by the hourly sweep, not by hand. For a month
+  // every supplier invoice went here. On 15 Sep 2026 that turned out to be the
+  // entire reason 310 reconciled payments looked undocumented while all of
+  // their invoices were already sitting in Xero. 121 of them had to be
+  // re-forwarded by hand.
   //
-  // An unpaid invoice has no bank payment to attach to — that is WHY it needs
-  // to be a bill. Of 15 invoices captured in the first month, 11 had no
-  // matching payment anywhere in the books: they were simply unpaid, £8,283.71
-  // of liability the company could not see.
-  XERO_BILLS_INBOX: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
+  // A genuinely UNPAID invoice does need to be a bill — but that is a decision
+  // for a person looking at the drafts, not something to do to every document
+  // automatically.
+  XERO_BILLS_INBOX_DO_NOT_USE: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
   // Where the run report goes.
   REPORT_TO: 'elliot@nodice.bar',
