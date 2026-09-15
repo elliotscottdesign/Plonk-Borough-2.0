@@ -93,7 +93,38 @@ export const MENU_CSS = `
 // iPad, unlike in-page capture), so "Force send to profiles" is reliable.
 export function exportMenu(sections, mode = 'print', vatOn = false, title = 'On a Roll Menu') {
   const a5 = buildA5(sections, vatOn)
-  const isSend = mode === 'send', isPrint = mode === 'print'
+
+  // ── PRINT: pure-CSS fit to exactly ONE landscape page, then native print ──
+  // No external libraries. html2canvas/jsPDF were flaky on the kitchen devices —
+  // when they stalled, the browser printed the raw HTML, which flowed onto a
+  // SECOND sheet (the "falling off the page" bug). Instead we measure the sheet,
+  // scale it down so the whole thing fits one A4 page, and print that. A long
+  // menu just comes out a little smaller — never on a second page.
+  if (mode === 'print') {
+    const fitScript = `window.addEventListener('load',function(){setTimeout(function(){
+      var probe=document.createElement('div');probe.style.cssText='position:absolute;left:-9999px;top:0;visibility:hidden;width:297mm;height:210mm';document.body.appendChild(probe);
+      var pageW=probe.offsetWidth,pageH=probe.offsetHeight;if(probe.parentNode)probe.parentNode.removeChild(probe);
+      var a4=document.querySelector('.a4');var w=a4.offsetWidth,h=a4.offsetHeight;
+      var k=Math.min(pageW/w,pageH/h,1);
+      document.getElementById('fitInner').style.transform='scale('+k+')';
+      var o=document.getElementById('fitOuter');o.style.width=(w*k)+'px';o.style.height=(h*k)+'px';
+      setTimeout(function(){try{window.focus();window.print();}catch(e){}},250);
+    },300)});`
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>On A Roll menu</title><style>${MENU_CSS}
+      html,body{ background:#fff; margin:0; padding:0 }
+      #fitInner{ transform-origin:top left }
+      #fitOuter{ overflow:hidden }
+      .a4{ break-inside:avoid } .msec{ break-inside:avoid }
+      @media print{ @page{ size:A4 landscape; margin:0 } html,body{ margin:0; padding:0 } }
+    </style></head><body><div id="fitOuter"><div id="fitInner"><div class="a4">${a5}${a5}</div></div></div>
+    <script>${fitScript}<\/script></body></html>`
+    const w = window.open('', '_blank')
+    if (!w) { alert('Allow pop-ups to print the menu.'); return }
+    w.document.write(html); w.document.close()
+    return
+  }
+
+  const isSend = mode === 'send', isPrint = false
   // Only libs needed: html2canvas + jsPDF. QR is baked into the HTML (no CDN QR).
   const libs = `<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"><\/script><script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"><\/script>`
   const ROTA = JSON.stringify(`${SUPABASE_URL}/functions/v1/rota`), SEC = JSON.stringify(SEND_SECRET), TITLE = JSON.stringify(title)
