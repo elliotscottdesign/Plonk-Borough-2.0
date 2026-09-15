@@ -158,10 +158,254 @@ async function buildReport(sb: any, fromYmd: string, toYmd: string) {
   };
 }
 
-function reportEmailHtml(r: any, title: string): string {
+// London weekday (Mon=0…Sun=6) + hour(0-23) for an instant.
+function londonHourDow(d: Date): [number, number] {
+  const p = new Intl.DateTimeFormat("en-GB", { timeZone: "Europe/London", weekday: "short", hour: "2-digit", hour12: false }).formatToParts(d);
+  const wd = p.find((x) => x.type === "weekday")?.value || "Mon";
+  const hr = Number(p.find((x) => x.type === "hour")?.value || "0") % 24;
+  const map: Record<string, number> = { Mon: 0, Tue: 1, Wed: 2, Thu: 3, Fri: 4, Sat: 5, Sun: 6 };
+  return [map[wd] ?? 0, hr];
+}
+const lineRev = (li: any) => ((parseInt(li.price_pence, 10) || 0) + (Array.isArray(li.options) ? li.options.reduce((s: number, o: any) => s + (parseInt(o.price_pence, 10) || 0), 0) : 0)) * (parseInt(li.qty, 10) || 1);
+
+// Minimal CSV → array of row objects (handles quoted fields + embedded commas).
+function parseCsv(text: string): Record<string, string>[] {
+  const t = text.replace(/^﻿/, "");
+  const rows: string[][] = []; let field = "", row: string[] = [], inQ = false;
+  for (let i = 0; i < t.length; i++) {
+    const c = t[i];
+    if (inQ) { if (c === '"') { if (t[i + 1] === '"') { field += '"'; i++; } else inQ = false; } else field += c; }
+    else if (c === '"') inQ = true;
+    else if (c === ",") { row.push(field); field = ""; }
+    else if (c === "\n") { row.push(field); rows.push(row); row = []; field = ""; }
+    else if (c !== "\r") field += c;
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  const header = (rows.shift() || []).map((h) => h.trim());
+  return rows.filter((r) => r.length > 1).map((r) => Object.fromEntries(header.map((h, i) => [h, r[i] ?? ""])));
+}
+// Lightspeed line-transaction CSVs → Food + Bar Food revenue per London day AND
+// per ITEM (so till + On A Roll sales of the same dish combine in the report).
+async function tillFoodByDay(sb: any, f: string, t: string) {
+  const { data: files } = await sb.from("till_reports").select("storage_path").eq("report_kind", "transactions").gte("covers_date", f).lte("covers_date", addDaysYmd(t, 1));
+  const byDate: Record<string, { food: number; barfood: number }> = {};
+  const byItem: Record<string, { qty: number; pence: number; group: string }> = {};
+  for (const file of (files || [])) {
+    const dl = await sb.storage.from("till-reports").download(file.storage_path);
+    if (!dl.data) continue;
+    const text = new TextDecoder("latin1").decode(new Uint8Array(await dl.data.arrayBuffer()));
+    for (const r of parseCsv(text)) {
+      if ((r["Type"] || "").trim() !== "SALE") continue;
+      const grp = (r["Group"] || "").split("(")[0].trim();
+      if (grp !== "Food" && grp !== "Bar Food") continue;
+      const m = /^(\d{2})\/(\d{2})\/(\d{2})/.exec((r["Date"] || "").trim());
+      if (!m) continue;
+      const ymd = `20${m[3]}-${m[2]}-${m[1]}`;
+      if (ymd < f || ymd > t) continue;
+      const price = parseFloat(r["FinalPrice"] || "0") || 0;
+      const qty = parseFloat(r["Qty"] || "0") || 0;
+      (byDate[ymd] ||= { food: 0, barfood: 0 });
+      if (grp === "Food") byDate[ymd].food += price; else byDate[ymd].barfood += price;
+      const item = (r["Item"] || "").split("(")[0].trim();
+      if (item) { (byItem[item] ||= { qty: 0, pence: 0, group: grp }); byItem[item].qty += qty; byItem[item].pence += Math.round(price * 100); }
+    }
+  }
+  const days = Object.entries(byDate).map(([date, v]) => ({ date, food_pence: Math.round(v.food * 100), bar_food_pence: Math.round(v.barfood * 100), total_pence: Math.round((v.food + v.barfood) * 100) })).sort((a, b) => a.date < b.date ? -1 : 1);
+  const items = Object.entries(byItem).map(([name, v]) => ({ name, qty: v.qty, revenue_pence: v.pence, group: v.group })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  return { days, items, total_pence: days.reduce((s, d) => s + d.total_pence, 0) };
+}
+
+// The "orange" kitchen crew: staff by ROLE, not by shift. Every shift is rostered
+// "bar", but Kitchen / Barback people (and anyone kitchen-abled who isn't a
+// manager) are the kitchen team — the founder's orange labels. Their rostered/
+// clocked hours are what we count as kitchen labour + the heatmap overlay.
+async function kitchenStaffIds(sb: any): Promise<string[]> {
+  const { data } = await sb.from("staff").select("id, role, abilities");
+  return (data || []).filter((s: any) =>
+    s.role === "Kitchen / Barback" ||
+    (Array.isArray(s.abilities) && s.abilities.includes("kitchen") && s.role !== "Manager" && s.role !== "Asst. Manager")
+  ).map((s: any) => s.id);
+}
+// Shifts in [f,t] that a kitchen-team member actually claimed (any shift label).
+async function kitchenClaimedShifts(sb: any, f: string, t: string, kIds: string[]) {
+  if (!kIds.length) return { shifts: [], claims: [] };
+  const { data: all } = await sb.from("staff_shifts").select("id, date, start_min, end_min").gte("date", f).lte("date", t);
+  const ids = (all || []).map((s: any) => s.id);
+  const { data: claims } = ids.length ? await sb.from("staff_shift_claims").select("shift_id, staff_id, status").in("shift_id", ids).in("staff_id", kIds) : { data: [] };
+  const claimed = new Set((claims || []).map((c: any) => c.shift_id));
+  return { shifts: (all || []).filter((s: any) => claimed.has(s.id)), claims: claims || [] };
+}
+
+// The same dish is the same dish, wherever it's rung: a cheeseburger on the
+// Lightspeed till IS the On A Roll Wagyu Cheeseburger. But till names are typed
+// by hand and messy — misspellings ("PARDON PEPPERS"), emojis, "and chips"
+// suffixes, generic buttons ("Open Food"). So we map each till spelling onto the
+// canonical On A Roll menu name via substring keys, MOST SPECIFIC FIRST (chip
+// butty before chips; halloumi/cheeseburger before the bare "chips" they contain).
+// Anything we can't confidently place stays in an "Other till items" bucket —
+// never silently folded into the wrong dish. Add a new till spelling here.
+const TILL_ALIASES: [string, string[]][] = [
+  ["Cheesy Chip Butty", ["chip butty", "cheesy chip"]],
+  ["The Burger with No Name", ["no name"]],
+  ["Wagyu Cheeseburger", ["cheeseburger", "cheese burger", "smash burger", "wagyu"]],
+  ["Halloumi Burger", ["halloumi"]],
+  ["Bella Mortadella", ["mortadella"]],
+  ["3 x BBQ Chicken Taco", ["chicken taco", "bbq chicken", "taco"]],
+  ["Mumzy's Spring Rolls", ["spring roll"]],
+  ["Padron Peppers", ["padron", "pardon"]],
+  ["Chips", ["chips and sauce", "chips sauce", "cheesy chips", "chips", "fries"]],
+];
+function canonTillName(name: string): string | null {
+  const s = String(name || "").toLowerCase().replace(/[^a-z0-9 ]+/g, " ").replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  for (const [canon, keys] of TILL_ALIASES) for (const k of keys) if (s.includes(k)) return canon;
+  return null;
+}
+
+// Food 360 — the rich report. Speed + peaks always; money block only when asked
+// (the client asks after the 888999 gate). Money uses per-item cost SNAPSHOTS
+// stamped at order time (Phase 1); pre-snapshot lines fall back to the current
+// menu cost, flagged "estimated".
+async function buildReport360(sb: any, fromYmd: string, toYmd: string, withMoney: boolean) {
+  const startMs = londonMidnightUtcMs(fromYmd), endMs = londonMidnightUtcMs(addDaysYmd(toYmd, 1));
+  const { data } = await sb.from("food_orders").select("*").gte("created_at", new Date(startMs).toISOString()).lt("created_at", new Date(endMs).toISOString());
+  const rows = data || [];
+  // Split coded orders into STAFF MEALS (kind 'staff' — a perk, cost only, never a
+  // sale) vs PARTY tabs (kind party/comp — real sales settled at the bar).
+  const { data: codeRows } = await sb.from("order_codes").select("code, kind");
+  const kindByCode: Record<string, string> = {};
+  for (const c of (codeRows || [])) kindByCode[String(c.code)] = String(c.kind || "");
+  const card = rows.filter((o: any) => o.paid && !o.order_code);
+  const coded = rows.filter((o: any) => o.order_code);
+  const staffMeals = coded.filter((o: any) => kindByCode[o.order_code] === "staff");
+  const partyTabs = coded.filter((o: any) => kindByCode[o.order_code] !== "staff");
+  const tabs = partyTabs;                        // "tabs" now means party/comp only
+  const sales = [...card, ...partyTabs];         // everything that's a real sale
+  const real = [...card, ...coded];              // everything the KITCHEN cooked (for speed/heatmap)
+  const itemsOf = (o: any) => Array.isArray(o.items) ? o.items : [];
+  const cogsOf = (list: any[], costByName: Record<string, number>) => {
+    let c = 0, est = 0; const pi: Record<string, { qty: number; rev: number; cost: number; est: boolean }> = {};
+    for (const o of list) for (const li of itemsOf(o)) {
+      const nm = String(li.name || "item").trim(), qty = parseInt(li.qty, 10) || 1;
+      let unit = li.cost_pence, isEst = false;
+      if (unit == null) { unit = costByName[nm] ?? 0; isEst = true; est++; } else unit = parseInt(unit, 10) || 0;
+      const optCost = Array.isArray(li.options) ? li.options.reduce((s: number, x: any) => s + (x.cost_pence != null ? (parseInt(x.cost_pence, 10) || 0) : 0), 0) : 0;
+      const cost = (unit + optCost) * qty; c += cost;
+      (pi[nm] ||= { qty: 0, rev: 0, cost: 0, est: false }); pi[nm].qty += qty; pi[nm].rev += lineRev(li); pi[nm].cost += cost; if (isEst) pi[nm].est = true;
+    }
+    return { cogs: c, est, pi };
+  };
+
+  // ── Speed ──
+  const secsBetween = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 1000;
+  const cookRows = real.filter((o: any) => o.ready_at && o.created_at);
+  const cookSecs = cookRows.map((o: any) => secsBetween(o.created_at, o.ready_at)).filter((s: number) => s >= 0).sort((a: number, b: number) => a - b);
+  const pctl = (arr: number[], p: number) => arr.length ? arr[Math.min(arr.length - 1, Math.floor((arr.length - 1) * p))] : null;
+  const avg = (arr: number[]) => arr.length ? Math.round(arr.reduce((s, x) => s + x, 0) / arr.length) : null;
+  const prep = real.filter((o: any) => o.preparing_at && o.created_at && o.ready_at);
+  const queueSecs = prep.map((o: any) => secsBetween(o.created_at, o.preparing_at)).filter((s: number) => s >= 0);
+  const cookOnlySecs = prep.map((o: any) => secsBetween(o.preparing_at, o.ready_at)).filter((s: number) => s >= 0);
+  // per-item cook time (order cook time attributed to each item in it — approximate)
+  const ic: Record<string, { sum: number; n: number }> = {};
+  for (const o of cookRows) { const sec = secsBetween(o.created_at, o.ready_at); for (const li of itemsOf(o)) { const nm = String(li.name || "item").trim(); (ic[nm] ||= { sum: 0, n: 0 }); ic[nm].sum += sec; ic[nm].n++; } }
+  const perItemCook = Object.entries(ic).map(([name, v]) => ({ name, avg_sec: Math.round(v.sum / v.n), n: v.n })).sort((a, b) => b.avg_sec - a.avg_sec);
+
+  // ── Items, unified across On A Roll + the till ──
+  // Quantity SOLD per item on On A Roll (card + party tabs = real sales; staff
+  // meals aren't "sold"). Then fold in the same dish rung on the Lightspeed till
+  // so "how many chips did we sell" spans both platforms. Cook time stays On A
+  // Roll-only (the till has no timing). Operational tier — quantities, no money.
+  const oarQty: Record<string, number> = {};
+  for (const o of sales) for (const li of itemsOf(o)) { const nm = String(li.name || "item").trim(); oarQty[nm] = (oarQty[nm] || 0) + (parseInt(li.qty, 10) || 1); }
+  const tillQty: Record<string, number> = {}; const tillUnmatched: any[] = []; let tillError = false;
+  try {
+    const tf = await tillFoodByDay(sb, fromYmd, toYmd);
+    for (const it of (tf.items || [])) {
+      const canon = canonTillName(it.name);
+      if (canon) tillQty[canon] = (tillQty[canon] || 0) + it.qty;
+      else if (it.qty > 0 || it.revenue_pence > 0) tillUnmatched.push({ name: it.name, qty: it.qty, revenue_pence: it.revenue_pence, group: it.group });
+    }
+  } catch { tillError = true; }
+  const cookBy: Record<string, { avg_sec: number; n: number }> = {};
+  for (const p of perItemCook) cookBy[p.name] = { avg_sec: p.avg_sec, n: p.n };
+  const combinedItems = [...new Set([...Object.keys(oarQty), ...Object.keys(tillQty)])].map((name) => {
+    const oar = oarQty[name] || 0, till = tillQty[name] || 0, ck = cookBy[name];
+    return { name, oar_qty: oar, till_qty: till, total_qty: oar + till, cook_avg_sec: ck ? ck.avg_sec : null, cook_n: ck ? ck.n : 0 };
+  }).sort((a, b) => b.total_qty - a.total_qty);
+  tillUnmatched.sort((a, b) => b.revenue_pence - a.revenue_pence);
+
+  // ── Peaks: orders by hour + day-of-week × hour heatmap (real orders) ──
+  const byHour = Array(24).fill(0);
+  const heat = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const o of real) { const [dow, hr] = londonHourDow(new Date(o.created_at)); byHour[hr]++; heat[dow][hr]++; }
+  // Rostered KITCHEN coverage for the overlay — shifts worked by the kitchen team
+  // (Kitchen / Barback role, the founder's "orange" staff), TIMES only (no pay), so
+  // it stays operational-tier. Every shift is labelled "bar", so we go by the person.
+  const dowOfYmd = (ymd: string) => { const [y, mo, da] = ymd.split("-").map(Number); return (new Date(Date.UTC(y, mo - 1, da)).getUTCDay() + 6) % 7; };
+  const { shifts: kshifts } = await kitchenClaimedShifts(sb, fromYmd, toYmd, await kitchenStaffIds(sb));
+  const rostered = Array.from({ length: 7 }, () => Array(24).fill(0));
+  for (const s of kshifts) {
+    const dow = dowOfYmd(s.date);
+    const h0 = Math.max(0, Math.floor((s.start_min ?? 0) / 60)), h1 = Math.min(23, Math.ceil((s.end_min ?? 0) / 60) - 1);
+    for (let h = h0; h <= h1; h++) rostered[dow][h]++;
+  }
+
+  const revenue = card.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
+  const tips = card.reduce((s: number, o: any) => s + (o.tip_pence || 0), 0);
+  const base: any = {
+    from: fromYmd, to: toYmd,
+    orders: card.length, revenue_pence: revenue, tips_pence: tips,
+    avg_order_pence: card.length ? Math.round(revenue / card.length) : 0,
+    tab_orders: partyTabs.length, tab_total_pence: partyTabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0),
+    staff_meals: staffMeals.length,
+    abandoned: rows.filter((o: any) => o.status === "pending" && !o.paid).length,
+    card_failed: rows.filter((o: any) => o.status === "card_failed").length,
+    speed: {
+      served: cookRows.length,
+      cook_median_sec: pctl(cookSecs, 0.5), cook_p90_sec: pctl(cookSecs, 0.9),
+      queue_avg_sec: avg(queueSecs), cook_avg_sec: avg(cookOnlySecs), split_n: prep.length,
+      per_item: perItemCook,
+    },
+    items: combinedItems,               // unified On A Roll + till quantities per dish
+    till_unmatched: tillUnmatched,      // till lines we couldn't place on the menu
+    till_error: tillError,
+    peaks: { by_hour: byHour, heat, rostered },
+  };
+  if (!withMoney) return base;
+
+  // ── Money ──
+  const { data: menu } = await sb.from("menu_catalog").select("sections, vat_registered").eq("id", 1).maybeSingle();
+  const vat = !!menu?.vat_registered;
+  const costByName: Record<string, number> = {};
+  for (const sec of (menu?.sections || [])) for (const it of (sec.items || [])) costByName[String(it.name || "").trim()] = parseInt(it.cost_pence, 10) || 0;
+  const salesC = cogsOf(sales, costByName);              // COGS + per-item over SALES only (card + party tabs)
+  const staffC = cogsOf(staffMeals, costByName);         // staff meals valued at COST (a perk, not a sale)
+  const partyRevenue = partyTabs.reduce((s: number, o: any) => s + (o.total_pence || 0), 0);
+  const foodRevenue = (revenue - tips) + partyRevenue;   // card food (ex-tips) + party-tab sales
+  const revExVat = vat ? Math.round(foodRevenue / 1.2) : foodRevenue;
+  const gm = revExVat - salesC.cogs;
+  const perItem = Object.entries(salesC.pi).map(([name, v]) => ({ name, qty: v.qty, till_qty: tillQty[name] || 0, total_qty: v.qty + (tillQty[name] || 0), revenue_pence: v.rev, cost_pence: v.cost, gp_pct: v.rev ? Math.round((v.rev - v.cost) / v.rev * 1000) / 10 : 0, estimated: v.est })).sort((a, b) => b.revenue_pence - a.revenue_pence);
+  base.money = {
+    vat_registered: vat,
+    revenue_incl_vat_pence: foodRevenue, revenue_ex_vat_pence: revExVat,
+    cogs_pence: salesC.cogs, gross_margin_pence: gm, gross_margin_pct: revExVat ? Math.round(gm / revExVat * 1000) / 10 : 0,
+    estimated_lines: salesC.est + staffC.est, items: perItem,
+    staff_meals_count: staffMeals.length, staff_meals_cost_pence: staffC.cogs,
+  };
+  return base;
+}
+
+function reportEmailHtml(r: any, title: string, money?: any): string {
   const mmss = (s: number | null) => s == null ? "—" : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, "0")}s`;
   const rowsHtml = r.items.map((it: any) => `<tr><td style="padding:4px 10px 4px 0">${it.qty}×</td><td style="padding:4px 10px 4px 0">${it.name}</td><td style="padding:4px 0;text-align:right">${gbp(it.pence)}</td></tr>`).join("");
   const daysHtml = r.days.length > 1 ? `<h3 style="margin:18px 0 6px;font-size:14px">By day</h3><table style="font-size:13px;border-collapse:collapse">${r.days.map((d: any) => `<tr><td style="padding:3px 12px 3px 0">${d.date}</td><td style="padding:3px 0;text-align:right">${d.orders} orders · ${gbp(d.pence)}</td></tr>`).join("")}</table>` : "";
+  // Money block — emails go to the founder only, so full margin detail is fine here.
+  const moneyHtml = money ? `<h3 style="margin:18px 0 6px;font-size:14px">💷 Margin</h3>
+    <table style="width:100%;border-collapse:collapse;font-size:15px">
+      <tr><td style="padding:5px 0">Revenue ${money.vat_registered ? "(ex-VAT)" : ""} · food only</td><td style="text-align:right;font-weight:700">${gbp(money.revenue_ex_vat_pence)}</td></tr>
+      <tr><td style="padding:5px 0">Food cost (COGS)</td><td style="text-align:right">${gbp(money.cogs_pence)}</td></tr>
+      <tr><td style="padding:5px 0">Gross margin</td><td style="text-align:right;font-weight:800;color:#1f8a4d">${gbp(money.gross_margin_pence)} (${money.gross_margin_pct}%)</td></tr>
+    </table>${money.estimated_lines ? `<div style="color:#b8860b;font-size:11px;margin-top:4px">${money.estimated_lines} older line(s) use today's menu cost (estimated).</div>` : ""}` : "";
   return `<div style="font-family:-apple-system,Segoe UI,Arial,sans-serif;max-width:520px;color:#111">
     <h2 style="margin:0 0 2px;color:#e0231b">On A Roll — ${title}</h2>
     <div style="color:#666;font-size:13px;margin-bottom:14px">${r.from === r.to ? r.from : `${r.from} → ${r.to}`}</div>
@@ -175,6 +419,7 @@ function reportEmailHtml(r: any, title: string): string {
       <tr><td style="padding:6px 0">🛒 Abandoned checkouts</td><td style="text-align:right">${r.abandoned}</td></tr>
       <tr><td style="padding:6px 0">❌ Card failed</td><td style="text-align:right">${r.card_failed}</td></tr>
     </table>
+    ${moneyHtml}
     <h3 style="margin:18px 0 6px;font-size:14px">What sold</h3>
     <table style="font-size:14px;border-collapse:collapse">${rowsHtml || '<tr><td style="color:#888">No sales.</td></tr>'}</table>
     ${daysHtml}
@@ -258,6 +503,9 @@ Deno.serve(async (req) => {
         return json({ error: "bad request" }, 400);
 
       const patch: any = { status };
+      // Stamp preparing_at the first time a ticket is tapped to "preparing" so the
+      // report can split QUEUE time (order → started) from COOK time (started → ready).
+      if (status === "preparing") patch.preparing_at = new Date().toISOString();
       if (status === "ready") { patch.ready_at = new Date().toISOString(); patch.ready_by = clean(b.by, 60) || null; }
       if (status === "collected") patch.collected_at = new Date().toISOString();
 
@@ -318,6 +566,45 @@ Deno.serve(async (req) => {
       return json({ ok: true, report: r });
     }
 
+    // Food 360 — rich report. Pass money:true (client does so only after the 888999
+    // gate) to include the money block. Speed + peaks come back either way.
+    if (action === "report360") {   // kitchen
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const r = await buildReport360(sb, from <= to ? from : to, from <= to ? to : from, b.money === true);
+      return json({ ok: true, report: r });
+    }
+
+    // Till FOOD sales (Lightspeed) for the range — Food + "Bar Food" groups parsed
+    // from the line-transaction CSVs, badged "till sales" so days On A Roll was
+    // down (food rung on the till instead) still show in the food picture.
+    if (action === "tillFood") {   // kitchen (money tier — revenue figures)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const [f, t] = from <= to ? [from, to] : [to, from];
+      const r = await tillFoodByDay(sb, f, t);
+      return json({ ok: true, from: f, to: t, ...r });
+    }
+
+    // Raw rota data for the MONEY tier's kitchen-labour calc. The client runs the
+    // pay maths through src/rota/pay.js (single source of truth — never reimplement:
+    // the Finances WagesLive shortcut disagrees with payroll). Kitchen labour = the
+    // shifts CLAIMED BY the kitchen team (Kitchen / Barback role, the "orange" staff),
+    // since every shift is labelled "bar" — so we identify by the person, not the shift.
+    if (action === "kitchenHours") {   // kitchen (money tier)
+      if (!isAdmin()) return json({ error: "not allowed" }, 403);
+      const to = /^\d{4}-\d{2}-\d{2}$/.test(String(b.to)) ? String(b.to) : londonYmd();
+      const from = /^\d{4}-\d{2}-\d{2}$/.test(String(b.from)) ? String(b.from) : to;
+      const [f, t] = from <= to ? [from, to] : [to, from];
+      const kIds = await kitchenStaffIds(sb);
+      const { shifts, claims } = await kitchenClaimedShifts(sb, f, t, kIds);
+      const { data: clocks } = kIds.length ? await sb.from("shift_clock").select("staff_id, date, clock_in, clock_out").in("staff_id", kIds).gte("date", f).lte("date", t) : { data: [] };
+      const { data: staff } = kIds.length ? await sb.from("staff").select("id, name, hourly_rate").in("id", kIds) : { data: [] };
+      return json({ ok: true, from: f, to: t, shifts, claims, clocks: clocks || [], staff: staff || [] });
+    }
+
     // ── Daily / weekly report EMAIL to the founder (cron-triggered) ──────────────
     if (action === "emailReport") {   // cron
       const period = b.period === "week" ? "week" : "day";
@@ -325,9 +612,10 @@ Deno.serve(async (req) => {
       const from = period === "week" ? addDaysYmd(today, -6) : today;
       const r = await buildReport(sb, from, today);
       if (r.orders === 0 && r.tab_orders === 0 && r.abandoned === 0) return json({ ok: true, skipped: "no activity" });
+      const money = (await buildReport360(sb, from, today, true)).money;   // founder-only email → full margin detail is fine
       const title = period === "week" ? "This week" : "Today";
-      const subj = `On A Roll — ${title}: ${gbp(r.revenue_pence)} · ${r.orders} orders${r.avg_cook_sec != null ? ` · avg ${Math.round(r.avg_cook_sec / 60)}m cook` : ""}`;
-      const sent = await sendEmail("elliot@nodice.bar", subj, reportEmailHtml(r, title));
+      const subj = `On A Roll — ${title}: ${gbp(r.revenue_pence)} · ${r.orders} orders${money ? ` · ${money.gross_margin_pct}% GM` : ""}${r.avg_cook_sec != null ? ` · avg ${Math.round(r.avg_cook_sec / 60)}m cook` : ""}`;
+      const sent = await sendEmail("elliot@nodice.bar", subj, reportEmailHtml(r, title, money));
       return json({ ok: true, sent, period, from, to: today });
     }
 
@@ -508,11 +796,12 @@ Deno.serve(async (req) => {
         if (!it) return json({ error: "That menu has just changed — please refresh." }, 409);
         const qty = Math.min(20, Math.max(1, parseInt(String(line.qty), 10) || 1));
         const chosen = (it.addons || []).filter((a: any) => (Array.isArray(line.addon_ids) ? line.addon_ids.map(String) : []).includes(String(a.id)));
-        const options = chosen.map((a: any) => ({ name: a.name, price_pence: parseInt(a.price_pence, 10) || 0 }));
+        // Stamp cost_pence at order time (snapshot) so realised margin is exact even if the menu is re-priced later.
+        const options = chosen.map((a: any) => ({ name: a.name, price_pence: parseInt(a.price_pence, 10) || 0, cost_pence: parseInt(a.cost_pence, 10) || 0 }));
         const stock = Array.isArray(it.stock) ? it.stock : [];
         total += ((parseInt(it.sell_pence, 10) || 0) + options.reduce((s: number, o: any) => s + o.price_pence, 0)) * qty;
         for (const ing of stock) need[ing] = (need[ing] || 0) + qty;
-        lineItems.push({ name: it.name, qty, price_pence: parseInt(it.sell_pence, 10) || 0, options, stock });
+        lineItems.push({ name: it.name, qty, price_pence: parseInt(it.sell_pence, 10) || 0, cost_pence: parseInt(it.cost_pence, 10) || 0, options, stock });
       }
       // never oversell + draw down (order is confirmed on placement — no card step)
       if (Object.keys(need).length) {

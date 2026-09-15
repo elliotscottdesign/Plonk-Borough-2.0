@@ -52,21 +52,21 @@ var CONFIG = {
   // RECEIPT whose total could not be read.
   XERO_FILES_INBOX: 'xero.inbox.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
-  // Xero → Bills to pay → the address on the empty-state panel. Anything sent
-  // here becomes a DRAFT BILL with the PDF attached.
+  // Xero → Bills to pay. NOTHING IS SENT HERE ANY MORE. Kept only so that
+  // anyone reading this knows the address exists and why it must not be used.
   //
-  // Only supplier INVOICES come here, and only ones that pass INVOICE_RULES —
-  // never a receipt, never a statement, never an order acknowledgement. The
-  // old "Xero Auto Emailer" forwarded indiscriminately and produced 95 drafts
-  // worth £38,402, most with no contact and six sets of duplicates; all of it
-  // was deleted on 14 Sep 2026 and its trigger removed. The filtering below is
-  // the only reason this address is safe to use again.
+  // A document emailed here becomes a draft bill with the PDF locked inside
+  // it, and a locked PDF can never be attached to the bank payment it belongs
+  // to — not by this script, not by the hourly sweep, not by hand. For a month
+  // every supplier invoice went here. On 15 Sep 2026 that turned out to be the
+  // entire reason 310 reconciled payments looked undocumented while all of
+  // their invoices were already sitting in Xero. 121 of them had to be
+  // re-forwarded by hand.
   //
-  // An unpaid invoice has no bank payment to attach to — that is WHY it needs
-  // to be a bill. Of 15 invoices captured in the first month, 11 had no
-  // matching payment anywhere in the books: they were simply unpaid, £8,283.71
-  // of liability the company could not see.
-  XERO_BILLS_INBOX: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
+  // A genuinely UNPAID invoice does need to be a bill — but that is a decision
+  // for a person looking at the drafts, not something to do to every document
+  // automatically.
+  XERO_BILLS_INBOX_DO_NOT_USE: 'bills.ozmxz4.b8m1t4ifk9c8bogl@xerofiles.com',
 
   // Where the run report goes.
   REPORT_TO: 'elliot@nodice.bar',
@@ -542,25 +542,51 @@ function pickSupplier_(subject, from, src, body) {
  * Pull the amount out. Prefer an explicit total; fall back to the largest
  * figure on the page, which for a receipt is almost always the total.
  */
+/**
+ * What did this document actually come to?
+ *
+ * It used to fall back to "the biggest number on the page", which is how four
+ * Drinks Club statements filed at £5,000.00 each: that is the credit limit,
+ * printed larger than anything else and nowhere near a real order. Their
+ * actual invoices run £639 to £2,908, none of them round.
+ *
+ * The biggest number on a statement is almost never the total — it is the
+ * credit limit, the account balance or a year-to-date figure. No amount at all
+ * is a better answer than a confident wrong one: without a total the document
+ * is held for review and never becomes a bill, which is exactly right.
+ */
 function pickAmount_(body, subject) {
-  // The leading [^A-Za-z] matters: without it "Subtotal" matches "Total" and
-  // every Toast receipt files at the pre-service-charge figure (£3.90 instead
-  // of £4.39). Checked against the real E5 and Square emails.
-  var labelled = body.match(/(?:^|[^A-Za-z])(?:Amount Total|Total|Amount paid|You paid)[^\d£]{0,12}£?\s?([\d,]+\.\d{2})/i);
-  if (labelled) return labelled[1].replace(/,/g, '');
+  // Read the figure that is LABELLED as the total. The leading [^A-Za-z]
+  // matters: without it "Subtotal" matches "Total" and every Toast receipt
+  // files at the pre-service-charge figure (£3.90 instead of £4.39).
+  var LABEL = /(?:^|[^A-Za-z])(Invoice Total|Total Due|Total to Pay|Amount Due|Amount Total|Grand Total|Total|Amount paid|You paid)[^\dA-Za-z£]{0,12}£?\s?([\d,]+\.\d{2})/gi;
 
+  // ...unless the words around it say it is something else. A statement says
+  // "Total Outstanding" and "Credit Limit"; neither is what this invoice costs.
+  var NOT_A_TOTAL = /credit limit|outstanding|balance|brought forward|carried forward|year to date|ytd|overdue|limit|available|on account/i;
+
+  var m, best = '';
+  while ((m = LABEL.exec(body)) !== null) {
+    var at = m.index;
+    // Judge the LINE the label sits on, not a window of surrounding text. A
+    // statement reads "Credit Limit £5,000" then "Invoice Total £1,072.24" two
+    // lines apart: look sixty characters back and the first line poisons the
+    // second, and a real total gets thrown away. The disqualifying word is
+    // always beside the label — "Total Outstanding", "Balance brought forward
+    // Total" — so the line is the unit that matters.
+    var lineFrom = body.lastIndexOf('\n', at) + 1;
+    var line = body.slice(lineFrom, at + m[0].length);
+    if (NOT_A_TOTAL.test(line)) continue;
+    // Keep the LAST good one: an invoice states its total at the foot, after
+    // the lines, the subtotal and the VAT.
+    best = m[2].replace(/,/g, '');
+  }
+  if (best) return best;
+
+  // A subject that states the figure outright is trustworthy enough.
   var subj = subject.match(/£\s?([\d,]+\.\d{2})/);
   if (subj) return subj[1].replace(/,/g, '');
 
-  var all = body.match(/£\s?[\d,]+\.\d{2}/g);
-  if (all && all.length) {
-    var best = 0;
-    for (var i = 0; i < all.length; i++) {
-      var n = parseFloat(all[i].replace(/[£,\s]/g, ''));
-      if (n > best) best = n;
-    }
-    if (best > 0) return best.toFixed(2);
-  }
   return '';
 }
 
@@ -767,18 +793,33 @@ function sweepInvoices() {
           unknown.push(item);
           continue;
         }
-        if (!amount) { item.why = 'no total found in the email'; review.push(item); continue; }
+        // NOTE: no amount is required any more. We used to refuse an invoice we
+        // could not price, then price it wrongly anyway — four Drinks Club
+        // statements at £5,000 because that was the credit limit. Xero reads
+        // the PDF itself and reads it well: the drafts the old forwarder left
+        // behind carried correct references, dates and totals. Competing with
+        // extraction we already pay for was the mistake.
 
+        // The document is the ATTACHMENT, not the covering email. Filenames
+        // announce what they are, so a delivery note or a price list is thrown
+        // out before Xero ever sees it.
+        var FILE_REJECT = /delivery|despatch|dispatch|statement|remittance|catalogue|catalog|brochure|price ?list|terms|proforma/i;
         var blob = null;
         var atts = msg.getAttachments({ includeInlineImages: false });
         for (var a = 0; a < atts.length; a++) {
           var ct = atts[a].getContentType() || '';
+          var fn = atts[a].getName() || '';
+          if (FILE_REJECT.test(fn)) continue;
           if (ct.indexOf('pdf') > -1 || ct.indexOf('image') > -1) { blob = atts[a].copyBlob(); break; }
         }
         if (!blob) {
-          // Xero-to-Xero invoices arrive as a link with nothing attached.
-          blob = htmlToPdf_(msg.getBody() || ('<pre>' + escapeHtml_(body) + '</pre>'), 'invoice.pdf');
-          item.rendered = true;
+          // Nothing worth OCR-ing. A Xero-to-Xero invoice arrives as a link
+          // with no attachment; rendering the covering email gives Xero a page
+          // of marketing to read, which is how junk drafts are born. Flag it
+          // for a human instead.
+          item.why = 'no invoice document attached';
+          review.push(item);
+          continue;
         }
         if (!blob) { item.why = 'could not produce a document'; review.push(item); continue; }
 
@@ -786,31 +827,39 @@ function sweepInvoices() {
 
         if (INVOICE_DRY) { sent.push(item); continue; }
         try {
-          // Searching by supplier finds far more than searching by subject
-          // word, so the gate moves here: capture everything that passes the
-          // checks, but only let something BECOME A BILL if it carries an
-          // invoice reference or says so in the subject.
+          // Hand the PDF to Xero and let it do the reading. Everything that
+          // reaches here has already passed four checks: the sender is a
+          // supplier you have actually paid, the subject is not a statement or
+          // an acknowledgement, the attachment's own filename does not say
+          // delivery note, and the thread has not been through before.
           //
-          // A real invoice has a number. A delivery note, a shipping update or
-          // a marketing PDF from the same supplier usually doesn't. That one
-          // test is what stops a wider net refilling the drafts we just spent
-          // an afternoon deleting.
-          var looksBillable = !!ref || /invoice|bill/i.test(subject);
+          // THE FILES INBOX, NOT THE BILLS INBOX. This one word cost a month.
+          //
+          // The bills inbox makes a draft bill: the PDF is then locked inside
+          // that draft, and nothing — not the hourly sweep, not the Files API,
+          // not a person — can staple it to the bank payment it belongs to. On
+          // 15 Sep 2026 that was the sole reason 310 reconciled payments looked
+          // undocumented while every one of their invoices sat in Xero.
+          //
+          // The files inbox drops the PDF into the file store, where the sweep
+          // can find the payment it matches and attach it. Do not "improve"
+          // this back to bills to get Xero's OCR — the OCR is worth nothing if
+          // the document cannot reach the line.
+          GmailApp.sendEmail(CONFIG.XERO_FILES_INBOX, blob.getName(), '', {
+            attachments: [blob], name: 'No Dice Receipt Capture',
+          });
+          item.how = 'sent to the file store';
 
-          if (looksBillable) {
-            // Becomes a draft bill with the PDF attached: the liability
-            // appears, and the payment has something to match against.
-            GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
-              attachments: [blob], name: 'No Dice Receipt Capture',
-            });
+          // Keep our own copy ONLY when the email stated a total plainly
+          // enough to trust. That copy exists to attach to a bank payment
+          // matching to the penny — the freelancers and one-off contractors —
+          // and a wrong figure there files a document against the wrong
+          // payment. No figure is better than a guess.
+          if (amount) {
+            sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
+            item.how += ' + attach';
           }
 
-          // Always keep our own copy. It attaches to the bank payment when one
-          // matches to the penny — freelancers and contractors paid on the
-          // nose — and it feeds the missing-documents report either way.
-          sendInvoiceToFinance_(best.name, dateStr, amount, ref, blob);
-
-          item.how = looksBillable ? 'bill + attach' : 'attach only (no invoice number)';
           threads[t].addLabel(label);
           sent.push(item);
         } catch (e) {
@@ -848,11 +897,21 @@ function sweepInvoices() {
  * squashed up for the domain, since thedrinksclub.com has no spaces in it.
  */
 function supplierQueries_(suppliers) {
-  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated|co|company)\b/g;
+  // Only true legal suffixes. "Company" is NOT one of them — The Arch Company
+  // and The Five Points Brewing Company trade under it, and stripping it left
+  // "the arch", which is a pub.
+  var SUFFIX = /\b(ltd|limited|llp|plc|inc|incorporated)\b/g;
   var terms = {}, i;
 
   for (i = 0; i < suppliers.length; i++) {
-    var name = String(suppliers[i] || '').toLowerCase()
+    // supplierNames returns OBJECTS - {name, n, total, undocumented} - not
+    // strings. String() on one of those gives "[object Object]", so every
+    // search built here was looking for the literal phrase "object object".
+    // Widening the net changed nothing because the net was searching garbage;
+    // the only invoices ever found came from the subject-word queries. The
+    // scoring loop below reads best.name and was always right.
+    var raw = suppliers[i];
+    var name = String((raw && raw.name) || raw || '').toLowerCase()
       .replace(/\(.*?\)/g, ' ')          // drop "(Shop Cuvee Ltd)"
       .replace(SUFFIX, ' ')              // drop the legal suffix
       .replace(/[^a-z0-9 ]/g, ' ')       // & and punctuation break phrases

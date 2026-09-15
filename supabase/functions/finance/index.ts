@@ -62,19 +62,26 @@ function competitorGap(r: { comp_item?: any; comp_price?: any; comp_verdict?: an
 const XERO_ID     = Deno.env.get('XERO_CLIENT_ID') ?? ''
 const XERO_SECRET = Deno.env.get('XERO_CLIENT_SECRET') ?? ''
 const XERO_REDIRECT = `${SUPABASE_URL.replace('.supabase.co', '.supabase.co')}/functions/v1/finance`
-// EXACTLY the three scopes this app is provisioned for, and no more. Asking
-// for anything else — accounting.transactions, accounting.reports.read —
-// gets invalid_scope and a 500 from the authorise endpoint, which reads like
-// a broken link rather than a permissions problem. Verified one by one
-// against Xero on 19 Aug 2026.
+// Only the scopes this app is actually granted. accounting.transactions,
+// accounting.reports.read and accounting.journals.read are all REFUSED at the
+// authorise endpoint with a 500 that reads like a broken link rather than a
+// permissions problem — retested one by one on 15 Sep 2026, same answer as
+// 19 Aug. Don't add them back hoping it was a typo.
 //
 // accounting.banktransactions is also the RIGHT scope here: narrower than
 // accounting.transactions, and bank transactions are all this touches.
+//
+// files IS granted, and is the way a document that only exists as an email
+// attachment reaches a bank line: forward the email to the Xero files inbox,
+// then associate the resulting file with the transaction. Without it the only
+// route is raw bytes we cannot get out of Gmail.
 const XERO_SCOPES = [
   'openid', 'profile', 'email',
   'accounting.banktransactions',  // find the bank payment a receipt belongs to
   'accounting.attachments',       // attach the file to it
   'accounting.settings.read',     // read the chart of accounts
+  'accounting.contacts',          // resolve a supplier name to the right contact
+  'files',                        // the Files inbox + associate a file to a payment
   'offline_access',               // the refresh token — without this it dies in 30 minutes
 ].join(' ')
 
@@ -404,6 +411,29 @@ Deno.serve(async (req) => {
           comp_price:   category === 'competitor' && Number(p.compPrice) > 0 ? Number(p.compPrice) : null,
           our_price:    category === 'competitor' && Number(p.ourPrice)  > 0 ? Number(p.ourPrice)  : null,
           comp_verdict: category === 'competitor' ? (String(p.compVerdict || '').trim() || null) : null,
+        }
+
+        // The same email gets found again on every sweep — a supplier now
+        // matches three search terms, and resetLabels wipes the "already done"
+        // mark, so one Drinks Club invoice arrived seven times and 81 copies
+        // built up in a day. Same supplier, same date, same amount, captured
+        // automatically: that is the same document, not a second purchase.
+        //
+        // Scoped to automatic capture only. A person photographing two
+        // identical £4.16 coffees on one morning is doing something real, and
+        // the phone screen must never silently swallow the second one.
+        const automatic = /automatically/i.test(row.note ?? '')
+        if (automatic) {
+          const { data: seen } = await db.from('receipts')
+            .select('id')
+            .eq('supplier', row.supplier)
+            .eq('spend_date', row.spend_date)
+            .eq('amount', row.amount)
+            .eq('kind', row.kind)
+            .limit(1)
+          if (seen?.length) {
+            return json({ ok: true, duplicate: true, receipt: seen[0] })
+          }
         }
 
         const { data, error } = await db.from('receipts').insert(row).select().single()

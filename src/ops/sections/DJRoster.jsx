@@ -57,6 +57,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
   const [copied, setCopied] = useState(null)
   const [busy, setBusy] = useState(false)
   const [tab, setTab] = useState('vetted')        // 'vetted' | 'resident' | 'pending'
+  const [readyFilter, setReadyFilter] = useState('all')   // 'all' | 'ready' | 'incomplete' — tap the header stats to filter
   const [bulkOpen, setBulkOpen] = useState(false)
   const [bulkText, setBulkText] = useState('')
   const [bulkSource, setBulkSource] = useState('instagram')
@@ -220,8 +221,18 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
     catch (e) { alert(e.message) } finally { setBusy(false) }
   }
   const inTab = tab === 'resident' ? residentsAll : (djs || []).filter(d => statusOf(d) === tab)
-  const filtered = inTab.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
+  // Readiness sub-filter — tap the header stats (all / ready / incomplete) to
+  // narrow the list to who's finished vs who's still missing fields.
+  const byReady = readyFilter === 'ready' ? inTab.filter(complete) : readyFilter === 'incomplete' ? inTab.filter(d => !complete(d)) : inTab
+  const filtered = byReady.filter(d => `${d.dj_name} ${d.real_name || ''} ${d.genres || ''} ${d.instagram || ''}`.toLowerCase().includes(q.toLowerCase()))
   const ready = inTab.filter(complete).length
+  // A tappable stat pill in the roster header. Toggles the readiness filter.
+  const readyChip = (key, color, label) => (
+    <button type="button" onClick={() => setReadyFilter(readyFilter === key ? 'all' : key)} title="Tap to filter the list below"
+      style={{ fontFamily: 'inherit', cursor: 'pointer', borderRadius: 999, padding: '2px 10px', fontSize: 12, fontWeight: readyFilter === key ? 700 : 500,
+        background: readyFilter === key ? color : 'transparent', color: readyFilter === key ? '#0A0A0A' : color,
+        border: `1px solid ${readyFilter === key ? color : 'rgba(255,255,255,0.18)'}` }}>{label}</button>
+  )
 
   // ── Broadcast banner — one message that shows as a header in EVERY DJ's portal
   // (stored as dj_templates key='banner'). One-click; no per-DJ WhatsApp needed.
@@ -267,7 +278,12 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
           <div className="serif" style={{ fontSize: 22, color: '#FFFFFF' }}>🎚️ DJ Roster</div>
           <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.6)', marginTop: 2 }}>
             {tab === 'vetted'
-              ? <>{vettedN} vetted · <span style={{ color: '#34D399' }}>{ready} ready</span> · <span style={{ color: '#FCD34D' }}>{vettedN - ready} incomplete</span></>
+              ? <span style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {readyChip('all', '#FFFFFF', `${vettedN} vetted`)}
+                  {readyChip('ready', '#34D399', `${ready} ready`)}
+                  {readyChip('incomplete', '#FCD34D', `${vettedN - ready} incomplete`)}
+                  {readyFilter !== 'all' && <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.45)' }}>showing {readyFilter === 'ready' ? 'complete' : 'incomplete'} only — tap again to clear</span>}
+                </span>
               : tab === 'resident'
                 ? <>{residentN} residents · guaranteed a monthly slot, messaged first when new dates drop</>
                 : <>{pendingN} pending — review &amp; <strong style={{ color: '#34D399' }}>Approve</strong> to move into the vetted roster</>}
@@ -283,7 +299,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
       {/* Vetted / Pending tabs */}
       <div style={{ display: 'flex', gap: 6 }}>
         {[['vetted', `Vetted (${vettedN})`], ['resident', `★ Residents (${residentN})`], ['pending', `Pending (${pendingN})`]].map(([k, lbl]) => (
-          <button key={k} onClick={() => { setTab(k); setEditing(null); setBulkOpen(false); setQ('') }} style={{
+          <button key={k} onClick={() => { setTab(k); setEditing(null); setBulkOpen(false); setQ(''); setReadyFilter('all') }} style={{
             padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer',
             background: tab === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)',
             border: `1px solid ${tab === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`,
@@ -506,7 +522,7 @@ export default function DJRoster({ djs, slots, release, templates, reload }) {
             ? <>No pending DJs yet. Tap <strong style={{ color: '#fff' }}>⇪ Bulk import</strong> to drop in Instagram handles or a contacts list, or <strong style={{ color: '#fff' }}>+ Add pending</strong> one by one. Vetted them later with <strong style={{ color: '#34D399' }}>Approve</strong>.</>
             : tab === 'resident'
               ? <>No residents yet — go to <strong style={{ color: '#fff' }}>Vetted</strong> and tap <strong style={{ color: '#fff' }}>☆ Make resident</strong> on the DJs you want guaranteed a monthly slot.</>
-              : (q ? `No DJs match "${q}".` : 'No DJs yet.')}
+              : (q ? `No DJs match "${q}".` : readyFilter === 'incomplete' ? '🎉 Every vetted DJ has a complete profile — nobody\'s stuck.' : readyFilter === 'ready' ? 'No fully-complete profiles here yet.' : 'No DJs yet.')}
         </div>
       )}
 

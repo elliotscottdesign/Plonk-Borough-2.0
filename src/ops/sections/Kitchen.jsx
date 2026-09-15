@@ -23,9 +23,15 @@ export default function Kitchen() {
   const [sub, setSub] = useState('runs')   // 'runs' | 'matrix'
   return (
     <div style={{ maxWidth: 1000, margin: '0 auto' }}>
-      <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+        <div className="serif" style={{ fontSize: 24, color: '#fff' }}>🍔🍟 Kitchen — food safety</div>
+        <a href="/onaroll" target="_blank" rel="noopener noreferrer" title="Open the On A Roll app — orders, stock, codes, menu & Food 360 reporting"
+          style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 7, textDecoration: 'none', fontSize: 13.5, fontWeight: 800, color: '#1a1a1a', background: '#C9A84C', border: '1px solid #C9A84C', borderRadius: 9, padding: '9px 14px' }}>
+          🍔 On A Roll app ↗
+        </a>
+      </div>
       <div style={{ fontSize: 13, color: 'rgba(255,255,255,0.6)', margin: '4px 0 16px', lineHeight: 1.5 }}>
-        Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically.
+        Review the crew's daily & weekly SFBB checklists, countersign them, and keep the allergen matrix current. Failed or missed checks email you automatically. Orders, live stock, party/staff codes, the menu and <b style={{ color: 'rgba(255,255,255,0.8)' }}>Food 360</b> reporting live in the <b style={{ color: '#C9A84C' }}>On A Roll app</b>.
       </div>
       {/* Sticky — the stock + allergen sheets are long; the way back must stay put. */}
       <div style={{ display: 'flex', gap: 8, marginBottom: 18, flexWrap: 'wrap', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
