@@ -16,6 +16,7 @@ import TrainingMatrix from './TrainingMatrix.jsx'
 import MenuAdmin from './MenuAdmin.jsx'
 import VenueClockSettings from './VenueClockSettings.jsx'
 import PayInvoices from './PayInvoices.jsx'
+import Interviewees from './Interviewees.jsx'
 
 // ─── Staff Rota — team roster (admin) ────────────────────────────────────────
 // Reads/writes the Supabase `staff` table via the `rota` edge function. Each
@@ -69,6 +70,8 @@ export default function StaffRota() {
   const [clocks, setClocks] = useState([])     // actual clock in/out records
   const [availability, setAvailability] = useState([])   // staff availability (AI rota input)
   const [rotaRules, setRotaRules] = useState(null)       // founder-edited AI-rota rules (null → defaults)
+  const [trials, setTrials] = useState([])               // 🎓 interviewees ledger
+  const [trialShifts, setTrialShifts] = useState([])     // their scheduled trial shifts
   const [trained, setTrained] = useState({})   // staff_id → Set(item_key)
   const [docsBy, setDocsBy] = useState({})     // staff_id → { passport, rtw }
   const [viewSoi, setViewSoi] = useState(false)
@@ -89,7 +92,7 @@ export default function StaffRota() {
   const load = async ({ silent = false } = {}) => {
     if (!silent) { setLoading(true); setErr('') }
     try {
-      const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || []); setRotaRules(r.rotaRules || null)
+      const r = await rotaLoad(); setStaff(r.staff || []); setShifts(r.shifts || []); setClaims(r.claims || []); setNotes(r.notes || []); setClocks(r.clocks || []); setAvailability(r.availability || []); setRotaRules(r.rotaRules || null); setTrials(r.trials || []); setTrialShifts(r.trialShifts || [])
       const t = {}; for (const c of r.training || []) (t[c.staff_id] ||= new Set()).add(c.item_key); setTrained(t)
       const dm = {}; for (const d of r.docs || []) (dm[d.staff_id] ||= {})[d.kind] = true; setDocsBy(dm)
       setLastSync(Date.now())
@@ -190,7 +193,7 @@ export default function StaffRota() {
       {/* Sticky: editing a staff profile or opening a day/statement used to bury
           this row — the way back must stay on screen (founder, Aug 2026). */}
       <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center', position: 'sticky', top: 0, zIndex: 20, background: 'var(--ink)', paddingTop: 6, paddingBottom: 6 }}>
-        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['pay', '💷 Pay'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
+        {[['team', '👥 Team'], ['rota', '🗓️ Rota'], ['availability', '📅 Availability'], ['ai', '🤖 Ai Builder'], ['pay', '💷 Pay'], ['interviews', '🎓 Interviews'], ['checklists', '📋 Checklists'], ['training', '🎓 Training'], ['menus', '🍽️ Menus'], ['settings', '⚙️ Settings']].map(([k, lbl]) => (
           <button key={k} onClick={() => setView(k)} style={{ padding: '8px 16px', fontSize: 13, borderRadius: 8, cursor: 'pointer', background: view === k ? 'rgba(255,255,255,0.10)' : 'rgba(255,255,255,0.04)', border: `1px solid ${view === k ? '#DA1B33' : 'rgba(255,255,255,0.1)'}`, color: view === k ? '#DA1B33' : '#FFFFFF', fontWeight: view === k ? 600 : 400 }}>{lbl}</button>
         ))}
         <button onClick={() => load()} disabled={loading} title="These pages refresh themselves automatically — tap to pull the very latest right now" style={{ marginLeft: 'auto', display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 11px', fontSize: 11.5, borderRadius: 999, cursor: 'pointer', background: 'rgba(52,211,153,0.10)', border: '1px solid rgba(52,211,153,0.4)', color: '#34D399', fontWeight: 600 }}>
@@ -200,13 +203,15 @@ export default function StaffRota() {
       </div>
 
       {view === 'rota' ? (
-        <RotaCalendar staff={staff} shifts={shifts} claims={claims} notes={notes} clocks={clocks} availability={availability} rules={rotaRules} reload={load} />
+        <RotaCalendar staff={staff} shifts={shifts} claims={claims} notes={notes} clocks={clocks} availability={availability} rules={rotaRules} trialShifts={trialShifts} trials={trials} reload={load} />
       ) : view === 'availability' ? (
         <AvailabilityOverview staff={staff} availability={availability} reload={load} />
       ) : view === 'ai' ? (
         <AiRota staff={staff} availability={availability} rules={rotaRules} shifts={shifts} claims={claims} reload={load} />
       ) : view === 'pay' ? (
         <PayInvoices staff={staff} shifts={shifts} claims={claims} clocks={clocks} />
+      ) : view === 'interviews' ? (
+        <Interviewees trials={trials} trialShifts={trialShifts} reload={load} />
       ) : view === 'checklists' ? (
         <ChecklistsHub />
       ) : view === 'training' ? (

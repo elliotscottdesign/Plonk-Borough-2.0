@@ -70,6 +70,15 @@ export const rotaSetRotaRules = (rules) => call({ action: 'setRotaRules', secret
 export const rotaCompileRules = (rules) => call({ action: 'compileRules', secret: SEND_SECRET, rules })   // AI reads houseRules → compiled directives, then saves the whole object
 export const rotaSetStaffAvailability = (staffId, month, data) => call({ action: 'setStaffAvailability', secret: SEND_SECRET, staffId, month, data })   // founder edits a staffer's availability
 
+// ── Trials / interviewees (management only) — scheduling + CV + notes, no login ─
+export const rotaAddTrial = (name, phone, email) => call({ action: 'addTrial', secret: SEND_SECRET, name, phone, email })
+export const rotaSaveTrial = (trialId, patch) => call({ action: 'saveTrial', secret: SEND_SECRET, trialId, ...patch })
+export const rotaRemoveTrial = (trialId) => call({ action: 'removeTrial', secret: SEND_SECRET, trialId })
+export const rotaUploadTrialCV = (trialId, data, cvName) => call({ action: 'uploadTrialCV', secret: SEND_SECRET, trialId, data, cvName })
+export const rotaGetTrialCV = (trialId) => call({ action: 'getTrialCV', secret: SEND_SECRET, trialId })
+export const rotaAddTrialShift = (trialId, date, start_min, end_min) => call({ action: 'addTrialShift', secret: SEND_SECRET, trialId, date, start_min, end_min })
+export const rotaRemoveTrialShift = (shiftId) => call({ action: 'removeTrialShift', secret: SEND_SECRET, shiftId })
+
 // ── Staff portal (token-authed — login issues the token) ─────────────────────
 export const rotaLogin = (name, password) => call({ action: 'login', name, password })   // name + password (same as the /today tap-your-name login)
 export const rotaSignup = (name, email, password, code) => call({ action: 'signup', name, email, password, code })

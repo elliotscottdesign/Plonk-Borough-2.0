@@ -108,6 +108,35 @@ API is more open. **Settle this before slice 5 is built**, not during.
 
 Ship 1 and 2 before judging any of it.
 
+## Talking to Xero: use the client, not urllib
+
+**Everything goes through [infra/xero_client.py](infra/xero_client.py). No
+exceptions, no "just this once" script.** It exists because on 15 Sep 2026 a
+matching job re-read the same 290 documents several times, spent all 5,000 of
+Xero's daily calls by 1pm, and lost the founder the afternoon. The work was
+small; doing it repeatedly was the whole problem.
+
+What the client enforces, so nobody has to remember it:
+
+- **A 3,000-call daily budget** — well under Xero's 5,000 — and it raises
+  `BudgetSpent` rather than letting a loop find the real ceiling. The margin
+  keeps the hourly sweep and the /ops screens alive even after a bad day.
+- **File content cached forever**, keyed by file id. A document in Xero's file
+  store is immutable, so downloading one twice is always a bug. Extracted text
+  is cached beside it, so reading a PDF costs nothing after the first time.
+- **Lists cached for 30 minutes.** `bank_transactions()` is seven calls once
+  per run, not seven per pass.
+- **50 calls a minute**, not 60, leaving room for whatever else is connected.
+- Every session states a `reason`, and usage is attributed to it —
+  `python3 infra/xero_client.py` prints today's spend and who spent it.
+
+State lives in `~/.nodice/xero/` (`usage.json`, `cache/`, `docs/`) — outside
+the repo, so it survives worktrees and sessions.
+
+**If you hit the budget: stop calling Xero and do the rest offline.** All the
+matching in this project is local computation over cached text. Only the
+`associate` writes actually need the network, and they are one call each.
+
 ## Rules carried over, paid for in hours
 
 - **Read the document; never guess the number.** A total is read off the page or
