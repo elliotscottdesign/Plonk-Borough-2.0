@@ -62,7 +62,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
     const p = s.staffId ? staffById[s.staffId] : null
     if (!p || s.role === 'manager' || s.role === 'kitchen') return null
     if (p.role === 'Manager' || p.role === 'Asst. Manager') return { txt: '👔', title: `${p.name} is a ${p.role} — this is still a bar shift` }
-    if (isKitchen(p)) return { txt: '🍳', title: `${p.name} is kitchen-trained — this is still a bar shift` }
+    if (isKitchen(p)) return { txt: '🍳', title: `${p.name} is kitchen — this is still a bar shift` }
     return null
   }
   const KIND_ORDER = { manager: 0, kitchen: 1, bar: 2 }
@@ -215,7 +215,7 @@ export default function AiRota({ staff = [], availability = [], rules = null, sh
                   {day.slots.map((s, si) => {
                     const tag = slotTag(s)
                     // Lanes: managers for the manager slot; kitchen-role (or a kitchen-trained manager as cover) for kitchen; everyone except kitchen-role on the floor.
-                    const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : s.role === 'kitchen' ? active.filter(x => x.role === 'Kitchen / Barback' || (isKitchen(x) && (x.role === 'Manager' || x.role === 'Asst. Manager'))) : active.filter(x => x.role !== 'Kitchen / Barback')
+                    const eligible = s.role === 'manager' ? active.filter(x => x.role === 'Manager' || x.role === 'Asst. Manager') : s.role === 'kitchen' ? active.filter(x => x.role === 'Kitchen / Barback' || x.role === 'Manager' || x.role === 'Asst. Manager') : active.filter(x => x.role !== 'Kitchen / Barback')
                     return (
                       <div key={si} style={{ display: 'flex', flexDirection: 'column', gap: 5, background: 'rgba(255,255,255,0.03)', border: `1px ${s.added && !s.staffId ? 'dashed' : 'solid'} ${s.warn ? 'rgba(245,158,11,0.4)' : s.added && !s.staffId ? 'rgba(96,165,250,0.5)' : 'rgba(255,255,255,0.1)'}`, borderRadius: 7, padding: '6px 7px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
