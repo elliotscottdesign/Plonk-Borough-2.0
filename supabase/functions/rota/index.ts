@@ -1124,7 +1124,7 @@ Deno.serve(async (req) => {
         const { data: fromStaff } = await sb.from("staff").select("role").eq("id", sw.from_staff).maybeSingle();
         const swapLane = offLane(fromStaff?.role);
         const meMgr = staffRank(me.role) >= staffRank("Asst. Manager");
-        if (swapLane === "kitchen" && !(me.role === "Kitchen / Barback" || ((me.abilities || []).includes("kitchen") && meMgr)))
+        if (swapLane === "kitchen" && !(me.role === "Kitchen / Barback" || meMgr))
           return json({ error: "That's a kitchen shift — only kitchen staff (or a kitchen-trained manager) can take it." }, 403);
         if (swapLane === "bar" && me.role === "Kitchen / Barback")
           return json({ error: "That's a bar shift — the kitchen team stays in its lane." }, 403);

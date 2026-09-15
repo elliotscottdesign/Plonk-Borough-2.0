@@ -538,7 +538,7 @@ export default function RotaPortal() {
                   // kitchen-trained managers; bar shift → not kitchen-role; manager shift → managers.
                   const oLane = (w.from_role === 'Manager' || w.from_role === 'Asst. Manager') ? 'manager' : w.from_role === 'Kitchen / Barback' ? 'kitchen' : 'bar'
                   const meMgr = ['Manager', 'Asst. Manager'].includes(staff?.role)
-                  const laneWhy = oLane === 'kitchen' && !(staff?.role === 'Kitchen / Barback' || ((staff?.abilities || []).includes('kitchen') && meMgr)) ? 'kitchen shift — kitchen team only'
+                  const laneWhy = oLane === 'kitchen' && !(staff?.role === 'Kitchen / Barback' || meMgr) ? 'kitchen shift — kitchen team only'
                     : oLane === 'bar' && staff?.role === 'Kitchen / Barback' ? 'bar shift — kitchen stays in its lane'
                     : oLane === 'manager' && !meMgr ? 'manager shift — managers only' : null
                   const cantWhy = workingOn(sh.date) ? "you're working that day" : dayOff(sh.date) ? "you're booked off that day" : laneWhy
