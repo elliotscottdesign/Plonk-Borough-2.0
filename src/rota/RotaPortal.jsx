@@ -298,6 +298,7 @@ export default function RotaPortal() {
   const decideSwap = (id, approve) => act(() => rotaDecideSwap(token, id, approve))
   const workingOn = (ds) => (shiftsByDate[ds] || []).some(x => x.mine)   // already rostered that day → can't intercept
   const myOpenSwapShiftIds = new Set(swaps.filter(w => w.from_staff === staff?.id && ['open', 'claimed'].includes(w.status)).map(w => w.shift_id))
+  const mySwapByShiftId = {}; for (const w of swaps) if (w.from_staff === staff?.id && ['open', 'claimed'].includes(w.status)) mySwapByShiftId[w.shift_id] = w
   const release = (id) => act(() => rotaReleaseShift(token, id))
   // Some of the team also DJ for us. If a manager has linked this staff record to
   // a DJ record, the rota fn hands back that DJ's own portal link so she can hop
@@ -533,19 +534,26 @@ export default function RotaPortal() {
                   const when = `${dayName(sh.date)} ${sh.date.slice(8)}/${sh.date.slice(5, 7)} · ${fmtMin(sh.start_min)}–${fmtMin(sh.end_min)}`
                   const mineOffer = w.from_staff === staff?.id
                   const iClaimed = w.to_staff === staff?.id
-                  const cantWhy = workingOn(sh.date) ? "you're working that day" : dayOff(sh.date) ? "you're booked off that day" : !canWork(staff, sh) ? whyCantWork(staff, sh) : null
+                  // Lane rule (matches the server): kitchen shift → kitchen people /
+                  // kitchen-trained managers; bar shift → not kitchen-role; manager shift → managers.
+                  const oLane = (w.from_role === 'Manager' || w.from_role === 'Asst. Manager') ? 'manager' : w.from_role === 'Kitchen / Barback' ? 'kitchen' : 'bar'
+                  const meMgr = ['Manager', 'Asst. Manager'].includes(staff?.role)
+                  const laneWhy = oLane === 'kitchen' && !(staff?.role === 'Kitchen / Barback' || meMgr) ? 'kitchen shift — kitchen team only'
+                    : oLane === 'bar' && staff?.role === 'Kitchen / Barback' ? 'bar shift — kitchen stays in its lane'
+                    : oLane === 'manager' && !meMgr ? 'manager shift — managers only' : null
+                  const cantWhy = workingOn(sh.date) ? "you're working that day" : dayOff(sh.date) ? "you're booked off that day" : laneWhy
                   return (
                     <div key={w.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', borderLeft: `3px solid ${w.status === 'claimed' ? '#FBBF24' : '#60A5FA'}`, paddingLeft: 10 }}>
                       <div style={{ flex: 1, minWidth: 160 }}>
                         <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{mineOffer ? 'Your shift' : `${(w.from_name || '?').split(' ')[0]} can't do`} · {sh.label || 'Shift'}</div>
                         <div style={{ fontSize: 11.5, color: 'rgba(255,255,255,0.6)' }}>{when}{w.status === 'claimed' && <span style={{ color: '#FBBF24', fontWeight: 700 }}> · {iClaimed ? 'you' : (w.to_name || '?').split(' ')[0]} claimed it — waiting for a manager ✓</span>}</div>
                       </div>
-                      {w.status === 'open' && mineOffer && <button onClick={() => cancelSwap(w.id)} disabled={busy} style={btn('ghost')}>Cancel offer</button>}
+                      {mineOffer && <button onClick={() => cancelSwap(w.id)} disabled={busy} style={{ ...btn('ghost'), padding: '10px 16px', fontSize: 13, minHeight: 42 }}>✕ Cancel my offer</button>}
                       {w.status === 'open' && !mineOffer && (cantWhy
                         ? <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)', maxWidth: 130, textAlign: 'right', lineHeight: 1.3 }}>{cantWhy}</span>
                         : armSwap === w.id
-                          ? <button onClick={() => { setArmSwap(null); interceptSwap(w.id) }} disabled={busy} style={{ ...btn('red'), border: '1px solid #fff' }}>Tap again to confirm ✓</button>
-                          : <button onClick={() => setArmSwap(w.id)} disabled={busy} style={{ padding: '7px 14px', borderRadius: 999, cursor: 'pointer', fontSize: 12.5, fontWeight: 700, background: 'rgba(96,165,250,0.15)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Intercept shift</button>)}
+                          ? <button onClick={() => { setArmSwap(null); interceptSwap(w.id) }} disabled={busy} style={{ ...btn('red'), border: '1.5px solid #fff', padding: '10px 18px', fontSize: 13.5, minHeight: 42 }}>Tap again to confirm ✓</button>
+                          : <button onClick={() => setArmSwap(w.id)} disabled={busy} style={{ padding: '10px 18px', borderRadius: 999, cursor: 'pointer', fontSize: 13.5, fontWeight: 700, minHeight: 42, background: 'rgba(96,165,250,0.15)', border: '1.5px solid #60A5FA', color: '#fff' }}>🔁 Intercept shift</button>)}
                       {w.status === 'claimed' && managerTier && !iClaimed && (
                         <span style={{ display: 'flex', gap: 6 }}>
                           <button onClick={() => decideSwap(w.id, true)} disabled={busy} style={btn('red')}>✓ Approve</button>
@@ -614,8 +622,8 @@ export default function RotaPortal() {
                                 ? <span style={{ fontSize: 11.5, color: GREEN, fontWeight: 700, textAlign: 'right', maxWidth: 120, lineHeight: 1.3 }}>✓ You're on<br /><span style={{ fontSize: 9.5, color: 'rgba(255,255,255,0.45)', fontWeight: 400 }}>set by manager</span></span>
                                 : <button onClick={() => release(sh.id)} disabled={busy} style={btn('ghost')}>You're on · drop</button>}
                               {selDate > todayStr && (myOpenSwapShiftIds.has(sh.id)
-                                ? <span style={{ fontSize: 10, color: '#FBBF24', fontWeight: 700 }}>🔁 up for swap</span>
-                                : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves the swap" style={{ padding: '5px 11px', borderRadius: 999, cursor: 'pointer', fontSize: 11, fontWeight: 700, background: 'rgba(96,165,250,0.12)', border: '1px solid #60A5FA', color: '#fff' }}>🔁 Offer swap</button>)}
+                                ? <button onClick={() => { if (window.confirm('Take this shift OFF the swap list? It stays yours.')) cancelSwap(mySwapByShiftId[sh.id].id) }} disabled={busy} style={{ padding: '10px 16px', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 700, minHeight: 42, background: 'rgba(245,158,11,0.14)', border: '1.5px solid #FBBF24', color: '#FBBF24' }}>🔁 Up for swap — tap to cancel</button>
+                                : <button onClick={() => offerSwap(sh.id)} disabled={busy} title="Offer this shift up — teammates can claim it, a manager approves the swap" style={{ padding: '10px 16px', borderRadius: 999, cursor: 'pointer', fontSize: 13, fontWeight: 700, minHeight: 42, background: 'rgba(96,165,250,0.12)', border: '1.5px solid #60A5FA', color: '#fff' }}>🔁 Offer swap</button>)}
                             </span>
                           : full
                             ? <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)' }}>Full</span>

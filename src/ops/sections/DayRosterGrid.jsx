@@ -25,7 +25,7 @@ const roleRank = (s) => {
   const role = s?.role
   if (role === 'Manager') return 0
   if (role === 'Asst. Manager') return 1
-  if (role === 'Kitchen / Barback' || (s?.abilities || []).includes('kitchen')) return 2
+  if (role === 'Kitchen / Barback') return 2
   if (role === 'Supervisor') return 3
   return 4
 }

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { getMenu, saveMenu, uploadPhoto } from './menuApi.js'
 import { ON_A_ROLL_LOGO_BW } from './logo.js'
 import { ALLERGENS } from './allergens.js'
-import { exportMenu, ORDER_URL, todayMenuTitle } from './menuExport.js'
+import { exportMenu, ORDER_URL, todayMenuTitle, sendMenuToProfiles } from './menuExport.js'
 import { ensureStock } from './foodOrders.js'
 
 // Allergen cell cycles none → contains (●) → may-contain/trace (○) → none.
@@ -115,12 +115,18 @@ export default function MenuManager() {
     catch (e) { setMsg("Couldn't save — " + e.message) } finally { setSaving(false) }
   }
 
-  // Reliable send: reuses the Download-PDF popup engine (works on the kitchen
-  // iPad) and uploads the PDF to the staff Menus store. The popup confirms.
-  const sendStaff = () => {
-    const title = todayMenuTitle()
-    exportMenu(sections, 'send', vat, title)
-    setMsg(`📤 Force-sending “${title}” to staff profiles — a tab opens and confirms when it’s filed. (Allow pop-ups.)`)
+  // Send the SAME PDF that Download PDF makes, straight to the staff-profile Menus
+  // area, named "On a Roll <date>". Runs in-page (no pop-up, the old failure point).
+  const [sending, setSending] = useState(false)
+  const sendStaff = async () => {
+    if (sending) return
+    setSending(true); setMsg(`📤 Sending the On A Roll menu to staff profiles…`)
+    try {
+      const { title } = await sendMenuToProfiles(sections, vat)
+      setMsg(`✅ Sent “${title}” to staff profiles — staff open it in their portal → Menus.`)
+    } catch (e) {
+      setMsg(`Couldn't send — ${e.message}`)
+    } finally { setSending(false) }
   }
 
   if (sections == null) return <div style={{ color: MUTED, fontSize: 13, padding: '20px 0' }}>Loading menu…</div>
@@ -133,7 +139,7 @@ export default function MenuManager() {
         <button onClick={save} disabled={saving || !dirty} style={{ ...pill(dirty), opacity: dirty ? 1 : 0.5 }}>{saving ? 'Saving…' : dirty ? '💾 Save menu' : 'Saved'}</button>
         <button onClick={() => exportMenu(sections, 'print', vat)} style={pill(false)}>🖨 Print menu · A4 = 2× A5</button>
         <button onClick={() => exportMenu(sections, 'pdf', vat)} style={pill(false)}>⬇ Download PDF</button>
-        <button onClick={sendStaff} title={`Files a dated PDF (“${todayMenuTitle()}”) into every staff profile's Menus tab. Opens a tab that confirms when it's filed.`} style={{ ...pill(true), borderColor: GREEN, color: GREEN }}>📤 Force send to profiles</button>
+        <button onClick={sendStaff} disabled={sending} title={`Files the SAME PDF (“${todayMenuTitle()}”) into every staff profile's Menus tab — identical to the printable On A Roll menu.`} style={{ ...pill(true), borderColor: GREEN, color: GREEN, opacity: sending ? 0.6 : 1 }}>{sending ? '📤 Sending…' : '📤 Send to profiles'}</button>
         <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12.5, color: vat ? GOLD : MUTED, cursor: 'pointer', border: `1px solid ${vat ? GOLD : LINE}`, borderRadius: 8, padding: '7px 11px' }}>
           <input type="checkbox" checked={vat} onChange={e => { setVat(e.target.checked); setDirty(true) }} /> VAT registered (20%)
         </label>

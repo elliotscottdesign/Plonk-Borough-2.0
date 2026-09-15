@@ -228,11 +228,14 @@ export function daySlots(dateStr, rules) {
 }
 
 const isManager = (s) => s.role === 'Manager' || s.role === 'Asst. Manager'
-export const isKitchen = (s) => (s.abilities || []).includes('kitchen') || s.role === 'Kitchen / Barback'
+// Role is the single source of truth (founder, 15 Sep 2026): what a person IS —
+// manager / kitchen / bar — comes from their hardcoded job role, NOT training
+// abilities. Manager=Manager/Asst. Manager, Kitchen='Kitchen / Barback', Bar=rest.
+export const isKitchen = (s) => s.role === 'Kitchen / Barback'
 // Lanes (founder rule, 16 Aug 2026): kitchen-ROLE staff never fill bar/floor
 // shifts; the kitchen slot takes kitchen-role staff first, and a kitchen-trained
 // manager (Elliot) is the fallback cover. Bar/floor = everyone who isn't kitchen-role.
-const isKitchenRole = (s) => s.role === 'Kitchen / Barback'
+const isKitchenRole = isKitchen
 
 // unavailByStaff: { staffId: Set('YYYY-MM-DD') } of days each member marked OFF.
 // Everyone's available by default; only an explicit `{ unavailable: true }` counts.
@@ -308,7 +311,7 @@ export function generateWeek(weekStart, staff, availabilityRows, rules, opts = {
         // (Elliot) → last resort, a kitchen-role person who marked the day off (flagged).
         const cooks = pool.filter(isKitchenRole)
         const freeCooks = cooks.filter(s => availState(unavail[s.id] || new Set(), date) >= 1)
-        const mgrCover = pool.filter(s => isKitchen(s) && isManager(s))
+        const mgrCover = pool.filter(isManager)   // any manager can cover kitchen (founder call)
         pool = freeCooks.length ? freeCooks : mgrCover.length ? mgrCover : cooks
       }
       if (slot.role !== 'manager' && slot.role !== 'kitchen') pool = pool.filter(s => !isKitchenRole(s))   // lanes: no kitchen staff on the floor
