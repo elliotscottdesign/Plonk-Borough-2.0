@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { Suspense } from 'react'
 import ReactDOM from 'react-dom/client'
 import { applyTheme } from './lib/theme.js'
 import './i18n/i18n-setup.js'
@@ -55,7 +55,17 @@ const bootstrap = needsBootstrap
 bootstrap.finally(() => {
   root.render(
     <React.StrictMode>
-      <App />
+      {/* One Suspense boundary for every lazily-loaded route in App.jsx. Without
+          it React throws the moment a lazy route is reached. The fallback is
+          deliberately plain and dark — it flashes for a few hundred ms at most,
+          and only the first time a given screen is opened. */}
+      <Suspense fallback={
+        <div style={{ minHeight: '100dvh', background: '#0A0A0F', color: 'rgba(255,255,255,0.45)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      fontFamily: "'DM Sans', sans-serif", fontSize: 13 }}>Loading…</div>
+      }>
+        <App />
+      </Suspense>
     </React.StrictMode>
   )
 })

@@ -1,25 +1,31 @@
-import React, { useEffect, useRef, useState } from 'react'
-import Operations from './sections/Operations.jsx'
-import Bar from './sections/Bar.jsx'
+import React, { useEffect, useRef, useState, lazy, Suspense } from 'react'
 import { getTheme, setTheme, nextTheme, THEME_LABEL, THEME_HINT } from '../lib/theme.js'
 import { forgetDevice } from '../lib/access.js'
-import DJBookings from './sections/DJBookings.jsx'
-import Reports from './sections/Reports.jsx'
-import Documentation from './sections/Documentation.jsx'
-import WorldCup from './sections/WorldCup.jsx'
-import StaffRota from './sections/StaffRota.jsx'
-import Tournament from './sections/Tournament.jsx'
-import PingPong from './sections/PingPong.jsx'
-import Kitchen from './sections/Kitchen.jsx'
-import KeyDates from './sections/KeyDates.jsx'
-import ToiletLog from './sections/ToiletLog.jsx'
-import ChecklistEditor from './sections/ChecklistEditor.jsx'
-import HowItWorks from './sections/HowItWorks.jsx'
-import Reservations from './sections/Reservations.jsx'
-import Finances from './sections/Finances.jsx'
-import Receipts from './sections/Receipts.jsx'
-import TillCatalogue from '../till/TillCatalogue.jsx'
 import useIsMobile from '../lib/useIsMobile.js'
+
+// ── Lazy sections (founder, 15 Sep 2026: "things are taking too long to load") ─
+// These 18 screens used to be imported eagerly, so opening /ops downloaded the
+// till, the tournament engine, Finances and every other section before showing
+// ANY of them. Now each one is fetched the first time it's actually opened, and
+// cached by the browser after that. The tab registry below is unchanged.
+const Operations = lazy(() => import('./sections/Operations.jsx'))
+const Bar = lazy(() => import('./sections/Bar.jsx'))
+const DJBookings = lazy(() => import('./sections/DJBookings.jsx'))
+const Reports = lazy(() => import('./sections/Reports.jsx'))
+const Documentation = lazy(() => import('./sections/Documentation.jsx'))
+const WorldCup = lazy(() => import('./sections/WorldCup.jsx'))
+const StaffRota = lazy(() => import('./sections/StaffRota.jsx'))
+const Tournament = lazy(() => import('./sections/Tournament.jsx'))
+const PingPong = lazy(() => import('./sections/PingPong.jsx'))
+const Kitchen = lazy(() => import('./sections/Kitchen.jsx'))
+const KeyDates = lazy(() => import('./sections/KeyDates.jsx'))
+const ToiletLog = lazy(() => import('./sections/ToiletLog.jsx'))
+const ChecklistEditor = lazy(() => import('./sections/ChecklistEditor.jsx'))
+const HowItWorks = lazy(() => import('./sections/HowItWorks.jsx'))
+const Reservations = lazy(() => import('./sections/Reservations.jsx'))
+const Finances = lazy(() => import('./sections/Finances.jsx'))
+const Receipts = lazy(() => import('./sections/Receipts.jsx'))
+const TillCatalogue = lazy(() => import('../till/TillCatalogue.jsx'))
 
 // ─── No Dice Operations hub (/ops) ───────────────────────────────────────
 // Internal team area, separate from the investor decks. The nav is TWO-LEVEL
@@ -331,7 +337,9 @@ export default function OpsApp() {
               printed a THIRD one via OpsBrandHeader. On a phone that pushed the actual
               content below the fold before you'd read a single number. Branded once,
               in the header. (Founder, Aug 2026: "ugly menu headers".) */}
-          <current.Component />
+          <Suspense fallback={<div style={{ padding: '32px 0', textAlign: 'center', fontSize: 13, color: 'var(--cream-dim)' }}>Loading…</div>}>
+            <current.Component />
+          </Suspense>
         </div>
       </div>
     </div>

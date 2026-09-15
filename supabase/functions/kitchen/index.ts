@@ -149,20 +149,59 @@ Deno.serve(async (req) => {
         const has_failure = fails.length > 0;
         if (submit && fails.some((e: any) => !e.corrective_action || !String(e.corrective_action).trim()))
           return json({ error: "Add a corrective-action note to each failed check before submitting." }, 400);
+        // ── MERGE, never replace ─────────────────────────────────────────────
+        // This used to upsert the WHOLE run, so two phones on the same day's
+        // checks meant the second to save silently wiped the first — including a
+        // recorded temperature failure and its corrective action. That is a
+        // food-safety record being destroyed, and going offline would guarantee
+        // it (offline means two devices always hold divergent copies).
+        //
+        // The bar checklists already merge one tick at a time
+        // (supabase/rota-schema.sql — `items || jsonb_build_object(...)`). This
+        // brings the kitchen in line:
+        //   • a key the incoming sheet doesn't mention is KEPT, not dropped;
+        //   • a key it does mention wins — EXCEPT it may never quietly erase a
+        //     recorded failure. A logged fail + corrective action survives, and
+        //     the response says so, rather than vanishing without trace.
+        const { data: existing } = await sb.from("kitchen_checklist_runs")
+          .select("entries").eq("run_date", date).eq("cadence", cadence).maybeSingle();
+
+        const byKey: Record<string, any> = {};
+        for (const e of (Array.isArray(existing?.entries) ? existing.entries : [])) {
+          if (e?.key) byKey[String(e.key)] = e;
+        }
+        const preserved: string[] = [];
+        for (const inc of entries) {
+          const prev = byKey[inc.key];
+          const wouldEraseAFailure = prev && prev.is_fail === true
+            && String(prev.corrective_action || "").trim() !== ""
+            && inc.is_fail !== true;
+          if (wouldEraseAFailure) { preserved.push(inc.key); continue; }   // keep the recorded failure
+          byKey[inc.key] = inc;
+        }
+        const merged = Object.values(byKey);
+        const mergedFails = merged.filter((e: any) => e.is_fail);
+        const mergedHasFailure = mergedFails.length > 0;
+
         // Any staff edit invalidates a manager's earlier countersign (they signed off
         // different data) and, if reverted to a draft, clears the completed stamp.
-        const row: any = { run_date: date, cadence, staff_id: me.id, shift_id: myShiftId, entries, has_failure, status: submit ? "completed" : "in_progress", completed_at: submit ? new Date().toISOString() : null, reviewed_at: null, review_note: null };
+        const row: any = { run_date: date, cadence, staff_id: me.id, shift_id: myShiftId, entries: merged, has_failure: mergedHasFailure, status: submit ? "completed" : "in_progress", completed_at: submit ? new Date().toISOString() : null, reviewed_at: null, review_note: null };
         const { data: saved, error } = await sb.from("kitchen_checklist_runs").upsert(row, { onConflict: "run_date,cadence" }).select("*").single();
         if (error) return json({ error: error.message }, 400);
-        if (submit && has_failure && RESEND) {
+        // Surfaced, not swallowed: the UI can tell the user their sheet was
+        // behind and a colleague's recorded failure was kept.
+        const conflictNote = preserved.length
+          ? `${preserved.length} check${preserved.length === 1 ? "" : "s"} already had a failure logged by someone else — those were kept.`
+          : null;
+        if (submit && mergedHasFailure && RESEND) {
           const titles: Record<string, string> = { opening: "Opening", service: "During service", closing: "Closing", weekly: "Weekly deep clean", prep: "Batch prep" };
           const title = titles[cadence] || cadence;
-          const li = fails.map((e: any) => `<li style="margin:4px 0"><strong style="color:#fff">${esc(e.key)}</strong>${e.value_numeric != null ? ` — ${esc(String(e.value_numeric))} °C` : ""}${e.corrective_action ? `<br><span style="color:#bbb">Action: ${esc(String(e.corrective_action))}</span>` : ""}</li>`).join("");
+          const li = mergedFails.map((e: any) => `<li style="margin:4px 0"><strong style="color:#fff">${esc(e.key)}</strong>${e.value_numeric != null ? ` — ${esc(String(e.value_numeric))} °C` : ""}${e.corrective_action ? `<br><span style="color:#bbb">Action: ${esc(String(e.corrective_action))}</span>` : ""}</li>`).join("");
           await sendMail(ADMIN_EMAIL, `⚠️ Kitchen ${title} check FAILED — ${date}`,
             emailShell(`Kitchen ${title} check failed`,
-              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> submitted the <strong style="color:#fff">${esc(title)}</strong> kitchen checklist for <strong style="color:#fff">${esc(date)}</strong> with <strong style="color:#DA1B33">${fails.length} failed check${fails.length === 1 ? "" : "s"}</strong>:</p><ul style="color:#ccc">${li}</ul><p style="color:#999;font-size:13px">Review it in /ops → Kitchen.</p>`));
+              `<p style="color:#ccc;line-height:1.6"><strong style="color:#fff">${esc(me.name)}</strong> submitted the <strong style="color:#fff">${esc(title)}</strong> kitchen checklist for <strong style="color:#fff">${esc(date)}</strong> with <strong style="color:#DA1B33">${mergedFails.length} failed check${mergedFails.length === 1 ? "" : "s"}</strong>:</p><ul style="color:#ccc">${li}</ul><p style="color:#999;font-size:13px">Review it in /ops → Kitchen.</p>`));
         }
-        return json({ ok: true, run: saved });
+        return json({ ok: true, run: saved, conflictNote });
       }
     }
 

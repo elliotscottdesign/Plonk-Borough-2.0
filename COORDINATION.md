@@ -426,3 +426,27 @@ the known SEND_SECRET-in-the-bundle debt, not a new hole. Deploy when a token ex
 - No other lane's tables touched. Rota read-only (kitchen-hours join copies the
   `kitchen` fn shape + imports `src/rota/pay.js`). Finance `receipts`/`till_reports`
   read-only — chef-invoice tagging convention to be agreed here before Phase 4.
+
+## 15 Sep 2026 — code-splitting + kitchen checklist merge (founder-directed, native lane)
+Founder: "things are taking too long to load" / "I've had enough".
+
+**Shared files touched** (`src/App.jsx`, `src/main.jsx`, `src/ops/OpsApp.jsx`) — claimed,
+edited minimally, shipped same day. Measured before: ONE 3.42 MB bundle, **zero** lazy
+loading across 237 files, 42 eager imports in App.jsx (10 of them investor decks), 18
+network calls before RotaPortal renders.
+
+- `src/App.jsx` — 24 route-level components now `lazy()`. A bartender opening /rota no
+  longer downloads the Hackney deck, the Borough deck, the investor slides or Recharts.
+- `src/ops/OpsApp.jsx` — all 18 sections lazy; the tab registry is unchanged, so deep
+  links and gates behave exactly as before.
+- `src/main.jsx` — one `<Suspense>` at the root covering every lazy route.
+
+**`supabase/functions/kitchen/index.ts` (kitchen lane — founder-directed hotfix, DEPLOYED):**
+the checklist save upserted the WHOLE run, so two phones on the same day's checks meant the
+second to save silently wiped the first, including a recorded temperature failure and its
+corrective action. Now merges by entry key, and **a logged failure with a corrective action
+can never be erased by a stale sheet** — it is kept and reported back as `conflictNote`.
+The failure email now counts the merged picture, not one device's view. Live exposure when
+fixed: 47 runs, 11 carrying failures. Bar checklists already merged correctly
+(`rota-schema.sql` — `items || jsonb_build_object(...)`); the kitchen now matches.
+Kitchen lane: shout if this cuts across anything in flight.

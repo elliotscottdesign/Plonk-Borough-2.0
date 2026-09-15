@@ -1,39 +1,15 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, lazy, Suspense } from 'react'
 import { useTranslation } from 'react-i18next'
 import PasswordGate from './PasswordGate.jsx'
 import { applyTheme } from './lib/theme.js'
-import VenueInfo from './tabs/VenueInfo.jsx'
-import BusinessExplorer from './tabs/BusinessExplorer.jsx'
-import Plonk from './tabs/Plonk.jsx'
-import NotesTab from './tabs/NotesTab.jsx'
-import Cover from './slides/Cover.jsx'
-import InvestmentSummary from './slides/InvestmentSummary.jsx'
-import UseOfFunds from './slides/UseOfFunds.jsx'
-import MarketContext from './slides/MarketContext.jsx'
-import WaterfallReturns from './slides/WaterfallReturns.jsx'
-import GrowthDrivers from './slides/GrowthDrivers.jsx'
-import InvestmentCase from './slides/InvestmentCase.jsx'
-import GroupStructure from './slides/GroupStructure.jsx'
-import HackneyApp from './hackney/HackneyApp.jsx'
 import Landing from './Landing.jsx'
 import TeamLanding from './TeamLanding.jsx'
-import SiteSplash from './site/SiteSplash.jsx'
-import SiteHome from './site/SiteHome.jsx'
 import PrivacyPolicy from './legal/PrivacyPolicy.jsx'
 import Terms from './legal/Terms.jsx'
-import IPLicenceTemplate from './templates/IPLicenceTemplate.jsx'
 // WorldCupPage is now mounted inside OpsApp's "World Cup" tab, not as a
 // standalone route — see src/ops/sections/WorldCup.jsx.
 // WorldCupBookings was a holding page superseded by the real customer
 // schedule in the nodice.bar repo.
-import DecemberSales from './borough/DecemberSales.jsx'
-import OpsApp from './ops/OpsApp.jsx'
-import MarketingApp from './marketing/MarketingApp.jsx'
-import DJPortal from './dj/DJPortal.jsx'
-import RotaPortal from './rota/RotaPortal.jsx'
-import OnARollApp from './onaroll/OnARollApp.jsx'
-import DailyHub from './rota/DailyHub.jsx'
-import ToiletChecks from './toilets/ToiletChecks.jsx'
 import LeisureWatcher from './leisure/LeisureWatcher.jsx'
 import { LockedDeckProvider } from './components/LockedDeckContext.jsx'
 import { NotesProvider, useNotes } from './components/NotesContext.jsx'
@@ -44,6 +20,36 @@ import { WORKBOOK_URL } from './data.js'
 import useIsMobile from './lib/useIsMobile.js'
 import { applyAccessSession, ACCESS_CODES, restoreRememberedSession, forgetDevice } from './lib/access.js'
 import { rotaMe } from './rota/api.js'
+
+// ── Lazy routes (founder, 15 Sep 2026: "things are taking too long to load") ──
+// Every one of these used to load before ANY screen rendered, so a bartender
+// opening their rota downloaded the Hackney investor deck, the Borough deck,
+// all the investor slides and the charting library first. Each route now
+// arrives only when someone actually opens it.
+const HackneyApp = lazy(() => import('./hackney/HackneyApp.jsx'))
+const OpsApp = lazy(() => import('./ops/OpsApp.jsx'))
+const MarketingApp = lazy(() => import('./marketing/MarketingApp.jsx'))
+const DJPortal = lazy(() => import('./dj/DJPortal.jsx'))
+const RotaPortal = lazy(() => import('./rota/RotaPortal.jsx'))
+const OnARollApp = lazy(() => import('./onaroll/OnARollApp.jsx'))
+const DailyHub = lazy(() => import('./rota/DailyHub.jsx'))
+const ToiletChecks = lazy(() => import('./toilets/ToiletChecks.jsx'))
+const SiteSplash = lazy(() => import('./site/SiteSplash.jsx'))
+const SiteHome = lazy(() => import('./site/SiteHome.jsx'))
+const IPLicenceTemplate = lazy(() => import('./templates/IPLicenceTemplate.jsx'))
+const DecemberSales = lazy(() => import('./borough/DecemberSales.jsx'))
+const VenueInfo = lazy(() => import('./tabs/VenueInfo.jsx'))
+const BusinessExplorer = lazy(() => import('./tabs/BusinessExplorer.jsx'))
+const Plonk = lazy(() => import('./tabs/Plonk.jsx'))
+const NotesTab = lazy(() => import('./tabs/NotesTab.jsx'))
+const Cover = lazy(() => import('./slides/Cover.jsx'))
+const InvestmentSummary = lazy(() => import('./slides/InvestmentSummary.jsx'))
+const UseOfFunds = lazy(() => import('./slides/UseOfFunds.jsx'))
+const MarketContext = lazy(() => import('./slides/MarketContext.jsx'))
+const WaterfallReturns = lazy(() => import('./slides/WaterfallReturns.jsx'))
+const GrowthDrivers = lazy(() => import('./slides/GrowthDrivers.jsx'))
+const InvestmentCase = lazy(() => import('./slides/InvestmentCase.jsx'))
+const GroupStructure = lazy(() => import('./slides/GroupStructure.jsx'))
 
 // Path-based deck dispatch.
 //   /                     → public Landing page (marketing, no gate)
