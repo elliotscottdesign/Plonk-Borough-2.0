@@ -71,10 +71,14 @@ function WeekRow({ row }) {
 // roster and see HOURS, never rates or spend.
 const isFounderTier = () => { try { return sessionStorage.getItem('ndb_role_founder') === '1' } catch { return false } }
 
-export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], rules = null, reload }) {
+export default function RotaCalendar({ staff = [], shifts = [], claims = [], notes = [], clocks = [], availability = [], rules = null, trialShifts = [], trials = [], reload }) {
   // Key Dates (festivals, half-terms, bank holidays…) flagged on the calendar as you build.
   const [keyEvents, setKeyEvents] = useState([])
   useEffect(() => { eventsList().then(r => setKeyEvents(r.events || [])).catch(() => {}) }, [])
+  // 🎓 trial/interview shifts by date, with the interviewee's name + phone.
+  const trialById = Object.fromEntries((trials || []).map(t => [t.id, t]))
+  const trialsByDate = {}
+  for (const ts of trialShifts || []) { const t = trialById[ts.trial_id]; (trialsByDate[ts.date] ||= []).push({ ...ts, name: t?.name || 'Trial', phone: t?.phone || '' }) }
   // Booking overlay — nodice.bar customer bookings + paid tournament sign-ups
   // pulled straight from the shared Supabase so each day tile shows how many
   // covers are already committed (with a 🔥 flag when any booking is 8+).
@@ -398,6 +402,7 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
                     {occ && <span title={occ[1]} style={{ fontSize: 11, lineHeight: 1 }}>{occ[0]}</span>}
                     {isFullMoon(dateStr) && <span title="Full moon" style={{ fontSize: 10, lineHeight: 1 }}>🌕</span>}
                     {isPayFriday(dateStr) && <span title="Payday — last Friday of the month" style={{ fontSize: 9, fontWeight: 800, color: GREEN, border: `1px solid ${GREEN}66`, background: `${GREEN}1a`, borderRadius: 4, padding: '1px 3px', lineHeight: 1 }}>£</span>}
+                    {(trialsByDate[dateStr] || []).length > 0 && <span title={(trialsByDate[dateStr] || []).map(t => `🎓 ${t.name} ${fmtMin(t.start_min)}–${fmtMin(t.end_min)}${t.phone ? ' · ' + t.phone : ''}`).join('\n')} style={{ fontSize: 10.5, lineHeight: 1 }}>🎓</span>}
                     {evs.length > 0 && <span title={evs.map(e => `${catMeta(e.category).icon} ${e.title}${e.location ? ' · ' + e.location : ''}`).join('\n')} style={{ fontSize: 11, lineHeight: 1 }}>🔔</span>}
                   </span>
                 </span>
@@ -480,6 +485,22 @@ export default function RotaCalendar({ staff = [], shifts = [], claims = [], not
             <div className="serif" style={{ fontSize: 18, color: '#fff' }}>{dayName(selDate)} {selDate.slice(8)} {MONTHS[+selDate.slice(5, 7) - 1]}</div>
             <button onClick={() => setSelDate(null)} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 16, cursor: 'pointer' }}>✕</button>
           </div>
+
+          {(trialsByDate[selDate] || []).length > 0 && (
+            <div style={{ background: 'rgba(240,171,252,0.08)', border: '1px solid rgba(240,171,252,0.4)', borderRadius: 10, padding: '10px 12px' }}>
+              <div style={{ fontSize: 12.5, fontWeight: 700, color: '#F0ABFC', marginBottom: 6 }}>🎓 Trial / interview today — for the duty manager</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                {(trialsByDate[selDate] || []).map(t => (
+                  <div key={t.id} style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', fontSize: 13 }}>
+                    <span style={{ color: '#fff', fontWeight: 700 }}>{t.name}</span>
+                    <span style={{ color: '#F0ABFC', fontWeight: 700 }}>{fmtMin(t.start_min)}–{fmtMin(t.end_min)}</span>
+                    {t.phone && <a href={`tel:${t.phone}`} style={{ color: '#60A5FA', textDecoration: 'none' }}>📞 {t.phone}</a>}
+                    <span style={{ fontSize: 10.5, color: 'rgba(255,255,255,0.45)' }}>manage in 🎓 Interviews</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {eventsForDate(keyEvents, selDate).map(ev => {
             const m = catMeta(ev.category)

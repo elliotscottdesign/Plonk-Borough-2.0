@@ -1414,6 +1414,53 @@ Deno.serve(async (req) => {
     }
 
     // ── Founder: adjust / approve a person's clocked hours for a day ────────────
+    // ── Trials / interviewees (management only, secret-gated) ──────────────────
+    // People coming in for a trial/interview. NOT staff: no login, no claiming.
+    if (action === "addTrial" && isAdmin()) {
+      const name = clean(b.name); if (!name) return json({ error: "Give the interviewee a name." }, 400);
+      const { data, error } = await sb.from("trials").insert({ name, phone: clean(b.phone) || null, email: clean(b.email) || null }).select("*").single();
+      if (error) return json({ error: "Couldn't add — has the trials SQL been run? (" + error.message + ")" }, 400);
+      return json({ ok: true, trial: data });
+    }
+    if (action === "saveTrial" && isAdmin()) {
+      const patch: any = { updated_at: new Date().toISOString() };
+      for (const k of ["name", "phone", "email", "notes", "feedback"]) if (k in b) patch[k] = clean(b[k]) || null;
+      if ("status" in b && ["trial", "hired", "declined"].includes(String(b.status))) patch.status = b.status;
+      const { data, error } = await sb.from("trials").update(patch).eq("id", b.trialId).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, trial: data });
+    }
+    if (action === "removeTrial" && isAdmin()) {
+      const { error } = await sb.from("trials").delete().eq("id", b.trialId);   // cascades trial_shifts
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "uploadTrialCV" && isAdmin()) {
+      const data = String(b.data || ""); if (!data.startsWith("data:")) return json({ error: "Bad file." }, 400);
+      if (data.length > 8_000_000) return json({ error: "CV too big — keep it under ~5MB." }, 400);
+      const { error } = await sb.from("trials").update({ cv_data: data, cv_name: clean(b.cvName) || "CV", updated_at: new Date().toISOString() }).eq("id", b.trialId);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+    if (action === "getTrialCV" && isAdmin()) {
+      const { data } = await sb.from("trials").select("cv_data,cv_name").eq("id", b.trialId).maybeSingle();
+      if (!data?.cv_data) return json({ error: "No CV uploaded." }, 404);
+      return json({ ok: true, data: data.cv_data, name: data.cv_name });
+    }
+    if (action === "addTrialShift" && isAdmin()) {
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(b.date)) ? String(b.date) : "";
+      const start = parseInt(b.start_min), end = parseInt(b.end_min);
+      if (!b.trialId || !date || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) return json({ error: "Pick the day and valid times." }, 400);
+      const { data, error } = await sb.from("trial_shifts").insert({ trial_id: b.trialId, date, start_min: start, end_min: end }).select("*").single();
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true, shift: data });
+    }
+    if (action === "removeTrialShift" && isAdmin()) {
+      const { error } = await sb.from("trial_shifts").delete().eq("id", b.shiftId);
+      if (error) return json({ error: error.message }, 400);
+      return json({ ok: true });
+    }
+
     // 🤒 Mark a rostered person's day as SICK (half pay, tracked) — or clear it.
     // Stored on the claim row's status ('sick' <-> 'claimed'). Founder-gated.
     if (action === "setSick" && isAdmin()) {
@@ -1682,7 +1729,7 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
       // current week (not just today-onward) and can look back at past weeks' spend.
       const windowStart = new Date(Date.now() - 183 * 86400000).toISOString().slice(0, 10);
       const noteFrom = new Date(Date.now() - 14 * 86400000).toISOString().slice(0, 10);
-      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }, { data: availability }, { data: rulesRow }] = await Promise.all([
+      const [{ data: staff }, { data: shifts }, { data: claims }, { data: training }, { data: docs }, { data: notes }, { data: clocks }, { data: availability }, { data: rulesRow }, { data: trials }, { data: trialShifts }] = await Promise.all([
         sb.from("staff").select("*").order("name"),
         sb.from("staff_shifts").select("*").gte("date", windowStart).order("date"),
         sb.from("staff_shift_claims").select("*"),
@@ -1692,6 +1739,8 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
         sb.from("shift_clock").select("*").gte("date", windowStart),
         sb.from("staff_availability").select("staff_id,month,data"),
         sb.from("rota_rules").select("data").eq("id", 1).maybeSingle(),   // AI-rota rules (null/{} = venue defaults)
+        sb.from("trials").select("id,name,phone,email,cv_name,notes,feedback,status,created_at,updated_at").order("created_at", { ascending: false }),   // interviewees ledger (CV on demand)
+        sb.from("trial_shifts").select("*").gte("date", windowStart).order("date"),
       ]);
       const ids = new Set((shifts || []).map((s: any) => s.id));
       const rotaRules = rulesRow?.data && Object.keys(rulesRow.data).length ? rulesRow.data : null;
@@ -1699,6 +1748,8 @@ CRITICAL: when a rule covers a RANGE of days ("Mon–Fri", "weekdays", "Tue to S
         ok: true, roles: ROLES,
         staff: (staff || []).map(adminStaff),
         shifts: shifts || [],
+        trials: trials || [],
+        trialShifts: trialShifts || [],
         claims: (claims || []).filter((c: any) => ids.has(c.shift_id)),   // claims on the loaded shifts
         training: training || [],   // all completions — for per-staff progress in the admin
         docs: docs || [],           // which staff have uploaded passport / rtw
