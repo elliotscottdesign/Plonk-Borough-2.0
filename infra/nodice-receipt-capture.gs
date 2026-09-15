@@ -833,14 +833,22 @@ function sweepInvoices() {
           // an acknowledgement, the attachment's own filename does not say
           // delivery note, and the thread has not been through before.
           //
-          // Xero puts it in Bills to pay as a DRAFT with the PDF attached and
-          // the figures filled in. Nothing reaches the ledger until you approve
-          // it, and Xero flags duplicates itself. That queue is the review step
-          // every product in this space has, and it already exists.
-          GmailApp.sendEmail(CONFIG.XERO_BILLS_INBOX, blob.getName(), '', {
+          // THE FILES INBOX, NOT THE BILLS INBOX. This one word cost a month.
+          //
+          // The bills inbox makes a draft bill: the PDF is then locked inside
+          // that draft, and nothing — not the hourly sweep, not the Files API,
+          // not a person — can staple it to the bank payment it belongs to. On
+          // 15 Sep 2026 that was the sole reason 310 reconciled payments looked
+          // undocumented while every one of their invoices sat in Xero.
+          //
+          // The files inbox drops the PDF into the file store, where the sweep
+          // can find the payment it matches and attach it. Do not "improve"
+          // this back to bills to get Xero's OCR — the OCR is worth nothing if
+          // the document cannot reach the line.
+          GmailApp.sendEmail(CONFIG.XERO_FILES_INBOX, blob.getName(), '', {
             attachments: [blob], name: 'No Dice Receipt Capture',
           });
-          item.how = 'sent to Bills to pay';
+          item.how = 'sent to the file store';
 
           // Keep our own copy ONLY when the email stated a total plainly
           // enough to trust. That copy exists to attach to a bank payment
